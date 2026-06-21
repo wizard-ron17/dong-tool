@@ -266,11 +266,14 @@ async function computeProspects() {
   const allIds = new Set([...seasonBatterIds, ...selections.map(s => s.pid)]);
   const peopleInfo = await fetchPeopleInfo([...allIds]);
 
-  // Debut Bombs: rookies who've already gone deep, with which game it came in
+  // Debut Bombs: rookies who've already gone deep — bounded to the same
+  // lookback window as "just called up" so this stays about *new* call-ups,
+  // not anyone who debuted months ago and has quietly racked up 20 HRs since
+  // (at that point he's just a good rookie, not a surprise debut story).
   const debutBombs = [];
   for (const pid of seasonBatterIds) {
     const info = peopleInfo[pid];
-    if (!info?.debutDate || info.debutDate < SEASON_START) continue; // not a rookie this season
+    if (!info?.debutDate || daysSince(info.debutDate) > PROSPECT_LOOKBACK_DAYS) continue;
     if (!hrTotals[pid]) continue;
     const gameDates = Object.keys(playerAbsByDate[pid] ?? {}).sort();
     const hrGames = [];
