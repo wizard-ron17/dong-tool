@@ -663,13 +663,13 @@ function renderDayLate() {
 }
 
 // ── DUE ────────────────────────────────────────────────────────────────
-function zClass(z) { return z>=2?'hot':z>=1.5?'warm':'mild'; }
+function dueScoreClass(s) { return s>=6?'hot':s>=3?'warm':'mild'; }
 
 function renderDue() {
   const rows = dueRows;
   const metaEl=document.getElementById('due-meta');
   metaEl.textContent = rows.length
-    ? `${rows.length} power hitters overdue · z = ABs since last HR vs their usual gap · excludes anyone inactive 5+ days (injury/bench/demotion)`
+    ? `${rows.length} power hitters overdue · Due Score = z-score weighted by HR volume & sample confidence · excludes anyone inactive 5+ days (injury/bench/demotion)`
     : 'No overdue sluggers yet · z ≥ 1.0 · min 3 HR · AB/HR ≤ 30';
   if (!rows.length) {
     document.getElementById('due-content').innerHTML='<div class="empty">Nobody stands out yet — check back as the season builds HR history</div>';
@@ -686,8 +686,8 @@ function renderDue() {
       <td class="lb-num hr-col">${r.hrs}</td>
       <td class="lb-num stat-col">${r.avgGap.toFixed(0)}</td>
       <td class="lb-num stat-col">${r.droughtABs}</td>
-      <td class="lb-num stat-col">${r.stdGap.toFixed(1)}</td>
-      <td class="due-z ${zClass(r.z)}">${r.z.toFixed(1)}σ</td>
+      <td class="lb-num stat-col">${r.z.toFixed(1)}</td>
+      <td class="due-z ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</td>
       <td class="lb-last ${lastCls}">${lastTxt}</td>
     </tr>`;
   }).join('');
@@ -699,8 +699,8 @@ function renderDue() {
         <th class="r" title="Season home runs">HR</th>
         <th class="r" title="Avg ABs between their HRs">Avg AB</th>
         <th class="r" title="ABs since last HR">Now AB</th>
-        <th class="r" title="Std dev of AB gaps">σ</th>
         <th class="r" title="Standard deviations above their normal gap">Z</th>
+        <th class="r" title="Z weighted by HR volume (proven power) and number of historical gaps (confidence)">Due Score</th>
         <th class="r">Last HR</th>
       </tr></thead>
       <tbody>${tableRows}</tbody>

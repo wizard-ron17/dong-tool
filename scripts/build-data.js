@@ -168,10 +168,21 @@ function computeDueRows() {
     if (!stdGap || stdGap < 1) stdGap = Math.max(avgGap * 0.35, 1);
     const z = (droughtABs - avgGap) / stdGap;
     if (z < DUE_MIN_Z) continue;
+
+    // Raw z rewards mechanical consistency (low std dev) regardless of whether
+    // the guy is an established power threat — a 3-HR part-timer with freakishly
+    // even gaps can out-z a 25-HR slugger. dueScore weights z by HR volume (proven
+    // bopper, sqrt-scaled so it doesn't run away) and by how many historical gaps
+    // it's actually based on (2 gaps — the minimum possible here — is a guess, not
+    // a pattern).
+    const powerWeight      = Math.sqrt(hrs / DUE_MIN_HRS);
+    const confidenceWeight = Math.min(1, intervals.length / 3);
+    const dueScore = z * powerWeight * confidenceWeight;
+
     rows.push({ pid, name: playerNames[pid] || pid, team: playerTeams[pid] || '', hrs, seasonAbPerHR,
-      avgGap, droughtABs, stdGap, z, lastHR, lastAgo: daysSince(lastHR), lastGame });
+      avgGap, droughtABs, stdGap, z, dueScore, lastHR, lastAgo: daysSince(lastHR), lastGame });
   }
-  rows.sort((a,b) => b.z - a.z || b.droughtABs - a.droughtABs);
+  rows.sort((a,b) => b.dueScore - a.dueScore || b.z - a.z);
   return rows;
 }
 
