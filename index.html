@@ -431,7 +431,9 @@ function applyData(data) {
 
   disableNav(false);
   document.getElementById('search-wrap').classList.add('visible');
-  renderCurrentPanel();
+
+  const hashNav = location.hash.slice(1);
+  if (VALID_NAVS.includes(hashNav)) switchNav(hashNav); else renderCurrentPanel();
 }
 
 function showLoadError(msg) {
@@ -444,12 +446,14 @@ function showLoadError(msg) {
 }
 
 // ── Nav ────────────────────────────────────────────────────────────────
+const VALID_NAVS = ['pairs', 'stats', 'daylate', 'due', 'prospects'];
 function switchNav(nav) {
   activeNav = nav;
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.nav === nav));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('visible'));
   document.getElementById('panel-' + nav).classList.add('visible');
   renderCurrentPanel();
+  history.replaceState(null, '', '#' + nav);
 }
 function renderCurrentPanel() {
   if (activeNav === 'pairs')   _render(activePairSize);
