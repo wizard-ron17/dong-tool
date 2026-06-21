@@ -60,7 +60,7 @@
   .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
   @media (max-width: 600px) {
     nav { overflow-x: visible; }
-    .nav-btn { flex: 1; flex-shrink: 1; font-size: 0.62rem; letter-spacing: 0.02em; padding: 0.5rem 0.1rem; text-align: center; }
+    .nav-btn { flex: 1; flex-shrink: 1; font-size: 0.85rem; letter-spacing: 0.03em; padding: 0.5rem 0.2rem; text-align: center; }
   }
 
   .sub-tabs { display: flex; gap: 0.3rem; margin-bottom: 1rem; background: var(--surface0); padding: 0.25rem; border-radius: 8px; border: 1px solid var(--border); }
@@ -255,8 +255,7 @@
 
   <nav>
     <button class="nav-btn active" data-nav="pairs"   onclick="switchNav('pairs')">Pairs</button>
-    <button class="nav-btn" data-nav="totals"  onclick="switchNav('totals')"  disabled>Totals</button>
-    <button class="nav-btn" data-nav="leaders" onclick="switchNav('leaders')" disabled>Leaders</button>
+    <button class="nav-btn" data-nav="stats"   onclick="switchNav('stats')"   disabled>Stats</button>
     <button class="nav-btn" data-nav="daylate" onclick="switchNav('daylate')" disabled>Day Late</button>
     <button class="nav-btn" data-nav="due"     onclick="switchNav('due')"     disabled>Due</button>
     <button class="nav-btn" data-nav="prospects" onclick="switchNav('prospects')" disabled>Prospects</button>
@@ -278,25 +277,29 @@
     <div id="cards"><div class="empty">Loading data…</div></div>
   </div>
 
-  <!-- TOTALS -->
-  <div id="panel-totals" class="panel">
-    <div class="stat-row" id="totals-stats"></div>
-    <div class="team-filter-row">
-      <label>Team</label>
-      <select id="team-select" onchange="renderTotals()"><option value="ALL">All Teams</option></select>
+  <!-- STATS -->
+  <div id="panel-stats" class="panel">
+    <div class="sub-tabs">
+      <button class="sub-btn active" data-stats="league" onclick="switchStatsView('league')">League</button>
+      <button class="sub-btn" data-stats="individual" onclick="switchStatsView('individual')">Individual</button>
     </div>
-    <div class="chart-wrap">
-      <canvas id="hrChart" role="img" aria-label="HR per game per day line chart"></canvas>
+    <div id="stats-league">
+      <div class="stat-row" id="totals-stats"></div>
+      <div class="team-filter-row">
+        <label>Team</label>
+        <select id="team-select" onchange="renderTotals()"><option value="ALL">All Teams</option></select>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="hrChart" role="img" aria-label="HR per game per day line chart"></canvas>
+      </div>
+      <div class="chart-legend">
+        HR / GAME PER DAY · hover for game count · <span style="color:#f0c040">— 7d</span> &nbsp;<span style="color:#e07030">— 14d</span> &nbsp;<span style="color:#a060e0">— 30d</span> rolling avg
+      </div>
     </div>
-    <div class="chart-legend">
-      HR / GAME PER DAY · hover for game count · <span style="color:#f0c040">— 7d</span> &nbsp;<span style="color:#e07030">— 14d</span> &nbsp;<span style="color:#a060e0">— 30d</span> rolling avg
+    <div id="stats-individual" style="display:none">
+      <div class="result-meta" id="leaders-meta"></div>
+      <div id="leaders-content"><div class="empty">Loading data…</div></div>
     </div>
-  </div>
-
-  <!-- LEADERS -->
-  <div id="panel-leaders" class="panel">
-    <div class="result-meta" id="leaders-meta"></div>
-    <div id="leaders-content"><div class="empty">Loading data…</div></div>
   </div>
 
   <!-- DAY LATE -->
@@ -450,11 +453,21 @@ function switchNav(nav) {
 }
 function renderCurrentPanel() {
   if (activeNav === 'pairs')   _render(activePairSize);
-  if (activeNav === 'totals')  renderTotals();
-  if (activeNav === 'leaders') renderLeaders();
+  if (activeNav === 'stats')   renderStatsView();
   if (activeNav === 'daylate') renderDayLate();
   if (activeNav === 'due')     renderDue();
   if (activeNav === 'prospects') renderProspects();
+}
+let activeStatsView = 'league';
+function switchStatsView(view) {
+  activeStatsView = view;
+  document.querySelectorAll('[data-stats]').forEach(b => b.classList.toggle('active', b.dataset.stats === view));
+  document.getElementById('stats-league').style.display = view === 'league' ? '' : 'none';
+  document.getElementById('stats-individual').style.display = view === 'individual' ? '' : 'none';
+  renderStatsView();
+}
+function renderStatsView() {
+  if (activeStatsView === 'league') renderTotals(); else renderLeaders();
 }
 function disableNav(disabled) {
   document.querySelectorAll('.nav-btn, .sub-btn').forEach(b => b.disabled = disabled);
