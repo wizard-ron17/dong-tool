@@ -846,9 +846,11 @@ function prospectCard(r, isBomb) {
   const headline = isBomb
     ? `<div class="prospect-badge"><span class="prospect-hr-num">${r.hrs}</span><span class="prospect-hr-lbl">${r.hrs===1?'HR':'HRs'}</span></div>`
     : `<div class="prospect-badge"><span class="prospect-hr-lbl">No HR yet</span></div>`;
+  const milbLevelForFromTeam = r.milb?.aaa?.team===r.fromTeam ? 'AAA' : r.milb?.aa?.team===r.fromTeam ? 'AA' : '';
+  const calledUpFrom = `${milbLevelForFromTeam} ${r.fromTeam || 'the minors'}`.trim();
   const subline = isBomb
     ? `Debuted ${fmtDateLong(r.debutDate)} · <span class="first-hr">First HR: Game ${r.hrGames[0]}</span>${r.hrGames.length>1?` (+${r.hrGames.length-1} more)`:''}`
-    : `${r.status==='selected'?'Selected':'Debuted, no HR yet'} from ${r.fromTeam || '—'} · ${daysSince(r.selectedDate)}d ago`;
+    : `${r.status==='selected'?'Not Debuted Yet':`Debuted ${fmtDateLong(r.debutDate)}`} · Called Up from ${calledUpFrom} · ${daysSince(r.selectedDate)}d ago`;
   return `<div class="prospect-card">
     <div class="prospect-top">
       <img class="prospect-photo" src="${photoUrl}" alt="">

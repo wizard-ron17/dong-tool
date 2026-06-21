@@ -194,6 +194,7 @@ function computeDueRows() {
 // he's already all over ESPN for going deep in his first game.
 const PROSPECT_LOOKBACK_DAYS = 14;
 const MINOR_SPORT_IDS = { aaa: 11, aa: 12 };
+const SEASON_YEAR = SEASON_START.slice(0, 4);
 
 function chunk(arr, size) {
   const out = [];
@@ -237,12 +238,12 @@ async function fetchMinorLeaguePedigree(pid) {
     try {
       const res = await fetch(`${MLB}/people/${pid}/stats?stats=yearByYear&group=hitting&sportId=${sportId}`).then(r => r.json());
       const splits = res.stats?.[0]?.splits ?? [];
-      if (!splits.length) continue;
-      const latest = splits.slice().sort((a,b) => b.season.localeCompare(a.season))[0];
+      const thisSeason = splits.find(s => s.season === SEASON_YEAR);
+      if (!thisSeason) continue; // no current-season record at this level — stale prior-year stats aren't useful context
       pedigree[key] = {
-        season: latest.season, team: latest.team?.name ?? '',
-        games: latest.stat.gamesPlayed, hrs: latest.stat.homeRuns,
-        avg: latest.stat.avg, ops: latest.stat.ops,
+        season: thisSeason.season, team: thisSeason.team?.name ?? '',
+        games: thisSeason.stat.gamesPlayed, hrs: thisSeason.stat.homeRuns,
+        avg: thisSeason.stat.avg, ops: thisSeason.stat.ops,
       };
     } catch (e) {}
   }
