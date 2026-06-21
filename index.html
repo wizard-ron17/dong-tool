@@ -165,8 +165,37 @@
   .dl-stat-num { font-family: var(--font-d); font-size: 1.25rem; font-weight: 700; color: var(--accent); line-height: 1; display: block; }
   .dl-stat-label { font-size: 0.5rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
 
-  .scroll-hint { display: none; font-size: 0.55rem; color: var(--muted); text-align: right; margin-bottom: 0.3rem; letter-spacing: 0.08em; }
-  @media (max-width: 600px) { .scroll-hint { display: block; } }
+  .lb-view-cards { display: none; }
+  @media (max-width: 600px) {
+    .lb-view-table { display: none; }
+    .lb-view-cards { display: flex; flex-direction: column; gap: 0.5rem; }
+  }
+  .mobile-sort-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem; font-size: 0.62rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  .mobile-sort-row select { background: var(--surface1); border: 1px solid var(--border2); color: var(--text); font-family: var(--font-m); font-size: 0.68rem; padding: 0.3rem 0.5rem; border-radius: 5px; cursor: pointer; outline: none; flex: 1; }
+
+  .lbc-card { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.65rem; animation: fadeIn 0.1s ease; }
+  .lbc-top { display: flex; align-items: center; gap: 0.45rem; }
+  .lbc-rank { font-size: 0.6rem; color: var(--muted); font-weight: 700; width: 16px; text-align: center; flex-shrink: 0; }
+  .lbc-rank.gold   { color: var(--gold); }
+  .lbc-rank.silver { color: var(--silver); }
+  .lbc-rank.bronze { color: #c07840; }
+  .lbc-photo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: var(--surface2); flex-shrink: 0; }
+  .lbc-info { flex: 1; min-width: 0; }
+  .lbc-name { font-size: 0.72rem; color: #bdd0e8; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lbc-team { font-size: 0.55rem; color: var(--muted); }
+  .lbc-headline { text-align: right; flex-shrink: 0; }
+  .lbc-headline-num { font-family: var(--font-d); font-size: 1.2rem; font-weight: 700; color: var(--accent); line-height: 1; display: block; }
+  .lbc-headline-num.hot  { color: #ff7040; }
+  .lbc-headline-num.warm { color: var(--gold); }
+  .lbc-headline-num.mild { color: var(--accent); }
+  .lbc-headline-lbl { font-size: 0.46rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  .lbc-stats { display: flex; gap: 0.65rem; margin-top: 0.45rem; padding-top: 0.4rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .lbc-stat { display: flex; flex-direction: column; gap: 0.05rem; }
+  .lbc-stat-val { font-size: 0.68rem; font-weight: 700; color: var(--silver); }
+  .lbc-stat-val.recent { color: var(--green); }
+  .lbc-stat-val.warm   { color: #c0b000; }
+  .lbc-stat-val.cold   { color: var(--muted); }
+  .lbc-stat-lbl { font-size: 0.46rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
 
   footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 0.56rem; color: var(--dim); flex-wrap: wrap; gap: 0.4rem; }
   .panel { display: none; }
@@ -238,10 +267,7 @@
   <!-- LEADERS -->
   <div id="panel-leaders" class="panel">
     <div class="result-meta" id="leaders-meta"></div>
-    <p class="scroll-hint">← scroll table →</p>
-    <div class="tbl-scroll">
-      <div id="leaders-content"><div class="empty">Loading data…</div></div>
-    </div>
+    <div id="leaders-content"><div class="empty">Loading data…</div></div>
   </div>
 
   <!-- DAY LATE -->
@@ -253,10 +279,7 @@
   <!-- DUE -->
   <div id="panel-due" class="panel">
     <div class="result-meta" id="due-meta"></div>
-    <p class="scroll-hint">← scroll table →</p>
-    <div class="tbl-scroll">
-      <div id="due-content"><div class="empty">Loading data…</div></div>
-    </div>
+    <div id="due-content"><div class="empty">Loading data…</div></div>
   </div>
 
   <footer>
@@ -569,7 +592,7 @@ function renderLeaders() {
   });
 
   sortLeaders(rows);
-  document.getElementById('leaders-meta').textContent = `${rows.length} players with ≥1 HR · tap columns to sort`;
+  document.getElementById('leaders-meta').textContent = `${rows.length} players with ≥1 HR`;
 
   const rankClass = i => i===0?'gold':i===1?'silver':i===2?'bronze':'';
   const colDefs = [
@@ -603,15 +626,58 @@ function renderLeaders() {
   }).join('');
 
   const nameColCls = lbSortCol==='name' ? (lbSortDir===-1?'sort-desc':'sort-asc') : '';
+
+  const mobileSortOptions = [
+    {key:'hrs',    label:'Most HR'},
+    {key:'games',  label:'Most Games'},
+    {key:'gPerHR', label:'Best G/HR'},
+    {key:'abPerHR',label:'Best AB/HR'},
+    {key:'lastAgo',label:'Most Recent HR'},
+    {key:'name',   label:'Name'},
+  ];
+  const mobileSortHtml = mobileSortOptions.map(o =>
+    `<option value="${o.key}" ${lbSortCol===o.key?'selected':''}>${o.label}</option>`
+  ).join('');
+
+  const cardsHtml = rows.slice(0,150).map((r,i)=>{
+    const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
+    const gPerHR   = r.hrs ? (r.games/r.hrs).toFixed(1) : '—';
+    const abPerHR  = r.hrs && r.abs ? (r.abs/r.hrs).toFixed(1) : '—';
+    const lastCls  = r.lastAgo<=3?'recent':r.lastAgo<=10?'warm':'cold';
+    const lastTxt  = r.last ? `${fmtDate(r.last)} · ${r.lastAgo}d` : '—';
+    return `<div class="lbc-card">
+      <div class="lbc-top">
+        <span class="lbc-rank ${rankClass(i)}">${i+1}</span>
+        <img class="lbc-photo" src="${photoUrl}" alt="">
+        <div class="lbc-info"><div class="lbc-name">${r.name}</div><div class="lbc-team">${r.team}</div></div>
+        <div class="lbc-headline"><span class="lbc-headline-num">${r.hrs}</span><span class="lbc-headline-lbl">HR</span></div>
+      </div>
+      <div class="lbc-stats">
+        <div class="lbc-stat"><span class="lbc-stat-val">${r.games}</span><span class="lbc-stat-lbl">G</span></div>
+        <div class="lbc-stat"><span class="lbc-stat-val">${gPerHR}</span><span class="lbc-stat-lbl">G/HR</span></div>
+        <div class="lbc-stat"><span class="lbc-stat-val">${abPerHR}</span><span class="lbc-stat-lbl">AB/HR</span></div>
+        <div class="lbc-stat"><span class="lbc-stat-val ${lastCls}">${lastTxt}</span><span class="lbc-stat-lbl">Last HR</span></div>
+      </div>
+    </div>`;
+  }).join('');
+
   document.getElementById('leaders-content').innerHTML = `
-    <table class="lb-table">
-      <thead><tr>
-        <th style="width:24px"></th>
-        <th onclick="sortLb('name')" class="${nameColCls}">Player</th>
-        ${headers}
-      </tr></thead>
-      <tbody>${tableRows}</tbody>
-    </table>`;
+    <div class="lb-view-table tbl-scroll">
+      <table class="lb-table">
+        <thead><tr>
+          <th style="width:24px"></th>
+          <th onclick="sortLb('name')" class="${nameColCls}">Player</th>
+          ${headers}
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+    <div class="lb-view-cards">
+      <div class="mobile-sort-row">Sort
+        <select onchange="setLbSort(this.value)">${mobileSortHtml}</select>
+      </div>
+      ${cardsHtml}
+    </div>`;
 }
 
 function sortLeaders(rows) {
@@ -630,6 +696,7 @@ function sortLb(col) {
   } else { lbSortCol=col; lbSortDir=lbDefaultDir(col); }
   renderLeaders();
 }
+function setLbSort(col) { lbSortCol = col; lbSortDir = lbDefaultDir(col); renderLeaders(); }
 
 // ── DAY LATE ──────────────────────────────────────────────────────────
 function renderDayLate() {
@@ -683,28 +750,53 @@ function renderDue() {
     return `<tr>
       <td class="lb-rank ${rankClass(i)}">${i+1}</td>
       <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}</div><div class="lb-team">${r.team}</div></div></div></td>
+      <td class="due-z ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</td>
       <td class="lb-num hr-col">${r.hrs}</td>
       <td class="lb-num stat-col">${r.avgGap.toFixed(0)}</td>
       <td class="lb-num stat-col">${r.droughtABs}</td>
       <td class="lb-num stat-col">${r.z.toFixed(1)}</td>
-      <td class="due-z ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</td>
       <td class="lb-last ${lastCls}">${lastTxt}</td>
     </tr>`;
   }).join('');
+
+  const cardsHtml = rows.slice(0,100).map((r,i)=>{
+    const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
+    const lastCls  = r.lastAgo<=3?'recent':r.lastAgo<=10?'warm':'cold';
+    const lastTxt  = `${fmtDate(r.lastHR)} · ${r.lastAgo}d`;
+    return `<div class="lbc-card">
+      <div class="lbc-top">
+        <span class="lbc-rank ${rankClass(i)}">${i+1}</span>
+        <img class="lbc-photo" src="${photoUrl}" alt="">
+        <div class="lbc-info"><div class="lbc-name">${r.name}</div><div class="lbc-team">${r.team}</div></div>
+        <div class="lbc-headline"><span class="lbc-headline-num ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</span><span class="lbc-headline-lbl">Due Score</span></div>
+      </div>
+      <div class="lbc-stats">
+        <div class="lbc-stat"><span class="lbc-stat-val">${r.hrs}</span><span class="lbc-stat-lbl">HR</span></div>
+        <div class="lbc-stat"><span class="lbc-stat-val">${r.avgGap.toFixed(0)}</span><span class="lbc-stat-lbl">Avg AB</span></div>
+        <div class="lbc-stat"><span class="lbc-stat-val">${r.droughtABs}</span><span class="lbc-stat-lbl">Now AB</span></div>
+        <div class="lbc-stat"><span class="lbc-stat-val">${r.z.toFixed(1)}</span><span class="lbc-stat-lbl">Z</span></div>
+        <div class="lbc-stat"><span class="lbc-stat-val ${lastCls}">${lastTxt}</span><span class="lbc-stat-lbl">Last HR</span></div>
+      </div>
+    </div>`;
+  }).join('');
+
   document.getElementById('due-content').innerHTML = `
-    <table class="lb-table">
-      <thead><tr>
-        <th style="width:24px"></th>
-        <th>Player</th>
-        <th class="r" title="Season home runs">HR</th>
-        <th class="r" title="Avg ABs between their HRs">Avg AB</th>
-        <th class="r" title="ABs since last HR">Now AB</th>
-        <th class="r" title="Standard deviations above their normal gap">Z</th>
-        <th class="r" title="Z weighted by HR volume (proven power) and number of historical gaps (confidence)">Due Score</th>
-        <th class="r">Last HR</th>
-      </tr></thead>
-      <tbody>${tableRows}</tbody>
-    </table>`;
+    <div class="lb-view-table tbl-scroll">
+      <table class="lb-table">
+        <thead><tr>
+          <th style="width:24px"></th>
+          <th>Player</th>
+          <th class="r" title="Z weighted by HR volume (proven power) and number of historical gaps (confidence)">Due Score</th>
+          <th class="r" title="Season home runs">HR</th>
+          <th class="r" title="Avg ABs between their HRs">Avg AB</th>
+          <th class="r" title="ABs since last HR">Now AB</th>
+          <th class="r" title="Standard deviations above their normal gap">Z</th>
+          <th class="r">Last HR</th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+    <div class="lb-view-cards">${cardsHtml}</div>`;
 }
 
 // ── UI helpers ─────────────────────────────────────────────────────────
