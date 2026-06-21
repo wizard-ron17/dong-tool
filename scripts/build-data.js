@@ -308,12 +308,20 @@ async function computeProspects() {
   await attachPedigree(debutBombs);
   await attachPedigree(justCalledUp);
 
-  justCalledUp.sort((a,b) => {
-    const opsOf = r => parseFloat(r.milb.aaa?.ops ?? r.milb.aa?.ops ?? 0) || 0;
-    return opsOf(b) - opsOf(a);
+  // No current-season minor league record at all means there's nothing to
+  // judge the callup by — drop it rather than show an empty pedigree.
+  const justCalledUpRanked = justCalledUp.filter(r => r.milb.aaa || r.milb.aa);
+
+  // Rank by games-per-HR in AAA (fewer games per dinger = more explosive power);
+  // falls back to AA for anyone called up straight from there instead.
+  const gamesPerHR = level => (level && level.hrs) ? level.games / level.hrs : Infinity;
+  justCalledUpRanked.sort((a,b) => {
+    const aMetric = gamesPerHR(a.milb.aaa ?? a.milb.aa);
+    const bMetric = gamesPerHR(b.milb.aaa ?? b.milb.aa);
+    return aMetric - bMetric;
   });
 
-  return { justCalledUp, debutBombs };
+  return { justCalledUp: justCalledUpRanked, debutBombs };
 }
 
 async function main() {
