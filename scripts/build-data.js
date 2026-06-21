@@ -14,6 +14,7 @@ const playerTeams     = {};  // pid -> teamAbbr
 const playerABs       = {};  // pid -> atBats
 const playerGames     = {};  // pid -> gamesPlayed
 const playerLastHR    = {};  // pid -> latest date string
+const playerLastGame  = {};  // pid -> latest date they appeared in a boxscore at all (HR or not)
 const playerAbsByDate = {};  // pid -> { date -> abs that day } (dropped from output, only used to compute "Due")
 const fetchedGameIds  = new Set();
 const teamGameDays    = {};
@@ -61,6 +62,7 @@ async function fetchDay(date) {
           playerGames[pidStr] = (playerGames[pidStr]  || 0) + 1;
           playerNames[pidStr] = name;
           if (teamAbbr) playerTeams[pidStr] = teamAbbr;
+          if (!playerLastGame[pidStr] || date > playerLastGame[pidStr]) playerLastGame[pidStr] = date;
           if (!playerAbsByDate[pidStr]) playerAbsByDate[pidStr] = {};
           playerAbsByDate[pidStr][date] = (playerAbsByDate[pidStr][date] || 0) + abs;
           if (hrs < 1) continue;
@@ -116,7 +118,13 @@ function computeGroups(dHRs, size) {
 }
 
 // ── "Due" sluggers: ABs-since-last-HR vs their usual gap, as a z-score ──
+// Excludes anyone who hasn't appeared in a boxscore recently — the AB-drought
+// math has no idea about injuries/benching/demotions, so a guy on the IL just
+// freezes at whatever z-score he had instead of falling off the list. Teams
+// play almost daily (only real gap is the ~4-day All-Star break), so a multi-
+// day absence from boxscores is a strong signal he isn't actually playing.
 const DUE_MIN_HRS = 3, DUE_MIN_ABS = 40, DUE_MAX_AB_PER_HR = 30, DUE_MIN_Z = 1.0, DUE_MIN_DROUGHT_ABS = 10;
+const DUE_MAX_INACTIVE_DAYS = 5;
 
 function cumAbsThrough(pid, date) {
   const byDate = playerAbsByDate[pid];
@@ -144,6 +152,8 @@ function computeDueRows() {
     const seasonAbPerHR = abs / hrs;
     if (seasonAbPerHR > DUE_MAX_AB_PER_HR) continue;
     const lastHR = playerLastHR[pid]; if (!lastHR) continue;
+    const lastGame = playerLastGame[pid];
+    if (!lastGame || daysSince(lastGame) > DUE_MAX_INACTIVE_DAYS) continue; // likely injured/benched/demoted
     const droughtABs = abs - cumAbsThrough(pid, lastHR);
     if (droughtABs < DUE_MIN_DROUGHT_ABS) continue;
     const dates = hrDatesFor(pid), intervals = [];
@@ -159,7 +169,7 @@ function computeDueRows() {
     const z = (droughtABs - avgGap) / stdGap;
     if (z < DUE_MIN_Z) continue;
     rows.push({ pid, name: playerNames[pid] || pid, team: playerTeams[pid] || '', hrs, seasonAbPerHR,
-      avgGap, droughtABs, stdGap, z, lastHR, lastAgo: daysSince(lastHR) });
+      avgGap, droughtABs, stdGap, z, lastHR, lastAgo: daysSince(lastHR), lastGame });
   }
   rows.sort((a,b) => b.z - a.z || b.droughtABs - a.droughtABs);
   return rows;
