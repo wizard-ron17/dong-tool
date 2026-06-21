@@ -432,8 +432,7 @@ function applyData(data) {
   disableNav(false);
   document.getElementById('search-wrap').classList.add('visible');
 
-  const hashNav = location.hash.slice(1);
-  if (VALID_NAVS.includes(hashNav)) switchNav(hashNav); else renderCurrentPanel();
+  if (!applyHashState()) renderCurrentPanel();
 }
 
 function showLoadError(msg) {
@@ -447,13 +446,48 @@ function showLoadError(msg) {
 
 // ── Nav ────────────────────────────────────────────────────────────────
 const VALID_NAVS = ['pairs', 'stats', 'daylate', 'due', 'prospects'];
+const PAIR_SIZE_TO_SLUG = { 2: 'pairs', 3: 'trios', 4: 'quads' };
+const PAIR_SLUG_TO_SIZE = { pairs: 2, trios: 3, quads: 4 };
+
+// Hash format: #<tab> or #<tab>-<subview>, e.g. #stats-individual, #pairs-quads.
+function syncHash() {
+  let h = activeNav;
+  if (activeNav === 'pairs')      h += '-' + (PAIR_SIZE_TO_SLUG[activePairSize] || 'pairs');
+  if (activeNav === 'stats')      h += '-' + activeStatsView;
+  if (activeNav === 'prospects')  h += '-' + (activeProspectTab === 'debutBombs' ? 'debutbombs' : 'justcalledup');
+  history.replaceState(null, '', '#' + h);
+}
+function applyHashState() {
+  const hash = location.hash.slice(1);
+  const dashIdx = hash.indexOf('-');
+  const nav = dashIdx === -1 ? hash : hash.slice(0, dashIdx);
+  const sub = dashIdx === -1 ? '' : hash.slice(dashIdx + 1);
+  if (!VALID_NAVS.includes(nav)) return false;
+
+  if (nav === 'pairs' && PAIR_SLUG_TO_SIZE[sub]) {
+    activePairSize = PAIR_SLUG_TO_SIZE[sub];
+    document.querySelectorAll('#panel-pairs .sub-btn').forEach(b => b.classList.toggle('active', +b.dataset.size === activePairSize));
+  }
+  if (nav === 'stats' && (sub === 'league' || sub === 'individual')) {
+    activeStatsView = sub;
+    document.querySelectorAll('[data-stats]').forEach(b => b.classList.toggle('active', b.dataset.stats === sub));
+    document.getElementById('stats-league').style.display = sub === 'league' ? '' : 'none';
+    document.getElementById('stats-individual').style.display = sub === 'individual' ? '' : 'none';
+  }
+  if (nav === 'prospects' && (sub === 'justcalledup' || sub === 'debutbombs')) {
+    activeProspectTab = sub === 'debutbombs' ? 'debutBombs' : 'justCalledUp';
+  }
+
+  switchNav(nav);
+  return true;
+}
 function switchNav(nav) {
   activeNav = nav;
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.nav === nav));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('visible'));
   document.getElementById('panel-' + nav).classList.add('visible');
   renderCurrentPanel();
-  history.replaceState(null, '', '#' + nav);
+  syncHash();
 }
 function renderCurrentPanel() {
   if (activeNav === 'pairs')   _render(activePairSize);
@@ -469,6 +503,7 @@ function switchStatsView(view) {
   document.getElementById('stats-league').style.display = view === 'league' ? '' : 'none';
   document.getElementById('stats-individual').style.display = view === 'individual' ? '' : 'none';
   renderStatsView();
+  syncHash();
 }
 function renderStatsView() {
   if (activeStatsView === 'league') renderTotals(); else renderLeaders();
@@ -482,7 +517,8 @@ const RENDER_LIMIT = 200;
 
 function switchPairSize(size) {
   activePairSize = size;
-  document.querySelectorAll('.sub-btn').forEach(b => b.classList.toggle('active', +b.dataset.size === size));
+  document.querySelectorAll('#panel-pairs .sub-btn').forEach(b => b.classList.toggle('active', +b.dataset.size === size));
+  syncHash();
   if (!Object.keys(dailyHRs).length) return;
   _render(size);
 }
@@ -885,7 +921,7 @@ function prospectCard(r, isBomb) {
   </div>`;
 }
 let activeProspectTab = 'justCalledUp';
-function switchProspectTab(tab) { activeProspectTab = tab; renderProspects(); }
+function switchProspectTab(tab) { activeProspectTab = tab; renderProspects(); syncHash(); }
 function renderProspects() {
   const { justCalledUp, debutBombs } = prospects;
   document.getElementById('prospects-meta').textContent =
