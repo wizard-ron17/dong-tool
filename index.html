@@ -43,9 +43,6 @@
   #status-bar.error    .dot { background: #f05050; animation: none; }
   @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
   #status-text { color: var(--text); flex: 1; font-size: 0.68rem; }
-  #progress-bar { height: 2px; background: var(--border); border-radius: 1px; margin-top: 0.4rem; overflow: hidden; display: none; }
-  #progress-bar.visible { display: block; }
-  #progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--gold)); border-radius: 1px; transition: width 0.3s; }
 
   nav { display: flex; gap: 0; margin-bottom: 1.2rem; border-bottom: 2px solid var(--border2); overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   nav::-webkit-scrollbar { display: none; }
@@ -186,10 +183,7 @@
   <div id="status-bar">
     <div class="dot"></div>
     <span id="status-text">Loading…</span>
-    <div style="margin-left:auto;font-size:0.63rem;color:var(--muted)" id="progress-label"></div>
-    <button id="stop-btn" onclick="stopFetch()" style="display:none;background:var(--surface2);border:1px solid var(--border2);color:var(--muted);font-family:var(--font-m);font-size:0.63rem;padding:0.18rem 0.5rem;border-radius:4px;cursor:pointer;">STOP</button>
   </div>
-  <div id="progress-bar"><div id="progress-fill"></div></div>
 
   <nav>
     <button class="nav-btn active" data-nav="pairs"   onclick="switchNav('pairs')">Pairs</button>
@@ -212,7 +206,7 @@
       <div class="search-tags" id="search-tags"></div>
     </div>
     <div class="result-meta" id="pairs-meta"></div>
-    <div id="cards"><div class="empty">Fetch data to see results</div></div>
+    <div id="cards"><div class="empty">Loading data…</div></div>
   </div>
 
   <!-- TOTALS -->
@@ -235,14 +229,14 @@
     <div class="result-meta" id="leaders-meta"></div>
     <p class="scroll-hint">← scroll table →</p>
     <div class="tbl-scroll">
-      <div id="leaders-content"><div class="empty">Fetch data to see results</div></div>
+      <div id="leaders-content"><div class="empty">Loading data…</div></div>
     </div>
   </div>
 
   <!-- DAY LATE -->
   <div id="panel-daylate" class="panel">
     <div class="result-meta" id="dl-meta"></div>
-    <div id="dl-content"><div class="empty">Fetch data to see results</div></div>
+    <div id="dl-content"><div class="empty">Loading data…</div></div>
   </div>
 
   <!-- DUE -->
@@ -250,7 +244,7 @@
     <div class="result-meta" id="due-meta"></div>
     <p class="scroll-hint">← scroll table →</p>
     <div class="tbl-scroll">
-      <div id="due-content"><div class="empty">Fetch data to see results</div></div>
+      <div id="due-content"><div class="empty">Loading data…</div></div>
     </div>
   </div>
 
@@ -262,60 +256,30 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
-const MLB          = 'https://statsapi.mlb.com/api/v1';
-const SEASON_START = '2026-03-26';
+// All data below is precomputed by scripts/build-data.js (run on a schedule via
+// GitHub Actions) and shipped as data.json. The browser only fetches + renders —
+// no MLB API calls and no combinatorics happen on the client anymore.
 
-// All player dicts keyed by MLB player ID (string)
-let dailyHRs        = {};  // date -> { pid -> hrCount }
-let dailyGames      = {};  // date -> gameCount
-let hrTotals        = {};  // pid -> total HRs
-let playerNames     = {};  // pid -> fullName
-let playerTeams     = {};  // pid -> teamAbbr
-let playerABs       = {};  // pid -> atBats
-let playerGames     = {};  // pid -> gamesPlayed
-let playerLastHR    = {};  // pid -> latest date string
-let playerAbsByDate = {};  // pid -> { date -> abs that day }
-let groupCache      = {};
-let fetchedGameIds  = new Set();
-let teamGameDays    = {};
+let dailyHRs     = {};  // date -> { pid -> hrCount }
+let dailyGames   = {};  // date -> gameCount
+let hrTotals     = {};  // pid -> total HRs
+let playerNames  = {};  // pid -> fullName
+let playerTeams  = {};  // pid -> teamAbbr
+let playerABs    = {};  // pid -> atBats
+let playerGames  = {};  // pid -> gamesPlayed
+let playerLastHR = {};  // pid -> latest date string
+let teamGameDays = {};
+let groups       = {};  // size -> [{pids, count, dates}], pre-filtered & sorted
+let dueRows      = [];
 
 let activeNav      = 'pairs';
 let activePairSize = 2;
-let abort          = false;
 let hrChart        = null;
 let lbSortCol      = null;
 let lbSortDir      = -1;
 let activeTerms    = [];
-let dueRowsCache   = null;
-
-// ── Crash-loop guard ───────────────────────────────────────────────────
-// iOS kills the tab mid-fetch and Safari reloads it, firing DOMContentLoaded
-// again → another fetch → another crash. sessionStorage flag breaks the loop.
-const FETCH_FLAG = 'gmg_fetching';
-function wasKilledMidFetch() { return sessionStorage.getItem(FETCH_FLAG) === '1'; }
-function markFetchStart()    { sessionStorage.setItem(FETCH_FLAG, '1'); }
-function markFetchDone()     { sessionStorage.removeItem(FETCH_FLAG); }
-
-function showManualLoadButton(msg) {
-  setStatus('error', msg);
-  document.getElementById('cards').innerHTML = `
-    <div class="empty" style="padding:2rem 1rem;">
-      <div style="margin-bottom:1rem;font-size:0.8rem;color:var(--silver);">${msg}</div>
-      <button onclick="manualFetch()" style="background:var(--accent);color:#fff;border:none;font-family:var(--font-d);font-size:1.1rem;font-weight:700;padding:0.5rem 1.4rem;border-radius:6px;cursor:pointer;">Load Data</button>
-    </div>`;
-}
-function manualFetch() {
-  markFetchDone();
-  document.getElementById('cards').innerHTML = '<div class="empty">Fetch data to see results</div>';
-  fetchAll();
-}
 
 // ── Helpers ────────────────────────────────────────────────────────────
-function dateRange(start, end) {
-  const dates = [], cur = new Date(start + 'T12:00:00Z'), last = new Date(end + 'T12:00:00Z');
-  while (cur <= last) { dates.push(cur.toISOString().split('T')[0]); cur.setUTCDate(cur.getUTCDate() + 1); }
-  return dates;
-}
 function fmtDate(d) {
   const [,m,day] = d.split('-');
   return ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m] + ' ' + +day;
@@ -335,7 +299,14 @@ function yesterday() {
 function isMob() {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 600;
 }
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function timeAgo(iso) {
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1)  return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.round(hrs / 24)}d ago`;
+}
 
 // ── Search ─────────────────────────────────────────────────────────────
 function onSearchInput() {
@@ -362,134 +333,31 @@ function removeTag(idx) {
   input.focus();
 }
 
-// ── Worker + serialized queue ──────────────────────────────────────────
-const WORKER_BODY = `
-self.onmessage = function({data: {dailyHRs, size}}) {
-  const allPids = new Set();
-  for (const day of Object.values(dailyHRs))
-    for (const pid of Object.keys(day)) allPids.add(pid);
-  const pidList = [...allPids], pidToIdx = {};
-  pidList.forEach((p,i) => pidToIdx[p] = i);
-  const pdc = {};
-  for (const day of Object.values(dailyHRs))
-    for (const pid of Object.keys(day))
-      pdc[pid] = (pdc[pid] || 0) + 1;
-  const minDays = size >= 4 ? 3 : size >= 3 ? 2 : 1, counts = {};
-  for (const [date, day] of Object.entries(dailyHRs)) {
-    const ids = Object.keys(day).filter(p=>pdc[p]>=minDays).map(p=>pidToIdx[p]).sort((a,b)=>a-b);
-    if (ids.length < size) continue;
-    const n = ids.length, idx = Array.from({length:size},(_,i)=>i);
-    while (true) {
-      const key = idx.map(i=>pidList[ids[i]]).join(',');
-      if (!counts[key]) counts[key]=[];
-      counts[key].push(date);
-      let i=size-1; while(i>=0&&idx[i]===i+n-size)i--; if(i<0)break;
-      idx[i]++; for(let j=i+1;j<size;j++)idx[j]=idx[j-1]+1;
-    }
+// ── Load ───────────────────────────────────────────────────────────────
+async function loadData() {
+  setStatus('fetching', 'Loading data…');
+  try {
+    const res = await fetch('data.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    applyData(await res.json());
+  } catch (e) {
+    showLoadError(`Couldn't load data: ${e.message}`);
   }
-  const result = Object.entries(counts)
-    .map(([key,dates])=>({pids:key.split(','),count:dates.length,dates:dates.sort()}))
-    .sort((a,b)=>b.count-a.count||b.dates[b.dates.length-1].localeCompare(a.dates[a.dates.length-1]));
-  self.postMessage(result);
-};`;
-
-function computeGroupsSync(dHRs, size) {
-  const allPids = new Set();
-  for (const day of Object.values(dHRs)) for (const pid of Object.keys(day)) allPids.add(pid);
-  const pidList = [...allPids], pidToIdx = {};
-  pidList.forEach((p,i) => pidToIdx[p] = i);
-  const pdc = {};
-  for (const day of Object.values(dHRs)) for (const pid of Object.keys(day)) pdc[pid] = (pdc[pid]||0)+1;
-  const minDays = size >= 4 ? 3 : size >= 3 ? 2 : 1, counts = {};
-  for (const [date, day] of Object.entries(dHRs)) {
-    const ids = Object.keys(day).filter(p=>pdc[p]>=minDays).map(p=>pidToIdx[p]).sort((a,b)=>a-b);
-    if (ids.length < size) continue;
-    const n = ids.length, idx = Array.from({length:size},(_,i)=>i);
-    while (true) {
-      const key = idx.map(i=>pidList[ids[i]]).join(',');
-      if (!counts[key]) counts[key]=[];
-      counts[key].push(date);
-      let i=size-1; while(i>=0&&idx[i]===i+n-size)i--; if(i<0)break;
-      idx[i]++; for(let j=i+1;j<size;j++)idx[j]=idx[j-1]+1;
-    }
-  }
-  return Object.entries(counts)
-    .map(([key,dates])=>({pids:key.split(','),count:dates.length,dates:dates.sort()}))
-    .sort((a,b)=>b.count-a.count||b.dates[b.dates.length-1].localeCompare(a.dates[a.dates.length-1]));
 }
 
-let workerBlobUrl = null;
-function getWorkerUrl() {
-  if (!workerBlobUrl) {
-    try { workerBlobUrl = URL.createObjectURL(new Blob([WORKER_BODY],{type:'application/javascript'})); } catch(e){ return null; }
-  }
-  return workerBlobUrl;
-}
-function runCompute(dHRs, size) {
-  return new Promise(resolve => {
-    const url = getWorkerUrl();
-    if (!url) { resolve(computeGroupsSync(dHRs, size)); return; }
-    try {
-      const w = new Worker(url);
-      const timer = setTimeout(() => { try{w.terminate()}catch(e){} resolve(computeGroupsSync(dHRs, size)); }, 30000);
-      w.onmessage = e => { clearTimeout(timer); try{w.terminate()}catch(e){} resolve(e.data); };
-      w.onerror   = ()  => { clearTimeout(timer); try{w.terminate()}catch(e){} resolve(computeGroupsSync(dHRs, size)); };
-      w.postMessage({dailyHRs: dHRs, size});
-    } catch(e) { resolve(computeGroupsSync(dHRs, size)); }
-  });
-}
+function applyData(data) {
+  dailyHRs = data.dailyHRs; dailyGames = data.dailyGames; hrTotals = data.hrTotals;
+  playerNames = data.playerNames; playerTeams = data.playerTeams; playerABs = data.playerABs;
+  playerGames = data.playerGames; playerLastHR = data.playerLastHR; teamGameDays = data.teamGameDays;
+  groups = data.groups; dueRows = data.dueRows;
 
-let computeQueue = Promise.resolve();
-function queueCompute(size) {
-  computeQueue = computeQueue.then(async () => {
-    if (!groupCache[size]) groupCache[size] = await runCompute(dailyHRs, size);
-  });
-  return computeQueue;
-}
+  setStatus('ready', `${data.daysWithData} game days · ${data.totalHRCount} HRs loaded`);
 
-// ── Fetch ──────────────────────────────────────────────────────────────
-async function fetchAll() {
-  abort = false;
-  dailyHRs={}; dailyGames={}; hrTotals={}; playerNames={}; playerTeams={};
-  playerABs={}; playerGames={}; playerLastHR={}; playerAbsByDate={};
-  groupCache={}; fetchedGameIds=new Set(); teamGameDays={}; dueRowsCache=null;
-  computeQueue = Promise.resolve();
-  disableNav(true);
-
-  const to    = new Date().toISOString().split('T')[0];
-  const dates = dateRange(SEASON_START, to);
-
-  setStatus('fetching', 'Fetching schedule…');
-  document.getElementById('progress-bar').classList.add('visible');
-  document.getElementById('stop-btn').style.display = '';
-  markFetchStart();
-
-  const BATCH = isMob() ? 3 : 6;
-  const PAUSE = isMob() ? 80  : 40;
-
-  for (let i = 0; i < dates.length; i += BATCH) {
-    if (abort) break;
-    const batch = dates.slice(i, i + BATCH);
-    setStatus('fetching', `Fetching ${fmtDate(batch[0])}…`);
-    await Promise.all(batch.map(d => fetchDay(d).catch(() => {})));
-    setProgress(Math.min(i + BATCH, dates.length), dates.length);
-    if (i + BATCH < dates.length) await sleep(PAUSE);
-  }
-
-  markFetchDone();
-  document.getElementById('stop-btn').style.display = 'none';
-  document.getElementById('progress-bar').classList.remove('visible');
-
-  const daysWithData  = Object.keys(dailyHRs).length;
-  const totalHRCount  = Object.values(hrTotals).reduce((a,b)=>a+b,0);
-  setStatus('ready', `${daysWithData} game days · ${totalHRCount} HRs loaded`);
-
-  const allDates = Object.keys(dailyHRs).sort();
-  if (allDates.length) {
+  if (data.dateRangeStart) {
     document.getElementById('meta-row').innerHTML = `
-      <span>📅 ${fmtDate(allDates[0])} – ${fmtDate(allDates[allDates.length-1])}</span>
-      <span>⚾ ${totalHRCount} HRs</span>
-      <span>📆 ${daysWithData} game days</span>`;
+      <span>📅 ${fmtDate(data.dateRangeStart)} – ${fmtDate(data.dateRangeEnd)}</span>
+      <span>⚾ ${data.totalHRCount} HRs</span>
+      <span>📆 ${data.daysWithData} game days</span>`;
   }
 
   const teams = [...new Set(Object.values(playerTeams))].sort();
@@ -497,70 +365,20 @@ async function fetchAll() {
   sel.innerHTML = '<option value="ALL">All Teams</option>' + teams.map(t=>`<option value="${t}">${t}</option>`).join('');
 
   disableNav(false);
-
-  // Free playerAbsByDate before heavy compute: prune to HR hitters only, cache Due results, then wipe
-  for (const pid of Object.keys(playerAbsByDate)) {
-    if (!hrTotals[pid]) delete playerAbsByDate[pid];
-  }
-  dueRowsCache = computeDueRows();
-  playerAbsByDate = {};
-
-  await queueCompute(activePairSize);
+  document.getElementById('search-wrap').classList.add('visible');
   renderCurrentPanel();
-  // On mobile skip quads precompute to save memory; compute on demand
-  if (!isMob()) {
-    queueCompute(activePairSize === 2 ? 3 : 2).then(() => queueCompute(4));
-  } else {
-    queueCompute(activePairSize === 2 ? 3 : 2);
-  }
+
+  document.getElementById('footer-right').textContent = `Data updated ${timeAgo(data.generatedAt)}`;
 }
 
-async function fetchDay(date) {
-  const sched = await fetch(`${MLB}/schedule?sportId=1&date=${date}&gameType=R`).then(r=>r.json());
-  const games = sched.dates?.[0]?.games ?? [];
-  const finalGames = games.filter(g => g.status?.abstractGameState === 'Final' && !fetchedGameIds.has(g.gamePk));
-  const ids = finalGames.map(g => g.gamePk);
-  ids.forEach(id => fetchedGameIds.add(id));
-  if (!ids.length) return;
-  dailyGames[date] = (dailyGames[date] || 0) + ids.length;
-
-  await Promise.all(ids.map(async id => {
-    try {
-      const box = await fetch(`${MLB}/game/${id}/boxscore`).then(r=>r.json());
-      for (const side of ['home','away']) {
-        const t = box.teams?.[side] ?? {};
-        const teamAbbr = t.team?.abbreviation ?? '';
-        const batters  = t.batters ?? [];
-        const players  = t.players ?? {};
-        if (teamAbbr) {
-          if (!teamGameDays[teamAbbr]) teamGameDays[teamAbbr] = {};
-          teamGameDays[teamAbbr][date] = (teamGameDays[teamAbbr][date] || 0) + 1;
-        }
-        for (const pid of batters) {
-          const p = players[`ID${pid}`];
-          if (!p) continue;
-          const hrs    = p?.stats?.batting?.homeRuns ?? 0;
-          const abs    = p?.stats?.batting?.atBats   ?? 0;
-          const name   = p.person?.fullName ?? `ID${pid}`;
-          const pidStr = String(pid);
-          playerABs[pidStr]   = (playerABs[pidStr]   || 0) + abs;
-          playerGames[pidStr] = (playerGames[pidStr]  || 0) + 1;
-          playerNames[pidStr] = name;
-          if (teamAbbr) playerTeams[pidStr] = teamAbbr;
-          if (!playerAbsByDate[pidStr]) playerAbsByDate[pidStr] = {};
-          playerAbsByDate[pidStr][date] = (playerAbsByDate[pidStr][date] || 0) + abs;
-          if (hrs < 1) continue;
-          if (!dailyHRs[date]) dailyHRs[date] = {};
-          dailyHRs[date][pidStr] = (dailyHRs[date][pidStr] || 0) + hrs;
-          hrTotals[pidStr] = (hrTotals[pidStr] || 0) + hrs;
-          if (!playerLastHR[pidStr] || date > playerLastHR[pidStr]) playerLastHR[pidStr] = date;
-        }
-      }
-    } catch(e) {}
-  }));
+function showLoadError(msg) {
+  setStatus('error', msg);
+  document.getElementById('cards').innerHTML = `
+    <div class="empty" style="padding:2rem 1rem;">
+      <div style="margin-bottom:1rem;font-size:0.8rem;color:var(--silver);">${msg}</div>
+      <button onclick="loadData()" style="background:var(--accent);color:#fff;border:none;font-family:var(--font-d);font-size:1.1rem;font-weight:700;padding:0.5rem 1.4rem;border-radius:6px;cursor:pointer;">Retry</button>
+    </div>`;
 }
-
-function stopFetch() { abort = true; markFetchDone(); }
 
 // ── Nav ────────────────────────────────────────────────────────────────
 function switchNav(nav) {
@@ -571,7 +389,7 @@ function switchNav(nav) {
   renderCurrentPanel();
 }
 function renderCurrentPanel() {
-  if (activeNav === 'pairs')   buildAndRender(activePairSize);
+  if (activeNav === 'pairs')   _render(activePairSize);
   if (activeNav === 'totals')  renderTotals();
   if (activeNav === 'leaders') renderLeaders();
   if (activeNav === 'daylate') renderDayLate();
@@ -584,64 +402,46 @@ function disableNav(disabled) {
 // ── PAIRS ──────────────────────────────────────────────────────────────
 const RENDER_LIMIT = 200;
 
-async function buildAndRender(size) {
-  if (!Object.keys(dailyHRs).length) return;
-  if (groupCache[size]) { _render(size); return; }
-  document.getElementById('cards').innerHTML = '<div class="spinner-wrap"><div class="spinner"></div><span class="spinner-label">Computing…</span></div>';
-  await queueCompute(size);
-  if (activePairSize === size && activeNav === 'pairs') _render(size);
-}
 function switchPairSize(size) {
   activePairSize = size;
   document.querySelectorAll('.sub-btn').forEach(b => b.classList.toggle('active', +b.dataset.size === size));
   if (!Object.keys(dailyHRs).length) return;
-  if (size === 4 && isMob() && !groupCache[4]) {
-    document.getElementById('cards').innerHTML = `
-      <div class="empty" style="padding:2rem 1rem;">
-        <div style="margin-bottom:1rem;font-size:0.75rem;color:var(--silver);">Quads computation is memory-intensive on mobile and may be slow.</div>
-        <button onclick="forceComputeQuads()" style="background:var(--accent);color:#fff;border:none;font-family:var(--font-d);font-size:1.1rem;font-weight:700;padding:0.5rem 1.4rem;border-radius:6px;cursor:pointer;">Compute Quads</button>
-      </div>`;
-    return;
-  }
-  buildAndRender(size);
+  _render(size);
 }
-function forceComputeQuads() { buildAndRender(4); }
 
 function _render(size) {
-  const all       = groupCache[size] ?? [];
+  // groups[size] is already filtered & sorted server-side (≥3 occurrences for
+  // pairs, ≥2 for trios/quads) — one-off coincidences are dropped before they
+  // ever reach the browser.
+  let groupList = groups[size] ?? [];
   const sizeNames = { 2:'pairs', 3:'trios', 4:'quads' };
-  const minCount  = size === 2 ? 3 : 1;
 
-  let groups = all.filter(item => item.count >= minCount);
   if (activeTerms.length) {
-    groups = groups.filter(item => {
+    groupList = groupList.filter(item => {
       const ns = item.pids.map(pid => (playerNames[pid]||'').toLowerCase());
       return activeTerms.every(term => ns.some(n => n.includes(term)));
     });
   }
 
-  const maxCount = groups[0]?.count ?? 0;
-  const shown    = Math.min(groups.length, RENDER_LIMIT);
+  const maxCount = groupList[0]?.count ?? 0;
   const termDesc = activeTerms.length > 1
     ? `filtering for: ${activeTerms.join(' + ')}`
     : activeTerms.length === 1 ? `filtering for: ${activeTerms[0]}` : '';
 
   document.getElementById('pairs-meta').textContent =
-    `${groups.length.toLocaleString()} unique ${sizeNames[size]}` +
-    (size === 2 ? ' · min 3 occurrences' : '') +
+    `${groupList.length.toLocaleString()} unique ${sizeNames[size]}` +
+    (size === 2 ? ' · min 3 occurrences' : ' · min 2 occurrences') +
     (termDesc ? ` · ${termDesc}` : '') +
-    (groups.length > RENDER_LIMIT ? ` · showing top ${RENDER_LIMIT}` : '');
-
-  if (Object.keys(dailyHRs).length) document.getElementById('search-wrap').classList.add('visible');
+    (groupList.length > RENDER_LIMIT ? ` · showing top ${RENDER_LIMIT}` : '');
 
   const container = document.getElementById('cards');
-  if (!groups.length) {
+  if (!groupList.length) {
     container.innerHTML = `<div class="empty">${activeTerms.length ? 'No groups found containing: '+activeTerms.join(' + ') : 'No co-occurrences found'}</div>`;
     return;
   }
 
   const frag = document.createDocumentFragment();
-  groups.slice(0, RENDER_LIMIT).forEach((item, i) => {
+  groupList.slice(0, RENDER_LIMIT).forEach((item, i) => {
     const isTop  = item.count === maxCount;
     const isHigh = !isTop && i < 4;
     const since  = daysSince(item.dates[item.dates.length - 1]);
@@ -677,7 +477,6 @@ function _render(size) {
   });
   container.innerHTML = '';
   container.appendChild(frag);
-  document.getElementById('footer-right').textContent = `${groups.length.toLocaleString()} groups · top ${shown}`;
 }
 
 // ── TOTALS ─────────────────────────────────────────────────────────────
@@ -863,59 +662,10 @@ function renderDayLate() {
 }
 
 // ── DUE ────────────────────────────────────────────────────────────────
-const DUE_MIN_HRS=3, DUE_MIN_ABS=40, DUE_MAX_AB_PER_HR=30, DUE_MIN_Z=1.0, DUE_MIN_DROUGHT_ABS=10;
-
-function cumAbsThrough(pid, date) {
-  const byDate = playerAbsByDate[pid];
-  if (!byDate) return 0;
-  let sum=0;
-  for (const d of Object.keys(byDate)) { if (d<=date) sum+=byDate[d]; }
-  return sum;
-}
-function hrDatesFor(pid) {
-  const dates=[];
-  for (const [date,day] of Object.entries(dailyHRs)) { if (day[pid]) dates.push(date); }
-  return dates.sort();
-}
-function avg(arr)     { return arr.reduce((a,b)=>a+b,0)/arr.length; }
-function sampleStd(arr) {
-  if (arr.length<2) return null;
-  const m=avg(arr); return Math.sqrt(arr.reduce((s,x)=>s+(x-m)**2,0)/(arr.length-1));
-}
 function zClass(z) { return z>=2?'hot':z>=1.5?'warm':'mild'; }
 
-function computeDueRows() {
-  const rows=[];
-  for (const pid of Object.keys(hrTotals)) {
-    const hrs=hrTotals[pid], abs=playerABs[pid]||0;
-    if (hrs<DUE_MIN_HRS || abs<DUE_MIN_ABS) continue;
-    const seasonAbPerHR=abs/hrs;
-    if (seasonAbPerHR>DUE_MAX_AB_PER_HR) continue;
-    const lastHR=playerLastHR[pid]; if (!lastHR) continue;
-    const droughtABs=abs-cumAbsThrough(pid,lastHR);
-    if (droughtABs<DUE_MIN_DROUGHT_ABS) continue;
-    const dates=hrDatesFor(pid), intervals=[];
-    for (let i=1; i<dates.length; i++) {
-      const gap=cumAbsThrough(pid,dates[i])-cumAbsThrough(pid,dates[i-1]);
-      if (gap>0) intervals.push(gap);
-    }
-    let avgGap, stdGap;
-    if (intervals.length>=2)      { avgGap=avg(intervals); stdGap=sampleStd(intervals); }
-    else if (intervals.length===1) { avgGap=(intervals[0]+seasonAbPerHR)/2; stdGap=avgGap*0.35; }
-    else                           { avgGap=seasonAbPerHR; stdGap=seasonAbPerHR*0.35; }
-    if (!stdGap||stdGap<1) stdGap=Math.max(avgGap*0.35,1);
-    const z=(droughtABs-avgGap)/stdGap;
-    if (z<DUE_MIN_Z) continue;
-    rows.push({pid,name:playerNames[pid]||pid,team:playerTeams[pid]||'',hrs,seasonAbPerHR,avgGap,droughtABs,stdGap,z,lastHR,lastAgo:daysSince(lastHR)});
-  }
-  rows.sort((a,b)=>b.z-a.z||b.droughtABs-a.droughtABs);
-  return rows;
-}
-
 function renderDue() {
-  const pids=Object.keys(hrTotals);
-  if (!pids.length) return;
-  const rows = dueRowsCache ?? computeDueRows();
+  const rows = dueRows;
   const metaEl=document.getElementById('due-meta');
   metaEl.textContent = rows.length
     ? `${rows.length} power hitters overdue · z = ABs since last HR vs their usual gap`
@@ -958,16 +708,9 @@ function renderDue() {
 
 // ── UI helpers ─────────────────────────────────────────────────────────
 function setStatus(type,msg) { document.getElementById('status-bar').className=type; document.getElementById('status-text').textContent=msg; }
-function setProgress(done,total) { const pct=total?Math.round(done/total*100):0; document.getElementById('progress-fill').style.width=pct+'%'; document.getElementById('progress-label').textContent=`${done}/${total} (${pct}%)`; }
 
 // ── Boot ───────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  if (wasKilledMidFetch()) {
-    showManualLoadButton('Previous load was interrupted. Tap to try again.');
-  } else {
-    fetchAll();
-  }
-});
+document.addEventListener('DOMContentLoaded', loadData);
 </script>
 </body>
 </html>
