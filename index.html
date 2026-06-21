@@ -36,11 +36,14 @@
   h1 em { color: var(--accent); font-style: normal; }
   .meta-row { display: flex; flex-wrap: wrap; gap: 0.8rem; font-size: 0.68rem; color: var(--muted); }
 
-  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex-shrink: 0; animation: pulse 2s infinite; cursor: help; }
+  .status-wrap { position: relative; display: inline-flex; align-items: center; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex-shrink: 0; animation: pulse 2s infinite; cursor: pointer; }
   .status-dot.fetching { background: var(--gold); }
   .status-dot.ready    { background: var(--green); animation: none; }
   .status-dot.error    { background: #f05050; animation: none; }
   @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
+  .status-tip { position: absolute; top: 140%; left: 0; background: var(--surface2); border: 1px solid var(--border2); color: var(--text); font-size: 0.62rem; letter-spacing: normal; text-transform: none; padding: 0.4rem 0.6rem; border-radius: 6px; white-space: nowrap; z-index: 10; box-shadow: 0 4px 14px rgba(0,0,0,0.45); display: none; }
+  .status-wrap:hover .status-tip, .status-wrap.show .status-tip { display: block; }
 
   nav { display: flex; gap: 0; margin-bottom: 1.2rem; border-bottom: 2px solid var(--border2); overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   nav::-webkit-scrollbar { display: none; }
@@ -173,7 +176,12 @@
 <div class="wrap">
 
   <header>
-    <p class="eyebrow">MLB · 2026 · Stats API <span id="status-dot" class="status-dot" title="Loading…"></span></p>
+    <p class="eyebrow">MLB · 2026 · Stats API
+      <span class="status-wrap" id="status-wrap" onclick="toggleStatusTip(event)">
+        <span id="status-dot" class="status-dot"></span>
+        <span class="status-tip" id="status-tip">Loading…</span>
+      </span>
+    </p>
     <h1>Ron's <em>GreenMeansGo</em> Tool</h1>
     <div class="meta-row" id="meta-row"><span>Which dudes dong on the same day?</span></div>
   </header>
@@ -700,7 +708,15 @@ function renderDue() {
 }
 
 // ── UI helpers ─────────────────────────────────────────────────────────
-function setStatus(type,msg) { const dot=document.getElementById('status-dot'); dot.className='status-dot '+type; dot.title=msg; }
+function setStatus(type,msg) {
+  document.getElementById('status-dot').className = 'status-dot ' + type;
+  document.getElementById('status-tip').textContent = msg;
+}
+function toggleStatusTip(e) {
+  e.stopPropagation();
+  document.getElementById('status-wrap').classList.toggle('show');
+}
+document.addEventListener('click', () => document.getElementById('status-wrap').classList.remove('show'));
 
 // ── Boot ───────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', loadData);
