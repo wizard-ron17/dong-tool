@@ -203,6 +203,24 @@
   .lbc-stat-val.cold   { color: var(--muted); }
   .lbc-stat-lbl { font-size: 0.46rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
 
+  .section-label { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; margin: 1rem 0 0.5rem; }
+  .section-label:first-child { margin-top: 0; }
+  .prospect-grid { display: flex; flex-direction: column; gap: 0.5rem; }
+  .prospect-card { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.85rem; animation: fadeIn 0.15s ease; }
+  .prospect-top { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.5rem; }
+  .prospect-photo { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: var(--surface2); flex-shrink: 0; }
+  .prospect-info { flex: 1; min-width: 0; }
+  .prospect-name { font-size: 0.82rem; color: #fff; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prospect-team { font-size: 0.6rem; color: var(--muted); }
+  .prospect-badge { flex-shrink: 0; text-align: right; }
+  .prospect-hr-num { font-family: var(--font-d); font-size: 1.5rem; font-weight: 700; color: var(--accent); line-height: 1; display: block; }
+  .prospect-hr-lbl { font-size: 0.5rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  .prospect-meta { font-size: 0.66rem; color: var(--silver); margin-bottom: 0.5rem; }
+  .prospect-meta .first-hr { color: var(--green); font-weight: 700; }
+  .prospect-milb { display: flex; gap: 1rem; flex-wrap: wrap; padding-top: 0.5rem; border-top: 1px solid var(--border); }
+  .milb-line { font-size: 0.62rem; color: var(--muted); }
+  .milb-line .lvl { color: var(--silver); font-weight: 700; }
+
   footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 0.56rem; color: var(--dim); flex-wrap: wrap; gap: 0.4rem; }
   .panel { display: none; }
   .panel.visible { display: block; }
@@ -237,6 +255,7 @@
     <button class="nav-btn" data-nav="leaders" onclick="switchNav('leaders')" disabled>Leaders</button>
     <button class="nav-btn" data-nav="daylate" onclick="switchNav('daylate')" disabled>Day Late</button>
     <button class="nav-btn" data-nav="due"     onclick="switchNav('due')"     disabled>Due</button>
+    <button class="nav-btn" data-nav="prospects" onclick="switchNav('prospects')" disabled>Prospects</button>
   </nav>
 
   <!-- PAIRS -->
@@ -288,6 +307,12 @@
     <div id="due-content"><div class="empty">Loading data…</div></div>
   </div>
 
+  <!-- PROSPECTS -->
+  <div id="panel-prospects" class="panel">
+    <div class="result-meta" id="prospects-meta"></div>
+    <div id="prospects-content"><div class="empty">Loading data…</div></div>
+  </div>
+
   <footer>
     <span>Source: MLB Stats API (statsapi.mlb.com)</span>
   </footer>
@@ -310,6 +335,7 @@ let playerLastHR = {};  // pid -> latest date string
 let teamGameDays = {};
 let groups       = {};  // size -> [{pids, count, dates}], pre-filtered & sorted
 let dueRows      = [];
+let prospects    = { justCalledUp: [], debutBombs: [] };
 
 let activeNav      = 'pairs';
 let activePairSize = 2;
@@ -388,7 +414,7 @@ function applyData(data) {
   dailyHRs = data.dailyHRs; dailyGames = data.dailyGames; hrTotals = data.hrTotals;
   playerNames = data.playerNames; playerTeams = data.playerTeams; playerABs = data.playerABs;
   playerGames = data.playerGames; playerLastHR = data.playerLastHR; teamGameDays = data.teamGameDays;
-  groups = data.groups; dueRows = data.dueRows;
+  groups = data.groups; dueRows = data.dueRows; prospects = data.prospects ?? prospects;
 
   setStatus('ready', `${data.daysWithData}d · ${data.totalHRCount} HR · upd ${timeAgo(data.generatedAt)}`);
 
@@ -424,6 +450,7 @@ function renderCurrentPanel() {
   if (activeNav === 'leaders') renderLeaders();
   if (activeNav === 'daylate') renderDayLate();
   if (activeNav === 'due')     renderDue();
+  if (activeNav === 'prospects') renderProspects();
 }
 function disableNav(disabled) {
   document.querySelectorAll('.nav-btn, .sub-btn').forEach(b => b.disabled = disabled);
@@ -803,6 +830,49 @@ function renderDue() {
       </table>
     </div>
     <div class="lb-view-cards">${cardsHtml}</div>`;
+}
+
+// ── PROSPECTS ──────────────────────────────────────────────────────────
+function milbLine(level, info) {
+  if (!info) return '';
+  return `<span class="milb-line"><span class="lvl">${level} ${info.season}</span> · ${info.games}G · ${info.hrs}HR · ${info.avg} avg · ${info.ops} OPS</span>`;
+}
+function prospectCard(r, isBomb) {
+  const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
+  const milbHtml = [milbLine('AAA', r.milb?.aaa), milbLine('AA', r.milb?.aa)].filter(Boolean).join('');
+  const headline = isBomb
+    ? `<div class="prospect-badge"><span class="prospect-hr-num">${r.hrs}</span><span class="prospect-hr-lbl">${r.hrs===1?'HR':'HRs'}</span></div>`
+    : `<div class="prospect-badge"><span class="prospect-hr-lbl">No HR yet</span></div>`;
+  const subline = isBomb
+    ? `Debuted ${fmtDateLong(r.debutDate)} · <span class="first-hr">First HR: Game ${r.hrGames[0]}</span>${r.hrGames.length>1?` (+${r.hrGames.length-1} more)`:''}`
+    : `${r.status==='selected'?'Selected':'Debuted, no HR yet'} from ${r.fromTeam || '—'} · ${daysSince(r.selectedDate)}d ago`;
+  return `<div class="prospect-card">
+    <div class="prospect-top">
+      <img class="prospect-photo" src="${photoUrl}" alt="">
+      <div class="prospect-info"><div class="prospect-name">${r.name}</div><div class="prospect-team">${r.team}</div></div>
+      ${headline}
+    </div>
+    <div class="prospect-meta">${subline}</div>
+    ${milbHtml ? `<div class="prospect-milb">${milbHtml}</div>` : ''}
+  </div>`;
+}
+function renderProspects() {
+  const { justCalledUp, debutBombs } = prospects;
+  document.getElementById('prospects-meta').textContent =
+    `${debutBombs.length} rookie debut bomb${debutBombs.length===1?'':'s'} this season · ${justCalledUp.length} recent call-up${justCalledUp.length===1?'':'s'} to watch`;
+
+  const justHtml = justCalledUp.length
+    ? `<div class="prospect-grid">${justCalledUp.map(r=>prospectCard(r,false)).join('')}</div>`
+    : `<div class="empty">No fresh call-ups in the last two weeks</div>`;
+  const bombsHtml = debutBombs.length
+    ? `<div class="prospect-grid">${debutBombs.map(r=>prospectCard(r,true)).join('')}</div>`
+    : `<div class="empty">No rookie home runs yet this season</div>`;
+
+  document.getElementById('prospects-content').innerHTML = `
+    <div class="section-label">Just Called Up — Watch For It</div>
+    ${justHtml}
+    <div class="section-label">Debut Bombs</div>
+    ${bombsHtml}`;
 }
 
 // ── UI helpers ─────────────────────────────────────────────────────────

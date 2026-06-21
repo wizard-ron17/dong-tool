@@ -186,12 +186,140 @@ function computeDueRows() {
   return rows;
 }
 
+// ── Prospects: fresh debuts who've gone deep, plus a "just called up" watchlist ──
+// "Debut Bombs" = rookies (debuted this season) who've already homered, with
+// which exact game the HR came in (their AB log this season *is* their whole
+// MLB career so far). "Just Called Up" = recent AAA/AA selections who haven't
+// debuted yet or have 0 HR so far — catches a hot prospect's callup before
+// he's already all over ESPN for going deep in his first game.
+const PROSPECT_LOOKBACK_DAYS = 14;
+const MINOR_SPORT_IDS = { aaa: 11, aa: 12 };
+
+function chunk(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+async function fetchPeopleInfo(ids) {
+  const info = {};
+  for (const group of chunk([...new Set(ids)], 100)) {
+    if (!group.length) continue;
+    try {
+      const res = await fetch(`${MLB}/people?personIds=${group.join(',')}`).then(r => r.json());
+      for (const p of res.people ?? []) {
+        info[String(p.id)] = {
+          fullName: p.fullName,
+          debutDate: p.mlbDebutDate ?? null,
+          positionCode: p.primaryPosition?.code ?? '',
+        };
+      }
+    } catch (e) {}
+  }
+  return info;
+}
+
+async function fetchRecentSelections(days) {
+  const end = new Date(), start = new Date();
+  start.setUTCDate(start.getUTCDate() - days);
+  const fmt = d => d.toISOString().split('T')[0];
+  try {
+    const res = await fetch(`${MLB}/transactions?startDate=${fmt(start)}&endDate=${fmt(end)}`).then(r => r.json());
+    return (res.transactions ?? [])
+      .filter(t => t.typeDesc === 'Selected' && t.person?.id)
+      .map(t => ({ pid: String(t.person.id), name: t.person.fullName, fromTeam: t.fromTeam?.name ?? '', toTeam: t.toTeam?.name ?? '', date: t.date }));
+  } catch (e) { return []; }
+}
+
+async function fetchMinorLeaguePedigree(pid) {
+  const pedigree = {};
+  for (const [key, sportId] of Object.entries(MINOR_SPORT_IDS)) {
+    try {
+      const res = await fetch(`${MLB}/people/${pid}/stats?stats=yearByYear&group=hitting&sportId=${sportId}`).then(r => r.json());
+      const splits = res.stats?.[0]?.splits ?? [];
+      if (!splits.length) continue;
+      const latest = splits.slice().sort((a,b) => b.season.localeCompare(a.season))[0];
+      pedigree[key] = {
+        season: latest.season, team: latest.team?.name ?? '',
+        games: latest.stat.gamesPlayed, hrs: latest.stat.homeRuns,
+        avg: latest.stat.avg, ops: latest.stat.ops,
+      };
+    } catch (e) {}
+  }
+  return pedigree;
+}
+
+async function attachPedigree(rows) {
+  const BATCH = 6;
+  for (let i = 0; i < rows.length; i += BATCH) {
+    const batch = rows.slice(i, i + BATCH);
+    await Promise.all(batch.map(async row => { row.milb = await fetchMinorLeaguePedigree(row.pid); }));
+  }
+}
+
+async function computeProspects() {
+  const seasonBatterIds = Object.keys(playerNames);
+  const selections = await fetchRecentSelections(PROSPECT_LOOKBACK_DAYS);
+  const selectionByPid = {};
+  for (const s of selections) selectionByPid[s.pid] = s; // later selections overwrite earlier ones
+
+  const allIds = new Set([...seasonBatterIds, ...selections.map(s => s.pid)]);
+  const peopleInfo = await fetchPeopleInfo([...allIds]);
+
+  // Debut Bombs: rookies who've already gone deep, with which game it came in
+  const debutBombs = [];
+  for (const pid of seasonBatterIds) {
+    const info = peopleInfo[pid];
+    if (!info?.debutDate || info.debutDate < SEASON_START) continue; // not a rookie this season
+    if (!hrTotals[pid]) continue;
+    const gameDates = Object.keys(playerAbsByDate[pid] ?? {}).sort();
+    const hrGames = [];
+    gameDates.forEach((d, i) => { if (dailyHRs[d]?.[pid]) hrGames.push(i + 1); });
+    debutBombs.push({
+      pid, name: playerNames[pid], team: playerTeams[pid] || '',
+      debutDate: info.debutDate, gamesPlayed: gameDates.length, hrs: hrTotals[pid], hrGames,
+    });
+  }
+  debutBombs.sort((a,b) => (a.hrGames[0] ?? 99) - (b.hrGames[0] ?? 99) || b.hrs - a.hrs);
+
+  // Just Called Up: recent AAA/AA selections, rookie-eligible, no HR yet —
+  // excludes pitchers (can't homer) and established players just being recalled.
+  const justCalledUp = [];
+  for (const [pid, sel] of Object.entries(selectionByPid)) {
+    const info = peopleInfo[pid];
+    if (info?.positionCode === '1') continue;
+    const isRookie = !info?.debutDate || info.debutDate >= SEASON_START;
+    if (!isRookie) continue;
+    if (hrTotals[pid]) continue; // already homered — belongs in debutBombs instead
+    justCalledUp.push({
+      pid, name: playerNames[pid] || info?.fullName || sel.name,
+      team: playerTeams[pid] || sel.toTeam, fromTeam: sel.fromTeam,
+      selectedDate: sel.date, debutDate: info?.debutDate ?? null,
+      status: info?.debutDate ? 'debuted' : 'selected',
+      gamesPlayed: playerGames[pid] || 0,
+    });
+  }
+
+  await attachPedigree(debutBombs);
+  await attachPedigree(justCalledUp);
+
+  justCalledUp.sort((a,b) => {
+    const opsOf = r => parseFloat(r.milb.aaa?.ops ?? r.milb.aa?.ops ?? 0) || 0;
+    return opsOf(b) - opsOf(a);
+  });
+
+  return { justCalledUp, debutBombs };
+}
+
 async function main() {
   console.log(`Building data.json — season start ${SEASON_START}`);
   await fetchAll();
 
   const groups = { 2: computeGroups(dailyHRs, 2), 3: computeGroups(dailyHRs, 3), 4: computeGroups(dailyHRs, 4) };
   const dueRows = computeDueRows();
+
+  console.log('Checking for rookie debuts and recent call-ups...');
+  const prospects = await computeProspects();
 
   const allDates = Object.keys(dailyHRs).sort();
   const totalHRCount = Object.values(hrTotals).reduce((a,b) => a+b, 0);
@@ -204,12 +332,12 @@ async function main() {
     daysWithData: allDates.length,
     totalHRCount,
     dailyHRs, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
-    teamGameDays, groups, dueRows,
+    teamGameDays, groups, dueRows, prospects,
   };
 
   const fs = await import('node:fs');
   fs.writeFileSync(new URL('../data.json', import.meta.url), JSON.stringify(output));
-  console.log(`Wrote data.json — ${allDates.length} game days, ${totalHRCount} HRs, ${dueRows.length} due rows`);
+  console.log(`Wrote data.json — ${allDates.length} game days, ${totalHRCount} HRs, ${dueRows.length} due rows, ${prospects.debutBombs.length} debut bombs, ${prospects.justCalledUp.length} just called up`);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
