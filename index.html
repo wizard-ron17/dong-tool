@@ -839,7 +839,10 @@ function milbLine(level, info) {
 }
 function prospectCard(r, isBomb) {
   const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
-  const milbHtml = [milbLine('AAA', r.milb?.aaa), milbLine('AA', r.milb?.aa)].filter(Boolean).join('');
+  const mlbHtml = r.gamesPlayed > 0
+    ? `<span class="milb-line"><span class="lvl">MLB</span> · ${r.gamesPlayed}G · ${r.abs}AB · ${r.hrs}HR</span>`
+    : '';
+  const milbHtml = [mlbHtml, milbLine('AAA', r.milb?.aaa), milbLine('AA', r.milb?.aa)].filter(Boolean).join('');
   const headline = isBomb
     ? `<div class="prospect-badge"><span class="prospect-hr-num">${r.hrs}</span><span class="prospect-hr-lbl">${r.hrs===1?'HR':'HRs'}</span></div>`
     : `<div class="prospect-badge"><span class="prospect-hr-lbl">No HR yet</span></div>`;
@@ -856,23 +859,26 @@ function prospectCard(r, isBomb) {
     ${milbHtml ? `<div class="prospect-milb">${milbHtml}</div>` : ''}
   </div>`;
 }
+let activeProspectTab = 'justCalledUp';
+function switchProspectTab(tab) { activeProspectTab = tab; renderProspects(); }
 function renderProspects() {
   const { justCalledUp, debutBombs } = prospects;
   document.getElementById('prospects-meta').textContent =
-    `${debutBombs.length} recent debut bomb${debutBombs.length===1?'':'s'} (last 14 days) · ${justCalledUp.length} call-up${justCalledUp.length===1?'':'s'} to watch`;
+    `Recent call-ups (last 14 days) · ${debutBombs.length} debut bomb${debutBombs.length===1?'':'s'} · ${justCalledUp.length} to watch`;
 
-  const justHtml = justCalledUp.length
-    ? `<div class="prospect-grid">${justCalledUp.map(r=>prospectCard(r,false)).join('')}</div>`
-    : `<div class="empty">No fresh call-ups in the last two weeks</div>`;
-  const bombsHtml = debutBombs.length
-    ? `<div class="prospect-grid">${debutBombs.map(r=>prospectCard(r,true)).join('')}</div>`
-    : `<div class="empty">No rookie home runs yet this season</div>`;
+  const tabsHtml = `
+    <div class="sub-tabs">
+      <button class="sub-btn ${activeProspectTab==='justCalledUp'?'active':''}" onclick="switchProspectTab('justCalledUp')"><span class="num">${justCalledUp.length}</span>Just Called Up</button>
+      <button class="sub-btn ${activeProspectTab==='debutBombs'?'active':''}" onclick="switchProspectTab('debutBombs')"><span class="num">${debutBombs.length}</span>Debut Bombs</button>
+    </div>`;
 
-  document.getElementById('prospects-content').innerHTML = `
-    <div class="section-label">Just Called Up — Watch For It</div>
-    ${justHtml}
-    <div class="section-label">Debut Bombs</div>
-    ${bombsHtml}`;
+  const rows  = activeProspectTab === 'debutBombs' ? debutBombs : justCalledUp;
+  const isBomb = activeProspectTab === 'debutBombs';
+  const gridHtml = rows.length
+    ? `<div class="prospect-grid">${rows.map(r=>prospectCard(r,isBomb)).join('')}</div>`
+    : `<div class="empty">${isBomb ? 'No rookie home runs in the last 14 days' : 'No fresh call-ups in the last 14 days'}</div>`;
+
+  document.getElementById('prospects-content').innerHTML = tabsHtml + gridHtml;
 }
 
 // ── UI helpers ─────────────────────────────────────────────────────────

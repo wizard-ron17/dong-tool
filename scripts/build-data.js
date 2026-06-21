@@ -280,7 +280,8 @@ async function computeProspects() {
     gameDates.forEach((d, i) => { if (dailyHRs[d]?.[pid]) hrGames.push(i + 1); });
     debutBombs.push({
       pid, name: playerNames[pid], team: playerTeams[pid] || '',
-      debutDate: info.debutDate, gamesPlayed: gameDates.length, hrs: hrTotals[pid], hrGames,
+      debutDate: info.debutDate, gamesPlayed: gameDates.length, abs: playerABs[pid] || 0,
+      hrs: hrTotals[pid], hrGames,
     });
   }
   debutBombs.sort((a,b) => (a.hrGames[0] ?? 99) - (b.hrGames[0] ?? 99) || b.hrs - a.hrs);
@@ -299,7 +300,7 @@ async function computeProspects() {
       team: playerTeams[pid] || sel.toTeam, fromTeam: sel.fromTeam,
       selectedDate: sel.date, debutDate: info?.debutDate ?? null,
       status: info?.debutDate ? 'debuted' : 'selected',
-      gamesPlayed: playerGames[pid] || 0,
+      gamesPlayed: playerGames[pid] || 0, abs: playerABs[pid] || 0, hrs: hrTotals[pid] || 0,
     });
   }
 
