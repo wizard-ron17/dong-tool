@@ -123,7 +123,7 @@ function computeGroups(dHRs, size) {
 // freezes at whatever z-score he had instead of falling off the list. Teams
 // play almost daily (only real gap is the ~4-day All-Star break), so a multi-
 // day absence from boxscores is a strong signal he isn't actually playing.
-const DUE_MIN_HRS = 3, DUE_MIN_ABS = 40, DUE_MAX_AB_PER_HR = 30, DUE_MIN_Z = 1.0, DUE_MIN_DROUGHT_ABS = 10;
+const DUE_MIN_HRS = 5, DUE_MIN_ABS = 40, DUE_MAX_AB_PER_HR = 30, DUE_MIN_Z = 1.0, DUE_MIN_DROUGHT_ABS = 10;
 const DUE_MAX_INACTIVE_DAYS = 5;
 
 function cumAbsThrough(pid, date) {
