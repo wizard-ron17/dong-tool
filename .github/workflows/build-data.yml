@@ -2,7 +2,15 @@ name: Build data.json
 
 on:
   schedule:
-    - cron: '0 12 * * *'     # once daily, 12:00 UTC (5am PDT / 8am EDT) — after even West coast extra-inning games are final
+    # Multiple staggered runs instead of one, for two reasons:
+    # 1. West coast extra-inning games can finish late, so one early run might miss the last game.
+    #    Each later run recomputes the full season fresh, so it self-corrects.
+    # 2. GitHub queues scheduled runs and can delay them (worse on round minutes like :00/:30),
+    #    so several off-round attempts make it much more likely at least one lands before 8am ET.
+    - cron: '13 8 * * *'      # ~4:13am EDT / 1:13am PDT
+    - cron: '13 10 * * *'     # ~6:13am EDT / 3:13am PDT
+    - cron: '43 11 * * *'     # ~7:43am EDT / 4:43am PDT
+    - cron: '17 12 * * *'     # ~8:17am EDT / 5:17am PDT — final safety net
   workflow_dispatch: {}      # lets us trigger it manually from the Actions tab
 
 permissions:
