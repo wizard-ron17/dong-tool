@@ -227,7 +227,7 @@ async function fetchRecentSelections(days) {
   try {
     const res = await fetch(`${MLB}/transactions?startDate=${fmt(start)}&endDate=${fmt(end)}`).then(r => r.json());
     return (res.transactions ?? [])
-      .filter(t => t.typeDesc === 'Selected' && t.person?.id)
+      .filter(t => (t.typeDesc === 'Recalled' || t.typeDesc === 'Selected') && t.person?.id)
       .map(t => ({ pid: String(t.person.id), name: t.person.fullName, fromTeam: t.fromTeam?.name ?? '', toTeam: t.toTeam?.name ?? '', date: t.date }));
   } catch (e) { return []; }
 }
