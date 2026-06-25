@@ -191,6 +191,7 @@
   .due-modal-headline-lbl { font-size: 0.5rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
 
   .due-modal-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; margin-bottom: 1.1rem; }
+  .due-modal-stats > .due-modal-stat:last-child:nth-child(3n+1) { grid-column: 1 / -1; }
   .due-modal-stat { background: var(--surface1); border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.3rem; text-align: center; }
   .due-modal-stat-val { font-family: var(--font-d); font-size: 1.05rem; font-weight: 700; color: var(--text); display: block; }
   .due-modal-stat-sub { font-family: var(--font-m); font-size: 0.55rem; font-weight: 400; color: var(--muted); display: block; }
@@ -887,6 +888,7 @@ function renderDayLate() {
 function dueScoreClass(s) { return s>=6?'hot':s>=3?'warm':'mild'; }
 
 function dueDefaultDir(col) { return ['dueScore','hrs','droughtABs','z'].includes(col) ? -1 : 1; }
+
 function sortDue(col) {
   if (dueSortCol===col) {
     if (dueSortDir===dueDefaultDir(col)) { dueSortDir=-dueDefaultDir(col); }
@@ -927,6 +929,7 @@ function renderDue() {
       <td class="due-z ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</td>
       <td class="lb-num hr-col">${r.hrs}</td>
       <td class="lb-num stat-col">${r.avgGap.toFixed(0)}</td>
+      <td class="lb-num stat-col">${r.stdGap.toFixed(1)}</td>
       <td class="lb-num stat-col${r.isLongestEver?' now-ab-longest':''}" title="${r.isLongestEver?'Longest drought of his season':''}">${r.droughtABs}${r.isLongestEver?' <span class="flame-badge">🔥</span>':''}</td>
       <td class="lb-num stat-col">${r.z.toFixed(1)}</td>
       <td class="lb-last ${lastCls}">${lastTxt}</td>
@@ -947,6 +950,7 @@ function renderDue() {
       <div class="lbc-stats">
         <div class="lbc-stat"><span class="lbc-stat-val">${r.hrs}</span><span class="lbc-stat-lbl">HR</span></div>
         <div class="lbc-stat"><span class="lbc-stat-val">${r.avgGap.toFixed(0)}</span><span class="lbc-stat-lbl">Avg AB</span></div>
+        <div class="lbc-stat"><span class="lbc-stat-val">${r.stdGap.toFixed(1)}</span><span class="lbc-stat-lbl">Std</span></div>
         <div class="lbc-stat"><span class="lbc-stat-val${r.isLongestEver?' now-ab-longest':''}">${r.droughtABs}${r.isLongestEver?' <span class="flame-badge">🔥</span>':''}</span><span class="lbc-stat-lbl">Now AB</span></div>
         <div class="lbc-stat"><span class="lbc-stat-val">${r.z.toFixed(1)}</span><span class="lbc-stat-lbl">Z</span></div>
         <div class="lbc-stat"><span class="lbc-stat-val ${lastCls}">${lastTxt}</span><span class="lbc-stat-lbl">Last HR</span></div>
@@ -958,6 +962,7 @@ function renderDue() {
     {key:'dueScore',   label:'Due Score', title:'Z weighted by HR volume (proven power) and number of historical gaps (confidence)'},
     {key:'hrs',        label:'HR',        title:'Season home runs'},
     {key:'avgGap',     label:'Avg AB',    title:'Avg ABs between their HRs'},
+    {key:'stdGap',     label:'Std',       title:'How much his AB gaps normally vary — lower means more consistent, higher means streakier'},
     {key:'droughtABs', label:'Now AB',    title:'ABs since last HR'},
     {key:'z',          label:'Z',         title:'Standard deviations above their normal gap'},
     {key:'lastAgo',    label:'Last HR',   title:''},
@@ -973,6 +978,7 @@ function renderDue() {
     {key:'dueScore',   label:'Due Score'},
     {key:'hrs',        label:'Most HR'},
     {key:'avgGap',     label:'Lowest Avg AB'},
+    {key:'stdGap',     label:'Most Consistent'},
     {key:'droughtABs', label:'Longest Drought'},
     {key:'z',          label:'Highest Z'},
     {key:'lastAgo',    label:'Most Recent HR'},
@@ -1055,6 +1061,7 @@ function dueModalHtml(r) {
       <div class="due-modal-stats">
         <div class="due-modal-stat"><span class="due-modal-stat-val">${r.hrs}</span><span class="due-modal-stat-lbl">HR</span></div>
         <div class="due-modal-stat"><span class="due-modal-stat-val">${r.avgGap.toFixed(0)}</span><span class="due-modal-stat-lbl">Avg AB/HR</span></div>
+        <div class="due-modal-stat"><span class="due-modal-stat-val">${r.stdGap.toFixed(1)}</span><span class="due-modal-stat-lbl">Std Dev</span></div>
         <div class="due-modal-stat"><span class="due-modal-stat-val">${r.droughtABs}</span><span class="due-modal-stat-lbl">Current AB</span></div>
         <div class="due-modal-stat"><span class="due-modal-stat-val">${r.z.toFixed(1)}</span><span class="due-modal-stat-lbl">Z-score</span></div>
         <div class="due-modal-stat"><span class="due-modal-stat-val">${fmtDate(r.lastHR)} <span class="due-modal-stat-sub">${r.lastAgo}d ago</span></span><span class="due-modal-stat-lbl">Last HR</span></div>
