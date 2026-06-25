@@ -192,6 +192,7 @@
   .due-modal-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; margin-bottom: 1.1rem; }
   .due-modal-stat { background: var(--surface1); border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.3rem; text-align: center; }
   .due-modal-stat-val { font-family: var(--font-d); font-size: 1.05rem; font-weight: 700; color: var(--text); display: block; }
+  .due-modal-stat-sub { font-family: var(--font-m); font-size: 0.55rem; font-weight: 400; color: var(--muted); display: block; }
   .due-modal-stat-lbl { font-size: 0.5rem; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
 
   .due-viz-title { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
@@ -991,8 +992,8 @@ function dueModalHtml(r) {
         <div class="due-modal-stat"><span class="due-modal-stat-val">${r.avgGap.toFixed(0)}</span><span class="due-modal-stat-lbl">Avg AB/HR</span></div>
         <div class="due-modal-stat"><span class="due-modal-stat-val">${r.droughtABs}</span><span class="due-modal-stat-lbl">Current AB</span></div>
         <div class="due-modal-stat"><span class="due-modal-stat-val">${r.z.toFixed(1)}</span><span class="due-modal-stat-lbl">Z-score</span></div>
-        <div class="due-modal-stat"><span class="due-modal-stat-val">${fmtDate(r.lastHR)}</span><span class="due-modal-stat-lbl">Last HR</span></div>
-        <div class="due-modal-stat"><span class="due-modal-stat-val">${r.lastAgo}d</span><span class="due-modal-stat-lbl">Days Ago</span></div>
+        <div class="due-modal-stat"><span class="due-modal-stat-val">${fmtDate(r.lastHR)} <span class="due-modal-stat-sub">${r.lastAgo}d ago</span></span><span class="due-modal-stat-lbl">Last HR</span></div>
+        <div class="due-modal-stat"><span class="due-modal-stat-val${r.isLongestEver?' now-ab-longest':''}">${Math.max(r.longestPriorGap, r.droughtABs)}</span><span class="due-modal-stat-lbl">Longest Drought</span></div>
       </div>
       ${longestNote}
       <div class="due-viz-title">AB gaps between home runs this season</div>
