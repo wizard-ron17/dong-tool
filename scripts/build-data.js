@@ -180,7 +180,8 @@ function computeDueRows() {
     const dueScore = z * powerWeight * confidenceWeight;
 
     rows.push({ pid, name: playerNames[pid] || pid, team: playerTeams[pid] || '', hrs, seasonAbPerHR,
-      avgGap, droughtABs, stdGap, z, dueScore, lastHR, lastAgo: daysSince(lastHR), lastGame });
+      avgGap, droughtABs, stdGap, z, dueScore, lastHR, lastAgo: daysSince(lastHR), lastGame,
+      intervals, hrDates: dates });
   }
   rows.sort((a,b) => b.dueScore - a.dueScore || b.z - a.z);
   return rows;

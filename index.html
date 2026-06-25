@@ -164,6 +164,46 @@
   .due-z.warm { color: var(--gold); }
   .due-z.mild { color: var(--accent); }
 
+  .due-row-clickable { cursor: pointer; }
+  .due-row-clickable:hover { background: var(--surface1); }
+  .lbc-card.due-row-clickable:active { background: var(--surface1); }
+
+  .due-modal-backdrop { position: fixed; inset: 0; background: rgba(2,5,10,0.72); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 300; animation: fadeIn 0.12s ease; }
+  .due-modal { background: var(--surface0); border: 1px solid var(--border2); border-radius: 12px; width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto; padding: 1.1rem 1.1rem 1.3rem; position: relative; }
+  .due-modal-close { position: absolute; top: 0.5rem; right: 0.6rem; background: transparent; border: none; color: var(--muted); font-size: 1.5rem; line-height: 1; cursor: pointer; padding: 0.3rem; }
+  .due-modal-close:hover { color: var(--text); }
+  .due-modal-head { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1rem; padding-right: 1.5rem; }
+  .due-modal-photo { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; background: var(--surface2); flex-shrink: 0; border: 1px solid var(--border2); }
+  .due-modal-name { font-family: var(--font-d); font-size: 1.25rem; font-weight: 800; color: #fff; line-height: 1.1; }
+  .due-modal-team { font-size: 0.65rem; color: var(--muted); }
+  .due-modal-headline { margin-left: auto; text-align: right; flex-shrink: 0; }
+  .due-modal-headline-num { font-family: var(--font-d); font-size: 1.6rem; font-weight: 700; line-height: 1; display: block; }
+  .due-modal-headline-num.hot  { color: #ff7040; }
+  .due-modal-headline-num.warm { color: var(--gold); }
+  .due-modal-headline-num.mild { color: var(--accent); }
+  .due-modal-headline-lbl { font-size: 0.5rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+
+  .due-modal-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; margin-bottom: 1.1rem; }
+  .due-modal-stat { background: var(--surface1); border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.3rem; text-align: center; }
+  .due-modal-stat-val { font-family: var(--font-d); font-size: 1.05rem; font-weight: 700; color: var(--text); display: block; }
+  .due-modal-stat-lbl { font-size: 0.5rem; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+
+  .due-viz-title { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+  .due-viz { position: relative; height: 150px; margin-bottom: 0.3rem; }
+  .due-viz-band { position: absolute; left: 0; right: 0; background: rgba(53,201,110,0.07); border-top: 1px dashed var(--border2); border-bottom: 1px dashed var(--border2); }
+  .due-viz-avgline { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--gold); z-index: 2; }
+  .due-viz-avgline-lbl { position: absolute; right: 0; top: -1.1rem; font-size: 0.5rem; color: var(--gold); white-space: nowrap; }
+  .due-viz-bars { position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 5px; }
+  .due-viz-bar-wrap { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+  .due-viz-bar { width: 100%; max-width: 28px; border-radius: 3px 3px 0 0; background: var(--border2); }
+  .due-viz-bar.current { background: linear-gradient(180deg, #ff8a5c, #c43d12); box-shadow: 0 0 0 1px rgba(255,112,64,0.5); position: relative; }
+  .due-viz-bar.current::after { content: ''; position: absolute; top: -5px; left: 50%; transform: translateX(-50%); width: 6px; height: 6px; border-radius: 50%; background: #ff7040; animation: pulse 1.4s ease-in-out infinite; }
+  .due-viz-labels { display: flex; gap: 5px; margin-top: 0.3rem; }
+  .due-viz-bar-lbl { flex: 1; min-width: 0; text-align: center; font-size: 0.55rem; color: var(--muted); }
+  .due-viz-bar-lbl.current { color: #ff7040; font-weight: 700; }
+  .due-viz-foot { font-size: 0.6rem; color: var(--dim); margin-top: 0.6rem; line-height: 1.5; }
+  @keyframes pulse { 0%,100% { opacity: 1; transform: translateX(-50%) scale(1); } 50% { opacity: 0.4; transform: translateX(-50%) scale(1.6); } }
+
   .dl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.4rem; }
   @media (max-width: 480px) { .dl-grid { grid-template-columns: 1fr 1fr; } }
   .dl-card { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.7rem; display: flex; align-items: center; gap: 0.5rem; animation: fadeIn 0.1s ease; min-width: 0; overflow: hidden; }
@@ -837,7 +877,7 @@ function renderDue() {
     const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const lastCls  = r.lastAgo<=3?'recent':r.lastAgo<=10?'warm':'cold';
     const lastTxt  = `${fmtDateLong(r.lastHR)}<span class="ago">${r.lastAgo}d ago</span>`;
-    return `<tr>
+    return `<tr class="due-row-clickable" onclick="openDueModal('${r.pid}')">
       <td class="lb-rank ${rankClass(i)}">${i+1}</td>
       <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}</div><div class="lb-team">${r.team}</div></div></div></td>
       <td class="due-z ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</td>
@@ -853,7 +893,7 @@ function renderDue() {
     const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const lastCls  = r.lastAgo<=3?'recent':r.lastAgo<=10?'warm':'cold';
     const lastTxt  = `${fmtDate(r.lastHR)} · ${r.lastAgo}d`;
-    return `<div class="lbc-card">
+    return `<div class="lbc-card due-row-clickable" onclick="openDueModal('${r.pid}')">
       <div class="lbc-top">
         <span class="lbc-rank ${rankClass(i)}">${i+1}</span>
         <img class="lbc-photo" src="${photoUrl}" alt="">
@@ -887,6 +927,69 @@ function renderDue() {
       </table>
     </div>
     <div class="lb-view-cards">${cardsHtml}</div>`;
+}
+
+function dueModalEscHandler(e) { if (e.key === 'Escape') closeDueModal(); }
+
+function closeDueModal() {
+  const el = document.getElementById('due-modal-backdrop');
+  if (el) el.remove();
+  document.removeEventListener('keydown', dueModalEscHandler);
+}
+
+function openDueModal(pid) {
+  const r = dueRows.find(x => x.pid === pid);
+  if (!r) return;
+  document.body.insertAdjacentHTML('beforeend', dueModalHtml(r));
+  document.addEventListener('keydown', dueModalEscHandler);
+}
+
+function dueVizHtml(r) {
+  const RECENT_N = 10;
+  const hist = r.intervals.slice(-RECENT_N);
+  const truncated = r.intervals.length > RECENT_N;
+  const maxVal = Math.max(...hist, r.droughtABs, r.avgGap + r.stdGap * 1.4, 1);
+  const pctFromTop = v => 100 - Math.min(100, Math.max(0, v) / maxVal * 100);
+  const bandTopPct = pctFromTop(r.avgGap + r.stdGap);
+  const bandBotPct = pctFromTop(Math.max(0, r.avgGap - r.stdGap));
+  const avgPct     = pctFromTop(r.avgGap);
+  const bars   = hist.map(v => `<div class="due-viz-bar-wrap"><div class="due-viz-bar" style="height:${Math.max(2, v/maxVal*100)}%"></div></div>`).join('');
+  const curBar = `<div class="due-viz-bar-wrap"><div class="due-viz-bar current" style="height:${Math.max(2, r.droughtABs/maxVal*100)}%"></div></div>`;
+  const labels = hist.map(v => `<div class="due-viz-bar-lbl">${v}</div>`).join('');
+  const curLbl = `<div class="due-viz-bar-lbl current">${r.droughtABs}</div>`;
+  return `<div class="due-viz">
+      <div class="due-viz-band" style="top:${bandTopPct}%; height:${Math.max(0,bandBotPct-bandTopPct)}%"></div>
+      <div class="due-viz-avgline" style="top:${avgPct}%"><span class="due-viz-avgline-lbl">avg ${r.avgGap.toFixed(0)}</span></div>
+      <div class="due-viz-bars">${bars}${curBar}</div>
+    </div>
+    <div class="due-viz-labels">${labels}${curLbl}</div>
+    ${truncated ? `<div class="due-viz-foot">(showing his last ${RECENT_N} gaps of ${r.intervals.length} this season)</div>` : ''}`;
+}
+
+function dueModalHtml(r) {
+  const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_120,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
+  const cls = dueScoreClass(r.dueScore);
+  return `<div class="due-modal-backdrop" id="due-modal-backdrop" onclick="if(event.target===this) closeDueModal()">
+    <div class="due-modal">
+      <button class="due-modal-close" onclick="closeDueModal()" aria-label="Close">&times;</button>
+      <div class="due-modal-head">
+        <img class="due-modal-photo" src="${photoUrl}" alt="">
+        <div><div class="due-modal-name">${r.name}</div><div class="due-modal-team">${r.team}</div></div>
+        <div class="due-modal-headline"><span class="due-modal-headline-num ${cls}">${r.dueScore.toFixed(1)}</span><span class="due-modal-headline-lbl">Due Score</span></div>
+      </div>
+      <div class="due-modal-stats">
+        <div class="due-modal-stat"><span class="due-modal-stat-val">${r.hrs}</span><span class="due-modal-stat-lbl">HR</span></div>
+        <div class="due-modal-stat"><span class="due-modal-stat-val">${r.avgGap.toFixed(0)}</span><span class="due-modal-stat-lbl">Avg AB/HR</span></div>
+        <div class="due-modal-stat"><span class="due-modal-stat-val">${r.droughtABs}</span><span class="due-modal-stat-lbl">Current AB</span></div>
+        <div class="due-modal-stat"><span class="due-modal-stat-val">${r.z.toFixed(1)}</span><span class="due-modal-stat-lbl">Z-score</span></div>
+        <div class="due-modal-stat"><span class="due-modal-stat-val">${fmtDate(r.lastHR)}</span><span class="due-modal-stat-lbl">Last HR</span></div>
+        <div class="due-modal-stat"><span class="due-modal-stat-val">${r.lastAgo}d</span><span class="due-modal-stat-lbl">Days Ago</span></div>
+      </div>
+      <div class="due-viz-title">AB gaps between home runs this season</div>
+      ${dueVizHtml(r)}
+      <div class="due-viz-foot">Each gray bar is the at-bats between consecutive HRs, oldest → newest. Dashed gold line = his average gap (${r.avgGap.toFixed(0)} AB). Shaded band = his normal range (±1 std dev). The orange bar is his current drought — still climbing, already ${r.z.toFixed(1)} std deviations past normal.</div>
+    </div>
+  </div>`;
 }
 
 // ── PROSPECTS ──────────────────────────────────────────────────────────
