@@ -401,6 +401,8 @@ let activePairSize = 2;
 let hrChart        = null;
 let lbSortCol      = null;
 let lbSortDir      = -1;
+let dueSortCol     = null;
+let dueSortDir     = -1;
 let activeTerms    = [];
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -884,8 +886,28 @@ function renderDayLate() {
 // ── DUE ────────────────────────────────────────────────────────────────
 function dueScoreClass(s) { return s>=6?'hot':s>=3?'warm':'mild'; }
 
+function dueDefaultDir(col) { return ['dueScore','hrs','droughtABs','z'].includes(col) ? -1 : 1; }
+function sortDue(col) {
+  if (dueSortCol===col) {
+    if (dueSortDir===dueDefaultDir(col)) { dueSortDir=-dueDefaultDir(col); }
+    else { dueSortCol=null; dueSortDir=-1; }
+  } else { dueSortCol=col; dueSortDir=dueDefaultDir(col); }
+  renderDue();
+}
+function setDueSort(col) { dueSortCol=col; dueSortDir=dueDefaultDir(col); renderDue(); }
+function sortDueRows(rows) {
+  if (!dueSortCol) return rows; // already pre-sorted by dueScore desc, z desc from the server
+  const key = dueSortCol;
+  rows.sort((a,b)=>{
+    const av=a[key], bv=b[key];
+    if (typeof av==='string') return dueSortDir*av.localeCompare(bv);
+    return dueSortDir*((av??9999)-(bv??9999));
+  });
+  return rows;
+}
+
 function renderDue() {
-  const rows = dueRows;
+  const rows = sortDueRows(dueRows.slice());
   const metaEl=document.getElementById('due-meta');
   metaEl.textContent = rows.length
     ? `${rows.length} power hitters overdue · Due Score = z-score weighted by HR volume & sample confidence · excludes anyone inactive 5+ days (injury/bench/demotion)`
@@ -932,23 +954,51 @@ function renderDue() {
     </div>`;
   }).join('');
 
+  const dueColDefs = [
+    {key:'dueScore',   label:'Due Score', title:'Z weighted by HR volume (proven power) and number of historical gaps (confidence)'},
+    {key:'hrs',        label:'HR',        title:'Season home runs'},
+    {key:'avgGap',     label:'Avg AB',    title:'Avg ABs between their HRs'},
+    {key:'droughtABs', label:'Now AB',    title:'ABs since last HR'},
+    {key:'z',          label:'Z',         title:'Standard deviations above their normal gap'},
+    {key:'lastAgo',    label:'Last HR',   title:''},
+  ];
+  const dueHeaders = dueColDefs.map(c=>{
+    const active  = dueSortCol === c.key;
+    const sortCls = active ? (dueSortDir===-1?'sort-desc':'sort-asc') : '';
+    return `<th class="r ${sortCls}" title="${c.title}" onclick="sortDue('${c.key}')">${c.label}</th>`;
+  }).join('');
+  const nameColCls = dueSortCol==='name' ? (dueSortDir===-1?'sort-desc':'sort-asc') : '';
+
+  const dueMobileSortOptions = [
+    {key:'dueScore',   label:'Due Score'},
+    {key:'hrs',        label:'Most HR'},
+    {key:'avgGap',     label:'Lowest Avg AB'},
+    {key:'droughtABs', label:'Longest Drought'},
+    {key:'z',          label:'Highest Z'},
+    {key:'lastAgo',    label:'Most Recent HR'},
+    {key:'name',       label:'Name'},
+  ];
+  const dueMobileSortHtml = dueMobileSortOptions.map(o =>
+    `<option value="${o.key}" ${dueSortCol===o.key?'selected':''}>${o.label}</option>`
+  ).join('');
+
   document.getElementById('due-content').innerHTML = `
     <div class="lb-view-table tbl-scroll">
       <table class="lb-table">
         <thead><tr>
           <th style="width:24px"></th>
-          <th>Player</th>
-          <th class="r" title="Z weighted by HR volume (proven power) and number of historical gaps (confidence)">Due Score</th>
-          <th class="r" title="Season home runs">HR</th>
-          <th class="r" title="Avg ABs between their HRs">Avg AB</th>
-          <th class="r" title="ABs since last HR">Now AB</th>
-          <th class="r" title="Standard deviations above their normal gap">Z</th>
-          <th class="r">Last HR</th>
+          <th onclick="sortDue('name')" class="${nameColCls}">Player</th>
+          ${dueHeaders}
         </tr></thead>
         <tbody>${tableRows}</tbody>
       </table>
     </div>
-    <div class="lb-view-cards">${cardsHtml}</div>`;
+    <div class="lb-view-cards">
+      <div class="mobile-sort-row">Sort
+        <select onchange="setDueSort(this.value)">${dueMobileSortHtml}</select>
+      </div>
+      ${cardsHtml}
+    </div>`;
 }
 
 function dueModalEscHandler(e) { if (e.key === 'Escape') closeDueModal(); }
