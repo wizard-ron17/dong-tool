@@ -332,6 +332,50 @@ async function computeProspects() {
   return { justCalledUp: justCalledUpRanked, debutBombs };
 }
 
+// Real injured-list status (not a guess from "hasn't played in N days") — MLB's
+// transactions feed logs every IL placement/activation with the stint length and
+// often the injury itself, e.g. "...placed SS Elly De La Cruz on the 10-day
+// injured list. Right hamstring strain." We take each tracked batter's most
+// recent IL-related transaction this season: if it's an activation, he's off
+// the list and gets no badge; if it's a placement/transfer, he's presumed still
+// out — UNLESS he's actually played an MLB game since that placement date, which
+// happens when a guy comes off a long minors IL stint via a roster move (e.g.
+// "Selected") rather than a logged "activated from the injured list" transaction.
+// Real game appearances are ground truth; the transaction feed's wording isn't.
+async function fetchInjuryStatus() {
+  const today = new Date().toISOString().split('T')[0];
+  let txns = [];
+  try {
+    const res = await fetch(`${MLB}/transactions?startDate=${SEASON_START}&endDate=${today}`).then(r => r.json());
+    txns = res.transactions ?? [];
+  } catch (e) { return {}; }
+
+  const byPid = {};
+  for (const t of txns) {
+    if (t.typeDesc !== 'Status Change' || !t.person?.id || !/injured list/i.test(t.description || '')) continue;
+    const pid = String(t.person.id);
+    (byPid[pid] ??= []).push(t);
+  }
+
+  const status = {};
+  for (const [pid, list] of Object.entries(byPid)) {
+    if (!playerNames[pid]) continue; // not a batter we're otherwise tracking
+    list.sort((a, b) => a.date.localeCompare(b.date));
+    const last = list[list.length - 1];
+    const desc = last.description || '';
+    if (/\bactivated\b/i.test(desc)) continue; // back off the IL — no badge
+    if (playerLastGame[pid] && playerLastGame[pid] > last.date) continue; // played since — clearly active
+    const dayMatch = desc.match(/to the (\d+)-day injured list/i) || desc.match(/on the (\d+)-day injured list/i);
+    const reasonMatch = desc.match(/injured list\.\s*(.+)$/i);
+    status[pid] = {
+      date: last.date,
+      ilDays: dayMatch ? Number(dayMatch[1]) : null,
+      reason: reasonMatch ? reasonMatch[1].trim().replace(/\.$/, '') : null,
+    };
+  }
+  return status;
+}
+
 async function main() {
   console.log(`Building data.json — season start ${SEASON_START}`);
   await fetchAll();
@@ -341,6 +385,9 @@ async function main() {
 
   console.log('Checking for rookie debuts and recent call-ups...');
   const prospects = await computeProspects();
+
+  console.log('Checking injured-list status...');
+  const injuryStatus = await fetchInjuryStatus();
 
   const allDates = Object.keys(dailyHRs).sort();
   const totalHRCount = Object.values(hrTotals).reduce((a,b) => a+b, 0);
@@ -353,7 +400,7 @@ async function main() {
     daysWithData: allDates.length,
     totalHRCount,
     dailyHRs, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
-    teamGameDays, groups, dueRows, prospects,
+    teamGameDays, groups, dueRows, prospects, injuryStatus,
   };
 
   const fs = await import('node:fs');

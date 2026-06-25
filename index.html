@@ -164,6 +164,7 @@
   .due-z.warm { color: var(--gold); }
   .due-z.mild { color: var(--accent); }
 
+  .il-badge { display: inline-flex; align-items: center; gap: 0.12rem; font-size: 0.55rem; font-weight: 700; color: #ff7040; background: rgba(255,112,64,0.1); border: 1px solid rgba(255,112,64,0.35); border-radius: 4px; padding: 0.04rem 0.28rem; margin-left: 0.3rem; white-space: nowrap; cursor: default; vertical-align: middle; }
   .now-ab-longest { color: #ff7040 !important; }
   .flame-badge { font-size: 0.62rem; margin-left: 0.1rem; }
   .due-longest-banner { background: rgba(255,112,64,0.08); border: 1px solid rgba(255,112,64,0.4); color: #ff8a5c; border-radius: 6px; padding: 0.45rem 0.6rem; font-size: 0.66rem; font-weight: 700; line-height: 1.4; margin-bottom: 0.9rem; }
@@ -390,6 +391,7 @@ let teamGameDays = {};
 let groups       = {};  // size -> [{pids, count, dates}], pre-filtered & sorted
 let dueRows      = [];
 let prospects    = { justCalledUp: [], debutBombs: [] };
+let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if currently on the IL
 
 let activeNav      = 'pairs';
 let activePairSize = 2;
@@ -417,6 +419,15 @@ function yesterday() {
 }
 function isMob() {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 600;
+}
+function injuryBadge(pid, compact) {
+  const inj = injuryStatus[pid];
+  if (!inj) return '';
+  const days = daysSince(inj.date);
+  const lenTxt = inj.ilDays ? `${inj.ilDays}-day IL` : 'Injured list';
+  const title = [lenTxt, `placed ${fmtDate(inj.date)}`, `${days}d ago`, inj.reason]
+    .filter(Boolean).join(' · ').replace(/"/g, '&quot;');
+  return `<span class="il-badge" title="${title}">🚑${compact ? '' : ` ${days}d`}</span>`;
 }
 function timeAgo(iso) {
   const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -469,6 +480,7 @@ function applyData(data) {
   playerNames = data.playerNames; playerTeams = data.playerTeams; playerABs = data.playerABs;
   playerGames = data.playerGames; playerLastHR = data.playerLastHR; teamGameDays = data.teamGameDays;
   groups = data.groups; dueRows = data.dueRows; prospects = data.prospects ?? prospects;
+  injuryStatus = data.injuryStatus ?? {};
 
   setStatus('ready', `${data.daysWithData}d · ${data.totalHRCount} HR · upd ${timeAgo(data.generatedAt)}`);
 
@@ -620,7 +632,7 @@ function _render(size) {
         <img class="player-photo" src="${photoUrl}" alt="">
         <span class="player-name">${name}</span>
         <span class="player-hr">${hrTotals[pid]??'—'}</span>
-        <span class="player-hr-lbl">HR</span></div>`;
+        <span class="player-hr-lbl">HR</span>${injuryBadge(pid, true)}</div>`;
     }).join('');
     const datePills = item.dates.map((d,di)=>`<span class="date-pill${di===item.dates.length-1?' latest':''}">${fmtDate(d)}</span>`).join('');
     card.innerHTML = `
@@ -753,7 +765,7 @@ function renderLeaders() {
     const lastTxt  = r.last ? `${fmtDateLong(r.last)}<span class="ago">${r.lastAgo}d ago</span>` : '—';
     return `<tr>
       <td class="lb-rank ${rankClass(i)}">${i+1}</td>
-      <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}</div><div class="lb-team">${r.team}</div></div></div></td>
+      <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}</div><div class="lb-team">${r.team}${injuryBadge(r.pid)}</div></div></div></td>
       <td class="lb-num hr-col">${r.hrs}</td>
       <td class="lb-num stat-col">${r.games}</td>
       <td class="lb-num stat-col">${gPerHR}</td>
@@ -786,7 +798,7 @@ function renderLeaders() {
       <div class="lbc-top">
         <span class="lbc-rank ${rankClass(i)}">${i+1}</span>
         <img class="lbc-photo" src="${photoUrl}" alt="">
-        <div class="lbc-info"><div class="lbc-name">${r.name}</div><div class="lbc-team">${r.team}</div></div>
+        <div class="lbc-info"><div class="lbc-name">${r.name}</div><div class="lbc-team">${r.team}${injuryBadge(r.pid)}</div></div>
         <div class="lbc-headline"><span class="lbc-headline-num">${r.hrs}</span><span class="lbc-headline-lbl">HR</span></div>
       </div>
       <div class="lbc-stats">
@@ -859,7 +871,7 @@ function renderDayLate() {
     const team     = playerTeams[pid]||'', seasonHR=hrTotals[pid]||hrs;
     return `<div class="dl-card">
       <img class="dl-photo" src="${photoUrl}" alt="">
-      <div class="dl-info"><div class="dl-name">${name}</div><div class="dl-sub">${team?team+' · ':''}${seasonHR} season</div></div>
+      <div class="dl-info"><div class="dl-name">${name}</div><div class="dl-sub">${team?team+' · ':''}${seasonHR} season${injuryBadge(pid, true)}</div></div>
       <div class="dl-stat"><span class="dl-stat-num">${hrs}</span><span class="dl-stat-label">${hrs===1?'HR':'HRs'}</span></div>
     </div>`;
   }).join('');
@@ -886,7 +898,7 @@ function renderDue() {
     const lastTxt  = `${fmtDateLong(r.lastHR)}<span class="ago">${r.lastAgo}d ago</span>`;
     return `<tr class="due-row-clickable" onclick="openDueModal('${r.pid}')">
       <td class="lb-rank ${rankClass(i)}">${i+1}</td>
-      <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}</div><div class="lb-team">${r.team}</div></div></div></td>
+      <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}</div><div class="lb-team">${r.team}${injuryBadge(r.pid)}</div></div></div></td>
       <td class="due-z ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</td>
       <td class="lb-num hr-col">${r.hrs}</td>
       <td class="lb-num stat-col">${r.avgGap.toFixed(0)}</td>
@@ -904,7 +916,7 @@ function renderDue() {
       <div class="lbc-top">
         <span class="lbc-rank ${rankClass(i)}">${i+1}</span>
         <img class="lbc-photo" src="${photoUrl}" alt="">
-        <div class="lbc-info"><div class="lbc-name">${r.name}</div><div class="lbc-team">${r.team}</div></div>
+        <div class="lbc-info"><div class="lbc-name">${r.name}</div><div class="lbc-team">${r.team}${injuryBadge(r.pid)}</div></div>
         <div class="lbc-headline"><span class="lbc-headline-num ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</span><span class="lbc-headline-lbl">Due Score</span></div>
       </div>
       <div class="lbc-stats">
@@ -984,7 +996,7 @@ function dueModalHtml(r) {
       <button class="due-modal-close" onclick="closeDueModal()" aria-label="Close">&times;</button>
       <div class="due-modal-head">
         <img class="due-modal-photo" src="${photoUrl}" alt="">
-        <div><div class="due-modal-name">${r.name}</div><div class="due-modal-team">${r.team}</div></div>
+        <div><div class="due-modal-name">${r.name}</div><div class="due-modal-team">${r.team}${injuryBadge(r.pid)}</div></div>
         <div class="due-modal-headline"><span class="due-modal-headline-num ${cls}">${r.dueScore.toFixed(1)}</span><span class="due-modal-headline-lbl">Due Score</span></div>
       </div>
       <div class="due-modal-stats">
@@ -1027,7 +1039,7 @@ function prospectCard(r, isBomb) {
   return `<div class="prospect-card">
     <div class="prospect-top">
       <img class="prospect-photo" src="${photoUrl}" alt="">
-      <div class="prospect-info"><div class="prospect-name">${r.name}</div><div class="prospect-team">${r.team}</div></div>
+      <div class="prospect-info"><div class="prospect-name">${r.name}</div><div class="prospect-team">${r.team}${injuryBadge(r.pid)}</div></div>
       ${headline}
     </div>
     <div class="prospect-meta">${subline}</div>
