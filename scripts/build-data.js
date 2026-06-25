@@ -333,22 +333,22 @@ async function computeProspects() {
   // judge the callup by — drop it rather than show an empty pedigree.
   const justCalledUpRanked = justCalledUp.filter(r => r.milb.aaa || r.milb.aa);
 
-  // "Due"-style framing, just comparing minors production to MLB production
-  // instead of a player's own history: project his minor-league AB/HR rate onto
-  // the MLB at-bats he's already accumulated since callup to get an expected HR
-  // count, then compare to his actual (zero, or he'd be in Debut Bombs). A guy
-  // with elite minors power AND a decent number of hitless MLB ABs already is a
-  // stronger "overdue for his first one" case than someone with the same
-  // pedigree but only 3 MLB at-bats so far — same idea as Due's drought-vs-
-  // expected-gap, just using minors performance as the expectation instead of
-  // the player's own season-to-date average.
+  // Rank by minors AB/HR (lower = more explosive power), independent of how many
+  // MLB at-bats he's had so far — this list is about catching a hot prospect
+  // *before* he's had a chance to prove it, so a fresh callup with elite pedigree
+  // and 4 MLB AB should still rank above a mediocre bat who's just had a longer
+  // look. (breakoutScore, below, is linear in MLB ABs — sorting by it instead
+  // would reward "has had more empty at-bats" over actual power, the opposite
+  // of the point.)
   const abPerHR = level => (level && level.hrs) ? level.abs / level.hrs : null;
   for (const r of justCalledUpRanked) {
     const level = r.milb.aaa ?? r.milb.aa;
     r.milbAbPerHR = abPerHR(level);
+    // Secondary context stat only: "how many HRs his minors pace would predict
+    // off the MLB at-bats he's already had" — informative, not the sort key.
     r.breakoutScore = r.milbAbPerHR ? r.abs / r.milbAbPerHR : 0;
   }
-  justCalledUpRanked.sort((a,b) => b.breakoutScore - a.breakoutScore);
+  justCalledUpRanked.sort((a,b) => (a.milbAbPerHR ?? Infinity) - (b.milbAbPerHR ?? Infinity));
 
   // Debut Bombs gets the same minors-vs-MLB AB/HR comparison for context (not
   // for ranking — "Game 1" vs "Game 6" first-HR order still matters more there).

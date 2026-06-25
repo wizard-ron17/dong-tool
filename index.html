@@ -1024,7 +1024,7 @@ function milbLine(level, info) {
   const abPerHR = info.hrs ? (info.abs / info.hrs).toFixed(1) : '—';
   return `<span class="milb-line"><span class="lvl">${level} ${info.season}</span> · ${abPerHR} AB/HR · ${info.hrs}HR/${info.abs}AB · ${info.avg} avg · ${info.ops} OPS</span>`;
 }
-function breakoutScoreClass(s) { return s>=1.5?'hot':s>=0.6?'warm':'mild'; }
+function milbPowerClass(v) { return v<=15?'hot':v<=25?'warm':'mild'; }
 function prospectCard(r, isBomb) {
   const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
   const mlbAbPerHR = isBomb && r.mlbAbPerHR ? ` · ${r.mlbAbPerHR.toFixed(1)} AB/HR` : '';
@@ -1034,7 +1034,7 @@ function prospectCard(r, isBomb) {
   const milbHtml = [mlbHtml, milbLine('AAA', r.milb?.aaa), milbLine('AA', r.milb?.aa)].filter(Boolean).join('');
   const headline = isBomb
     ? `<div class="prospect-badge"><span class="prospect-hr-num">${r.hrs}</span><span class="prospect-hr-lbl">${r.hrs===1?'HR':'HRs'}</span></div>`
-    : `<div class="prospect-badge"><span class="prospect-hr-num ${breakoutScoreClass(r.breakoutScore)}">${r.breakoutScore.toFixed(1)}</span><span class="prospect-hr-lbl">Breakout Score</span></div>`;
+    : `<div class="prospect-badge"><span class="prospect-hr-num ${r.milbAbPerHR?milbPowerClass(r.milbAbPerHR):''}">${r.milbAbPerHR?r.milbAbPerHR.toFixed(1):'—'}</span><span class="prospect-hr-lbl">${r.milb?.aaa?'AAA':'AA'} AB/HR</span></div>`;
   const milbLevelForFromTeam = r.milb?.aaa?.team===r.fromTeam ? 'AAA' : r.milb?.aa?.team===r.fromTeam ? 'AA' : '';
   const calledUpFrom = `${milbLevelForFromTeam} ${r.fromTeam || 'the minors'}`.trim();
   const expectedNote = !isBomb && r.milbAbPerHR
@@ -1061,7 +1061,7 @@ function switchProspectTab(tab) { activeProspectTab = tab; renderProspects(); sy
 function renderProspects() {
   const { justCalledUp, debutBombs } = prospects;
   document.getElementById('prospects-meta').textContent =
-    `Recent call-ups (last 14 days) · ${debutBombs.length} debut bomb${debutBombs.length===1?'':'s'} · ${justCalledUp.length} to watch · Breakout Score = MLB ABs since callup ÷ his minors AB/HR rate`;
+    `Recent call-ups (last 14 days) · ${debutBombs.length} debut bomb${debutBombs.length===1?'':'s'} · ${justCalledUp.length} to watch · ranked by minors AB/HR (power pedigree), not MLB sample size`;
 
   const tabsHtml = `
     <div class="sub-tabs">
