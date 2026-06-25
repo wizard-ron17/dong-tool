@@ -228,16 +228,28 @@ async function fetchPeopleInfo(ids) {
   return info;
 }
 
-async function fetchRecentSelections(days) {
+async function fetchRecentRosterMoves(days) {
   const end = new Date(), start = new Date();
   start.setUTCDate(start.getUTCDate() - days);
   const fmt = d => d.toISOString().split('T')[0];
   try {
     const res = await fetch(`${MLB}/transactions?startDate=${fmt(start)}&endDate=${fmt(end)}`).then(r => r.json());
-    return (res.transactions ?? [])
+    const txns = res.transactions ?? [];
+    const callUps = txns
       .filter(t => (t.typeDesc === 'Recalled' || t.typeDesc === 'Selected') && t.person?.id)
       .map(t => ({ pid: String(t.person.id), name: t.person.fullName, fromTeam: t.fromTeam?.name ?? '', toTeam: t.toTeam?.name ?? '', date: t.date }));
-  } catch (e) { return []; }
+    // Sent back down since being called up (e.g. optioned to AAA after a brief
+    // look) — track the latest such date per player so we can drop them from
+    // "Just Called Up" instead of still watching a guy who isn't even on the
+    // active roster anymore.
+    const sentDownByPid = {};
+    for (const t of txns) {
+      if (t.typeDesc !== 'Optioned' || !t.person?.id) continue;
+      const pid = String(t.person.id);
+      if (!sentDownByPid[pid] || t.date > sentDownByPid[pid]) sentDownByPid[pid] = t.date;
+    }
+    return { callUps, sentDownByPid };
+  } catch (e) { return { callUps: [], sentDownByPid: {} }; }
 }
 
 async function fetchMinorLeaguePedigree(pid) {
@@ -268,7 +280,7 @@ async function attachPedigree(rows) {
 
 async function computeProspects() {
   const seasonBatterIds = Object.keys(playerNames);
-  const selections = await fetchRecentSelections(PROSPECT_LOOKBACK_DAYS);
+  const { callUps: selections, sentDownByPid } = await fetchRecentRosterMoves(PROSPECT_LOOKBACK_DAYS);
   const selectionByPid = {};
   for (const s of selections) selectionByPid[s.pid] = s; // later selections overwrite earlier ones
 
@@ -304,6 +316,7 @@ async function computeProspects() {
     const isRookie = !info?.debutDate || info.debutDate >= SEASON_START;
     if (!isRookie) continue;
     if (hrTotals[pid]) continue; // already homered — belongs in debutBombs instead
+    if (sentDownByPid[pid] && sentDownByPid[pid] > sel.date) continue; // optioned back down since this call-up
     justCalledUp.push({
       pid, name: playerNames[pid] || info?.fullName || sel.name,
       team: playerTeams[pid] || sel.toTeam, fromTeam: sel.fromTeam,
