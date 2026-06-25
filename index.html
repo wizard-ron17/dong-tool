@@ -164,6 +164,12 @@
   .due-z.warm { color: var(--gold); }
   .due-z.mild { color: var(--accent); }
 
+  .now-ab-longest { color: #ff7040 !important; }
+  .flame-badge { font-size: 0.62rem; margin-left: 0.1rem; }
+  .due-longest-banner { background: rgba(255,112,64,0.08); border: 1px solid rgba(255,112,64,0.4); color: #ff8a5c; border-radius: 6px; padding: 0.45rem 0.6rem; font-size: 0.66rem; font-weight: 700; line-height: 1.4; margin-bottom: 0.9rem; }
+  .due-longest-note { font-size: 0.62rem; color: var(--muted); margin-bottom: 0.9rem; }
+  .due-longest-note strong { color: var(--silver); }
+
   .due-row-clickable { cursor: pointer; }
   .due-row-clickable:hover { background: var(--surface1); }
   .lbc-card.due-row-clickable:active { background: var(--surface1); }
@@ -883,7 +889,7 @@ function renderDue() {
       <td class="due-z ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</td>
       <td class="lb-num hr-col">${r.hrs}</td>
       <td class="lb-num stat-col">${r.avgGap.toFixed(0)}</td>
-      <td class="lb-num stat-col">${r.droughtABs}</td>
+      <td class="lb-num stat-col${r.isLongestEver?' now-ab-longest':''}" title="${r.isLongestEver?'Longest drought of his season':''}">${r.droughtABs}${r.isLongestEver?' <span class="flame-badge">🔥</span>':''}</td>
       <td class="lb-num stat-col">${r.z.toFixed(1)}</td>
       <td class="lb-last ${lastCls}">${lastTxt}</td>
     </tr>`;
@@ -903,7 +909,7 @@ function renderDue() {
       <div class="lbc-stats">
         <div class="lbc-stat"><span class="lbc-stat-val">${r.hrs}</span><span class="lbc-stat-lbl">HR</span></div>
         <div class="lbc-stat"><span class="lbc-stat-val">${r.avgGap.toFixed(0)}</span><span class="lbc-stat-lbl">Avg AB</span></div>
-        <div class="lbc-stat"><span class="lbc-stat-val">${r.droughtABs}</span><span class="lbc-stat-lbl">Now AB</span></div>
+        <div class="lbc-stat"><span class="lbc-stat-val${r.isLongestEver?' now-ab-longest':''}">${r.droughtABs}${r.isLongestEver?' <span class="flame-badge">🔥</span>':''}</span><span class="lbc-stat-lbl">Now AB</span></div>
         <div class="lbc-stat"><span class="lbc-stat-val">${r.z.toFixed(1)}</span><span class="lbc-stat-lbl">Z</span></div>
         <div class="lbc-stat"><span class="lbc-stat-val ${lastCls}">${lastTxt}</span><span class="lbc-stat-lbl">Last HR</span></div>
       </div>
@@ -969,6 +975,9 @@ function dueVizHtml(r) {
 function dueModalHtml(r) {
   const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_120,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
   const cls = dueScoreClass(r.dueScore);
+  const longestNote = r.isLongestEver
+    ? `<div class="due-longest-banner">🔥 This is the longest he's gone without a homer all season — ${r.droughtABs} ABs and counting.</div>`
+    : `<div class="due-longest-note">Longest drought this season: <strong>${r.longestPriorGap}</strong> AB &nbsp;·&nbsp; currently at <strong>${r.droughtABs}</strong> AB</div>`;
   return `<div class="due-modal-backdrop" id="due-modal-backdrop" onclick="if(event.target===this) closeDueModal()">
     <div class="due-modal">
       <button class="due-modal-close" onclick="closeDueModal()" aria-label="Close">&times;</button>
@@ -985,6 +994,7 @@ function dueModalHtml(r) {
         <div class="due-modal-stat"><span class="due-modal-stat-val">${fmtDate(r.lastHR)}</span><span class="due-modal-stat-lbl">Last HR</span></div>
         <div class="due-modal-stat"><span class="due-modal-stat-val">${r.lastAgo}d</span><span class="due-modal-stat-lbl">Days Ago</span></div>
       </div>
+      ${longestNote}
       <div class="due-viz-title">AB gaps between home runs this season</div>
       ${dueVizHtml(r)}
       <div class="due-viz-foot">Each gray bar is the at-bats between consecutive HRs, oldest → newest. Dashed gold line = his average gap (${r.avgGap.toFixed(0)} AB). Shaded band = his normal range (±1 std dev). The orange bar is his current drought — still climbing, already ${r.z.toFixed(1)} std deviations past normal.</div>

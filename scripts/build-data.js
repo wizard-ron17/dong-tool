@@ -161,6 +161,13 @@ function computeDueRows() {
       const gap = cumAbsThrough(pid, dates[i]) - cumAbsThrough(pid, dates[i-1]);
       if (gap > 0) intervals.push(gap);
     }
+    // Longest gap of the season so far, for display only — kept out of avgGap/stdGap
+    // (and thus z/dueScore) below so it doesn't change how "due" anyone is ranked,
+    // it just adds context once they're already on the list. Includes the season-
+    // opening gap (Opening Day through his first HR), since a slow start is a real
+    // drought too even though it's not a "gap between two HRs."
+    const leadGap = dates.length ? cumAbsThrough(pid, dates[0]) : 0;
+    const longestPriorGap = Math.max(leadGap, ...intervals, 0);
     let avgGap, stdGap;
     if (intervals.length >= 2)       { avgGap = avg(intervals); stdGap = sampleStd(intervals); }
     else if (intervals.length === 1) { avgGap = (intervals[0] + seasonAbPerHR) / 2; stdGap = avgGap * 0.35; }
@@ -181,7 +188,7 @@ function computeDueRows() {
 
     rows.push({ pid, name: playerNames[pid] || pid, team: playerTeams[pid] || '', hrs, seasonAbPerHR,
       avgGap, droughtABs, stdGap, z, dueScore, lastHR, lastAgo: daysSince(lastHR), lastGame,
-      intervals, hrDates: dates });
+      intervals, hrDates: dates, longestPriorGap, isLongestEver: droughtABs >= longestPriorGap });
   }
   rows.sort((a,b) => b.dueScore - a.dueScore || b.z - a.z);
   return rows;
