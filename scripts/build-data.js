@@ -262,7 +262,7 @@ async function fetchMinorLeaguePedigree(pid) {
       if (!thisSeason) continue; // no current-season record at this level — stale prior-year stats aren't useful context
       pedigree[key] = {
         season: thisSeason.season, team: thisSeason.team?.name ?? '',
-        games: thisSeason.stat.gamesPlayed, hrs: thisSeason.stat.homeRuns,
+        games: thisSeason.stat.gamesPlayed, abs: thisSeason.stat.atBats, hrs: thisSeason.stat.homeRuns,
         avg: thisSeason.stat.avg, ops: thisSeason.stat.ops,
       };
     } catch (e) {}
@@ -333,14 +333,30 @@ async function computeProspects() {
   // judge the callup by — drop it rather than show an empty pedigree.
   const justCalledUpRanked = justCalledUp.filter(r => r.milb.aaa || r.milb.aa);
 
-  // Rank by games-per-HR in AAA (fewer games per dinger = more explosive power);
-  // falls back to AA for anyone called up straight from there instead.
-  const gamesPerHR = level => (level && level.hrs) ? level.games / level.hrs : Infinity;
-  justCalledUpRanked.sort((a,b) => {
-    const aMetric = gamesPerHR(a.milb.aaa ?? a.milb.aa);
-    const bMetric = gamesPerHR(b.milb.aaa ?? b.milb.aa);
-    return aMetric - bMetric;
-  });
+  // "Due"-style framing, just comparing minors production to MLB production
+  // instead of a player's own history: project his minor-league AB/HR rate onto
+  // the MLB at-bats he's already accumulated since callup to get an expected HR
+  // count, then compare to his actual (zero, or he'd be in Debut Bombs). A guy
+  // with elite minors power AND a decent number of hitless MLB ABs already is a
+  // stronger "overdue for his first one" case than someone with the same
+  // pedigree but only 3 MLB at-bats so far — same idea as Due's drought-vs-
+  // expected-gap, just using minors performance as the expectation instead of
+  // the player's own season-to-date average.
+  const abPerHR = level => (level && level.hrs) ? level.abs / level.hrs : null;
+  for (const r of justCalledUpRanked) {
+    const level = r.milb.aaa ?? r.milb.aa;
+    r.milbAbPerHR = abPerHR(level);
+    r.breakoutScore = r.milbAbPerHR ? r.abs / r.milbAbPerHR : 0;
+  }
+  justCalledUpRanked.sort((a,b) => b.breakoutScore - a.breakoutScore);
+
+  // Debut Bombs gets the same minors-vs-MLB AB/HR comparison for context (not
+  // for ranking — "Game 1" vs "Game 6" first-HR order still matters more there).
+  for (const r of debutBombs) {
+    const level = r.milb.aaa ?? r.milb.aa;
+    r.milbAbPerHR = abPerHR(level);
+    r.mlbAbPerHR = r.hrs ? r.abs / r.hrs : null;
+  }
 
   return { justCalledUp: justCalledUpRanked, debutBombs };
 }

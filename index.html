@@ -266,6 +266,9 @@
   .prospect-team { font-size: 0.6rem; color: var(--muted); }
   .prospect-badge { flex-shrink: 0; text-align: right; }
   .prospect-hr-num { font-family: var(--font-d); font-size: 1.5rem; font-weight: 700; color: var(--accent); line-height: 1; display: block; }
+  .prospect-hr-num.hot  { color: #ff7040; }
+  .prospect-hr-num.warm { color: var(--gold); }
+  .prospect-hr-num.mild { color: var(--accent); }
   .prospect-hr-lbl { font-size: 0.5rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
   .prospect-meta { font-size: 0.66rem; color: var(--silver); margin-bottom: 0.5rem; }
   .prospect-meta .first-hr { color: var(--green); font-weight: 700; }
@@ -1018,24 +1021,31 @@ function dueModalHtml(r) {
 // ── PROSPECTS ──────────────────────────────────────────────────────────
 function milbLine(level, info) {
   if (!info) return '';
-  return `<span class="milb-line"><span class="lvl">${level} ${info.season}</span> · ${info.games}G · ${info.hrs}HR · ${info.avg} avg · ${info.ops} OPS</span>`;
+  const abPerHR = info.hrs ? (info.abs / info.hrs).toFixed(1) : '—';
+  return `<span class="milb-line"><span class="lvl">${level} ${info.season}</span> · ${abPerHR} AB/HR · ${info.hrs}HR/${info.abs}AB · ${info.avg} avg · ${info.ops} OPS</span>`;
 }
+function breakoutScoreClass(s) { return s>=1.5?'hot':s>=0.6?'warm':'mild'; }
 function prospectCard(r, isBomb) {
   const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
+  const mlbAbPerHR = isBomb && r.mlbAbPerHR ? ` · ${r.mlbAbPerHR.toFixed(1)} AB/HR` : '';
   const mlbHtml = r.gamesPlayed > 0
-    ? `<span class="milb-line"><span class="lvl">MLB</span> · ${r.gamesPlayed}G · ${r.abs}AB · ${r.hrs}HR</span>`
+    ? `<span class="milb-line"><span class="lvl">MLB</span> · ${r.gamesPlayed}G · ${r.abs}AB · ${r.hrs}HR${mlbAbPerHR}</span>`
     : '';
   const milbHtml = [mlbHtml, milbLine('AAA', r.milb?.aaa), milbLine('AA', r.milb?.aa)].filter(Boolean).join('');
-  const rankLevel = r.milb?.aaa ?? r.milb?.aa;
-  const gamesPerHR = rankLevel?.hrs ? (rankLevel.games / rankLevel.hrs).toFixed(1) : '—';
   const headline = isBomb
     ? `<div class="prospect-badge"><span class="prospect-hr-num">${r.hrs}</span><span class="prospect-hr-lbl">${r.hrs===1?'HR':'HRs'}</span></div>`
-    : `<div class="prospect-badge"><span class="prospect-hr-num">${gamesPerHR}</span><span class="prospect-hr-lbl">${r.milb?.aaa?'AAA':'AA'} G/HR</span></div>`;
+    : `<div class="prospect-badge"><span class="prospect-hr-num ${breakoutScoreClass(r.breakoutScore)}">${r.breakoutScore.toFixed(1)}</span><span class="prospect-hr-lbl">Breakout Score</span></div>`;
   const milbLevelForFromTeam = r.milb?.aaa?.team===r.fromTeam ? 'AAA' : r.milb?.aa?.team===r.fromTeam ? 'AA' : '';
   const calledUpFrom = `${milbLevelForFromTeam} ${r.fromTeam || 'the minors'}`.trim();
+  const expectedNote = !isBomb && r.milbAbPerHR
+    ? ` · based on his ${r.milb?.aaa?'AAA':'AA'} pace, expected ~${r.breakoutScore.toFixed(1)} HR by now off ${r.abs} MLB AB`
+    : '';
+  const compareNote = isBomb && r.milbAbPerHR
+    ? ` · ${r.mlbAbPerHR.toFixed(1)} AB/HR in MLB vs ${r.milbAbPerHR.toFixed(1)} in ${r.milb?.aaa?'AAA':'AA'}`
+    : '';
   const subline = isBomb
-    ? `Debuted ${fmtDateLong(r.debutDate)} · <span class="first-hr">First HR: Game ${r.hrGames[0]}</span>${r.hrGames.length>1?` (+${r.hrGames.length-1} more)`:''}`
-    : `${r.status==='selected'?'Not Debuted Yet':`Debuted ${fmtDateLong(r.debutDate)}`} · Called Up from ${calledUpFrom} · ${daysSince(r.selectedDate)}d ago`;
+    ? `Debuted ${fmtDateLong(r.debutDate)} · <span class="first-hr">First HR: Game ${r.hrGames[0]}</span>${r.hrGames.length>1?` (+${r.hrGames.length-1} more)`:''}${compareNote}`
+    : `${r.status==='selected'?'Not Debuted Yet':`Debuted ${fmtDateLong(r.debutDate)}`} · Called Up from ${calledUpFrom} · ${daysSince(r.selectedDate)}d ago${expectedNote}`;
   return `<div class="prospect-card">
     <div class="prospect-top">
       <img class="prospect-photo" src="${photoUrl}" alt="">
@@ -1051,7 +1061,7 @@ function switchProspectTab(tab) { activeProspectTab = tab; renderProspects(); sy
 function renderProspects() {
   const { justCalledUp, debutBombs } = prospects;
   document.getElementById('prospects-meta').textContent =
-    `Recent call-ups (last 14 days) · ${debutBombs.length} debut bomb${debutBombs.length===1?'':'s'} · ${justCalledUp.length} to watch`;
+    `Recent call-ups (last 14 days) · ${debutBombs.length} debut bomb${debutBombs.length===1?'':'s'} · ${justCalledUp.length} to watch · Breakout Score = MLB ABs since callup ÷ his minors AB/HR rate`;
 
   const tabsHtml = `
     <div class="sub-tabs">
