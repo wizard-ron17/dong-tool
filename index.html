@@ -926,6 +926,27 @@ function avgBatterHRG() {
   const totalGames = Object.values(playerGames).reduce((a,b)=>a+b, 0);
   return totalGames ? totalHRs / totalGames : 0;
 }
+// AB/HR and pitcher HR/9 are both "lower is better" — invert the ratio
+// direction from hrgClass instead of reusing it, so the great/bad ends of
+// the gradient still point the right way.
+function lowerIsBetterClass(value, leagueAvg) {
+  if (!leagueAvg || value == null) return 'avg';
+  const ratio = value / leagueAvg;
+  if (ratio <= 0.7) return 'great';
+  if (ratio <= 0.9) return 'good';
+  if (ratio >= 1.3) return 'bad';
+  if (ratio >= 1.1) return 'below';
+  return 'avg';
+}
+function avgBatterAbPerHR() {
+  const totalABs = Object.values(playerABs).reduce((a,b)=>a+b, 0);
+  const totalHRs = Object.values(hrTotals).reduce((a,b)=>a+b, 0);
+  return totalHRs ? totalABs / totalHRs : 0;
+}
+function avgPitcherHR9() {
+  const vals = Object.values(pitcherStats).map(s => parseFloat(s.hr9)).filter(v => !isNaN(v));
+  return vals.length ? vals.reduce((a,b)=>a+b, 0) / vals.length : 0;
+}
 function parkHRGRows() {
   return Object.keys(venueGameDays).map(venue => {
     const games = Object.values(venueGameDays[venue]).reduce((a,b)=>a+b, 0);
@@ -1319,18 +1340,18 @@ function schedLineupHtml(side) {
       <div class="sched-lineup-empty">Lineup not posted yet</div>
     </div>`;
   }
-  const batterAvg = avgBatterHRG();
+  const batterAvg = avgBatterAbPerHR();
   const rows = side.lineup.map(p => {
     const hrs = hrTotals[p.pid] ?? 0;
-    const games = playerGames[p.pid] ?? 0;
-    const hrg = games ? hrs / games : 0;
-    const cls = hrgClass(hrg, batterAvg);
+    const abs = playerABs[p.pid] ?? 0;
+    const abPerHR = hrs ? abs / hrs : null;
+    const cls = lowerIsBetterClass(abPerHR, batterAvg);
     return `<div class="sched-lineup-row">
       <span class="sched-lineup-order">${p.order}</span>
       <span class="sched-lineup-pos">${p.position}</span>
       <span class="sched-lineup-pname">${playerNames[p.pid] || p.name}</span>
       ${injuryBadge(p.pid, true)}
-      <span class="sched-lineup-hr hrg-val ${cls}">${hrs} HR · ${hrg.toFixed(2)}/G</span>
+      <span class="sched-lineup-hr hrg-val ${cls}">${hrs} HR · ${abPerHR != null ? abPerHR.toFixed(1) + ' AB/HR' : '—'}</span>
     </div>`;
   }).join('');
   return `<div class="sched-lineup-col"><div class="sched-lineup-head">${label}</div>${rows}</div>`;
@@ -1342,7 +1363,8 @@ function schedPitcherHtml(side) {
     return `<div class="sched-pitcher empty">TBD to start</div>`;
   }
   const stat = side.probablePitcherId ? pitcherStats[side.probablePitcherId] : null;
-  const statText = stat ? `${stat.hr} HR · ${stat.hr9} HR9` : '';
+  const hr9Cls = stat ? lowerIsBetterClass(parseFloat(stat.hr9), avgPitcherHR9()) : 'avg';
+  const statText = stat ? `${stat.hr} HR · <span class="hrg-val ${hr9Cls}">${stat.hr9} HR9</span>` : '';
   return `<div class="sched-pitcher">
     <img class="sched-pitcher-photo" src="${playerPhotoUrl(side.probablePitcherId)}" alt="">
     <div class="sched-pitcher-info">
