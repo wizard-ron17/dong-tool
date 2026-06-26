@@ -137,7 +137,11 @@
 
   .chart-wrap { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.8rem; position: relative; width: 100%; height: 300px; }
   @media (max-width: 600px) { .chart-wrap { height: 380px; padding: 0.5rem 0.3rem 0.5rem 0.5rem; } }
-  .chart-legend { margin-top: 0.5rem; font-size: 0.58rem; color: var(--muted); letter-spacing: 0.08em; }
+  .chart-legend { margin-top: 0.5rem; font-size: 0.58rem; color: var(--muted); letter-spacing: 0.08em; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+  .roll-toggles { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+  .roll-toggle { background: var(--surface1); border: 1px solid var(--border2); color: var(--dim); font-family: var(--font-m); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em; padding: 0.15rem 0.55rem; border-radius: 20px; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+  .roll-toggle:hover { color: var(--text); }
+  .roll-toggle.active { background: var(--surface2); border-color: var(--c); color: var(--c); }
   .team-filter-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.8rem; flex-wrap: wrap; }
   .team-filter-row label { font-size: 0.63rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
   select#team-select { background: var(--surface1); border: 1px solid var(--border2); color: var(--text); font-family: var(--font-m); font-size: 0.7rem; padding: 0.32rem 0.55rem; border-radius: 5px; cursor: pointer; outline: none; }
@@ -357,7 +361,8 @@
         <canvas id="hrChart" role="img" aria-label="HR per game per day line chart"></canvas>
       </div>
       <div class="chart-legend">
-        HR / GAME PER DAY · hover for game count · <span style="color:#f0c040">— 7d</span> &nbsp;<span style="color:#e07030">— 14d</span> &nbsp;<span style="color:#a060e0">— 30d</span> rolling avg
+        <span>HR/GAME PER DAY · hover for game count · rolling avg:</span>
+        <div class="roll-toggles" id="roll-toggles"></div>
       </div>
     </div>
     <div id="stats-individual" style="display:none">
@@ -412,6 +417,21 @@ let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if c
 let activeNav      = 'pairs';
 let activePairSize = 2;
 let hrChart        = null;
+
+const ROLL_PRESETS = [
+  { days: 3,  color: '#3bc9e0', defaultOn: false },
+  { days: 7,  color: '#f0c040', defaultOn: true  },
+  { days: 14, color: '#e07030', defaultOn: true  },
+  { days: 21, color: '#e0507a', defaultOn: false },
+  { days: 30, color: '#a060e0', defaultOn: true  },
+  { days: 45, color: '#2ec4b6', defaultOn: false },
+  { days: 60, color: '#7888a8', defaultOn: false },
+];
+let activeRollWindows = new Set(ROLL_PRESETS.filter(p => p.defaultOn).map(p => p.days));
+function toggleRollWindow(days) {
+  if (activeRollWindows.has(days)) activeRollWindows.delete(days); else activeRollWindows.add(days);
+  renderTotals();
+}
 let lbSortCol      = null;
 let lbSortDir      = -1;
 let dueSortCol     = null;
@@ -702,8 +722,12 @@ function renderTotals() {
     <div class="stat-chip"><span class="stat-chip-val">${avg}</span><span class="stat-chip-lbl">HR/Game</span></div>
     <div class="stat-chip"><span class="stat-chip-val">${peakVal.toFixed(2)}</span><span class="stat-chip-lbl">Peak${peakDate?' · '+fmtDate(peakDate):''}</span></div>`;
 
+  document.getElementById('roll-toggles').innerHTML = ROLL_PRESETS.map(p =>
+    `<button class="roll-toggle${activeRollWindows.has(p.days)?' active':''}" style="--c:${p.color}" onclick="toggleRollWindow(${p.days})">${p.days}d</button>`
+  ).join('');
+
   function makeMA(data,w){return data.map((_,i)=>{const s=data.slice(Math.max(0,i-(w-1)),i+1);return Math.round(s.reduce((a,b)=>a+b,0)/s.length*100)/100;});}
-  const roll7=makeMA(hrPerGame,7), roll14=makeMA(hrPerGame,14), roll30=makeMA(hrPerGame,30);
+  const activePresets = ROLL_PRESETS.filter(p => activeRollWindows.has(p.days));
 
   if (hrChart){hrChart.destroy();hrChart=null;}
   const ctx = document.getElementById('hrChart').getContext('2d');
@@ -711,15 +735,18 @@ function renderTotals() {
   const tickStep     = Math.max(1, Math.ceil(labels.length/(mob?5:14)));
   const sparseLabels = labels.map((l,i)=>i%tickStep===0?l:'');
   const dateSnapshot = teamFilter==='ALL' ? allDates : allDates.filter(d=>(teamGameDays[teamFilter]?.[d]||0)>0);
-  const dash7=mob?[]:[4,3], dash14=mob?[]:[8,4], dash30=mob?[]:[12,5];
+
+  const rollDatasets = activePresets.map((p,i) => ({
+    label: `${p.days}d`, data: makeMA(hrPerGame, p.days), borderColor: p.color,
+    backgroundColor: 'transparent', borderWidth: mob?1.5:2, pointRadius:0, tension:0.4,
+    order: activePresets.length - i,
+  }));
 
   hrChart = new Chart(ctx, {
     type:'line',
     data:{labels:sparseLabels, datasets:[
-      {label:'HR/game',data:hrPerGame,borderColor:'#35c96e',backgroundColor:'rgba(53,201,110,0.07)',borderWidth:mob?1:1.5,pointRadius:0,tension:0.35,fill:true,order:3},
-      {label:'7d', data:roll7, borderColor:'#f0c040',backgroundColor:'transparent',borderWidth:mob?1.5:2,pointRadius:0,tension:0.4,borderDash:dash7, order:2},
-      {label:'14d',data:roll14,borderColor:'#e07030',backgroundColor:'transparent',borderWidth:mob?1.5:2,pointRadius:0,tension:0.4,borderDash:dash14,order:1},
-      {label:'30d',data:roll30,borderColor:'#a060e0',backgroundColor:'transparent',borderWidth:mob?2:2.5,  pointRadius:0,tension:0.4,borderDash:dash30,order:0}
+      {label:'HR/game',data:hrPerGame,borderColor:'#35c96e',backgroundColor:'rgba(53,201,110,0.07)',borderWidth:mob?1:1.5,pointRadius:0,tension:0.35,fill:true,order:99},
+      ...rollDatasets
     ]},
     options:{
       responsive:true, maintainAspectRatio:false,
@@ -734,7 +761,7 @@ function renderTotals() {
           filter:mob?(item=>item.datasetIndex===0):()=>true,
           callbacks:{
             title:(items)=>{const i=items[0].dataIndex;const date=dateSnapshot[i];const g=teamFilter==='ALL'?(dailyGames[date]||0):(teamGameDays[teamFilter]?.[date]||0);return `${labels[i]}  ·  ${g}G`;},
-            label:(item)=>{const l=[' HR/G',' 7d',' 14d',' 30d'];return ` ${item.raw.toFixed(2)}${l[item.datasetIndex]}`;}
+            label:(item)=>` ${item.raw.toFixed(2)} ${item.dataset.label==='HR/game'?'HR/G':item.dataset.label}`
           }
         }
       },
