@@ -162,15 +162,18 @@
   .hrg-board-bar-wrap { flex: 2; min-width: 80px; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
   .hrg-board-bar { height: 100%; border-radius: 3px; }
   .hrg-board-val { font-family: var(--font-d); font-size: 1rem; font-weight: 700; width: 2.6rem; text-align: right; flex-shrink: 0; }
-  .hrg-board-val.hot,  .hrg-board-bar.hot  { color: #ff7040; }
-  .hrg-board-val.warm, .hrg-board-bar.warm { color: var(--gold); }
-  .hrg-board-val.cool, .hrg-board-bar.cool { color: #3bc9e0; }
-  .hrg-board-val.mild, .hrg-board-bar.mild { color: var(--accent); }
+  /* Higher HR/game = greener = "better" for a dong-tracking site; lower = redder. */
+  .hrg-board-val.great, .hrg-board-bar.great { color: var(--accent); }
+  .hrg-board-val.good,  .hrg-board-bar.good  { color: #9ed957; }
+  .hrg-board-val.avg,   .hrg-board-bar.avg   { color: var(--gold); }
+  .hrg-board-val.below, .hrg-board-bar.below { color: #ff9040; }
+  .hrg-board-val.bad,   .hrg-board-bar.bad   { color: #e0405a; }
   .hrg-board-sample-tag { font-size: 0.5rem; color: var(--dim); font-style: italic; flex-shrink: 0; white-space: nowrap; }
-  .hrg-val.hot  { color: #ff7040; }
-  .hrg-val.warm { color: var(--gold); }
-  .hrg-val.cool { color: #3bc9e0; }
-  .hrg-val.mild { color: var(--accent); }
+  .hrg-val.great { color: var(--accent); }
+  .hrg-val.good  { color: #9ed957; }
+  .hrg-val.avg   { color: var(--gold); }
+  .hrg-val.below { color: #ff9040; }
+  .hrg-val.bad   { color: #e0405a; }
 
   .tbl-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; }
   .lb-table { width: 100%; border-collapse: collapse; min-width: 480px; }
@@ -318,8 +321,12 @@
   .sched-pitcher-stat { font-size: 0.55rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sched-pitcher.empty { color: var(--dim); font-size: 0.62rem; font-style: italic; }
   .sched-vs { font-size: 0.55rem; color: var(--dim); flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.05em; }
-  .sched-expand-row { margin-top: 0.4rem; text-align: right; cursor: pointer; }
+  .sched-expand-row { margin-top: 0.4rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
   .sched-expand-hint { color: var(--dim); font-size: 0.55rem; letter-spacing: 0.05em; text-transform: uppercase; }
+  .sched-lineup-status { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.12rem 0.5rem; border-radius: 10px; }
+  .sched-lineup-status.set     { background: rgba(53,201,110,0.12); color: var(--accent); }
+  .sched-lineup-status.partial { background: rgba(240,192,64,0.1); color: var(--gold); }
+  .sched-lineup-status.pending { background: var(--surface2); color: var(--muted); }
   .sched-lineups { display: none; gap: 1.2rem; margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
   .sched-game.expanded .sched-lineups { display: flex; }
   .sched-lineup-col { flex: 1; min-width: 0; }
@@ -328,7 +335,7 @@
   .sched-lineup-order { color: var(--muted); width: 1.1rem; flex-shrink: 0; }
   .sched-lineup-pos { color: var(--muted); width: 1.6rem; flex-shrink: 0; font-size: 0.6rem; }
   .sched-lineup-pname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .sched-lineup-hr { font-size: 0.58rem; color: var(--accent); font-weight: 700; flex-shrink: 0; margin-left: auto; }
+  .sched-lineup-hr { font-size: 0.58rem; font-weight: 700; flex-shrink: 0; margin-left: auto; }
   .sched-lineup-empty { font-size: 0.65rem; color: var(--dim); font-style: italic; }
   @media (max-width: 600px) { .sched-lineups { flex-direction: column; gap: 0.7rem; } .sched-pitchers-row { flex-wrap: wrap; } }
 
@@ -906,9 +913,18 @@ function leagueHRPerGame() {
   return leagueGames ? leagueHRs / leagueGames : 0;
 }
 function hrgClass(hrPerGame, leagueAvg) {
-  if (!leagueAvg) return 'mild';
+  if (!leagueAvg) return 'avg';
   const ratio = hrPerGame / leagueAvg;
-  return ratio >= 1.3 ? 'hot' : ratio >= 1.1 ? 'warm' : ratio <= 0.7 ? 'cool' : 'mild';
+  if (ratio >= 1.3) return 'great';
+  if (ratio >= 1.1) return 'good';
+  if (ratio <= 0.7) return 'bad';
+  if (ratio <= 0.9) return 'below';
+  return 'avg';
+}
+function avgBatterHRG() {
+  const totalHRs = Object.values(hrTotals).reduce((a,b)=>a+b, 0);
+  const totalGames = Object.values(playerGames).reduce((a,b)=>a+b, 0);
+  return totalGames ? totalHRs / totalGames : 0;
 }
 function parkHRGRows() {
   return Object.keys(venueGameDays).map(venue => {
@@ -1287,6 +1303,14 @@ function schedStatusInfo(g) {
   const time = new Date(g.gameDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   return { cls: 'upcoming', text: time };
 }
+// Lets you tell at a glance, without expanding, whether either side has
+// actually posted their lineup yet.
+function schedLineupStatus(g) {
+  const homeSet = g.home.lineup.length > 0, awaySet = g.away.lineup.length > 0;
+  if (homeSet && awaySet) return { cls: 'set', text: 'Lineups Set' };
+  if (homeSet || awaySet) return { cls: 'partial', text: '1/2 Lineups Set' };
+  return { cls: 'pending', text: 'Lineups TBD' };
+}
 function schedLineupHtml(side) {
   const label = side.teamAbbr || side.teamName;
   if (!side.lineup.length) {
@@ -1295,16 +1319,18 @@ function schedLineupHtml(side) {
       <div class="sched-lineup-empty">Lineup not posted yet</div>
     </div>`;
   }
+  const batterAvg = avgBatterHRG();
   const rows = side.lineup.map(p => {
     const hrs = hrTotals[p.pid] ?? 0;
     const games = playerGames[p.pid] ?? 0;
     const hrg = games ? hrs / games : 0;
+    const cls = hrgClass(hrg, batterAvg);
     return `<div class="sched-lineup-row">
       <span class="sched-lineup-order">${p.order}</span>
       <span class="sched-lineup-pos">${p.position}</span>
       <span class="sched-lineup-pname">${playerNames[p.pid] || p.name}</span>
       ${injuryBadge(p.pid, true)}
-      <span class="sched-lineup-hr">${hrs} HR · ${hrg.toFixed(2)}/G</span>
+      <span class="sched-lineup-hr hrg-val ${cls}">${hrs} HR · ${hrg.toFixed(2)}/G</span>
     </div>`;
   }).join('');
   return `<div class="sched-lineup-col"><div class="sched-lineup-head">${label}</div>${rows}</div>`;
@@ -1341,6 +1367,7 @@ function renderSchedule() {
   const leagueAvg = leagueHRPerGame();
   contentEl.innerHTML = `<div class="sched-list">${sorted.map(g => {
     const info = schedStatusInfo(g);
+    const lineupStatus = schedLineupStatus(g);
     const awayLabel = g.away.teamAbbr || g.away.teamName, homeLabel = g.home.teamAbbr || g.home.teamName;
     const venueGames = Object.values(venueGameDays[g.venue] ?? {}).reduce((a,b)=>a+b, 0);
     const venueHRs = Object.values(venueHRsByDate[g.venue] ?? {}).reduce((a,b)=>a+b, 0);
@@ -1364,7 +1391,8 @@ function renderSchedule() {
         ${schedPitcherHtml(g.home)}
       </div>
       <div class="sched-expand-row" onclick="toggleSchedGame(${g.gamePk})">
-        <span class="sched-expand-hint">Lineups ▾</span>
+        <span class="sched-lineup-status ${lineupStatus.cls}">${lineupStatus.text}</span>
+        <span class="sched-expand-hint">▾</span>
       </div>
       <div class="sched-lineups">
         ${schedLineupHtml(g.away)}
