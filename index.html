@@ -1363,7 +1363,9 @@ function schedPitcherHtml(side) {
     return `<div class="sched-pitcher empty">TBD to start</div>`;
   }
   const stat = side.probablePitcherId ? pitcherStats[side.probablePitcherId] : null;
-  const hr9Cls = stat ? lowerIsBetterClass(parseFloat(stat.hr9), avgPitcherHR9()) : 'avg';
+  // Higher HR/9 = a juicier matchup for this site's purposes, so it gets the
+  // same "higher is greener" polarity as HR/game instead of lowerIsBetterClass.
+  const hr9Cls = stat ? hrgClass(parseFloat(stat.hr9), avgPitcherHR9()) : 'avg';
   const statText = stat ? `${stat.hr} HR · <span class="hrg-val ${hr9Cls}">${stat.hr9} HR9</span>` : '';
   return `<div class="sched-pitcher">
     <img class="sched-pitcher-photo" src="${playerPhotoUrl(side.probablePitcherId)}" alt="">
