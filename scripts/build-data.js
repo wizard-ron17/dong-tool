@@ -300,6 +300,34 @@ async function fetchRecentRosterMoves(days) {
   } catch (e) { return { callUps: [], sentDownByPid: {} }; }
 }
 
+// MLB's transactions feed can lag the actual roster move by hours — a call-up
+// reported by beat writers in the morning sometimes doesn't post there until
+// the player physically arrives at the park. Today's official starting
+// lineups (via the same /schedule endpoint, hydrated) are a faster, equally
+// official signal: anyone batting today with zero box-score appearances all
+// season is, almost by definition, a brand-new call-up, transaction or not.
+async function fetchTodayLineupNewcomers() {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  try {
+    const sched = await fetch(`${MLB}/schedule?sportId=1&date=${today}&gameType=R&hydrate=lineups`).then(r => r.json());
+    const games = sched.dates?.[0]?.games ?? [];
+    const newcomers = [];
+    for (const g of games) {
+      for (const side of ['home', 'away']) {
+        const teamName = g.teams?.[side]?.team?.name ?? '';
+        const players = g.lineups?.[`${side}Players`] ?? [];
+        for (const p of players) {
+          if (p.primaryPosition?.code === '1') continue; // pitchers can't homer
+          const pid = String(p.id);
+          if (playerNames[pid]) continue; // already has a box-score appearance this season — not a newcomer
+          newcomers.push({ pid, name: p.fullName, toTeam: teamName, date: today });
+        }
+      }
+    }
+    return newcomers;
+  } catch (e) { return []; }
+}
+
 async function fetchMinorLeaguePedigree(pid) {
   const pedigree = {};
   for (const [key, sportId] of Object.entries(MINOR_SPORT_IDS)) {
@@ -332,7 +360,13 @@ async function computeProspects() {
   const selectionByPid = {};
   for (const s of selections) selectionByPid[s.pid] = s; // later selections overwrite earlier ones
 
-  const allIds = new Set([...seasonBatterIds, ...selections.map(s => s.pid)]);
+  // Fill in anyone starting today that the transactions feed hasn't caught up
+  // to yet — only if there's no real transaction for them already, since the
+  // actual transaction (when it exists) has more reliable fromTeam/date info.
+  const lineupNewcomers = await fetchTodayLineupNewcomers();
+  for (const n of lineupNewcomers) if (!selectionByPid[n.pid]) selectionByPid[n.pid] = n;
+
+  const allIds = new Set([...seasonBatterIds, ...Object.keys(selectionByPid)]);
   const peopleInfo = await fetchPeopleInfo([...allIds]);
 
   // Debut Bombs: rookies who've already gone deep — bounded to the same
