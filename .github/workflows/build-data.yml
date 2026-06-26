@@ -11,6 +11,12 @@ on:
     - cron: '13 10 * * *'     # ~6:13am EDT / 3:13am PDT
     - cron: '43 11 * * *'     # ~7:43am EDT / 4:43am PDT
     - cron: '17 12 * * *'     # ~8:17am EDT / 5:17am PDT — final safety net
+    # Most teams post starting lineups 1-3 hours before first pitch, so this
+    # run exists for a different reason than the morning ones above: it's
+    # the only chance for build-data.js's lineup-based call-up detection
+    # (a same-day starter with zero box-score appearances yet) to actually
+    # catch someone before the official transaction posts.
+    - cron: '37 20 * * *'     # ~4:37pm EDT / 1:37pm PDT
   workflow_dispatch: {}      # lets us trigger it manually from the Actions tab
 
 permissions:
