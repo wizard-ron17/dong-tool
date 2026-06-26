@@ -330,6 +330,7 @@ async function fetchTodaySchedule(teamIdToAbbr) {
         return {
           teamId: team.id ?? null, teamName: team.name ?? '', teamAbbr: teamIdToAbbr[team.id] ?? '',
           probablePitcher: g.teams?.[s]?.probablePitcher?.fullName ?? null,
+          probablePitcherId: g.teams?.[s]?.probablePitcher?.id ? String(g.teams[s].probablePitcher.id) : null,
           score: g.teams?.[s]?.score ?? null,
           lineup: (g.lineups?.[`${s}Players`] ?? []).map((p, i) => ({
             pid: String(p.id), name: p.fullName,
@@ -343,6 +344,29 @@ async function fetchTodaySchedule(teamIdToAbbr) {
       };
     });
   } catch (e) { return []; }
+}
+
+// HR-focused season line for each of today's probable pitchers — just enough
+// to answer "is this guy a homer-prone matchup or not" at a glance.
+async function fetchPitcherHRStats(pids) {
+  const stats = {};
+  const BATCH = 6;
+  const unique = [...new Set(pids)];
+  for (let i = 0; i < unique.length; i += BATCH) {
+    const batch = unique.slice(i, i + BATCH);
+    await Promise.all(batch.map(async pid => {
+      try {
+        const res = await fetch(`${MLB}/people/${pid}/stats?stats=season&group=pitching&sportId=1`).then(r => r.json());
+        const stat = res.stats?.[0]?.splits?.find(s => s.season === SEASON_YEAR)?.stat;
+        if (!stat) return;
+        stats[pid] = {
+          hr: stat.homeRuns ?? 0, hr9: stat.homeRunsPer9 ?? null,
+          ip: stat.inningsPitched ?? '0.0', era: stat.era ?? null,
+        };
+      } catch (e) {}
+    }));
+  }
+  return stats;
 }
 
 // MLB's transactions feed can lag the actual roster move by hours — a call-up
@@ -535,6 +559,10 @@ async function main() {
   const { idToAbbr: teamIdToAbbr, abbrToId: teamIds } = await fetchTeamAbbreviations();
   const todaySchedule = await fetchTodaySchedule(teamIdToAbbr);
 
+  console.log("Fetching today's probable pitchers' HR stats...");
+  const probablePitcherIds = todaySchedule.flatMap(g => [g.home.probablePitcherId, g.away.probablePitcherId]).filter(Boolean);
+  const pitcherStats = await fetchPitcherHRStats(probablePitcherIds);
+
   console.log('Checking for rookie debuts and recent call-ups...');
   const prospects = await computeProspects(todaySchedule, teamIdToAbbr);
 
@@ -553,7 +581,7 @@ async function main() {
     totalHRCount,
     dailyHRs, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus,
-    todayDate: todayET(), todaySchedule, teamIds,
+    todayDate: todayET(), todaySchedule, teamIds, pitcherStats,
   };
 
   const fs = await import('node:fs');

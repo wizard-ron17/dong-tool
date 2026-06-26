@@ -152,6 +152,22 @@
   .filter-mode-toggle button { background: transparent; border: none; color: var(--muted); font-family: var(--font-m); font-size: 0.65rem; font-weight: 700; letter-spacing: 0.05em; padding: 0.28rem 0.6rem; border-radius: 4px; cursor: pointer; }
   .filter-mode-toggle button.active { background: var(--accent); color: #fff; }
 
+  .dong-score-head { font-size: 0.62rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin: 1rem 0 0.5rem; }
+  .dong-score-list { display: flex; flex-direction: column; gap: 0.35rem; }
+  .dong-score-row { display: flex; align-items: center; gap: 0.6rem; background: var(--surface0); border: 1px solid var(--border); border-radius: 7px; padding: 0.45rem 0.65rem; }
+  .dong-score-row.small-sample { opacity: 0.6; }
+  .dong-score-rank { font-family: var(--font-d); font-size: 0.85rem; color: var(--dim); width: 1.4rem; flex-shrink: 0; }
+  .dong-score-name { flex: 1; min-width: 0; font-size: 0.72rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dong-score-sub { font-size: 0.56rem; color: var(--dim); margin-top: 0.1rem; }
+  .dong-score-bar-wrap { flex: 2; min-width: 80px; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .dong-score-bar { height: 100%; border-radius: 3px; }
+  .dong-score-val { font-family: var(--font-d); font-size: 1rem; font-weight: 700; width: 2.6rem; text-align: right; flex-shrink: 0; }
+  .dong-score-val.hot,  .dong-score-bar.hot  { color: #ff7040; }
+  .dong-score-val.warm, .dong-score-bar.warm { color: var(--gold); }
+  .dong-score-val.cool, .dong-score-bar.cool { color: #3bc9e0; }
+  .dong-score-val.mild, .dong-score-bar.mild { color: var(--accent); }
+  .dong-score-sample-tag { font-size: 0.5rem; color: var(--dim); font-style: italic; flex-shrink: 0; white-space: nowrap; }
+
   .tbl-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; }
   .lb-table { width: 100%; border-collapse: collapse; min-width: 480px; }
   .lb-table th { font-size: 0.58rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; text-align: left; padding: 0.38rem 0.5rem; border-bottom: 1px solid var(--border2); cursor: pointer; user-select: none; white-space: nowrap; }
@@ -289,8 +305,17 @@
   .sched-status { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.15rem 0.55rem; border-radius: 10px; background: var(--surface2); color: var(--muted); white-space: nowrap; flex-shrink: 0; }
   .sched-status.live  { background: rgba(255,112,64,0.12); color: #ff7040; }
   .sched-status.final { background: rgba(53,201,110,0.12); color: var(--accent); }
-  .sched-sub { display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.6rem; color: var(--muted); margin-top: 0.35rem; align-items: center; cursor: pointer; }
-  .sched-expand-hint { margin-left: auto; color: var(--dim); font-size: 0.55rem; letter-spacing: 0.05em; text-transform: uppercase; }
+  .sched-venue-row { font-size: 0.6rem; color: var(--muted); margin-top: 0.35rem; }
+  .sched-pitchers-row { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border); }
+  .sched-pitcher { display: flex; align-items: center; gap: 0.4rem; flex: 1; min-width: 0; }
+  .sched-pitcher-photo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: var(--surface2); flex-shrink: 0; }
+  .sched-pitcher-info { min-width: 0; overflow: hidden; }
+  .sched-pitcher-name { font-size: 0.66rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sched-pitcher-stat { font-size: 0.55rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sched-pitcher.empty { color: var(--dim); font-size: 0.62rem; font-style: italic; }
+  .sched-vs { font-size: 0.55rem; color: var(--dim); flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.05em; }
+  .sched-expand-row { margin-top: 0.4rem; text-align: right; cursor: pointer; }
+  .sched-expand-hint { color: var(--dim); font-size: 0.55rem; letter-spacing: 0.05em; text-transform: uppercase; }
   .sched-lineups { display: none; gap: 1.2rem; margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
   .sched-game.expanded .sched-lineups { display: flex; }
   .sched-lineup-col { flex: 1; min-width: 0; }
@@ -299,8 +324,9 @@
   .sched-lineup-order { color: var(--muted); width: 1.1rem; flex-shrink: 0; }
   .sched-lineup-pos { color: var(--muted); width: 1.6rem; flex-shrink: 0; font-size: 0.6rem; }
   .sched-lineup-pname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sched-lineup-hr { font-size: 0.58rem; color: var(--accent); font-weight: 700; flex-shrink: 0; margin-left: auto; }
   .sched-lineup-empty { font-size: 0.65rem; color: var(--dim); font-style: italic; }
-  @media (max-width: 600px) { .sched-lineups { flex-direction: column; gap: 0.7rem; } }
+  @media (max-width: 600px) { .sched-lineups { flex-direction: column; gap: 0.7rem; } .sched-pitchers-row { flex-wrap: wrap; } }
 
   .lb-view-cards { display: none; }
   @media (max-width: 600px) {
@@ -431,6 +457,7 @@
         <span>HR/GAME PER DAY · hover for game count · rolling avg:</span>
         <div class="roll-toggles" id="roll-toggles"></div>
       </div>
+      <div id="park-dong-scores" style="display:none"></div>
     </div>
     <div id="stats-individual" style="display:none">
       <div class="result-meta" id="leaders-meta"></div>
@@ -495,6 +522,7 @@ let todayTeamsPlaying      = new Set(); // team abbrs with a game today, regardl
 let todayLineupsPostedTeams = new Set(); // team abbrs whose lineup has actually been posted
 let todayStarterPids       = new Set(); // pids confirmed in a posted starting lineup today
 let teamIds = {}; // team abbr -> MLB team id, for team-logos/{id}.svg
+let pitcherStats = {}; // pid -> { hr, hr9, ip, era } for today's probable pitchers
 
 let activeNav      = 'pairs';
 let activePairSize = 2;
@@ -601,6 +629,9 @@ function teamLogoImg(abbr, cls) {
   const url = teamLogoUrl(abbr);
   return url ? `<img class="${cls}" src="${url}" alt="${abbr}" loading="lazy">` : '';
 }
+function playerPhotoUrl(pid) {
+  return `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${pid}/headshot/67/current`;
+}
 function timeAgo(iso) {
   const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
   if (mins < 1)  return 'just now';
@@ -657,6 +688,7 @@ function applyData(data) {
   todayDate = data.todayDate ?? null;
   todaySchedule = data.todaySchedule ?? [];
   teamIds = data.teamIds ?? {};
+  pitcherStats = data.pitcherStats ?? {};
   todayTeamsPlaying = new Set();
   todayLineupsPostedTeams = new Set();
   todayStarterPids = new Set();
@@ -858,11 +890,54 @@ function setTotalsFilterMode(mode) {
   renderTotals();
 }
 
+// "Dong Score" — a park factor in spirit: 100 = league-average HR rate,
+// above/below that scales linearly with how much more (or less) often the
+// ball leaves that yard. Built entirely from venueGameDays/venueHRsByDate,
+// which are themselves pulled from each game's actual recorded venue (never
+// a hardcoded team->park table) — so a club that's relocated mid-season, or
+// a one-off international/neutral-site series, shows up under its real park.
+function parkDongScores() {
+  const leagueGames = Object.values(dailyGames).reduce((a,b)=>a+b, 0);
+  const leagueHRs = Object.values(hrTotals).reduce((a,b)=>a+b, 0);
+  const leagueAvg = leagueGames ? leagueHRs / leagueGames : 0;
+  if (!leagueAvg) return [];
+  return Object.keys(venueGameDays).map(venue => {
+    const games = Object.values(venueGameDays[venue]).reduce((a,b)=>a+b, 0);
+    const hrs = Object.values(venueHRsByDate[venue] ?? {}).reduce((a,b)=>a+b, 0);
+    const hrPerGame = games ? hrs / games : 0;
+    return { venue, games, hrs, hrPerGame, score: Math.round((hrPerGame / leagueAvg) * 100) };
+  }).sort((a,b) => b.score - a.score);
+}
+function dongScoreClass(score) {
+  return score >= 130 ? 'hot' : score >= 110 ? 'warm' : score <= 70 ? 'cool' : 'mild';
+}
+function renderParkDongScores() {
+  const el = document.getElementById('park-dong-scores');
+  const rows = parkDongScores();
+  if (!rows.length) { el.innerHTML = ''; return; }
+  const maxScore = rows[0].score;
+  el.innerHTML = `
+    <div class="dong-score-head">Dong Score · 100 = league-average HR rate, by park</div>
+    <div class="dong-score-list">${rows.map((r, i) => {
+      const cls = dongScoreClass(r.score);
+      const smallSample = r.games < 10;
+      return `<div class="dong-score-row${smallSample ? ' small-sample' : ''}">
+        <span class="dong-score-rank">${i + 1}</span>
+        <div class="dong-score-name">${r.venue}<div class="dong-score-sub">${r.hrPerGame.toFixed(2)} HR/game · ${r.games}g</div></div>
+        ${smallSample ? '<span class="dong-score-sample-tag">small sample</span>' : ''}
+        <div class="dong-score-bar-wrap"><div class="dong-score-bar ${cls}" style="width:${Math.min(100, r.score / maxScore * 100)}%; background:currentColor;"></div></div>
+        <span class="dong-score-val ${cls}">${r.score}</span>
+      </div>`;
+    }).join('')}</div>`;
+}
+
 function renderTotals() {
   const allDates = Object.keys(dailyHRs).sort();
   if (!allDates.length) return;
   const filterVal = document.getElementById('team-select')?.value ?? 'ALL';
   const byVenue = totalsFilterMode === 'venue';
+  document.getElementById('park-dong-scores').style.display = byVenue ? '' : 'none';
+  if (byVenue) renderParkDongScores();
   const labels = [], hrPerGame = [];
   let seasonTotal=0, totalGames=0, peakVal=0, peakDate='';
 
@@ -1198,8 +1273,25 @@ function schedLineupHtml(side) {
       <span class="sched-lineup-pos">${p.position}</span>
       <span class="sched-lineup-pname">${playerNames[p.pid] || p.name}</span>
       ${injuryBadge(p.pid, true)}
+      <span class="sched-lineup-hr">${hrTotals[p.pid] ?? 0} HR</span>
     </div>`).join('');
   return `<div class="sched-lineup-col"><div class="sched-lineup-head">${label}</div>${rows}</div>`;
+}
+// HR-focused probable-pitcher line — a guy giving up a lot of homers (high
+// HR9) is exactly the matchup context this whole site is about.
+function schedPitcherHtml(side) {
+  if (!side.probablePitcher) {
+    return `<div class="sched-pitcher empty">TBD to start</div>`;
+  }
+  const stat = side.probablePitcherId ? pitcherStats[side.probablePitcherId] : null;
+  const statText = stat ? `${stat.hr} HR · ${stat.hr9} HR9` : '';
+  return `<div class="sched-pitcher">
+    <img class="sched-pitcher-photo" src="${playerPhotoUrl(side.probablePitcherId)}" alt="">
+    <div class="sched-pitcher-info">
+      <div class="sched-pitcher-name">${side.probablePitcher}</div>
+      ${statText ? `<div class="sched-pitcher-stat">${statText}</div>` : ''}
+    </div>
+  </div>`;
 }
 function toggleSchedGame(pk) {
   document.getElementById(`sched-game-${pk}`)?.classList.toggle('expanded');
@@ -1228,9 +1320,13 @@ function renderSchedule() {
         </div>
         <div class="sched-status ${info.cls}">${info.text}</div>
       </div>
-      <div class="sched-sub" onclick="toggleSchedGame(${g.gamePk})">
-        <span class="sched-venue">${g.venue}</span>
-        <span class="sched-pitchers">${g.away.probablePitcher || 'TBD'} vs ${g.home.probablePitcher || 'TBD'}</span>
+      <div class="sched-venue-row">${g.venue}</div>
+      <div class="sched-pitchers-row">
+        ${schedPitcherHtml(g.away)}
+        <span class="sched-vs">vs</span>
+        ${schedPitcherHtml(g.home)}
+      </div>
+      <div class="sched-expand-row" onclick="toggleSchedGame(${g.gamePk})">
         <span class="sched-expand-hint">Lineups ▾</span>
       </div>
       <div class="sched-lineups">
