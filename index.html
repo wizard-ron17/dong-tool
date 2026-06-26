@@ -93,6 +93,8 @@
   .search-tag button:hover { color: #f05050; }
 
   .result-meta { font-size: 0.6rem; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.8rem; }
+  #recap-meta { font-family: var(--font-d); font-size: clamp(1.1rem, 4vw, 1.5rem); font-weight: 800; color: #fff; letter-spacing: 0.01em; text-transform: none; margin-bottom: 0.9rem; }
+  #recap-meta .recap-meta-tag { color: var(--accent); }
 
   #cards { display: flex; flex-direction: column; gap: 0.5rem; }
   .card { border-radius: 8px; padding: 0.75rem 0.85rem; border: 1px solid var(--border); background: var(--surface0); animation: fadeIn 0.15s ease; }
@@ -231,16 +233,46 @@
   .due-viz-foot { font-size: 0.6rem; color: var(--dim); margin-top: 0.6rem; line-height: 1.5; }
   @keyframes pulse { 0%,100% { opacity: 1; transform: translateX(-50%) scale(1); } 50% { opacity: 0.4; transform: translateX(-50%) scale(1.6); } }
 
-  .dl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.4rem; }
-  @media (max-width: 480px) { .dl-grid { grid-template-columns: 1fr 1fr; } }
-  .dl-card { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.7rem; display: flex; align-items: center; gap: 0.5rem; animation: fadeIn 0.1s ease; min-width: 0; overflow: hidden; }
-  .dl-photo { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: var(--surface2); flex-shrink: 0; }
-  .dl-info { flex: 1; min-width: 0; overflow: hidden; }
-  .dl-name { font-size: 0.72rem; color: #bdd0e8; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .dl-sub  { font-size: 0.57rem; color: var(--muted); margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .dl-stat { text-align: right; flex-shrink: 0; min-width: 2rem; }
-  .dl-stat-num { font-family: var(--font-d); font-size: 1.25rem; font-weight: 700; color: var(--accent); line-height: 1; display: block; }
-  .dl-stat-label { font-size: 0.5rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  .recap-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 0.7rem; }
+  .recap-tile { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.5rem; text-align: center; }
+  .recap-tile-num { font-family: var(--font-d); font-size: 1.6rem; font-weight: 700; color: var(--accent); line-height: 1; display: block; }
+  .recap-tile-label { font-size: 0.56rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; display: block; margin-top: 0.2rem; }
+  .recap-tile.heat-hot  .recap-tile-num { color: #ff7040; }
+  .recap-tile.heat-warm .recap-tile-num { color: var(--gold); }
+  .recap-tile.heat-cool .recap-tile-num { color: #3bc9e0; }
+  .recap-tile-heat-tag { font-size: 0.52rem; font-weight: 700; letter-spacing: 0.04em; margin-top: 0.15rem; display: block; }
+  .recap-tile.heat-hot  .recap-tile-heat-tag { color: #ff7040; }
+  .recap-tile.heat-warm .recap-tile-heat-tag { color: var(--gold); }
+  .recap-tile.heat-cool .recap-tile-heat-tag { color: #3bc9e0; }
+  .recap-tile:not(.heat-hot):not(.heat-warm):not(.heat-cool) .recap-tile-heat-tag { color: var(--muted); }
+
+  .recap-meter-card { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.8rem; margin-bottom: 0.9rem; }
+  .recap-meter-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+  .recap-meter-title { font-family: var(--font-d); font-size: 0.85rem; font-weight: 700; color: #bdd0e8; letter-spacing: 0.03em; }
+  .recap-meter-tag { font-size: 0.62rem; font-weight: 700; padding: 0.1rem 0.45rem; border-radius: 10px; letter-spacing: 0.03em; }
+  .recap-meter-score { font-size: 0.6rem; color: var(--muted); }
+  .recap-meter-track { position: relative; height: 8px; border-radius: 5px; background: linear-gradient(90deg, var(--accent), var(--border2) 50%, #ff7040); margin: 0.5rem 1.1rem 0.4rem; }
+  .recap-meter-marker { position: absolute; top: -3px; width: 3px; height: 14px; border-radius: 2px; background: #fff; box-shadow: 0 0 0 2px rgba(0,0,0,0.4); transform: translateX(-50%); }
+  .recap-meter-end { position: absolute; top: 50%; font-size: 0.85rem; line-height: 1; }
+  .recap-meter-end.left  { left: 0; transform: translate(-130%, -50%); }
+  .recap-meter-end.right { right: 0; transform: translate(130%, -50%); }
+  .recap-meter-labels { display: flex; justify-content: space-between; font-size: 0.55rem; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; padding: 0 0.3rem; }
+
+  .recap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.4rem; }
+  @media (max-width: 480px) { .recap-grid { grid-template-columns: 1fr 1fr; } .recap-summary { grid-template-columns: 1fr 1fr 1fr; } }
+  .recap-card { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.7rem; display: flex; align-items: center; gap: 0.5rem; animation: fadeIn 0.1s ease; min-width: 0; overflow: hidden; }
+  .recap-card.multi-2 { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(240,192,64,0.3); }
+  .recap-card.multi-3 { border-color: #ff7040; box-shadow: 0 0 10px rgba(255,112,64,0.3), 0 0 0 1px rgba(255,112,64,0.4); }
+  .recap-card.multi-4 { border-color: #ff7040; box-shadow: 0 0 18px rgba(255,112,64,0.55), 0 0 0 1.5px rgba(255,112,64,0.7); }
+  .recap-card.multi-2 .recap-stat-num { color: var(--gold); }
+  .recap-card.multi-3 .recap-stat-num, .recap-card.multi-4 .recap-stat-num { color: #ff7040; }
+  .recap-photo { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: var(--surface2); flex-shrink: 0; }
+  .recap-info { flex: 1; min-width: 0; overflow: hidden; }
+  .recap-name { font-size: 0.72rem; color: #bdd0e8; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .recap-sub  { font-size: 0.57rem; color: var(--muted); margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .recap-stat { text-align: right; flex-shrink: 0; min-width: 2rem; }
+  .recap-stat-num { font-family: var(--font-d); font-size: 1.25rem; font-weight: 700; color: var(--accent); line-height: 1; display: block; }
+  .recap-stat-label { font-size: 0.5rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
 
   .lb-view-cards { display: none; }
   @media (max-width: 600px) {
@@ -326,7 +358,7 @@
   <nav>
     <button class="nav-btn active" data-nav="pairs"   onclick="switchNav('pairs')">Pairs</button>
     <button class="nav-btn" data-nav="stats"   onclick="switchNav('stats')"   disabled>Stats</button>
-    <button class="nav-btn" data-nav="daylate" onclick="switchNav('daylate')" disabled>Day Late</button>
+    <button class="nav-btn" data-nav="recap" onclick="switchNav('recap')" disabled>Recap</button>
     <button class="nav-btn" data-nav="due"     onclick="switchNav('due')"     disabled>Due</button>
     <button class="nav-btn" data-nav="prospects" onclick="switchNav('prospects')" disabled>Prospects</button>
   </nav>
@@ -378,9 +410,9 @@
   </div>
 
   <!-- DAY LATE -->
-  <div id="panel-daylate" class="panel">
-    <div class="result-meta" id="dl-meta"></div>
-    <div id="dl-content"><div class="empty">Loading data…</div></div>
+  <div id="panel-recap" class="panel">
+    <div class="result-meta" id="recap-meta"></div>
+    <div id="recap-content"><div class="empty">Loading data…</div></div>
   </div>
 
   <!-- DUE -->
@@ -456,13 +488,36 @@ function fmtDateLong(d) {
   const [,m,day] = d.split('-');
   return ['','January','February','March','April','May','June','July','August','September','October','November','December'][+m] + ' ' + +day;
 }
+function ordinal(n) {
+  const s = ['th','st','nd','rd'], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+function fmtDateFull(d) {
+  const [y, m, day] = d.split('-').map(Number);
+  const weekday = new Date(y, m - 1, day).toLocaleDateString('en-US', { weekday: 'long' });
+  return `${weekday} ${fmtDateLong(d)}${ordinal(day).slice(String(day).length)} ${y}`;
+}
 function daysSince(d) {
   const [y,m,day] = d.split('-').map(Number);
   return Math.round((new Date() - new Date(y,m-1,day)) / 86400000);
 }
+// MLB's de facto "day" boundary is US Eastern time, not UTC — using raw UTC
+// arithmetic here meant that during US evening hours (after the UTC date had
+// already rolled over but the ET date hadn't), "yesterday" silently resolved
+// to the *current* ET date, leaking that day's still-in-progress totals onto
+// what was supposed to be a finished-day recap. Anchoring to America/New_York
+// keeps the calculation aligned with the same calendar day MLB itself uses.
+function etDateStr(date) {
+  return date.toLocaleDateString('en-CA', { timeZone: 'America/New_York' }); // YYYY-MM-DD
+}
+function addDaysToDateStr(str, delta) {
+  const [y, m, d] = str.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + delta);
+  return dt.toISOString().split('T')[0];
+}
 function yesterday() {
-  const d = new Date(); d.setUTCDate(d.getUTCDate() - 1);
-  return d.toISOString().split('T')[0];
+  return addDaysToDateStr(etDateStr(new Date()), -1);
 }
 function isMob() {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 600;
@@ -550,7 +605,7 @@ function showLoadError(msg) {
 }
 
 // ── Nav ────────────────────────────────────────────────────────────────
-const VALID_NAVS = ['pairs', 'stats', 'daylate', 'due', 'prospects'];
+const VALID_NAVS = ['pairs', 'stats', 'recap', 'due', 'prospects'];
 const PAIR_SIZE_TO_SLUG = { 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' };
 const PAIR_SLUG_TO_SIZE = { pairs: 2, trios: 3, quads: 4, quints: 5 };
 
@@ -597,7 +652,7 @@ function switchNav(nav) {
 function renderCurrentPanel() {
   if (activeNav === 'pairs')   _render(activePairSize);
   if (activeNav === 'stats')   renderStatsView();
-  if (activeNav === 'daylate') renderDayLate();
+  if (activeNav === 'recap') renderRecap();
   if (activeNav === 'due')     renderDue();
   if (activeNav === 'prospects') renderProspects();
 }
@@ -925,34 +980,112 @@ function sortLb(col) {
 function setLbSort(col) { lbSortCol = col; lbSortDir = lbDefaultDir(col); renderLeaders(); }
 
 // ── DAY LATE ──────────────────────────────────────────────────────────
-function renderDayLate() {
-  let date=yesterday(), dayData=dailyHRs[date], fallback=false;
+function median(nums) {
+  if (!nums.length) return 0;
+  const s = [...nums].sort((a, b) => a - b), mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+function recapDayHeat(ratio) {
+  if (ratio >= 1.3) return { cls: 'heat-hot',  tag: '🔥 High Homer Day' };
+  if (ratio >= 1.1) return { cls: 'heat-warm', tag: 'Above Average' };
+  if (ratio <= 0.7) return { cls: 'heat-cool', tag: '🥶 Quiet Day' };
+  if (ratio <= 0.9) return { cls: 'heat-cool', tag: 'Below Average' };
+  return { cls: '', tag: 'Average Day' };
+}
+function recapChalkTag(ratio) {
+  if (ratio >= 1.5)  return { cls: 'chalk', tag: 'Heavy Chalk' };
+  if (ratio >= 1.15) return { cls: 'chalk', tag: 'Chalky' };
+  if (ratio <= 0.5)  return { cls: 'dog',   tag: 'Heavy Dog' };
+  if (ratio <= 0.85) return { cls: 'dog',   tag: 'Underdog' };
+  return { cls: '', tag: 'Balanced' };
+}
+
+function renderRecap() {
+  // dailyHRs entries only ever come from games whose status was already
+  // "Final" when build-data.js fetched them, so a date never holds live
+  // in-progress totals — the bug was yesterday() itself resolving to today's
+  // (ET) date during US evening hours, which made a real-but-partial day
+  // (early games final, night games still in progress) look like "yesterday."
+  let date = yesterday(), dayData = dailyHRs[date], fallback = false;
   if (!dayData || !Object.keys(dayData).length) {
-    const d2=new Date(); d2.setUTCDate(d2.getUTCDate()-2);
-    date=d2.toISOString().split('T')[0]; dayData=dailyHRs[date]; fallback=true;
+    date = addDaysToDateStr(date, -1);
+    dayData = dailyHRs[date]; fallback = true;
   }
-  const metaEl = document.getElementById('dl-meta');
+  const metaEl = document.getElementById('recap-meta');
   if (!dayData || !Object.keys(dayData).length) {
-    metaEl.textContent='';
-    document.getElementById('dl-content').innerHTML='<div class="empty">No home run data for yesterday yet</div>';
+    metaEl.textContent = '';
+    document.getElementById('recap-content').innerHTML = '<div class="empty">No home run data for yesterday yet</div>';
     return;
   }
-  const count=Object.keys(dayData).length, totalHRs=Object.values(dayData).reduce((a,b)=>a+b,0);
-  metaEl.textContent = fallback
-    ? `${count} players · ${fmtDate(date)} · ${totalHRs} HR (latest available)`
-    : `${count} players · ${fmtDate(date)} · ${totalHRs} HR`;
+  const count = Object.keys(dayData).length, totalHRs = Object.values(dayData).reduce((a,b)=>a+b,0);
+  const games = dailyGames[date] || 0;
+  metaEl.innerHTML = `<span class="recap-meta-tag">${fallback ? 'Latest Available' : 'Yesterday'}</span>, ${fmtDateFull(date)}`;
+
+  // Stats recap: how loud was this day relative to the season as a whole?
+  const seasonGames = Object.values(dailyGames).reduce((a,b)=>a+b, 0);
+  const seasonHRs   = Object.values(hrTotals).reduce((a,b)=>a+b, 0);
+  const leagueAvgHRPerGame = seasonGames ? seasonHRs / seasonGames : 0;
+  const hrPerGame = games ? totalHRs / games : 0;
+  const dayHeat = leagueAvgHRPerGame ? recapDayHeat(hrPerGame / leagueAvgHRPerGame) : { cls: '', tag: '' };
+
+  // Chalk/dog meter: median season HR total of today's bombers vs. the
+  // median season HR total of everyday regulars around the league. The
+  // reference pool deliberately excludes pinch-hitters, defensive subs, and
+  // pitcher-with-one-AB types — counting every player who's hit even a
+  // single HR drags the "league" median down to ~4, which undersells how
+  // chalky a day with a bunch of double-digit-HR bats really is. Requiring
+  // at least 60% as many at-bats as the league's current AB leader keeps the
+  // baseline anchored to true everyday players, and it scales naturally as
+  // the season goes on (no hardcoded AB cutoff).
+  const maxABs           = Math.max(0, ...Object.values(playerABs));
+  const regularThreshold = maxABs * 0.6;
+  // dayData is { pid -> HRs hit that day }, so Object.keys is already one
+  // entry per player — a 2-homer game doesn't get that player's season
+  // total counted twice in the median.
+  const dayTotals    = Object.keys(dayData).map(pid => hrTotals[pid] || 0);
+  const leagueTotals = Object.keys(hrTotals)
+    .filter(pid => hrTotals[pid] >= 1 && (playerABs[pid] || 0) >= regularThreshold)
+    .map(pid => hrTotals[pid]);
+  const chalkScore   = median(dayTotals);
+  const leagueRef    = median(leagueTotals);
+  const chalkRatio   = leagueRef ? chalkScore / leagueRef : 1;
+  const chalk        = recapChalkTag(chalkRatio);
+  const meterPct     = (Math.max(0, Math.min(2, chalkRatio)) / 2) * 100;
+
   const sorted = Object.entries(dayData).sort((a,b)=>b[1]-a[1]||(playerNames[a[0]]||'').localeCompare(playerNames[b[0]]||''));
   const cards = sorted.map(([pid,hrs])=>{
     const name     = playerNames[pid]||pid;
     const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${pid}/headshot/67/current`;
     const team     = playerTeams[pid]||'', seasonHR=hrTotals[pid]||hrs;
-    return `<div class="dl-card">
-      <img class="dl-photo" src="${photoUrl}" alt="">
-      <div class="dl-info"><div class="dl-name">${name}</div><div class="dl-sub">${team?team+' · ':''}${seasonHR} season${injuryBadge(pid, true)}</div></div>
-      <div class="dl-stat"><span class="dl-stat-num">${hrs}</span><span class="dl-stat-label">${hrs===1?'HR':'HRs'}</span></div>
+    const multiCls = hrs >= 4 ? 'multi-4' : hrs === 3 ? 'multi-3' : hrs === 2 ? 'multi-2' : '';
+    return `<div class="recap-card ${multiCls}">
+      <img class="recap-photo" src="${photoUrl}" alt="">
+      <div class="recap-info"><div class="recap-name">${name}</div><div class="recap-sub">${team?team+' · ':''}${seasonHR} season${injuryBadge(pid, true)}</div></div>
+      <div class="recap-stat"><span class="recap-stat-num">${hrs}</span><span class="recap-stat-label">${hrs===1?'HR':'HRs'}</span></div>
     </div>`;
   }).join('');
-  document.getElementById('dl-content').innerHTML = `<div class="dl-grid">${cards}</div>`;
+
+  document.getElementById('recap-content').innerHTML = `
+    <div class="recap-summary">
+      <div class="recap-tile"><span class="recap-tile-num">${games}</span><span class="recap-tile-label">${games===1?'Game':'Games'}</span></div>
+      <div class="recap-tile ${dayHeat.cls}"><span class="recap-tile-num">${totalHRs}</span><span class="recap-tile-label">Home Runs</span></div>
+      <div class="recap-tile ${dayHeat.cls}"><span class="recap-tile-num">${hrPerGame.toFixed(2)}</span><span class="recap-tile-label">HR / Game</span>${dayHeat.tag?`<span class="recap-tile-heat-tag">${dayHeat.tag}</span>`:''}</div>
+    </div>
+    <div class="recap-meter-card">
+      <div class="recap-meter-head">
+        <span class="recap-meter-title">Chalk Meter</span>
+        <span class="recap-meter-tag" style="background:${chalk.cls==='chalk'?'rgba(255,112,64,0.12)':chalk.cls==='dog'?'rgba(53,201,110,0.12)':'var(--surface2)'};color:${chalk.cls==='chalk'?'#ff7040':chalk.cls==='dog'?'var(--accent)':'var(--muted)'};">${chalk.tag}</span>
+      </div>
+      <div class="recap-meter-track">
+        <span class="recap-meter-end left">🐶</span>
+        <div class="recap-meter-marker" style="left:${meterPct}%"></div>
+        <span class="recap-meter-end right">🔒</span>
+      </div>
+      <div class="recap-meter-labels"><span>Dog</span><span>Chalk</span></div>
+      <div class="recap-meter-score">${count} bombers · median ${chalkScore.toFixed(1)} season HR (regulars' league median: ${leagueRef.toFixed(1)})</div>
+    </div>
+    <div class="recap-grid">${cards}</div>
+  `;
 }
 
 // ── DUE ────────────────────────────────────────────────────────────────
