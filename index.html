@@ -188,6 +188,9 @@
   .lineup-badge { display: inline-flex; align-items: center; gap: 0.12rem; font-size: 0.55rem; font-weight: 700; border-radius: 4px; padding: 0.04rem 0.28rem; margin-left: 0.3rem; white-space: nowrap; cursor: default; vertical-align: middle; }
   .lineup-badge.off   { color: var(--muted); background: rgba(83,109,136,0.12); border: 1px solid rgba(83,109,136,0.35); }
   .lineup-badge.bench { color: var(--gold); background: rgba(240,192,64,0.1); border: 1px solid rgba(240,192,64,0.35); }
+
+  .team-logo { width: 0.85em; height: 0.85em; object-fit: contain; vertical-align: -0.12em; margin-right: 0.25rem; flex-shrink: 0; }
+  .sched-team-logo { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
   .now-ab-longest { color: #ff7040 !important; }
   .flame-badge { font-size: 0.62rem; margin-left: 0.1rem; }
   .due-longest-banner { background: rgba(255,112,64,0.08); border: 1px solid rgba(255,112,64,0.4); color: #ff8a5c; border-radius: 6px; padding: 0.45rem 0.6rem; font-size: 0.66rem; font-weight: 700; line-height: 1.4; margin-bottom: 0.9rem; }
@@ -491,6 +494,7 @@ let todaySchedule = [];     // [{ gamePk, gameDate, status, venue, home:{...}, a
 let todayTeamsPlaying      = new Set(); // team abbrs with a game today, regardless of lineup status
 let todayLineupsPostedTeams = new Set(); // team abbrs whose lineup has actually been posted
 let todayStarterPids       = new Set(); // pids confirmed in a posted starting lineup today
+let teamIds = {}; // team abbr -> MLB team id, for team-logos/{id}.svg
 
 let activeNav      = 'pairs';
 let activePairSize = 2;
@@ -586,6 +590,17 @@ function lineupBadge(pid, compact) {
   }
   return '';
 }
+// Official MLB CDN, same family as the headshot images we already hit —
+// keyed by team id (from teamIds, fetched fresh off /teams each build) so
+// nothing here is a hardcoded abbr->logo table.
+function teamLogoUrl(abbr) {
+  const id = teamIds[abbr];
+  return id ? `https://www.mlbstatic.com/team-logos/${id}.svg` : null;
+}
+function teamLogoImg(abbr, cls) {
+  const url = teamLogoUrl(abbr);
+  return url ? `<img class="${cls}" src="${url}" alt="${abbr}" loading="lazy">` : '';
+}
 function timeAgo(iso) {
   const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
   if (mins < 1)  return 'just now';
@@ -641,6 +656,7 @@ function applyData(data) {
   injuryStatus = data.injuryStatus ?? {};
   todayDate = data.todayDate ?? null;
   todaySchedule = data.todaySchedule ?? [];
+  teamIds = data.teamIds ?? {};
   todayTeamsPlaying = new Set();
   todayLineupsPostedTeams = new Set();
   todayStarterPids = new Set();
@@ -968,7 +984,7 @@ function renderLeaders() {
     const lastTxt  = r.last ? `${fmtDateLong(r.last)}<span class="ago">${r.lastAgo}d ago</span>` : '—';
     return `<tr>
       <td class="lb-rank ${rankClass(i)}">${i+1}</td>
-      <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}</div><div class="lb-team">${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div></div></td>
+      <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}</div><div class="lb-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div></div></td>
       <td class="lb-num hr-col">${r.hrs}</td>
       <td class="lb-num stat-col">${r.games}</td>
       <td class="lb-num stat-col">${gPerHR}</td>
@@ -1001,7 +1017,7 @@ function renderLeaders() {
       <div class="lbc-top">
         <span class="lbc-rank ${rankClass(i)}">${i+1}</span>
         <img class="lbc-photo" src="${photoUrl}" alt="">
-        <div class="lbc-info"><div class="lbc-name">${r.name}</div><div class="lbc-team">${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
+        <div class="lbc-info"><div class="lbc-name">${r.name}</div><div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
         <div class="lbc-headline"><span class="lbc-headline-num">${r.hrs}</span><span class="lbc-headline-lbl">HR</span></div>
       </div>
       <div class="lbc-stats">
@@ -1131,7 +1147,7 @@ function renderRecap() {
     const multiCls = hrs >= 4 ? 'multi-4' : hrs === 3 ? 'multi-3' : hrs === 2 ? 'multi-2' : '';
     return `<div class="recap-card ${multiCls}">
       <img class="recap-photo" src="${photoUrl}" alt="">
-      <div class="recap-info"><div class="recap-name">${name}</div><div class="recap-sub">${team?team+' · ':''}${seasonHR} season${injuryBadge(pid, true)}${lineupBadge(pid, true)}</div></div>
+      <div class="recap-info"><div class="recap-name">${name}</div><div class="recap-sub">${team?teamLogoImg(team,'team-logo')+team+' · ':''}${seasonHR} season${injuryBadge(pid, true)}${lineupBadge(pid, true)}</div></div>
       <div class="recap-stat"><span class="recap-stat-num">${hrs}</span><span class="recap-stat-label">${hrs===1?'HR':'HRs'}</span></div>
     </div>`;
   }).join('');
@@ -1204,8 +1220,10 @@ function renderSchedule() {
     return `<div class="sched-game" id="sched-game-${g.gamePk}">
       <div class="sched-row" onclick="toggleSchedGame(${g.gamePk})">
         <div class="sched-matchup">
+          ${teamLogoImg(awayLabel, 'sched-team-logo')}
           <span class="sched-team">${awayLabel}</span>
           <span class="sched-at">@</span>
+          ${teamLogoImg(homeLabel, 'sched-team-logo')}
           <span class="sched-team">${homeLabel}</span>
         </div>
         <div class="sched-status ${info.cls}">${info.text}</div>
@@ -1264,7 +1282,7 @@ function renderDue() {
     const lastTxt  = `${fmtDateLong(r.lastHR)}<span class="ago">${r.lastAgo}d ago</span>`;
     return `<tr class="due-row-clickable" onclick="openDueModal('${r.pid}')">
       <td class="lb-rank ${rankClass(i)}">${i+1}</td>
-      <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}</div><div class="lb-team">${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div></div></td>
+      <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}</div><div class="lb-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div></div></td>
       <td class="due-z ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</td>
       <td class="lb-num hr-col">${r.hrs}</td>
       <td class="lb-num stat-col">${r.avgGap.toFixed(0)}</td>
@@ -1283,7 +1301,7 @@ function renderDue() {
       <div class="lbc-top">
         <span class="lbc-rank ${rankClass(i)}">${i+1}</span>
         <img class="lbc-photo" src="${photoUrl}" alt="">
-        <div class="lbc-info"><div class="lbc-name">${r.name}</div><div class="lbc-team">${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
+        <div class="lbc-info"><div class="lbc-name">${r.name}</div><div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
         <div class="lbc-headline"><span class="lbc-headline-num ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</span><span class="lbc-headline-lbl">Due Score</span></div>
       </div>
       <div class="lbc-stats">
@@ -1394,7 +1412,7 @@ function dueModalHtml(r) {
       <button class="due-modal-close" onclick="closeDueModal()" aria-label="Close">&times;</button>
       <div class="due-modal-head">
         <img class="due-modal-photo" src="${photoUrl}" alt="">
-        <div><div class="due-modal-name">${r.name}</div><div class="due-modal-team">${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
+        <div><div class="due-modal-name">${r.name}</div><div class="due-modal-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
         <div class="due-modal-headline"><span class="due-modal-headline-num ${cls}">${r.dueScore.toFixed(1)}</span><span class="due-modal-headline-lbl">Due Score</span></div>
       </div>
       <div class="due-modal-stats">
@@ -1445,7 +1463,7 @@ function prospectCard(r, isBomb) {
   return `<div class="prospect-card">
     <div class="prospect-top">
       <img class="prospect-photo" src="${photoUrl}" alt="">
-      <div class="prospect-info"><div class="prospect-name">${r.name}</div><div class="prospect-team">${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
+      <div class="prospect-info"><div class="prospect-name">${r.name}</div><div class="prospect-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
       ${headline}
     </div>
     <div class="prospect-meta">${subline}</div>

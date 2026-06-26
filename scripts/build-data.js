@@ -276,7 +276,7 @@ async function fetchPeopleInfo(ids) {
   return info;
 }
 
-async function fetchRecentRosterMoves(days) {
+async function fetchRecentRosterMoves(days, teamIdToAbbr) {
   const end = new Date(), start = new Date();
   start.setUTCDate(start.getUTCDate() - days);
   const fmt = d => d.toISOString().split('T')[0];
@@ -285,7 +285,11 @@ async function fetchRecentRosterMoves(days) {
     const txns = res.transactions ?? [];
     const callUps = txns
       .filter(t => (t.typeDesc === 'Recalled' || t.typeDesc === 'Selected') && t.person?.id)
-      .map(t => ({ pid: String(t.person.id), name: t.person.fullName, fromTeam: t.fromTeam?.name ?? '', toTeam: t.toTeam?.name ?? '', date: t.date }));
+      // toTeam is always the MLB club, so resolve it to the same abbreviation
+      // used everywhere else (and that team-logo lookups key off of) — but
+      // fromTeam is usually a minor league affiliate, which won't be in
+      // teamIdToAbbr (that's MLB-only), so leave it as the full name.
+      .map(t => ({ pid: String(t.person.id), name: t.person.fullName, fromTeam: t.fromTeam?.name ?? '', toTeam: teamIdToAbbr[t.toTeam?.id] || t.toTeam?.name || '', date: t.date }));
     // Sent back down since being called up (e.g. optioned to AAA after a brief
     // look) — track the latest such date per player so we can drop them from
     // "Just Called Up" instead of still watching a guy who isn't even on the
@@ -303,10 +307,10 @@ async function fetchRecentRosterMoves(days) {
 async function fetchTeamAbbreviations() {
   try {
     const res = await fetch(`${MLB}/teams?sportId=1`).then(r => r.json());
-    const map = {};
-    for (const t of res.teams ?? []) map[t.id] = t.abbreviation;
-    return map;
-  } catch (e) { return {}; }
+    const idToAbbr = {}, abbrToId = {};
+    for (const t of res.teams ?? []) { idToAbbr[t.id] = t.abbreviation; abbrToId[t.abbreviation] = t.id; }
+    return { idToAbbr, abbrToId };
+  } catch (e) { return { idToAbbr: {}, abbrToId: {} }; }
 }
 
 function todayET() {
@@ -354,7 +358,7 @@ function lineupNewcomersFrom(todaySchedule) {
       for (const p of side.lineup) {
         if (p.position === 'P') continue; // pitchers can't homer
         if (playerNames[p.pid]) continue; // already has a box-score appearance this season — not a newcomer
-        newcomers.push({ pid: p.pid, name: p.name, toTeam: side.teamName, date });
+        newcomers.push({ pid: p.pid, name: p.name, toTeam: side.teamAbbr || side.teamName, date });
       }
     }
   }
@@ -387,9 +391,9 @@ async function attachPedigree(rows) {
   }
 }
 
-async function computeProspects(todaySchedule) {
+async function computeProspects(todaySchedule, teamIdToAbbr) {
   const seasonBatterIds = Object.keys(playerNames);
-  const { callUps: selections, sentDownByPid } = await fetchRecentRosterMoves(PROSPECT_LOOKBACK_DAYS);
+  const { callUps: selections, sentDownByPid } = await fetchRecentRosterMoves(PROSPECT_LOOKBACK_DAYS, teamIdToAbbr);
   const selectionByPid = {};
   for (const s of selections) selectionByPid[s.pid] = s; // later selections overwrite earlier ones
 
@@ -528,11 +532,11 @@ async function main() {
   const dueRows = computeDueRows();
 
   console.log("Fetching today's schedule and lineups...");
-  const teamIdToAbbr = await fetchTeamAbbreviations();
+  const { idToAbbr: teamIdToAbbr, abbrToId: teamIds } = await fetchTeamAbbreviations();
   const todaySchedule = await fetchTodaySchedule(teamIdToAbbr);
 
   console.log('Checking for rookie debuts and recent call-ups...');
-  const prospects = await computeProspects(todaySchedule);
+  const prospects = await computeProspects(todaySchedule, teamIdToAbbr);
 
   console.log('Checking injured-list status...');
   const injuryStatus = await fetchInjuryStatus();
@@ -549,7 +553,7 @@ async function main() {
     totalHRCount,
     dailyHRs, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus,
-    todayDate: todayET(), todaySchedule,
+    todayDate: todayET(), todaySchedule, teamIds,
   };
 
   const fs = await import('node:fs');
