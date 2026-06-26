@@ -146,6 +146,9 @@
   .team-filter-row label { font-size: 0.63rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
   select#team-select { background: var(--surface1); border: 1px solid var(--border2); color: var(--text); font-family: var(--font-m); font-size: 0.7rem; padding: 0.32rem 0.55rem; border-radius: 5px; cursor: pointer; outline: none; }
   select#team-select:hover { border-color: var(--accent); }
+  .filter-mode-toggle { display: flex; background: var(--surface0); border: 1px solid var(--border); border-radius: 6px; padding: 0.15rem; }
+  .filter-mode-toggle button { background: transparent; border: none; color: var(--muted); font-family: var(--font-m); font-size: 0.65rem; font-weight: 700; letter-spacing: 0.05em; padding: 0.28rem 0.6rem; border-radius: 4px; cursor: pointer; }
+  .filter-mode-toggle button.active { background: var(--accent); color: #fff; }
 
   .tbl-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; }
   .lb-table { width: 100%; border-collapse: collapse; min-width: 480px; }
@@ -354,7 +357,10 @@
     <div id="stats-league">
       <div class="stat-row" id="totals-stats"></div>
       <div class="team-filter-row">
-        <label>Team</label>
+        <div class="filter-mode-toggle">
+          <button class="active" data-mode="team" onclick="setTotalsFilterMode('team')">Team</button>
+          <button data-mode="venue" onclick="setTotalsFilterMode('venue')">Ballpark</button>
+        </div>
         <select id="team-select" onchange="renderTotals()"><option value="ALL">All Teams</option></select>
       </div>
       <div class="chart-wrap">
@@ -409,6 +415,9 @@ let playerABs    = {};  // pid -> atBats
 let playerGames  = {};  // pid -> gamesPlayed
 let playerLastHR = {};  // pid -> latest date string
 let teamGameDays = {};
+let venueGameDays  = {}; // venue name -> date -> gameCount
+let venueHRsByDate = {}; // venue name -> date -> total HRs (both teams)
+let totalsFilterMode = 'team'; // 'team' | 'venue'
 let groups       = {};  // size -> [{pids, count, dates}], pre-filtered & sorted
 let dueRows      = [];
 let prospects    = { justCalledUp: [], debutBombs: [] };
@@ -517,14 +526,13 @@ function applyData(data) {
   dailyHRs = data.dailyHRs; dailyGames = data.dailyGames; hrTotals = data.hrTotals;
   playerNames = data.playerNames; playerTeams = data.playerTeams; playerABs = data.playerABs;
   playerGames = data.playerGames; playerLastHR = data.playerLastHR; teamGameDays = data.teamGameDays;
+  venueGameDays = data.venueGameDays ?? {}; venueHRsByDate = data.venueHRsByDate ?? {};
   groups = data.groups; dueRows = data.dueRows; prospects = data.prospects ?? prospects;
   injuryStatus = data.injuryStatus ?? {};
 
   setStatus('ready', `${data.daysWithData}d · ${data.totalHRCount} HR · upd ${timeAgo(data.generatedAt)}`);
 
-  const teams = [...new Set(Object.values(playerTeams))].sort();
-  const sel   = document.getElementById('team-select');
-  sel.innerHTML = '<option value="ALL">All Teams</option>' + teams.map(t=>`<option value="${t}">${t}</option>`).join('');
+  populateTotalsFilterSelect();
 
   disableNav(false);
   document.getElementById('search-wrap').classList.add('visible');
@@ -691,22 +699,44 @@ function _render(size) {
 }
 
 // ── TOTALS ─────────────────────────────────────────────────────────────
+function populateTotalsFilterSelect() {
+  const sel = document.getElementById('team-select');
+  if (totalsFilterMode === 'venue') {
+    const venues = Object.keys(venueGameDays).sort();
+    sel.innerHTML = '<option value="ALL">All Ballparks</option>' + venues.map(v=>`<option value="${v}">${v}</option>`).join('');
+  } else {
+    const teams = [...new Set(Object.values(playerTeams))].sort();
+    sel.innerHTML = '<option value="ALL">All Teams</option>' + teams.map(t=>`<option value="${t}">${t}</option>`).join('');
+  }
+}
+function setTotalsFilterMode(mode) {
+  totalsFilterMode = mode;
+  document.querySelectorAll('.filter-mode-toggle button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  populateTotalsFilterSelect();
+  renderTotals();
+}
+
 function renderTotals() {
   const allDates = Object.keys(dailyHRs).sort();
   if (!allDates.length) return;
-  const teamFilter = document.getElementById('team-select')?.value ?? 'ALL';
+  const filterVal = document.getElementById('team-select')?.value ?? 'ALL';
+  const byVenue = totalsFilterMode === 'venue';
   const labels = [], hrPerGame = [];
   let seasonTotal=0, totalGames=0, peakVal=0, peakDate='';
 
   for (const date of allDates) {
     let dayHRs=0, dayGames=0;
-    if (teamFilter==='ALL') {
+    if (filterVal==='ALL') {
       dayHRs   = Object.values(dailyHRs[date]).reduce((a,b)=>a+b,0);
       dayGames = dailyGames[date]||1;
+    } else if (byVenue) {
+      dayHRs   = venueHRsByDate[filterVal]?.[date] || 0;
+      dayGames = venueGameDays[filterVal]?.[date] || 0;
+      if (!dayGames) continue;
     } else {
       for (const [pid,hrs] of Object.entries(dailyHRs[date]))
-        if (playerTeams[pid]===teamFilter) dayHRs+=hrs;
-      dayGames = teamGameDays[teamFilter]?.[date]||0;
+        if (playerTeams[pid]===filterVal) dayHRs+=hrs;
+      dayGames = teamGameDays[filterVal]?.[date]||0;
       if (!dayGames) continue;
     }
     const rate = Math.round((dayHRs/dayGames)*100)/100;
@@ -716,8 +746,9 @@ function renderTotals() {
   }
 
   const avg = totalGames ? (seasonTotal/totalGames).toFixed(2) : '—';
+  const scopeLabel = filterVal==='ALL' ? 'Season' : byVenue ? 'Ballpark' : 'Team';
   document.getElementById('totals-stats').innerHTML = `
-    <div class="stat-chip"><span class="stat-chip-val">${seasonTotal.toLocaleString()}</span><span class="stat-chip-lbl">${teamFilter==='ALL'?'Season':'Team'} HRs</span></div>
+    <div class="stat-chip"><span class="stat-chip-val">${seasonTotal.toLocaleString()}</span><span class="stat-chip-lbl">${scopeLabel} HRs</span></div>
     <div class="stat-chip"><span class="stat-chip-val">${totalGames.toLocaleString()}</span><span class="stat-chip-lbl">Games</span></div>
     <div class="stat-chip"><span class="stat-chip-val">${avg}</span><span class="stat-chip-lbl">HR/Game</span></div>
     <div class="stat-chip"><span class="stat-chip-val">${peakVal.toFixed(2)}</span><span class="stat-chip-lbl">Peak${peakDate?' · '+fmtDate(peakDate):''}</span></div>`;
@@ -734,7 +765,8 @@ function renderTotals() {
   const mob = isMob();
   const tickStep     = Math.max(1, Math.ceil(labels.length/(mob?5:14)));
   const sparseLabels = labels.map((l,i)=>i%tickStep===0?l:'');
-  const dateSnapshot = teamFilter==='ALL' ? allDates : allDates.filter(d=>(teamGameDays[teamFilter]?.[d]||0)>0);
+  const gameDaysMap = byVenue ? venueGameDays : teamGameDays;
+  const dateSnapshot = filterVal==='ALL' ? allDates : allDates.filter(d=>(gameDaysMap[filterVal]?.[d]||0)>0);
 
   const rollDatasets = activePresets.map((p,i) => ({
     label: `${p.days}d`, data: makeMA(hrPerGame, p.days), borderColor: p.color,
@@ -760,7 +792,7 @@ function renderTotals() {
           bodyFont:{family:"'JetBrains Mono',monospace",size:mob?10:11},
           filter:mob?(item=>item.datasetIndex===0):()=>true,
           callbacks:{
-            title:(items)=>{const i=items[0].dataIndex;const date=dateSnapshot[i];const g=teamFilter==='ALL'?(dailyGames[date]||0):(teamGameDays[teamFilter]?.[date]||0);return `${labels[i]}  ·  ${g}G`;},
+            title:(items)=>{const i=items[0].dataIndex;const date=dateSnapshot[i];const g=filterVal==='ALL'?(dailyGames[date]||0):(gameDaysMap[filterVal]?.[date]||0);return `${labels[i]}  ·  ${g}G`;},
             label:(item)=>` ${item.raw.toFixed(2)} ${item.dataset.label==='HR/game'?'HR/G':item.dataset.label}`
           }
         }

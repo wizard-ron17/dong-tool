@@ -18,6 +18,11 @@ const playerLastGame  = {};  // pid -> latest date they appeared in a boxscore a
 const playerAbsByDate = {};  // pid -> { date -> abs that day } (dropped from output, only used to compute "Due")
 const fetchedGameIds  = new Set();
 const teamGameDays    = {};
+const venueGameDays   = {};  // venue name -> date -> gameCount
+const venueHRsByDate  = {};  // venue name -> date -> total HRs (both teams), e.g. Sutter Health Park (A's
+                              // current home), Las Vegas Ballpark / Estadio Alfredo Harp Helu (special series)
+                              // — pulled straight from each game's actual venue, never a hardcoded team->park map,
+                              // since the A's haven't played "at home" in Oakland since 2024
 
 function dateRange(start, end) {
   const dates = [], cur = new Date(start + 'T12:00:00Z'), last = new Date(end + 'T12:00:00Z');
@@ -35,6 +40,8 @@ async function fetchDay(date) {
   const games = sched.dates?.[0]?.games ?? [];
   const finalGames = games.filter(g => g.status?.abstractGameState === 'Final' && !fetchedGameIds.has(g.gamePk));
   const ids = finalGames.map(g => g.gamePk);
+  const venueByGame = {};
+  finalGames.forEach(g => { venueByGame[g.gamePk] = g.venue?.name || null; });
   ids.forEach(id => fetchedGameIds.add(id));
   if (!ids.length) return;
   dailyGames[date] = (dailyGames[date] || 0) + ids.length;
@@ -42,6 +49,11 @@ async function fetchDay(date) {
   await Promise.all(ids.map(async id => {
     try {
       const box = await fetch(`${MLB}/game/${id}/boxscore`).then(r => r.json());
+      const venue = venueByGame[id];
+      if (venue) {
+        if (!venueGameDays[venue]) venueGameDays[venue] = {};
+        venueGameDays[venue][date] = (venueGameDays[venue][date] || 0) + 1;
+      }
       for (const side of ['home','away']) {
         const t = box.teams?.[side] ?? {};
         const teamAbbr = t.team?.abbreviation ?? '';
@@ -70,6 +82,10 @@ async function fetchDay(date) {
           dailyHRs[date][pidStr] = (dailyHRs[date][pidStr] || 0) + hrs;
           hrTotals[pidStr] = (hrTotals[pidStr] || 0) + hrs;
           if (!playerLastHR[pidStr] || date > playerLastHR[pidStr]) playerLastHR[pidStr] = date;
+          if (venue) {
+            if (!venueHRsByDate[venue]) venueHRsByDate[venue] = {};
+            venueHRsByDate[venue][date] = (venueHRsByDate[venue][date] || 0) + hrs;
+          }
         }
       }
     } catch (e) {}
@@ -461,7 +477,7 @@ async function main() {
     daysWithData: allDates.length,
     totalHRCount,
     dailyHRs, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
-    teamGameDays, groups, dueRows, prospects, injuryStatus,
+    teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus,
   };
 
   const fs = await import('node:fs');
