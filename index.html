@@ -185,6 +185,9 @@
   .due-z.mild { color: var(--accent); }
 
   .il-badge { display: inline-flex; align-items: center; gap: 0.12rem; font-size: 0.55rem; font-weight: 700; color: #ff7040; background: rgba(255,112,64,0.1); border: 1px solid rgba(255,112,64,0.35); border-radius: 4px; padding: 0.04rem 0.28rem; margin-left: 0.3rem; white-space: nowrap; cursor: default; vertical-align: middle; }
+  .lineup-badge { display: inline-flex; align-items: center; gap: 0.12rem; font-size: 0.55rem; font-weight: 700; border-radius: 4px; padding: 0.04rem 0.28rem; margin-left: 0.3rem; white-space: nowrap; cursor: default; vertical-align: middle; }
+  .lineup-badge.off   { color: var(--muted); background: rgba(83,109,136,0.12); border: 1px solid rgba(83,109,136,0.35); }
+  .lineup-badge.bench { color: var(--gold); background: rgba(240,192,64,0.1); border: 1px solid rgba(240,192,64,0.35); }
   .now-ab-longest { color: #ff7040 !important; }
   .flame-badge { font-size: 0.62rem; margin-left: 0.1rem; }
   .due-longest-banner { background: rgba(255,112,64,0.08); border: 1px solid rgba(255,112,64,0.4); color: #ff8a5c; border-radius: 6px; padding: 0.45rem 0.6rem; font-size: 0.66rem; font-weight: 700; line-height: 1.4; margin-bottom: 0.9rem; }
@@ -274,6 +277,28 @@
   .recap-stat-num { font-family: var(--font-d); font-size: 1.25rem; font-weight: 700; color: var(--accent); line-height: 1; display: block; }
   .recap-stat-label { font-size: 0.5rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
 
+  .sched-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .sched-game { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.8rem; transition: border-color 0.15s; }
+  .sched-game.expanded { border-color: var(--border2); }
+  .sched-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; cursor: pointer; }
+  .sched-matchup { display: flex; align-items: center; gap: 0.4rem; font-family: var(--font-d); font-size: 1rem; font-weight: 700; color: #fff; }
+  .sched-at { color: var(--muted); font-size: 0.7rem; font-weight: 400; }
+  .sched-status { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.15rem 0.55rem; border-radius: 10px; background: var(--surface2); color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+  .sched-status.live  { background: rgba(255,112,64,0.12); color: #ff7040; }
+  .sched-status.final { background: rgba(53,201,110,0.12); color: var(--accent); }
+  .sched-sub { display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.6rem; color: var(--muted); margin-top: 0.35rem; align-items: center; cursor: pointer; }
+  .sched-expand-hint { margin-left: auto; color: var(--dim); font-size: 0.55rem; letter-spacing: 0.05em; text-transform: uppercase; }
+  .sched-lineups { display: none; gap: 1.2rem; margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
+  .sched-game.expanded .sched-lineups { display: flex; }
+  .sched-lineup-col { flex: 1; min-width: 0; }
+  .sched-lineup-head { font-size: 0.62rem; font-weight: 700; color: #bdd0e8; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 0.35rem; }
+  .sched-lineup-row { display: flex; align-items: center; gap: 0.35rem; font-size: 0.68rem; color: var(--text); padding: 0.12rem 0; }
+  .sched-lineup-order { color: var(--muted); width: 1.1rem; flex-shrink: 0; }
+  .sched-lineup-pos { color: var(--muted); width: 1.6rem; flex-shrink: 0; font-size: 0.6rem; }
+  .sched-lineup-pname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sched-lineup-empty { font-size: 0.65rem; color: var(--dim); font-style: italic; }
+  @media (max-width: 600px) { .sched-lineups { flex-direction: column; gap: 0.7rem; } }
+
   .lb-view-cards { display: none; }
   @media (max-width: 600px) {
     .lb-view-table { display: none; }
@@ -359,6 +384,7 @@
     <button class="nav-btn active" data-nav="pairs"   onclick="switchNav('pairs')">Pairs</button>
     <button class="nav-btn" data-nav="stats"   onclick="switchNav('stats')"   disabled>Stats</button>
     <button class="nav-btn" data-nav="recap" onclick="switchNav('recap')" disabled>Recap</button>
+    <button class="nav-btn" data-nav="schedule" onclick="switchNav('schedule')" disabled>Schedule</button>
     <button class="nav-btn" data-nav="due"     onclick="switchNav('due')"     disabled>Due</button>
     <button class="nav-btn" data-nav="prospects" onclick="switchNav('prospects')" disabled>Prospects</button>
   </nav>
@@ -415,6 +441,12 @@
     <div id="recap-content"><div class="empty">Loading data…</div></div>
   </div>
 
+  <!-- SCHEDULE -->
+  <div id="panel-schedule" class="panel">
+    <div class="result-meta" id="schedule-meta"></div>
+    <div id="schedule-content"><div class="empty">Loading data…</div></div>
+  </div>
+
   <!-- DUE -->
   <div id="panel-due" class="panel">
     <div class="result-meta" id="due-meta"></div>
@@ -454,6 +486,11 @@ let groups       = {};  // size -> [{pids, count, dates}], pre-filtered & sorted
 let dueRows      = [];
 let prospects    = { justCalledUp: [], debutBombs: [] };
 let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if currently on the IL
+let todayDate     = null;   // YYYY-MM-DD, ET — the same "today" build-data.js used for todaySchedule
+let todaySchedule = [];     // [{ gamePk, gameDate, status, venue, home:{...}, away:{...} }]
+let todayTeamsPlaying      = new Set(); // team abbrs with a game today, regardless of lineup status
+let todayLineupsPostedTeams = new Set(); // team abbrs whose lineup has actually been posted
+let todayStarterPids       = new Set(); // pids confirmed in a posted starting lineup today
 
 let activeNav      = 'pairs';
 let activePairSize = 2;
@@ -531,6 +568,24 @@ function injuryBadge(pid, compact) {
     .filter(Boolean).join(' · ').replace(/"/g, '&quot;');
   return `<span class="il-badge" title="${title}">🚑${compact ? '' : ` ${days}d`}</span>`;
 }
+// Off-day/bench signal, layered on top of (and subordinate to) the IL badge —
+// if a guy's actually hurt, that's the more useful thing to show. Three
+// states: team has no game today (nothing to infer), team's playing but the
+// lineup isn't posted yet (can't tell, so stay silent rather than guess), or
+// the lineup's posted and he's not on it (worth flagging — rest, platoon, or
+// a knock that hasn't hit the IL transaction wire yet).
+function lineupBadge(pid, compact) {
+  if (injuryStatus[pid]) return '';
+  const team = playerTeams[pid];
+  if (!team) return '';
+  if (!todayTeamsPlaying.has(team)) {
+    return `<span class="lineup-badge off" title="${team} has no game today">💤${compact ? '' : ' Off'}</span>`;
+  }
+  if (todayLineupsPostedTeams.has(team) && !todayStarterPids.has(pid)) {
+    return `<span class="lineup-badge bench" title="Not in today's starting lineup">🪑${compact ? '' : ' Bench'}</span>`;
+  }
+  return '';
+}
 function timeAgo(iso) {
   const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
   if (mins < 1)  return 'just now';
@@ -584,6 +639,21 @@ function applyData(data) {
   venueGameDays = data.venueGameDays ?? {}; venueHRsByDate = data.venueHRsByDate ?? {};
   groups = data.groups; dueRows = data.dueRows; prospects = data.prospects ?? prospects;
   injuryStatus = data.injuryStatus ?? {};
+  todayDate = data.todayDate ?? null;
+  todaySchedule = data.todaySchedule ?? [];
+  todayTeamsPlaying = new Set();
+  todayLineupsPostedTeams = new Set();
+  todayStarterPids = new Set();
+  todaySchedule.forEach(g => {
+    [g.home, g.away].forEach(side => {
+      if (!side.teamAbbr) return;
+      todayTeamsPlaying.add(side.teamAbbr);
+      if (side.lineup.length) {
+        todayLineupsPostedTeams.add(side.teamAbbr);
+        side.lineup.forEach(p => todayStarterPids.add(p.pid));
+      }
+    });
+  });
 
   setStatus('ready', `${data.daysWithData}d · ${data.totalHRCount} HR · upd ${timeAgo(data.generatedAt)}`);
 
@@ -605,7 +675,7 @@ function showLoadError(msg) {
 }
 
 // ── Nav ────────────────────────────────────────────────────────────────
-const VALID_NAVS = ['pairs', 'stats', 'recap', 'due', 'prospects'];
+const VALID_NAVS = ['pairs', 'stats', 'recap', 'schedule', 'due', 'prospects'];
 const PAIR_SIZE_TO_SLUG = { 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' };
 const PAIR_SLUG_TO_SIZE = { pairs: 2, trios: 3, quads: 4, quints: 5 };
 
@@ -653,6 +723,7 @@ function renderCurrentPanel() {
   if (activeNav === 'pairs')   _render(activePairSize);
   if (activeNav === 'stats')   renderStatsView();
   if (activeNav === 'recap') renderRecap();
+  if (activeNav === 'schedule') renderSchedule();
   if (activeNav === 'due')     renderDue();
   if (activeNav === 'prospects') renderProspects();
 }
@@ -733,7 +804,7 @@ function _render(size) {
         <img class="player-photo" src="${photoUrl}" alt="">
         <span class="player-name">${name}</span>
         <span class="player-hr">${hrTotals[pid]??'—'}</span>
-        <span class="player-hr-lbl">HR</span>${injuryBadge(pid, true)}</div>`;
+        <span class="player-hr-lbl">HR</span>${injuryBadge(pid, true)}${lineupBadge(pid, true)}</div>`;
     }).join('');
     const datePills = item.dates.map((d,di)=>`<span class="date-pill${di===item.dates.length-1?' latest':''}">${fmtDate(d)}</span>`).join('');
     card.innerHTML = `
@@ -897,7 +968,7 @@ function renderLeaders() {
     const lastTxt  = r.last ? `${fmtDateLong(r.last)}<span class="ago">${r.lastAgo}d ago</span>` : '—';
     return `<tr>
       <td class="lb-rank ${rankClass(i)}">${i+1}</td>
-      <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}</div><div class="lb-team">${r.team}${injuryBadge(r.pid)}</div></div></div></td>
+      <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}</div><div class="lb-team">${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div></div></td>
       <td class="lb-num hr-col">${r.hrs}</td>
       <td class="lb-num stat-col">${r.games}</td>
       <td class="lb-num stat-col">${gPerHR}</td>
@@ -930,7 +1001,7 @@ function renderLeaders() {
       <div class="lbc-top">
         <span class="lbc-rank ${rankClass(i)}">${i+1}</span>
         <img class="lbc-photo" src="${photoUrl}" alt="">
-        <div class="lbc-info"><div class="lbc-name">${r.name}</div><div class="lbc-team">${r.team}${injuryBadge(r.pid)}</div></div>
+        <div class="lbc-info"><div class="lbc-name">${r.name}</div><div class="lbc-team">${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
         <div class="lbc-headline"><span class="lbc-headline-num">${r.hrs}</span><span class="lbc-headline-lbl">HR</span></div>
       </div>
       <div class="lbc-stats">
@@ -1060,7 +1131,7 @@ function renderRecap() {
     const multiCls = hrs >= 4 ? 'multi-4' : hrs === 3 ? 'multi-3' : hrs === 2 ? 'multi-2' : '';
     return `<div class="recap-card ${multiCls}">
       <img class="recap-photo" src="${photoUrl}" alt="">
-      <div class="recap-info"><div class="recap-name">${name}</div><div class="recap-sub">${team?team+' · ':''}${seasonHR} season${injuryBadge(pid, true)}</div></div>
+      <div class="recap-info"><div class="recap-name">${name}</div><div class="recap-sub">${team?team+' · ':''}${seasonHR} season${injuryBadge(pid, true)}${lineupBadge(pid, true)}</div></div>
       <div class="recap-stat"><span class="recap-stat-num">${hrs}</span><span class="recap-stat-label">${hrs===1?'HR':'HRs'}</span></div>
     </div>`;
   }).join('');
@@ -1086,6 +1157,70 @@ function renderRecap() {
     </div>
     <div class="recap-grid">${cards}</div>
   `;
+}
+
+// ── SCHEDULE ───────────────────────────────────────────────────────────
+function schedStatusInfo(g) {
+  const final = /Final/i.test(g.status);
+  const live  = !final && /In Progress|Live|Manager Challenge|Delayed|Warmup/i.test(g.status);
+  const scoreTxt = (g.home.score != null && g.away.score != null) ? `${g.away.score}-${g.home.score}` : '';
+  if (final) return { cls: 'final', text: `Final${scoreTxt ? ' ' + scoreTxt : ''}` };
+  if (live)  return { cls: 'live',  text: `${scoreTxt ? scoreTxt + ' · ' : ''}Live` };
+  const time = new Date(g.gameDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return { cls: 'upcoming', text: time };
+}
+function schedLineupHtml(side) {
+  const label = side.teamAbbr || side.teamName;
+  if (!side.lineup.length) {
+    return `<div class="sched-lineup-col">
+      <div class="sched-lineup-head">${label}</div>
+      <div class="sched-lineup-empty">Lineup not posted yet</div>
+    </div>`;
+  }
+  const rows = side.lineup.map(p => `<div class="sched-lineup-row">
+      <span class="sched-lineup-order">${p.order}</span>
+      <span class="sched-lineup-pos">${p.position}</span>
+      <span class="sched-lineup-pname">${playerNames[p.pid] || p.name}</span>
+      ${injuryBadge(p.pid, true)}
+    </div>`).join('');
+  return `<div class="sched-lineup-col"><div class="sched-lineup-head">${label}</div>${rows}</div>`;
+}
+function toggleSchedGame(pk) {
+  document.getElementById(`sched-game-${pk}`)?.classList.toggle('expanded');
+}
+function renderSchedule() {
+  const metaEl = document.getElementById('schedule-meta');
+  const contentEl = document.getElementById('schedule-content');
+  if (!todaySchedule.length) {
+    metaEl.textContent = '';
+    contentEl.innerHTML = '<div class="empty">No games scheduled today</div>';
+    return;
+  }
+  const sorted = [...todaySchedule].sort((a, b) => new Date(a.gameDate) - new Date(b.gameDate));
+  metaEl.textContent = `${sorted.length} game${sorted.length === 1 ? '' : 's'}` + (todayDate ? ` · ${fmtDateLong(todayDate)}` : '');
+  contentEl.innerHTML = `<div class="sched-list">${sorted.map(g => {
+    const info = schedStatusInfo(g);
+    const awayLabel = g.away.teamAbbr || g.away.teamName, homeLabel = g.home.teamAbbr || g.home.teamName;
+    return `<div class="sched-game" id="sched-game-${g.gamePk}">
+      <div class="sched-row" onclick="toggleSchedGame(${g.gamePk})">
+        <div class="sched-matchup">
+          <span class="sched-team">${awayLabel}</span>
+          <span class="sched-at">@</span>
+          <span class="sched-team">${homeLabel}</span>
+        </div>
+        <div class="sched-status ${info.cls}">${info.text}</div>
+      </div>
+      <div class="sched-sub" onclick="toggleSchedGame(${g.gamePk})">
+        <span class="sched-venue">${g.venue}</span>
+        <span class="sched-pitchers">${g.away.probablePitcher || 'TBD'} vs ${g.home.probablePitcher || 'TBD'}</span>
+        <span class="sched-expand-hint">Lineups ▾</span>
+      </div>
+      <div class="sched-lineups">
+        ${schedLineupHtml(g.away)}
+        ${schedLineupHtml(g.home)}
+      </div>
+    </div>`;
+  }).join('')}</div>`;
 }
 
 // ── DUE ────────────────────────────────────────────────────────────────
@@ -1129,7 +1264,7 @@ function renderDue() {
     const lastTxt  = `${fmtDateLong(r.lastHR)}<span class="ago">${r.lastAgo}d ago</span>`;
     return `<tr class="due-row-clickable" onclick="openDueModal('${r.pid}')">
       <td class="lb-rank ${rankClass(i)}">${i+1}</td>
-      <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}</div><div class="lb-team">${r.team}${injuryBadge(r.pid)}</div></div></div></td>
+      <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}</div><div class="lb-team">${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div></div></td>
       <td class="due-z ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</td>
       <td class="lb-num hr-col">${r.hrs}</td>
       <td class="lb-num stat-col">${r.avgGap.toFixed(0)}</td>
@@ -1148,7 +1283,7 @@ function renderDue() {
       <div class="lbc-top">
         <span class="lbc-rank ${rankClass(i)}">${i+1}</span>
         <img class="lbc-photo" src="${photoUrl}" alt="">
-        <div class="lbc-info"><div class="lbc-name">${r.name}</div><div class="lbc-team">${r.team}${injuryBadge(r.pid)}</div></div>
+        <div class="lbc-info"><div class="lbc-name">${r.name}</div><div class="lbc-team">${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
         <div class="lbc-headline"><span class="lbc-headline-num ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</span><span class="lbc-headline-lbl">Due Score</span></div>
       </div>
       <div class="lbc-stats">
@@ -1259,7 +1394,7 @@ function dueModalHtml(r) {
       <button class="due-modal-close" onclick="closeDueModal()" aria-label="Close">&times;</button>
       <div class="due-modal-head">
         <img class="due-modal-photo" src="${photoUrl}" alt="">
-        <div><div class="due-modal-name">${r.name}</div><div class="due-modal-team">${r.team}${injuryBadge(r.pid)}</div></div>
+        <div><div class="due-modal-name">${r.name}</div><div class="due-modal-team">${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
         <div class="due-modal-headline"><span class="due-modal-headline-num ${cls}">${r.dueScore.toFixed(1)}</span><span class="due-modal-headline-lbl">Due Score</span></div>
       </div>
       <div class="due-modal-stats">
@@ -1310,7 +1445,7 @@ function prospectCard(r, isBomb) {
   return `<div class="prospect-card">
     <div class="prospect-top">
       <img class="prospect-photo" src="${photoUrl}" alt="">
-      <div class="prospect-info"><div class="prospect-name">${r.name}</div><div class="prospect-team">${r.team}${injuryBadge(r.pid)}</div></div>
+      <div class="prospect-info"><div class="prospect-name">${r.name}</div><div class="prospect-team">${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
       ${headline}
     </div>
     <div class="prospect-meta">${subline}</div>

@@ -300,32 +300,65 @@ async function fetchRecentRosterMoves(days) {
   } catch (e) { return { callUps: [], sentDownByPid: {} }; }
 }
 
+async function fetchTeamAbbreviations() {
+  try {
+    const res = await fetch(`${MLB}/teams?sportId=1`).then(r => r.json());
+    const map = {};
+    for (const t of res.teams ?? []) map[t.id] = t.abbreviation;
+    return map;
+  } catch (e) { return {}; }
+}
+
+function todayET() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+}
+
+// Powers both the new Schedule tab and the lineup-based call-up/bench
+// detection below — one fetch, hydrated with lineups + probable pitchers, so
+// the rest of the build never has to hit /schedule for "today" a second time.
+async function fetchTodaySchedule(teamIdToAbbr) {
+  try {
+    const sched = await fetch(`${MLB}/schedule?sportId=1&date=${todayET()}&gameType=R&hydrate=lineups,probablePitcher,venue`).then(r => r.json());
+    const games = sched.dates?.[0]?.games ?? [];
+    return games.map(g => {
+      const side = s => {
+        const team = g.teams?.[s]?.team ?? {};
+        return {
+          teamId: team.id ?? null, teamName: team.name ?? '', teamAbbr: teamIdToAbbr[team.id] ?? '',
+          probablePitcher: g.teams?.[s]?.probablePitcher?.fullName ?? null,
+          score: g.teams?.[s]?.score ?? null,
+          lineup: (g.lineups?.[`${s}Players`] ?? []).map((p, i) => ({
+            pid: String(p.id), name: p.fullName,
+            position: p.primaryPosition?.abbreviation ?? '', order: i + 1,
+          })),
+        };
+      };
+      return {
+        gamePk: g.gamePk, gameDate: g.gameDate, status: g.status?.detailedState ?? '',
+        venue: g.venue?.name ?? '', home: side('home'), away: side('away'),
+      };
+    });
+  } catch (e) { return []; }
+}
+
 // MLB's transactions feed can lag the actual roster move by hours — a call-up
 // reported by beat writers in the morning sometimes doesn't post there until
 // the player physically arrives at the park. Today's official starting
-// lineups (via the same /schedule endpoint, hydrated) are a faster, equally
-// official signal: anyone batting today with zero box-score appearances all
-// season is, almost by definition, a brand-new call-up, transaction or not.
-async function fetchTodayLineupNewcomers() {
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-  try {
-    const sched = await fetch(`${MLB}/schedule?sportId=1&date=${today}&gameType=R&hydrate=lineups`).then(r => r.json());
-    const games = sched.dates?.[0]?.games ?? [];
-    const newcomers = [];
-    for (const g of games) {
-      for (const side of ['home', 'away']) {
-        const teamName = g.teams?.[side]?.team?.name ?? '';
-        const players = g.lineups?.[`${side}Players`] ?? [];
-        for (const p of players) {
-          if (p.primaryPosition?.code === '1') continue; // pitchers can't homer
-          const pid = String(p.id);
-          if (playerNames[pid]) continue; // already has a box-score appearance this season — not a newcomer
-          newcomers.push({ pid, name: p.fullName, toTeam: teamName, date: today });
-        }
+// lineups are a faster, equally official signal: anyone batting today with
+// zero box-score appearances all season is, almost by definition, a
+// brand-new call-up, transaction or not.
+function lineupNewcomersFrom(todaySchedule) {
+  const newcomers = [], date = todayET();
+  for (const g of todaySchedule) {
+    for (const side of [g.home, g.away]) {
+      for (const p of side.lineup) {
+        if (p.position === 'P') continue; // pitchers can't homer
+        if (playerNames[p.pid]) continue; // already has a box-score appearance this season — not a newcomer
+        newcomers.push({ pid: p.pid, name: p.name, toTeam: side.teamName, date });
       }
     }
-    return newcomers;
-  } catch (e) { return []; }
+  }
+  return newcomers;
 }
 
 async function fetchMinorLeaguePedigree(pid) {
@@ -354,7 +387,7 @@ async function attachPedigree(rows) {
   }
 }
 
-async function computeProspects() {
+async function computeProspects(todaySchedule) {
   const seasonBatterIds = Object.keys(playerNames);
   const { callUps: selections, sentDownByPid } = await fetchRecentRosterMoves(PROSPECT_LOOKBACK_DAYS);
   const selectionByPid = {};
@@ -363,7 +396,7 @@ async function computeProspects() {
   // Fill in anyone starting today that the transactions feed hasn't caught up
   // to yet — only if there's no real transaction for them already, since the
   // actual transaction (when it exists) has more reliable fromTeam/date info.
-  const lineupNewcomers = await fetchTodayLineupNewcomers();
+  const lineupNewcomers = lineupNewcomersFrom(todaySchedule);
   for (const n of lineupNewcomers) if (!selectionByPid[n.pid]) selectionByPid[n.pid] = n;
 
   const allIds = new Set([...seasonBatterIds, ...Object.keys(selectionByPid)]);
@@ -494,8 +527,12 @@ async function main() {
   const groups = computeAllGroups(dailyHRs);
   const dueRows = computeDueRows();
 
+  console.log("Fetching today's schedule and lineups...");
+  const teamIdToAbbr = await fetchTeamAbbreviations();
+  const todaySchedule = await fetchTodaySchedule(teamIdToAbbr);
+
   console.log('Checking for rookie debuts and recent call-ups...');
-  const prospects = await computeProspects();
+  const prospects = await computeProspects(todaySchedule);
 
   console.log('Checking injured-list status...');
   const injuryStatus = await fetchInjuryStatus();
@@ -512,11 +549,12 @@ async function main() {
     totalHRCount,
     dailyHRs, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus,
+    todayDate: todayET(), todaySchedule,
   };
 
   const fs = await import('node:fs');
   fs.writeFileSync(new URL('../data.json', import.meta.url), JSON.stringify(output));
-  console.log(`Wrote data.json — ${allDates.length} game days, ${totalHRCount} HRs, ${dueRows.length} due rows, ${prospects.debutBombs.length} debut bombs, ${prospects.justCalledUp.length} just called up`);
+  console.log(`Wrote data.json — ${allDates.length} game days, ${totalHRCount} HRs, ${dueRows.length} due rows, ${prospects.debutBombs.length} debut bombs, ${prospects.justCalledUp.length} just called up, ${todaySchedule.length} games today`);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
