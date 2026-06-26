@@ -319,6 +319,7 @@
       <button class="sub-btn active" data-size="2" onclick="switchPairSize(2)"><span class="num">2</span>Pairs</button>
       <button class="sub-btn" data-size="3" onclick="switchPairSize(3)"><span class="num">3</span>Trios</button>
       <button class="sub-btn" data-size="4" onclick="switchPairSize(4)"><span class="num">4</span>Quads</button>
+      <button class="sub-btn" data-size="5" onclick="switchPairSize(5)"><span class="num">5</span>Quints</button>
     </div>
     <div class="search-wrap" id="search-wrap">
       <input type="text" id="player-search" placeholder="Search players… commas for multiple (Judge, Ohtani)" oninput="onSearchInput()">
@@ -511,8 +512,8 @@ function showLoadError(msg) {
 
 // ── Nav ────────────────────────────────────────────────────────────────
 const VALID_NAVS = ['pairs', 'stats', 'daylate', 'due', 'prospects'];
-const PAIR_SIZE_TO_SLUG = { 2: 'pairs', 3: 'trios', 4: 'quads' };
-const PAIR_SLUG_TO_SIZE = { pairs: 2, trios: 3, quads: 4 };
+const PAIR_SIZE_TO_SLUG = { 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' };
+const PAIR_SLUG_TO_SIZE = { pairs: 2, trios: 3, quads: 4, quints: 5 };
 
 // Hash format: #<tab> or #<tab>-<subview>, e.g. #stats-individual, #pairs-quads.
 function syncHash() {
@@ -590,10 +591,10 @@ function switchPairSize(size) {
 
 function _render(size) {
   // groups[size] is already filtered & sorted server-side (≥3 occurrences for
-  // pairs, ≥2 for trios/quads) — one-off coincidences are dropped before they
-  // ever reach the browser.
+  // pairs and quints, ≥2 for trios/quads) — one-off coincidences are dropped
+  // before they ever reach the browser.
   let groupList = groups[size] ?? [];
-  const sizeNames = { 2:'pairs', 3:'trios', 4:'quads' };
+  const sizeNames = { 2:'pairs', 3:'trios', 4:'quads', 5:'quints' };
 
   if (activeTerms.length) {
     groupList = groupList.filter(item => {
@@ -609,7 +610,7 @@ function _render(size) {
 
   document.getElementById('pairs-meta').textContent =
     `${groupList.length.toLocaleString()} unique ${sizeNames[size]}` +
-    (size === 2 ? ' · min 3 occurrences' : ' · min 2 occurrences') +
+    (size === 2 || size === 5 ? ' · min 3 occurrences' : ' · min 2 occurrences') +
     (termDesc ? ` · ${termDesc}` : '') +
     (groupList.length > RENDER_LIMIT ? ` · showing top ${RENDER_LIMIT}` : '');
 

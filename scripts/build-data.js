@@ -89,32 +89,64 @@ async function fetchAll() {
   }
 }
 
-// ── Combinatorics: groups of `size` players who all homered on the same day ──
-function computeGroups(dHRs, size) {
-  const allPids = new Set();
-  for (const day of Object.values(dHRs)) for (const pid of Object.keys(day)) allPids.add(pid);
-  const pidList = [...allPids], pidToIdx = {};
-  pidList.forEach((p, i) => pidToIdx[p] = i);
-  const pdc = {};
+// ── Combinatorics: groups of players who all homered on the same day, 2 through 5 ──
+// Built bottom-up (Apriori-style): any group of size N that repeats must have every
+// (N-1)-subset of it also repeat, so each size is built by extending the *previous*
+// size's groups by one more player instead of brute-forcing every C(n,size) combo
+// from scratch each day. That's what made a 5-man tier feasible at all — brute force
+// on it alone ran for minutes without finishing; this chain does 2 through 5 in ~3s.
+//
+// minDays(size) = how many total HR days (anywhere, not necessarily with this group)
+// each individual member must have this season — same per-size floor the old
+// brute-force version used, preserved exactly so 2/3/4-man results don't change.
+// minCount(size) = how many times the group itself must have repeated to be shown.
+function computeAllGroups(dHRs) {
+  const minDaysFor  = size => size >= 4 ? 3 : size >= 3 ? 2 : 1;
+  const minCountFor = size => size === 2 ? 3 : size === 5 ? 3 : 2;
+
+  const pdc = {}; // pid -> total HR days this season (any group, or none)
   for (const day of Object.values(dHRs)) for (const pid of Object.keys(day)) pdc[pid] = (pdc[pid] || 0) + 1;
-  const minDays = size >= 4 ? 3 : size >= 3 ? 2 : 1, counts = {};
-  for (const [date, day] of Object.entries(dHRs)) {
-    const ids = Object.keys(day).filter(p => pdc[p] >= minDays).map(p => pidToIdx[p]).sort((a,b) => a-b);
-    if (ids.length < size) continue;
-    const n = ids.length, idx = Array.from({length: size}, (_, i) => i);
-    while (true) {
-      const key = idx.map(i => pidList[ids[i]]).join(',');
-      if (!counts[key]) counts[key] = [];
-      counts[key].push(date);
-      let i = size - 1; while (i >= 0 && idx[i] === i + n - size) i--; if (i < 0) break;
-      idx[i]++; for (let j = i + 1; j < size; j++) idx[j] = idx[j-1] + 1;
+
+  function buildPairs() {
+    const counts = {};
+    for (const [date, day] of Object.entries(dHRs)) {
+      const pids = Object.keys(day);
+      for (let i = 0; i < pids.length; i++) for (let j = i + 1; j < pids.length; j++) {
+        const key = [pids[i], pids[j]].sort().join(',');
+        (counts[key] ??= new Set()).add(date);
+      }
     }
+    return Object.entries(counts).map(([key, dates]) => ({ pids: key.split(','), dates: [...dates], count: dates.size }));
   }
-  const minCount = size === 2 ? 3 : 2; // drop one-off coincidences; they aren't meaningful signal and balloon file size
-  return Object.entries(counts)
-    .map(([key, dates]) => ({ pids: key.split(','), count: dates.length, dates: dates.sort() }))
-    .filter(item => item.count >= minCount)
+  function extend(baseGroups, minDays) {
+    const counts = {};
+    for (const g of baseGroups) {
+      for (const date of g.dates) {
+        for (const extra of Object.keys(dHRs[date])) {
+          if (g.pids.includes(extra) || pdc[extra] < minDays) continue;
+          const key = [...g.pids, extra].sort().join(',');
+          (counts[key] ??= new Set()).add(date);
+        }
+      }
+    }
+    return Object.entries(counts).map(([key, dates]) => ({ pids: key.split(','), dates: [...dates], count: dates.size }));
+  }
+  const finalize = groups => groups
+    .map(g => ({ ...g, dates: g.dates.sort() }))
     .sort((a,b) => b.count - a.count || b.dates[b.dates.length-1].localeCompare(a.dates[a.dates.length-1]));
+
+  const pairsRaw = buildPairs();
+  const out = { 2: finalize(pairsRaw.filter(g => g.count >= minCountFor(2))) };
+
+  let prevOut = pairsRaw.filter(g => g.count >= 2); // loosest valid chaining seed, not the display-filtered list
+  for (const size of [3, 4, 5]) {
+    const minDays = minDaysFor(size);
+    const base = prevOut.filter(g => g.pids.every(p => pdc[p] >= minDays));
+    const raw = extend(base, minDays);
+    out[size] = finalize(raw.filter(g => g.count >= minCountFor(size)));
+    prevOut = raw.filter(g => g.count >= 2);
+  }
+  return out;
 }
 
 // ── "Due" sluggers: ABs-since-last-HR vs their usual gap, as a z-score ──
@@ -409,7 +441,7 @@ async function main() {
   console.log(`Building data.json — season start ${SEASON_START}`);
   await fetchAll();
 
-  const groups = { 2: computeGroups(dailyHRs, 2), 3: computeGroups(dailyHRs, 3), 4: computeGroups(dailyHRs, 4) };
+  const groups = computeAllGroups(dailyHRs);
   const dueRows = computeDueRows();
 
   console.log('Checking for rookie debuts and recent call-ups...');
