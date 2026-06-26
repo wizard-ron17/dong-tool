@@ -3,16 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GreenMeansGo</title>
+<title>Ron's Dong Tool</title>
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="A home run tracking tool inspired by Green Means Go.">
 <link rel="icon" type="image/svg+xml" href="icons/logo.svg">
 <link rel="icon" type="image/x-icon" href="icons/favicon.ico">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="GreenMeansGo">
+<meta name="apple-mobile-web-app-title" content="Dong Tool">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -297,7 +298,7 @@
 
   <header>
     <p class="eyebrow">MLB · 2026 · Stats API <span id="status-badge" class="status-badge fetching">Loading</span></p>
-    <h1><img src="icons/logo.svg" alt="" class="brand-logo">Ron's <em>GreenMeansGo</em> Tool</h1>
+    <h1><img src="icons/logo.svg" alt="" class="brand-logo">Ron's <em>Dong</em> Tool</h1>
     <div class="meta-row">
       <span>A home run tool inspired by Green Means Go
         <span class="social-links">
@@ -1156,6 +1157,12 @@ function setStatus(type, text) {
 
 // ── Boot ───────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', loadData);
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
