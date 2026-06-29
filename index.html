@@ -539,7 +539,7 @@
         <ul>
           <li><b>The drought.</b> Every hitter's current AB count since his last HR is compared to his own season-long gap pattern, not a flat number — a 30-AB drought means something very different for a guy who usually homers every 12 ABs than one who homers every 28. We z-score it: how many standard deviations beyond his typical gap he is right now.</li>
           <li><b>The weighting.</b> That z-score is weighted up for proven power (more season HRs = more signal worth trusting) and for confidence (more historical gaps logged = a sturdier personal average, so one early-season fluke doesn't swing things).</li>
-          <li><b>The contact nudge.</b> Up to ±15% is layered on top based on how he's actually squaring the ball up — exit velo, Sweet Spot% (launch angle 8°-32°, the window that can actually clear a fence), and Barrel% — measured since his last HR vs. before it. Cooling contact nudges his score down even if the raw AB math says he's "due"; contact that's still scalding nudges it up.</li>
+          <li><b>The contact nudge.</b> Up to ±15% is layered on top based on Statcast's own per-batted-ball contact-quality grade (1-6, weak contact to barrel — already a joint read on exit velo and launch angle), averaged across every batted ball since his last HR vs. before it, and blended with his season rate so one lucky or unlucky swing in a short stretch can't swing the result on its own. Cooling contact nudges his score down even if the raw AB math says he's "due"; contact that's still scalding nudges it up. Exit velo, Sweet Spot%, and Barrel% are shown below for context but don't separately drive the score — they're already folded into that one grade.</li>
           <li><b>Eligibility.</b> z ≥ 1.0, 5+ HR this season, AB/HR ≤ 30, and excludes anyone inactive 5+ days (injured, benched, or demoted) — a stale drought doesn't count.</li>
         </ul>
       </div>
@@ -1611,7 +1611,7 @@ function renderDue() {
 
   const dueColDefs = [
     {key:'dueScore',   label:'Due Score', title:'Z weighted by HR volume (proven power) and number of historical gaps (confidence)'},
-    {key:'contactFactor', label:'Contact', title:'Recent batted-ball quality (exit velo, launch angle/sweet spot%, barrel%, hard-hit%) since his last HR vs. before it'},
+    {key:'contactFactor', label:'Contact', title:'Statcast contact-quality grade (1-6, weak to barrel) since his last HR vs. before it'},
     {key:'hrs',        label:'HR',        title:'Season home runs'},
     {key:'avgGap',     label:'Avg AB',    title:'Avg ABs between their HRs'},
     {key:'stdGap',     label:'Std',       title:'How much his AB gaps normally vary — lower means more consistent, higher means streakier'},
@@ -1697,10 +1697,14 @@ function dueVizHtml(r) {
     ${truncated ? `<div class="due-viz-foot">(showing his last ${RECENT_N} gaps of ${r.intervals.length} this season)</div>` : ''}`;
 }
 
+// Thresholds calibrated for the avgContactQ-based ratio (typically ~0.86-1.08
+// in practice after shrinkage) — the old barrel%/sweetSpot%/EV blend swung
+// much wider (routinely hit its 0.85/1.15 clamp), so its 1.1/0.9 cutoffs
+// would barely ever fire on this tighter, less noisy composite.
 function contactTagInfo(factor) {
   if (factor == null) return { cls: 'avg', text: 'Small Sample' };
-  if (factor >= 1.1) return { cls: 'great', text: 'Hitting It Better' };
-  if (factor <= 0.9) return { cls: 'bad', text: 'Contact Has Cooled' };
+  if (factor >= 1.05) return { cls: 'great', text: 'Hitting It Better' };
+  if (factor <= 0.95) return { cls: 'bad', text: 'Contact Has Cooled' };
   return { cls: 'avg', text: 'Holding Steady' };
 }
 const CONTACT_SHORT_LABEL = { 'Small Sample':'—', 'Holding Steady':'Steady', 'Hitting It Better':'Hot', 'Contact Has Cooled':'Cold' };
@@ -1746,7 +1750,7 @@ function dueContactHtml(r) {
         <span class="due-contact-vals"><span class="dim">${base.hardHitPct.toFixed(1)}</span> → <span class="hrg-val ${hhCls}">${dr.hardHitPct.toFixed(1)}</span></span>
       </div>
     </div>
-    <div class="due-contact-foot">Before the drought vs. during it (${dr.n} batted balls since his last HR) — his own home-run swings are excluded from the "before" number so they don't inflate it relative to a stretch that, by definition, has none. Sweet Spot% (launch angle 8°-32°) and Barrel% both account for trajectory, not just raw exit velo, so hitting it harder on the ground doesn't read as "improved."</div>
+    <div class="due-contact-foot">Before the drought vs. during it (${dr.n} batted balls since his last HR) — his own home-run swings are excluded from the "before" number so they don't inflate it relative to a stretch that, by definition, has none. The score itself is driven by Statcast's combined 1-6 contact-quality grade, not these four stats individually — they're shown for context.</div>
   </div>`;
 }
 function dueModalHtml(r) {

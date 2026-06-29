@@ -287,14 +287,16 @@ async function fetchBattedBalls(pids) {
 // trajectory that actually has a shot at clearing the fence — exit velo
 // and "hard-hit%" are both blind to launch angle, so a hitter could be
 // scalding line drives or grounders and look "better" on those alone with
-// zero home-run-shaped contact. Barrel% already folds EV+LA together but
-// is a stricter all-or-nothing zone; Sweet Spot% gives a softer, earlier
-// signal of a trajectory shift before/without crossing into barrel territory.
+// zero home-run-shaped contact. Barrel%, Sweet Spot%, and avg EV are all
+// kept here for the modal's display (people read those more easily than a
+// 1-6 grade), but none of them drive the score directly anymore — see
+// avgContactQ below and the comment in attachContactQuality.
 function battedBallStats(rows) {
   const valid = rows.filter(r => !isNaN(parseFloat(r.launch_speed)));
   if (!valid.length) return null;
   const evs = valid.map(r => parseFloat(r.launch_speed));
   const las = valid.map(r => parseFloat(r.launch_angle)).filter(v => !isNaN(v));
+  const lsas = valid.map(r => parseFloat(r.launch_speed_angle)).filter(v => !isNaN(v) && v >= 1 && v <= 6);
   const hardHit = evs.filter(v => v >= 95).length;
   const barrels = valid.filter(r => r.launch_speed_angle === '6').length;
   const sweetSpot = las.filter(v => v >= 8 && v <= 32).length;
@@ -305,21 +307,39 @@ function battedBallStats(rows) {
     hardHitPct: 100 * hardHit / valid.length,
     barrelPct: 100 * barrels / valid.length,
     sweetSpotPct: las.length ? 100 * sweetSpot / las.length : null,
+    // Statcast's own per-batted-ball contact-quality grade (1=Weak, 2=Topped,
+    // 3=Under, 4=Flare/Burner, 5=Solid Contact, 6=Barrel) — already a joint
+    // calibration of EV+LA against real outcomes, so averaging it gives one
+    // composite score instead of re-measuring EV and LA a second and third
+    // time via avgEV/sweetSpotPct (which is what the old formula did).
+    avgContactQ: lsas.length ? avg(lsas) : null,
+    contactQN: lsas.length,
   };
 }
 
 // Contact factor nudges dueScore rather than overriding it — the AB-gap z
 // stays the primary signal, this just tempers it when recent contact quality
-// has genuinely diverged from the season norm. Barrel rate is weighted
-// heaviest (most directly tied to HR potential, since it already requires
-// both EV and launch angle to be in the right window), Sweet Spot% next
-// (a trajectory-only signal that catches an angle shift even when it's not
-// yet producing full barrels), and exit velo last as the steadiest but most
-// trajectory-blind of the three — a guy hitting it harder on the ground
-// shouldn't look "due" just because of that. Requires a minimum drought
-// sample before adjusting anything — with too few batted balls, one barrel
-// either way swings the rate too much to trust.
+// has genuinely diverged from the season norm.
+//
+// Earlier version blended barrelPct + sweetSpotPct + avgEV as three weighted
+// "votes," but barrel% is itself an AND-threshold on EV and launch angle, so
+// that blend was really just EV and LA double- and triple-counted under
+// different names — and barrel% specifically, being a strict all-or-nothing
+// zone, qualifies so few batted balls per drought (commonly 0-3) that its
+// rate is mostly noise: going from 1 to 2 barrels reads as "+100%" even
+// though it's one swing of randomness. Using avgContactQ (Statcast's 1-6
+// grade per batted ball, see battedBallStats) fixes both problems at once —
+// one composite number instead of three correlated proxies, averaged across
+// every batted ball instead of counting a rare event, so it moves gently
+// instead of swinging on a single swing.
+//
+// Still shrink the drought average toward the baseline rate before taking
+// the ratio: even an averaged 1-6 grade over ~15-30 batted balls has real
+// sampling noise, and blending in CONTACT_SHRINK_K pseudo-batted-balls at
+// the baseline rate keeps a thin drought sample from swinging the result as
+// hard as the raw average would.
 const CONTACT_MIN_DROUGHT_BBE = 8;
+const CONTACT_SHRINK_K = 20;
 async function attachContactQuality(dueRows) {
   const allBalls = await fetchBattedBalls(dueRows.map(r => r.pid));
   const byPid = {};
@@ -345,12 +365,10 @@ async function attachContactQuality(dueRows) {
     const baseline = battedBallStats(baselineBalls);
     const drought = battedBallStats(droughtBalls);
     r.contact = { baseline, drought };
-    if (!baseline || !drought || drought.n < CONTACT_MIN_DROUGHT_BBE) continue;
+    if (!baseline || !drought || drought.n < CONTACT_MIN_DROUGHT_BBE || !baseline.avgContactQ || !drought.avgContactQ) continue;
 
-    const barrelRatio = baseline.barrelPct > 0 ? drought.barrelPct / baseline.barrelPct : (drought.barrelPct > 0 ? 1.15 : 1);
-    const sweetSpotRatio = baseline.sweetSpotPct > 0 ? drought.sweetSpotPct / baseline.sweetSpotPct : (drought.sweetSpotPct > 0 ? 1.15 : 1);
-    const evRatio = baseline.avgEV > 0 ? drought.avgEV / baseline.avgEV : 1;
-    const contactRatio = 0.5 * barrelRatio + 0.3 * sweetSpotRatio + 0.2 * evRatio;
+    const shrunkDroughtQ = (drought.avgContactQ * drought.contactQN + baseline.avgContactQ * CONTACT_SHRINK_K) / (drought.contactQN + CONTACT_SHRINK_K);
+    const contactRatio = shrunkDroughtQ / baseline.avgContactQ;
     r.contactFactor = Math.max(0.85, Math.min(1.15, contactRatio));
     r.dueScore = r.rawDueScore * r.contactFactor;
   }
