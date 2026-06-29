@@ -207,6 +207,21 @@
   .due-z.warm { color: var(--gold); }
   .due-z.mild { color: var(--accent); }
 
+  .due-explainer { background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.9rem; margin-bottom: 0.7rem; font-size: 0.72rem; line-height: 1.5; color: var(--dim); }
+  .due-explainer-title { display: block; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.35rem; }
+  .due-filter-row { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+  .due-filter-group { display: flex; align-items: center; gap: 0.4rem; }
+  .due-filter-label { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  .due-filter-chips { display: flex; gap: 0.25rem; }
+  .due-filter-chip { background: var(--surface1); border: 1px solid var(--border2); color: var(--dim); font-family: var(--font-m); font-size: 0.62rem; font-weight: 700; padding: 0.18rem 0.55rem; border-radius: 20px; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+  .due-filter-chip:hover { color: var(--text); }
+  .due-filter-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .due-filter-toggle { background: var(--surface1); border: 1px solid var(--border2); color: var(--dim); font-family: var(--font-m); font-size: 0.62rem; font-weight: 700; padding: 0.22rem 0.65rem; border-radius: 20px; cursor: pointer; display: inline-flex; align-items: center; gap: 0.3rem; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+  .due-filter-toggle:hover { color: var(--text); }
+  .due-filter-toggle.active { background: rgba(53,201,110,0.14); border-color: var(--accent); color: var(--accent); }
+  .due-filter-clear { background: transparent; border: none; color: var(--muted); font-family: var(--font-m); font-size: 0.62rem; font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0.2rem 0.3rem; }
+  .due-filter-clear:hover { color: var(--text); }
+
   .il-badge { display: inline-flex; align-items: center; gap: 0.12rem; font-size: 0.55rem; font-weight: 700; color: #ff7040; background: rgba(255,112,64,0.1); border: 1px solid rgba(255,112,64,0.35); border-radius: 4px; padding: 0.04rem 0.28rem; margin-left: 0.3rem; white-space: nowrap; cursor: default; vertical-align: middle; }
   .lineup-badge { display: inline-flex; align-items: center; gap: 0.12rem; font-size: 0.55rem; font-weight: 700; border-radius: 4px; padding: 0.04rem 0.28rem; margin-left: 0.3rem; white-space: nowrap; cursor: default; vertical-align: middle; }
   .lineup-badge.off   { color: var(--muted); background: rgba(83,109,136,0.12); border: 1px solid rgba(83,109,136,0.35); }
@@ -505,6 +520,11 @@
 
   <!-- DUE -->
   <div id="panel-due" class="panel">
+    <div class="due-explainer">
+      <span class="due-explainer-title">How Due Score Works</span>
+      Ranks hitters by how unusual their current homerless stretch is for <em>them</em> — not just raw AB count. Each guy's current AB-gap is z-scored against his own season rhythm, weighted up for proven power (HR total) and confidence (more historical gaps = a sturdier average), then nudged up to ±15% by how he's actually been hitting the ball since his last HR — exit velo, sweet spot%, barrel% — versus before it. Eligible: z ≥ 1.0, 5+ HR, AB/HR ≤ 30 · excludes anyone inactive 5+ days (injured, benched, or demoted).
+    </div>
+    <div class="due-filter-row" id="due-filter-row"></div>
     <div class="result-meta" id="due-meta"></div>
     <div id="due-content"><div class="empty">Loading data…</div></div>
   </div>
@@ -572,6 +592,7 @@ let lbSortCol      = null;
 let lbSortDir      = -1;
 let dueSortCol     = null;
 let dueSortDir     = -1;
+let dueFilters     = { minHR: 0, hideCold: false, longestOnly: false };
 let activeTerms    = [];
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -1454,6 +1475,34 @@ function sortDue(col) {
   renderDue();
 }
 function setDueSort(col) { dueSortCol=col; dueSortDir=dueDefaultDir(col); renderDue(); }
+
+function dueFiltersActive() { return dueFilters.minHR > 0 || dueFilters.hideCold || dueFilters.longestOnly; }
+function applyDueFilters(rows) {
+  return rows.filter(r => {
+    if (r.hrs < dueFilters.minHR) return false;
+    if (dueFilters.hideCold && r.contactFactor != null && r.contactFactor <= 0.9) return false;
+    if (dueFilters.longestOnly && !r.isLongestEver) return false;
+    return true;
+  });
+}
+function setDueMinHR(n) { dueFilters.minHR = n; renderDue(); }
+function toggleDueFilter(key) { dueFilters[key] = !dueFilters[key]; renderDue(); }
+function clearDueFilters() { dueFilters = { minHR: 0, hideCold: false, longestOnly: false }; renderDue(); }
+function renderDueFilters() {
+  const minHrOptions = [0, 10, 15, 20];
+  const chips = minHrOptions.map(n =>
+    `<button class="due-filter-chip${dueFilters.minHR===n?' active':''}" onclick="setDueMinHR(${n})">${n===0?'All':n+'+'}</button>`
+  ).join('');
+  document.getElementById('due-filter-row').innerHTML = `
+    <div class="due-filter-group">
+      <span class="due-filter-label">Min HR</span>
+      <div class="due-filter-chips">${chips}</div>
+    </div>
+    <button class="due-filter-toggle${dueFilters.hideCold?' active':''}" onclick="toggleDueFilter('hideCold')">❄️ Hide Cold Contact</button>
+    <button class="due-filter-toggle${dueFilters.longestOnly?' active':''}" onclick="toggleDueFilter('longestOnly')">🔥 Longest Drought Only</button>
+    ${dueFiltersActive() ? `<button class="due-filter-clear" onclick="clearDueFilters()">Clear filters ×</button>` : ''}
+  `;
+}
 function sortDueRows(rows) {
   if (!dueSortCol) return rows; // already pre-sorted by dueScore desc, z desc from the server
   const key = dueSortCol;
@@ -1471,13 +1520,18 @@ function sortDueRows(rows) {
 }
 
 function renderDue() {
-  const rows = sortDueRows(dueRows.slice());
+  renderDueFilters();
+  const filtered = applyDueFilters(dueRows.slice());
+  const rows = sortDueRows(filtered);
   const metaEl=document.getElementById('due-meta');
+  const filtersOn = dueFiltersActive();
   metaEl.textContent = rows.length
-    ? `${rows.length} power hitters overdue · Due Score = z-score weighted by HR volume & sample confidence · excludes anyone inactive 5+ days (injury/bench/demotion)`
-    : 'No overdue sluggers yet · z ≥ 1.0 · min 5 HR · AB/HR ≤ 30';
+    ? `${rows.length}${filtersOn?` of ${dueRows.length}`:''} power hitters overdue · excludes anyone inactive 5+ days (injury/bench/demotion)`
+    : (filtersOn ? 'Nobody matches these filters — try widening them' : 'No overdue sluggers yet · z ≥ 1.0 · min 5 HR · AB/HR ≤ 30');
   if (!rows.length) {
-    document.getElementById('due-content').innerHTML='<div class="empty">Nobody stands out yet — check back as the season builds HR history</div>';
+    document.getElementById('due-content').innerHTML = filtersOn
+      ? '<div class="empty">Nobody matches these filters. <a href="javascript:void(0)" onclick="clearDueFilters()">Clear filters</a></div>'
+      : '<div class="empty">Nobody stands out yet — check back as the season builds HR history</div>';
     return;
   }
   const rankClass = i=>i===0?'gold':i===1?'silver':i===2?'bronze':'';
