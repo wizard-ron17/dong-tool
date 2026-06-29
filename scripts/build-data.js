@@ -283,27 +283,42 @@ async function fetchBattedBalls(pids) {
   } catch (e) { return []; }
 }
 
+// Sweet Spot% = launch angle 8-32°, Statcast's standard window for the
+// trajectory that actually has a shot at clearing the fence — exit velo
+// and "hard-hit%" are both blind to launch angle, so a hitter could be
+// scalding line drives or grounders and look "better" on those alone with
+// zero home-run-shaped contact. Barrel% already folds EV+LA together but
+// is a stricter all-or-nothing zone; Sweet Spot% gives a softer, earlier
+// signal of a trajectory shift before/without crossing into barrel territory.
 function battedBallStats(rows) {
-  const evs = rows.map(r => parseFloat(r.launch_speed)).filter(v => !isNaN(v));
-  if (!evs.length) return null;
+  const valid = rows.filter(r => !isNaN(parseFloat(r.launch_speed)));
+  if (!valid.length) return null;
+  const evs = valid.map(r => parseFloat(r.launch_speed));
+  const las = valid.map(r => parseFloat(r.launch_angle)).filter(v => !isNaN(v));
   const hardHit = evs.filter(v => v >= 95).length;
-  const barrels = rows.filter(r => r.launch_speed_angle === '6').length;
+  const barrels = valid.filter(r => r.launch_speed_angle === '6').length;
+  const sweetSpot = las.filter(v => v >= 8 && v <= 32).length;
   return {
-    n: evs.length,
+    n: valid.length,
     avgEV: avg(evs),
-    hardHitPct: 100 * hardHit / evs.length,
-    barrelPct: 100 * barrels / evs.length,
+    avgLA: las.length ? avg(las) : null,
+    hardHitPct: 100 * hardHit / valid.length,
+    barrelPct: 100 * barrels / valid.length,
+    sweetSpotPct: las.length ? 100 * sweetSpot / las.length : null,
   };
 }
 
 // Contact factor nudges dueScore rather than overriding it — the AB-gap z
 // stays the primary signal, this just tempers it when recent contact quality
 // has genuinely diverged from the season norm. Barrel rate is weighted
-// heaviest (most directly tied to HR potential) with exit velo as a steadier
-// secondary signal since barrel% alone is noisy over a couple dozen batted
-// balls. Requires a minimum drought sample before adjusting anything — with
-// too few batted balls, one barrel either way swings the rate too much to
-// trust.
+// heaviest (most directly tied to HR potential, since it already requires
+// both EV and launch angle to be in the right window), Sweet Spot% next
+// (a trajectory-only signal that catches an angle shift even when it's not
+// yet producing full barrels), and exit velo last as the steadiest but most
+// trajectory-blind of the three — a guy hitting it harder on the ground
+// shouldn't look "due" just because of that. Requires a minimum drought
+// sample before adjusting anything — with too few batted balls, one barrel
+// either way swings the rate too much to trust.
 const CONTACT_MIN_DROUGHT_BBE = 8;
 async function attachContactQuality(dueRows) {
   const allBalls = await fetchBattedBalls(dueRows.map(r => r.pid));
@@ -333,8 +348,9 @@ async function attachContactQuality(dueRows) {
     if (!baseline || !drought || drought.n < CONTACT_MIN_DROUGHT_BBE) continue;
 
     const barrelRatio = baseline.barrelPct > 0 ? drought.barrelPct / baseline.barrelPct : (drought.barrelPct > 0 ? 1.15 : 1);
+    const sweetSpotRatio = baseline.sweetSpotPct > 0 ? drought.sweetSpotPct / baseline.sweetSpotPct : (drought.sweetSpotPct > 0 ? 1.15 : 1);
     const evRatio = baseline.avgEV > 0 ? drought.avgEV / baseline.avgEV : 1;
-    const contactRatio = 0.6 * barrelRatio + 0.4 * evRatio;
+    const contactRatio = 0.5 * barrelRatio + 0.3 * sweetSpotRatio + 0.2 * evRatio;
     r.contactFactor = Math.max(0.85, Math.min(1.15, contactRatio));
     r.dueScore = r.rawDueScore * r.contactFactor;
   }

@@ -1524,7 +1524,7 @@ function renderDue() {
 
   const dueColDefs = [
     {key:'dueScore',   label:'Due Score', title:'Z weighted by HR volume (proven power) and number of historical gaps (confidence)'},
-    {key:'contactFactor', label:'Contact', title:'Recent batted-ball quality (exit velo, barrel%, hard-hit%) since his last HR vs. before it'},
+    {key:'contactFactor', label:'Contact', title:'Recent batted-ball quality (exit velo, launch angle/sweet spot%, barrel%, hard-hit%) since his last HR vs. before it'},
     {key:'hrs',        label:'HR',        title:'Season home runs'},
     {key:'avgGap',     label:'Avg AB',    title:'Avg ABs between their HRs'},
     {key:'stdGap',     label:'Std',       title:'How much his AB gaps normally vary — lower means more consistent, higher means streakier'},
@@ -1621,7 +1621,10 @@ function contactPillHtml(r) {
   const tag = contactTagInfo(r.contactFactor);
   const base = r.contact?.baseline, dr = r.contact?.drought;
   let title = tag.text;
-  if (base && dr) title += ` — EV ${base.avgEV.toFixed(1)}→${dr.avgEV.toFixed(1)} · Barrel% ${base.barrelPct.toFixed(1)}→${dr.barrelPct.toFixed(1)} · Hard-Hit% ${base.hardHitPct.toFixed(1)}→${dr.hardHitPct.toFixed(1)}`;
+  if (base && dr) {
+    title += ` — EV ${base.avgEV.toFixed(1)}→${dr.avgEV.toFixed(1)} · Barrel% ${base.barrelPct.toFixed(1)}→${dr.barrelPct.toFixed(1)} · Hard-Hit% ${base.hardHitPct.toFixed(1)}→${dr.hardHitPct.toFixed(1)}`;
+    if (base.sweetSpotPct != null && dr.sweetSpotPct != null) title += ` · Sweet Spot% ${base.sweetSpotPct.toFixed(1)}→${dr.sweetSpotPct.toFixed(1)}`;
+  }
   return `<span class="due-contact-tag ${tag.cls}" title="${title}">${CONTACT_SHORT_LABEL[tag.text]}</span>`;
 }
 function dueContactHtml(r) {
@@ -1631,6 +1634,8 @@ function dueContactHtml(r) {
   const evCls  = hrgClass(dr.avgEV, base.avgEV);
   const brlCls = hrgClass(dr.barrelPct, base.barrelPct);
   const hhCls  = hrgClass(dr.hardHitPct, base.hardHitPct);
+  const hasSS  = base.sweetSpotPct != null && dr.sweetSpotPct != null;
+  const ssCls  = hasSS ? hrgClass(dr.sweetSpotPct, base.sweetSpotPct) : 'avg';
   return `<div class="due-contact-card">
     <div class="due-contact-head">
       <span class="due-contact-title">Recent Contact Quality</span>
@@ -1642,6 +1647,10 @@ function dueContactHtml(r) {
         <span class="due-contact-vals"><span class="dim">${base.avgEV.toFixed(1)}</span> → <span class="hrg-val ${evCls}">${dr.avgEV.toFixed(1)}</span></span>
       </div>
       <div class="due-contact-stat">
+        <span class="due-contact-label">Sweet Spot%</span>
+        <span class="due-contact-vals">${hasSS ? `<span class="dim">${base.sweetSpotPct.toFixed(1)}</span> → <span class="hrg-val ${ssCls}">${dr.sweetSpotPct.toFixed(1)}</span>` : '—'}</span>
+      </div>
+      <div class="due-contact-stat">
         <span class="due-contact-label">Barrel%</span>
         <span class="due-contact-vals"><span class="dim">${base.barrelPct.toFixed(1)}</span> → <span class="hrg-val ${brlCls}">${dr.barrelPct.toFixed(1)}</span></span>
       </div>
@@ -1650,7 +1659,7 @@ function dueContactHtml(r) {
         <span class="due-contact-vals"><span class="dim">${base.hardHitPct.toFixed(1)}</span> → <span class="hrg-val ${hhCls}">${dr.hardHitPct.toFixed(1)}</span></span>
       </div>
     </div>
-    <div class="due-contact-foot">Before the drought vs. during it (${dr.n} batted balls since his last HR) — his own home-run swings are excluded from the "before" number so they don't inflate it relative to a stretch that, by definition, has none.</div>
+    <div class="due-contact-foot">Before the drought vs. during it (${dr.n} batted balls since his last HR) — his own home-run swings are excluded from the "before" number so they don't inflate it relative to a stretch that, by definition, has none. Sweet Spot% (launch angle 8°-32°) and Barrel% both account for trajectory, not just raw exit velo, so hitting it harder on the ground doesn't read as "improved."</div>
   </div>`;
 }
 function dueModalHtml(r) {
