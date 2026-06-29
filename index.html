@@ -96,6 +96,14 @@
   #recap-meta { font-family: var(--font-d); font-size: clamp(1.1rem, 4vw, 1.5rem); font-weight: 800; color: #fff; letter-spacing: 0.01em; text-transform: none; margin-bottom: 0.9rem; }
   #recap-meta .recap-meta-tag { color: var(--accent); }
 
+  .recap-nav { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.7rem; }
+  .recap-nav-btn { background: var(--surface1); border: 1px solid var(--border2); color: var(--text); font-size: 1.1rem; font-weight: 700; width: 2.1rem; height: 2.1rem; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+  .recap-nav-btn:hover:not(:disabled) { background: var(--surface2); }
+  .recap-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .recap-date-input { background: var(--surface1); border: 1px solid var(--border2); color: var(--text); font-family: var(--font-m); font-size: 0.7rem; padding: 0.4rem 0.5rem; border-radius: 6px; cursor: pointer; color-scheme: dark; }
+  .recap-latest-btn { background: var(--accent); border: none; color: #fff; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.45rem 0.7rem; border-radius: 6px; cursor: pointer; }
+  .recap-latest-btn:hover { background: #2eb05f; }
+
   #cards { display: flex; flex-direction: column; gap: 0.5rem; }
   .card { border-radius: 8px; padding: 0.75rem 0.85rem; border: 1px solid var(--border); background: var(--surface0); animation: fadeIn 0.15s ease; }
   .card.top  { background: #0b1e08; border-color: #2a6012; }
@@ -523,6 +531,12 @@
 
   <!-- DAY LATE -->
   <div id="panel-recap" class="panel">
+    <div class="recap-nav">
+      <button class="recap-nav-btn" id="recap-prev-btn" onclick="shiftRecapDate(-1)" aria-label="Previous game day">‹</button>
+      <input type="date" id="recap-date-input" class="recap-date-input" onchange="selectRecapDate(this.value)">
+      <button class="recap-nav-btn" id="recap-next-btn" onclick="shiftRecapDate(1)" aria-label="Next game day">›</button>
+      <button class="recap-latest-btn" id="recap-latest-btn" onclick="resetRecapToLatest()" style="display:none">Latest</button>
+    </div>
     <div class="result-meta" id="recap-meta"></div>
     <div id="recap-content"><div class="empty">Loading data…</div></div>
   </div>
@@ -1285,6 +1299,16 @@ function median(nums) {
   const s = [...nums].sort((a, b) => a - b), mid = Math.floor(s.length / 2);
   return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
+// Cards are tight on width, and CSS ellipsis truncation cuts from the right —
+// which chews into the last name (the part that actually identifies the guy)
+// before the first name. Shortening the first name to an initial up front
+// keeps the last name intact: "Bryce Harper" -> "B. Harper", not "Bryce Har…".
+function compactPlayerName(name) {
+  if (!name) return name;
+  const parts = name.trim().split(/\s+/);
+  if (parts.length < 2) return name;
+  return `${parts[0][0]}. ${parts.slice(1).join(' ')}`;
+}
 function recapDayHeat(ratio) {
   if (ratio >= 1.3) return { cls: 'heat-hot',  tag: '🔥 High Homer Day' };
   if (ratio >= 1.1) return { cls: 'heat-warm', tag: 'Above Average' };
@@ -1300,26 +1324,52 @@ function recapChalkTag(ratio) {
   return { cls: '', tag: 'Balanced' };
 }
 
+let recapDate = null; // explicit user-picked date, or null = show the latest day with data
+function recapAvailableDates() { return Object.keys(dailyHRs).sort(); }
+function recapLatestDate() { const d = recapAvailableDates(); return d[d.length - 1]; }
+function shiftRecapDate(delta) {
+  const dates = recapAvailableDates();
+  const cur = recapDate || recapLatestDate();
+  let idx = dates.indexOf(cur);
+  if (idx === -1) idx = dates.findIndex(d => d > cur); // landed on a no-game date — jump to nearest real one
+  if (idx === -1) idx = dates.length - 1;
+  idx = Math.max(0, Math.min(dates.length - 1, idx + delta));
+  recapDate = dates[idx];
+  renderRecap();
+}
+function selectRecapDate(dateStr) {
+  if (!dateStr) return;
+  recapDate = dateStr;
+  renderRecap();
+}
+function resetRecapToLatest() { recapDate = null; renderRecap(); }
+function renderRecapNav(date, dates, latest) {
+  const earliest = dates[0];
+  document.getElementById('recap-date-input').value = date;
+  document.getElementById('recap-date-input').min = earliest;
+  document.getElementById('recap-date-input').max = latest;
+  document.getElementById('recap-prev-btn').disabled = date <= earliest;
+  document.getElementById('recap-next-btn').disabled = date >= latest;
+  document.getElementById('recap-latest-btn').style.display = date === latest ? 'none' : '';
+}
+
 function renderRecap() {
-  // dailyHRs entries only ever come from games whose status was already
-  // "Final" when build-data.js fetched them, so a date never holds live
-  // in-progress totals — the bug was yesterday() itself resolving to today's
-  // (ET) date during US evening hours, which made a real-but-partial day
-  // (early games final, night games still in progress) look like "yesterday."
-  let date = yesterday(), dayData = dailyHRs[date], fallback = false;
-  if (!dayData || !Object.keys(dayData).length) {
-    date = addDaysToDateStr(date, -1);
-    dayData = dailyHRs[date]; fallback = true;
-  }
+  const dates = recapAvailableDates();
+  if (!dates.length) return;
+  const latest = dates[dates.length - 1];
+  const date = recapDate || latest;
+  const dayData = dailyHRs[date];
+  renderRecapNav(date, dates, latest);
   const metaEl = document.getElementById('recap-meta');
   if (!dayData || !Object.keys(dayData).length) {
-    metaEl.textContent = '';
-    document.getElementById('recap-content').innerHTML = '<div class="empty">No home run data for yesterday yet</div>';
+    metaEl.innerHTML = fmtDateFull(date);
+    document.getElementById('recap-content').innerHTML = `<div class="empty">${dailyGames[date] ? 'Games played, but no home runs that day' : 'No games played that day'}</div>`;
     return;
   }
   const count = Object.keys(dayData).length, totalHRs = Object.values(dayData).reduce((a,b)=>a+b,0);
   const games = dailyGames[date] || 0;
-  metaEl.innerHTML = `<span class="recap-meta-tag">${fallback ? 'Latest Available' : 'Yesterday'}</span>, ${fmtDateFull(date)}`;
+  const tag = date === yesterday() ? 'Yesterday' : (date === latest ? 'Latest Available' : null);
+  metaEl.innerHTML = `${tag ? `<span class="recap-meta-tag">${tag}</span>, ` : ''}${fmtDateFull(date)}`;
 
   // Stats recap: how loud was this day relative to the season as a whole?
   const seasonGames = Object.values(dailyGames).reduce((a,b)=>a+b, 0);
@@ -1352,9 +1402,15 @@ function renderRecap() {
   const chalk        = recapChalkTag(chalkRatio);
   const meterPct     = (Math.max(0, Math.min(2, chalkRatio)) / 2) * 100;
 
-  const sorted = Object.entries(dayData).sort((a,b)=>b[1]-a[1]||(playerNames[a[0]]||'').localeCompare(playerNames[b[0]]||''));
+  // Multi-homer guys first (by that day's HR count), then among the
+  // single-HR group (where day-count ties at 1) rank by season HR total —
+  // a guy with 25 on the year reads as more notable than one with 3, even
+  // though today they did the same thing.
+  const sorted = Object.entries(dayData).sort((a,b)=>
+    b[1]-a[1] || (hrTotals[b[0]]||0)-(hrTotals[a[0]]||0) || (playerNames[a[0]]||'').localeCompare(playerNames[b[0]]||'')
+  );
   const cards = sorted.map(([pid,hrs])=>{
-    const name     = playerNames[pid]||pid;
+    const name     = compactPlayerName(playerNames[pid]||pid);
     const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${pid}/headshot/67/current`;
     const team     = playerTeams[pid]||'', seasonHR=hrTotals[pid]||hrs;
     const multiCls = hrs >= 4 ? 'multi-4' : hrs === 3 ? 'multi-3' : hrs === 2 ? 'multi-2' : '';
