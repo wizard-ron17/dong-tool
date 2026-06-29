@@ -217,8 +217,13 @@
   .due-explainer-body ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.5rem; }
   .due-explainer-body li { color: var(--dim); }
   .due-explainer-body b { color: var(--text); }
-  .due-legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.62rem; color: var(--muted); margin-bottom: 0.6rem; }
-  .due-filter-row { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+  .due-explainer-legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.62rem; color: var(--muted); margin-top: 0.6rem; padding-top: 0.55rem; border-top: 1px solid var(--border); }
+  .due-filters-card { background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.9rem; margin-bottom: 0.6rem; }
+  .due-filters-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; background: transparent; border: none; padding: 0.1rem 0; cursor: pointer; text-align: left; }
+  .due-filters-toggle:hover .due-explainer-title { color: #4ad888; }
+  .due-filters-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 1.1rem; height: 1.1rem; padding: 0 0.3rem; margin-left: 0.4rem; background: var(--accent); color: #fff; font-size: 0.55rem; font-weight: 700; border-radius: 10px; vertical-align: middle; }
+  .due-filters-card .due-filter-row { margin-top: 0.55rem; padding-top: 0.55rem; border-top: 1px solid var(--border); margin-bottom: 0; }
+  .due-filter-row { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
   .due-filter-group { display: flex; align-items: center; gap: 0.4rem; }
   .due-filter-label { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
   .due-filter-chips { display: flex; gap: 0.25rem; }
@@ -543,14 +548,20 @@
           <li><b>The contact nudge.</b> Up to ±15% is layered on top based on Statcast's own per-batted-ball contact-quality grade (1-6, weak contact to barrel — already a joint read on exit velo and launch angle), averaged across every batted ball since his last HR vs. before it, and blended with his season rate so one lucky or unlucky swing in a short stretch can't swing the result on its own. Cooling contact nudges his score down even if the raw AB math says he's "due"; contact that's still scalding nudges it up. Exit velo, Sweet Spot%, and Barrel% are shown below for context but don't separately drive the score — they're already folded into that one grade.</li>
           <li><b>Eligibility.</b> z ≥ 1.0, 5+ HR this season, AB/HR ≤ 30, and excludes anyone inactive 5+ days (injured, benched, or demoted) — a stale drought doesn't count.</li>
         </ul>
+        <div class="due-explainer-legend">
+          <span class="due-legend-item">💤 Off — no game today</span>
+          <span class="due-legend-item">🪑 Bench — not in today's starting lineup</span>
+          <span class="due-legend-item">🚑 Injured — on the IL</span>
+        </div>
       </div>
     </div>
-    <div class="due-legend">
-      <span class="due-legend-item">💤 Off — no game today</span>
-      <span class="due-legend-item">🪑 Bench — not in today's starting lineup</span>
-      <span class="due-legend-item">🚑 Injured — on the IL</span>
+    <div class="due-filters-card">
+      <button class="due-filters-toggle" id="due-filters-toggle" onclick="toggleDueFiltersPanel()" aria-expanded="false">
+        <span class="due-explainer-title">Filters<span class="due-filters-badge" id="due-filters-badge" style="display:none"></span></span>
+        <span class="due-explainer-chevron" id="due-filters-chevron">▾</span>
+      </button>
+      <div class="due-filter-row" id="due-filter-row" style="display:none"></div>
     </div>
-    <div class="due-filter-row" id="due-filter-row"></div>
     <div class="result-meta" id="due-meta"></div>
     <div id="due-content"><div class="empty">Loading data…</div></div>
   </div>
@@ -619,6 +630,7 @@ let lbSortDir      = -1;
 let dueSortCol     = null;
 let dueSortDir     = -1;
 let dueFilters     = { minHR: 0, hideCold: false, longestOnly: false };
+let dueFiltersPanelOpen = false;
 let activeTerms    = [];
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -1522,6 +1534,7 @@ function applyDueFilters(rows) {
 function setDueMinHR(n) { dueFilters.minHR = n; renderDue(); }
 function toggleDueFilter(key) { dueFilters[key] = !dueFilters[key]; renderDue(); }
 function clearDueFilters() { dueFilters = { minHR: 0, hideCold: false, longestOnly: false }; renderDue(); }
+function toggleDueFiltersPanel() { dueFiltersPanelOpen = !dueFiltersPanelOpen; renderDueFilters(); }
 function renderDueFilters() {
   const minHrOptions = [0, 10, 15, 20];
   const chips = minHrOptions.map(n =>
@@ -1536,6 +1549,13 @@ function renderDueFilters() {
     <button class="due-filter-toggle${dueFilters.longestOnly?' active':''}" onclick="toggleDueFilter('longestOnly')">🔥 Longest Drought Only</button>
     ${dueFiltersActive() ? `<button class="due-filter-clear" onclick="clearDueFilters()">Clear filters ×</button>` : ''}
   `;
+  document.getElementById('due-filter-row').style.display = dueFiltersPanelOpen ? '' : 'none';
+  document.getElementById('due-filters-chevron').textContent = dueFiltersPanelOpen ? '▴' : '▾';
+  document.getElementById('due-filters-toggle').setAttribute('aria-expanded', String(dueFiltersPanelOpen));
+  const activeCount = (dueFilters.minHR > 0 ? 1 : 0) + (dueFilters.hideCold ? 1 : 0) + (dueFilters.longestOnly ? 1 : 0);
+  const badge = document.getElementById('due-filters-badge');
+  badge.style.display = activeCount ? 'inline-flex' : 'none';
+  badge.textContent = activeCount;
 }
 function sortDueRows(rows) {
   if (!dueSortCol) return rows; // already pre-sorted by dueScore desc, z desc from the server
