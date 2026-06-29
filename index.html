@@ -207,8 +207,16 @@
   .due-z.warm { color: var(--gold); }
   .due-z.mild { color: var(--accent); }
 
-  .due-explainer { background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.9rem; margin-bottom: 0.7rem; font-size: 0.72rem; line-height: 1.5; color: var(--dim); }
-  .due-explainer-title { display: block; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.35rem; }
+  .due-explainer { background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.9rem; margin-bottom: 0.6rem; font-size: 0.72rem; line-height: 1.5; color: var(--dim); }
+  .due-explainer-head { display: flex; align-items: center; justify-content: space-between; width: 100%; background: transparent; border: none; padding: 0.1rem 0; cursor: pointer; text-align: left; }
+  .due-explainer-title { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+  .due-explainer-chevron { font-size: 0.65rem; color: var(--muted); transition: transform 0.15s; }
+  .due-explainer-teaser { margin-top: 0.3rem; color: var(--dim); }
+  .due-explainer-body { margin-top: 0.55rem; padding-top: 0.55rem; border-top: 1px solid var(--border); }
+  .due-explainer-body ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  .due-explainer-body li { color: var(--dim); }
+  .due-explainer-body b { color: var(--text); }
+  .due-legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.62rem; color: var(--muted); margin-bottom: 0.6rem; }
   .due-filter-row { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
   .due-filter-group { display: flex; align-items: center; gap: 0.4rem; }
   .due-filter-label { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
@@ -521,8 +529,24 @@
   <!-- DUE -->
   <div id="panel-due" class="panel">
     <div class="due-explainer">
-      <span class="due-explainer-title">How Due Score Works</span>
-      Ranks hitters by how unusual their current homerless stretch is for <em>them</em> — not just raw AB count. Each guy's current AB-gap is z-scored against his own season rhythm, weighted up for proven power (HR total) and confidence (more historical gaps = a sturdier average), then nudged up to ±15% by how he's actually been hitting the ball since his last HR — exit velo, sweet spot%, barrel% — versus before it. Eligible: z ≥ 1.0, 5+ HR, AB/HR ≤ 30 · excludes anyone inactive 5+ days (injured, benched, or demoted).
+      <button class="due-explainer-head" id="due-explainer-toggle" onclick="toggleDueExplainer()" aria-expanded="false">
+        <span class="due-explainer-title">How Due Score Works</span>
+        <span class="due-explainer-chevron" id="due-explainer-chevron">▾</span>
+      </button>
+      <div class="due-explainer-teaser">Z-scores each hitter's current drought against his own rhythm, then nudges it by how he's actually hitting the ball lately.</div>
+      <div class="due-explainer-body" id="due-explainer-body" style="display:none">
+        <ul>
+          <li><b>The drought.</b> Every hitter's current AB count since his last HR is compared to his own season-long gap pattern, not a flat number — a 30-AB drought means something very different for a guy who usually homers every 12 ABs than one who homers every 28. We z-score it: how many standard deviations beyond his typical gap he is right now.</li>
+          <li><b>The weighting.</b> That z-score is weighted up for proven power (more season HRs = more signal worth trusting) and for confidence (more historical gaps logged = a sturdier personal average, so one early-season fluke doesn't swing things).</li>
+          <li><b>The contact nudge.</b> Up to ±15% is layered on top based on how he's actually squaring the ball up — exit velo, Sweet Spot% (launch angle 8°-32°, the window that can actually clear a fence), and Barrel% — measured since his last HR vs. before it. Cooling contact nudges his score down even if the raw AB math says he's "due"; contact that's still scalding nudges it up.</li>
+          <li><b>Eligibility.</b> z ≥ 1.0, 5+ HR this season, AB/HR ≤ 30, and excludes anyone inactive 5+ days (injured, benched, or demoted) — a stale drought doesn't count.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="due-legend">
+      <span class="due-legend-item">💤 Off — no game today</span>
+      <span class="due-legend-item">🪑 Bench — not in today's starting lineup</span>
+      <span class="due-legend-item">🚑 Injured — on the IL</span>
     </div>
     <div class="due-filter-row" id="due-filter-row"></div>
     <div class="result-meta" id="due-meta"></div>
@@ -1475,6 +1499,14 @@ function sortDue(col) {
   renderDue();
 }
 function setDueSort(col) { dueSortCol=col; dueSortDir=dueDefaultDir(col); renderDue(); }
+
+let dueExplainerOpen = false;
+function toggleDueExplainer() {
+  dueExplainerOpen = !dueExplainerOpen;
+  document.getElementById('due-explainer-body').style.display = dueExplainerOpen ? 'block' : 'none';
+  document.getElementById('due-explainer-chevron').textContent = dueExplainerOpen ? '▴' : '▾';
+  document.getElementById('due-explainer-toggle').setAttribute('aria-expanded', String(dueExplainerOpen));
+}
 
 function dueFiltersActive() { return dueFilters.minHR > 0 || dueFilters.hideCold || dueFilters.longestOnly; }
 function applyDueFilters(rows) {
