@@ -1514,7 +1514,7 @@ function dueFiltersActive() { return dueFilters.minHR > 0 || dueFilters.hideCold
 function applyDueFilters(rows) {
   return rows.filter(r => {
     if (r.hrs < dueFilters.minHR) return false;
-    if (dueFilters.hideCold && r.contactFactor != null && r.contactFactor <= 0.9) return false;
+    if (dueFilters.hideCold && contactTagInfo(r.contactFactor).cls === 'bad') return false;
     if (dueFilters.longestOnly && !r.isLongestEver) return false;
     return true;
   });
@@ -1681,6 +1681,12 @@ function toggleDueContactFoot() {
   body.style.display = open ? 'none' : 'block';
   document.getElementById('due-contact-foot-toggle').textContent = open ? 'Why these numbers? ▾' : 'Why these numbers? ▴';
 }
+function toggleDueVizFoot() {
+  const body = document.getElementById('due-viz-foot-body');
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  document.getElementById('due-viz-foot-toggle').textContent = open ? 'How to read this chart? ▾' : 'How to read this chart? ▴';
+}
 
 function dueVizHtml(r) {
   const RECENT_N = 10;
@@ -1787,7 +1793,8 @@ function dueModalHtml(r) {
       ${longestNote}
       <div class="due-viz-title">AB gaps between home runs this season</div>
       ${dueVizHtml(r)}
-      <div class="due-viz-foot">Each gray bar is the at-bats between consecutive HRs, oldest → newest. Dashed gold line = his average gap (${r.avgGap.toFixed(0)} AB). Shaded band = his normal range (±1 std dev). The orange bar is his current drought — still climbing, already ${r.z.toFixed(1)} std deviations past normal.</div>
+      <button class="due-contact-toggle" id="due-viz-foot-toggle" onclick="toggleDueVizFoot()">How to read this chart? ▾</button>
+      <div class="due-viz-foot" id="due-viz-foot-body" style="display:none">Each gray bar is the at-bats between consecutive HRs, oldest → newest. Dashed gold line = his average gap (${r.avgGap.toFixed(0)} AB). Shaded band = his normal range (±1 std dev). The orange bar is his current drought — still climbing, already ${r.z.toFixed(1)} std deviations past normal.</div>
     </div>
   </div>`;
 }
