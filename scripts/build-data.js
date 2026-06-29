@@ -503,6 +503,122 @@ async function fetchPitcherHRStats(pids) {
   return stats;
 }
 
+// Pitch-type mix from Statcast, for relief-arm scouting on the Schedule tab.
+// Chunked at 15 pitchers per request rather than one big batch — testing
+// showed the CSV export silently truncates around ~25k rows when too many
+// pitchers_lookup params are combined with a full-season date range (no
+// error, just quietly missing data), so this keeps each request's row count
+// comfortably under that ceiling instead of guessing it'll be fine.
+const PITCH_MIX_BATCH = 15;
+async function fetchPitchMix(pids) {
+  const chunks = [];
+  for (let i = 0; i < pids.length; i += PITCH_MIX_BATCH) chunks.push(pids.slice(i, i + PITCH_MIX_BATCH));
+  const counts = {}; // pid -> { pitchName -> count }
+  await Promise.all(chunks.map(async chunk => {
+    const lookup = chunk.map(pid => `&pitchers_lookup%5B%5D=${pid}`).join('');
+    const url = `https://baseballsavant.mlb.com/statcast_search/csv?all=true&hfGT=R%7C&hfSea=${SEASON_YEAR}%7C` +
+      `&player_type=pitcher&game_date_gt=${SEASON_START}&game_date_lt=${todayET()}&group_by=name&min_pitches=0` +
+      `&min_results=0&type=details${lookup}`;
+    try {
+      const text = await fetch(url).then(r => r.text());
+      for (const row of parseCsv(text)) {
+        const pid = row.pitcher, name = row.pitch_name;
+        if (!pid || !name) continue;
+        (counts[pid] ??= {})[name] = (counts[pid][name] ?? 0) + 1;
+      }
+    } catch (e) {}
+  }));
+  const mix = {};
+  for (const pid of Object.keys(counts)) {
+    const total = Object.values(counts[pid]).reduce((a, b) => a + b, 0);
+    mix[pid] = Object.entries(counts[pid])
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([name, n]) => ({ name, pct: Math.round(100 * n / total) }));
+  }
+  return mix;
+}
+
+// Bullpen scouting for today's games: who a team typically brings in once the
+// starter's pulled, their handedness, what they throw, and whether they're
+// fresh or were just worked the day before. "Typical reliever" = active
+// roster, zero starts this season (cleanly excludes today's probable
+// starters and the rest of the rotation), with a real sample of appearances
+// — a guy with 1-2 games is a recent call-up, not yet a "typical" arm out of
+// the pen. Trimmed to the busiest arms per team (by saves+holds, then games
+// pitched) so a deep bullpen doesn't balloon the payload more than a thin one.
+const BULLPEN_MIN_GAMES   = 3;
+const BULLPEN_MAX_PER_TEAM = 8;
+async function fetchBullpens(todaySchedule, teamIdToAbbr) {
+  try {
+    const teamIds = new Set();
+    for (const g of todaySchedule) {
+      if (g.home.teamId) teamIds.add(g.home.teamId);
+      if (g.away.teamId) teamIds.add(g.away.teamId);
+    }
+    if (!teamIds.size) return {};
+
+    const rosters = await Promise.all([...teamIds].map(async tid => {
+      try {
+        const r = await fetch(`${MLB}/teams/${tid}/roster?rosterType=active&hydrate=person(pitchHand)`).then(r => r.json());
+        return { tid, pitchers: (r.roster ?? []).filter(x => x.position?.code === '1') };
+      } catch (e) { return { tid, pitchers: [] }; }
+    }));
+    const meta = {}; // pid -> { name, hand, teamId }
+    for (const { tid, pitchers } of rosters) {
+      for (const x of pitchers) meta[x.person.id] = { name: x.person.fullName, hand: x.person.pitchHand?.code ?? null, teamId: tid };
+    }
+    const allIds = Object.keys(meta);
+    if (!allIds.length) return {};
+
+    // One batched call for every pitcher on every active roster playing
+    // today — this endpoint handles 300+ personIds in a single request fine
+    // (confirmed by testing), unlike the Statcast CSV export above.
+    const seasonRes = await fetch(`${MLB}/people?personIds=${allIds.join(',')}&hydrate=stats(group=[pitching],type=[season])`).then(r => r.json());
+    const relievers = [];
+    for (const p of seasonRes.people ?? []) {
+      const stat = p.stats?.[0]?.splits?.find(s => s.season === SEASON_YEAR)?.stat;
+      if (!stat || stat.gamesStarted > 0 || (stat.gamesPlayed ?? 0) < BULLPEN_MIN_GAMES) continue;
+      relievers.push({ pid: String(p.id), gamesPitched: stat.gamesPlayed, holds: stat.holds ?? 0, saves: stat.saves ?? 0, era: stat.era ?? null });
+    }
+    relievers.sort((a, b) => (b.saves + b.holds) - (a.saves + a.holds) || b.gamesPitched - a.gamesPitched);
+    const byTeam = {};
+    for (const r of relievers) (byTeam[meta[r.pid].teamId] ??= []).push(r);
+    const trimmed = [];
+    for (const tid of Object.keys(byTeam)) trimmed.push(...byTeam[tid].slice(0, BULLPEN_MAX_PER_TEAM));
+    if (!trimmed.length) return {};
+    const trimmedIds = trimmed.map(r => r.pid);
+
+    // Last outing only — the gameLog hydrate returns every game of the
+    // season per pitcher (multiple MB for 100+ arms), so pull the most
+    // recent split and let the rest get garbage-collected immediately rather
+    // than holding onto it or shipping it to the client.
+    const gameLogRes = await fetch(`${MLB}/people?personIds=${trimmedIds.join(',')}&hydrate=stats(group=[pitching],type=[gameLog])`).then(r => r.json());
+    const lastOuting = {};
+    for (const p of gameLogRes.people ?? []) {
+      const splits = p.stats?.[0]?.splits ?? [];
+      const last = splits[splits.length - 1];
+      if (last) lastOuting[String(p.id)] = { date: last.date, pitches: last.stat?.numberOfPitches ?? null };
+    }
+
+    const pitchMix = await fetchPitchMix(trimmedIds);
+
+    const out = {};
+    for (const r of trimmed) {
+      const m = meta[r.pid];
+      const abbr = teamIdToAbbr[m.teamId];
+      if (!abbr) continue;
+      (out[abbr] ??= []).push({
+        pid: r.pid, name: m.name, hand: m.hand,
+        era: r.era, saves: r.saves, holds: r.holds, gamesPitched: r.gamesPitched,
+        lastOuting: lastOuting[r.pid] ?? null,
+        pitchMix: pitchMix[r.pid] ?? [],
+      });
+    }
+    return out;
+  } catch (e) { return {}; }
+}
+
 // MLB's transactions feed can lag the actual roster move by hours — a call-up
 // reported by beat writers in the morning sometimes doesn't post there until
 // the player physically arrives at the park. Today's official starting
@@ -700,6 +816,9 @@ async function main() {
   const probablePitcherIds = todaySchedule.flatMap(g => [g.home.probablePitcherId, g.away.probablePitcherId]).filter(Boolean);
   const pitcherStats = await fetchPitcherHRStats(probablePitcherIds);
 
+  console.log("Fetching bullpen data for today's games...");
+  const bullpens = await fetchBullpens(todaySchedule, teamIdToAbbr);
+
   console.log('Checking for rookie debuts and recent call-ups...');
   const prospects = await computeProspects(todaySchedule, teamIdToAbbr);
 
@@ -718,7 +837,7 @@ async function main() {
     totalHRCount,
     dailyHRs, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus,
-    todayDate: todayET(), todaySchedule, teamIds, pitcherStats,
+    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens,
   };
 
   const fs = await import('node:fs');

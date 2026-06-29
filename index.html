@@ -392,6 +392,22 @@
   .sched-lineup-empty { font-size: 0.65rem; color: var(--dim); font-style: italic; }
   @media (max-width: 600px) { .sched-lineups { flex-direction: column; gap: 0.7rem; } .sched-pitchers-row { flex-wrap: wrap; } }
 
+  .sched-bullpen-toggle { display: none; font-size: 0.6rem; font-weight: 700; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; padding: 0.55rem 0 0.1rem; text-align: center; border-top: 1px solid var(--border); margin-top: 0.6rem; }
+  .sched-bullpen-toggle:hover { color: var(--text); }
+  .sched-game.expanded .sched-bullpen-toggle { display: block; }
+  .sched-bullpens { display: none; gap: 1.2rem; margin-top: 0.5rem; }
+  .sched-bullpen-row { display: flex; align-items: flex-start; gap: 0.4rem; padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
+  .sched-bullpen-row:last-child { border-bottom: none; }
+  .sched-bullpen-hand { flex-shrink: 0; width: 1.25rem; height: 1.25rem; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 0.58rem; font-weight: 700; background: var(--surface2); color: var(--muted); margin-top: 0.1rem; }
+  .sched-bullpen-hand.l { color: #3bc9e0; background: rgba(59,201,224,0.12); }
+  .sched-bullpen-hand.r { color: var(--gold); background: rgba(240,192,64,0.1); }
+  .sched-bullpen-info { flex: 1; min-width: 0; }
+  .sched-bullpen-name { font-weight: 600; color: #bdd0e8; font-size: 0.68rem; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+  .sched-bullpen-role { font-size: 0.5rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--accent); background: rgba(53,201,110,0.12); border-radius: 4px; padding: 0.04rem 0.3rem; }
+  .sched-bullpen-sub { font-size: 0.58rem; color: var(--muted); margin-top: 0.12rem; }
+  .sched-bullpen-fatigue { color: #ff7040; font-weight: 700; margin-left: 0.4rem; }
+  @media (max-width: 600px) { .sched-bullpens { flex-direction: column; gap: 0.7rem; } }
+
   .lb-view-cards { display: none; }
   @media (max-width: 600px) {
     .lb-view-table { display: none; }
@@ -620,6 +636,7 @@ let todayLineupsPostedTeams = new Set(); // team abbrs whose lineup has actually
 let todayStarterPids       = new Set(); // pids confirmed in a posted starting lineup today
 let teamIds = {}; // team abbr -> MLB team id, for team-logos/{id}.svg
 let pitcherStats = {}; // pid -> { hr, hr9, ip, era } for today's probable pitchers
+let bullpens = {}; // team abbr -> [{ pid, name, hand, era, saves, holds, gamesPitched, lastOuting, pitchMix }]
 
 let activeNav      = 'pairs';
 let activePairSize = 2;
@@ -788,6 +805,7 @@ function applyData(data) {
   todaySchedule = data.todaySchedule ?? [];
   teamIds = data.teamIds ?? {};
   pitcherStats = data.pitcherStats ?? {};
+  bullpens = data.bullpens ?? {};
   todayTeamsPlaying = new Set();
   todayLineupsPostedTeams = new Set();
   todayStarterPids = new Set();
@@ -1505,6 +1523,62 @@ function schedPitcherHtml(side) {
     </div>
   </div>`;
 }
+
+// ── Bullpen scouting (who they bring in after the starter, lefty/righty,
+// what they throw, fresh or worked yesterday) — display-only for now, the
+// groundwork for an eventual matchup tool.
+const PITCH_ABBR = {
+  '4-Seam Fastball': 'FF', 'Sinker': 'SI', 'Cutter': 'FC', 'Slider': 'SL', 'Sweeper': 'SW',
+  'Curveball': 'CU', 'Knuckle Curve': 'KC', 'Changeup': 'CH', 'Split-Finger': 'FS',
+  'Forkball': 'FO', 'Slurve': 'SV', 'Screwball': 'SC', 'Eephus': 'EP', 'Knuckleball': 'KN',
+};
+function bullpenRoleTag(r) {
+  if (r.saves >= 3) return 'Closer';
+  if (r.holds >= 3) return 'Setup';
+  return null;
+}
+function bullpenMixText(mix) {
+  if (!mix || !mix.length) return 'No pitch data';
+  return mix.map(m => `${m.pct}% ${PITCH_ABBR[m.name] || m.name}`).join(' · ');
+}
+function bullpenLastOutingText(lastOuting) {
+  if (!lastOuting?.date) return 'No outings logged';
+  const days = daysSince(lastOuting.date);
+  const dayTxt = days <= 0 ? 'Today' : days === 1 ? 'Yesterday' : `${days}d ago`;
+  const pitchTxt = lastOuting.pitches != null ? ` · ${lastOuting.pitches}p` : '';
+  const fatigued = days <= 1 && (lastOuting.pitches ?? 0) >= 25;
+  return `Last: ${dayTxt}${pitchTxt}${fatigued ? `<span class="sched-bullpen-fatigue">🪫 Worked${days <= 0 ? '' : ' ' + dayTxt.toLowerCase()}</span>` : ''}`;
+}
+function schedBullpenHtml(side) {
+  const label = side.teamAbbr || side.teamName;
+  const arms = bullpens[side.teamAbbr] || [];
+  if (!arms.length) {
+    return `<div class="sched-lineup-col"><div class="sched-lineup-head">${label} Bullpen</div><div class="sched-lineup-empty">No bullpen data yet</div></div>`;
+  }
+  const rows = arms.map(r => {
+    const handCls = r.hand === 'L' ? 'l' : r.hand === 'R' ? 'r' : '';
+    const role = bullpenRoleTag(r);
+    return `<div class="sched-bullpen-row">
+      <span class="sched-bullpen-hand ${handCls}">${r.hand || '?'}</span>
+      <div class="sched-bullpen-info">
+        <div class="sched-bullpen-name">${r.name}${role ? `<span class="sched-bullpen-role">${role}</span>` : ''}</div>
+        <div class="sched-bullpen-sub">${bullpenMixText(r.pitchMix)}</div>
+        <div class="sched-bullpen-sub">${bullpenLastOutingText(r.lastOuting)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="sched-lineup-col"><div class="sched-lineup-head">${label} Bullpen</div>${rows}</div>`;
+}
+function toggleSchedBullpens(pk, evt) {
+  evt?.stopPropagation();
+  const body = document.getElementById(`sched-bullpens-${pk}`);
+  const btn = document.getElementById(`sched-bullpen-toggle-${pk}`);
+  if (!body) return;
+  const open = body.style.display === 'flex';
+  body.style.display = open ? 'none' : 'flex';
+  if (btn) btn.textContent = open ? 'Bullpens ▾' : 'Bullpens ▴';
+}
+
 function toggleSchedGame(pk) {
   document.getElementById(`sched-game-${pk}`)?.classList.toggle('expanded');
 }
@@ -1551,6 +1625,11 @@ function renderSchedule() {
       <div class="sched-lineups">
         ${schedLineupHtml(g.away)}
         ${schedLineupHtml(g.home)}
+      </div>
+      <div class="sched-bullpen-toggle" id="sched-bullpen-toggle-${g.gamePk}" onclick="toggleSchedBullpens(${g.gamePk}, event)">Bullpens ▾</div>
+      <div class="sched-bullpens" id="sched-bullpens-${g.gamePk}">
+        ${schedBullpenHtml(g.away)}
+        ${schedBullpenHtml(g.home)}
       </div>
     </div>`;
   }).join('')}</div>`;
