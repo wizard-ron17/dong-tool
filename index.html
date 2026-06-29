@@ -241,6 +241,21 @@
 
   .due-modal-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; margin-bottom: 1.1rem; }
   .due-modal-stats > .due-modal-stat:last-child:nth-child(3n+1) { grid-column: 1 / -1; }
+  .due-modal-headline-sub { font-size: 0.52rem; color: var(--dim); display: block; margin-top: 0.1rem; }
+
+  .due-contact-card { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.75rem; margin-bottom: 1rem; }
+  .due-contact-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.5rem; }
+  .due-contact-title { font-family: var(--font-d); font-size: 0.8rem; font-weight: 700; color: #bdd0e8; letter-spacing: 0.02em; }
+  .due-contact-tag { font-size: 0.58rem; font-weight: 700; padding: 0.12rem 0.5rem; border-radius: 10px; }
+  .due-contact-tag.great { background: rgba(53,201,110,0.12); color: var(--accent); }
+  .due-contact-tag.bad   { background: rgba(224,64,90,0.12); color: #e0405a; }
+  .due-contact-tag.avg   { background: var(--surface2); color: var(--muted); }
+  .due-contact-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+  .due-contact-stat { text-align: center; }
+  .due-contact-label { font-size: 0.55rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; display: block; margin-bottom: 0.2rem; }
+  .due-contact-vals { font-family: var(--font-d); font-size: 0.85rem; font-weight: 700; }
+  .due-contact-vals .dim { color: var(--dim); font-weight: 400; }
+  .due-contact-foot { font-size: 0.56rem; color: var(--dim); line-height: 1.4; margin-top: 0.55rem; }
   .due-modal-stat { background: var(--surface1); border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.3rem; text-align: center; }
   .due-modal-stat-val { font-family: var(--font-d); font-size: 1.05rem; font-weight: 700; color: var(--text); display: block; }
   .due-modal-stat-sub { font-family: var(--font-m); font-size: 0.55rem; font-weight: 400; color: var(--muted); display: block; }
@@ -1586,6 +1601,41 @@ function dueVizHtml(r) {
     ${truncated ? `<div class="due-viz-foot">(showing his last ${RECENT_N} gaps of ${r.intervals.length} this season)</div>` : ''}`;
 }
 
+function contactTagInfo(factor) {
+  if (factor == null) return { cls: 'avg', text: 'Small Sample' };
+  if (factor >= 1.1) return { cls: 'great', text: 'Hitting It Better' };
+  if (factor <= 0.9) return { cls: 'bad', text: 'Contact Has Cooled' };
+  return { cls: 'avg', text: 'Holding Steady' };
+}
+function dueContactHtml(r) {
+  const base = r.contact?.baseline, dr = r.contact?.drought;
+  if (!base || !dr) return '';
+  const tag = contactTagInfo(r.contactFactor);
+  const evCls  = hrgClass(dr.avgEV, base.avgEV);
+  const brlCls = hrgClass(dr.barrelPct, base.barrelPct);
+  const hhCls  = hrgClass(dr.hardHitPct, base.hardHitPct);
+  return `<div class="due-contact-card">
+    <div class="due-contact-head">
+      <span class="due-contact-title">Recent Contact Quality</span>
+      <span class="due-contact-tag ${tag.cls}">${tag.text}</span>
+    </div>
+    <div class="due-contact-grid">
+      <div class="due-contact-stat">
+        <span class="due-contact-label">Exit Velo</span>
+        <span class="due-contact-vals"><span class="dim">${base.avgEV.toFixed(1)}</span> → <span class="hrg-val ${evCls}">${dr.avgEV.toFixed(1)}</span></span>
+      </div>
+      <div class="due-contact-stat">
+        <span class="due-contact-label">Barrel%</span>
+        <span class="due-contact-vals"><span class="dim">${base.barrelPct.toFixed(1)}</span> → <span class="hrg-val ${brlCls}">${dr.barrelPct.toFixed(1)}</span></span>
+      </div>
+      <div class="due-contact-stat">
+        <span class="due-contact-label">Hard-Hit%</span>
+        <span class="due-contact-vals"><span class="dim">${base.hardHitPct.toFixed(1)}</span> → <span class="hrg-val ${hhCls}">${dr.hardHitPct.toFixed(1)}</span></span>
+      </div>
+    </div>
+    <div class="due-contact-foot">Before the drought vs. during it (${dr.n} batted balls since his last HR) — his own home-run swings are excluded from the "before" number so they don't inflate it relative to a stretch that, by definition, has none.</div>
+  </div>`;
+}
 function dueModalHtml(r) {
   const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_120,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
   const cls = dueScoreClass(r.dueScore);
@@ -1598,8 +1648,9 @@ function dueModalHtml(r) {
       <div class="due-modal-head">
         <img class="due-modal-photo" src="${photoUrl}" alt="">
         <div><div class="due-modal-name">${r.name}</div><div class="due-modal-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
-        <div class="due-modal-headline"><span class="due-modal-headline-num ${cls}">${r.dueScore.toFixed(1)}</span><span class="due-modal-headline-lbl">Due Score</span></div>
+        <div class="due-modal-headline"><span class="due-modal-headline-num ${cls}">${r.dueScore.toFixed(1)}</span><span class="due-modal-headline-lbl">Due Score</span>${r.contactFactor && Math.abs(r.contactFactor - 1) > 0.02 ? `<span class="due-modal-headline-sub">${r.rawDueScore.toFixed(1)} raw × ${r.contactFactor.toFixed(2)} contact</span>` : ''}</div>
       </div>
+      ${dueContactHtml(r)}
       <div class="due-modal-stats">
         <div class="due-modal-stat"><span class="due-modal-stat-val">${r.hrs}</span><span class="due-modal-stat-lbl">HR</span></div>
         <div class="due-modal-stat"><span class="due-modal-stat-val">${r.avgGap.toFixed(0)}</span><span class="due-modal-stat-lbl">Avg AB/HR</span></div>

@@ -235,11 +235,111 @@ function computeDueRows() {
     const dueScore = z * powerWeight * confidenceWeight;
 
     rows.push({ pid, name: playerNames[pid] || pid, team: playerTeams[pid] || '', hrs, seasonAbPerHR,
-      avgGap, droughtABs, stdGap, z, dueScore, lastHR, lastAgo: daysSince(lastHR), lastGame,
+      avgGap, droughtABs, stdGap, z, dueScore, rawDueScore: dueScore, lastHR, lastAgo: daysSince(lastHR), lastGame,
       intervals, hrDates: dates, longestPriorGap, isLongestEver: droughtABs >= longestPriorGap });
   }
   rows.sort((a,b) => b.dueScore - a.dueScore || b.z - a.z);
   return rows;
+}
+
+// ── Contact quality: is a "due" guy's recent drought just bad luck, or has
+// his actual contact gotten worse too? ──
+// AB-gap math alone can't tell the difference between a guy still scalding
+// the ball who just hasn't connected at the right angle, and a guy who's
+// genuinely seeing/hitting it worse lately. Baseball Savant's Statcast Search
+// (the same backend that powers its public CSV export — undocumented, but
+// it's the only public source for exit velo/launch angle/barrels; MLB Stats
+// API doesn't have these at all) gives us real batted-ball data we can split
+// into "season" vs "since his last HR" ourselves.
+function parseCsv(text) {
+  const lines = text.replace(/^﻿/, '').split('\n').filter(Boolean);
+  const parseLine = line => {
+    const out = []; let cur = '', inQ = false;
+    for (const c of line) {
+      if (c === '"') { inQ = !inQ; continue; }
+      if (c === ',' && !inQ) { out.push(cur); cur = ''; continue; }
+      cur += c;
+    }
+    out.push(cur);
+    return out;
+  };
+  const header = parseLine(lines[0]);
+  return lines.slice(1).map(line => {
+    const vals = parseLine(line), row = {};
+    header.forEach((h, i) => { row[h] = vals[i]; });
+    return row;
+  });
+}
+
+async function fetchBattedBalls(pids) {
+  if (!pids.length) return [];
+  const lookup = pids.map(pid => `&batters_lookup%5B%5D=${pid}`).join('');
+  const url = `https://baseballsavant.mlb.com/statcast_search/csv?all=true&hfGT=R%7C&hfSea=${SEASON_YEAR}%7C` +
+    `&player_type=batter&game_date_gt=${SEASON_START}&game_date_lt=${todayET()}&group_by=name&min_pitches=0` +
+    `&min_results=0&type=details&hfBBT=ground_ball%7Cline_drive%7Cfly_ball%7Cpopup%7C${lookup}`;
+  try {
+    const text = await fetch(url).then(r => r.text());
+    return parseCsv(text);
+  } catch (e) { return []; }
+}
+
+function battedBallStats(rows) {
+  const evs = rows.map(r => parseFloat(r.launch_speed)).filter(v => !isNaN(v));
+  if (!evs.length) return null;
+  const hardHit = evs.filter(v => v >= 95).length;
+  const barrels = rows.filter(r => r.launch_speed_angle === '6').length;
+  return {
+    n: evs.length,
+    avgEV: avg(evs),
+    hardHitPct: 100 * hardHit / evs.length,
+    barrelPct: 100 * barrels / evs.length,
+  };
+}
+
+// Contact factor nudges dueScore rather than overriding it — the AB-gap z
+// stays the primary signal, this just tempers it when recent contact quality
+// has genuinely diverged from the season norm. Barrel rate is weighted
+// heaviest (most directly tied to HR potential) with exit velo as a steadier
+// secondary signal since barrel% alone is noisy over a couple dozen batted
+// balls. Requires a minimum drought sample before adjusting anything — with
+// too few batted balls, one barrel either way swings the rate too much to
+// trust.
+const CONTACT_MIN_DROUGHT_BBE = 8;
+async function attachContactQuality(dueRows) {
+  const allBalls = await fetchBattedBalls(dueRows.map(r => r.pid));
+  const byPid = {};
+  for (const row of allBalls) { (byPid[row.batter] ??= []).push(row); }
+
+  for (const r of dueRows) {
+    const balls = byPid[r.pid] ?? [];
+    // baseline = before the drought started, drought = since his last HR.
+    // These must NOT overlap: a drought is a stretch with zero HRs, and
+    // barrels are the batted-ball type most likely to produce one, so any
+    // baseline that includes the drought itself will mechanically look
+    // "better" than the drought no matter what — that's not a real signal,
+    // just restating the premise that he hasn't homered lately.
+    // Also exclude his own home-run swings from the baseline: a HR is
+    // virtually always a "barrel," so a baseline that includes N home runs
+    // out of ~150-200 batted balls has its barrel rate structurally
+    // inflated by the very thing the drought mechanically can't have any
+    // of — same bias as the date-overlap issue, just via outcome instead
+    // of date. Excluding them compares like-for-like: non-HR contact quality
+    // before the drought vs during it.
+    const baselineBalls = balls.filter(b => b.game_date <= r.lastHR && b.events !== 'home_run');
+    const droughtBalls = balls.filter(b => b.game_date > r.lastHR);
+    const baseline = battedBallStats(baselineBalls);
+    const drought = battedBallStats(droughtBalls);
+    r.contact = { baseline, drought };
+    if (!baseline || !drought || drought.n < CONTACT_MIN_DROUGHT_BBE) continue;
+
+    const barrelRatio = baseline.barrelPct > 0 ? drought.barrelPct / baseline.barrelPct : (drought.barrelPct > 0 ? 1.15 : 1);
+    const evRatio = baseline.avgEV > 0 ? drought.avgEV / baseline.avgEV : 1;
+    const contactRatio = 0.6 * barrelRatio + 0.4 * evRatio;
+    r.contactFactor = Math.max(0.85, Math.min(1.15, contactRatio));
+    r.dueScore = r.rawDueScore * r.contactFactor;
+  }
+  dueRows.sort((a,b) => b.dueScore - a.dueScore || b.z - a.z);
+  return dueRows;
 }
 
 // ── Prospects: fresh debuts who've gone deep, plus a "just called up" watchlist ──
@@ -554,6 +654,9 @@ async function main() {
 
   const groups = computeAllGroups(dailyHRs);
   const dueRows = computeDueRows();
+
+  console.log("Fetching Statcast contact-quality data for Due candidates...");
+  await attachContactQuality(dueRows);
 
   console.log("Fetching today's schedule and lineups...");
   const { idToAbbr: teamIdToAbbr, abbrToId: teamIds } = await fetchTeamAbbreviations();
