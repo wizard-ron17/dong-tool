@@ -207,8 +207,9 @@
   .due-z.warm { color: var(--gold); }
   .due-z.mild { color: var(--accent); }
 
-  .due-explainer { background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.9rem; margin-bottom: 0.6rem; font-size: 0.72rem; line-height: 1.5; color: var(--dim); }
-  .due-explainer-head { display: flex; align-items: center; justify-content: space-between; width: 100%; background: transparent; border: none; padding: 0.1rem 0; cursor: pointer; text-align: left; }
+  .due-explainer { background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.9rem; margin-bottom: 0.6rem; font-size: 0.72rem; line-height: 1.5; color: var(--dim); cursor: pointer; transition: background 0.15s; }
+  .due-explainer:hover { background: var(--surface2); }
+  .due-explainer-head { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0.1rem 0; }
   .due-explainer-title { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
   .due-explainer-chevron { font-size: 0.65rem; color: var(--muted); transition: transform 0.15s; }
   .due-explainer-teaser { margin-top: 0.3rem; color: var(--dim); }
@@ -528,11 +529,11 @@
 
   <!-- DUE -->
   <div id="panel-due" class="panel">
-    <div class="due-explainer">
-      <button class="due-explainer-head" id="due-explainer-toggle" onclick="toggleDueExplainer()" aria-expanded="false">
+    <div class="due-explainer" id="due-explainer-toggle" onclick="toggleDueExplainer()" aria-expanded="false">
+      <div class="due-explainer-head">
         <span class="due-explainer-title">How Due Score Works</span>
         <span class="due-explainer-chevron" id="due-explainer-chevron">▾</span>
-      </button>
+      </div>
       <div class="due-explainer-teaser">Z-scores each hitter's current drought against his own rhythm, then nudges it by how he's actually hitting the ball lately.</div>
       <div class="due-explainer-body" id="due-explainer-body" style="display:none">
         <ul>
