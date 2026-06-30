@@ -475,7 +475,13 @@ function pitchSynergyScore(hrProfile, pitcherMix) {
   return score;
 }
 
-async function computePicks(todaySchedule) {
+// Starters average ~5 innings in the modern game, bullpen ~4 — blending
+// the matchup signals at those weights gives a full-game picture rather
+// than just "how does the batter do vs the starter."
+const STARTER_WEIGHT = 0.55;
+const BULLPEN_WEIGHT = 0.45;
+
+async function computePicks(todaySchedule, bullpensMap) {
   try {
     const candidates = [];
     for (const g of todaySchedule) {
@@ -485,7 +491,7 @@ async function computePicks(todaySchedule) {
           if (p.position === 'P') continue;
           if ((hrTotals[p.pid] ?? 0) < PICKS_MIN_HR) continue;
           if ((playerABs[p.pid] ?? 0) < 20) continue;
-          candidates.push({ pid: p.pid, team: me.teamAbbr, oppPid: opp.probablePitcherId, oppName: opp.probablePitcher, venue: g.venue });
+          candidates.push({ pid: p.pid, team: me.teamAbbr, oppTeam: opp.teamAbbr, oppPid: opp.probablePitcherId, oppName: opp.probablePitcher, venue: g.venue });
         }
       }
     }
@@ -612,9 +618,9 @@ async function computePicks(todaySchedule) {
       const synergyScore = pitchSynergyScore(hrProfile, pitcherMixByPid[c.oppPid]);
 
       rows.push({
-        pid: c.pid, team: c.team, hrs, abs,
+        pid: c.pid, team: c.team, oppTeam: c.oppTeam, hrs, abs,
         oppPid: c.oppPid, oppName: c.oppName, oppHand: pHand, venue: c.venue,
-        basePower, recentFormRatio, batterPlatoonRatio, pitcherPlatoonRatio, parkRatio,
+        bHand, basePower, recentFormRatio, batterPlatoonRatio, pitcherPlatoonRatio, parkRatio,
         hrProfile, pitcherMix: pitcherMixByPid[c.oppPid] ?? [], synergyScore,
       });
     }
@@ -626,15 +632,52 @@ async function computePicks(todaySchedule) {
     // assuming what a "typical" overlap looks like.
     const synergyScores = rows.map(r => r.synergyScore).filter(s => s > 0).sort((a, b) => a - b);
     const medianSynergy = synergyScores.length ? synergyScores[Math.floor(synergyScores.length / 2)] : 0;
+    const avgPitcherRate = (leaguePitcherRateSame + leaguePitcherRateOpp) / 2 || 1;
+
     for (const r of rows) {
       r.synergyRatio = medianSynergy > 0
         ? Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, r.synergyScore > 0 ? r.synergyScore / medianSynergy : 0.9))
         : 1;
-      const factors = [r.recentFormRatio, r.batterPlatoonRatio, r.pitcherPlatoonRatio, r.parkRatio, r.synergyRatio]
+
+      // Blend starter and bullpen for the two pitcher-side components.
+      // Skip fatigued arms (worked yesterday with 25+ pitches — likely unavailable).
+      const bullpenArms = (bullpensMap?.[r.oppTeam] ?? []).filter(rel => {
+        if (!rel.lastOuting) return true;
+        return !(daysSince(rel.lastOuting.date) <= 1 && (rel.lastOuting.pitches ?? 0) >= 25);
+      });
+
+      let bullpenPlatoonFactor = null, bullpenSynergyRaw = 0;
+      if (bullpenArms.length) {
+        let totalW = 0, platoonSum = 0, synergySum = 0;
+        for (const rel of bullpenArms) {
+          const w = rel.gamesPitched || 1;
+          totalW += w;
+          // League-prior platoon effect for this reliever vs this batter
+          const effectiveSide = r.bHand === 'S' ? (rel.hand === 'L' ? 'R' : 'L') : r.bHand;
+          const isSame = rel.hand === effectiveSide;
+          platoonSum += ((isSame ? leaguePitcherRateSame : leaguePitcherRateOpp) / avgPitcherRate) * w;
+          synergySum += pitchSynergyScore(r.hrProfile, rel.pitchMix) * w;
+        }
+        bullpenPlatoonFactor = Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, platoonSum / totalW));
+        bullpenSynergyRaw = synergySum / totalW;
+      }
+      r.bullpenPlatoonFactor = bullpenPlatoonFactor;
+      r.bullpenSynergyRatio = medianSynergy > 0 && bullpenSynergyRaw > 0
+        ? Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, bullpenSynergyRaw / medianSynergy))
+        : (bullpenSynergyRaw === 0 ? 0.9 : 1);
+
+      // Blended pitcher signal: weighted by typical innings split (55/45)
+      const effectivePitcherPlatoon = r.pitcherPlatoonRatio != null
+        ? (bullpenPlatoonFactor != null
+            ? STARTER_WEIGHT * r.pitcherPlatoonRatio + BULLPEN_WEIGHT * bullpenPlatoonFactor
+            : r.pitcherPlatoonRatio)
+        : bullpenPlatoonFactor;
+      const effectiveSynergy = bullpenPlatoonFactor != null
+        ? STARTER_WEIGHT * r.synergyRatio + BULLPEN_WEIGHT * r.bullpenSynergyRatio
+        : r.synergyRatio;
+
+      const factors = [r.recentFormRatio, r.batterPlatoonRatio, effectivePitcherPlatoon, r.parkRatio, effectiveSynergy]
         .filter(f => f != null);
-      // Slight uncertainty discount when we have no recent Statcast contact data —
-      // a pick driven purely by matchup/park with no form signal is less confident
-      // than one where we can also see the ball coming off the bat well.
       const contactKnown = r.recentFormRatio != null;
       r.matchupFactor = factors.reduce((a, b) => a * b, contactKnown ? 1 : 0.95);
       r.pickScore = r.basePower * r.matchupFactor * 100;
@@ -1088,7 +1131,7 @@ async function main() {
   const bullpens = await fetchBullpens(todaySchedule, teamIdToAbbr);
 
   console.log("Computing today's HR picks (matchups, splits, pitch-type profiles)...");
-  const picks = await computePicks(todaySchedule);
+  const picks = await computePicks(todaySchedule, bullpens);
 
   console.log('Checking for rookie debuts and recent call-ups...');
   const prospects = await computeProspects(todaySchedule, teamIdToAbbr);

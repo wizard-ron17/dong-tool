@@ -2062,6 +2062,14 @@ const PITCH_ABBR_CLIENT = {
   'Forkball': 'FO', 'Slurve': 'SV', 'Screwball': 'SC', 'Eephus': 'EP', 'Knuckleball': 'KN',
 };
 function pitchAbbrClient(name) { return PITCH_ABBR_CLIENT[name] || name; }
+function pitchSynergyScore(hrProfile, pitcherMix) {
+  if (!hrProfile?.length || !pitcherMix?.length) return 0;
+  const usage = {};
+  for (const m of pitcherMix) usage[m.name] = m.pct;
+  let score = 0;
+  for (const b of hrProfile) score += (b.pct * (usage[b.name] ?? 0)) / 100;
+  return score;
+}
 
 function pickIndicators(r) {
   const inds = [];
@@ -2077,6 +2085,38 @@ function pickIndicators(r) {
   if (r.synergyRatio != null) inds.push(ratioLabel(r.synergyRatio, 'Pitch Synergy'));
   if (r.parkRatio != null) inds.push(ratioLabel(r.parkRatio, 'Park'));
   return inds.join('');
+}
+
+function bullpenModalHtml(r) {
+  const arms = (bullpens[r.oppTeam] ?? []).filter(rel => {
+    if (!rel.lastOuting) return true;
+    return !(daysSince(rel.lastOuting.date) <= 1 && (rel.lastOuting.pitches ?? 0) >= 25);
+  });
+  if (!arms.length) return '';
+
+  const rows = arms.map(rel => {
+    const handCls = rel.hand === 'L' ? 'l' : 'r';
+    const effectiveSide = r.bHand === 'S' ? (rel.hand === 'L' ? 'R' : 'L') : r.bHand;
+    const isSame = rel.hand === effectiveSide;
+    const favorable = !isSame; // opposite-handed = harder to get batter out = good for batter
+    const syn = pitchSynergyScore(r.hrProfile, rel.pitchMix);
+    const synFav = syn > 0 && syn > (r.synergyScore * 0.8); // synergy at least 80% of starter's
+    const topPitch = rel.pitchMix?.[0] ? `${pitchAbbrClient(rel.pitchMix[0].name)} ${rel.pitchMix[0].pct}%` : '—';
+    const indicator = (favorable && synFav) ? '<span class="pick-ind great">✓ Good</span>'
+                    : (!favorable && !synFav) ? '<span class="pick-ind bad">✗ Bad</span>'
+                    : '<span class="pick-ind">≈ Mixed</span>';
+    return `<div class="sched-bullpen-row">
+      <span class="sched-bullpen-hand ${handCls}">${rel.hand||'?'}</span>
+      <div class="sched-bullpen-info">
+        <div class="sched-bullpen-name">${rel.name}${rel.saves>=3?'<span class="sched-bullpen-role">Closer</span>':rel.holds>=3?'<span class="sched-bullpen-role">Setup</span>':''}</div>
+        <div class="sched-bullpen-sub">${topPitch} · ${rel.era} ERA</div>
+      </div>
+      ${indicator}
+    </div>`;
+  }).join('');
+
+  return `<div class="pick-section-title">Opposing Bullpen (${arms.length} rested arm${arms.length===1?'':'s'})</div>
+    <div class="due-contact-card" style="padding:0.4rem 0.55rem; margin-bottom:0.8rem;">${rows}</div>`;
 }
 
 function pickModalHtml(r) {
@@ -2132,12 +2172,16 @@ function pickModalHtml(r) {
       <div class="pick-section-title">Batter HR Profile — pitches he goes deep on</div>
       <div class="pick-hr-profile">${hrProfileHtml}</div>
 
+      ${bullpenModalHtml(r)}
+
       <div class="pick-section-title">Matchup Factors</div>
       <div class="pick-factor-grid">
         ${factorRatio(r.recentFormRatio, 'Recent Contact Quality')}
         ${factorRatio(r.batterPlatoonRatio, 'Batter Platoon Edge')}
-        ${factorRatio(r.pitcherPlatoonRatio, 'Pitcher Vulnerability')}
-        ${factorRatio(r.synergyRatio, 'Pitch-Type Synergy')}
+        ${factorRatio(r.pitcherPlatoonRatio, 'Starter Vulnerability')}
+        ${factorRatio(r.bullpenPlatoonFactor, 'Bullpen Vulnerability')}
+        ${factorRatio(r.synergyRatio, 'Starter Pitch Synergy')}
+        ${factorRatio(r.bullpenSynergyRatio, 'Bullpen Pitch Synergy')}
         ${factorRatio(r.parkRatio, 'Park Factor')}
         <div class="pick-factor">
           <div class="pick-factor-label">Venue</div>
