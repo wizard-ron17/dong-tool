@@ -383,7 +383,9 @@ async function attachContactQuality(dueRows) {
 // edge (both sides — is this a good matchup for the batter AND is this
 // pitcher specifically vulnerable to this side), pitch-type overlap between
 // what the batter homers off and what the pitcher actually throws, and park.
-const PICKS_MIN_HR        = 3;   // raw power floor — not chasing a singles hitter's lucky day
+const PICKS_MIN_HR        = 5;   // minimal power floor — low enough to keep a hot hitter in a great spot,
+                                 // high enough to exclude guys who've never actually gone deep this season
+const PICKS_MIN_SCORE     = 9;   // score floor — keeps the list at a meaningful ~10-20 on any given day
 const PICKS_RATIO_MIN     = 0.7;
 const PICKS_RATIO_MAX     = 1.4;
 // Platoon splits are HR-based rate stats, and HRs are rare enough that a
@@ -631,11 +633,15 @@ async function computePicks(todaySchedule) {
         : 1;
       const factors = [r.recentFormRatio, r.batterPlatoonRatio, r.pitcherPlatoonRatio, r.parkRatio, r.synergyRatio]
         .filter(f => f != null);
-      r.matchupFactor = factors.reduce((a, b) => a * b, 1);
-      r.pickScore = r.basePower * r.matchupFactor * 100; // scaled for readability, same spirit as Due's z-to-score scaling
+      // Slight uncertainty discount when we have no recent Statcast contact data —
+      // a pick driven purely by matchup/park with no form signal is less confident
+      // than one where we can also see the ball coming off the bat well.
+      const contactKnown = r.recentFormRatio != null;
+      r.matchupFactor = factors.reduce((a, b) => a * b, contactKnown ? 1 : 0.95);
+      r.pickScore = r.basePower * r.matchupFactor * 100;
     }
     rows.sort((a, b) => b.pickScore - a.pickScore);
-    return rows;
+    return rows.filter(r => r.pickScore >= PICKS_MIN_SCORE);
   } catch (e) { return []; }
 }
 
