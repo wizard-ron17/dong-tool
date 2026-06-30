@@ -483,15 +483,38 @@ const BULLPEN_WEIGHT = 0.45;
 
 async function computePicks(todaySchedule, bullpensMap) {
   try {
+    // Identify a team's likely everyday starters when the official lineup
+    // hasn't posted yet. Uses season-long data: guys who've appeared in at
+    // least 15 games, average 1.5+ AB/game (filters pitchers out naturally
+    // under universal DH), have some power this season, and showed up in a
+    // game within the last 7 days (catches injuries/demotions without needing
+    // the IL feed, which runs AFTER this function in main()).
+    function projectedLineup(teamAbbr) {
+      return Object.keys(playerTeams)
+        .filter(pid =>
+          playerTeams[pid] === teamAbbr &&
+          (playerGames[pid] ?? 0) >= 15 &&
+          (playerABs[pid] ?? 0) / Math.max(playerGames[pid] ?? 1, 1) >= 1.5 &&
+          (hrTotals[pid] ?? 0) >= PICKS_MIN_HR &&
+          daysSince(playerLastGame[pid] || '2000-01-01') <= 7
+        )
+        .sort((a, b) => (playerGames[b] ?? 0) - (playerGames[a] ?? 0))
+        .slice(0, 9)
+        .map(pid => ({ pid, name: playerNames[pid] || pid, position: '', order: 0 }));
+    }
+
     const candidates = [];
     for (const g of todaySchedule) {
       for (const [me, opp] of [[g.home, g.away], [g.away, g.home]]) {
-        if (!me.lineup.length || !opp.probablePitcherId) continue; // confirmed lineups only
-        for (const p of me.lineup) {
+        if (!opp.probablePitcherId) continue; // need a pitcher to score the matchup
+        const batters = me.lineup.length
+          ? me.lineup.map(p => ({ ...p, projected: false }))
+          : projectedLineup(me.teamAbbr).map(p => ({ ...p, projected: true }));
+        for (const p of batters) {
           if (p.position === 'P') continue;
           if ((hrTotals[p.pid] ?? 0) < PICKS_MIN_HR) continue;
           if ((playerABs[p.pid] ?? 0) < 20) continue;
-          candidates.push({ pid: p.pid, team: me.teamAbbr, oppTeam: opp.teamAbbr, oppPid: opp.probablePitcherId, oppName: opp.probablePitcher, venue: g.venue });
+          candidates.push({ pid: p.pid, team: me.teamAbbr, oppTeam: opp.teamAbbr, oppPid: opp.probablePitcherId, oppName: opp.probablePitcher, venue: g.venue, projected: p.projected });
         }
       }
     }
@@ -620,6 +643,7 @@ async function computePicks(todaySchedule, bullpensMap) {
       rows.push({
         pid: c.pid, team: c.team, oppTeam: c.oppTeam, hrs, abs,
         oppPid: c.oppPid, oppName: c.oppName, oppHand: pHand, venue: c.venue,
+        projected: c.projected ?? false,
         bHand, basePower, recentFormRatio, batterPlatoonRatio, pitcherPlatoonRatio, parkRatio,
         hrProfile, pitcherMix: pitcherMixByPid[c.oppPid] ?? [], synergyScore,
       });
