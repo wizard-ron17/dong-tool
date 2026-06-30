@@ -383,9 +383,8 @@ async function attachContactQuality(dueRows) {
 // edge (both sides — is this a good matchup for the batter AND is this
 // pitcher specifically vulnerable to this side), pitch-type overlap between
 // what the batter homers off and what the pitcher actually throws, and park.
-const PICKS_MIN_HR        = 5;   // minimal power floor — low enough to keep a hot hitter in a great spot,
-                                 // high enough to exclude guys who've never actually gone deep this season
-const PICKS_MIN_SCORE     = 9;   // score floor — keeps the list at a meaningful ~10-20 on any given day
+const PICKS_MIN_HR        = 3;   // server-side floor — client applies its own adjustable threshold on top
+const PICKS_MIN_SCORE     = 7;   // ship anything reasonable; client defaults to 9+ but lets users loosen it
 const PICKS_RATIO_MIN     = 0.7;
 const PICKS_RATIO_MAX     = 1.4;
 // Platoon splits are HR-based rate stats, and HRs are rare enough that a

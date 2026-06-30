@@ -211,18 +211,18 @@
   .lb-last.cold   { color: var(--muted); }
 
   .due-z { font-family: var(--font-d); font-size: 1rem; font-weight: 700; text-align: right; }
-  .due-z.hot  { color: #ff7040; }
+  .due-z.hot  { color: var(--accent); }
   .due-z.warm { color: var(--gold); }
-  .due-z.mild { color: var(--accent); }
+  .due-z.mild { color: #ff7040; }
 
   .pick-z { font-family: var(--font-d); font-size: 1rem; font-weight: 700; text-align: right; }
-  .pick-z.great { color: #ff7040; }
+  .pick-z.great { color: var(--accent); }
   .pick-z.good  { color: var(--gold); }
-  .pick-z.ok    { color: var(--accent); }
+  .pick-z.ok    { color: #ff7040; }
   .pick-score-big { font-family: var(--font-d); font-size: 1.6rem; font-weight: 700; line-height: 1; }
-  .pick-score-big.great { color: #ff7040; }
+  .pick-score-big.great { color: var(--accent); }
   .pick-score-big.good  { color: var(--gold); }
-  .pick-score-big.ok    { color: var(--accent); }
+  .pick-score-big.ok    { color: #ff7040; }
   .pick-opp { font-size: 0.6rem; color: var(--muted); margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pick-indicators { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-top: 0.35rem; }
   .pick-ind { font-size: 0.52rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 10px; background: var(--surface2); color: var(--muted); white-space: nowrap; }
@@ -299,9 +299,9 @@
   .due-modal-team { font-size: 0.65rem; color: var(--muted); }
   .due-modal-headline { margin-left: auto; text-align: right; flex-shrink: 0; }
   .due-modal-headline-num { font-family: var(--font-d); font-size: 1.6rem; font-weight: 700; line-height: 1; display: block; }
-  .due-modal-headline-num.hot  { color: #ff7040; }
+  .due-modal-headline-num.hot  { color: var(--accent); }
   .due-modal-headline-num.warm { color: var(--gold); }
-  .due-modal-headline-num.mild { color: var(--accent); }
+  .due-modal-headline-num.mild { color: #ff7040; }
   .due-modal-headline-lbl { font-size: 0.5rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
 
   .due-modal-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.35rem; margin-bottom: 0.9rem; }
@@ -456,9 +456,9 @@
   .lbc-team { font-size: 0.55rem; color: var(--muted); }
   .lbc-headline { text-align: right; flex-shrink: 0; }
   .lbc-headline-num { font-family: var(--font-d); font-size: 1.2rem; font-weight: 700; color: var(--accent); line-height: 1; display: block; }
-  .lbc-headline-num.hot  { color: #ff7040; }
+  .lbc-headline-num.hot  { color: var(--accent); }
   .lbc-headline-num.warm { color: var(--gold); }
-  .lbc-headline-num.mild { color: var(--accent); }
+  .lbc-headline-num.mild { color: #ff7040; }
   .lbc-headline-lbl { font-size: 0.46rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
   .lbc-stats { display: flex; gap: 0.65rem; margin-top: 0.45rem; padding-top: 0.4rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
   .lbc-stat { display: flex; flex-direction: column; gap: 0.05rem; }
@@ -644,6 +644,13 @@
         </ul>
       </div>
     </div>
+    <div class="due-filters-card">
+      <button class="due-filters-toggle" id="picks-filters-toggle" onclick="togglePicksFiltersPanel()" aria-expanded="false">
+        <span class="due-explainer-title">Filters<span class="due-filters-badge" id="picks-filters-badge" style="display:none"></span></span>
+        <span class="due-explainer-chevron" id="picks-filters-chevron">▾</span>
+      </button>
+      <div class="due-filter-row" id="picks-filter-row" style="display:none"></div>
+    </div>
     <div class="result-meta" id="picks-meta"></div>
     <div id="picks-content"><div class="empty">Loading data…</div></div>
   </div>
@@ -690,6 +697,8 @@ let teamIds = {}; // team abbr -> MLB team id, for team-logos/{id}.svg
 let pitcherStats = {}; // pid -> { hr, hr9, ip, era } for today's probable pitchers
 let bullpens = {}; // team abbr -> [{ pid, name, hand, era, saves, holds, gamesPitched, lastOuting, pitchMix }]
 let picks    = []; // today's HR pick candidates, pre-scored server-side
+let picksFilters     = { minHR: 5, minScore: 9 };
+let picksFiltersPanelOpen = false;
 
 let activeNav      = 'pairs';
 let activePairSize = 2;
@@ -2018,6 +2027,33 @@ function togglePicksExplainer() {
   document.getElementById('picks-explainer-toggle').setAttribute('aria-expanded', String(picksExplainerOpen));
 }
 
+function togglePicksFiltersPanel() { picksFiltersPanelOpen = !picksFiltersPanelOpen; renderPicksFilters(); }
+function setPicksMinHR(n)    { picksFilters.minHR    = n; renderPicks(); }
+function setPicksMinScore(n) { picksFilters.minScore = n; renderPicks(); }
+function clearPicksFilters() { picksFilters = { minHR: 5, minScore: 9 }; renderPicks(); }
+function picksFiltersActive() { return picksFilters.minHR !== 5 || picksFilters.minScore !== 9; }
+function applyPicksFilters(rows) {
+  return rows.filter(r => r.hrs >= picksFilters.minHR && r.pickScore >= picksFilters.minScore);
+}
+function renderPicksFilters() {
+  const hrOpts    = [3, 5, 10, 15];
+  const scoreOpts = [7, 9, 11, 13];
+  const hrChips    = hrOpts.map(n => `<button class="due-filter-chip${picksFilters.minHR===n?' active':''}" onclick="setPicksMinHR(${n})">${n===3?'All':n+'+'}</button>`).join('');
+  const scoreChips = scoreOpts.map(n => `<button class="due-filter-chip${picksFilters.minScore===n?' active':''}" onclick="setPicksMinScore(${n})">${n}+</button>`).join('');
+  document.getElementById('picks-filter-row').innerHTML = `
+    <div class="due-filter-group"><span class="due-filter-label">Min HR</span><div class="due-filter-chips">${hrChips}</div></div>
+    <div class="due-filter-group"><span class="due-filter-label">Min Score</span><div class="due-filter-chips">${scoreChips}</div></div>
+    ${picksFiltersActive() ? `<button class="due-filter-clear" onclick="clearPicksFilters()">Reset ×</button>` : ''}
+  `;
+  document.getElementById('picks-filter-row').style.display = picksFiltersPanelOpen ? '' : 'none';
+  document.getElementById('picks-filters-chevron').textContent = picksFiltersPanelOpen ? '▴' : '▾';
+  document.getElementById('picks-filters-toggle').setAttribute('aria-expanded', String(picksFiltersPanelOpen));
+  const activeCount = (picksFilters.minHR !== 5 ? 1 : 0) + (picksFilters.minScore !== 9 ? 1 : 0);
+  const badge = document.getElementById('picks-filters-badge');
+  badge.style.display = activeCount ? 'inline-flex' : 'none';
+  badge.textContent = activeCount;
+}
+
 function pickScoreClass(s) { return s >= 15 ? 'great' : s >= 9 ? 'good' : 'ok'; }
 
 const PITCH_ABBR_CLIENT = {
@@ -2125,19 +2161,25 @@ function openPickModal(pid) {
 }
 
 function renderPicks() {
+  renderPicksFilters();
   const metaEl = document.getElementById('picks-meta');
   const contentEl = document.getElementById('picks-content');
   if (!picks.length) {
-    metaEl.textContent = picks.length === 0 && todaySchedule.length
-      ? 'Picks populate once lineups are posted — check back closer to game time'
-      : '';
+    metaEl.textContent = todaySchedule.length ? 'Picks populate once lineups are posted' : '';
     contentEl.innerHTML = '<div class="empty">No picks yet — lineups must be posted for matchup scoring to run</div>';
     return;
   }
-  metaEl.textContent = `${picks.length} hitters scored · confirmed lineups only · sorted by Pick Score`;
+  const filtered = applyPicksFilters(picks);
+  const filtersOn = picksFiltersActive();
+  metaEl.textContent = `${filtered.length}${filtersOn ? ` of ${picks.length}` : ''} picks · confirmed lineups only · sorted by Pick Score`;
+  if (!filtered.length) {
+    contentEl.innerHTML = `<div class="empty">Nobody matches these filters. <a href="javascript:void(0)" onclick="clearPicksFilters()">Reset</a></div>`;
+    return;
+  }
+  const ranked = filtered;
 
   const rankClass = i => i===0?'gold':i===1?'silver':i===2?'bronze':'';
-  const tableRows = picks.map((r, i) => {
+  const tableRows = ranked.map((r, i) => {
     const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const cls = pickScoreClass(r.pickScore);
     return `<tr class="due-row-clickable" onclick="openPickModal('${r.pid}')">
@@ -2156,7 +2198,7 @@ function renderPicks() {
     </tr>`;
   }).join('');
 
-  const cardsHtml = picks.map((r, i) => {
+  const cardsHtml = ranked.map((r, i) => {
     const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const cls = pickScoreClass(r.pickScore);
     return `<div class="lbc-card due-row-clickable" onclick="openPickModal('${r.pid}')">
