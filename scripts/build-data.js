@@ -376,6 +376,269 @@ async function attachContactQuality(dueRows) {
   return dueRows;
 }
 
+// ── Picks: today's best HR matchups ───────────────────────────────────
+// Distinct from Due on purpose — Due flags an overdue drought regardless of
+// today's matchup; Picks ranks today's confirmed-lineup batters purely on
+// how good *today's specific matchup* is: recent contact quality, platoon
+// edge (both sides — is this a good matchup for the batter AND is this
+// pitcher specifically vulnerable to this side), pitch-type overlap between
+// what the batter homers off and what the pitcher actually throws, and park.
+const PICKS_MIN_HR        = 3;   // raw power floor — not chasing a singles hitter's lucky day
+const PICKS_RATIO_MIN     = 0.7;
+const PICKS_RATIO_MAX     = 1.4;
+// Platoon splits are HR-based rate stats, and HRs are rare enough that a
+// hard "minimum PA/IP, then trust it fully" gate still let small samples
+// swing wildly once they cleared the bar (1 HR vs 4 HR over ~50 PA each
+// pinned 66% of batter ratios and 60% of pitcher ratios at the clamp ceiling
+// in testing — the same failure mode as Due's barrel% bug). Shrinking each
+// side's rate toward the player's own overall rate before taking the ratio
+// fixes it the same way: a thin split sample gets pulled back toward "no
+// real difference yet" instead of being taken at face value.
+// These weights look large, but HR are rare enough (~3-4% of PA) that even
+// a few hundred PA of "evidence" barely outweighs them — tested k=40 still
+// left roughly half of all batter ratios pinned at the clamp, and didn't
+// meaningfully improve until k reached the few-hundred range. At these
+// weights only players with genuinely large platoon samples (a near-full
+// season's worth vs both hands) can move far from the league-average
+// platoon effect, which is the honest outcome when single-season HR-rate
+// splits this thin don't support much more precision than that.
+const PLATOON_SHRINK_PA = 400; // pseudo-PA weight, batter platoon splits
+const PLATOON_SHRINK_IP = 100; // pseudo-IP weight, pitcher platoon splits
+function shrunkRate(events, sample, priorRate, k) {
+  return (events + priorRate * k) / (sample + k);
+}
+
+// Generic vs-L/vs-R platoon split fetch, batched in one request regardless
+// of how many ids — confirmed this endpoint handles 300+ personIds fine
+// (unlike the Statcast CSV export, which silently truncates past a row cap).
+async function fetchPlatoonSplits(ids, group) {
+  if (!ids.length) return {};
+  try {
+    const res = await fetch(`${MLB}/people?personIds=${ids.join(',')}&hydrate=stats(group=[${group}],type=[statSplits],sitCodes=[vl,vr])`).then(r => r.json());
+    const out = {};
+    for (const p of res.people ?? []) {
+      const splits = p.stats?.[0]?.splits ?? [];
+      const vl = splits.find(s => s.split?.code === 'vl')?.stat;
+      const vr = splits.find(s => s.split?.code === 'vr')?.stat;
+      out[String(p.id)] = {
+        hand: group === 'pitching' ? (p.pitchHand?.code ?? null) : (p.batSide?.code ?? null),
+        vsL: vl ? { hr: vl.homeRuns ?? 0, pa: (vl.atBats ?? 0) + (vl.baseOnBalls ?? 0), ip: parseFloat(vl.inningsPitched) || 0, hr9: parseFloat(vl.homeRunsPer9) || 0 } : null,
+        vsR: vr ? { hr: vr.homeRuns ?? 0, pa: (vr.atBats ?? 0) + (vr.baseOnBalls ?? 0), ip: parseFloat(vr.inningsPitched) || 0, hr9: parseFloat(vr.homeRunsPer9) || 0 } : null,
+      };
+    }
+    return out;
+  } catch (e) { return {}; }
+}
+
+// "Recent form" reuses the same Statcast 1-6 contact-quality grade as Due's
+// contact factor, but the window is time-based (last 15 game-dates) instead
+// of drought-anchored — Picks isn't about droughts, it's about how he's
+// hitting the ball right now, full stop.
+const PICKS_RECENT_GAME_DATES = 15;
+const PICKS_MIN_RECENT_BBE    = 8;
+function computeRecentFormRatio(balls) {
+  const dates = [...new Set(balls.map(b => b.game_date))].sort();
+  if (dates.length < 5) return null;
+  const recentSet = new Set(dates.slice(Math.max(0, dates.length - PICKS_RECENT_GAME_DATES)));
+  const recentBalls   = balls.filter(b => recentSet.has(b.game_date));
+  const baselineBalls = balls.filter(b => !recentSet.has(b.game_date));
+  const recent   = battedBallStats(recentBalls);
+  const baseline = battedBallStats(baselineBalls);
+  if (!recent || !baseline || recent.contactQN < PICKS_MIN_RECENT_BBE || !baseline.avgContactQ || !recent.avgContactQ) return null;
+  const shrunkRecentQ = (recent.avgContactQ * recent.contactQN + baseline.avgContactQ * CONTACT_SHRINK_K) / (recent.contactQN + CONTACT_SHRINK_K);
+  return Math.max(0.85, Math.min(1.15, shrunkRecentQ / baseline.avgContactQ));
+}
+
+// What pitch types has this guy actually gone deep on this season? Top 3,
+// by share of his home runs — the other half of the pitch-type matchup
+// (the pitcher's mix) reuses fetchPitchMix, already built for bullpens.
+function computeHRPitchProfile(balls) {
+  const hrBalls = balls.filter(b => b.events === 'home_run' && b.pitch_name);
+  if (!hrBalls.length) return [];
+  const counts = {};
+  for (const b of hrBalls) counts[b.pitch_name] = (counts[b.pitch_name] ?? 0) + 1;
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([name, n]) => ({ name, pct: Math.round(100 * n / hrBalls.length) }));
+}
+// Overlap between "pitches he homers on" and "pitches this guy throws" —
+// e.g. batter hits 50% of his HRs off sliders, today's pitcher throws 40%
+// sliders, overlap credit = 0.5 * 0.4 * 100 = 20. Summed across shared types.
+function pitchSynergyScore(hrProfile, pitcherMix) {
+  if (!hrProfile.length || !pitcherMix?.length) return 0;
+  const usage = {};
+  for (const m of pitcherMix) usage[m.name] = m.pct;
+  let score = 0;
+  for (const b of hrProfile) score += (b.pct * (usage[b.name] ?? 0)) / 100;
+  return score;
+}
+
+async function computePicks(todaySchedule) {
+  try {
+    const candidates = [];
+    for (const g of todaySchedule) {
+      for (const [me, opp] of [[g.home, g.away], [g.away, g.home]]) {
+        if (!me.lineup.length || !opp.probablePitcherId) continue; // confirmed lineups only
+        for (const p of me.lineup) {
+          if (p.position === 'P') continue;
+          if ((hrTotals[p.pid] ?? 0) < PICKS_MIN_HR) continue;
+          if ((playerABs[p.pid] ?? 0) < 20) continue;
+          candidates.push({ pid: p.pid, team: me.teamAbbr, oppPid: opp.probablePitcherId, oppName: opp.probablePitcher, venue: g.venue });
+        }
+      }
+    }
+    if (!candidates.length) return [];
+    const seen = new Set();
+    const uniq = candidates.filter(c => seen.has(c.pid) ? false : (seen.add(c.pid), true));
+
+    const batterIds  = uniq.map(c => c.pid);
+    const pitcherIds = [...new Set(uniq.map(c => c.oppPid))];
+
+    const [batterSplits, pitcherSplits, batterBalls, pitcherMixByPid] = await Promise.all([
+      fetchPlatoonSplits(batterIds, 'hitting'),
+      fetchPlatoonSplits(pitcherIds, 'pitching'),
+      fetchBattedBalls(batterIds),
+      fetchPitchMix(pitcherIds),
+    ]);
+    const ballsByPid = {};
+    for (const row of batterBalls) (ballsByPid[row.batter] ??= []).push(row);
+
+    // League-wide platoon baselines, pooled across this build's own candidate
+    // pool (same self-calibration idea as the chalk meter's "regular player"
+    // threshold) — used as the shrinkage prior instead of each player's own
+    // overall rate, since a guy with 5 HRs this season doesn't have enough
+    // volume in HIS split to anchor against.
+    //
+    // First attempt pooled raw vs-L/vs-R splits regardless of each batter's
+    // own handedness, which washes the real platoon effect out almost
+    // completely: lefty batters do better vs RHP and worse vs LHP, righties
+    // the opposite, so pooled together they nearly cancel (tested: 0.0348 vs
+    // 0.0365, basically nothing to shrink toward). The actual platoon effect
+    // lives in "same-handed-as-the-batter" vs "opposite-handed," not in raw
+    // vs-L/vs-R — so pool it that way instead, using each player's own
+    // batSide/pitchHand to classify which of their two splits is which.
+    // Switch hitters always swing opposite the pitcher's hand by design, so
+    // both of their splits count as "opposite-handed," never "same."
+    let totalHRsame = 0, totalPAsame = 0, totalHRopp = 0, totalPAopp = 0;
+    for (const pid of batterIds) {
+      const s = batterSplits[pid];
+      if (!s) continue;
+      if (s.hand === 'L') {
+        if (s.vsL) { totalHRsame += s.vsL.hr; totalPAsame += s.vsL.pa; }
+        if (s.vsR) { totalHRopp  += s.vsR.hr; totalPAopp  += s.vsR.pa; }
+      } else if (s.hand === 'R') {
+        if (s.vsR) { totalHRsame += s.vsR.hr; totalPAsame += s.vsR.pa; }
+        if (s.vsL) { totalHRopp  += s.vsL.hr; totalPAopp  += s.vsL.pa; }
+      } else { // switch hitter — every PA is "opposite-handed" by design
+        if (s.vsL) { totalHRopp += s.vsL.hr; totalPAopp += s.vsL.pa; }
+        if (s.vsR) { totalHRopp += s.vsR.hr; totalPAopp += s.vsR.pa; }
+      }
+    }
+    const leagueBatterRateSame = totalPAsame ? totalHRsame / totalPAsame : 0;
+    const leagueBatterRateOpp  = totalPAopp  ? totalHRopp  / totalPAopp  : 0;
+
+    let totalPHRsame = 0, totalPIPsame = 0, totalPHRopp = 0, totalPIPopp = 0;
+    for (const pid of pitcherIds) {
+      const s = pitcherSplits[pid];
+      if (!s) continue;
+      if (s.hand === 'L') {
+        if (s.vsL) { totalPHRsame += s.vsL.hr; totalPIPsame += s.vsL.ip; }
+        if (s.vsR) { totalPHRopp  += s.vsR.hr; totalPIPopp  += s.vsR.ip; }
+      } else if (s.hand === 'R') {
+        if (s.vsR) { totalPHRsame += s.vsR.hr; totalPIPsame += s.vsR.ip; }
+        if (s.vsL) { totalPHRopp  += s.vsL.hr; totalPIPopp  += s.vsL.ip; }
+      }
+    }
+    const leaguePitcherRateSame = totalPIPsame ? totalPHRsame / totalPIPsame : 0;
+    const leaguePitcherRateOpp  = totalPIPopp  ? totalPHRopp  / totalPIPopp  : 0;
+
+    const totalGames = Object.values(dailyGames).reduce((a, b) => a + b, 0);
+    const totalHRs   = Object.values(dailyHRs).reduce((sum, day) => sum + Object.values(day).reduce((a, b) => a + b, 0), 0);
+    const leagueHRPerGame = totalGames ? totalHRs / totalGames : 0;
+
+    const rows = [];
+    for (const c of uniq) {
+      const abs = playerABs[c.pid] ?? 0, hrs = hrTotals[c.pid] ?? 0;
+      const basePower = hrs / abs;
+      const balls = ballsByPid[c.pid] ?? [];
+
+      const recentFormRatio = computeRecentFormRatio(balls);
+      const hrProfile = computeHRPitchProfile(balls);
+
+      const pInfo = pitcherSplits[c.oppPid] ?? null;
+      const pHand = pInfo?.hand ?? null;
+      const bInfo = batterSplits[c.pid] ?? null;
+
+      // Shrink each of the batter's two splits toward the prior that matches
+      // *that split's own* same/opposite-handed classification (relative to
+      // his own batSide) before comparing today's relevant split against the
+      // other — not toward a flat vs-L/vs-R prior, which has no real platoon
+      // signal once pooled across both lefty and righty batters.
+      let batterPlatoonRatio = null;
+      if (bInfo && pHand) {
+        const vsLPrior = bInfo.hand === 'L' ? leagueBatterRateSame : leagueBatterRateOpp;
+        const vsRPrior = bInfo.hand === 'R' ? leagueBatterRateSame : leagueBatterRateOpp;
+        const shrunkVsL = bInfo.vsL ? shrunkRate(bInfo.vsL.hr, bInfo.vsL.pa, vsLPrior, PLATOON_SHRINK_PA) : null;
+        const shrunkVsR = bInfo.vsR ? shrunkRate(bInfo.vsR.hr, bInfo.vsR.pa, vsRPrior, PLATOON_SHRINK_PA) : null;
+        const todaySplit = pHand === 'L' ? shrunkVsL : shrunkVsR;
+        const otherSplit = pHand === 'L' ? shrunkVsR : shrunkVsL;
+        if (todaySplit != null && otherSplit != null && otherSplit > 0) {
+          batterPlatoonRatio = Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, todaySplit / otherSplit));
+        }
+      }
+
+      const bHand = bInfo?.hand ?? null;
+      const effectiveBatterSide = bHand === 'S' ? (pHand === 'L' ? 'R' : 'L') : bHand;
+      let pitcherPlatoonRatio = null;
+      if (pInfo && effectiveBatterSide) {
+        const vsLPrior = pInfo.hand === 'L' ? leaguePitcherRateSame : leaguePitcherRateOpp;
+        const vsRPrior = pInfo.hand === 'R' ? leaguePitcherRateSame : leaguePitcherRateOpp;
+        const shrunkVsL = pInfo.vsL ? shrunkRate(pInfo.vsL.hr, pInfo.vsL.ip, vsLPrior, PLATOON_SHRINK_IP) : null;
+        const shrunkVsR = pInfo.vsR ? shrunkRate(pInfo.vsR.hr, pInfo.vsR.ip, vsRPrior, PLATOON_SHRINK_IP) : null;
+        const sameSplit  = effectiveBatterSide === 'L' ? shrunkVsL : shrunkVsR;
+        const otherSplit = effectiveBatterSide === 'L' ? shrunkVsR : shrunkVsL;
+        if (sameSplit != null && otherSplit != null && otherSplit > 0) {
+          pitcherPlatoonRatio = Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, sameSplit / otherSplit));
+        }
+      }
+
+      const venueGames = Object.values(venueGameDays[c.venue] ?? {}).reduce((a, b) => a + b, 0);
+      const venueHRs   = Object.values(venueHRsByDate[c.venue] ?? {}).reduce((a, b) => a + b, 0);
+      const parkHRG    = venueGames ? venueHRs / venueGames : leagueHRPerGame;
+      const parkRatio  = leagueHRPerGame ? Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, parkHRG / leagueHRPerGame)) : 1;
+
+      const synergyScore = pitchSynergyScore(hrProfile, pitcherMixByPid[c.oppPid]);
+
+      rows.push({
+        pid: c.pid, team: c.team, hrs, abs,
+        oppPid: c.oppPid, oppName: c.oppName, oppHand: pHand, venue: c.venue,
+        basePower, recentFormRatio, batterPlatoonRatio, pitcherPlatoonRatio, parkRatio,
+        hrProfile, pitcherMix: pitcherMixByPid[c.oppPid] ?? [], synergyScore,
+      });
+    }
+
+    // Pitch-type synergy is on its own raw 0-100ish scale, not a ratio, so
+    // normalize it against the median synergy score across today's actual
+    // candidate pool rather than a guessed constant — self-calibrating the
+    // same way the chalk meter's "regular player" threshold is, instead of
+    // assuming what a "typical" overlap looks like.
+    const synergyScores = rows.map(r => r.synergyScore).filter(s => s > 0).sort((a, b) => a - b);
+    const medianSynergy = synergyScores.length ? synergyScores[Math.floor(synergyScores.length / 2)] : 0;
+    for (const r of rows) {
+      r.synergyRatio = medianSynergy > 0
+        ? Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, r.synergyScore > 0 ? r.synergyScore / medianSynergy : 0.9))
+        : 1;
+      const factors = [r.recentFormRatio, r.batterPlatoonRatio, r.pitcherPlatoonRatio, r.parkRatio, r.synergyRatio]
+        .filter(f => f != null);
+      r.matchupFactor = factors.reduce((a, b) => a * b, 1);
+      r.pickScore = r.basePower * r.matchupFactor * 100; // scaled for readability, same spirit as Due's z-to-score scaling
+    }
+    rows.sort((a, b) => b.pickScore - a.pickScore);
+    return rows;
+  } catch (e) { return []; }
+}
+
 // ── Prospects: fresh debuts who've gone deep, plus a "just called up" watchlist ──
 // "Debut Bombs" = rookies (debuted this season) who've already homered, with
 // which exact game the HR came in (their AB log this season *is* their whole
@@ -819,6 +1082,9 @@ async function main() {
   console.log("Fetching bullpen data for today's games...");
   const bullpens = await fetchBullpens(todaySchedule, teamIdToAbbr);
 
+  console.log("Computing today's HR picks (matchups, splits, pitch-type profiles)...");
+  const picks = await computePicks(todaySchedule);
+
   console.log('Checking for rookie debuts and recent call-ups...');
   const prospects = await computeProspects(todaySchedule, teamIdToAbbr);
 
@@ -837,12 +1103,12 @@ async function main() {
     totalHRCount,
     dailyHRs, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus,
-    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens,
+    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks,
   };
 
   const fs = await import('node:fs');
   fs.writeFileSync(new URL('../data.json', import.meta.url), JSON.stringify(output));
-  console.log(`Wrote data.json — ${allDates.length} game days, ${totalHRCount} HRs, ${dueRows.length} due rows, ${prospects.debutBombs.length} debut bombs, ${prospects.justCalledUp.length} just called up, ${todaySchedule.length} games today`);
+  console.log(`Wrote data.json — ${allDates.length} game days, ${totalHRCount} HRs, ${dueRows.length} due rows, ${prospects.debutBombs.length} debut bombs, ${prospects.justCalledUp.length} just called up, ${todaySchedule.length} games today, ${picks.length} picks`);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

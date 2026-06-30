@@ -215,6 +215,34 @@
   .due-z.warm { color: var(--gold); }
   .due-z.mild { color: var(--accent); }
 
+  .pick-z { font-family: var(--font-d); font-size: 1rem; font-weight: 700; text-align: right; }
+  .pick-z.great { color: #ff7040; }
+  .pick-z.good  { color: var(--gold); }
+  .pick-z.ok    { color: var(--accent); }
+  .pick-score-big { font-family: var(--font-d); font-size: 1.6rem; font-weight: 700; line-height: 1; }
+  .pick-score-big.great { color: #ff7040; }
+  .pick-score-big.good  { color: var(--gold); }
+  .pick-score-big.ok    { color: var(--accent); }
+  .pick-opp { font-size: 0.6rem; color: var(--muted); margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pick-indicators { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-top: 0.35rem; }
+  .pick-ind { font-size: 0.52rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 10px; background: var(--surface2); color: var(--muted); white-space: nowrap; }
+  .pick-ind.great { background: rgba(53,201,110,0.14); color: var(--accent); }
+  .pick-ind.good  { background: rgba(240,192,64,0.12); color: var(--gold); }
+  .pick-ind.bad   { background: rgba(224,64,90,0.12);  color: #e0405a; }
+  .pick-pitcher-card { display: flex; align-items: center; gap: 0.55rem; background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.75rem; margin-bottom: 0.8rem; }
+  .pick-pitcher-photo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--surface2); flex-shrink: 0; border: 1px solid var(--border2); }
+  .pick-pitcher-name { font-family: var(--font-d); font-size: 0.92rem; font-weight: 700; color: #fff; }
+  .pick-pitcher-meta { font-size: 0.6rem; color: var(--muted); margin-top: 0.15rem; }
+  .pick-pitcher-mix { font-size: 0.62rem; color: var(--dim); margin-top: 0.25rem; }
+  .pick-section-title { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0.7rem 0 0.35rem; }
+  .pick-factor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
+  .pick-factor { background: var(--surface1); border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem 0.45rem; }
+  .pick-factor-label { font-size: 0.5rem; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+  .pick-factor-val { font-family: var(--font-d); font-size: 0.85rem; font-weight: 700; }
+  .pick-hr-profile { display: flex; gap: 0.45rem; flex-wrap: wrap; margin-top: 0.25rem; }
+  .pick-hr-pitch { font-size: 0.6rem; font-weight: 700; padding: 0.1rem 0.45rem; background: var(--surface2); border-radius: 10px; color: var(--dim); }
+  .pick-hr-pitch.top { background: rgba(53,201,110,0.12); color: var(--accent); }
+
   .due-explainer { background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.9rem; margin-bottom: 0.6rem; font-size: 0.72rem; line-height: 1.5; color: var(--dim); cursor: pointer; transition: background 0.15s; }
   .due-explainer:hover { background: var(--surface2); }
   .due-explainer-head { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0.1rem 0; }
@@ -495,6 +523,7 @@
     <button class="nav-btn" data-nav="recap" onclick="switchNav('recap')" disabled>Recap</button>
     <button class="nav-btn" data-nav="schedule" onclick="switchNav('schedule')" disabled>Schedule</button>
     <button class="nav-btn" data-nav="due"     onclick="switchNav('due')"     disabled>Due</button>
+    <button class="nav-btn" data-nav="picks"   onclick="switchNav('picks')"   disabled>Picks</button>
     <button class="nav-btn" data-nav="prospects" onclick="switchNav('prospects')" disabled>Prospects</button>
   </nav>
 
@@ -596,6 +625,29 @@
     <div id="due-content"><div class="empty">Loading data…</div></div>
   </div>
 
+  <!-- PICKS -->
+  <div id="panel-picks" class="panel">
+    <div class="due-explainer" id="picks-explainer-toggle" onclick="togglePicksExplainer()" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Pick Score Works</span>
+        <span class="due-explainer-chevron" id="picks-explainer-chevron">▾</span>
+      </div>
+      <div class="due-explainer-teaser">Today's best HR matchups, combining recent contact quality, platoon edge, pitch-type overlap, pitcher homer rate, and park.</div>
+      <div class="due-explainer-body" id="picks-explainer-body" style="display:none">
+        <ul>
+          <li><b>Base power.</b> Starts from each batter's season-long HR rate (HR per AB) — raw power is the foundation, matchup factors adjust it up or down.</li>
+          <li><b>Recent contact quality.</b> Same Statcast 1-6 contact-quality grade used by the Due tool, but time-windowed (last 15 game dates vs his own season baseline) rather than drought-anchored — reflects how he's actually squaring the ball up right now.</li>
+          <li><b>Platoon edge.</b> How this specific batter performs against today's pitcher's handedness vs the opposite side, AND how this specific pitcher fares against batters of this batter's effective side — both shrunk heavily toward league-average platoon splits, since single-season HR-rate splits are too thin to trust at face value.</li>
+          <li><b>Pitch-type synergy.</b> Cross-references which pitch types this batter has actually gone deep on this season against the pitcher's typical mix. A batter who homers mostly on fastballs facing a pitcher who throws 50% four-seamers is a more interesting target than one whose HR profile doesn't match at all.</li>
+          <li><b>Park.</b> The game's venue HR/game rate vs league average. Same signal shown on the Schedule tab, baked directly into the score.</li>
+          <li><b>Lineups only.</b> Only includes batters from confirmed, posted lineups — never recommends someone who might not be playing today.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="result-meta" id="picks-meta"></div>
+    <div id="picks-content"><div class="empty">Loading data…</div></div>
+  </div>
+
   <!-- PROSPECTS -->
   <div id="panel-prospects" class="panel">
     <div class="result-meta" id="prospects-meta"></div>
@@ -637,6 +689,7 @@ let todayStarterPids       = new Set(); // pids confirmed in a posted starting l
 let teamIds = {}; // team abbr -> MLB team id, for team-logos/{id}.svg
 let pitcherStats = {}; // pid -> { hr, hr9, ip, era } for today's probable pitchers
 let bullpens = {}; // team abbr -> [{ pid, name, hand, era, saves, holds, gamesPitched, lastOuting, pitchMix }]
+let picks    = []; // today's HR pick candidates, pre-scored server-side
 
 let activeNav      = 'pairs';
 let activePairSize = 2;
@@ -806,6 +859,7 @@ function applyData(data) {
   teamIds = data.teamIds ?? {};
   pitcherStats = data.pitcherStats ?? {};
   bullpens = data.bullpens ?? {};
+  picks    = data.picks    ?? [];
   todayTeamsPlaying = new Set();
   todayLineupsPostedTeams = new Set();
   todayStarterPids = new Set();
@@ -890,6 +944,7 @@ function renderCurrentPanel() {
   if (activeNav === 'recap') renderRecap();
   if (activeNav === 'schedule') renderSchedule();
   if (activeNav === 'due')     renderDue();
+  if (activeNav === 'picks')   renderPicks();
   if (activeNav === 'prospects') renderProspects();
 }
 let activeStatsView = 'league';
@@ -1952,6 +2007,187 @@ function dueModalHtml(r) {
       <div class="due-viz-foot" id="due-viz-foot-body" style="display:none">Each gray bar is the at-bats between consecutive HRs, oldest → newest. Dashed gold line = his average gap (${r.avgGap.toFixed(0)} AB). Shaded band = his normal range (±1 std dev). The orange bar is his current drought — still climbing, already ${r.z.toFixed(1)} std deviations past normal.</div>
     </div>
   </div>`;
+}
+
+// ── PICKS ──────────────────────────────────────────────────────────────
+let picksExplainerOpen = false;
+function togglePicksExplainer() {
+  picksExplainerOpen = !picksExplainerOpen;
+  document.getElementById('picks-explainer-body').style.display = picksExplainerOpen ? 'block' : 'none';
+  document.getElementById('picks-explainer-chevron').textContent = picksExplainerOpen ? '▴' : '▾';
+  document.getElementById('picks-explainer-toggle').setAttribute('aria-expanded', String(picksExplainerOpen));
+}
+
+function pickScoreClass(s) { return s >= 15 ? 'great' : s >= 9 ? 'good' : 'ok'; }
+
+const PITCH_ABBR_CLIENT = {
+  '4-Seam Fastball': 'FF', 'Sinker': 'SI', 'Cutter': 'FC', 'Slider': 'SL', 'Sweeper': 'SW',
+  'Curveball': 'CU', 'Knuckle Curve': 'KC', 'Changeup': 'CH', 'Split-Finger': 'FS',
+  'Forkball': 'FO', 'Slurve': 'SV', 'Screwball': 'SC', 'Eephus': 'EP', 'Knuckleball': 'KN',
+};
+function pitchAbbrClient(name) { return PITCH_ABBR_CLIENT[name] || name; }
+
+function pickIndicators(r) {
+  const inds = [];
+  const ratioLabel = (ratio, label) => {
+    if (ratio == null) return '';
+    const cls = ratio >= 1.08 ? 'great' : ratio <= 0.92 ? 'bad' : ratio >= 1.03 ? 'good' : '';
+    const sign = ratio >= 1.02 ? '+' : ratio <= 0.98 ? '−' : '≈';
+    return `<span class="pick-ind ${cls}" title="${label}">${sign} ${label}</span>`;
+  };
+  if (r.recentFormRatio != null) inds.push(ratioLabel(r.recentFormRatio, 'Contact'));
+  if (r.batterPlatoonRatio != null) inds.push(ratioLabel(r.batterPlatoonRatio, 'Batter Split'));
+  if (r.pitcherPlatoonRatio != null) inds.push(ratioLabel(r.pitcherPlatoonRatio, 'Pitcher Split'));
+  if (r.synergyRatio != null) inds.push(ratioLabel(r.synergyRatio, 'Pitch Synergy'));
+  if (r.parkRatio != null) inds.push(ratioLabel(r.parkRatio, 'Park'));
+  return inds.join('');
+}
+
+function pickModalHtml(r) {
+  const cls = pickScoreClass(r.pickScore);
+  const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_120,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
+  const leagueHRG = leagueHRPerGame();
+  const venueGames = Object.values(venueGameDays[r.venue] ?? {}).reduce((a,b)=>a+b,0);
+  const venueHRs   = Object.values(venueHRsByDate[r.venue] ?? {}).reduce((a,b)=>a+b,0);
+  const venueHRG   = venueGames ? venueHRs/venueGames : 0;
+  const venueCls   = hrgClass(venueHRG, leagueHRG);
+
+  const pitcherStat = r.oppPid ? pitcherStats[r.oppPid] : null;
+  const hr9Cls = pitcherStat?.hr9 ? hrgClass(parseFloat(pitcherStat.hr9), avgPitcherHR9()) : 'avg';
+
+  const hrProfileHtml = r.hrProfile?.map((h, i) =>
+    `<span class="pick-hr-pitch ${i===0?'top':''}">${pitchAbbrClient(h.name)} ${h.pct}%</span>`
+  ).join('') || '<span class="pick-ind">No HR data yet</span>';
+
+  const mixHtml = r.pitcherMix?.map(m =>
+    `<span class="pick-hr-pitch">${pitchAbbrClient(m.name)} ${m.pct}%</span>`
+  ).join('') || '';
+
+  const factorRatio = (val, label, digits=2) => val == null ? '' : `
+    <div class="pick-factor">
+      <div class="pick-factor-label">${label}</div>
+      <div class="pick-factor-val hrg-val ${val>=1.05?'great':val<=0.95?'bad':val>=1.02?'good':'avg'}">${val>=1?'+':val<=0.99?'−':'≈'} ${val.toFixed(digits)}×</div>
+    </div>`;
+
+  return `<div class="due-modal-backdrop" id="pick-modal-backdrop" onclick="if(event.target===this) closePickModal()">
+    <div class="due-modal">
+      <button class="due-modal-close" onclick="closePickModal()" aria-label="Close">&times;</button>
+      <div class="due-modal-head">
+        <img class="due-modal-photo" src="${photoUrl}" alt="">
+        <div>
+          <div class="due-modal-name">${playerNames[r.pid] || r.pid}</div>
+          <div class="due-modal-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
+        </div>
+        <div class="due-modal-headline">
+          <span class="pick-score-big ${cls}">${r.pickScore.toFixed(1)}</span>
+          <span class="due-modal-headline-lbl">Pick Score</span>
+        </div>
+      </div>
+
+      <div class="pick-pitcher-card">
+        <img class="pick-pitcher-photo" src="${playerPhotoUrl(r.oppPid)}" alt="">
+        <div>
+          <div class="pick-pitcher-name">${r.oppName || 'TBD'} <span style="font-size:0.7rem;color:var(--muted)">${r.oppHand ? `(${r.oppHand}HP)` : ''}</span></div>
+          <div class="pick-pitcher-meta">${pitcherStat ? `${pitcherStat.hr} HR · <span class="hrg-val ${hr9Cls}">${pitcherStat.hr9} HR9</span> · ${pitcherStat.era} ERA` : 'No stats yet'}</div>
+          ${mixHtml ? `<div class="pick-pitcher-mix">Throws: ${mixHtml}</div>` : ''}
+        </div>
+      </div>
+
+      <div class="pick-section-title">Batter HR Profile — pitches he goes deep on</div>
+      <div class="pick-hr-profile">${hrProfileHtml}</div>
+
+      <div class="pick-section-title">Matchup Factors</div>
+      <div class="pick-factor-grid">
+        ${factorRatio(r.recentFormRatio, 'Recent Contact Quality')}
+        ${factorRatio(r.batterPlatoonRatio, 'Batter Platoon Edge')}
+        ${factorRatio(r.pitcherPlatoonRatio, 'Pitcher Vulnerability')}
+        ${factorRatio(r.synergyRatio, 'Pitch-Type Synergy')}
+        ${factorRatio(r.parkRatio, 'Park Factor')}
+        <div class="pick-factor">
+          <div class="pick-factor-label">Venue</div>
+          <div class="pick-factor-val hrg-val ${venueCls}">${venueHRG.toFixed(2)} HR/G</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function pickModalEscHandler(e) { if (e.key === 'Escape') closePickModal(); }
+function closePickModal() {
+  document.getElementById('pick-modal-backdrop')?.remove();
+  document.removeEventListener('keydown', pickModalEscHandler);
+}
+function openPickModal(pid) {
+  const r = picks.find(x => x.pid === pid);
+  if (!r) return;
+  document.body.insertAdjacentHTML('beforeend', pickModalHtml(r));
+  document.addEventListener('keydown', pickModalEscHandler);
+}
+
+function renderPicks() {
+  const metaEl = document.getElementById('picks-meta');
+  const contentEl = document.getElementById('picks-content');
+  if (!picks.length) {
+    metaEl.textContent = picks.length === 0 && todaySchedule.length
+      ? 'Picks populate once lineups are posted — check back closer to game time'
+      : '';
+    contentEl.innerHTML = '<div class="empty">No picks yet — lineups must be posted for matchup scoring to run</div>';
+    return;
+  }
+  metaEl.textContent = `${picks.length} hitters scored · confirmed lineups only · sorted by Pick Score`;
+
+  const rankClass = i => i===0?'gold':i===1?'silver':i===2?'bronze':'';
+  const tableRows = picks.map((r, i) => {
+    const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
+    const cls = pickScoreClass(r.pickScore);
+    return `<tr class="due-row-clickable" onclick="openPickModal('${r.pid}')">
+      <td class="lb-rank ${rankClass(i)}">${i+1}</td>
+      <td><div class="lb-player">
+        <img class="lb-photo" src="${photo}" alt="">
+        <div>
+          <div class="lb-name">${playerNames[r.pid] || r.pid}</div>
+          <div class="lb-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
+          <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}</div>
+        </div>
+      </div></td>
+      <td class="pick-z ${cls}">${r.pickScore.toFixed(1)}</td>
+      <td class="lb-num hr-col">${r.hrs}</td>
+      <td class="lb-num stat-col">${r.venue}</td>
+    </tr>`;
+  }).join('');
+
+  const cardsHtml = picks.map((r, i) => {
+    const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
+    const cls = pickScoreClass(r.pickScore);
+    return `<div class="lbc-card due-row-clickable" onclick="openPickModal('${r.pid}')">
+      <div class="lbc-top">
+        <span class="lbc-rank ${rankClass(i)}">${i+1}</span>
+        <img class="lbc-photo" src="${photo}" alt="">
+        <div class="lbc-info">
+          <div class="lbc-name">${playerNames[r.pid] || r.pid}</div>
+          <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
+          <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}</div>
+        </div>
+        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${r.pickScore.toFixed(1)}</span><span class="lbc-headline-lbl">Pick Score</span></div>
+      </div>
+      <div class="pick-indicators">${pickIndicators(r)}</div>
+    </div>`;
+  }).join('');
+
+  contentEl.innerHTML = `
+    <div class="lb-view-table tbl-scroll">
+      <table class="lb-table">
+        <thead><tr>
+          <th style="width:24px"></th>
+          <th>Player</th>
+          <th class="r">Score</th>
+          <th class="r">HR</th>
+          <th class="r">Park</th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+    <div class="lb-view-cards">${cardsHtml}</div>`;
 }
 
 // ── PROSPECTS ──────────────────────────────────────────────────────────
