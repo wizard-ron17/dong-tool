@@ -226,6 +226,9 @@
   .pick-opp { font-size: 0.6rem; color: var(--muted); margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pick-indicators { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-top: 0.35rem; }
   .pick-ind { font-size: 0.52rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 10px; background: var(--surface2); color: var(--muted); white-space: nowrap; }
+  .cross-tab-badge { display: inline-flex; align-items: center; font-size: 0.5rem; font-weight: 700; padding: 0.04rem 0.3rem; border-radius: 4px; margin-left: 0.25rem; vertical-align: middle; white-space: nowrap; cursor: default; }
+  .cross-tab-badge.due-rank  { color: var(--gold); background: rgba(240,192,64,0.12); border: 1px solid rgba(240,192,64,0.3); }
+  .cross-tab-badge.pick-rank { color: var(--accent); background: rgba(53,201,110,0.12); border: 1px solid rgba(53,201,110,0.3); }
   .pick-ind.great { background: rgba(53,201,110,0.14); color: var(--accent); }
   .pick-ind.good  { background: rgba(240,192,64,0.12); color: var(--gold); }
   .pick-ind.bad   { background: rgba(224,64,90,0.12);  color: #e0405a; }
@@ -796,6 +799,25 @@ function lineupBadge(pid, compact) {
   }
   return '';
 }
+// Cross-tab rank badges — shows a player's standing in Due and/or Picks
+// wherever their name appears on other tabs, so context follows the player
+// rather than requiring the user to switch tabs to find it.
+// excludeDue / excludePick: set true when rendering *within* that tab (rank
+// is already implied by position in the list — no need to repeat it).
+function crossTabBadge(pid, excludeDue = false, excludePick = false) {
+  const parts = [];
+  if (!excludeDue) {
+    const idx = dueRows.findIndex(r => r.pid === pid);
+    if (idx >= 0) parts.push(`<span class="cross-tab-badge due-rank" title="Ranked #${idx+1} in Due">#${idx+1} Due</span>`);
+  }
+  if (!excludePick) {
+    const filtered = applyPicksFilters(picks);
+    const idx = filtered.findIndex(r => r.pid === pid);
+    if (idx >= 0) parts.push(`<span class="cross-tab-badge pick-rank" title="Ranked #${idx+1} in today's Picks">#${idx+1} Pick</span>`);
+  }
+  return parts.join('');
+}
+
 // Official MLB CDN, same family as the headshot images we already hit —
 // keyed by team id (from teamIds, fetched fresh off /teams each build) so
 // nothing here is a hardcoded abbr->logo table.
@@ -1293,7 +1315,7 @@ function renderLeaders() {
     const lastTxt  = r.last ? `${fmtDateLong(r.last)}<span class="ago">${r.lastAgo}d ago</span>` : '—';
     return `<tr>
       <td class="lb-rank ${rankClass(i)}">${i+1}</td>
-      <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}</div><div class="lb-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div></div></td>
+      <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}${crossTabBadge(r.pid)}</div><div class="lb-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div></div></td>
       <td class="lb-num hr-col">${r.hrs}</td>
       <td class="lb-num stat-col">${r.games}</td>
       <td class="lb-num stat-col">${gPerHR}</td>
@@ -1326,7 +1348,7 @@ function renderLeaders() {
       <div class="lbc-top">
         <span class="lbc-rank ${rankClass(i)}">${i+1}</span>
         <img class="lbc-photo" src="${photoUrl}" alt="">
-        <div class="lbc-info"><div class="lbc-name">${r.name}</div><div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
+        <div class="lbc-info"><div class="lbc-name">${r.name}${crossTabBadge(r.pid)}</div><div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
         <div class="lbc-headline"><span class="lbc-headline-num">${r.hrs}</span><span class="lbc-headline-lbl">HR</span></div>
       </div>
       <div class="lbc-stats">
@@ -1562,7 +1584,7 @@ function schedLineupHtml(side) {
       <span class="sched-lineup-order">${p.order}</span>
       <span class="sched-lineup-pos">${p.position}</span>
       <span class="sched-lineup-pname">${playerNames[p.pid] || p.name}</span>
-      ${injuryBadge(p.pid, true)}
+      ${injuryBadge(p.pid, true)}${crossTabBadge(p.pid)}
       <span class="sched-lineup-hr hrg-val ${cls}">${hrs} HR · ${abPerHR != null ? abPerHR.toFixed(1) + ' AB/HR' : '—'}</span>
     </div>`;
   }).join('');
@@ -1794,7 +1816,7 @@ function renderDue() {
     const lastTxt  = `${fmtDateLong(r.lastHR)}<span class="ago">${r.lastAgo}d ago</span>`;
     return `<tr class="due-row-clickable" onclick="openDueModal('${r.pid}')">
       <td class="lb-rank ${rankClass(i)}">${i+1}</td>
-      <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}</div><div class="lb-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div></div></td>
+      <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}${crossTabBadge(r.pid, true)}</div><div class="lb-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div></div></td>
       <td class="due-z ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</td>
       <td class="lb-num stat-col">${contactPillHtml(r)}</td>
       <td class="lb-num hr-col">${r.hrs}</td>
@@ -1814,7 +1836,7 @@ function renderDue() {
       <div class="lbc-top">
         <span class="lbc-rank ${rankClass(i)}">${i+1}</span>
         <img class="lbc-photo" src="${photoUrl}" alt="">
-        <div class="lbc-info"><div class="lbc-name">${r.name}</div><div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
+        <div class="lbc-info"><div class="lbc-name">${r.name}${crossTabBadge(r.pid, true)}</div><div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
         <div class="lbc-headline"><span class="lbc-headline-num ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</span><span class="lbc-headline-lbl">Due Score</span></div>
       </div>
       <div class="lbc-stats">
@@ -2231,7 +2253,7 @@ function renderPicks() {
       <td><div class="lb-player">
         <img class="lb-photo" src="${photo}" alt="">
         <div>
-          <div class="lb-name">${playerNames[r.pid] || r.pid}</div>
+          <div class="lb-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, false, true)}</div>
           <div class="lb-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}</div>
         </div>
@@ -2250,7 +2272,7 @@ function renderPicks() {
         <span class="lbc-rank ${rankClass(i)}">${i+1}</span>
         <img class="lbc-photo" src="${photo}" alt="">
         <div class="lbc-info">
-          <div class="lbc-name">${playerNames[r.pid] || r.pid}</div>
+          <div class="lbc-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, false, true)}</div>
           <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}</div>
         </div>
@@ -2307,7 +2329,7 @@ function prospectCard(r, isBomb) {
   return `<div class="prospect-card">
     <div class="prospect-top">
       <img class="prospect-photo" src="${photoUrl}" alt="">
-      <div class="prospect-info"><div class="prospect-name">${r.name}</div><div class="prospect-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
+      <div class="prospect-info"><div class="prospect-name">${r.name}${crossTabBadge(r.pid)}</div><div class="prospect-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
       ${headline}
     </div>
     <div class="prospect-meta">${subline}</div>
