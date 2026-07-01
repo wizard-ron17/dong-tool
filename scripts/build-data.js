@@ -251,6 +251,42 @@ function computeDueRows() {
 // it's the only public source for exit velo/launch angle/barrels; MLB Stats
 // API doesn't have these at all) gives us real batted-ball data we can split
 // into "season" vs "since his last HR" ourselves.
+// Baseball Savant sits behind Cloudflare and sometimes returns an HTML error
+// page (with status 200) to requests that look like bots — which GitHub
+// Actions very much does. Two mitigations:
+//   1. Browser-like headers (User-Agent, Accept, Referer) so Cloudflare lets
+//      the request through rather than serving a JS-challenge page.
+//   2. Retry up to 3 times with brief backoff; a transient block or rate-limit
+//      usually clears within a few seconds.
+// If all retries fail the caller gets an empty array and the feature degrades
+// gracefully (contact factor stays null) rather than crashing the build.
+async function savantFetch(url, retries = 3) {
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Referer': 'https://baseballsavant.mlb.com/',
+  };
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, { headers });
+      const text = await res.text();
+      // Cloudflare challenge / error pages start with '<!DOCTYPE' or '<html'
+      if (text.trimStart().startsWith('<')) {
+        console.warn(`  Savant returned HTML (attempt ${attempt}/${retries}) — retrying...`);
+        if (attempt < retries) await new Promise(r => setTimeout(r, 2000 * attempt));
+        continue;
+      }
+      return text;
+    } catch (e) {
+      console.warn(`  Savant fetch error (attempt ${attempt}/${retries}): ${e.message}`);
+      if (attempt < retries) await new Promise(r => setTimeout(r, 2000 * attempt));
+    }
+  }
+  console.warn('  Savant fetch failed after all retries — contact data will be empty for this batch.');
+  return '';
+}
+
 function parseCsv(text) {
   const lines = text.replace(/^﻿/, '').split('\n').filter(Boolean);
   const parseLine = line => {
@@ -277,10 +313,8 @@ async function fetchBattedBalls(pids) {
   const url = `https://baseballsavant.mlb.com/statcast_search/csv?all=true&hfGT=R%7C&hfSea=${SEASON_YEAR}%7C` +
     `&player_type=batter&game_date_gt=${SEASON_START}&game_date_lt=${todayET()}&group_by=name&min_pitches=0` +
     `&min_results=0&type=details&hfBBT=ground_ball%7Cline_drive%7Cfly_ball%7Cpopup%7C${lookup}`;
-  try {
-    const text = await fetch(url).then(r => r.text());
-    return parseCsv(text);
-  } catch (e) { return []; }
+  const text = await savantFetch(url);
+  return text ? parseCsv(text) : [];
 }
 
 // Sweet Spot% = launch angle 8-32°, Statcast's standard window for the
@@ -854,14 +888,12 @@ async function fetchPitchMix(pids) {
     const url = `https://baseballsavant.mlb.com/statcast_search/csv?all=true&hfGT=R%7C&hfSea=${SEASON_YEAR}%7C` +
       `&player_type=pitcher&game_date_gt=${SEASON_START}&game_date_lt=${todayET()}&group_by=name&min_pitches=0` +
       `&min_results=0&type=details${lookup}`;
-    try {
-      const text = await fetch(url).then(r => r.text());
-      for (const row of parseCsv(text)) {
-        const pid = row.pitcher, name = row.pitch_name;
-        if (!pid || !name) continue;
-        (counts[pid] ??= {})[name] = (counts[pid][name] ?? 0) + 1;
-      }
-    } catch (e) {}
+    const text = await savantFetch(url);
+    if (text) for (const row of parseCsv(text)) {
+      const pid = row.pitcher, name = row.pitch_name;
+      if (!pid || !name) continue;
+      (counts[pid] ??= {})[name] = (counts[pid][name] ?? 0) + 1;
+    }
   }));
   const mix = {};
   for (const pid of Object.keys(counts)) {
