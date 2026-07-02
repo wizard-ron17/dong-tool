@@ -2,17 +2,14 @@ name: Build data.json
 
 on:
   schedule:
-    # Runs every 30 minutes, around the clock. This repo is public, so GitHub
-    # Actions minutes are unlimited/free — the cadence is set by usefulness and
-    # by being polite to the upstream data sources (MLB Stats API + Baseball
-    # Savant), NOT by any billing tier. Each build takes ~1.5 min.
-    #
-    # Why :13/:43 instead of :00/:30: GitHub delays scheduled runs under load,
-    # and round minutes are the most contended, so off-round times land more
-    # reliably. Every run recomputes the full season fresh, so a delayed or
-    # dropped run just self-corrects on the next one — including catching late
-    # west-coast finishes and same-day starters as lineups post through the day.
-    - cron: '13,43 * * * *'
+    # Target: every 30 minutes around the clock.
+    # GitHub's scheduler doesn't reliably fire comma-list entries (13,43 * * * *)
+    # at both times — in practice only one fires per hour. Using separate cron
+    # entries is more reliable: each is an independent trigger that GitHub tracks
+    # individually, so a missed :13 doesn't prevent the :43 from running.
+    # Off-round minutes (:13/:43) are less contended than :00/:30 on GH runners.
+    - cron: '13 * * * *'
+    - cron: '43 * * * *'
   workflow_dispatch: {}      # lets us trigger it manually from the Actions tab
 
 permissions:
