@@ -528,13 +528,23 @@
   .ph-bucket-rate { font-family: var(--font-d); font-size: 1.2rem; font-weight: 700; display: block; line-height: 1.2; }
   .ph-bucket-n { font-size: 0.57rem; color: var(--dim); display: block; }
   .ph-days { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-  .ph-day-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.68rem; }
+  .ph-day-row { display: flex; align-items: center; gap: 0.55rem; padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.68rem; }
   .ph-day-row:last-child { border-bottom: none; }
-  .ph-day-date { color: var(--muted); flex-shrink: 0; font-size: 0.62rem; width: 6rem; }
-  .ph-day-fraction { color: var(--text); font-weight: 700; flex-shrink: 0; width: 2.5rem; }
-  .ph-day-pct { font-family: var(--font-d); font-size: 0.9rem; font-weight: 700; flex-shrink: 0; width: 2.8rem; }
-  .ph-day-hits { flex: 1; display: flex; flex-wrap: wrap; gap: 0.25rem; }
-  .ph-hit-name { font-size: 0.6rem; font-weight: 700; background: rgba(51,208,124,0.1); color: var(--good); border: 1px solid rgba(51,208,124,0.25); border-radius: 4px; padding: 0.06rem 0.35rem; }
+  .ph-day-date { color: var(--muted); flex-shrink: 0; font-size: 0.62rem; width: 5.6rem; }
+  .ph-day-fraction { color: var(--text); font-weight: 700; flex-shrink: 0; width: 2.4rem; }
+  .ph-day-pct { font-family: var(--font-d); font-size: 0.9rem; font-weight: 700; flex-shrink: 0; width: 2.6rem; }
+  .ph-day-hrg { font-family: var(--font-d); font-size: 0.9rem; font-weight: 700; flex-shrink: 0; width: 4.6rem; color: var(--muted); }
+  .ph-day-hrg.heat-hot  { color: var(--good); }
+  .ph-day-hrg.heat-warm { color: var(--good-2); }
+  .ph-day-hrg.heat-cool { color: #4fb6d6; }
+  .ph-day-hrg-unit { font-family: var(--font-m); font-size: 0.5rem; color: var(--muted); font-weight: 400; }
+  .ph-day-hits { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 0.25rem; }
+  .ph-hit-name { font-size: 0.6rem; font-weight: 500; background: rgba(51,208,124,0.1); color: var(--good); border: 1px solid rgba(51,208,124,0.25); border-radius: 4px; padding: 0.06rem 0.35rem; display: inline-flex; align-items: center; gap: 0.22rem; }
+  .ph-hit-rank { font-weight: 700; color: var(--muted); font-size: 0.54rem; }
+  @media (max-width: 600px) {
+    .ph-day-row { flex-wrap: wrap; }
+    .ph-day-hits { flex-basis: 100%; margin-top: 0.15rem; }
+  }
 
   footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 0.56rem; color: var(--dim); flex-wrap: wrap; gap: 0.4rem; }
   .panel { display: none; }
@@ -2324,17 +2334,38 @@ function renderPicksResults() {
     </div>`;
   }).join('');
 
-  // Day-by-day log, newest first
+  // League-average HR/game (same basis the Recap tab uses) so each day's
+  // HR/G can carry the same heat gradient — a loud day vs a quiet one.
+  const seasonGames = Object.values(dailyGames).reduce((a,b)=>a+b, 0);
+  const seasonHRs   = Object.values(hrTotals).reduce((a,b)=>a+b, 0);
+  const leagueAvgHRPerGame = seasonGames ? seasonHRs / seasonGames : 0;
+
+  // Day-by-day log, newest first. Picks are stored in score order, so a
+  // hitter's index+1 is exactly the rank we showed him at that day.
   const dayRows = [...picksHistory].reverse().map(entry => {
-    const hits  = entry.picks.filter(p => p.hit);
     const total = entry.picks.length;
-    const pct   = total ? (hits.length / total * 100).toFixed(0) : 0;
-    const cls   = hits.length/total >= 0.25 ? 'great' : hits.length/total >= 0.15 ? 'good' : 'avg';
-    const hitNames = hits.map(p => `<span class="ph-hit-name">${p.name.split(' ').pop()}</span>`).join('');
+    const rankedHits = entry.picks.map((p,i) => ({ ...p, rank: i+1 })).filter(p => p.hit);
+    const pct   = total ? (rankedHits.length / total * 100).toFixed(0) : 0;
+    const cls   = rankedHits.length/total >= 0.25 ? 'great' : rankedHits.length/total >= 0.15 ? 'good' : 'avg';
+    const hitNames = rankedHits.map(p =>
+      `<span class="ph-hit-name"><span class="ph-hit-rank">#${p.rank}</span>${compactPlayerName(p.name)}</span>`
+    ).join('');
+
+    // Day's HR/game from the same daily data the Recap tab reads.
+    const dayHRs   = dailyHRs[entry.date] || {};
+    const dayTotHR = Object.values(dayHRs).reduce((a,b)=>a+b, 0);
+    const dayGames = dailyGames[entry.date] || 0;
+    const dayHRG   = dayGames ? dayTotHR / dayGames : 0;
+    const heat     = (leagueAvgHRPerGame && dayGames) ? recapDayHeat(dayHRG / leagueAvgHRPerGame) : { cls: '' };
+    const hrgBadge = dayGames
+      ? `<span class="ph-day-hrg ${heat.cls}" title="${dayTotHR} HR across ${dayGames} games">${dayHRG.toFixed(2)}<span class="ph-day-hrg-unit"> HR/G</span></span>`
+      : `<span class="ph-day-hrg" style="color:var(--dim)">—</span>`;
+
     return `<div class="ph-day-row">
       <span class="ph-day-date">${entry.date}</span>
-      <span class="ph-day-fraction">${hits.length}/${total}</span>
+      <span class="ph-day-fraction">${rankedHits.length}/${total}</span>
       <span class="ph-day-pct hrg-val ${cls}">${pct}%</span>
+      ${hrgBadge}
       <span class="ph-day-hits">${hitNames || '<span style="color:var(--dim)">—</span>'}</span>
     </div>`;
   }).join('');
