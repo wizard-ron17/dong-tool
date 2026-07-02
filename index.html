@@ -2376,10 +2376,21 @@ function setStatus(type, text) {
 // ── Boot ───────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', loadData);
 
+// Register the service worker for its PWA/offline behavior in production only.
+// On localhost it's pure friction during dev: the shell is cached
+// stale-while-revalidate, so code edits need two refreshes to show up, and a
+// lingering SW can mask what's actually on disk. Skipping it locally means
+// local dev always hits files directly with no cache layer — and we also
+// actively unregister any SW left over from a previous localhost session.
+const isLocalhost = ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname);
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
-  });
+  if (isLocalhost) {
+    navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+  } else {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
 }
 </script>
 </body>
