@@ -1211,9 +1211,13 @@ async function main() {
   const injuryStatus = await fetchInjuryStatus();
 
   // Score yesterday's picks against actual HR results now that dailyHRs is fresh.
-  // Only append an entry if we have picks for a date that isn't already in history
-  // (guards against double-counting when the cron fires multiple times per day).
-  if (prevPicks.length && prevDate && !picksHistory.some(e => e.date === prevDate)) {
+  // Guard 1: don't score if this date is already in history (cron fires multiple
+  //   times per day — only the first run that sees a new date should score it).
+  // Guard 2: don't score today's picks mid-day. dailyHRs only contains Final
+  //   games, so if prevDate === today the pool is empty/partial and all picks
+  //   would show hit:false permanently (the dedup guard blocks later correction).
+  //   Only score once prevDate is strictly in the past.
+  if (prevPicks.length && prevDate && prevDate < todayET() && !picksHistory.some(e => e.date === prevDate)) {
     const dayHRs = dailyHRs[prevDate] ?? {};
     const entry = {
       date: prevDate,
