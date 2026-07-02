@@ -99,19 +99,48 @@
   .social-links a:hover { color: var(--accent); }
   .social-links svg { width: 15px; height: 15px; display: block; }
 
-  /* Desktop: one segmented pill bar. Active segment is a filled green pill. */
-  nav { display: flex; gap: 0.15rem; margin-bottom: 1.3rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 13px; padding: 0.28rem; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-  nav::-webkit-scrollbar { display: none; }
-  .nav-btn { flex: 1; background: transparent; border: none; border-radius: 9px; color: var(--muted); font-family: var(--font-d); font-size: 1.02rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.5rem 0.6rem; cursor: pointer; transition: color 0.15s, background 0.15s; white-space: nowrap; }
+  /* Desktop: segmented pill bar — 4 direct tabs + a Tools dropdown. Icons are
+     mobile-only; on desktop the pills stay text. */
+  nav { position: relative; display: flex; gap: 0.15rem; margin-bottom: 1.3rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 13px; padding: 0.28rem; }
+  .nav-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.35rem; background: transparent; border: none; border-radius: 9px; color: var(--muted); font-family: var(--font-d); font-size: 1.02rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.5rem 0.6rem; cursor: pointer; transition: color 0.15s, background 0.15s; white-space: nowrap; }
   .nav-btn:hover:not(.active):not(:disabled) { color: var(--text); background: var(--surface2); }
   .nav-btn.active { color: #04170f; background: var(--accent); box-shadow: 0 1px 10px rgba(51,208,124,0.28); }
   .nav-btn:disabled { opacity: 0.32; cursor: not-allowed; }
-  /* Mobile: sticky frosted bottom tab bar. */
+  .nav-btn svg { display: none; width: 20px; height: 20px; }
+  .nav-caret { font-size: 0.7rem; transition: transform 0.18s; }
+  nav.tools-open .nav-caret { transform: rotate(180deg); }
+
+  /* Tools menu: dropdown card on desktop, slide-up sheet on mobile. */
+  .nav-tools-backdrop { position: fixed; inset: 0; z-index: 210; background: transparent; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .nav-tools-backdrop.open { opacity: 1; pointer-events: auto; }
+  .nav-tools-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 220; min-width: 250px; background: var(--surface1); border: 1px solid var(--border2); border-radius: 12px; padding: 0.35rem; box-shadow: 0 14px 40px rgba(0,0,0,0.45); opacity: 0; transform: translateY(-6px); pointer-events: none; transition: opacity 0.16s, transform 0.16s; }
+  .nav-tools-menu.open { opacity: 1; transform: none; pointer-events: auto; }
+  .nav-menu-item { display: flex; align-items: center; gap: 0.6rem; width: 100%; background: transparent; border: none; border-radius: 8px; padding: 0.55rem 0.65rem; cursor: pointer; text-align: left; transition: background 0.15s; }
+  .nav-menu-item:hover:not(:disabled) { background: var(--surface2); }
+  .nav-menu-item:disabled { opacity: 0.32; cursor: not-allowed; }
+  .nav-menu-item svg { width: 19px; height: 19px; flex-shrink: 0; color: var(--muted); }
+  .nav-menu-item .nm-name { font-family: var(--font-d); font-size: 0.95rem; font-weight: 700; color: var(--text); display: block; line-height: 1.1; }
+  .nav-menu-item .nm-desc { font-size: 0.57rem; color: var(--muted); display: block; margin-top: 0.1rem; }
+  .nav-menu-item.active svg, .nav-menu-item.active .nm-name { color: var(--accent); }
+
+  /* Mobile: app-style bottom tab bar — icon over label, roomy touch targets. */
   @media (max-width: 600px) {
-    nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 200; margin: 0; border: none; border-top: 1px solid var(--border2); border-radius: 0; background: rgba(10,17,32,0.9); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); padding: 0.32rem 0.3rem calc(0.32rem + env(safe-area-inset-bottom)); gap: 0.08rem; }
-    .nav-btn { font-size: 0.74rem; letter-spacing: 0.005em; padding: 0.5rem 0.1rem; text-align: center; border-radius: 8px; }
-    .nav-btn.active { box-shadow: none; }
-    body { padding-bottom: calc(3.6rem + env(safe-area-inset-bottom)); }
+    nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 200; margin: 0; border: none; border-top: 1px solid var(--border2); border-radius: 0; background: rgba(10,17,32,0.92); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); padding: 0.3rem 0.4rem calc(0.35rem + env(safe-area-inset-bottom)); gap: 0; }
+    :root[data-theme="light"] nav { background: rgba(255,255,255,0.92); }
+    .nav-btn { flex-direction: column; gap: 0.18rem; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.02em; padding: 0.42rem 0.1rem 0.3rem; border-radius: 10px; }
+    .nav-btn svg { display: block; }
+    /* App-style active state: tinted icon+label, no filled pill. */
+    .nav-btn.active { color: var(--accent); background: transparent; box-shadow: none; }
+    .nav-caret { display: none; }
+    body { padding-bottom: calc(4.6rem + env(safe-area-inset-bottom)); }
+    /* Tools becomes a bottom sheet sliding up over the bar. */
+    .nav-tools-backdrop { background: rgba(0,0,0,0.45); }
+    .nav-tools-menu { position: fixed; top: auto; left: 0; right: 0; bottom: 0; min-width: 0; border-radius: 18px 18px 0 0; border-bottom: none; padding: 0.6rem 0.7rem calc(0.8rem + env(safe-area-inset-bottom)); opacity: 1; transform: translateY(105%); transition: transform 0.24s ease; }
+    .nav-tools-menu.open { transform: none; }
+    .nav-menu-item { padding: 0.8rem 0.7rem; }
+    .nav-menu-item .nm-name { font-size: 1.05rem; }
+    .nav-menu-item .nm-desc { font-size: 0.62rem; }
+    .nav-menu-item svg { width: 22px; height: 22px; }
   }
 
   .sub-tabs { display: flex; gap: 0.3rem; margin-bottom: 1rem; background: var(--surface0); padding: 0.25rem; border-radius: 8px; border: 1px solid var(--border); }
@@ -681,15 +710,49 @@
     </div>
   </header>
 
-  <nav>
-    <button class="nav-btn active" data-nav="home"    onclick="switchNav('home')">Home</button>
-    <button class="nav-btn" data-nav="pairs"   onclick="switchNav('pairs')"   disabled>Pairs</button>
-    <button class="nav-btn" data-nav="stats"   onclick="switchNav('stats')"   disabled>Stats</button>
-    <button class="nav-btn" data-nav="recap" onclick="switchNav('recap')" disabled>Recap</button>
-    <button class="nav-btn" data-nav="schedule" onclick="switchNav('schedule')" disabled>Schedule</button>
-    <button class="nav-btn" data-nav="due"     onclick="switchNav('due')"     disabled>Due</button>
-    <button class="nav-btn" data-nav="picks"   onclick="switchNav('picks')"   disabled>Picks</button>
-    <button class="nav-btn" data-nav="prospects" onclick="switchNav('prospects')" disabled>Prospects</button>
+  <nav id="main-nav">
+    <button class="nav-btn active" data-nav="home" onclick="switchNav('home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.2 12 4l9 7.2M5.5 9.4V20h13V9.4"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="nav-btn" data-nav="stats" onclick="switchNav('stats')" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20v-7M12 20V5.5M19 20v-10"/></svg>
+      <span>Stats</span>
+    </button>
+    <button class="nav-btn" data-nav="recap" onclick="switchNav('recap')" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 1.9"/></svg>
+      <span>Recap</span>
+    </button>
+    <button class="nav-btn" data-nav="schedule" onclick="switchNav('schedule')" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M8 3.5v4M16 3.5v4M4 10.5h16"/></svg>
+      <span>Schedule</span>
+    </button>
+    <button class="nav-btn" id="nav-tools-btn" onclick="toggleNavTools(event)" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>
+      <span>Tools</span><span class="nav-caret">▾</span>
+    </button>
+    <!-- Backdrop lives INSIDE nav so its z-index shares the nav's stacking
+         context on mobile (fixed nav + z-index scopes children) — outside it
+         would paint over the sheet no matter the values. -->
+    <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
+    <div class="nav-tools-menu" id="nav-tools-menu">
+      <button class="nav-menu-item" data-nav="picks" onclick="switchNav('picks')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.75" fill="currentColor"/></svg>
+        <span><span class="nm-name">Picks</span><span class="nm-desc">Today's best HR matchups</span></span>
+      </button>
+      <button class="nav-menu-item" data-nav="due" onclick="switchNav('due')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h11M6.5 20.5h11M8 3.5v2.6L12 12 8 17.9v2.6M16 3.5v2.6L12 12l4 5.9v2.6"/></svg>
+        <span><span class="nm-name">Due</span><span class="nm-desc">Power hitters overdue to go deep</span></span>
+      </button>
+      <button class="nav-menu-item" data-nav="pairs" onclick="switchNav('pairs')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="12" r="4.75"/><circle cx="15" cy="12" r="4.75"/></svg>
+        <span><span class="nm-name">Pairs</span><span class="nm-desc">Guys who homer on the same day</span></span>
+      </button>
+      <button class="nav-menu-item" data-nav="prospects" onclick="switchNav('prospects')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3.8l2.3 5 5.4.5-4.1 3.7 1.2 5.4L12 15.6l-4.8 2.8 1.2-5.4-4.1-3.7 5.4-.5z"/></svg>
+        <span><span class="nm-name">Prospects</span><span class="nm-desc">Call-ups and debut bombs</span></span>
+      </button>
+    </div>
   </nav>
 
   <!-- PAIRS -->
@@ -1209,9 +1272,20 @@ function migrateLegacyHash() {
   else if (nav === 'prospects' && sub === 'debutbombs')  path += '/debut-bombs';
   history.replaceState(null, '', path);
 }
+// The four pages that live in the Tools menu rather than the main bar; the
+// Tools pill lights up when any of them is active.
+const TOOLS_NAVS = ['picks', 'due', 'pairs', 'prospects'];
+let navToolsOpen = false;
+function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
+function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
+function toggleNavTools(e) { e.stopPropagation(); navToolsOpen ? closeNavTools() : openNavTools(); }
+
 function switchNav(nav) {
   activeNav = nav;
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.nav === nav));
+  closeNavTools();
+  document.querySelectorAll('.nav-btn[data-nav]').forEach(b => b.classList.toggle('active', b.dataset.nav === nav));
+  document.getElementById('nav-tools-btn').classList.toggle('active', TOOLS_NAVS.includes(nav));
+  document.querySelectorAll('.nav-menu-item').forEach(b => b.classList.toggle('active', b.dataset.nav === nav));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('visible'));
   document.getElementById('panel-' + nav).classList.add('visible');
   renderCurrentPanel();
@@ -1241,7 +1315,7 @@ function renderStatsView() {
   if (activeStatsView === 'league') renderTotals(); else renderLeaders();
 }
 function disableNav(disabled) {
-  document.querySelectorAll('.nav-btn, .sub-btn').forEach(b => b.disabled = disabled);
+  document.querySelectorAll('.nav-btn, .sub-btn, .nav-menu-item').forEach(b => b.disabled = disabled);
 }
 
 // ── HOME ───────────────────────────────────────────────────────────────
