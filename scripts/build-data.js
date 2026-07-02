@@ -192,51 +192,107 @@ function sampleStd(arr) {
   const m = avg(arr); return Math.sqrt(arr.reduce((s,x) => s+(x-m)**2, 0) / (arr.length - 1));
 }
 
+// Core due-row math shared by the live list and the as-of reconstruction below.
+// The caller supplies the date-scoped inputs (season totals, last HR/game, HR
+// dates, inactivity); this applies the gates and the z/dueScore formula.
+function dueRowFor(pid, { hrs, abs, lastHR, lastGame, hrDates, inactiveDays, lastAgo }) {
+  if (hrs < DUE_MIN_HRS || abs < DUE_MIN_ABS) return null;
+  const seasonAbPerHR = abs / hrs;
+  if (seasonAbPerHR > DUE_MAX_AB_PER_HR) return null;
+  if (!lastHR) return null;
+  if (!lastGame || inactiveDays > DUE_MAX_INACTIVE_DAYS) return null; // likely injured/benched/demoted
+  const droughtABs = abs - cumAbsThrough(pid, lastHR);
+  if (droughtABs < DUE_MIN_DROUGHT_ABS) return null;
+  const intervals = [];
+  for (let i = 1; i < hrDates.length; i++) {
+    const gap = cumAbsThrough(pid, hrDates[i]) - cumAbsThrough(pid, hrDates[i-1]);
+    if (gap > 0) intervals.push(gap);
+  }
+  // Longest gap of the season so far, for display only — kept out of avgGap/stdGap
+  // (and thus z/dueScore) below so it doesn't change how "due" anyone is ranked,
+  // it just adds context once they're already on the list. Includes the season-
+  // opening gap (Opening Day through his first HR), since a slow start is a real
+  // drought too even though it's not a "gap between two HRs."
+  const leadGap = hrDates.length ? cumAbsThrough(pid, hrDates[0]) : 0;
+  const longestPriorGap = Math.max(leadGap, ...intervals, 0);
+  let avgGap, stdGap;
+  if (intervals.length >= 2)       { avgGap = avg(intervals); stdGap = sampleStd(intervals); }
+  else if (intervals.length === 1) { avgGap = (intervals[0] + seasonAbPerHR) / 2; stdGap = avgGap * 0.35; }
+  else                              { avgGap = seasonAbPerHR; stdGap = seasonAbPerHR * 0.35; }
+  if (!stdGap || stdGap < 1) stdGap = Math.max(avgGap * 0.35, 1);
+  const z = (droughtABs - avgGap) / stdGap;
+  if (z < DUE_MIN_Z) return null;
+
+  // Raw z rewards mechanical consistency (low std dev) regardless of whether
+  // the guy is an established power threat — a 3-HR part-timer with freakishly
+  // even gaps can out-z a 25-HR slugger. dueScore weights z by HR volume (proven
+  // bopper, sqrt-scaled so it doesn't run away) and by how many historical gaps
+  // it's actually based on (2 gaps — the minimum possible here — is a guess, not
+  // a pattern).
+  const powerWeight      = Math.sqrt(hrs / DUE_MIN_HRS);
+  const confidenceWeight = Math.min(1, intervals.length / 3);
+  const dueScore = z * powerWeight * confidenceWeight;
+
+  return { pid, name: playerNames[pid] || pid, team: playerTeams[pid] || '', hrs, seasonAbPerHR,
+    avgGap, droughtABs, stdGap, z, dueScore, rawDueScore: dueScore, lastHR, lastAgo, lastGame,
+    intervals, hrDates, longestPriorGap, isLongestEver: droughtABs >= longestPriorGap };
+}
+
 function computeDueRows() {
   const rows = [];
   for (const pid of Object.keys(hrTotals)) {
-    const hrs = hrTotals[pid], abs = playerABs[pid] || 0;
-    if (hrs < DUE_MIN_HRS || abs < DUE_MIN_ABS) continue;
-    const seasonAbPerHR = abs / hrs;
-    if (seasonAbPerHR > DUE_MAX_AB_PER_HR) continue;
-    const lastHR = playerLastHR[pid]; if (!lastHR) continue;
     const lastGame = playerLastGame[pid];
-    if (!lastGame || daysSince(lastGame) > DUE_MAX_INACTIVE_DAYS) continue; // likely injured/benched/demoted
-    const droughtABs = abs - cumAbsThrough(pid, lastHR);
-    if (droughtABs < DUE_MIN_DROUGHT_ABS) continue;
-    const dates = hrDatesFor(pid), intervals = [];
-    for (let i = 1; i < dates.length; i++) {
-      const gap = cumAbsThrough(pid, dates[i]) - cumAbsThrough(pid, dates[i-1]);
-      if (gap > 0) intervals.push(gap);
+    const row = dueRowFor(pid, {
+      hrs: hrTotals[pid],
+      abs: playerABs[pid] || 0,
+      lastHR: playerLastHR[pid],
+      lastGame,
+      hrDates: hrDatesFor(pid),
+      inactiveDays: lastGame ? daysSince(lastGame) : Infinity,
+      lastAgo: playerLastHR[pid] ? daysSince(playerLastHR[pid]) : null,
+    });
+    if (row) rows.push(row);
+  }
+  rows.sort((a,b) => b.dueScore - a.dueScore || b.z - a.z);
+  return rows;
+}
+
+// Reconstruct the due list as it would have appeared ON a past date — built
+// only from games strictly before `asOf`, mirroring how the live list lags a
+// day behind (Final games only). Used to backfill dueHistory for days before
+// tracking existed and to self-heal gaps if the cron misses a day. One known
+// difference from the list users actually saw: scores here are raw (no ±15%
+// contact-quality nudge), since that would need per-date Statcast pulls.
+function computeDueRowsAsOf(asOf) {
+  const hrsBy = {}, hrDatesBy = {}, lastHRBy = {};
+  for (const date of Object.keys(dailyHRs).sort()) {
+    if (date >= asOf) continue;
+    for (const [pid, n] of Object.entries(dailyHRs[date])) {
+      hrsBy[pid] = (hrsBy[pid] || 0) + n;
+      (hrDatesBy[pid] ??= []).push(date);
+      lastHRBy[pid] = date;
     }
-    // Longest gap of the season so far, for display only — kept out of avgGap/stdGap
-    // (and thus z/dueScore) below so it doesn't change how "due" anyone is ranked,
-    // it just adds context once they're already on the list. Includes the season-
-    // opening gap (Opening Day through his first HR), since a slow start is a real
-    // drought too even though it's not a "gap between two HRs."
-    const leadGap = dates.length ? cumAbsThrough(pid, dates[0]) : 0;
-    const longestPriorGap = Math.max(leadGap, ...intervals, 0);
-    let avgGap, stdGap;
-    if (intervals.length >= 2)       { avgGap = avg(intervals); stdGap = sampleStd(intervals); }
-    else if (intervals.length === 1) { avgGap = (intervals[0] + seasonAbPerHR) / 2; stdGap = avgGap * 0.35; }
-    else                              { avgGap = seasonAbPerHR; stdGap = seasonAbPerHR * 0.35; }
-    if (!stdGap || stdGap < 1) stdGap = Math.max(avgGap * 0.35, 1);
-    const z = (droughtABs - avgGap) / stdGap;
-    if (z < DUE_MIN_Z) continue;
-
-    // Raw z rewards mechanical consistency (low std dev) regardless of whether
-    // the guy is an established power threat — a 3-HR part-timer with freakishly
-    // even gaps can out-z a 25-HR slugger. dueScore weights z by HR volume (proven
-    // bopper, sqrt-scaled so it doesn't run away) and by how many historical gaps
-    // it's actually based on (2 gaps — the minimum possible here — is a guess, not
-    // a pattern).
-    const powerWeight      = Math.sqrt(hrs / DUE_MIN_HRS);
-    const confidenceWeight = Math.min(1, intervals.length / 3);
-    const dueScore = z * powerWeight * confidenceWeight;
-
-    rows.push({ pid, name: playerNames[pid] || pid, team: playerTeams[pid] || '', hrs, seasonAbPerHR,
-      avgGap, droughtABs, stdGap, z, dueScore, rawDueScore: dueScore, lastHR, lastAgo: daysSince(lastHR), lastGame,
-      intervals, hrDates: dates, longestPriorGap, isLongestEver: droughtABs >= longestPriorGap });
+  }
+  const rows = [];
+  for (const pid of Object.keys(hrsBy)) {
+    const byDate = playerAbsByDate[pid] ?? {};
+    let abs = 0, lastGame = null;
+    for (const d of Object.keys(byDate)) {
+      if (d >= asOf) continue;
+      abs += byDate[d];
+      if (!lastGame || d > lastGame) lastGame = d;
+    }
+    const dayMs = 86400000;
+    const row = dueRowFor(pid, {
+      hrs: hrsBy[pid],
+      abs,
+      lastHR: lastHRBy[pid],
+      lastGame,
+      hrDates: hrDatesBy[pid],
+      inactiveDays: lastGame ? Math.round((new Date(asOf) - new Date(lastGame)) / dayMs) : Infinity,
+      lastAgo: Math.round((new Date(asOf) - new Date(lastHRBy[pid])) / dayMs),
+    });
+    if (row) rows.push(row);
   }
   rows.sort((a,b) => b.dueScore - a.dueScore || b.z - a.z);
   return rows;
@@ -1309,6 +1365,38 @@ async function main() {
     };
   });
   dueStreaks = newStreaks;
+
+  // Backfill / self-heal: reconstruct any missing dueHistory date in the last
+  // 7 days via computeDueRowsAsOf. Covers the week before tracking existed and
+  // automatically fills holes if the cron ever misses a day. Backfilled scores
+  // are raw (no contact nudge) and daysOn comes from estimateDueSince — both
+  // approximations of what the live tracker records; entries are flagged.
+  const DUE_BACKFILL_DAYS = 7;
+  for (let i = DUE_BACKFILL_DAYS; i >= 1; i--) {
+    const dt = new Date(todayET() + 'T12:00:00Z');
+    dt.setUTCDate(dt.getUTCDate() - i);
+    const D = dt.toISOString().split('T')[0];
+    if (D < SEASON_START || !dailyGames[D]) continue;      // no games that day
+    if (dueHistory.some(e => e.date === D)) continue;      // already scored live
+    const rows = computeDueRowsAsOf(D);
+    if (!rows.length) continue;
+    const dayHRs = dailyHRs[D] ?? {};
+    const grads = [];
+    rows.forEach((row, idx) => {
+      if (!dayHRs[row.pid]) return;
+      grads.push({
+        pid: row.pid, name: row.name, rank: idx + 1,
+        score: Math.round(row.dueScore * 10) / 10,
+        maxScore: Math.round(row.dueScore * 10) / 10,
+        daysOn: daysOnList(estimateDueSince(row), D),
+        droughtABs: row.droughtABs,
+      });
+    });
+    dueHistory.push({ date: D, of: rows.length, grads, backfilled: true });
+    console.log(`Due history: backfilled ${D} — ${grads.length}/${rows.length} graduated`);
+  }
+  dueHistory.sort((a, b) => (a.date < b.date ? -1 : 1));
+  dueHistory = dueHistory.slice(-90);
 
   const allDates = Object.keys(dailyHRs).sort();
   const totalHRCount = Object.values(hrTotals).reduce((a,b) => a+b, 0);
