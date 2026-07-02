@@ -701,7 +701,7 @@
         </ul>
       </div>
     </div>
-    <div class="due-filters-card">
+    <div class="due-filters-card" id="picks-filters-card">
       <button class="due-filters-toggle" id="picks-filters-toggle" onclick="togglePicksFiltersPanel()" aria-expanded="false">
         <span class="due-explainer-title">Filters<span class="due-filters-badge" id="picks-filters-badge" style="display:none"></span></span>
         <span class="due-explainer-chevron" id="picks-filters-chevron">▾</span>
@@ -2297,6 +2297,8 @@ function switchPicksSub(sub) {
   picksSubTab = sub;
   document.getElementById('picks-today-wrap').style.display  = sub === 'today'   ? '' : 'none';
   document.getElementById('picks-results-wrap').style.display = sub === 'results' ? '' : 'none';
+  // Filters only apply to today's picks — hide the whole card on Results.
+  document.getElementById('picks-filters-card').style.display = sub === 'today' ? '' : 'none';
   document.getElementById('picks-sub-today').classList.toggle('active',   sub === 'today');
   document.getElementById('picks-sub-results').classList.toggle('active', sub === 'results');
   if (sub === 'results') renderPicksResults();
