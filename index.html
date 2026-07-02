@@ -125,7 +125,9 @@
 
   /* Mobile: app-style bottom tab bar — icon over label, roomy touch targets. */
   @media (max-width: 600px) {
-    nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 200; margin: 0; border: none; border-top: 1px solid var(--border2); border-radius: 0; background: rgba(10,17,32,0.92); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); padding: 0.3rem 0.4rem calc(0.35rem + env(safe-area-inset-bottom)); gap: 0; }
+    /* z-index 230 keeps the whole bar (and the sheet inside it) above the
+       page-dimming backdrop at 210. */
+    nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 230; margin: 0; border: none; border-top: 1px solid var(--border2); border-radius: 0; background: rgba(10,17,32,0.92); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); padding: 0.3rem 0.4rem calc(0.35rem + env(safe-area-inset-bottom)); gap: 0; }
     :root[data-theme="light"] nav { background: rgba(255,255,255,0.92); }
     .nav-btn { flex-direction: column; gap: 0.18rem; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.02em; padding: 0.42rem 0.1rem 0.3rem; border-radius: 10px; }
     .nav-btn svg { display: block; }
@@ -137,8 +139,11 @@
        stays visible and tappable below it, so sheet and backdrop both stop
        at its top edge. 3.61rem = measured bar height (padding+icon+label). */
     .nav-tools-backdrop { background: rgba(0,0,0,0.45); bottom: calc(3.61rem + env(safe-area-inset-bottom)); }
-    .nav-tools-menu { position: fixed; top: auto; left: 0; right: 0; bottom: calc(3.61rem + env(safe-area-inset-bottom)); min-width: 0; border-radius: 18px 18px 0 0; border-bottom: none; padding: 0.6rem 0.7rem 0.7rem; opacity: 1; transform: translateY(115%); transition: transform 0.24s ease; }
-    .nav-tools-menu.open { transform: none; }
+    /* visibility flips AFTER the slide-out finishes (0s delay trick) so the
+       closed sheet can never peek out below the bar — translateY(115%) alone
+       left a strip visible on devices with a large safe-area inset. */
+    .nav-tools-menu { position: fixed; top: auto; left: 0; right: 0; bottom: calc(3.61rem + env(safe-area-inset-bottom)); min-width: 0; border-radius: 18px 18px 0 0; border-bottom: none; padding: 0.6rem 0.7rem 0.7rem; opacity: 1; transform: translateY(115%); visibility: hidden; transition: transform 0.24s ease, visibility 0s linear 0.24s; }
+    .nav-tools-menu.open { transform: none; visibility: visible; transition: transform 0.24s ease; }
     .nav-menu-item { padding: 0.8rem 0.7rem; }
     .nav-menu-item .nm-name { font-size: 1.05rem; }
     .nav-menu-item .nm-desc { font-size: 0.62rem; }
@@ -733,10 +738,6 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>
       <span>Tools</span><span class="nav-caret">▾</span>
     </button>
-    <!-- Backdrop lives INSIDE nav so its z-index shares the nav's stacking
-         context on mobile (fixed nav + z-index scopes children) — outside it
-         would paint over the sheet no matter the values. -->
-    <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
     <div class="nav-tools-menu" id="nav-tools-menu">
       <button class="nav-menu-item" data-nav="picks" onclick="switchNav('picks')" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.75" fill="currentColor"/></svg>
@@ -756,6 +757,11 @@
       </button>
     </div>
   </nav>
+  <!-- Backdrop sits OUTSIDE nav: the nav's backdrop-filter makes it the
+       containing block for its fixed children, so a backdrop inside could
+       only ever cover the bar's own box, never the page. The mobile nav gets
+       a z-index above this layer so the bar and sheet stay clear of the dim. -->
+  <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
 
   <!-- PAIRS -->
   <!-- HOME -->
