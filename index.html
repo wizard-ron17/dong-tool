@@ -514,6 +514,28 @@
   .milb-line { font-size: 0.62rem; color: var(--muted); }
   .milb-line .lvl { color: var(--silver); font-weight: 700; }
 
+  /* Picks Results tab */
+  .ph-summary { display: grid; grid-template-columns: repeat(4,1fr); gap: 0.5rem; margin-bottom: 1rem; }
+  @media(max-width:500px){ .ph-summary { grid-template-columns: repeat(2,1fr); } }
+  .ph-stat { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem 0.5rem; text-align: center; }
+  .ph-stat-val { font-family: var(--font-d); font-size: 1.5rem; font-weight: 700; color: var(--text); display: block; line-height: 1; }
+  .ph-stat-lbl { font-size: 0.57rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; margin-top: 0.25rem; display: block; }
+  .ph-buckets-head { font-size: 0.57rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; margin-bottom: 0.4rem; }
+  .ph-buckets { display: grid; grid-template-columns: repeat(4,1fr); gap: 0.4rem; margin-bottom: 0.2rem; }
+  @media(max-width:500px){ .ph-buckets { grid-template-columns: repeat(2,1fr); } }
+  .ph-bucket { background: var(--surface0); border: 1px solid var(--border); border-radius: 7px; padding: 0.55rem 0.5rem; text-align: center; }
+  .ph-bucket-range { font-size: 0.57rem; color: var(--muted); display: block; letter-spacing: 0.04em; }
+  .ph-bucket-rate { font-family: var(--font-d); font-size: 1.2rem; font-weight: 700; display: block; line-height: 1.2; }
+  .ph-bucket-n { font-size: 0.57rem; color: var(--dim); display: block; }
+  .ph-days { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .ph-day-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.68rem; }
+  .ph-day-row:last-child { border-bottom: none; }
+  .ph-day-date { color: var(--muted); flex-shrink: 0; font-size: 0.62rem; width: 6rem; }
+  .ph-day-fraction { color: var(--text); font-weight: 700; flex-shrink: 0; width: 2.5rem; }
+  .ph-day-pct { font-family: var(--font-d); font-size: 0.9rem; font-weight: 700; flex-shrink: 0; width: 2.8rem; }
+  .ph-day-hits { flex: 1; display: flex; flex-wrap: wrap; gap: 0.25rem; }
+  .ph-hit-name { font-size: 0.6rem; font-weight: 700; background: rgba(51,208,124,0.1); color: var(--good); border: 1px solid rgba(51,208,124,0.25); border-radius: 4px; padding: 0.06rem 0.35rem; }
+
   footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 0.56rem; color: var(--dim); flex-wrap: wrap; gap: 0.4rem; }
   .panel { display: none; }
   .panel.visible { display: block; }
@@ -676,8 +698,15 @@
       </button>
       <div class="due-filter-row" id="picks-filter-row" style="display:none"></div>
     </div>
-    <div class="result-meta" id="picks-meta"></div>
-    <div id="picks-content"><div class="empty">Loading data…</div></div>
+    <div class="sub-tabs" id="picks-sub-tabs">
+      <button class="sub-btn active" id="picks-sub-today" onclick="switchPicksSub('today')">Today's Picks</button>
+      <button class="sub-btn" id="picks-sub-results" onclick="switchPicksSub('results')">Results</button>
+    </div>
+    <div id="picks-today-wrap">
+      <div class="result-meta" id="picks-meta"></div>
+      <div id="picks-content"><div class="empty">Loading data…</div></div>
+    </div>
+    <div id="picks-results-wrap" style="display:none"></div>
   </div>
 
   <!-- PROSPECTS -->
@@ -722,8 +751,10 @@ let teamIds = {}; // team abbr -> MLB team id, for team-logos/{id}.svg
 let pitcherStats = {}; // pid -> { hr, hr9, ip, era } for today's probable pitchers
 let bullpens = {}; // team abbr -> [{ pid, name, hand, era, saves, holds, gamesPitched, lastOuting, pitchMix }]
 let picks    = []; // today's HR pick candidates, pre-scored server-side
+let picksHistory = [];
 let picksFilters     = { minHR: 5, minScore: 9 };
 let picksFiltersPanelOpen = false;
+let picksSubTab = 'today';
 
 let activeNav      = 'pairs';
 let activePairSize = 2;
@@ -915,7 +946,8 @@ function applyData(data) {
   teamIds = data.teamIds ?? {};
   pitcherStats = data.pitcherStats ?? {};
   bullpens = data.bullpens ?? {};
-  picks    = data.picks    ?? [];
+  picks        = data.picks        ?? [];
+  picksHistory = data.picksHistory ?? [];
   todayTeamsPlaying = new Set();
   todayLineupsPostedTeams = new Set();
   todayStarterPids = new Set();
@@ -2249,6 +2281,75 @@ function openPickModal(pid) {
   if (!r) return;
   document.body.insertAdjacentHTML('beforeend', pickModalHtml(r));
   document.addEventListener('keydown', pickModalEscHandler);
+}
+
+function switchPicksSub(sub) {
+  picksSubTab = sub;
+  document.getElementById('picks-today-wrap').style.display  = sub === 'today'   ? '' : 'none';
+  document.getElementById('picks-results-wrap').style.display = sub === 'results' ? '' : 'none';
+  document.getElementById('picks-sub-today').classList.toggle('active',   sub === 'today');
+  document.getElementById('picks-sub-results').classList.toggle('active', sub === 'results');
+  if (sub === 'results') renderPicksResults();
+}
+
+function renderPicksResults() {
+  const el = document.getElementById('picks-results-wrap');
+  if (!picksHistory.length) {
+    el.innerHTML = `<div class="empty">No results yet — check back tomorrow after today's picks are scored.</div>`;
+    return;
+  }
+
+  // Overall stats across all history
+  const allPicks = picksHistory.flatMap(e => e.picks);
+  const totalPicks = allPicks.length;
+  const totalHits  = allPicks.filter(p => p.hit).length;
+  const hitRate    = totalPicks ? (totalHits / totalPicks * 100).toFixed(1) : '0.0';
+
+  // Score-bucket hit rates (bins: 15+, 12-15, 9-12, <9)
+  const bins = [
+    { label: '15+',   min: 15, max: 99 },
+    { label: '12–15', min: 12, max: 15 },
+    { label: '9–12',  min: 9,  max: 12 },
+    { label: '<9',    min: 0,  max: 9  },
+  ];
+  const bucketHtml = bins.map(b => {
+    const pool = allPicks.filter(p => p.score >= b.min && p.score < b.max);
+    const hits = pool.filter(p => p.hit).length;
+    const pct  = pool.length ? (hits / pool.length * 100).toFixed(0) : '—';
+    const cls  = pool.length && hits/pool.length >= 0.25 ? 'great' : pool.length && hits/pool.length >= 0.15 ? 'good' : 'avg';
+    return `<div class="ph-bucket">
+      <span class="ph-bucket-range">${b.label}</span>
+      <span class="ph-bucket-rate hrg-val ${cls}">${pct}${pool.length ? '%' : ''}</span>
+      <span class="ph-bucket-n">${hits}/${pool.length}</span>
+    </div>`;
+  }).join('');
+
+  // Day-by-day log, newest first
+  const dayRows = [...picksHistory].reverse().map(entry => {
+    const hits  = entry.picks.filter(p => p.hit);
+    const total = entry.picks.length;
+    const pct   = total ? (hits.length / total * 100).toFixed(0) : 0;
+    const cls   = hits.length/total >= 0.25 ? 'great' : hits.length/total >= 0.15 ? 'good' : 'avg';
+    const hitNames = hits.map(p => `<span class="ph-hit-name">${p.name.split(' ').pop()}</span>`).join('');
+    return `<div class="ph-day-row">
+      <span class="ph-day-date">${entry.date}</span>
+      <span class="ph-day-fraction">${hits.length}/${total}</span>
+      <span class="ph-day-pct hrg-val ${cls}">${pct}%</span>
+      <span class="ph-day-hits">${hitNames || '<span style="color:var(--dim)">—</span>'}</span>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="ph-summary">
+      <div class="ph-stat"><span class="ph-stat-val hrg-val ${parseFloat(hitRate)>=20?'great':parseFloat(hitRate)>=12?'good':'avg'}">${hitRate}%</span><span class="ph-stat-lbl">Hit Rate</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${totalHits}</span><span class="ph-stat-lbl">Total HRs Hit</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${totalPicks}</span><span class="ph-stat-lbl">Total Picks</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${picksHistory.length}</span><span class="ph-stat-lbl">Days Tracked</span></div>
+    </div>
+    <div class="ph-buckets-head">Hit Rate by Score Tier</div>
+    <div class="ph-buckets">${bucketHtml}</div>
+    <div class="ph-buckets-head" style="margin-top:1rem">Day-by-Day</div>
+    <div class="ph-days">${dayRows}</div>`;
 }
 
 function renderPicks() {

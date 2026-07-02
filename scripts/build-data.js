@@ -1167,6 +1167,21 @@ async function fetchInjuryStatus() {
 
 async function main() {
   console.log(`Building data.json — season start ${SEASON_START}`);
+
+  // Read the existing data.json BEFORE we overwrite it, so we can carry forward
+  // yesterday's picks and score them against actual HR results. This runs before
+  // fetchAll() so we have the old data in hand; we cross-reference after fetchAll
+  // once dailyHRs is fully populated for the previous date.
+  let prevPicks = [], prevDate = null, picksHistory = [];
+  try {
+    const fs = await import('node:fs');
+    const raw = fs.readFileSync(new URL('../data.json', import.meta.url), 'utf8');
+    const old = JSON.parse(raw);
+    prevPicks    = old.picks       ?? [];
+    prevDate     = old.todayDate   ?? null;
+    picksHistory = old.picksHistory ?? [];
+  } catch { /* first run or file missing — start fresh */ }
+
   await fetchAll();
 
   const groups = computeAllGroups(dailyHRs);
@@ -1195,6 +1210,27 @@ async function main() {
   console.log('Checking injured-list status...');
   const injuryStatus = await fetchInjuryStatus();
 
+  // Score yesterday's picks against actual HR results now that dailyHRs is fresh.
+  // Only append an entry if we have picks for a date that isn't already in history
+  // (guards against double-counting when the cron fires multiple times per day).
+  if (prevPicks.length && prevDate && !picksHistory.some(e => e.date === prevDate)) {
+    const dayHRs = dailyHRs[prevDate] ?? {};
+    const entry = {
+      date: prevDate,
+      picks: prevPicks.map(p => ({
+        pid:   p.pid,
+        name:  playerNames[p.pid] ?? p.pid,
+        score: Math.round(p.pickScore * 10) / 10,
+        hr:    hrTotals[p.pid] ?? 0,      // season HR total at time of scoring
+        hit:   !!(dayHRs[p.pid]),          // did they go deep that day?
+        projected: p.projected ?? false,
+      })),
+    };
+    picksHistory = [...picksHistory, entry].slice(-90); // cap at 90 days
+    const hits = entry.picks.filter(p => p.hit).length;
+    console.log(`Picks history: scored ${prevDate} — ${hits}/${entry.picks.length} hit`);
+  }
+
   const allDates = Object.keys(dailyHRs).sort();
   const totalHRCount = Object.values(hrTotals).reduce((a,b) => a+b, 0);
 
@@ -1207,7 +1243,7 @@ async function main() {
     totalHRCount,
     dailyHRs, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus,
-    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks,
+    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks, picksHistory,
   };
 
   const fs = await import('node:fs');
