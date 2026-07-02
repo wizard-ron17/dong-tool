@@ -39,19 +39,46 @@
     --ok:       #f2c94c;
     --warn:     #ff9a4d;
     --bad:      #ef4d64;
+    --text-strong: #ffffff;  /* brightest text (headings) — flips dark in light mode */
+    --glow: rgba(51,208,124,0.07);
     --font-d: 'Barlow Condensed', sans-serif;
     --font-m: 'JetBrains Mono', monospace;
+  }
+  /* Light theme — same tokens, light-appropriate values. Semantic colors are
+     darkened/saturated so they stay readable on white surfaces (bright gold and
+     neon green wash out on light). */
+  :root[data-theme="light"] {
+    --bg:       #eef1f6;
+    --surface0: #ffffff;
+    --surface1: #f6f8fb;
+    --surface2: #e9eef4;
+    --border:   #dde3ec;
+    --border2:  #c5d0de;
+    --text:     #1a2432;
+    --muted:    #59697d;
+    --dim:      #77889c;
+    --accent:   #10a758;
+    --green:    #17a34a;
+    --gold:     #b07d0a;
+    --silver:   #5f7183;
+    --good:     #10a758;
+    --good-2:   #4f9e18;
+    --ok:       #b07d0a;
+    --warn:     #d9741a;
+    --bad:      #d61f3c;
+    --text-strong: #0e1621;
+    --glow: rgba(16,167,88,0.06);
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
   body { background: var(--bg); color: var(--text); font-family: var(--font-m); font-size: 13.5px; min-height: 100vh; padding: clamp(0.75rem, 3vw, 2rem); }
-  /* Soft emerald glow at the top instead of a tech-grid overlay — depth without the vibe-coded cliché. */
-  body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(115% 70% at 50% -12%, rgba(51,208,124,0.07), transparent 58%); pointer-events: none; z-index: 0; }
+  /* Soft accent glow at the top instead of a tech-grid overlay — depth without the vibe-coded cliché. */
+  body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(115% 70% at 50% -12%, var(--glow), transparent 58%); pointer-events: none; z-index: 0; }
   .wrap { position: relative; z-index: 1; max-width: 820px; margin: 0 auto; }
 
   header { margin-bottom: 1rem; }
   .eyebrow { font-size: 0.6rem; letter-spacing: 0.4em; color: var(--muted); margin-bottom: 0.4rem; text-transform: uppercase; display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; }
-  h1 { font-family: var(--font-d); font-size: clamp(1.6rem, 5vw, 2.8rem); font-weight: 900; line-height: 1; color: #fff; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.5rem; }
+  h1 { font-family: var(--font-d); font-size: clamp(1.6rem, 5vw, 2.8rem); font-weight: 900; line-height: 1; color: var(--text-strong); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.5rem; }
   h1 em { color: var(--accent); font-style: normal; }
   .brand-logo { width: 1.5em; height: 1.5em; border-radius: 22%; flex-shrink: 0; }
   .meta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8rem; font-size: 0.68rem; color: var(--muted); }
@@ -106,7 +133,7 @@
   .search-tag button:hover { color: #f05050; }
 
   .result-meta { font-size: 0.6rem; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.8rem; }
-  #recap-meta { font-family: var(--font-d); font-size: clamp(1.1rem, 4vw, 1.5rem); font-weight: 800; color: #fff; letter-spacing: 0.01em; text-transform: none; margin-bottom: 0.9rem; }
+  #recap-meta { font-family: var(--font-d); font-size: clamp(1.1rem, 4vw, 1.5rem); font-weight: 800; color: var(--text-strong); letter-spacing: 0.01em; text-transform: none; margin-bottom: 0.9rem; }
   #recap-meta .recap-meta-tag { color: var(--accent); }
 
   .recap-nav { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.7rem; }
@@ -248,7 +275,7 @@
   .pick-ind.bad   { background: rgba(224,64,90,0.12);  color: var(--bad); }
   .pick-pitcher-card { display: flex; align-items: center; gap: 0.55rem; background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.75rem; margin-bottom: 0.8rem; }
   .pick-pitcher-photo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--surface2); flex-shrink: 0; border: 1px solid var(--border2); }
-  .pick-pitcher-name { font-family: var(--font-d); font-size: 0.92rem; font-weight: 700; color: #fff; }
+  .pick-pitcher-name { font-family: var(--font-d); font-size: 0.92rem; font-weight: 700; color: var(--text-strong); }
   .pick-pitcher-meta { font-size: 0.6rem; color: var(--muted); margin-top: 0.15rem; }
   .pick-pitcher-mix { font-size: 0.62rem; color: var(--dim); margin-top: 0.25rem; }
   .pick-section-title { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0.7rem 0 0.35rem; }
@@ -314,7 +341,7 @@
   .due-modal-close:hover { color: var(--text); }
   .due-modal-head { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1rem; padding-right: 1.5rem; }
   .due-modal-photo { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; background: var(--surface2); flex-shrink: 0; border: 1px solid var(--border2); }
-  .due-modal-name { font-family: var(--font-d); font-size: 1.25rem; font-weight: 800; color: #fff; line-height: 1.1; }
+  .due-modal-name { font-family: var(--font-d); font-size: 1.25rem; font-weight: 800; color: var(--text-strong); line-height: 1.1; }
   .due-modal-team { font-size: 0.65rem; color: var(--muted); }
   .due-modal-headline { margin-left: auto; text-align: right; flex-shrink: 0; }
   .due-modal-headline-num { font-family: var(--font-d); font-size: 1.6rem; font-weight: 700; line-height: 1; display: block; }
@@ -419,7 +446,7 @@
   .sched-game { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.8rem; transition: border-color 0.15s; }
   .sched-game.expanded { border-color: var(--border2); }
   .sched-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; cursor: pointer; }
-  .sched-matchup { display: flex; align-items: center; gap: 0.4rem; font-family: var(--font-d); font-size: 1rem; font-weight: 700; color: #fff; }
+  .sched-matchup { display: flex; align-items: center; gap: 0.4rem; font-family: var(--font-d); font-size: 1rem; font-weight: 700; color: var(--text-strong); }
   .sched-at { color: var(--muted); font-size: 0.7rem; font-weight: 400; }
   .sched-status { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.15rem 0.55rem; border-radius: 10px; background: var(--surface2); color: var(--muted); white-space: nowrap; flex-shrink: 0; }
   .sched-status.live  { background: rgba(255,112,64,0.12); color: #ff7040; }
@@ -553,14 +580,54 @@
     .ph-day-hits { flex-basis: 100%; margin-top: 0.15rem; }
   }
 
+  .theme-toggle { position: absolute; top: 0; right: 0; z-index: 5; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 9px; border: 1px solid var(--border2); background: var(--surface1); color: var(--muted); cursor: pointer; transition: color 0.15s, background 0.15s, border-color 0.15s; }
+  .theme-toggle:hover { color: var(--accent); border-color: var(--accent); background: var(--surface2); }
+  .theme-toggle svg { width: 18px; height: 18px; display: block; }
+
   footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 0.56rem; color: var(--dim); flex-wrap: wrap; gap: 0.4rem; }
   .panel { display: none; }
   .panel.visible { display: block; }
+
+  /* ── Light-mode overrides ──────────────────────────────────────────────
+     A handful of components bake in dark tints / bright-on-dark text that
+     wash out on white. Re-tint them (as faint accent washes with darker text)
+     only under the light theme; dark mode is untouched. */
+  :root[data-theme="light"] .card.top { background: rgba(16,167,88,0.09); border-color: rgba(16,167,88,0.38); }
+  :root[data-theme="light"] .card.top .count-num { color: var(--good); }
+  :root[data-theme="light"] .status-badge.fetching { background: rgba(176,125,10,0.14); border-color: rgba(176,125,10,0.4); }
+  :root[data-theme="light"] .status-badge.ready    { background: rgba(16,167,88,0.12);  border-color: rgba(16,167,88,0.4); }
+  :root[data-theme="light"] .status-badge.error    { background: rgba(214,31,60,0.12);  border-color: rgba(214,31,60,0.4); }
+  :root[data-theme="light"] .fresh-badge.hot  { background: rgba(16,167,88,0.12);  border-color: rgba(16,167,88,0.4); }
+  :root[data-theme="light"] .fresh-badge.warm { background: rgba(176,125,10,0.14); border-color: rgba(176,125,10,0.4); color: var(--gold); }
+  :root[data-theme="light"] .sgp-badge { background: rgba(176,125,10,0.14); border-color: rgba(176,125,10,0.4); }
+  :root[data-theme="light"] .player-chip.matched { background: rgba(16,167,88,0.1); }
+  :root[data-theme="light"] .date-pill.latest { background: rgba(16,167,88,0.12); border-color: rgba(16,167,88,0.4); color: var(--green); }
+  /* Temperature contact tags (Due) — darker text so it reads on white. */
+  :root[data-theme="light"] .due-contact-tag.great { background: rgba(217,116,26,0.15); color: #bf5710; }
+  :root[data-theme="light"] .due-contact-tag.bad   { background: rgba(20,140,210,0.14); color: #1479bc; }
+  :root[data-theme="light"] .due-contact-tag.avg   { background: rgba(120,135,150,0.16); color: #566677; }
+  /* Cool-blue accents (quiet-day heat, LHP bullpen) darkened for contrast. */
+  :root[data-theme="light"] .recap-tile.heat-cool .recap-tile-num,
+  :root[data-theme="light"] .recap-tile.heat-cool .recap-tile-heat-tag,
+  :root[data-theme="light"] .ph-day-hrg.heat-cool { color: #1f8fbf; }
+  :root[data-theme="light"] .sched-bullpen-hand.l { color: #1580c4; }
 </style>
+<script>
+  // Set the theme before first paint to avoid a flash: saved choice wins,
+  // otherwise follow the OS preference, otherwise dark.
+  (function () {
+    try {
+      var t = localStorage.getItem('theme');
+      if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }
+  })();
+</script>
 </head>
 <body>
 <div class="wrap">
 
+  <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light or dark mode" title="Toggle light/dark"></button>
   <header>
     <p class="eyebrow">MLB · 2026 · Stats API <span id="status-badge" class="status-badge fetching">Loading</span></p>
     <h1><img src="/icons/logo.svg" alt="" class="brand-logo">Ron's <em>Dong</em> Tool</h1>
@@ -890,13 +957,15 @@ function crossTabBadge(pid, excludeDue = false, excludePick = false) {
 
 // Official MLB CDN, same family as the headshot images we already hit —
 // keyed by team id (from teamIds, fetched fresh off /teams each build) so
-// nothing here is a hardcoded abbr->logo table. The "cap-on-dark" variant is
-// MLB's own light/high-contrast mark made for dark UIs: navy crests (DET, NYY)
-// come back white and brown ones (SD) come back gold, so every logo stays
-// visible on our dark background with no white chip behind it.
+// nothing here is a hardcoded abbr->logo table. MLB ships two theme-matched
+// marks: "cap-on-dark" (navy/brown crests come back white/gold, for our dark
+// UI) and "cap-on-light" (for light mode). We pick by the active theme so logos
+// stay visible either way — no white chip needed. Content re-renders on toggle.
 function teamLogoUrl(abbr) {
   const id = teamIds[abbr];
-  return id ? `https://www.mlbstatic.com/team-logos/team-cap-on-dark/${id}.svg` : null;
+  if (!id) return null;
+  const variant = document.documentElement.getAttribute('data-theme') === 'light' ? 'team-cap-on-light' : 'team-cap-on-dark';
+  return `https://www.mlbstatic.com/team-logos/${variant}/${id}.svg`;
 }
 function teamLogoImg(abbr, cls) {
   const url = teamLogoUrl(abbr);
@@ -997,6 +1066,25 @@ function showLoadError(msg) {
       <div style="margin-bottom:1rem;font-size:0.8rem;color:var(--silver);">${msg}</div>
       <button onclick="loadData()" style="background:var(--accent);color:#fff;border:none;font-family:var(--font-d);font-size:1.1rem;font-weight:700;padding:0.5rem 1.4rem;border-radius:6px;cursor:pointer;">Retry</button>
     </div>`;
+}
+
+// ── Theme ──────────────────────────────────────────────────────────────
+// The pre-paint script in <head> already set data-theme; here we just wire the
+// toggle, persist the choice, keep the icon in sync, and re-render the visible
+// panel so theme-aware team logos swap to the matching cap-on-light/dark mark.
+const SUN_SVG  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2 12h2.4M19.6 12H22M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/></svg>';
+const MOON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.9A9 9 0 1 1 11.1 3a7 7 0 0 0 9.9 9.9z"/></svg>';
+function currentTheme() { return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'; }
+function updateThemeToggleIcon() {
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.innerHTML = currentTheme() === 'light' ? MOON_SVG : SUN_SVG; // show what you'll switch TO
+}
+function toggleTheme() {
+  const next = currentTheme() === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  try { localStorage.setItem('theme', next); } catch (e) {}
+  updateThemeToggleIcon();
+  if (Object.keys(dailyHRs).length) renderCurrentPanel(); // reswap theme-matched logos
 }
 
 // ── Nav ────────────────────────────────────────────────────────────────
@@ -2584,7 +2672,7 @@ function setStatus(type, text) {
 }
 
 // ── Boot ───────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', loadData);
+document.addEventListener('DOMContentLoaded', () => { updateThemeToggleIcon(); loadData(); });
 
 // Register the service worker for its PWA/offline behavior in production only.
 // On localhost it's pure friction during dev: the shell is cached
