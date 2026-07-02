@@ -382,8 +382,12 @@
   .recap-meter-title { font-family: var(--font-d); font-size: 0.85rem; font-weight: 700; color: #bdd0e8; letter-spacing: 0.03em; }
   .recap-meter-tag { font-size: 0.62rem; font-weight: 700; padding: 0.1rem 0.45rem; border-radius: 10px; letter-spacing: 0.03em; }
   .recap-meter-score { font-size: 0.6rem; color: var(--muted); }
-  .recap-meter-track { position: relative; height: 8px; border-radius: 5px; background: linear-gradient(90deg, var(--accent), var(--border2) 50%, #ff7040); margin: 0.5rem 1.1rem 0.4rem; }
-  .recap-meter-marker { position: absolute; top: -3px; width: 3px; height: 14px; border-radius: 2px; background: #fff; box-shadow: 0 0 0 2px rgba(0,0,0,0.4); transform: translateX(-50%); }
+  .recap-meter-track { position: relative; height: 8px; border-radius: 5px; background: linear-gradient(90deg, var(--accent), var(--border2) 50%, #ff7040); margin: 2.3rem 1.1rem 0.4rem; }
+  .recap-meter-marker { position: absolute; top: -3px; width: 3px; height: 14px; border-radius: 2px; background: #fff; box-shadow: 0 0 0 2px rgba(0,0,0,0.4); transform: translateX(-50%); z-index: 2; }
+  /* Status badge rides the marker so its side matches its meaning (an underdog
+     day sits on the dog/left half), instead of floating in the header corner. */
+  .recap-meter-badge { position: absolute; bottom: calc(100% + 9px); transform: translateX(-50%); white-space: nowrap; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em; padding: 0.14rem 0.55rem; border-radius: 8px; background: var(--mc); color: #06121a; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+  .recap-meter-badge::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: var(--mc); }
   .recap-meter-end { position: absolute; top: 50%; font-size: 0.85rem; line-height: 1; }
   .recap-meter-end.left  { left: 0; transform: translate(-130%, -50%); }
   .recap-meter-end.right { right: 0; transform: translate(130%, -50%); }
@@ -1634,10 +1638,10 @@ function renderRecap() {
     <div class="recap-meter-card">
       <div class="recap-meter-head">
         <span class="recap-meter-title">Chalk Meter</span>
-        <span class="recap-meter-tag" style="background:${chalk.cls==='chalk'?'rgba(255,112,64,0.12)':chalk.cls==='dog'?'rgba(53,201,110,0.12)':'var(--surface2)'};color:${chalk.cls==='chalk'?'#ff7040':chalk.cls==='dog'?'var(--accent)':'var(--muted)'};">${chalk.tag}</span>
       </div>
       <div class="recap-meter-track">
         <span class="recap-meter-end left">🐶</span>
+        <span class="recap-meter-badge" style="left:${meterPct}%;--mc:${chalk.cls==='chalk'?'#ff8a5c':chalk.cls==='dog'?'var(--good)':'var(--silver)'}">${chalk.tag}</span>
         <div class="recap-meter-marker" style="left:${meterPct}%"></div>
         <span class="recap-meter-end right">🔒</span>
       </div>
