@@ -575,6 +575,10 @@
   .ph-day-hits { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 0.25rem; }
   .ph-hit-name { font-size: 0.6rem; font-weight: 500; background: rgba(51,208,124,0.1); color: var(--good); border: 1px solid rgba(51,208,124,0.25); border-radius: 4px; padding: 0.06rem 0.35rem; display: inline-flex; align-items: center; gap: 0.22rem; }
   .ph-hit-rank { font-weight: 700; color: var(--muted); font-size: 0.54rem; }
+  .dr-chip-sub { font-size: 0.54rem; color: var(--muted); font-weight: 400; }
+  .dr-wait-days { font-family: var(--font-d); font-size: 1rem; font-weight: 700; color: var(--gold); width: 2.4rem; flex-shrink: 0; }
+  .dr-wait-name { font-weight: 500; color: var(--text); flex-shrink: 0; }
+  .dr-wait-sub { font-size: 0.6rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   @media (max-width: 600px) {
     .ph-day-row { flex-wrap: wrap; }
     .ph-day-hits { flex-basis: 100%; margin-top: 0.15rem; }
@@ -745,15 +749,22 @@
         </div>
       </div>
     </div>
-    <div class="due-filters-card">
+    <div class="due-filters-card" id="due-filters-card">
       <button class="due-filters-toggle" id="due-filters-toggle" onclick="toggleDueFiltersPanel()" aria-expanded="false">
         <span class="due-explainer-title">Filters<span class="due-filters-badge" id="due-filters-badge" style="display:none"></span></span>
         <span class="due-explainer-chevron" id="due-filters-chevron">▾</span>
       </button>
       <div class="due-filter-row" id="due-filter-row" style="display:none"></div>
     </div>
-    <div class="result-meta" id="due-meta"></div>
-    <div id="due-content"><div class="empty">Loading data…</div></div>
+    <div class="sub-tabs" id="due-sub-tabs">
+      <button class="sub-btn active" id="due-sub-list" onclick="switchDueSub('list')">Due List</button>
+      <button class="sub-btn" id="due-sub-results" onclick="switchDueSub('results')">Results</button>
+    </div>
+    <div id="due-list-wrap">
+      <div class="result-meta" id="due-meta"></div>
+      <div id="due-content"><div class="empty">Loading data…</div></div>
+    </div>
+    <div id="due-results-wrap" style="display:none"></div>
   </div>
 
   <!-- PICKS -->
@@ -864,6 +875,9 @@ let dueSortCol     = null;
 let dueSortDir     = -1;
 let dueFilters     = { minHR: 0, hideCold: false, longestOnly: false };
 let dueFiltersPanelOpen = false;
+let dueStreaks = {};   // pid -> { since, maxScore, bestRank } for players currently on the list
+let dueHistory = [];   // one entry per scored day: { date, of, grads: [...] }
+let dueSubTab  = 'list';
 let activeTerms    = [];
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -1026,6 +1040,7 @@ function applyData(data) {
   playerGames = data.playerGames; playerLastHR = data.playerLastHR; teamGameDays = data.teamGameDays;
   venueGameDays = data.venueGameDays ?? {}; venueHRsByDate = data.venueHRsByDate ?? {};
   groups = data.groups; dueRows = data.dueRows; prospects = data.prospects ?? prospects;
+  dueStreaks = data.dueStreaks ?? {}; dueHistory = data.dueHistory ?? [];
   injuryStatus = data.injuryStatus ?? {};
   todayDate = data.todayDate ?? null;
   todaySchedule = data.todaySchedule ?? [];
@@ -1102,6 +1117,7 @@ function currentPath() {
   if      (activeNav === 'pairs'     && activePairSize !== 2)                p += '/' + PAIR_SIZE_TO_SLUG[activePairSize];
   else if (activeNav === 'stats'     && activeStatsView === 'individual')    p += '/individual';
   else if (activeNav === 'picks'     && picksSubTab === 'results')           p += '/results';
+  else if (activeNav === 'due'       && dueSubTab === 'results')             p += '/results';
   else if (activeNav === 'prospects' && activeProspectTab === 'debutBombs')  p += '/debut-bombs';
   return p;
 }
@@ -1132,6 +1148,8 @@ function applyRouteState() {
     document.getElementById('stats-individual').style.display = activeStatsView === 'individual' ? '' : 'none';
   } else if (validNav === 'picks') {
     picksSubTab = sub === 'results' ? 'results' : 'today';
+  } else if (validNav === 'due') {
+    dueSubTab = sub === 'results' ? 'results' : 'list';
   } else if (validNav === 'prospects') {
     activeProspectTab = sub === 'debut-bombs' ? 'debutBombs' : 'justCalledUp';
   }
@@ -1168,7 +1186,7 @@ function renderCurrentPanel() {
   if (activeNav === 'stats')   renderStatsView();
   if (activeNav === 'recap') renderRecap();
   if (activeNav === 'schedule') renderSchedule();
-  if (activeNav === 'due')     renderDue();
+  if (activeNav === 'due')     { renderDue(); applyDueSub(dueSubTab); }
   if (activeNav === 'picks')   { renderPicks(); applyPicksSub(picksSubTab); }
   if (activeNav === 'prospects') renderProspects();
 }
@@ -1987,6 +2005,80 @@ function sortDueRows(rows) {
     return dueSortDir*((av??9999)-(bv??9999));
   });
   return rows;
+}
+
+// State + DOM only — used both by user clicks and when a route is applied.
+function applyDueSub(sub) {
+  dueSubTab = sub;
+  document.getElementById('due-list-wrap').style.display    = sub === 'list'    ? '' : 'none';
+  document.getElementById('due-results-wrap').style.display = sub === 'results' ? '' : 'none';
+  // Explainer and filters only make sense for the list itself.
+  document.getElementById('due-explainer-toggle').style.display = sub === 'list' ? '' : 'none';
+  document.getElementById('due-filters-card').style.display     = sub === 'list' ? '' : 'none';
+  document.getElementById('due-sub-list').classList.toggle('active',    sub === 'list');
+  document.getElementById('due-sub-results').classList.toggle('active', sub === 'results');
+  if (sub === 'results') renderDueResults();
+}
+function switchDueSub(sub) { applyDueSub(sub); commitRoute(); }
+
+function daysBetweenDates(a, b) {
+  return Math.max(1, Math.round((new Date(b) - new Date(a)) / 86400000) + 1);
+}
+
+function renderDueResults() {
+  const el = document.getElementById('due-results-wrap');
+  const allGrads = dueHistory.flatMap(e => e.grads);
+
+  // Currently waiting — every active streak, joined with today's list for the
+  // live score, sorted by how long they've been stuck on the list.
+  const waiting = dueRows
+    .map((r, i) => ({ r, rank: i + 1, st: dueStreaks[r.pid] }))
+    .filter(x => x.st?.since)
+    .sort((a, b) => daysBetweenDates(b.st.since, todayDate) - daysBetweenDates(a.st.since, todayDate));
+  const waitingHtml = waiting.map(({ r, rank, st }) => {
+    const days = daysBetweenDates(st.since, todayDate);
+    return `<div class="ph-day-row">
+      <span class="dr-wait-days">${days}d</span>
+      <span class="dr-wait-name">${r.name}</span>
+      <span class="dr-wait-sub">#${rank} · score ${r.dueScore.toFixed(1)} · ${r.droughtABs} AB drought</span>
+    </div>`;
+  }).join('');
+
+  if (!dueHistory.length && !waiting.length) {
+    el.innerHTML = `<div class="empty">No results yet — graduations are scored each morning once the previous day's games are final.</div>`;
+    return;
+  }
+
+  const daysVals  = allGrads.map(g => g.daysOn).filter(v => v != null);
+  const avgDays   = daysVals.length ? (daysVals.reduce((a,b)=>a+b,0) / daysVals.length).toFixed(1) : '—';
+  const avgScore  = allGrads.length ? (allGrads.reduce((a,b)=>a+b.score,0) / allGrads.length).toFixed(1) : '—';
+  const maxDays   = daysVals.length ? Math.max(...daysVals) : '—';
+
+  // Day-by-day graduation log, newest first.
+  const dayRows = [...dueHistory].reverse().map(entry => {
+    const chips = entry.grads.map(g =>
+      `<span class="ph-hit-name" title="Rank #${g.rank} · due score ${g.score} (peak ${g.maxScore}) · ${g.droughtABs} AB drought">` +
+      `<span class="ph-hit-rank">#${g.rank}</span>${compactPlayerName(g.name)}` +
+      `<span class="dr-chip-sub">${g.daysOn != null ? g.daysOn + 'd' : '—'} · ${g.score}</span></span>`
+    ).join('');
+    return `<div class="ph-day-row">
+      <span class="ph-day-date">${entry.date}</span>
+      <span class="ph-day-fraction">${entry.grads.length}/${entry.of}</span>
+      <span class="ph-day-hits">${chips || '<span style="color:var(--dim)">no graduates</span>'}</span>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="ph-summary">
+      <div class="ph-stat"><span class="ph-stat-val hrg-val great">${allGrads.length}</span><span class="ph-stat-lbl">Graduated</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${avgDays}</span><span class="ph-stat-lbl">Avg Days on List</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${avgScore}</span><span class="ph-stat-lbl">Avg Score at HR</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${maxDays}</span><span class="ph-stat-lbl">Longest Wait</span></div>
+    </div>
+    <div class="ph-buckets-head">Graduations <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· due players who finally went deep, day by day</span></div>
+    <div class="ph-days">${dayRows || '<div class="ph-day-row"><span style="color:var(--dim)">Nothing scored yet — first entry lands tomorrow morning.</span></div>'}</div>
+    <div class="ph-buckets-head" style="margin-top:1rem">Still Waiting <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· time spent on the list so far</span></div>
+    <div class="ph-days">${waitingHtml || '<div class="ph-day-row"><span style="color:var(--dim)">Nobody on the list right now.</span></div>'}</div>`;
 }
 
 function renderDue() {

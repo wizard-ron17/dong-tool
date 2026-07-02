@@ -242,6 +242,27 @@ function computeDueRows() {
   return rows;
 }
 
+// Estimate the date a due row first crossed the list's entry gate — the earliest
+// date after his last HR where his drought reached both DUE_MIN_DROUGHT_ABS and
+// z >= DUE_MIN_Z (i.e. droughtABs >= avgGap + DUE_MIN_Z*stdGap). Uses his
+// *current* avgGap/stdGap rather than replaying how they evolved day by day, so
+// it's an approximation — but it's only used to seed "days on the list" for
+// players who were already due before tracking existed, and to score a
+// graduation that happens before a streak was recorded. Once seeded, real
+// streaks are carried forward build to build and never re-estimated.
+function estimateDueSince(row) {
+  const byDate = playerAbsByDate[row.pid];
+  if (!byDate || !row.lastHR) return null;
+  const gate = Math.max(DUE_MIN_DROUGHT_ABS, (row.avgGap ?? 0) + DUE_MIN_Z * (row.stdGap ?? 0));
+  let cum = 0;
+  for (const date of Object.keys(byDate).sort()) {
+    if (date <= row.lastHR) continue;
+    cum += byDate[date];
+    if (cum >= gate) return date;
+  }
+  return null;
+}
+
 // ── Contact quality: is a "due" guy's recent drought just bad luck, or has
 // his actual contact gotten worse too? ──
 // AB-gap math alone can't tell the difference between a guy still scalding
@@ -1173,6 +1194,7 @@ async function main() {
   // fetchAll() so we have the old data in hand; we cross-reference after fetchAll
   // once dailyHRs is fully populated for the previous date.
   let prevPicks = [], prevDate = null, picksHistory = [];
+  let prevDueRows = [], dueStreaks = null, dueHistory = [];
   try {
     const fs = await import('node:fs');
     const raw = fs.readFileSync(new URL('../data.json', import.meta.url), 'utf8');
@@ -1180,6 +1202,9 @@ async function main() {
     prevPicks    = old.picks       ?? [];
     prevDate     = old.todayDate   ?? null;
     picksHistory = old.picksHistory ?? [];
+    prevDueRows  = old.dueRows     ?? [];
+    dueStreaks   = old.dueStreaks  ?? null;  // null (not {}) = first run, triggers backfill seeding
+    dueHistory   = old.dueHistory  ?? [];
   } catch { /* first run or file missing — start fresh */ }
 
   await fetchAll();
@@ -1235,6 +1260,56 @@ async function main() {
     console.log(`Picks history: scored ${prevDate} — ${hits}/${entry.picks.length} hit`);
   }
 
+  // ── Due tracking ──────────────────────────────────────────────────────
+  // Same shape as picks history: when a player who was on the Due list homers,
+  // he "graduates" — record how long he sat on the list, his due score, and his
+  // rank at his last appearance. Uses the previous build's dueRows (the list as
+  // the day ended — Final-games-only lag keeps him listed all day even after he
+  // homers), with the same two guards as picks: only score dates strictly in
+  // the past, and only once per date.
+  const daysOnList = (since, until) =>
+    since ? Math.max(1, Math.round((new Date(until) - new Date(since)) / 86400000) + 1) : null;
+
+  if (prevDueRows.length && prevDate && prevDate < todayET() && !dueHistory.some(e => e.date === prevDate)) {
+    const dayHRs = dailyHRs[prevDate] ?? {};
+    const grads = [];
+    prevDueRows.forEach((row, i) => {
+      if (!dayHRs[row.pid]) return;
+      const streak = dueStreaks?.[row.pid];
+      const since = streak?.since ?? estimateDueSince(row);
+      grads.push({
+        pid: row.pid,
+        name: row.name,
+        rank: i + 1,
+        score: Math.round(row.dueScore * 10) / 10,
+        maxScore: Math.round((streak?.maxScore ?? row.dueScore) * 10) / 10,
+        daysOn: daysOnList(since, prevDate),
+        droughtABs: row.droughtABs,
+      });
+    });
+    // Append even when empty — the entry marks the date as processed (dedup).
+    dueHistory = [...dueHistory, { date: prevDate, of: prevDueRows.length, grads }].slice(-90);
+    console.log(`Due history: scored ${prevDate} — ${grads.length}/${prevDueRows.length} graduated`);
+  }
+
+  // Rebuild streaks from today's list: carry since/maxScore/bestRank for anyone
+  // still on it, start new streaks at today for newcomers. First run ever
+  // (dueStreaks === null) backfills since via estimateDueSince so "days on the
+  // list" is meaningful immediately instead of everyone starting at day 1.
+  // A player who leaves the list without homering (IL, benched, demoted) simply
+  // drops out here — if he returns later, his streak restarts.
+  const seeding = dueStreaks === null;
+  const newStreaks = {};
+  dueRows.forEach((row, i) => {
+    const prev = dueStreaks?.[row.pid];
+    newStreaks[row.pid] = {
+      since: prev?.since ?? (seeding ? (estimateDueSince(row) ?? todayET()) : todayET()),
+      maxScore: Math.round(Math.max(prev?.maxScore ?? 0, row.dueScore) * 10) / 10,
+      bestRank: Math.min(prev?.bestRank ?? Infinity, i + 1),
+    };
+  });
+  dueStreaks = newStreaks;
+
   const allDates = Object.keys(dailyHRs).sort();
   const totalHRCount = Object.values(hrTotals).reduce((a,b) => a+b, 0);
 
@@ -1248,6 +1323,7 @@ async function main() {
     dailyHRs, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus,
     todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks, picksHistory,
+    dueStreaks, dueHistory,
   };
 
   const fs = await import('node:fs');
