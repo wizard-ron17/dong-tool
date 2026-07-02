@@ -762,7 +762,7 @@ let pitcherStats = {}; // pid -> { hr, hr9, ip, era } for today's probable pitch
 let bullpens = {}; // team abbr -> [{ pid, name, hand, era, saves, holds, gamesPitched, lastOuting, pitchMix }]
 let picks    = []; // today's HR pick candidates, pre-scored server-side
 let picksHistory = [];
-let picksFilters     = { minHR: 5, minScore: 9 };
+let picksFilters     = { minHR: 3, minScore: 7 }; // 3 = server HR floor ("All"), 7 = server score floor — show everything by default
 let picksFiltersPanelOpen = false;
 let picksSubTab = 'today';
 
@@ -2119,8 +2119,8 @@ function togglePicksExplainer() {
 function togglePicksFiltersPanel() { picksFiltersPanelOpen = !picksFiltersPanelOpen; renderPicksFilters(); }
 function setPicksMinHR(n)    { picksFilters.minHR    = n; renderPicks(); }
 function setPicksMinScore(n) { picksFilters.minScore = n; renderPicks(); }
-function clearPicksFilters() { picksFilters = { minHR: 5, minScore: 9 }; renderPicks(); }
-function picksFiltersActive() { return picksFilters.minHR !== 5 || picksFilters.minScore !== 9; }
+function clearPicksFilters() { picksFilters = { minHR: 3, minScore: 7 }; renderPicks(); }
+function picksFiltersActive() { return picksFilters.minHR !== 3 || picksFilters.minScore !== 7; }
 function applyPicksFilters(rows) {
   return rows.filter(r => r.hrs >= picksFilters.minHR && r.pickScore >= picksFilters.minScore);
 }
@@ -2137,7 +2137,7 @@ function renderPicksFilters() {
   document.getElementById('picks-filter-row').style.display = picksFiltersPanelOpen ? '' : 'none';
   document.getElementById('picks-filters-chevron').textContent = picksFiltersPanelOpen ? '▴' : '▾';
   document.getElementById('picks-filters-toggle').setAttribute('aria-expanded', String(picksFiltersPanelOpen));
-  const activeCount = (picksFilters.minHR !== 5 ? 1 : 0) + (picksFilters.minScore !== 9 ? 1 : 0);
+  const activeCount = (picksFilters.minHR !== 3 ? 1 : 0) + (picksFilters.minScore !== 7 ? 1 : 0);
   const badge = document.getElementById('picks-filters-badge');
   badge.style.display = activeCount ? 'inline-flex' : 'none';
   badge.textContent = activeCount;
