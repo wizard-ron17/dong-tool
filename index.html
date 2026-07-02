@@ -133,9 +133,11 @@
     .nav-btn.active { color: var(--accent); background: transparent; box-shadow: none; }
     .nav-caret { display: none; }
     body { padding-bottom: calc(4.6rem + env(safe-area-inset-bottom)); }
-    /* Tools becomes a bottom sheet sliding up over the bar. */
-    .nav-tools-backdrop { background: rgba(0,0,0,0.45); }
-    .nav-tools-menu { position: fixed; top: auto; left: 0; right: 0; bottom: 0; min-width: 0; border-radius: 18px 18px 0 0; border-bottom: none; padding: 0.6rem 0.7rem calc(0.8rem + env(safe-area-inset-bottom)); opacity: 1; transform: translateY(105%); transition: transform 0.24s ease; }
+    /* Tools becomes a bottom sheet docked on TOP of the tab bar — the bar
+       stays visible and tappable below it, so sheet and backdrop both stop
+       at its top edge. 3.61rem = measured bar height (padding+icon+label). */
+    .nav-tools-backdrop { background: rgba(0,0,0,0.45); bottom: calc(3.61rem + env(safe-area-inset-bottom)); }
+    .nav-tools-menu { position: fixed; top: auto; left: 0; right: 0; bottom: calc(3.61rem + env(safe-area-inset-bottom)); min-width: 0; border-radius: 18px 18px 0 0; border-bottom: none; padding: 0.6rem 0.7rem 0.7rem; opacity: 1; transform: translateY(115%); transition: transform 0.24s ease; }
     .nav-tools-menu.open { transform: none; }
     .nav-menu-item { padding: 0.8rem 0.7rem; }
     .nav-menu-item .nm-name { font-size: 1.05rem; }
