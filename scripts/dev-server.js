@@ -6,7 +6,7 @@
 // Serves real files when they exist; otherwise falls back to index.html with a
 // 200 — the same rule as netlify.toml. Zero dependencies (Node built-ins only).
 //
-//   npm run dev            → http://localhost:8080
+//   npm run dev            → http://localhost:5500
 //   npm run dev -- 3000    → custom port
 import http from 'node:http';
 import fs from 'node:fs';
@@ -14,7 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = Number(process.argv[2]) || 8080;
+const PORT = Number(process.argv[2]) || 5500;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
