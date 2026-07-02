@@ -8,7 +8,7 @@
 //   serve the cached copy instantly, then refetch in the background and
 //   update the cache for next time. That means a shell edit shows up after
 //   one extra reload, with no manual cache-version bump needed.
-const CACHE_NAME = 'dong-tool-shell-v1';
+const CACHE_NAME = 'dong-tool-shell-v2';
 const SHELL_ASSETS = [
   './',
   './index.html',
@@ -59,7 +59,9 @@ self.addEventListener('fetch', (event) => {
       const cached = await cache.match(event.request);
       const network = fetch(event.request)
         .then((res) => { cache.put(event.request, res.clone()); return res; })
-        .catch(() => cached);
+        // Offline fallback: for a client-side route (/due, /picks/results, …) that
+        // was never cached, serve the app shell so path deep-links still open.
+        .catch(() => cached || (event.request.mode === 'navigate' ? cache.match('./index.html') : undefined));
       return cached || network;
     })
   );

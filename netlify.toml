@@ -1,0 +1,11 @@
+# SPA fallback: serve index.html (with a 200, not a redirect) for any path that
+# isn't a real static file, so client-side routes like /due and /picks/results
+# work on hard refresh and when shared as deep links.
+#
+# Existing files — data.json, sw.js, manifest.webmanifest, icons/*, etc. — are
+# served directly and take precedence over this rewrite, so this only catches
+# virtual routes.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

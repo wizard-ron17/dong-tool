@@ -6,10 +6,10 @@
 <title>Ron's Dong Tool</title>
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="A home run tracking tool inspired by Green Means Go.">
-<link rel="icon" type="image/svg+xml" href="icons/logo.svg">
-<link rel="icon" type="image/x-icon" href="icons/favicon.ico">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="/icons/logo.svg">
+<link rel="icon" type="image/x-icon" href="/icons/favicon.ico">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -556,7 +556,7 @@
 
   <header>
     <p class="eyebrow">MLB · 2026 · Stats API <span id="status-badge" class="status-badge fetching">Loading</span></p>
-    <h1><img src="icons/logo.svg" alt="" class="brand-logo">Ron's <em>Dong</em> Tool</h1>
+    <h1><img src="/icons/logo.svg" alt="" class="brand-logo">Ron's <em>Dong</em> Tool</h1>
     <div class="meta-row">
       <span>A home run tool inspired by Green Means Go
         <span class="social-links">
@@ -936,7 +936,7 @@ function removeTag(idx) {
 async function loadData() {
   setStatus('fetching');
   try {
-    const res = await fetch('data.json', { cache: 'no-store' });
+    const res = await fetch('/data.json', { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     applyData(await res.json());
   } catch (e) {
@@ -979,7 +979,8 @@ function applyData(data) {
   disableNav(false);
   document.getElementById('search-wrap').classList.add('visible');
 
-  if (!applyHashState()) renderCurrentPanel();
+  migrateLegacyHash();
+  applyRouteState();
 }
 
 function showLoadError(msg) {
@@ -996,37 +997,68 @@ const VALID_NAVS = ['pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'pros
 const PAIR_SIZE_TO_SLUG = { 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' };
 const PAIR_SLUG_TO_SIZE = { pairs: 2, trios: 3, quads: 4, quints: 5 };
 
-// Hash format: #<tab> or #<tab>-<subview>, e.g. #stats-individual, #pairs-quads.
-function syncHash() {
-  let h = activeNav;
-  if (activeNav === 'pairs')      h += '-' + (PAIR_SIZE_TO_SLUG[activePairSize] || 'pairs');
-  if (activeNav === 'stats')      h += '-' + activeStatsView;
-  if (activeNav === 'prospects')  h += '-' + (activeProspectTab === 'debutBombs' ? 'debutbombs' : 'justcalledup');
-  history.replaceState(null, '', '#' + h);
+// Path format: /<tab> or /<tab>/<subview>, e.g. /stats/individual, /pairs/quads,
+// /picks/results. Path-based (History API) so URLs are clean and shareable;
+// Netlify's SPA rewrite (netlify.toml) makes refresh & deep-links resolve here.
+let applyingRoute = false; // true while a route is being applied (load/popstate) — suppresses pushState
+
+function currentPath() {
+  let p = '/' + activeNav;
+  if      (activeNav === 'pairs'     && activePairSize !== 2)                p += '/' + PAIR_SIZE_TO_SLUG[activePairSize];
+  else if (activeNav === 'stats'     && activeStatsView === 'individual')    p += '/individual';
+  else if (activeNav === 'picks'     && picksSubTab === 'results')           p += '/results';
+  else if (activeNav === 'prospects' && activeProspectTab === 'debutBombs')  p += '/debut-bombs';
+  return p;
 }
-function applyHashState() {
-  const hash = location.hash.slice(1);
-  const dashIdx = hash.indexOf('-');
-  const nav = dashIdx === -1 ? hash : hash.slice(0, dashIdx);
-  const sub = dashIdx === -1 ? '' : hash.slice(dashIdx + 1);
-  if (!VALID_NAVS.includes(nav)) return false;
+function commitRoute() {
+  const path = currentPath();
+  if (applyingRoute) {
+    history.replaceState(null, '', path);           // normalize URL on load / popstate
+  } else if (location.pathname !== path) {
+    history.pushState(null, '', path);              // user navigation → new history entry
+  }
+}
+function parsePath() {
+  const parts = location.pathname.replace(/^\/+|\/+$/g, '').split('/');
+  return { nav: parts[0] || 'pairs', sub: parts[1] || '' };
+}
+function applyRouteState() {
+  applyingRoute = true;
+  const { nav, sub } = parsePath();
+  const validNav = VALID_NAVS.includes(nav) ? nav : 'pairs';
 
-  if (nav === 'pairs' && PAIR_SLUG_TO_SIZE[sub]) {
-    activePairSize = PAIR_SLUG_TO_SIZE[sub];
+  if (validNav === 'pairs') {
+    activePairSize = PAIR_SLUG_TO_SIZE[sub] || 2;
     document.querySelectorAll('#panel-pairs .sub-btn').forEach(b => b.classList.toggle('active', +b.dataset.size === activePairSize));
-  }
-  if (nav === 'stats' && (sub === 'league' || sub === 'individual')) {
-    activeStatsView = sub;
-    document.querySelectorAll('[data-stats]').forEach(b => b.classList.toggle('active', b.dataset.stats === sub));
-    document.getElementById('stats-league').style.display = sub === 'league' ? '' : 'none';
-    document.getElementById('stats-individual').style.display = sub === 'individual' ? '' : 'none';
-  }
-  if (nav === 'prospects' && (sub === 'justcalledup' || sub === 'debutbombs')) {
-    activeProspectTab = sub === 'debutbombs' ? 'debutBombs' : 'justCalledUp';
+  } else if (validNav === 'stats') {
+    activeStatsView = sub === 'individual' ? 'individual' : 'league';
+    document.querySelectorAll('[data-stats]').forEach(b => b.classList.toggle('active', b.dataset.stats === activeStatsView));
+    document.getElementById('stats-league').style.display = activeStatsView === 'league' ? '' : 'none';
+    document.getElementById('stats-individual').style.display = activeStatsView === 'individual' ? '' : 'none';
+  } else if (validNav === 'picks') {
+    picksSubTab = sub === 'results' ? 'results' : 'today';
+  } else if (validNav === 'prospects') {
+    activeProspectTab = sub === 'debut-bombs' ? 'debutBombs' : 'justCalledUp';
   }
 
-  switchNav(nav);
+  switchNav(validNav);
+  applyingRoute = false;
   return true;
+}
+// Translate a legacy #hash link (#due, #pairs-quads, #stats-individual, …) to the
+// new path form once on load, so old bookmarks / shared links keep working.
+function migrateLegacyHash() {
+  const h = location.hash.slice(1);
+  if (!h) return;
+  const dash = h.indexOf('-');
+  const nav = dash === -1 ? h : h.slice(0, dash);
+  const sub = dash === -1 ? '' : h.slice(dash + 1);
+  if (!VALID_NAVS.includes(nav)) { history.replaceState(null, '', location.pathname); return; }
+  let path = '/' + nav;
+  if      (nav === 'pairs'     && PAIR_SLUG_TO_SIZE[sub] && sub !== 'pairs') path += '/' + sub;
+  else if (nav === 'stats'     && sub === 'individual')  path += '/individual';
+  else if (nav === 'prospects' && sub === 'debutbombs')  path += '/debut-bombs';
+  history.replaceState(null, '', path);
 }
 function switchNav(nav) {
   activeNav = nav;
@@ -1034,7 +1066,7 @@ function switchNav(nav) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('visible'));
   document.getElementById('panel-' + nav).classList.add('visible');
   renderCurrentPanel();
-  syncHash();
+  commitRoute();
 }
 function renderCurrentPanel() {
   if (activeNav === 'pairs')   _render(activePairSize);
@@ -1042,9 +1074,10 @@ function renderCurrentPanel() {
   if (activeNav === 'recap') renderRecap();
   if (activeNav === 'schedule') renderSchedule();
   if (activeNav === 'due')     renderDue();
-  if (activeNav === 'picks')   renderPicks();
+  if (activeNav === 'picks')   { renderPicks(); applyPicksSub(picksSubTab); }
   if (activeNav === 'prospects') renderProspects();
 }
+window.addEventListener('popstate', applyRouteState);
 let activeStatsView = 'league';
 function switchStatsView(view) {
   activeStatsView = view;
@@ -1052,7 +1085,7 @@ function switchStatsView(view) {
   document.getElementById('stats-league').style.display = view === 'league' ? '' : 'none';
   document.getElementById('stats-individual').style.display = view === 'individual' ? '' : 'none';
   renderStatsView();
-  syncHash();
+  commitRoute();
 }
 function renderStatsView() {
   if (activeStatsView === 'league') renderTotals(); else renderLeaders();
@@ -1067,7 +1100,7 @@ const RENDER_LIMIT = 200;
 function switchPairSize(size) {
   activePairSize = size;
   document.querySelectorAll('#panel-pairs .sub-btn').forEach(b => b.classList.toggle('active', +b.dataset.size === size));
-  syncHash();
+  commitRoute();
   if (!Object.keys(dailyHRs).length) return;
   _render(size);
 }
@@ -2293,7 +2326,8 @@ function openPickModal(pid) {
   document.addEventListener('keydown', pickModalEscHandler);
 }
 
-function switchPicksSub(sub) {
+// State + DOM only — used both by user clicks and when a route is applied.
+function applyPicksSub(sub) {
   picksSubTab = sub;
   document.getElementById('picks-today-wrap').style.display  = sub === 'today'   ? '' : 'none';
   document.getElementById('picks-results-wrap').style.display = sub === 'results' ? '' : 'none';
@@ -2303,6 +2337,7 @@ function switchPicksSub(sub) {
   document.getElementById('picks-sub-results').classList.toggle('active', sub === 'results');
   if (sub === 'results') renderPicksResults();
 }
+function switchPicksSub(sub) { applyPicksSub(sub); commitRoute(); }
 
 function renderPicksResults() {
   const el = document.getElementById('picks-results-wrap');
@@ -2509,7 +2544,7 @@ function prospectCard(r, isBomb) {
   </div>`;
 }
 let activeProspectTab = 'justCalledUp';
-function switchProspectTab(tab) { activeProspectTab = tab; renderProspects(); syncHash(); }
+function switchProspectTab(tab) { activeProspectTab = tab; renderProspects(); commitRoute(); }
 function renderProspects() {
   const { justCalledUp, debutBombs } = prospects;
   document.getElementById('prospects-meta').textContent =
@@ -2553,7 +2588,7 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
   } else {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
     });
   }
 }
