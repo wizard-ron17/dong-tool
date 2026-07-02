@@ -5,6 +5,15 @@
 # Existing files — data.json, sw.js, manifest.webmanifest, icons/*, etc. — are
 # served directly and take precedence over this rewrite, so this only catches
 # virtual routes.
+# data.json is updated every 30 min by GitHub Actions. Tell Netlify's CDN not
+# to cache it at the edge — without this the CDN serves a stale copy for hours
+# regardless of the browser-side `cache: 'no-store'` fetch option, which only
+# controls the browser's local cache, not the CDN layer between it and origin.
+[[headers]]
+  for = "/data.json"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
