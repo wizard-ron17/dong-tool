@@ -330,8 +330,11 @@
   .due-contact-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.5rem; }
   .due-contact-title { font-family: var(--font-d); font-size: 0.8rem; font-weight: 700; color: #bdd0e8; letter-spacing: 0.02em; }
   .due-contact-tag { font-size: 0.58rem; font-weight: 700; padding: 0.12rem 0.5rem; border-radius: 10px; }
-  .due-contact-tag.great { background: rgba(53,201,110,0.12); color: var(--accent); }
-  .due-contact-tag.bad   { background: rgba(224,64,90,0.12); color: var(--bad); }
+  /* This one spot uses literal temperature colors (not the green=good ramp):
+     the labels ARE "Hot"/"Cold", so a hot bat reads orange and a cold bat reads
+     icy blue. Scoped to .due-contact-tag only — used nowhere but the Due page. */
+  .due-contact-tag.great { background: rgba(255,138,76,0.15); color: #ff9a55; }
+  .due-contact-tag.bad   { background: rgba(90,194,232,0.15); color: #5fc2e8; }
   .due-contact-tag.avg   { background: var(--surface2); color: var(--muted); }
   .due-contact-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
   .due-contact-stat { text-align: center; }
@@ -2066,6 +2069,9 @@ function contactTagInfo(factor) {
   return { cls: 'avg', text: 'Holding Steady' };
 }
 const CONTACT_SHORT_LABEL = { 'Small Sample':'—', 'Holding Steady':'Steady', 'Hitting It Better':'Hot', 'Contact Has Cooled':'Cold' };
+// Flames for a hot bat, ice for a cold one — Due-contact only, nowhere else.
+const CONTACT_EMOJI = { great: '🔥', bad: '🧊', avg: '' };
+const contactEmojiPrefix = cls => CONTACT_EMOJI[cls] ? CONTACT_EMOJI[cls] + ' ' : '';
 function contactPillHtml(r) {
   const tag = contactTagInfo(r.contactFactor);
   const base = r.contact?.baseline, dr = r.contact?.drought;
@@ -2074,7 +2080,7 @@ function contactPillHtml(r) {
     title += ` — EV ${base.avgEV.toFixed(1)}→${dr.avgEV.toFixed(1)} · Barrel% ${base.barrelPct.toFixed(1)}→${dr.barrelPct.toFixed(1)} · Hard-Hit% ${base.hardHitPct.toFixed(1)}→${dr.hardHitPct.toFixed(1)}`;
     if (base.sweetSpotPct != null && dr.sweetSpotPct != null) title += ` · Sweet Spot% ${base.sweetSpotPct.toFixed(1)}→${dr.sweetSpotPct.toFixed(1)}`;
   }
-  return `<span class="due-contact-tag ${tag.cls}" title="${title}">${CONTACT_SHORT_LABEL[tag.text]}</span>`;
+  return `<span class="due-contact-tag ${tag.cls}" title="${title}">${contactEmojiPrefix(tag.cls)}${CONTACT_SHORT_LABEL[tag.text]}</span>`;
 }
 function dueContactHtml(r) {
   const base = r.contact?.baseline, dr = r.contact?.drought;
@@ -2088,7 +2094,7 @@ function dueContactHtml(r) {
   return `<div class="due-contact-card">
     <div class="due-contact-head">
       <span class="due-contact-title">Recent Contact Quality</span>
-      <span class="due-contact-tag ${tag.cls}">${tag.text}</span>
+      <span class="due-contact-tag ${tag.cls}">${contactEmojiPrefix(tag.cls)}${tag.text}</span>
     </div>
     <div class="due-contact-grid">
       <div class="due-contact-stat">
