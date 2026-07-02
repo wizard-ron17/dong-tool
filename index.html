@@ -584,6 +584,35 @@
     .ph-day-hits { flex-basis: 100%; margin-top: 0.15rem; }
   }
 
+  /* Home dashboard */
+  .hm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  @media (max-width: 640px) { .hm-grid { grid-template-columns: 1fr; } }
+  .hm-card { background: var(--surface0); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 0.85rem; cursor: pointer; transition: border-color 0.15s, background 0.15s; animation: fadeIn 0.15s ease; }
+  .hm-card:hover { border-color: var(--accent); background: var(--surface1); }
+  .hm-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; margin-bottom: 0.55rem; }
+  .hm-title { font-family: var(--font-d); font-weight: 700; font-size: 0.98rem; color: var(--text-strong); letter-spacing: 0.02em; }
+  .hm-link { font-size: 0.6rem; color: var(--accent); font-weight: 700; white-space: nowrap; }
+  .hm-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin-bottom: 0.55rem; }
+  .hm-tile { background: var(--surface1); border: 1px solid var(--border); border-radius: 7px; text-align: center; padding: 0.45rem 0.2rem; }
+  .hm-tile b { font-family: var(--font-d); font-size: 1.3rem; font-weight: 700; color: var(--text-strong); display: block; line-height: 1.05; }
+  .hm-tile span { font-size: 0.53rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .hm-tile.heat-hot b { color: var(--good); }
+  .hm-tile.heat-warm b { color: var(--good-2); }
+  .hm-tile.heat-cool b { color: #4fb6d6; }
+  :root[data-theme="light"] .hm-tile.heat-cool b { color: #1f8fbf; }
+  .hm-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+  .hm-row { display: flex; align-items: center; gap: 0.45rem; padding: 0.32rem 0; border-bottom: 1px solid var(--border); font-size: 0.72rem; min-width: 0; }
+  .hm-row:last-of-type { border-bottom: none; }
+  .hm-rank { color: var(--muted); font-weight: 700; width: 1rem; flex-shrink: 0; font-size: 0.62rem; text-align: center; }
+  .hm-photo { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; background: var(--surface2); flex-shrink: 0; }
+  .hm-name { font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .hm-subtle { font-size: 0.6rem; color: var(--muted); font-weight: 400; }
+  .hm-score { margin-left: auto; font-family: var(--font-d); font-weight: 700; font-size: 0.95rem; flex-shrink: 0; }
+  .hm-score.hot, .hm-score.great { color: var(--accent); }
+  .hm-score.warm, .hm-score.good { color: var(--gold); }
+  .hm-score.mild, .hm-score.ok   { color: var(--warn); }
+  .hm-more { font-size: 0.6rem; color: var(--muted); padding-top: 0.35rem; }
+
   .theme-toggle { position: absolute; top: 0; right: 0; z-index: 5; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 9px; border: 1px solid var(--border2); background: var(--surface1); color: var(--muted); cursor: pointer; transition: color 0.15s, background 0.15s, border-color 0.15s; }
   .theme-toggle:hover { color: var(--accent); border-color: var(--accent); background: var(--surface2); }
   .theme-toggle svg { width: 18px; height: 18px; display: block; }
@@ -653,7 +682,8 @@
   </header>
 
   <nav>
-    <button class="nav-btn active" data-nav="pairs"   onclick="switchNav('pairs')">Pairs</button>
+    <button class="nav-btn active" data-nav="home"    onclick="switchNav('home')">Home</button>
+    <button class="nav-btn" data-nav="pairs"   onclick="switchNav('pairs')"   disabled>Pairs</button>
     <button class="nav-btn" data-nav="stats"   onclick="switchNav('stats')"   disabled>Stats</button>
     <button class="nav-btn" data-nav="recap" onclick="switchNav('recap')" disabled>Recap</button>
     <button class="nav-btn" data-nav="schedule" onclick="switchNav('schedule')" disabled>Schedule</button>
@@ -663,7 +693,12 @@
   </nav>
 
   <!-- PAIRS -->
-  <div id="panel-pairs" class="panel visible">
+  <!-- HOME -->
+  <div id="panel-home" class="panel visible">
+    <div id="home-content"><div class="empty">Loading data…</div></div>
+  </div>
+
+  <div id="panel-pairs" class="panel">
     <div class="sub-tabs">
       <button class="sub-btn active" data-size="2" onclick="switchPairSize(2)"><span class="num">2</span>Pairs</button>
       <button class="sub-btn" data-size="3" onclick="switchPairSize(3)"><span class="num">3</span>Trios</button>
@@ -1103,7 +1138,7 @@ function toggleTheme() {
 }
 
 // ── Nav ────────────────────────────────────────────────────────────────
-const VALID_NAVS = ['pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'prospects'];
+const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'prospects'];
 const PAIR_SIZE_TO_SLUG = { 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' };
 const PAIR_SLUG_TO_SIZE = { pairs: 2, trios: 3, quads: 4, quints: 5 };
 
@@ -1113,6 +1148,7 @@ const PAIR_SLUG_TO_SIZE = { pairs: 2, trios: 3, quads: 4, quints: 5 };
 let applyingRoute = false; // true while a route is being applied (load/popstate) — suppresses pushState
 
 function currentPath() {
+  if (activeNav === 'home') return '/';
   let p = '/' + activeNav;
   if      (activeNav === 'pairs'     && activePairSize !== 2)                p += '/' + PAIR_SIZE_TO_SLUG[activePairSize];
   else if (activeNav === 'stats'     && activeStatsView === 'individual')    p += '/individual';
@@ -1131,12 +1167,12 @@ function commitRoute() {
 }
 function parsePath() {
   const parts = location.pathname.replace(/^\/+|\/+$/g, '').split('/');
-  return { nav: parts[0] || 'pairs', sub: parts[1] || '' };
+  return { nav: parts[0] || 'home', sub: parts[1] || '' };
 }
 function applyRouteState() {
   applyingRoute = true;
   const { nav, sub } = parsePath();
-  const validNav = VALID_NAVS.includes(nav) ? nav : 'pairs';
+  const validNav = VALID_NAVS.includes(nav) ? nav : 'home';
 
   if (validNav === 'pairs') {
     activePairSize = PAIR_SLUG_TO_SIZE[sub] || 2;
@@ -1182,6 +1218,7 @@ function switchNav(nav) {
   commitRoute();
 }
 function renderCurrentPanel() {
+  if (activeNav === 'home')    renderHome();
   if (activeNav === 'pairs')   _render(activePairSize);
   if (activeNav === 'stats')   renderStatsView();
   if (activeNav === 'recap') renderRecap();
@@ -1205,6 +1242,89 @@ function renderStatsView() {
 }
 function disableNav(disabled) {
   document.querySelectorAll('.nav-btn, .sub-btn').forEach(b => b.disabled = disabled);
+}
+
+// ── HOME ───────────────────────────────────────────────────────────────
+// Landing dashboard: the best of each tab at a glance, whole card = link.
+// Pure presentation — every number is already in client state.
+function renderHome() {
+  const el = document.getElementById('home-content');
+  if (!Object.keys(dailyHRs).length) return; // pre-load; applyData re-renders
+
+  // Latest COMPLETED day (yesterday, or last game day before an off day).
+  // dailyHRs can contain today's early-finishing games mid-day (Final-games
+  // boundary, not a calendar one), so exclude today — "Last Night" must never
+  // show a partial slate.
+  const dates = Object.keys(dailyHRs).sort().filter(d => !todayDate || d < todayDate);
+  const last  = dates[dates.length - 1];
+  if (!last) { el.innerHTML = '<div class="empty">No completed game days yet.</div>'; return; }
+  const dayData  = dailyHRs[last] ?? {};
+  const games    = dailyGames[last] || 0;
+  const totalHRs = Object.values(dayData).reduce((a,b) => a+b, 0);
+  const hrg      = games ? totalHRs / games : 0;
+  const seasonGames = Object.values(dailyGames).reduce((a,b)=>a+b, 0);
+  const seasonHRs   = Object.values(hrTotals).reduce((a,b)=>a+b, 0);
+  const heat = seasonGames ? recapDayHeat((hrg) / (seasonHRs / seasonGames)) : { cls: '', tag: '' };
+  const bombers = Object.entries(dayData)
+    .sort((a,b) => b[1] - a[1] || (hrTotals[b[0]]||0) - (hrTotals[a[0]]||0))
+    .slice(0, 4)
+    .map(([pid, n]) => `<span class="ph-hit-name">${compactPlayerName(playerNames[pid] || pid)}${n > 1 ? ` ×${n}` : ''}</span>`)
+    .join('');
+
+  // Today's slate
+  const sortedGames = [...todaySchedule].sort((a,b) => new Date(a.gameDate) - new Date(b.gameDate));
+  const gameRows = sortedGames.slice(0, 4).map(g => {
+    const t = new Date(g.gameDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    return `<div class="hm-row">
+      <span class="hm-name">${teamLogoImg(g.away.teamAbbr, 'team-logo')}${g.away.teamAbbr} <span style="color:var(--muted)">@</span> ${teamLogoImg(g.home.teamAbbr, 'team-logo')}${g.home.teamAbbr}</span>
+      <span class="hm-score" style="color:var(--muted);font-size:0.68rem">${t}</span>
+    </div>`;
+  }).join('');
+  const moreGames = sortedGames.length > 4 ? `<div class="hm-more">+ ${sortedGames.length - 4} more</div>` : '';
+
+  // Top picks / most due
+  const topPicks = applyPicksFilters(picks).slice(0, 5).map((r, i) => `
+    <div class="hm-row">
+      <span class="hm-rank">${i+1}</span>
+      <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
+      <span class="hm-name">${playerNames[r.pid] || r.pid}<span class="hm-subtle"> vs ${compactPlayerName(r.oppName || '')} (${r.oppHand || '?'}HP)${r.projected ? ' · proj' : ''}</span></span>
+      <span class="hm-score ${pickScoreClass(r.pickScore)}">${r.pickScore.toFixed(1)}</span>
+    </div>`).join('');
+
+  const topDue = dueRows.slice(0, 5).map((r, i) => {
+    const since = dueStreaks[r.pid]?.since;
+    const days  = since ? daysBetweenDates(since, todayDate) : null;
+    return `<div class="hm-row">
+      <span class="hm-rank">${i+1}</span>
+      <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
+      <span class="hm-name">${r.name}<span class="hm-subtle">${days ? ` · ${days}d on list` : ''} · ${r.droughtABs} AB</span></span>
+      <span class="hm-score ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</span>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<div class="hm-grid">
+    <div class="hm-card" onclick="switchNav('recap')">
+      <div class="hm-head"><span class="hm-title">Last Night · ${fmtDateLong(last)}</span><span class="hm-link">Recap →</span></div>
+      <div class="hm-tiles">
+        <div class="hm-tile"><b>${totalHRs}</b><span>Home Runs</span></div>
+        <div class="hm-tile"><b>${games}</b><span>Games</span></div>
+        <div class="hm-tile ${heat.cls}"><b>${hrg.toFixed(2)}</b><span>HR / Game</span></div>
+      </div>
+      <div class="hm-chips">${bombers || '<span class="hm-subtle">No homers</span>'}</div>
+    </div>
+    <div class="hm-card" onclick="switchNav('schedule')">
+      <div class="hm-head"><span class="hm-title">Today · ${sortedGames.length ? `${sortedGames.length} Games` : 'No Games'}</span><span class="hm-link">Schedule →</span></div>
+      ${gameRows || '<div class="hm-subtle">Nothing on the slate.</div>'}${moreGames}
+    </div>
+    <div class="hm-card" onclick="switchNav('picks')">
+      <div class="hm-head"><span class="hm-title">Top Picks</span><span class="hm-link">Picks →</span></div>
+      ${topPicks || '<div class="hm-subtle">No picks yet — check back closer to game time.</div>'}
+    </div>
+    <div class="hm-card" onclick="switchNav('due')">
+      <div class="hm-head"><span class="hm-title">Most Due</span><span class="hm-link">Due →</span></div>
+      ${topDue || '<div class="hm-subtle">Nobody qualifies right now.</div>'}
+    </div>
+  </div>`;
 }
 
 // ── PAIRS ──────────────────────────────────────────────────────────────
