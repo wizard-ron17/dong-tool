@@ -1023,7 +1023,7 @@ async function fetchBullpens(todaySchedule, teamIdToAbbr) {
     for (const p of seasonRes.people ?? []) {
       const stat = p.stats?.[0]?.splits?.find(s => s.season === SEASON_YEAR)?.stat;
       if (!stat || stat.gamesStarted > 0 || (stat.gamesPlayed ?? 0) < BULLPEN_MIN_GAMES) continue;
-      relievers.push({ pid: String(p.id), gamesPitched: stat.gamesPlayed, holds: stat.holds ?? 0, saves: stat.saves ?? 0, era: stat.era ?? null });
+      relievers.push({ pid: String(p.id), gamesPitched: stat.gamesPlayed, holds: stat.holds ?? 0, saves: stat.saves ?? 0, era: stat.era ?? null, inningsPitched: parseFloat(stat.inningsPitched) || 0 });
     }
     relievers.sort((a, b) => (b.saves + b.holds) - (a.saves + a.holds) || b.gamesPitched - a.gamesPitched);
     const byTeam = {};
@@ -1054,13 +1054,42 @@ async function fetchBullpens(todaySchedule, teamIdToAbbr) {
       if (!abbr) continue;
       (out[abbr] ??= []).push({
         pid: r.pid, name: m.name, hand: m.hand,
-        era: r.era, saves: r.saves, holds: r.holds, gamesPitched: r.gamesPitched,
+        era: r.era, saves: r.saves, holds: r.holds, gamesPitched: r.gamesPitched, inningsPitched: r.inningsPitched,
         lastOuting: lastOuting[r.pid] ?? null,
         pitchMix: pitchMix[r.pid] ?? [],
       });
     }
+    for (const abbr of Object.keys(out)) assignBullpenRoles(out[abbr]);
     return out;
   } catch (e) { return {}; }
+}
+
+// Assign a realistic role to each arm, RELATIVE to its own team's pen. The old
+// flat "saves >= 3 → Closer / holds >= 3 → Setup" tagged every spot-save arm,
+// so teams showed 2-3 "closers" and nobody as middle/long relief. Now:
+//   Closer — the team's lone save leader (with a closer-sized save count)
+//   Setup  — the top holds arms behind him (8th-inning, high-leverage)
+//   Long   — multi-inning arms (innings per appearance well above one)
+//   Middle — everyone else: standard 5th-7th middle relief (the common case)
+// Rank-based where it can be, so it stays sane at any point in the season.
+function assignBullpenRoles(pen) {
+  if (!pen.length) return;
+  let leader = pen[0];
+  for (const r of pen) if (r.saves > leader.saves) leader = r;
+  const closerPid = leader.saves >= 4 ? leader.pid : null;
+  const setupPids = new Set(
+    pen.filter(r => r.pid !== closerPid && r.holds >= 4)
+       .sort((a, b) => b.holds - a.holds)
+       .slice(0, 2)
+       .map(r => r.pid)
+  );
+  for (const r of pen) {
+    const ipa = r.gamesPitched ? r.inningsPitched / r.gamesPitched : 0;
+    r.role = r.pid === closerPid ? 'Closer'
+           : setupPids.has(r.pid) ? 'Setup'
+           : ipa >= 1.8           ? 'Long'
+           : 'Middle';
+  }
 }
 
 // MLB's transactions feed can lag the actual roster move by hours — a call-up

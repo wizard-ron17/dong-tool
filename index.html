@@ -526,6 +526,10 @@
   .sched-bullpen-info { flex: 1; min-width: 0; }
   .sched-bullpen-name { font-weight: 600; color: #bdd0e8; font-size: 0.68rem; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
   .sched-bullpen-role { font-size: 0.57rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--accent); background: rgba(53,201,110,0.12); border-radius: 4px; padding: 0.04rem 0.3rem; }
+  /* Colour-code by leverage: Closer gold (premium), Setup green, Long cool blue. */
+  .sched-bullpen-role.role-closer { color: var(--gold); background: rgba(240,192,64,0.14); }
+  .sched-bullpen-role.role-long   { color: #4fb6d6; background: rgba(79,182,214,0.14); }
+  :root[data-theme="light"] .sched-bullpen-role.role-long { color: #1f8fbf; }
   .sched-bullpen-sub { font-size: 0.58rem; color: var(--muted); margin-top: 0.12rem; }
   .sched-bullpen-fatigue { color: #ff7040; font-weight: 700; margin-left: 0.4rem; }
   @media (max-width: 600px) { .sched-bullpens { flex-direction: column; gap: 0.7rem; } }
@@ -2044,10 +2048,15 @@ const PITCH_ABBR = {
   'Curveball': 'CU', 'Knuckle Curve': 'KC', 'Changeup': 'CH', 'Split-Finger': 'FS',
   'Forkball': 'FO', 'Slurve': 'SV', 'Screwball': 'SC', 'Eephus': 'EP', 'Knuckleball': 'KN',
 };
+// Role is computed server-side relative to each team's pen (see
+// assignBullpenRoles in build-data.js). Middle is the common default, so we
+// don't badge it — only the standout roles get a tag.
 function bullpenRoleTag(r) {
-  if (r.saves >= 3) return 'Closer';
-  if (r.holds >= 3) return 'Setup';
-  return null;
+  return (r.role && r.role !== 'Middle') ? r.role : null;
+}
+function bullpenRoleBadge(r) {
+  const role = bullpenRoleTag(r);
+  return role ? `<span class="sched-bullpen-role role-${role.toLowerCase()}">${role}</span>` : '';
 }
 function bullpenMixText(mix) {
   if (!mix || !mix.length) return 'No pitch data';
@@ -2069,11 +2078,10 @@ function schedBullpenHtml(side) {
   }
   const rows = arms.map(r => {
     const handCls = r.hand === 'L' ? 'l' : r.hand === 'R' ? 'r' : '';
-    const role = bullpenRoleTag(r);
     return `<div class="sched-bullpen-row">
       <span class="sched-bullpen-hand ${handCls}">${r.hand || '?'}</span>
       <div class="sched-bullpen-info">
-        <div class="sched-bullpen-name">${r.name}${role ? `<span class="sched-bullpen-role">${role}</span>` : ''}</div>
+        <div class="sched-bullpen-name">${r.name}${bullpenRoleBadge(r)}</div>
         <div class="sched-bullpen-sub">${bullpenMixText(r.pitchMix)}</div>
         <div class="sched-bullpen-sub">${bullpenLastOutingText(r.lastOuting)}</div>
       </div>
@@ -2633,7 +2641,7 @@ function bullpenModalHtml(r) {
     return `<div class="sched-bullpen-row">
       <span class="sched-bullpen-hand ${handCls}">${rel.hand||'?'}</span>
       <div class="sched-bullpen-info">
-        <div class="sched-bullpen-name">${rel.name}${rel.saves>=3?'<span class="sched-bullpen-role">Closer</span>':rel.holds>=3?'<span class="sched-bullpen-role">Setup</span>':''}</div>
+        <div class="sched-bullpen-name">${rel.name}${bullpenRoleBadge(rel)}</div>
         <div class="sched-bullpen-sub">${topPitch} · ${rel.era} ERA</div>
       </div>
       ${indicator}
