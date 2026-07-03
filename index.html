@@ -1384,9 +1384,9 @@ function renderHome() {
     </div>`;
   }).join('');
 
-  // "Yesterday" only when the last completed slate was literally yesterday —
-  // after an off day it's "Last Games · <date>" instead of a wrong "Last Night".
-  const recapLabel = last === yesterday() ? 'Yesterday' : 'Last Games';
+  // "Yesterday's Homers" only when the last completed slate was literally
+  // yesterday — after an off day it's "Last Homers · <date>" instead.
+  const recapLabel = last === yesterday() ? "Yesterday's Homers" : 'Last Homers';
   el.innerHTML = `<div class="hm-grid">
     <div class="hm-card" onclick="openRecapFor('${last}')">
       <div class="hm-head"><span class="hm-title">${recapLabel} · ${fmtDateLong(last)}</span><span class="hm-link">Recap →</span></div>
@@ -1398,7 +1398,7 @@ function renderHome() {
       <div class="hm-chips">${bombers || '<span class="hm-subtle">No homers</span>'}</div>
     </div>
     <div class="hm-card" onclick="switchNav('schedule')">
-      <div class="hm-head"><span class="hm-title">Today · ${sortedGames.length ? `${sortedGames.length} Games` : 'No Games'}</span><span class="hm-link">Schedule →</span></div>
+      <div class="hm-head"><span class="hm-title">Today's Schedule · ${sortedGames.length ? `${sortedGames.length} Games` : 'No Games'}</span><span class="hm-link">Schedule →</span></div>
       ${gameRows || '<div class="hm-subtle">Nothing on the slate.</div>'}${moreGames}
     </div>
     <div class="hm-card" onclick="switchNav('picks')">
