@@ -1384,9 +1384,12 @@ function renderHome() {
     </div>`;
   }).join('');
 
+  // "Yesterday" only when the last completed slate was literally yesterday —
+  // after an off day it's "Last Games · <date>" instead of a wrong "Last Night".
+  const recapLabel = last === yesterday() ? 'Yesterday' : 'Last Games';
   el.innerHTML = `<div class="hm-grid">
-    <div class="hm-card" onclick="switchNav('recap')">
-      <div class="hm-head"><span class="hm-title">Last Night · ${fmtDateLong(last)}</span><span class="hm-link">Recap →</span></div>
+    <div class="hm-card" onclick="openRecapFor('${last}')">
+      <div class="hm-head"><span class="hm-title">${recapLabel} · ${fmtDateLong(last)}</span><span class="hm-link">Recap →</span></div>
       <div class="hm-tiles">
         <div class="hm-tile"><b>${totalHRs}</b><span>Home Runs</span></div>
         <div class="hm-tile"><b>${games}</b><span>Games</span></div>
@@ -1604,7 +1607,10 @@ function renderHRGLeaderboard(rows, label, withLogos) {
 }
 
 function renderTotals() {
-  const allDates = Object.keys(dailyHRs).sort();
+  // Completed days only — mid-day, dailyHRs already holds today's early Finals,
+  // which would end the chart (and skew tiles/rolling averages) with a
+  // half-played day that always looks like a collapse.
+  const allDates = Object.keys(dailyHRs).sort().filter(d => !todayDate || d < todayDate);
   if (!allDates.length) return;
   const filterVal = document.getElementById('team-select')?.value ?? 'ALL';
   const byVenue = totalsFilterMode === 'venue';
@@ -1844,7 +1850,10 @@ function recapChalkTag(ratio) {
 }
 
 let recapDate = null; // explicit user-picked date, or null = show the latest day with data
-function recapAvailableDates() { return Object.keys(dailyHRs).sort(); }
+// Today is excluded until it's over: dailyHRs picks up today's early Finals
+// mid-day (a Final-games boundary, not a calendar one), and a recap of a
+// half-played slate is exactly what this site avoids. Tomorrow it appears.
+function recapAvailableDates() { return Object.keys(dailyHRs).sort().filter(d => !todayDate || d < todayDate); }
 function recapLatestDate() { const d = recapAvailableDates(); return d[d.length - 1]; }
 function shiftRecapDate(delta) {
   const dates = recapAvailableDates();
@@ -1862,6 +1871,8 @@ function selectRecapDate(dateStr) {
   renderRecap();
 }
 function resetRecapToLatest() { recapDate = null; renderRecap(); }
+// Home's recap card lands on the exact completed day it was showing.
+function openRecapFor(date) { recapDate = date; switchNav('recap'); }
 function renderRecapNav(date, dates, latest) {
   const earliest = dates[0];
   document.getElementById('recap-date-input').value = date;
