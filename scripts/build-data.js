@@ -985,13 +985,21 @@ async function fetchPitchMix(pids) {
 
 // Bullpen scouting for today's games: who a team typically brings in once the
 // starter's pulled, their handedness, what they throw, and whether they're
-// fresh or were just worked the day before. "Typical reliever" = active
-// roster, zero starts this season (cleanly excludes today's probable
-// starters and the rest of the rotation), with a real sample of appearances
-// — a guy with 1-2 games is a recent call-up, not yet a "typical" arm out of
-// the pen. Trimmed to the busiest arms per team (by saves+holds, then games
-// pitched) so a deep bullpen doesn't balloon the payload more than a thin one.
+// fresh or were just worked the day before.
+//
+// "Typical reliever" = active roster, a real sample of appearances (a 1-2 game
+// guy is a recent call-up, not yet a typical pen arm), and — the important
+// part — no more than a handful of starts. A flat "zero starts" excludes real
+// relievers who took a spot start (Brad Lord: 1 GS, 25 relief apps, 6 holds is
+// plainly bullpen), so instead we allow up to BULLPEN_MAX_STARTS. That keeps
+// spot-starters while still dropping rotation regulars and openers — a team's
+// opener (e.g. WSH's Poulin "starting for Littell" with 10 GS) is in the
+// rotation cycle, not the available pen, and matches RotoWire's own list
+// exactly for WSH (7/7). Today's probable starters are excluded outright as a
+// safety net for a low-start swingman who happens to open today. Trimmed to the
+// busiest arms per team (saves+holds, then games) to cap payload.
 const BULLPEN_MIN_GAMES   = 3;
+const BULLPEN_MAX_STARTS   = 3;
 const BULLPEN_MAX_PER_TEAM = 8;
 async function fetchBullpens(todaySchedule, teamIdToAbbr) {
   try {
@@ -1001,6 +1009,13 @@ async function fetchBullpens(todaySchedule, teamIdToAbbr) {
       if (g.away.teamId) teamIds.add(g.away.teamId);
     }
     if (!teamIds.size) return {};
+
+    // Today's probable starters — excluded from their own pen even if they'd
+    // otherwise pass the start threshold (e.g. a low-start opener starting today).
+    const probableStarterIds = new Set(
+      todaySchedule.flatMap(g => [g.home.probablePitcherId, g.away.probablePitcherId])
+        .filter(Boolean).map(String)
+    );
 
     const rosters = await Promise.all([...teamIds].map(async tid => {
       try {
@@ -1022,7 +1037,8 @@ async function fetchBullpens(todaySchedule, teamIdToAbbr) {
     const relievers = [];
     for (const p of seasonRes.people ?? []) {
       const stat = p.stats?.[0]?.splits?.find(s => s.season === SEASON_YEAR)?.stat;
-      if (!stat || stat.gamesStarted > 0 || (stat.gamesPlayed ?? 0) < BULLPEN_MIN_GAMES) continue;
+      if (!stat || (stat.gamesStarted ?? 0) > BULLPEN_MAX_STARTS || (stat.gamesPlayed ?? 0) < BULLPEN_MIN_GAMES) continue;
+      if (probableStarterIds.has(String(p.id))) continue; // starting today — not available in relief
       relievers.push({ pid: String(p.id), gamesPitched: stat.gamesPlayed, holds: stat.holds ?? 0, saves: stat.saves ?? 0, era: stat.era ?? null, inningsPitched: parseFloat(stat.inningsPitched) || 0 });
     }
     relievers.sort((a, b) => (b.saves + b.holds) - (a.saves + a.holds) || b.gamesPitched - a.gamesPitched);
