@@ -319,17 +319,35 @@
   .pick-factor { background: var(--surface1); border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem 0.45rem; }
   .pick-factor-label { font-size: 0.57rem; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
   .pick-factor-val { font-family: var(--font-d); font-size: 0.85rem; font-weight: 700; }
-  .pick-hr-profile { display: flex; gap: 0.45rem; flex-wrap: wrap; margin-top: 0.25rem; }
-  .pick-hr-pitch { font-size: 0.6rem; font-weight: 700; padding: 0.1rem 0.45rem; background: var(--surface2); border-radius: 10px; color: var(--dim); }
-  .pick-hr-pitch.top { background: rgba(53,201,110,0.12); color: var(--accent); }
+  /* Pitch matchup: batter's HR pitches vs pitcher's arsenal, squared up like the fight card. */
+  .pk-pitch-face { display: flex; align-items: stretch; gap: 0.45rem; margin-bottom: 0.35rem; }
+  .pk-pitch-side { flex: 1; min-width: 0; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.45rem; }
+  .pk-pitch-side-lbl { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-align: center; margin-bottom: 0.4rem; }
+  .pk-pitch-list { display: flex; flex-direction: column; gap: 0.25rem; }
+  .pk-pitch-row { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; font-size: 0.63rem; font-weight: 700; padding: 0.16rem 0.5rem; background: var(--surface2); border: 1px solid transparent; border-radius: 6px; color: var(--dim); }
+  .pk-pitch-pct { font-family: var(--font-m); font-weight: 400; color: var(--muted); }
+  .pk-pitch-row.match { background: rgba(53,201,110,0.12); border-color: rgba(53,201,110,0.35); color: var(--accent); }
+  .pk-pitch-row.match .pk-pitch-pct { color: var(--accent); }
+  .pk-pitch-vs { display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0 0.15rem; }
+  .pk-pitch-empty { font-size: 0.62rem; color: var(--muted); text-align: center; padding: 0.2rem 0; }
+  .pk-pitch-note { font-size: 0.6rem; color: var(--muted); margin-bottom: 0.8rem; }
+  .pk-pitch-note b { color: var(--accent); }
 
-  /* Pick modal fight card: batter and pitcher squared up, score in the middle. */
+  /* Pick modal fight card: batter and pitcher squared up, score in the middle.
+     Both sides are flex columns with the stat line pinned to the bottom, so the
+     two cards' rows stay aligned even when names/sub-lines wrap differently.
+     The 56px headshot style is scoped to the direct-child img only — the little
+     team logo inside .pk-sub must keep its inline 1.05em size. */
   .pk-face { display: flex; align-items: stretch; gap: 0.45rem; margin-bottom: 0.7rem; }
-  .pk-side { flex: 1; min-width: 0; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.65rem 0.4rem 0.55rem; text-align: center; }
-  .pk-side img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: var(--surface2); border: 1px solid var(--border2); margin-bottom: 0.3rem; }
-  .pk-name { font-family: var(--font-d); font-weight: 800; font-size: 1.02rem; color: var(--text-strong); line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pk-sub { font-size: 0.6rem; color: var(--muted); margin-top: 0.2rem; }
-  .pk-stat { font-family: var(--font-d); font-size: 0.92rem; font-weight: 700; margin-top: 0.3rem; }
+  .pk-side { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.65rem 0.4rem 0.55rem; text-align: center; }
+  .pk-side > img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: var(--surface2); border: 1px solid var(--border2); margin-bottom: 0.3rem; }
+  .pk-name { max-width: 100%; font-family: var(--font-d); font-weight: 800; font-size: 1.02rem; color: var(--text-strong); line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pk-sub { max-width: 100%; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; column-gap: 0.25rem; font-size: 0.6rem; color: var(--muted); margin-top: 0.25rem; }
+  .pk-stat { font-family: var(--font-d); font-size: 0.92rem; font-weight: 700; margin-top: auto; padding-top: 0.35rem; }
+  .pk-opener-badge { display: inline-block; font-size: 0.53rem; font-weight: 800; letter-spacing: 0.07em; color: var(--gold); background: rgba(240,192,64,0.12); border: 1px solid rgba(240,192,64,0.4); border-radius: 4px; padding: 0.06rem 0.32rem; margin-top: 0.3rem; }
+  .pk-bulk-strip { display: flex; align-items: flex-start; gap: 0.6rem; background: rgba(240,192,64,0.06); border: 1px solid rgba(240,192,64,0.28); border-radius: 10px; padding: 0.55rem 0.65rem; margin-bottom: 0.8rem; font-size: 0.67rem; line-height: 1.55; color: var(--text); }
+  .pk-bulk-strip img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--surface2); border: 1px solid var(--border2); flex-shrink: 0; margin-top: 0.1rem; }
+  .pk-bulk-strip b { color: var(--text-strong); }
   .pk-stat-dim { color: var(--muted); font-weight: 400; font-size: 0.72rem; }
   .pk-vs { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.15rem; flex-shrink: 0; padding: 0 0.15rem; }
   .pk-vs-txt { font-family: var(--font-d); font-weight: 900; font-size: 1rem; color: var(--dim); letter-spacing: 0.08em; }
@@ -338,7 +356,6 @@
   .pk-hand.r { color: var(--gold); background: rgba(240,192,64,0.14); }
   .pk-hand.s { color: var(--silver); background: rgba(150,160,172,0.16); }
   :root[data-theme="light"] .pk-hand.l { color: #1479bc; }
-  .pk-mix-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.75rem; }
   .pen-scan { background: rgba(51,208,124,0.06); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.65rem; font-size: 0.68rem; line-height: 1.55; color: var(--text); margin-bottom: 0.6rem; }
   .pen-scan b { color: var(--text-strong); }
 
@@ -912,6 +929,7 @@
           <li><b>Pitch-type synergy.</b> Cross-references which pitch types this batter has actually gone deep on this season against the pitcher's typical mix. A batter who homers mostly on fastballs facing a pitcher who throws 50% four-seamers is a more interesting target than one whose HR profile doesn't match at all.</li>
           <li><b>Park.</b> The game's venue HR/game rate vs league average. Same signal shown on the Schedule tab, baked directly into the score.</li>
           <li><b>Lineups.</b> Uses confirmed lineups when posted. Before lineups drop, falls back to projected starters — players with 15+ games this season, 1.5+ AB/game, active in the last 7 days — the same pool the books use pre-lineup. Projected picks are labeled so you know which ones are speculative.</li>
+          <li><b>Openers.</b> When today's "starter" is really an opener (2+ starts averaging ≤3 IP, on a team that's recently used the piggyback pattern), his weight drops to the inning or two he actually covers, and the likely bulk arm — the rested rotation-type pitcher whose turn it is — gets his own platoon and pitch-mix slice of the score. Flagged in the pick modal so you know who you're really betting against.</li>
         </ul>
       </div>
     </div>
@@ -2665,8 +2683,12 @@ function bullpenScanHtml(r, arms) {
   const pitchTxt = top && topPct >= 25 ? `${top[0].toLowerCase()}-first (~${topPct}% of pen pitches)` : 'a mixed arsenal';
   const likelyHand = rShare >= 0.5 ? 'a righty' : 'a lefty';
   const penIP = r.starterAvgIP != null ? Math.max(0, 9 - r.starterAvgIP) : null;
-  const ipTxt = penIP != null
-    ? ` ${r.oppName ? r.oppName.split(' ').pop() : 'The starter'} averages <b>${r.starterAvgIP} IP</b> per start, so the pen likely covers <b>~${penIP.toFixed(1)} innings</b> (${Math.round((1 - r.starterShare) * 100)}% of the pitcher signal in this score).`
+  const starterLast = r.oppName ? r.oppName.split(' ').pop() : 'The starter';
+  const penPct = Math.max(0, Math.round((1 - r.starterShare - (r.bulkShare ?? 0)) * 100));
+  const ipTxt = r.openerLikely
+    ? ` ${starterLast} looks like an <b>opener</b> (${r.starterAvgIP ?? '?'} IP/start)${r.bulkName ? ` with ${r.bulkName.split(' ').pop()} likely throwing the bulk innings` : ''}, so the pen proper carries <b>~${penPct}%</b> of the pitcher signal in this score.`
+    : penIP != null
+    ? ` ${starterLast} averages <b>${r.starterAvgIP} IP</b> per start, so the pen likely covers <b>~${penIP.toFixed(1)} innings</b> (${Math.round((1 - r.starterShare) * 100)}% of the pitcher signal in this score).`
     : '';
   return `<div class="pen-scan">🔎 <b>If they go to the pen:</b> expect ${likelyHand} throwing ${pitchTxt} — this pen is ${handTxt}.${ipTxt}</div>`;
 }
@@ -2716,13 +2738,23 @@ function pickModalHtml(r) {
   const pitcherStat = r.oppPid ? pitcherStats[r.oppPid] : null;
   const hr9Cls = pitcherStat?.hr9 ? hrgClass(parseFloat(pitcherStat.hr9), avgPitcherHR9()) : 'avg';
 
-  const hrProfileHtml = r.hrProfile?.map((h, i) =>
-    `<span class="pick-hr-pitch ${i===0?'top':''}">${pitchAbbrClient(h.name)} ${h.pct}%</span>`
-  ).join('') || '<span class="pick-ind">No HR data yet</span>';
-
-  const mixHtml = r.pitcherMix?.map(m =>
-    `<span class="pick-hr-pitch">${pitchAbbrClient(m.name)} ${m.pct}%</span>`
-  ).join('') || '';
+  // Pitch matchup panel: batter's HR pitches vs pitcher's arsenal, overlaps highlighted.
+  const mixNames = new Set((r.pitcherMix ?? []).map(m => m.name));
+  const hrNames  = new Set((r.hrProfile ?? []).map(h => h.name));
+  const pitchRowHtml = (name, pct, match) =>
+    `<div class="pk-pitch-row${match ? ' match' : ''}"><span>${pitchAbbrClient(name)}</span><span class="pk-pitch-pct">${pct}%</span></div>`;
+  const hrRowsHtml  = r.hrProfile?.map(h => pitchRowHtml(h.name, h.pct, mixNames.has(h.name))).join('')
+    || '<div class="pk-pitch-empty">No HR data yet</div>';
+  const bulkLast = r.bulkName ? r.bulkName.split(' ').pop() : '';
+  const bulkMixInMatchup = r.openerLikely && r.bulkMix?.length;
+  const mixRowsHtml = (r.pitcherMix?.map(m => pitchRowHtml(m.name, m.pct, hrNames.has(m.name))).join('')
+    || '<div class="pk-pitch-empty">No mix data yet</div>')
+    + (bulkMixInMatchup
+      ? `<div class="pk-pitch-side-lbl" style="margin:0.45rem 0 0.15rem">Bulk: ${bulkLast}</div>`
+        + r.bulkMix.map(m => pitchRowHtml(m.name, m.pct, hrNames.has(m.name))).join('')
+      : '');
+  const pitchOverlap = r.hrProfile?.some(h => mixNames.has(h.name))
+    || (bulkMixInMatchup && r.bulkMix.some(m => hrNames.has(m.name)));
 
   const factorRatio = (val, label, digits=2) => val == null ? '' : `
     <div class="pick-factor">
@@ -2733,6 +2765,24 @@ function pickModalHtml(r) {
   const batHand   = r.bHand === 'S' ? '<span class="pk-hand s">S</span>' : r.bHand ? `<span class="pk-hand ${r.bHand.toLowerCase()}">${r.bHand}</span>` : '';
   const throwHand = r.oppHand ? `<span class="pk-hand ${r.oppHand.toLowerCase()}">${r.oppHand}</span>` : '';
   const abPerHR   = r.hrs ? (r.abs / r.hrs).toFixed(1) : null;
+
+  // Opener day: call out the likely bulk arm — HE's the real matchup, not the
+  // announced opener, and he's invisible in both the fight card and pen list.
+  const oppLast   = r.oppName ? r.oppName.split(' ').pop() : 'the opener';
+  const bulkStat  = r.bulkPid ? pitcherStats[r.bulkPid] : null;
+  const bulkHand  = r.bulkHand ? `<span class="pk-hand ${r.bulkHand.toLowerCase()}">${r.bulkHand}</span>` : '';
+  const bulkStripHtml = !r.openerLikely ? '' : r.bulkPid
+    ? `<div class="pk-bulk-strip">
+        <img src="${playerPhotoUrl(r.bulkPid)}" alt="">
+        <div><b>Likely bulk arm: ${r.bulkName}</b> ${bulkHand} —
+          ${r.oppTeam} runs an opener, so ${oppLast} covers an inning or two and a rotation arm throws the bulk.
+          ${bulkLast} (${r.bulkIPPerApp} IP/outing${bulkStat?.hr9 != null ? `, ${bulkStat.hr9} HR9` : ''}${r.bulkRestDays != null ? `, ${r.bulkRestDays}d rest` : ''})
+          is the likely candidate and carries <b>${Math.round((r.bulkShare ?? 0) * 100)}%</b> of the pitcher signal in this score.</div>
+      </div>`
+    : `<div class="pk-bulk-strip">
+        <div><b>Opener alert:</b> ${r.oppTeam} has been using an opener — ${oppLast} likely covers an inning or two and an
+        unannounced arm throws the bulk, so this score leans mostly on the pen.</div>
+      </div>`;
 
   return `<div class="due-modal-backdrop" id="pick-modal-backdrop" onclick="if(event.target===this) closePickModal()">
     <div class="due-modal">
@@ -2754,13 +2804,26 @@ function pickModalHtml(r) {
           <img src="${playerPhotoUrl(r.oppPid)}" alt="">
           <div class="pk-name">${r.oppName || 'TBD'}</div>
           <div class="pk-sub">${teamLogoImg(r.oppTeam,'team-logo')}${r.oppTeam} · Throws ${throwHand}</div>
+          ${r.openerLikely ? '<span class="pk-opener-badge">LIKELY OPENER</span>' : ''}
           <div class="pk-stat">${pitcherStat ? `<span class="hrg-val ${hr9Cls}">${pitcherStat.hr9} HR9</span> <span class="pk-stat-dim">· ${pitcherStat.hr} HR allowed${r.starterAvgIP != null ? ` · ${r.starterAvgIP} IP/start` : ''}</span>` : '<span class="pk-stat-dim">No stats yet</span>'}</div>
         </div>
       </div>
-      ${mixHtml ? `<div class="pk-mix-row"><span class="pick-section-title" style="margin:0">He throws:</span> ${mixHtml}</div>` : ''}
-
-      <div class="pick-section-title">Batter HR Profile — pitches he goes deep on</div>
-      <div class="pick-hr-profile">${hrProfileHtml}</div>
+      ${bulkStripHtml}
+      <div class="pick-section-title">Pitch Matchup</div>
+      <div class="pk-pitch-face">
+        <div class="pk-pitch-side">
+          <div class="pk-pitch-side-lbl">Goes deep on</div>
+          <div class="pk-pitch-list">${hrRowsHtml}</div>
+        </div>
+        <div class="pk-pitch-vs"><span class="pk-vs-txt">VS</span></div>
+        <div class="pk-pitch-side">
+          <div class="pk-pitch-side-lbl">He throws</div>
+          <div class="pk-pitch-list">${mixRowsHtml}</div>
+        </div>
+      </div>
+      <div class="pk-pitch-note">${pitchOverlap
+        ? `<b>Green</b> = pitch in the ${r.openerLikely ? 'arsenal he’ll see' : 'starter’s arsenal'} that the batter has homered on.`
+        : `No overlap — the ${r.openerLikely ? 'arms he’ll see don’t' : 'starter doesn’t'} lean on the batter’s HR pitches.`}</div>
 
       ${bullpenModalHtml(r)}
 

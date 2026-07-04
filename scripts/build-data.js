@@ -606,7 +606,7 @@ function starterShareFor(stat) {
   return Math.max(STARTER_SHARE_MIN, Math.min(STARTER_SHARE_MAX, avgIP / 9));
 }
 
-async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {}) {
+async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {}, openerBulk = {}) {
   try {
     // Identify a team's likely everyday starters when the official lineup
     // hasn't posted yet. Uses season-long data: guys who've appeared in at
@@ -648,7 +648,10 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {})
     const uniq = candidates.filter(c => seen.has(c.pid) ? false : (seen.add(c.pid), true));
 
     const batterIds  = uniq.map(c => c.pid);
-    const pitcherIds = [...new Set(uniq.map(c => c.oppPid))];
+    // Likely bulk arms behind openers ride along in the pitcher fetches so
+    // they get real platoon splits and a real pitch mix, same as starters.
+    const bulkPids   = Object.values(openerBulk).map(o => o.bulk?.pid).filter(Boolean);
+    const pitcherIds = [...new Set([...uniq.map(c => c.oppPid), ...bulkPids])];
 
     const [batterSplits, pitcherSplits, batterBalls, pitcherMixByPid] = await Promise.all([
       fetchPlatoonSplits(batterIds, 'hitting'),
@@ -712,6 +715,22 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {})
     const totalHRs   = Object.values(dailyHRs).reduce((sum, day) => sum + Object.values(day).reduce((a, b) => a + b, 0), 0);
     const leagueHRPerGame = totalGames ? totalHRs / totalGames : 0;
 
+    // Shrunk same-vs-other platoon ratio for any pitcher's splits against a
+    // given batter hand — used for today's starter and, on opener days, the
+    // likely bulk arm.
+    function pitcherPlatoonVs(pInfo, bHand) {
+      const effectiveSide = bHand === 'S' ? (pInfo?.hand === 'L' ? 'R' : 'L') : bHand;
+      if (!pInfo || !effectiveSide) return null;
+      const vsLPrior = pInfo.hand === 'L' ? leaguePitcherRateSame : leaguePitcherRateOpp;
+      const vsRPrior = pInfo.hand === 'R' ? leaguePitcherRateSame : leaguePitcherRateOpp;
+      const shrunkVsL = pInfo.vsL ? shrunkRate(pInfo.vsL.hr, pInfo.vsL.ip, vsLPrior, PLATOON_SHRINK_IP) : null;
+      const shrunkVsR = pInfo.vsR ? shrunkRate(pInfo.vsR.hr, pInfo.vsR.ip, vsRPrior, PLATOON_SHRINK_IP) : null;
+      const sameSplit  = effectiveSide === 'L' ? shrunkVsL : shrunkVsR;
+      const otherSplit = effectiveSide === 'L' ? shrunkVsR : shrunkVsL;
+      if (sameSplit == null || otherSplit == null || !(otherSplit > 0)) return null;
+      return Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, sameSplit / otherSplit));
+    }
+
     const rows = [];
     for (const c of uniq) {
       const abs = playerABs[c.pid] ?? 0, hrs = hrTotals[c.pid] ?? 0;
@@ -744,19 +763,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {})
       }
 
       const bHand = bInfo?.hand ?? null;
-      const effectiveBatterSide = bHand === 'S' ? (pHand === 'L' ? 'R' : 'L') : bHand;
-      let pitcherPlatoonRatio = null;
-      if (pInfo && effectiveBatterSide) {
-        const vsLPrior = pInfo.hand === 'L' ? leaguePitcherRateSame : leaguePitcherRateOpp;
-        const vsRPrior = pInfo.hand === 'R' ? leaguePitcherRateSame : leaguePitcherRateOpp;
-        const shrunkVsL = pInfo.vsL ? shrunkRate(pInfo.vsL.hr, pInfo.vsL.ip, vsLPrior, PLATOON_SHRINK_IP) : null;
-        const shrunkVsR = pInfo.vsR ? shrunkRate(pInfo.vsR.hr, pInfo.vsR.ip, vsRPrior, PLATOON_SHRINK_IP) : null;
-        const sameSplit  = effectiveBatterSide === 'L' ? shrunkVsL : shrunkVsR;
-        const otherSplit = effectiveBatterSide === 'L' ? shrunkVsR : shrunkVsL;
-        if (sameSplit != null && otherSplit != null && otherSplit > 0) {
-          pitcherPlatoonRatio = Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, sameSplit / otherSplit));
-        }
-      }
+      const pitcherPlatoonRatio = pitcherPlatoonVs(pInfo, bHand);
 
       const venueGames = Object.values(venueGameDays[c.venue] ?? {}).reduce((a, b) => a + b, 0);
       const venueHRs   = Object.values(venueHRsByDate[c.venue] ?? {}).reduce((a, b) => a + b, 0);
@@ -820,19 +827,57 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {})
       // averaging 7 IP means his pen barely matters; a 4.5-IP starter's pen
       // is nearly half the matchup.
       const startStat = r.oppPid ? pitcherSeasonStats[r.oppPid] : null;
-      const sW = starterShareFor(startStat);
-      const bW = 1 - sW;
-      r.starterAvgIP  = startStat?.gamesStarted > 0 ? Math.round(ipToFloat(startStat.ip) / startStat.gamesStarted * 10) / 10 : null;
-      r.starterShare  = Math.round(sW * 100) / 100;
+      const startAvgIP = startStat?.gamesStarted > 0 ? ipToFloat(startStat.ip) / startStat.gamesStarted : null;
+      r.starterAvgIP = startAvgIP != null ? Math.round(startAvgIP * 10) / 10 : null;
 
-      const effectivePitcherPlatoon = r.pitcherPlatoonRatio != null
-        ? (bullpenPlatoonFactor != null
-            ? sW * r.pitcherPlatoonRatio + bW * bullpenPlatoonFactor
-            : r.pitcherPlatoonRatio)
-        : bullpenPlatoonFactor;
-      const effectiveSynergy = bullpenPlatoonFactor != null
-        ? sW * r.synergyRatio + bW * r.bullpenSynergyRatio
-        : r.synergyRatio;
+      // Opener day: the announced "starter" covers an inning or two, a likely
+      // bulk arm covers the middle, and the pen closes it out — a confirmed
+      // opener escapes the normal 45% starter-share floor, and the bulk arm
+      // (invisible to both the starter matchup AND the bullpen scan) gets his
+      // own slice of the platoon/synergy blend.
+      const ob = openerBulk[r.oppTeam];
+      const bulk = ob?.bulk ?? null;
+      r.openerLikely = !!ob?.openerLikely;
+
+      let sW = starterShareFor(startStat);
+      if (r.openerLikely && startAvgIP != null) sW = Math.max(0.12, Math.min(0.35, startAvgIP / 9));
+      let bulkW = 0, bulkPlatoon = null, bulkSynergyRatio = null;
+      if (r.openerLikely && bulk) {
+        bulkW = Math.min(bulk.ipPerApp / 9, (1 - sW) * 0.8);
+        bulkPlatoon = pitcherPlatoonVs(pitcherSplits[bulk.pid], r.bHand);
+        if (bulkPlatoon == null && bulk.hand && r.bHand) {
+          // No real splits fetched — fall back to the league-prior hand
+          // effect, same treatment as a pen arm.
+          const effSide = r.bHand === 'S' ? (bulk.hand === 'L' ? 'R' : 'L') : r.bHand;
+          bulkPlatoon = Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX,
+            (bulk.hand === effSide ? leaguePitcherRateSame : leaguePitcherRateOpp) / avgPitcherRate));
+        }
+        const bulkSynergyRaw = pitchSynergyScore(r.hrProfile, pitcherMixByPid[bulk.pid]);
+        bulkSynergyRatio = medianSynergy > 0 && bulkSynergyRaw > 0
+          ? Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, bulkSynergyRaw / medianSynergy))
+          : (bulkSynergyRaw === 0 ? 0.9 : 1);
+        r.bulkPid = bulk.pid; r.bulkName = bulk.name; r.bulkHand = bulk.hand;
+        r.bulkIPPerApp = bulk.ipPerApp; r.bulkRestDays = bulk.restDays;
+        r.bulkMix = pitcherMixByPid[bulk.pid] ?? [];
+      }
+      const penW = 1 - sW - bulkW;
+      r.starterShare = Math.round(sW * 100) / 100;
+      r.bulkShare    = bulkW ? Math.round(bulkW * 100) / 100 : null;
+
+      // Weighted average over whichever components actually have data,
+      // renormalized so missing pieces don't drag the blend toward nothing.
+      const wavg = parts => {
+        const have = parts.filter(([, v]) => v != null);
+        const tw = have.reduce((a, [w]) => a + w, 0);
+        return tw > 0 ? have.reduce((a, [w, v]) => a + w * v, 0) / tw : null;
+      };
+      const effectivePitcherPlatoon = wavg([
+        [sW, r.pitcherPlatoonRatio], [bulkW, bulkPlatoon], [penW, bullpenPlatoonFactor],
+      ]);
+      const effectiveSynergy = wavg([
+        [sW, r.synergyRatio], [bulkW, bulkSynergyRatio],
+        [penW, bullpenPlatoonFactor != null ? r.bullpenSynergyRatio : null],
+      ]) ?? r.synergyRatio;
 
       const factors = [r.recentFormRatio, r.batterPlatoonRatio, effectivePitcherPlatoon, r.parkRatio, effectiveSynergy]
         .filter(f => f != null);
@@ -971,6 +1016,121 @@ async function fetchPitcherHRStats(pids) {
     }));
   }
   return stats;
+}
+
+// ── Opener / bulk-arm detection ─────────────────────────────────────────
+// Some teams run "the opener": a reliever starts the 1st, then a rotation
+// arm throws the bulk innings (WSH 7/4: Palmquist 1 IP, then Littell 6 IP).
+// The announced probable is then nearly meaningless as the matchup — he
+// covers an inning while an unannounced arm covers five or six, and that
+// bulk arm is excluded from the bullpen scan by design (he's a rotation
+// guy, BULLPEN_MAX_STARTS drops him). Without this, an opener day scores
+// the wrong pitcher AND the wrong pen.
+//
+// Opener signal: today's probable has 2+ starts but averages ≤3 IP per
+// start — AND his team has actually shown the piggyback pattern recently
+// (a relief outing of 10+ outs in their last games). The second condition
+// keeps a legit young starter with two short blowup starts from being
+// mislabeled.
+//
+// Likely bulk arm: rotation-type pitchers (2+ GS, 3+ IP per appearance
+// season-long) on the active roster who aren't a probable today or in the
+// next few days, and are rested 4+ days — bulk guys run on rotation rest,
+// so "whose turn is it" ≈ "who's been down the longest". Proven recent
+// bulk outings rank first, then days of rest. Verified against WSH 7/4:
+// picks Littell (6 days rest) over Mikolas/Cavalli, with Alvarez (proven
+// bulk but only 3 days rest) correctly excluded.
+const OPENER_MAX_AVG_IP  = 3.0;
+const OPENER_MIN_STARTS  = 2;
+const BULK_MIN_OUTS      = 10; // 3.1+ IP in relief = a bulk outing
+const BULK_MIN_REST_DAYS = 4;
+const BULK_SCAN_GAMES    = 10; // recent completed games to scan per team
+async function detectOpenerBulk(todaySchedule, pitcherStats) {
+  const out = {}; // teamAbbr -> { openerLikely: true, bulk: {...} | null }
+  const todayProbables = new Set(
+    todaySchedule.flatMap(g => [g.home.probablePitcherId, g.away.probablePitcherId]).filter(Boolean)
+  );
+
+  const openerSides = [];
+  for (const g of todaySchedule) {
+    for (const s of [g.home, g.away]) {
+      const st = s.probablePitcherId ? pitcherStats[s.probablePitcherId] : null;
+      if (!st || (st.gamesStarted ?? 0) < OPENER_MIN_STARTS || !s.teamId) continue;
+      if (ipToFloat(st.ip) / st.gamesStarted <= OPENER_MAX_AVG_IP) openerSides.push(s);
+    }
+  }
+
+  for (const side of openerSides) {
+    try {
+      const tid = side.teamId, today = todayET();
+      const fmt = ms => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+      // One schedule call covers both needs: recent finals (bulk-pattern scan,
+      // last-outing dates) and upcoming probables (whose turn it ISN'T).
+      const sched = await fetch(`${MLB}/schedule?sportId=1&teamId=${tid}&startDate=${fmt(Date.now() - 16 * 86400000)}&endDate=${fmt(Date.now() + 5 * 86400000)}&gameType=R&hydrate=probablePitcher`).then(r => r.json());
+      const games = (sched.dates ?? []).flatMap(d => d.games);
+
+      const upcomingProbables = new Set();
+      for (const g of games) {
+        if (g.officialDate <= today) continue;
+        for (const s of ['home', 'away']) {
+          if (g.teams?.[s]?.team?.id === tid && g.teams[s].probablePitcher?.id)
+            upcomingProbables.add(String(g.teams[s].probablePitcher.id));
+        }
+      }
+
+      const finals = games
+        .filter(g => g.status?.detailedState === 'Final' && g.officialDate < today)
+        .slice(-BULK_SCAN_GAMES);
+      const lastOuting = {};  // pid -> most recent date pitched
+      const bulkOutings = {}; // pid -> most recent 10+ out relief outing
+      for (const g of finals) {
+        try {
+          const box = await fetch(`${MLB}/game/${g.gamePk}/boxscore`).then(r => r.json());
+          const t = box.teams.home.team.id === tid ? box.teams.home : box.teams.away;
+          for (const id of t.pitchers ?? []) {
+            const st = t.players?.[`ID${id}`]?.stats?.pitching ?? {};
+            const pid = String(id);
+            if (!lastOuting[pid] || g.officialDate > lastOuting[pid]) lastOuting[pid] = g.officialDate;
+            if (!(st.gamesStarted > 0) && (st.outs ?? 0) >= BULK_MIN_OUTS) {
+              if (!bulkOutings[pid] || g.officialDate > bulkOutings[pid]) bulkOutings[pid] = g.officialDate;
+            }
+          }
+        } catch { /* skip unreadable boxscore */ }
+      }
+      if (!Object.keys(bulkOutings).length) continue; // no piggyback history — don't flag
+
+      const roster = await fetch(`${MLB}/teams/${tid}/roster?rosterType=active&hydrate=person(pitchHand)`).then(r => r.json());
+      const arms = (roster.roster ?? []).filter(x => x.position?.code === '1');
+      const armMeta = {};
+      for (const x of arms) armMeta[String(x.person.id)] = { name: x.person.fullName, hand: x.person.pitchHand?.code ?? null };
+      const armIds = Object.keys(armMeta);
+      const seasonRes = armIds.length
+        ? await fetch(`${MLB}/people?personIds=${armIds.join(',')}&hydrate=stats(group=[pitching],type=[season])`).then(r => r.json())
+        : { people: [] };
+
+      const candidates = [];
+      for (const p of seasonRes.people ?? []) {
+        const pid = String(p.id);
+        const st = p.stats?.[0]?.splits?.find(s => s.season === SEASON_YEAR)?.stat;
+        if (!st) continue;
+        const gp = st.gamesPlayed ?? 0;
+        const ipPerApp = gp ? ipToFloat(st.inningsPitched) / gp : 0;
+        if ((st.gamesStarted ?? 0) < 2 || ipPerApp < 3) continue;       // not a rotation-type arm
+        if (todayProbables.has(pid) || upcomingProbables.has(pid)) continue; // his turn is another day
+        const restDays = lastOuting[pid] ? daysSince(lastOuting[pid]) : null; // null = no outing in scan window
+        if (restDays != null && restDays < BULK_MIN_REST_DAYS) continue;
+        candidates.push({
+          pid, name: armMeta[pid]?.name ?? p.fullName, hand: armMeta[pid]?.hand ?? null,
+          ipPerApp: Math.round(ipPerApp * 10) / 10, restDays,
+          provenBulk: !!bulkOutings[pid],
+        });
+      }
+      candidates.sort((a, b) => (b.provenBulk - a.provenBulk) || ((b.restDays ?? 99) - (a.restDays ?? 99)));
+      out[side.teamAbbr] = { openerLikely: true, bulk: candidates[0] ?? null };
+      console.log(`Opener flagged: ${side.teamAbbr} (${side.probablePitcher}) — likely bulk arm: ${candidates[0]?.name ?? 'unknown'}`);
+    } catch { /* leave team unflagged on any failure */ }
+  }
+  return out;
 }
 
 // Pitch-type mix from Statcast, for relief-arm scouting on the Schedule tab.
@@ -1348,11 +1508,16 @@ async function main() {
   const probablePitcherIds = todaySchedule.flatMap(g => [g.home.probablePitcherId, g.away.probablePitcherId]).filter(Boolean);
   const pitcherStats = await fetchPitcherHRStats(probablePitcherIds);
 
+  console.log('Checking for opener situations...');
+  const openerBulk = await detectOpenerBulk(todaySchedule, pitcherStats);
+  const bulkPids = Object.values(openerBulk).map(o => o.bulk?.pid).filter(Boolean);
+  if (bulkPids.length) Object.assign(pitcherStats, await fetchPitcherHRStats(bulkPids)); // so the client can show the bulk arm's line
+
   console.log("Fetching bullpen data for today's games...");
   const bullpens = await fetchBullpens(todaySchedule, teamIdToAbbr);
 
   console.log("Computing today's HR picks (matchups, splits, pitch-type profiles)...");
-  const picks = await computePicks(todaySchedule, bullpens, pitcherStats);
+  const picks = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk);
 
   console.log('Checking for rookie debuts and recent call-ups...');
   const prospects = await computeProspects(todaySchedule, teamIdToAbbr);
