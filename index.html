@@ -2080,10 +2080,11 @@ function schedPitcherHtml(side) {
 // ── Bullpen scouting (who they bring in after the starter, lefty/righty,
 // what they throw, fresh or worked yesterday) — display-only for now, the
 // groundwork for an eventual matchup tool.
+// Readable pitch names everywhere pitches are shown — Statcast codes (FF, FC…)
+// mean nothing at a glance. Only the wordy names get shortened; anything not
+// in the map displays as-is (Cutter, Sinker, Slider, Sweeper, Changeup…).
 const PITCH_ABBR = {
-  '4-Seam Fastball': 'FF', 'Sinker': 'SI', 'Cutter': 'FC', 'Slider': 'SL', 'Sweeper': 'SW',
-  'Curveball': 'CU', 'Knuckle Curve': 'KC', 'Changeup': 'CH', 'Split-Finger': 'FS',
-  'Forkball': 'FO', 'Slurve': 'SV', 'Screwball': 'SC', 'Eephus': 'EP', 'Knuckleball': 'KN',
+  '4-Seam Fastball': '4-Seam', 'Split-Finger': 'Splitter', 'Curveball': 'Curve',
 };
 // Role is computed server-side relative to each team's pen (see
 // assignBullpenRoles in build-data.js). Middle is the common default, so we
@@ -2626,12 +2627,7 @@ function renderPicksFilters() {
 
 function pickScoreClass(s) { return s >= 15 ? 'great' : s >= 9 ? 'good' : 'ok'; }
 
-const PITCH_ABBR_CLIENT = {
-  '4-Seam Fastball': 'FF', 'Sinker': 'SI', 'Cutter': 'FC', 'Slider': 'SL', 'Sweeper': 'SW',
-  'Curveball': 'CU', 'Knuckle Curve': 'KC', 'Changeup': 'CH', 'Split-Finger': 'FS',
-  'Forkball': 'FO', 'Slurve': 'SV', 'Screwball': 'SC', 'Eephus': 'EP', 'Knuckleball': 'KN',
-};
-function pitchAbbrClient(name) { return PITCH_ABBR_CLIENT[name] || name; }
+function pitchAbbrClient(name) { return PITCH_ABBR[name] || name; }
 function pitchSynergyScore(hrProfile, pitcherMix) {
   if (!hrProfile?.length || !pitcherMix?.length) return 0;
   const usage = {};
