@@ -586,13 +586,27 @@ function pitchSynergyScore(hrProfile, pitcherMix) {
   return score;
 }
 
-// Starters average ~5 innings in the modern game, bullpen ~4 — blending
-// the matchup signals at those weights gives a full-game picture rather
-// than just "how does the batter do vs the starter."
+// How much of the pitcher-side signal comes from the starter vs the pen is
+// driven by how deep THIS starter actually goes: his avg innings per start
+// over the season (a workhorse averaging 6.5+ IP leaves the pen ~2 innings;
+// a 4.5-IP guy hands nearly half the game to relievers). Clamped so neither
+// side ever fully vanishes — even a 9-inning machine gets pulled sometimes,
+// and even an opener's team uses SOME starter innings. STARTER_WEIGHT is the
+// flat fallback when the starter has no starts on record yet.
 const STARTER_WEIGHT = 0.55;
-const BULLPEN_WEIGHT = 0.45;
+const STARTER_SHARE_MIN = 0.45;
+const STARTER_SHARE_MAX = 0.85;
+function ipToFloat(ip) { // "88.1" = 88 innings + 1 out, not 88.1
+  const [whole, outs] = String(ip ?? '0').split('.');
+  return (+whole || 0) + (+(outs || 0)) / 3;
+}
+function starterShareFor(stat) {
+  if (!stat || !(stat.gamesStarted > 0)) return STARTER_WEIGHT;
+  const avgIP = ipToFloat(stat.ip) / stat.gamesStarted;
+  return Math.max(STARTER_SHARE_MIN, Math.min(STARTER_SHARE_MAX, avgIP / 9));
+}
 
-async function computePicks(todaySchedule, bullpensMap) {
+async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {}) {
   try {
     // Identify a team's likely everyday starters when the official lineup
     // hasn't posted yet. Uses season-long data: guys who've appeared in at
@@ -801,14 +815,23 @@ async function computePicks(todaySchedule, bullpensMap) {
         ? Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, bullpenSynergyRaw / medianSynergy))
         : (bullpenSynergyRaw === 0 ? 0.9 : 1);
 
-      // Blended pitcher signal: weighted by typical innings split (55/45)
+      // Blended pitcher signal, weighted by how deep this starter usually
+      // goes (avg IP per start) rather than a flat league split — Misiorowski
+      // averaging 7 IP means his pen barely matters; a 4.5-IP starter's pen
+      // is nearly half the matchup.
+      const startStat = r.oppPid ? pitcherSeasonStats[r.oppPid] : null;
+      const sW = starterShareFor(startStat);
+      const bW = 1 - sW;
+      r.starterAvgIP  = startStat?.gamesStarted > 0 ? Math.round(ipToFloat(startStat.ip) / startStat.gamesStarted * 10) / 10 : null;
+      r.starterShare  = Math.round(sW * 100) / 100;
+
       const effectivePitcherPlatoon = r.pitcherPlatoonRatio != null
         ? (bullpenPlatoonFactor != null
-            ? STARTER_WEIGHT * r.pitcherPlatoonRatio + BULLPEN_WEIGHT * bullpenPlatoonFactor
+            ? sW * r.pitcherPlatoonRatio + bW * bullpenPlatoonFactor
             : r.pitcherPlatoonRatio)
         : bullpenPlatoonFactor;
       const effectiveSynergy = bullpenPlatoonFactor != null
-        ? STARTER_WEIGHT * r.synergyRatio + BULLPEN_WEIGHT * r.bullpenSynergyRatio
+        ? sW * r.synergyRatio + bW * r.bullpenSynergyRatio
         : r.synergyRatio;
 
       const factors = [r.recentFormRatio, r.batterPlatoonRatio, effectivePitcherPlatoon, r.parkRatio, effectiveSynergy]
@@ -942,6 +965,7 @@ async function fetchPitcherHRStats(pids) {
         stats[pid] = {
           hr: stat.homeRuns ?? 0, hr9: stat.homeRunsPer9 ?? null,
           ip: stat.inningsPitched ?? '0.0', era: stat.era ?? null,
+          gamesStarted: stat.gamesStarted ?? 0,
         };
       } catch (e) {}
     }));
@@ -1328,7 +1352,7 @@ async function main() {
   const bullpens = await fetchBullpens(todaySchedule, teamIdToAbbr);
 
   console.log("Computing today's HR picks (matchups, splits, pitch-type profiles)...");
-  const picks = await computePicks(todaySchedule, bullpens);
+  const picks = await computePicks(todaySchedule, bullpens, pitcherStats);
 
   console.log('Checking for rookie debuts and recent call-ups...');
   const prospects = await computeProspects(todaySchedule, teamIdToAbbr);

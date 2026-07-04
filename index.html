@@ -323,6 +323,25 @@
   .pick-hr-pitch { font-size: 0.6rem; font-weight: 700; padding: 0.1rem 0.45rem; background: var(--surface2); border-radius: 10px; color: var(--dim); }
   .pick-hr-pitch.top { background: rgba(53,201,110,0.12); color: var(--accent); }
 
+  /* Pick modal fight card: batter and pitcher squared up, score in the middle. */
+  .pk-face { display: flex; align-items: stretch; gap: 0.45rem; margin-bottom: 0.7rem; }
+  .pk-side { flex: 1; min-width: 0; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.65rem 0.4rem 0.55rem; text-align: center; }
+  .pk-side img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: var(--surface2); border: 1px solid var(--border2); margin-bottom: 0.3rem; }
+  .pk-name { font-family: var(--font-d); font-weight: 800; font-size: 1.02rem; color: var(--text-strong); line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pk-sub { font-size: 0.6rem; color: var(--muted); margin-top: 0.2rem; }
+  .pk-stat { font-family: var(--font-d); font-size: 0.92rem; font-weight: 700; margin-top: 0.3rem; }
+  .pk-stat-dim { color: var(--muted); font-weight: 400; font-size: 0.72rem; }
+  .pk-vs { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.15rem; flex-shrink: 0; padding: 0 0.15rem; }
+  .pk-vs-txt { font-family: var(--font-d); font-weight: 900; font-size: 1rem; color: var(--dim); letter-spacing: 0.08em; }
+  .pk-hand { display: inline-flex; align-items: center; justify-content: center; min-width: 1.05rem; padding: 0.02rem 0.25rem; border-radius: 4px; font-size: 0.6rem; font-weight: 700; vertical-align: middle; }
+  .pk-hand.l { color: #3cb4f5; background: rgba(56,176,240,0.16); }
+  .pk-hand.r { color: var(--gold); background: rgba(240,192,64,0.14); }
+  .pk-hand.s { color: var(--silver); background: rgba(150,160,172,0.16); }
+  :root[data-theme="light"] .pk-hand.l { color: #1479bc; }
+  .pk-mix-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.75rem; }
+  .pen-scan { background: rgba(51,208,124,0.06); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.65rem; font-size: 0.68rem; line-height: 1.55; color: var(--text); margin-bottom: 0.6rem; }
+  .pen-scan b { color: var(--text-strong); }
+
   .due-explainer { background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.9rem; margin-bottom: 0.6rem; font-size: 0.72rem; line-height: 1.5; color: var(--dim); cursor: pointer; transition: background 0.15s; }
   .due-explainer:hover { background: var(--surface2); }
   .due-explainer-head { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0.1rem 0; }
@@ -2620,6 +2639,38 @@ function pickIndicators(r) {
   return inds.join('');
 }
 
+// One-line read of what the pen throws at you: weighted (by games pitched)
+// handedness lean + dominant pitch across every rested arm, plus how much of
+// the game that pen is actually likely to cover given the starter's avg IP.
+// Turns eight rows of arms into "expect a righty fastball if they go to the pen."
+function bullpenScanHtml(r, arms) {
+  if (!arms.length) return '';
+  let totalW = 0, rW = 0;
+  const usage = {};
+  for (const rel of arms) {
+    const w = rel.gamesPitched || 1;
+    totalW += w;
+    if (rel.hand === 'R') rW += w;
+    for (const m of rel.pitchMix ?? []) usage[m.name] = (usage[m.name] ?? 0) + m.pct * w;
+  }
+  const rShare = totalW ? rW / totalW : 0.5;
+  const rCount = arms.filter(a => a.hand === 'R').length;
+  const handTxt = rShare >= 0.99 ? `all right-handed (${arms.length}R)`
+                : rShare >= 0.7  ? `mostly right-handed (${rCount}R/${arms.length - rCount}L)`
+                : rShare <= 0.01 ? `all left-handed (${arms.length}L)`
+                : rShare <= 0.3  ? `mostly left-handed (${rCount}R/${arms.length - rCount}L)`
+                : `mixed hands (${rCount}R/${arms.length - rCount}L)`;
+  const top = Object.entries(usage).sort((a, b) => b[1] - a[1])[0];
+  const topPct = top && totalW ? Math.round(top[1] / totalW) : 0;
+  const pitchTxt = top && topPct >= 25 ? `${top[0].toLowerCase()}-first (~${topPct}% of pen pitches)` : 'a mixed arsenal';
+  const likelyHand = rShare >= 0.5 ? 'a righty' : 'a lefty';
+  const penIP = r.starterAvgIP != null ? Math.max(0, 9 - r.starterAvgIP) : null;
+  const ipTxt = penIP != null
+    ? ` ${r.oppName ? r.oppName.split(' ').pop() : 'The starter'} averages <b>${r.starterAvgIP} IP</b> per start, so the pen likely covers <b>~${penIP.toFixed(1)} innings</b> (${Math.round((1 - r.starterShare) * 100)}% of the pitcher signal in this score).`
+    : '';
+  return `<div class="pen-scan">🔎 <b>If they go to the pen:</b> expect ${likelyHand} throwing ${pitchTxt} — this pen is ${handTxt}.${ipTxt}</div>`;
+}
+
 function bullpenModalHtml(r) {
   const arms = (bullpens[r.oppTeam] ?? []).filter(rel => {
     if (!rel.lastOuting) return true;
@@ -2649,6 +2700,7 @@ function bullpenModalHtml(r) {
   }).join('');
 
   return `<div class="pick-section-title">Opposing Bullpen (${arms.length} rested arm${arms.length===1?'':'s'})</div>
+    ${bullpenScanHtml(r, arms)}
     <div class="due-contact-card" style="padding:0.4rem 0.55rem; margin-bottom:0.8rem;">${rows}</div>`;
 }
 
@@ -2678,29 +2730,34 @@ function pickModalHtml(r) {
       <div class="pick-factor-val hrg-val ${val>=1.05?'great':val<=0.95?'bad':val>=1.02?'good':'avg'}">${val>=1?'+':val<=0.99?'−':'≈'} ${val.toFixed(digits)}×</div>
     </div>`;
 
+  const batHand   = r.bHand === 'S' ? '<span class="pk-hand s">S</span>' : r.bHand ? `<span class="pk-hand ${r.bHand.toLowerCase()}">${r.bHand}</span>` : '';
+  const throwHand = r.oppHand ? `<span class="pk-hand ${r.oppHand.toLowerCase()}">${r.oppHand}</span>` : '';
+  const abPerHR   = r.hrs ? (r.abs / r.hrs).toFixed(1) : null;
+
   return `<div class="due-modal-backdrop" id="pick-modal-backdrop" onclick="if(event.target===this) closePickModal()">
     <div class="due-modal">
       <button class="due-modal-close" onclick="closePickModal()" aria-label="Close">&times;</button>
-      <div class="due-modal-head">
-        <img class="due-modal-photo" src="${photoUrl}" alt="">
-        <div>
-          <div class="due-modal-name">${playerNames[r.pid] || r.pid}</div>
-          <div class="due-modal-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
+
+      <div class="pk-face">
+        <div class="pk-side">
+          <img src="${photoUrl}" alt="">
+          <div class="pk-name">${playerNames[r.pid] || r.pid}</div>
+          <div class="pk-sub">${teamLogoImg(r.team,'team-logo')}${r.team} · Bats ${batHand}${injuryBadge(r.pid, true)}${lineupBadge(r.pid, true)}</div>
+          <div class="pk-stat"><span class="hrg-val great">${r.hrs} HR</span>${abPerHR ? ` <span class="pk-stat-dim">· ${abPerHR} AB/HR</span>` : ''}</div>
         </div>
-        <div class="due-modal-headline">
+        <div class="pk-vs">
+          <span class="pk-vs-txt">VS</span>
           <span class="pick-score-big ${cls}">${r.pickScore.toFixed(1)}</span>
           <span class="due-modal-headline-lbl">Pick Score</span>
         </div>
-      </div>
-
-      <div class="pick-pitcher-card">
-        <img class="pick-pitcher-photo" src="${playerPhotoUrl(r.oppPid)}" alt="">
-        <div>
-          <div class="pick-pitcher-name">${r.oppName || 'TBD'} <span style="font-size:0.7rem;color:var(--muted)">${r.oppHand ? `(${r.oppHand}HP)` : ''}</span></div>
-          <div class="pick-pitcher-meta">${pitcherStat ? `${pitcherStat.hr} HR · <span class="hrg-val ${hr9Cls}">${pitcherStat.hr9} HR9</span> · ${pitcherStat.era} ERA` : 'No stats yet'}</div>
-          ${mixHtml ? `<div class="pick-pitcher-mix">Throws: ${mixHtml}</div>` : ''}
+        <div class="pk-side">
+          <img src="${playerPhotoUrl(r.oppPid)}" alt="">
+          <div class="pk-name">${r.oppName || 'TBD'}</div>
+          <div class="pk-sub">${teamLogoImg(r.oppTeam,'team-logo')}${r.oppTeam} · Throws ${throwHand}</div>
+          <div class="pk-stat">${pitcherStat ? `<span class="hrg-val ${hr9Cls}">${pitcherStat.hr9} HR9</span> <span class="pk-stat-dim">· ${pitcherStat.hr} HR allowed${r.starterAvgIP != null ? ` · ${r.starterAvgIP} IP/start` : ''}</span>` : '<span class="pk-stat-dim">No stats yet</span>'}</div>
         </div>
       </div>
+      ${mixHtml ? `<div class="pk-mix-row"><span class="pick-section-title" style="margin:0">He throws:</span> ${mixHtml}</div>` : ''}
 
       <div class="pick-section-title">Batter HR Profile — pitches he goes deep on</div>
       <div class="pick-hr-profile">${hrProfileHtml}</div>
