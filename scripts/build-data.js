@@ -498,6 +498,7 @@ const PICKS_MIN_HR        = 3;   // server-side floor — client applies its own
 const PICKS_MIN_SCORE     = 7;   // ship anything reasonable; client defaults to 9+ but lets users loosen it
 const PICKS_RATIO_MIN     = 0.7;
 const PICKS_RATIO_MAX     = 1.4;
+const BASE_POWER_SHRINK_AB = 100; // pseudo-ABs of league-average prior; half-regressed at 100 AB, lightly at 300+
 // Platoon splits are HR-based rate stats, and HRs are rare enough that a
 // hard "minimum PA/IP, then trust it fully" gate still let small samples
 // swing wildly once they cleared the bar (1 HR vs 4 HR over ~50 PA each
@@ -728,6 +729,14 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
     const totalHRs   = Object.values(dailyHRs).reduce((sum, day) => sum + Object.values(day).reduce((a, b) => a + b, 0), 0);
     const leagueHRPerGame = totalGames ? totalHRs / totalGames : 0;
 
+    // League-wide HR per AB — the prior that a batter's own HR rate is shrunk
+    // toward when his AB sample is thin (see basePower below). Summed over
+    // every tracked batter so it's the true population rate, not the
+    // power-skewed pick pool.
+    const leagueTotalAB = Object.values(playerABs).reduce((a, b) => a + b, 0);
+    const leagueTotalHR = Object.values(hrTotals).reduce((a, b) => a + b, 0);
+    const leagueHRPerAB = leagueTotalAB ? leagueTotalHR / leagueTotalAB : 0.034;
+
     // Shrunk same-vs-other platoon ratio for any pitcher's splits against a
     // given batter hand — used for today's starter and, on opener days, the
     // likely bulk arm.
@@ -747,7 +756,15 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
     const rows = [];
     for (const c of uniq) {
       const abs = playerABs[c.pid] ?? 0, hrs = hrTotals[c.pid] ?? 0;
-      const basePower = hrs / abs;
+      // Raw HR/AB is the foundation of the pick score, but off a thin AB
+      // sample it's as unreliable as the pitch profile — 4 HR in 51 AB reads
+      // as an elite .078 rate that a full season rarely sustains. Shrink it
+      // toward the league HR/AB prior weighted by AB, same Bayesian move as
+      // the platoon splits: a 51-AB hitter gets pulled most of the way to
+      // league average, a 300+-AB hitter barely moves. Keeps low-HR guys on
+      // the board (per design) without letting a tiny hot streak top it.
+      const rawBasePower = hrs / abs;
+      const basePower = shrunkRate(hrs, abs, leagueHRPerAB, BASE_POWER_SHRINK_AB);
       const balls = ballsByPid[c.pid] ?? [];
 
       const recentFormRatio = computeRecentFormRatio(balls);
@@ -789,7 +806,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
         pid: c.pid, team: c.team, oppTeam: c.oppTeam, hrs, abs,
         oppPid: c.oppPid, oppName: c.oppName, oppHand: pHand, venue: c.venue,
         projected: c.projected ?? false,
-        bHand, basePower, recentFormRatio, batterPlatoonRatio, pitcherPlatoonRatio, parkRatio,
+        bHand, basePower, rawBasePower, recentFormRatio, batterPlatoonRatio, pitcherPlatoonRatio, parkRatio,
         hrProfile, pitcherMix: pitcherMixByPid[c.oppPid] ?? [], synergyScore,
       });
     }

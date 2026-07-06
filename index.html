@@ -925,7 +925,7 @@
       <div class="due-explainer-teaser">Today's best HR matchups, combining recent contact quality, platoon edge, pitch-type overlap, pitcher homer rate, and park.</div>
       <div class="due-explainer-body" id="picks-explainer-body" style="display:none">
         <ul>
-          <li><b>Base power.</b> Starts from each batter's season-long HR rate (HR per AB) — raw power is the foundation, matchup factors adjust it up or down.</li>
+          <li><b>Base power.</b> Starts from each batter's season-long HR rate (HR per AB) — raw power is the foundation, matchup factors adjust it up or down. Thin AB samples are regressed toward league-average HR rate: 4 homers in 51 at-bats looks like an elite rate a full season rarely sustains, so it's pulled back until the sample grows. Low-HR hitters still make the board, they just can't top it on a two-week hot streak alone.</li>
           <li><b>Recent contact quality.</b> Same Statcast 1-6 contact-quality grade used by the Due tool, but time-windowed (last 15 game dates vs his own season baseline) rather than drought-anchored — reflects how he's actually squaring the ball up right now.</li>
           <li><b>Platoon edge.</b> How this specific batter performs against today's pitcher's handedness vs the opposite side, AND how this specific pitcher fares against batters of this batter's effective side — both shrunk heavily toward league-average platoon splits, since single-season HR-rate splits are too thin to trust at face value.</li>
           <li><b>Pitch-type synergy.</b> Cross-references which pitch types this batter has actually gone deep on this season against the pitcher's typical mix. A batter who homers mostly on fastballs facing a pitcher who throws 50% four-seamers is a more interesting target than one whose HR profile doesn't match at all. The edge is regressed by HR sample size, though — 3 of a hitter's 4 homers coming on fastballs says far less than 30 of 40, so a thin profile is pulled toward neutral until it's built on enough homers to trust (flagged in the pick modal when it applies).</li>
@@ -2756,6 +2756,22 @@ function pickModalHtml(r) {
   const pitchOverlap = r.hrProfile?.some(h => mixNames.has(h.name))
     || (bulkMixInMatchup && r.bulkMix.some(m => hrNames.has(m.name)));
 
+  // Two independent small-sample dampeners can be in play: a thin pitch profile
+  // (few HRs) softens the synergy edge, and a thin AB sample pulls the raw HR
+  // rate toward league average. Surface whichever applies so a low-sample pick
+  // reads as deliberately dialed back, not mysteriously ranked.
+  const thinSynergy = r.synergyConfidence != null && r.synergyConfidence < 0.6;
+  const thinPower   = r.rawBasePower && r.basePower && r.basePower < r.rawBasePower * 0.9;
+  const thinNote = (thinSynergy || thinPower)
+    ? `<div class="pk-pitch-note pk-thin"><b>Thin sample:</b> ${
+        thinPower && thinSynergy
+          ? `just ${r.hrs} HR in ${r.abs} AB, so both his raw HR rate and his pitch-matchup edge are regressed toward league average until the sample grows`
+          : thinPower
+            ? `only ${r.abs} AB on the season, so his HR rate is regressed toward league average — a short hot streak won’t top the board on its own`
+            : `only ${r.hrs} HR behind this profile, so the pitch-matchup edge is dialed back toward neutral — a few fastball HRs aren’t the same as an established fastball tendency`
+      }.</div>`
+    : '';
+
   const factorRatio = (val, label, digits=2) => val == null ? '' : `
     <div class="pick-factor">
       <div class="pick-factor-label">${label}</div>
@@ -2824,9 +2840,7 @@ function pickModalHtml(r) {
       <div class="pk-pitch-note">${pitchOverlap
         ? `<b>Green</b> = pitch in the ${r.openerLikely ? 'arsenal he’ll see' : 'starter’s arsenal'} that the batter has homered on.`
         : `No overlap — the ${r.openerLikely ? 'arms he’ll see don’t' : 'starter doesn’t'} lean on the batter’s HR pitches.`}</div>
-      ${r.synergyConfidence != null && r.synergyConfidence < 0.6
-        ? `<div class="pk-pitch-note pk-thin"><b>Thin sample:</b> only ${r.hrs} HR behind this profile, so the pitch-matchup edge is dialed back toward neutral — a few fastball HRs aren’t the same as an established fastball tendency.</div>`
-        : ''}
+      ${thinNote}
 
       ${bullpenModalHtml(r)}
 
