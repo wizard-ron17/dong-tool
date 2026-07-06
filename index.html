@@ -1143,6 +1143,18 @@ function lineupBadge(pid, compact) {
 function isUnavailableToday(pid) {
   return !!injuryStatus[pid] || lineupStatusOf(pid) != null;
 }
+// A player's rank among *available* due hitters (off/bench/IL excluded), to
+// match the Due page's default numbering. null if he's not in that actionable
+// list (either not due, or himself unavailable today).
+function availableDueRank(pid) {
+  let rank = 0;
+  for (const r of dueRows) {
+    if (isUnavailableToday(r.pid)) continue;
+    rank++;
+    if (r.pid === pid) return rank;
+  }
+  return null;
+}
 // Cross-tab rank badges — shows a player's standing in Due and/or Picks
 // wherever their name appears on other tabs, so context follows the player
 // rather than requiring the user to switch tabs to find it.
@@ -1151,8 +1163,8 @@ function isUnavailableToday(pid) {
 function crossTabBadge(pid, excludeDue = false, excludePick = false) {
   const parts = [];
   if (!excludeDue) {
-    const idx = dueRows.findIndex(r => r.pid === pid);
-    if (idx >= 0) parts.push(`<span class="cross-tab-badge due-rank" title="Ranked #${idx+1} in Due">#${idx+1} Due</span>`);
+    const rank = availableDueRank(pid); // matches the Due page's default (available-only) ranking
+    if (rank) parts.push(`<span class="cross-tab-badge due-rank" title="Ranked #${rank} in Due">#${rank} Due</span>`);
   }
   if (!excludePick) {
     const filtered = applyPicksFilters(picks);
