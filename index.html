@@ -1459,7 +1459,9 @@ function renderHome() {
       <span class="hm-score ${pickScoreClass(r.pickScore)}">${r.pickScore.toFixed(1)}</span>
     </div>`).join('');
 
-  const topDue = dueRows.slice(0, 5).map((r, i) => {
+  // Match the Due page default: only actionable overdue hitters (skip anyone
+  // who can't bat today — IL, team idle, or benched).
+  const topDue = dueRows.filter(r => !isUnavailableToday(r.pid)).slice(0, 5).map((r, i) => {
     const since = dueStreaks[r.pid]?.since;
     const days  = since ? daysBetweenDates(since, todayDate) : null;
     return `<div class="hm-row">
