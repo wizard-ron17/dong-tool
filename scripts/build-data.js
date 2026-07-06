@@ -620,7 +620,7 @@ function starterShareFor(stat) {
   return Math.max(STARTER_SHARE_MIN, Math.min(STARTER_SHARE_MAX, avgIP / 9));
 }
 
-async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {}, openerBulk = {}) {
+async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {}, openerBulk = {}, weatherByVenue = {}) {
   try {
     // Identify a team's likely everyday starters when the official lineup
     // hasn't posted yet. Uses season-long data: guys who've appeared in at
@@ -917,7 +917,11 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
         [penW, bullpenPlatoonFactor != null ? r.bullpenSynergyRatio : null],
       ]) ?? r.synergyRatio;
 
-      const factors = [r.recentFormRatio, r.batterPlatoonRatio, effectivePitcherPlatoon, r.parkRatio, effectiveSynergy]
+      // Game-time weather (air density + wind), a multiplier next to the park
+      // factor. 1.0 for roofed parks and when no forecast is available.
+      r.weatherRatio = weatherByVenue[r.venue] ?? 1;
+
+      const factors = [r.recentFormRatio, r.batterPlatoonRatio, effectivePitcherPlatoon, r.parkRatio, effectiveSynergy, r.weatherRatio]
         .filter(f => f != null);
       const contactKnown = r.recentFormRatio != null;
       r.matchupFactor = factors.reduce((a, b) => a * b, contactKnown ? 1 : 0.95);
@@ -1006,9 +1010,129 @@ function todayET() {
 // Powers both the new Schedule tab and the lineup-based call-up/bench
 // detection below — one fetch, hydrated with lineups + probable pitchers, so
 // the rest of the build never has to hit /schedule for "today" a second time.
+// ── Weather → HR carry factor ───────────────────────────────────────────
+// Two physical effects, one factor: (1) air density — hot / humid / low-
+// pressure / high-altitude air is thinner, so the ball carries; (2) wind
+// projected onto the home-plate→CF axis — blowing out helps, in hurts.
+// Roofed parks (Retractable/Dome) are treated weather-neutral. Knobs are
+// physically motivated, not fit to any one source; the 10m forecast wind is
+// dampened to what a fly ball actually feels in the bowl.
+const WX_CARRY_EXP    = 1.4;
+const WX_WIND_DAMPEN  = 0.55;
+const WX_WIND_PER_MPH = 0.010;
+const WX_CLAMP        = [0.85, 1.20];
+function airDensity(tempF, rh, hpa) {
+  const Tc = (tempF - 32) * 5 / 9, T = Tc + 273.15, P = hpa * 100;
+  const Psat = 6.1078 * Math.pow(10, (7.5 * Tc) / (Tc + 237.3)) * 100;
+  const Pv = (rh / 100) * Psat;
+  return (P - Pv) / (287.058 * T) + Pv / (461.495 * T);
+}
+const WX_RHO0 = airDensity(70, 50, 1013.25); // league-typical baseline density
+function windAlongCF(spd, fromDeg, cf) { // + out to CF, - in from CF
+  const to = (fromDeg + 180) % 360;
+  return spd * Math.cos(((((cf - to + 540) % 360) - 180)) * Math.PI / 180);
+}
+function windLabelFor(fromDeg, cf) {
+  const to = (fromDeg + 180) % 360;
+  const d = Math.abs((((cf - to + 540) % 360) - 180));
+  return d <= 45 ? 'out' : d >= 135 ? 'in' : 'across';
+}
+// Attaches g.weather to each game and returns { venueName -> ratio } for Picks.
+async function fetchWeather(games) {
+  const OM = 'https://api.open-meteo.com/v1/forecast';
+  const byVenue = {};
+  await Promise.all(games.map(async g => {
+    if (g.roofType && g.roofType !== 'Open') { g.weather = { roofed: true, ratio: 1 }; byVenue[g.venue] = 1; return; }
+    if (g.lat == null || g.cfAzimuth == null) { g.weather = null; return; }
+    try {
+      const q = `latitude=${g.lat}&longitude=${g.lon}&hourly=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=GMT`;
+      const wx = await fetch(`${OM}?${q}`).then(r => r.json());
+      const h = wx.hourly;
+      const i0 = h?.time?.indexOf(g.gameDate.slice(0, 13) + ':00') ?? -1;
+      if (i0 < 0) { g.weather = null; return; }
+      const idx = [i0, i0 + 1, i0 + 2].filter(i => i < h.time.length);
+      const avg = a => a.reduce((x, y) => x + y, 0) / a.length;
+      const temp = avg(idx.map(i => h.temperature_2m[i]));
+      const rh   = avg(idx.map(i => h.relative_humidity_2m[i]));
+      const pres = avg(idx.map(i => h.surface_pressure[i]));
+      const carry = Math.pow(WX_RHO0 / airDensity(temp, rh, pres), WX_CARRY_EXP);
+      const out = WX_WIND_DAMPEN * avg(idx.map(i => windAlongCF(h.wind_speed_10m[i], h.wind_direction_10m[i], g.cfAzimuth)));
+      const uTo = avg(idx.map(i => h.wind_speed_10m[i] * Math.sin(((h.wind_direction_10m[i] + 180) % 360) * Math.PI / 180)));
+      const vTo = avg(idx.map(i => h.wind_speed_10m[i] * Math.cos(((h.wind_direction_10m[i] + 180) % 360) * Math.PI / 180)));
+      const spd = Math.hypot(uTo, vTo);
+      const wdir = (Math.atan2(uTo, vTo) * 180 / Math.PI + 180 + 360) % 360;
+      const ratio = Math.max(WX_CLAMP[0], Math.min(WX_CLAMP[1], carry * (1 + WX_WIND_PER_MPH * out)));
+      g.weather = {
+        roofed: false, ratio: Math.round(ratio * 1000) / 1000,
+        temp: Math.round(temp), rh: Math.round(rh),
+        windMph: Math.round(spd), windDir: windLabelFor(wdir, g.cfAzimuth),
+      };
+      byVenue[g.venue] = g.weather.ratio;
+    } catch (e) { g.weather = null; }
+  }));
+  return byVenue;
+}
+
+// Per-game Homer Score (0–99): a betting-confidence read on how homer-friendly
+// the whole game is, blending what we already track — both lineups' power, both
+// starters' HR-proneness, both pens, the park, and the weather. Not a forecast,
+// a synthesis of today's inputs. Weighted geometric mean of neutral-centered
+// factors so nothing dominates; 50 = league-average game.
+const HOMER_W = { bat: 0.28, sp: 0.24, park: 0.20, pen: 0.16, weather: 0.12 };
+function computeHomerScores(games, pitcherStats, bullpens) {
+  const leagueTotalAB = Object.values(playerABs).reduce((a, b) => a + b, 0);
+  const leagueTotalHR = Object.values(hrTotals).reduce((a, b) => a + b, 0);
+  const leagueHRPerAB = leagueTotalAB ? leagueTotalHR / leagueTotalAB : 0.034;
+  const totalGames = Object.values(dailyGames).reduce((a, b) => a + b, 0);
+  const totalHRs = Object.values(dailyHRs).reduce((s, d) => s + Object.values(d).reduce((a, b) => a + b, 0), 0);
+  const leagueHRPerGame = totalGames ? totalHRs / totalGames : 1;
+  const spHR9 = games.flatMap(g => [g.home.probablePitcherId, g.away.probablePitcherId])
+    .map(pid => parseFloat(pitcherStats[pid]?.hr9)).filter(x => x > 0);
+  const leagueHR9 = spHR9.length ? spHR9.reduce((a, b) => a + b, 0) / spHR9.length : 1.2;
+  const allPenEra = Object.values(bullpens || {}).flat().map(r => parseFloat(r.era)).filter(x => x > 0);
+  const leaguePenERA = allPenEra.length ? allPenEra.reduce((a, b) => a + b, 0) / allPenEra.length : 4.1;
+  const clampR = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+
+  // Avg regressed HR/AB of a team's hitters — the set lineup when posted,
+  // otherwise everyone on the roster with a real AB sample.
+  const teamPower = (abbr, lineup) => {
+    const pids = (lineup && lineup.length) ? lineup.map(p => p.pid)
+      : Object.keys(playerTeams).filter(pid => playerTeams[pid] === abbr && (playerABs[pid] ?? 0) >= 50);
+    const rates = pids.map(pid => {
+      const a = playerABs[pid] ?? 0;
+      return a >= 20 ? shrunkRate(hrTotals[pid] ?? 0, a, leagueHRPerAB, BASE_POWER_SHRINK_AB) : null;
+    }).filter(x => x != null);
+    return rates.length ? rates.reduce((a, b) => a + b, 0) / rates.length : leagueHRPerAB;
+  };
+  const penERA = abbr => {
+    const arms = (bullpens?.[abbr] ?? []).map(r => parseFloat(r.era)).filter(x => x > 0);
+    return arms.length ? arms.reduce((a, b) => a + b, 0) / arms.length : leaguePenERA;
+  };
+
+  for (const g of games) {
+    const vG = Object.values(venueGameDays[g.venue] ?? {}).reduce((a, b) => a + b, 0);
+    const vH = Object.values(venueHRsByDate[g.venue] ?? {}).reduce((a, b) => a + b, 0);
+    const park = clampR((vG ? vH / vG : leagueHRPerGame) / leagueHRPerGame, 0.7, 1.4);
+    const weather = g.weather?.ratio ?? 1;
+    const bat = clampR(((teamPower(g.away.teamAbbr, g.away.lineup) + teamPower(g.home.teamAbbr, g.home.lineup)) / 2) / leagueHRPerAB, 0.7, 1.5);
+    const spVals = [g.home.probablePitcherId, g.away.probablePitcherId]
+      .map(pid => parseFloat(pitcherStats[pid]?.hr9)).filter(x => x > 0);
+    const sp = clampR((spVals.length ? spVals.reduce((a, b) => a + b, 0) / spVals.length : leagueHR9) / leagueHR9, 0.6, 1.6);
+    const pen = clampR(((penERA(g.away.teamAbbr) + penERA(g.home.teamAbbr)) / 2) / leaguePenERA, 0.85, 1.2);
+    const rawMult = Math.pow(bat, HOMER_W.bat) * Math.pow(sp, HOMER_W.sp) * Math.pow(park, HOMER_W.park)
+      * Math.pow(pen, HOMER_W.pen) * Math.pow(weather, HOMER_W.weather);
+    g.homer = {
+      score: Math.max(1, Math.min(99, Math.round(50 + (rawMult - 1) * 100))),
+      bat: Math.round(bat * 100) / 100, sp: Math.round(sp * 100) / 100,
+      park: Math.round(park * 100) / 100, pen: Math.round(pen * 100) / 100,
+      weather: Math.round(weather * 100) / 100,
+    };
+  }
+}
+
 async function fetchTodaySchedule(teamIdToAbbr) {
   try {
-    const sched = await fetch(`${MLB}/schedule?sportId=1&date=${todayET()}&gameType=R&hydrate=lineups,probablePitcher,venue`).then(r => r.json());
+    const sched = await fetch(`${MLB}/schedule?sportId=1&date=${todayET()}&gameType=R&hydrate=lineups,probablePitcher,venue(location,fieldInfo)`).then(r => r.json());
     const games = sched.dates?.[0]?.games ?? [];
     return games.map(g => {
       const side = s => {
@@ -1024,9 +1148,18 @@ async function fetchTodaySchedule(teamIdToAbbr) {
           })),
         };
       };
+      // Venue geometry for the weather model — the MLB API carries it directly:
+      // location.azimuthAngle is the home-plate→CF bearing, fieldInfo.roofType
+      // is Open/Retractable/Dome, plus coords. Nothing hardcoded.
+      const loc = g.venue?.location ?? {};
       return {
         gamePk: g.gamePk, gameDate: g.gameDate, status: g.status?.detailedState ?? '',
         venue: g.venue?.name ?? '', home: side('home'), away: side('away'),
+        venueId: g.venue?.id ?? null,
+        lat: loc.defaultCoordinates?.latitude ?? null,
+        lon: loc.defaultCoordinates?.longitude ?? null,
+        cfAzimuth: loc.azimuthAngle ?? null,
+        roofType: g.venue?.fieldInfo?.roofType ?? null,
       };
     });
   } catch (e) { return []; }
@@ -1551,11 +1684,17 @@ async function main() {
   const bulkPids = Object.values(openerBulk).map(o => o.bulk?.pid).filter(Boolean);
   if (bulkPids.length) Object.assign(pitcherStats, await fetchPitcherHRStats(bulkPids)); // so the client can show the bulk arm's line
 
+  console.log("Fetching game-time weather for outdoor parks...");
+  const weatherByVenue = await fetchWeather(todaySchedule);
+
   console.log("Fetching bullpen data for today's games...");
   const bullpens = await fetchBullpens(todaySchedule, teamIdToAbbr);
 
   console.log("Computing today's HR picks (matchups, splits, pitch-type profiles)...");
-  const picks = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk);
+  const picks = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue);
+
+  console.log('Scoring per-game Homer Scores...');
+  computeHomerScores(todaySchedule, pitcherStats, bullpens);
 
   console.log('Checking for rookie debuts and recent call-ups...');
   const prospects = await computeProspects(todaySchedule, teamIdToAbbr);

@@ -315,6 +315,9 @@
   .pick-pitcher-meta { font-size: 0.6rem; color: var(--muted); margin-top: 0.15rem; }
   .pick-pitcher-mix { font-size: 0.62rem; color: var(--dim); margin-top: 0.25rem; }
   .pick-section-title { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0.7rem 0 0.35rem; }
+  .pk-pen-head { cursor: pointer; user-select: none; }
+  .pk-pen-head:hover { color: var(--text); }
+  .pk-pen-chev { color: var(--dim); font-size: 0.6rem; margin-left: 0.15rem; }
   .pick-factor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
   .pick-factor { background: var(--surface1); border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem 0.45rem; }
   .pick-factor-label { font-size: 0.57rem; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
@@ -520,12 +523,27 @@
   .sched-game { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.8rem; transition: border-color 0.15s; }
   .sched-game.expanded { border-color: var(--border2); }
   .sched-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; cursor: pointer; }
+  .sched-right { display: flex; align-items: center; gap: 0.55rem; flex-shrink: 0; }
   .sched-matchup { display: flex; align-items: center; gap: 0.4rem; font-family: var(--font-d); font-size: 1rem; font-weight: 700; color: var(--text-strong); }
   .sched-at { color: var(--muted); font-size: 0.7rem; font-weight: 400; }
   .sched-status { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.15rem 0.55rem; border-radius: 10px; background: var(--surface2); color: var(--muted); white-space: nowrap; flex-shrink: 0; }
   .sched-status.live  { background: rgba(255,112,64,0.12); color: #ff7040; }
   .sched-status.final { background: rgba(53,201,110,0.12); color: var(--accent); }
   .sched-venue-row { font-size: 0.6rem; color: var(--muted); margin-top: 0.35rem; }
+  .sched-wx { margin-left: 0.15rem; white-space: nowrap; }
+  .sched-wx-sep { opacity: 0.5; margin: 0 0.15rem; }
+  /* Homer Score: per-game HR-betting confidence, red→yellow→green gradient. */
+  .sched-homer { display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0; }
+  .sched-homer-lbl { font-size: 0.5rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); line-height: 1; text-align: right; }
+  .sched-homer-num { font-family: var(--font-d); font-weight: 800; font-size: 1.15rem; line-height: 1; min-width: 1.9rem; text-align: center; padding: 0.16rem 0.3rem; border-radius: 6px; }
+  .sched-homer-num.great { color: var(--accent); background: rgba(53,201,110,0.13); }
+  .sched-homer-num.good  { color: var(--good-2); background: rgba(121,216,97,0.12); }
+  .sched-homer-num.avg   { color: var(--gold);  background: rgba(242,201,76,0.12); }
+  .sched-homer-num.below { color: var(--warn);  background: rgba(255,154,77,0.12); }
+  .sched-homer-num.bad   { color: var(--bad);   background: rgba(239,77,100,0.12); }
+  .homer-legend { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.6rem; color: var(--muted); margin: 0.1rem 0 0.7rem; }
+  .homer-legend b { color: var(--text); font-weight: 700; }
+  .homer-legend .hl-scale { display: inline-flex; height: 0.55rem; width: 4rem; border-radius: 3px; background: linear-gradient(90deg, var(--bad), var(--gold), var(--accent)); }
   .sched-pitchers-row { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border); }
   .sched-pitcher { display: flex; align-items: center; gap: 0.4rem; flex: 1; min-width: 0; }
   .sched-pitcher-photo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: var(--surface2); flex-shrink: 0; }
@@ -930,6 +948,7 @@
           <li><b>Platoon edge.</b> How this specific batter performs against today's pitcher's handedness vs the opposite side, AND how this specific pitcher fares against batters of this batter's effective side — both shrunk heavily toward league-average platoon splits, since single-season HR-rate splits are too thin to trust at face value.</li>
           <li><b>Pitch-type synergy.</b> Cross-references which pitch types this batter has actually gone deep on this season against the pitcher's typical mix. A batter who homers mostly on fastballs facing a pitcher who throws 50% four-seamers is a more interesting target than one whose HR profile doesn't match at all. The edge is regressed by HR sample size, though — 3 of a hitter's 4 homers coming on fastballs says far less than 30 of 40, so a thin profile is pulled toward neutral until it's built on enough homers to trust (flagged in the pick modal when it applies).</li>
           <li><b>Park.</b> The game's venue HR/game rate vs league average. Same signal shown on the Schedule tab, baked directly into the score.</li>
+          <li><b>Weather.</b> Game-time air density (temperature, humidity, pressure, altitude) plus wind projected onto the park's home-plate→center-field axis — hot, thin air and a wind blowing out both help the ball carry; cold, dense air and a wind blowing in suppress it. Roofed parks are treated neutral. The stadium's orientation, roof type, and coordinates come straight from the MLB API.</li>
           <li><b>Lineups.</b> Uses confirmed lineups when posted. Before lineups drop, falls back to projected starters — players with 15+ games this season, 1.5+ AB/game, active in the last 7 days — the same pool the books use pre-lineup. Projected picks are labeled so you know which ones are speculative.</li>
           <li><b>Openers.</b> When today's "starter" is really an opener (2+ starts averaging ≤3 IP, on a team that's recently used the piggyback pattern), his weight drops to the inning or two he actually covers, and the likely bulk arm — the rested rotation-type pitcher whose turn it is — gets his own platoon and pitch-mix slice of the score. Flagged in the pick modal so you know who you're really betting against.</li>
         </ul>
@@ -1574,6 +1593,23 @@ function hrgClass(hrPerGame, leagueAvg) {
   if (ratio <= 0.9) return 'below';
   return 'avg';
 }
+// Homer Score gradient (50 = league-average game). Aggregates are less extreme
+// than single-factor ratios, so the bands are tighter than hrgClass.
+function homerScoreClass(s) {
+  if (s >= 62) return 'great';
+  if (s >= 54) return 'good';
+  if (s <= 38) return 'bad';
+  if (s <= 45) return 'below';
+  return 'avg';
+}
+// Compact game weather chip for the Schedule venue row.
+function schedWeatherChip(w) {
+  if (!w) return '';
+  if (w.roofed) return `<span class="sched-wx"><span class="sched-wx-sep">·</span>🏟️ Roof</span>`;
+  const arrow = w.windDir === 'out' ? '↗ out' : w.windDir === 'in' ? '↙ in' : '↔ cross';
+  return `<span class="sched-wx"><span class="sched-wx-sep">·</span>🌡️ ${w.temp}°`
+    + `<span class="sched-wx-sep">·</span>💨 ${w.windMph} mph ${arrow}</span>`;
+}
 function avgBatterHRG() {
   const totalHRs = Object.values(hrTotals).reduce((a,b)=>a+b, 0);
   const totalGames = Object.values(playerGames).reduce((a,b)=>a+b, 0);
@@ -2153,7 +2189,12 @@ function renderSchedule() {
   const sorted = [...todaySchedule].sort((a, b) => new Date(a.gameDate) - new Date(b.gameDate));
   metaEl.textContent = `${sorted.length} game${sorted.length === 1 ? '' : 's'}` + (todayDate ? ` · ${fmtDateLong(todayDate)}` : '');
   const leagueAvg = leagueHRPerGame();
-  contentEl.innerHTML = `<div class="sched-list">${sorted.map(g => {
+  const anyHomer = sorted.some(g => g.homer);
+  const legend = anyHomer ? `<div class="homer-legend">
+    <b>Homer Score</b> = HR-betting confidence per game (park, weather, both lineups, starters, pens). 50 = average.
+    <span class="hl-scale"></span> <span>colder → hotter</span>
+  </div>` : '';
+  contentEl.innerHTML = legend + `<div class="sched-list">${sorted.map(g => {
     const info = schedStatusInfo(g);
     const lineupStatus = schedLineupStatus(g);
     const awayLabel = g.away.teamAbbr || g.away.teamName, homeLabel = g.home.teamAbbr || g.home.teamName;
@@ -2161,6 +2202,10 @@ function renderSchedule() {
     const venueHRs = Object.values(venueHRsByDate[g.venue] ?? {}).reduce((a,b)=>a+b, 0);
     const venueHRG = venueGames ? venueHRs / venueGames : 0;
     const venueCls = hrgClass(venueHRG, leagueAvg);
+    const homer = g.homer ? `<div class="sched-homer" title="Homer Score — HR-betting confidence for this game (park ${g.homer.park}× · weather ${g.homer.weather}× · lineups ${g.homer.bat}× · starters ${g.homer.sp}× · pens ${g.homer.pen}×)">
+        <span class="sched-homer-lbl">Homer<br>Score</span>
+        <span class="sched-homer-num ${homerScoreClass(g.homer.score)}">${g.homer.score}</span>
+      </div>` : '';
     return `<div class="sched-game" id="sched-game-${g.gamePk}">
       <div class="sched-row" onclick="toggleSchedGame(${g.gamePk})">
         <div class="sched-matchup">
@@ -2170,9 +2215,12 @@ function renderSchedule() {
           ${teamLogoImg(homeLabel, 'sched-team-logo')}
           <span class="sched-team">${homeLabel}</span>
         </div>
-        <div class="sched-status ${info.cls}">${info.text}</div>
+        <div class="sched-right">
+          <div class="sched-status ${info.cls}">${info.text}</div>
+          ${homer}
+        </div>
       </div>
-      <div class="sched-venue-row">${g.venue}${venueGames ? ` · <span class="hrg-val ${venueCls}">${venueHRG.toFixed(2)}</span> HR/G` : ''}</div>
+      <div class="sched-venue-row">${g.venue}${venueGames ? ` · <span class="hrg-val ${venueCls}">${venueHRG.toFixed(2)}</span> HR/G` : ''}${schedWeatherChip(g.weather)}</div>
       <div class="sched-pitchers-row">
         ${schedPitcherHtml(g.away)}
         <span class="sched-vs">vs</span>
@@ -2719,9 +2767,20 @@ function bullpenModalHtml(r) {
     </div>`;
   }).join('');
 
-  return `<div class="pick-section-title">Opposing Bullpen (${arms.length} rested arm${arms.length===1?'':'s'})</div>
+  // Keep the digestible "if they go to the pen" scan always visible; tuck the
+  // full per-arm list behind a toggle (collapsed by default) so it's there when
+  // you want it without dumping every reliever on the page.
+  return `<div class="pick-section-title pk-pen-head" onclick="togglePenList()">Opposing Bullpen (${arms.length} rested arm${arms.length===1?'':'s'}) <span id="pk-pen-chev" class="pk-pen-chev">▾</span></div>
     ${bullpenScanHtml(r, arms)}
-    <div class="due-contact-card" style="padding:0.4rem 0.55rem; margin-bottom:0.8rem;">${rows}</div>`;
+    <div id="pk-pen-list" class="due-contact-card" style="display:none; padding:0.4rem 0.55rem; margin-bottom:0.8rem;">${rows}</div>`;
+}
+function togglePenList() {
+  const el = document.getElementById('pk-pen-list');
+  const chev = document.getElementById('pk-pen-chev');
+  if (!el) return;
+  const open = el.style.display === 'none';
+  el.style.display = open ? '' : 'none';
+  if (chev) chev.textContent = open ? '▴' : '▾';
 }
 
 function pickModalHtml(r) {
@@ -2758,10 +2817,11 @@ function pickModalHtml(r) {
 
   // Two independent small-sample dampeners can be in play: a thin pitch profile
   // (few HRs) softens the synergy edge, and a thin AB sample pulls the raw HR
-  // rate toward league average. Surface whichever applies so a low-sample pick
-  // reads as deliberately dialed back, not mysteriously ranked.
-  const thinSynergy = r.synergyConfidence != null && r.synergyConfidence < 0.6;
-  const thinPower   = r.rawBasePower && r.basePower && r.basePower < r.rawBasePower * 0.9;
+  // rate toward league average. Gate the note on the actual sample SIZE — every
+  // above-average hitter gets some base-power regression, so keying off "was it
+  // regressed" fired for everyone; only genuinely thin samples should surface.
+  const thinSynergy = r.hrs != null && r.hrs < 8;    // pitch profile from too few HRs
+  const thinPower   = r.abs != null && r.abs < 130;  // HR rate from too few ABs
   const thinNote = (thinSynergy || thinPower)
     ? `<div class="pk-pitch-note pk-thin"><b>Thin sample:</b> ${
         thinPower && thinSynergy
@@ -2853,6 +2913,7 @@ function pickModalHtml(r) {
         ${factorRatio(r.synergyRatio, 'Starter Pitch Synergy')}
         ${factorRatio(r.bullpenSynergyRatio, 'Bullpen Pitch Synergy')}
         ${factorRatio(r.parkRatio, 'Park Factor')}
+        ${r.weatherRatio && r.weatherRatio !== 1 ? factorRatio(r.weatherRatio, 'Weather') : ''}
         <div class="pick-factor">
           <div class="pick-factor-label">Venue</div>
           <div class="pick-factor-val hrg-val ${venueCls}">${venueHRG.toFixed(2)} HR/G</div>
