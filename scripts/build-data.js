@@ -1828,6 +1828,18 @@ async function main() {
   const fs = await import('node:fs');
   fs.writeFileSync(new URL('../data.json', import.meta.url), JSON.stringify(output));
   console.log(`Wrote data.json — ${allDates.length} game days, ${totalHRCount} HRs, ${dueRows.length} due rows, ${prospects.debutBombs.length} debut bombs, ${prospects.justCalledUp.length} just called up, ${todaySchedule.length} games today, ${picks.length} picks`);
+
+  // Stamp the service worker with a short hash of index.html. sw.js only
+  // changes when the app code changes (not on data-only rebuilds), which is
+  // exactly what makes the browser detect a new PWA version. Idempotent: if
+  // index.html is unchanged, the version line is unchanged and this is a no-op.
+  const crypto = await import('node:crypto');
+  const idxPath = new URL('../index.html', import.meta.url);
+  const swPath = new URL('../sw.js', import.meta.url);
+  const appVersion = crypto.createHash('sha1').update(fs.readFileSync(idxPath)).digest('hex').slice(0, 10);
+  const sw = fs.readFileSync(swPath, 'utf8');
+  const stamped = sw.replace(/const APP_VERSION = '[^']*';/, `const APP_VERSION = '${appVersion}';`);
+  if (stamped !== sw) { fs.writeFileSync(swPath, stamped); console.log(`Stamped sw.js APP_VERSION = ${appVersion}`); }
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

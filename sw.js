@@ -5,10 +5,17 @@
 //   of the tool, so it's network-first: always try the network, only fall
 //   back to whatever's cached if the request fails (offline).
 // - Everything else (index.html, icons, manifest) is stale-while-revalidate:
-//   serve the cached copy instantly, then refetch in the background and
-//   update the cache for next time. That means a shell edit shows up after
-//   one extra reload, with no manual cache-version bump needed.
-const CACHE_NAME = 'dong-tool-shell-v2';
+//   serve the cached copy instantly, then refetch in the background.
+//
+// APP_VERSION is stamped by scripts/build-data.js = a short hash of index.html,
+// so it changes exactly when the app CODE changes (not on the 30-min data-only
+// rebuilds). A changed sw.js is the only thing the browser treats as "new
+// version available" — so this is what makes a homescreen PWA actually update.
+// On a new version we deliberately DON'T skipWaiting: the new worker installs
+// and waits, the page notices and shows a "refresh to update" prompt, and only
+// then do we take over (see the SKIP_WAITING message handler).
+const APP_VERSION = 'b93edfbaed';
+const CACHE_NAME = 'dong-tool-' + APP_VERSION;
 const SHELL_ASSETS = [
   './',
   './index.html',
@@ -21,19 +28,29 @@ const SHELL_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  // Pull the shell fresh (bypass the HTTP cache) into this version's cache so
+  // the post-update reload is guaranteed to serve the new code.
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_ASSETS))
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.all(SHELL_ASSETS.map((u) =>
+        cache.add(new Request(u, { cache: 'reload' })).catch(() => {})
+      ))
+    )
   );
-  self.skipWaiting();
+  // No skipWaiting() — wait so the page can prompt before we swap versions.
+});
+
+// The page posts this when the user taps "refresh" on the update prompt.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {

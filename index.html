@@ -412,6 +412,11 @@
   .due-row-clickable:hover { background: var(--surface1); }
   .lbc-card.due-row-clickable:active { background: var(--surface1); }
 
+  /* PWA "new version available" prompt (see the service-worker registration). */
+  #update-banner { position: fixed; left: 0; right: 0; margin: 0 auto; width: max-content; max-width: calc(100vw - 1.5rem); bottom: calc(4.4rem + env(safe-area-inset-bottom)); z-index: 500; display: flex; align-items: center; gap: 0.7rem; background: var(--surface2); border: 1px solid var(--border2); border-radius: 999px; padding: 0.45rem 0.5rem 0.45rem 1rem; box-shadow: 0 6px 24px rgba(0,0,0,0.45); font-size: 0.74rem; font-weight: 600; color: var(--text); white-space: nowrap; animation: fadeIn 0.2s ease; }
+  #update-banner button { background: var(--accent); color: #04120a; border: none; border-radius: 999px; font-family: var(--font-m); font-weight: 700; font-size: 0.72rem; padding: 0.35rem 0.9rem; cursor: pointer; }
+  #update-banner button:hover { filter: brightness(1.08); }
+
   .due-modal-backdrop { position: fixed; inset: 0; background: rgba(2,5,10,0.72); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 300; animation: fadeIn 0.12s ease; }
   .due-modal { background: var(--surface0); border: 1px solid var(--border2); border-radius: 12px; width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto; padding: 1.1rem 1.1rem 1.3rem; position: relative; }
   .due-modal-close { position: absolute; top: 0.5rem; right: 0.6rem; background: transparent; border: none; color: var(--muted); font-size: 1.5rem; line-height: 1; cursor: pointer; padding: 0.3rem; }
@@ -3239,8 +3244,43 @@ if ('serviceWorker' in navigator) {
   if (isLocalhost) {
     navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
   } else {
+    let updateAccepted = false;
+    const showUpdatePrompt = (reg) => {
+      if (document.getElementById('update-banner')) return;
+      const bar = document.createElement('div');
+      bar.id = 'update-banner';
+      bar.innerHTML = '<span>🆕 New version available</span><button id="update-refresh">Refresh</button>';
+      document.body.appendChild(bar);
+      document.getElementById('update-refresh').onclick = () => {
+        updateAccepted = true;
+        if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        else location.reload();
+      };
+    };
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+      navigator.serviceWorker.register('/sw.js').then((reg) => {
+        // An update may have installed while the app was closed.
+        if (reg.waiting && navigator.serviceWorker.controller) showUpdatePrompt(reg);
+        reg.addEventListener('updatefound', () => {
+          const nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', () => {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) showUpdatePrompt(reg);
+          });
+        });
+        // Homescreen PWAs suspend/resume without navigating, so nothing else
+        // triggers a check — re-check whenever the app regains focus.
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') reg.update().catch(() => {});
+        });
+      }).catch(() => {});
+    });
+    // Once the new worker takes control (after the user accepts), reload into it.
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloaded || !updateAccepted) return;
+      reloaded = true;
+      location.reload();
     });
   }
 }
