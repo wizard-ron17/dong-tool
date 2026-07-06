@@ -576,6 +576,7 @@
   .sched-lineup-head { font-size: 0.62rem; font-weight: 700; color: #bdd0e8; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 0.35rem; }
   .sched-lineup-row { display: flex; align-items: center; gap: 0.35rem; font-size: 0.68rem; color: var(--text); padding: 0.12rem 0; }
   .sched-lineup-order { color: var(--muted); width: 1.1rem; flex-shrink: 0; }
+  .sched-lineup-hand { width: 1.35rem; flex-shrink: 0; display: inline-flex; justify-content: center; }
   .sched-lineup-pos { color: var(--muted); width: 1.6rem; flex-shrink: 0; font-size: 0.6rem; }
   .sched-lineup-pname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sched-lineup-hr { font-size: 0.58rem; font-weight: 700; flex-shrink: 0; margin-left: auto; }
@@ -2127,6 +2128,13 @@ function schedLineupStatus(g) {
   if (homeSet || awaySet) return { cls: 'partial', text: '1/2 Lineups Set' };
   return { cls: 'pending', text: 'Lineups TBD' };
 }
+// Small L/R/S handedness badge — reuses the pick-modal .pk-hand styling
+// (L blue, R gold, S silver). kind tweaks the tooltip (bats vs throws).
+function handBadge(code, kind) {
+  if (!code) return '';
+  const label = code === 'S' ? 'Switch hitter' : `${kind === 'throws' ? 'Throws' : 'Bats'} ${code === 'L' ? 'left' : 'right'}`;
+  return `<span class="pk-hand ${code.toLowerCase()}" title="${label}">${code}</span>`;
+}
 function schedLineupHtml(side) {
   const label = side.teamAbbr || side.teamName;
   if (!side.lineup.length) {
@@ -2143,6 +2151,7 @@ function schedLineupHtml(side) {
     const cls = lowerIsBetterClass(abPerHR, batterAvg);
     return `<div class="sched-lineup-row">
       <span class="sched-lineup-order">${p.order}</span>
+      <span class="sched-lineup-hand">${handBadge(p.bats, 'bats')}</span>
       <span class="sched-lineup-pos">${p.position}</span>
       <span class="sched-lineup-pname">${playerNames[p.pid] || p.name}</span>
       ${injuryBadge(p.pid, true)}${crossTabBadge(p.pid)}
@@ -2162,11 +2171,13 @@ function schedPitcherHtml(side) {
   // same "higher is greener" polarity as HR/game instead of lowerIsBetterClass.
   const hr9Cls = stat ? hrgClass(parseFloat(stat.hr9), avgPitcherHR9()) : 'avg';
   const statText = stat ? `${stat.hr} HR · <span class="hrg-val ${hr9Cls}">${stat.hr9} HR9</span>` : '';
+  const throwsBadge = handBadge(side.probablePitcherThrows, 'throws');
+  const subLine = throwsBadge + (statText ? (throwsBadge ? ' ' : '') + statText : '');
   return `<div class="sched-pitcher">
     <img class="sched-pitcher-photo" src="${playerPhotoUrl(side.probablePitcherId)}" alt="">
     <div class="sched-pitcher-info">
       <div class="sched-pitcher-name">${side.probablePitcher}</div>
-      ${statText ? `<div class="sched-pitcher-stat">${statText}</div>` : ''}
+      ${subLine ? `<div class="sched-pitcher-stat">${subLine}</div>` : ''}
     </div>
   </div>`;
 }

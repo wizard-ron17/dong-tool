@@ -1165,6 +1165,29 @@ async function fetchTodaySchedule(teamIdToAbbr) {
   } catch (e) { return []; }
 }
 
+// Batting/throwing hand for everyone in a posted lineup and every probable
+// starter, so the Schedule tab can show handedness. One batched /people call
+// (batSide.code / pitchHand.code come back without any stats hydrate).
+async function attachHands(games) {
+  const ids = new Set();
+  for (const g of games) for (const side of [g.home, g.away]) {
+    if (side.probablePitcherId) ids.add(side.probablePitcherId);
+    for (const p of side.lineup) ids.add(p.pid);
+  }
+  if (!ids.size) return;
+  const hands = {}; // pid -> { bats, throws }
+  for (const group of chunk([...ids], 100)) {
+    try {
+      const res = await fetch(`${MLB}/people?personIds=${group.join(',')}`).then(r => r.json());
+      for (const p of res.people ?? []) hands[String(p.id)] = { bats: p.batSide?.code ?? null, throws: p.pitchHand?.code ?? null };
+    } catch (e) { /* leave those unmarked */ }
+  }
+  for (const g of games) for (const side of [g.home, g.away]) {
+    side.probablePitcherThrows = side.probablePitcherId ? (hands[side.probablePitcherId]?.throws ?? null) : null;
+    for (const p of side.lineup) p.bats = hands[p.pid]?.bats ?? null;
+  }
+}
+
 // HR-focused season line for each of today's probable pitchers — just enough
 // to answer "is this guy a homer-prone matchup or not" at a glance.
 async function fetchPitcherHRStats(pids) {
@@ -1674,6 +1697,7 @@ async function main() {
   console.log("Fetching today's schedule and lineups...");
   const { idToAbbr: teamIdToAbbr, abbrToId: teamIds } = await fetchTeamAbbreviations();
   const todaySchedule = await fetchTodaySchedule(teamIdToAbbr);
+  await attachHands(todaySchedule);
 
   console.log("Fetching today's probable pitchers' HR stats...");
   const probablePitcherIds = todaySchedule.flatMap(g => [g.home.probablePitcherId, g.away.probablePitcherId]).filter(Boolean);
