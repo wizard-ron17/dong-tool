@@ -914,6 +914,7 @@
           <li><b>The weighting.</b> That z-score is weighted up for proven power (more season HRs = more signal worth trusting) and for confidence (more historical gaps logged = a sturdier personal average, so one early-season fluke doesn't swing things).</li>
           <li><b>The contact nudge.</b> Up to ±15% is layered on top based on Statcast's own per-batted-ball contact-quality grade (1-6, weak contact to barrel — already a joint read on exit velo and launch angle), averaged across every batted ball since his last HR vs. before it, and blended with his season rate so one lucky or unlucky swing in a short stretch can't swing the result on its own. Cooling contact nudges his score down even if the raw AB math says he's "due"; contact that's still scalding nudges it up. Exit velo, Sweet Spot%, and Barrel% are shown below for context but don't separately drive the score — they're already folded into that one grade.</li>
           <li><b>Eligibility.</b> z ≥ 1.0, 5+ HR this season, AB/HR ≤ 30, and excludes anyone inactive 5+ days (injured, benched, or demoted) — a stale drought doesn't count.</li>
+          <li><b>Who's shown.</b> By default the list hides players who can't bat today — on the IL, team not playing, or out of a posted lineup — since a due hitter who can't play isn't actionable. Their droughts keep tracking in the background; flip off the "Hide Off / Bench / IL" filter to see them.</li>
         </ul>
         <div class="due-explainer-legend">
           <span class="due-legend-item">💤 Off — no game today</span>
@@ -1048,7 +1049,7 @@ let lbSortCol      = null;
 let lbSortDir      = -1;
 let dueSortCol     = null;
 let dueSortDir     = -1;
-let dueFilters     = { minHR: 0, hideCold: false, longestOnly: false, hideOffBench: false };
+let dueFilters     = { minHR: 0, hideCold: false, longestOnly: false, hideUnavailable: true };
 let dueFiltersPanelOpen = false;
 let dueStreaks = {};   // pid -> { since, maxScore, bestRank } for players currently on the list
 let dueHistory = [];   // one entry per scored day: { date, of, grads: [...] }
@@ -1128,6 +1129,14 @@ function lineupBadge(pid, compact) {
   if (st === 'off')   return `<span class="lineup-badge off" title="${playerTeams[pid]} has no game today">💤${compact ? '' : ' Off'}</span>`;
   if (st === 'bench') return `<span class="lineup-badge bench" title="Not in today's starting lineup">🪑${compact ? '' : ' Bench'}</span>`;
   return '';
+}
+// Can't-play-today: on the IL, team idle, or confirmed out of the lineup. These
+// are hidden from the Due list by default — a due hitter who can't bat today
+// isn't actionable (e.g. an IL guy lingers until the 5-day inactivity cutoff
+// finally drops him). Tracking is unaffected: dueRows still holds everyone, so
+// ranks and drought streaks are intact — this only filters the view.
+function isUnavailableToday(pid) {
+  return !!injuryStatus[pid] || lineupStatusOf(pid) != null;
 }
 // Cross-tab rank badges — shows a player's standing in Due and/or Picks
 // wherever their name appears on other tabs, so context follows the player
@@ -2293,19 +2302,21 @@ function toggleDueExplainer() {
   document.getElementById('due-explainer-toggle').setAttribute('aria-expanded', String(dueExplainerOpen));
 }
 
-function dueFiltersActive() { return dueFilters.minHR > 0 || dueFilters.hideCold || dueFilters.longestOnly || dueFilters.hideOffBench; }
+// hideUnavailable is on by default, so "active" means a DEVIATION from the
+// default view — either an added filter, or hide-unavailable turned OFF.
+function dueFiltersActive() { return dueFilters.minHR > 0 || dueFilters.hideCold || dueFilters.longestOnly || dueFilters.hideUnavailable !== true; }
 function applyDueFilters(rows) {
   return rows.filter(r => {
     if (r.hrs < dueFilters.minHR) return false;
     if (dueFilters.hideCold && contactTagInfo(r.contactFactor).cls === 'bad') return false;
     if (dueFilters.longestOnly && !r.isLongestEver) return false;
-    if (dueFilters.hideOffBench && lineupStatusOf(r.pid)) return false; // 'off' or 'bench'
+    if (dueFilters.hideUnavailable && isUnavailableToday(r.pid)) return false; // IL / off / bench
     return true;
   });
 }
 function setDueMinHR(n) { dueFilters.minHR = n; renderDue(); }
 function toggleDueFilter(key) { dueFilters[key] = !dueFilters[key]; renderDue(); }
-function clearDueFilters() { dueFilters = { minHR: 0, hideCold: false, longestOnly: false, hideOffBench: false }; renderDue(); }
+function clearDueFilters() { dueFilters = { minHR: 0, hideCold: false, longestOnly: false, hideUnavailable: true }; renderDue(); }
 function toggleDueFiltersPanel() { dueFiltersPanelOpen = !dueFiltersPanelOpen; renderDueFilters(); }
 function renderDueFilters() {
   const minHrOptions = [0, 10, 15, 20];
@@ -2319,13 +2330,13 @@ function renderDueFilters() {
     </div>
     <button class="due-filter-toggle${dueFilters.hideCold?' active':''}" onclick="toggleDueFilter('hideCold')">❄️ Hide Cold Contact</button>
     <button class="due-filter-toggle${dueFilters.longestOnly?' active':''}" onclick="toggleDueFilter('longestOnly')">🔥 Longest Drought Only</button>
-    <button class="due-filter-toggle${dueFilters.hideOffBench?' active':''}" onclick="toggleDueFilter('hideOffBench')">🪑 Hide Off / Benched</button>
+    <button class="due-filter-toggle${dueFilters.hideUnavailable?' active':''}" onclick="toggleDueFilter('hideUnavailable')">🚫 Hide Off / Bench / IL</button>
     ${dueFiltersActive() ? `<button class="due-filter-clear" onclick="clearDueFilters()">Clear filters ×</button>` : ''}
   `;
   document.getElementById('due-filter-row').style.display = dueFiltersPanelOpen ? '' : 'none';
   document.getElementById('due-filters-chevron').textContent = dueFiltersPanelOpen ? '▴' : '▾';
   document.getElementById('due-filters-toggle').setAttribute('aria-expanded', String(dueFiltersPanelOpen));
-  const activeCount = (dueFilters.minHR > 0 ? 1 : 0) + (dueFilters.hideCold ? 1 : 0) + (dueFilters.longestOnly ? 1 : 0) + (dueFilters.hideOffBench ? 1 : 0);
+  const activeCount = (dueFilters.minHR > 0 ? 1 : 0) + (dueFilters.hideCold ? 1 : 0) + (dueFilters.longestOnly ? 1 : 0) + (dueFilters.hideUnavailable !== true ? 1 : 0);
   const badge = document.getElementById('due-filters-badge');
   badge.style.display = activeCount ? 'inline-flex' : 'none';
   badge.textContent = activeCount;
