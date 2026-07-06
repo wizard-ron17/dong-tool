@@ -572,8 +572,21 @@ function computeHRPitchProfile(balls) {
   return Object.entries(counts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
-    .map(([name, n]) => ({ name, pct: Math.round(100 * n / hrBalls.length) }));
+    .map(([name, n]) => ({ name, pct: Math.round(100 * n / hrBalls.length), n }));
 }
+
+// A batter's HR-pitch profile is only as trustworthy as the number of HRs it's
+// built from: 3-of-4 on fastballs is a coin flip that says almost nothing,
+// while 30-of-40 is a real tendency the pitcher has to worry about. Both look
+// identical as a percentage, so the raw synergy overlap treats them the same
+// and both slam into the +1.40 clamp. This regresses a synergy ratio toward
+// neutral (1.0 = no special pitch-matchup edge) by HR sample size — same
+// shrink shape as the platoon splits — so a 4-HR hitter can't ride a fluky
+// overlap to #1 the way a genuine slugger with the same overlap legitimately
+// can. Confidence approaches 1 as a batter piles up real HRs.
+const SYNERGY_HR_FULL = 10; // pseudo-HRs; ~this many before the profile is taken near full strength
+function synergyConfidenceFor(hrs) { return hrs / (hrs + SYNERGY_HR_FULL); }
+function regressSynergyRatio(ratio, hrs) { return 1 + (ratio - 1) * synergyConfidenceFor(hrs); }
 // Overlap between "pitches he homers on" and "pitches this guy throws" —
 // e.g. batter hits 50% of his HRs off sliders, today's pitcher throws 40%
 // sliders, overlap credit = 0.5 * 0.4 * 100 = 20. Summed across shared types.
@@ -791,9 +804,15 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
     const avgPitcherRate = (leaguePitcherRateSame + leaguePitcherRateOpp) / 2 || 1;
 
     for (const r of rows) {
-      r.synergyRatio = medianSynergy > 0
+      // How much to trust this batter's pitch profile at all, given how many
+      // HRs it's built from. Also shipped to the client so the modal can say
+      // when a pick's pitch-matchup edge was dialed back for a thin sample.
+      r.synergyConfidence = Math.round(synergyConfidenceFor(r.hrs) * 100) / 100;
+
+      const rawSynergyRatio = medianSynergy > 0
         ? Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, r.synergyScore > 0 ? r.synergyScore / medianSynergy : 0.9))
         : 1;
+      r.synergyRatio = regressSynergyRatio(rawSynergyRatio, r.hrs);
 
       // Blend starter and bullpen for the two pitcher-side components.
       // Skip fatigued arms (worked yesterday with 25+ pitches — likely unavailable).
@@ -818,9 +837,10 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
         bullpenSynergyRaw = synergySum / totalW;
       }
       r.bullpenPlatoonFactor = bullpenPlatoonFactor;
-      r.bullpenSynergyRatio = medianSynergy > 0 && bullpenSynergyRaw > 0
+      const rawBullpenSynergyRatio = medianSynergy > 0 && bullpenSynergyRaw > 0
         ? Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, bullpenSynergyRaw / medianSynergy))
         : (bullpenSynergyRaw === 0 ? 0.9 : 1);
+      r.bullpenSynergyRatio = regressSynergyRatio(rawBullpenSynergyRatio, r.hrs);
 
       // Blended pitcher signal, weighted by how deep this starter usually
       // goes (avg IP per start) rather than a flat league split — Misiorowski
@@ -853,9 +873,10 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
             (bulk.hand === effSide ? leaguePitcherRateSame : leaguePitcherRateOpp) / avgPitcherRate));
         }
         const bulkSynergyRaw = pitchSynergyScore(r.hrProfile, pitcherMixByPid[bulk.pid]);
-        bulkSynergyRatio = medianSynergy > 0 && bulkSynergyRaw > 0
+        const rawBulkSynergyRatio = medianSynergy > 0 && bulkSynergyRaw > 0
           ? Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, bulkSynergyRaw / medianSynergy))
           : (bulkSynergyRaw === 0 ? 0.9 : 1);
+        bulkSynergyRatio = regressSynergyRatio(rawBulkSynergyRatio, r.hrs);
         r.bulkPid = bulk.pid; r.bulkName = bulk.name; r.bulkHand = bulk.hand;
         r.bulkIPPerApp = bulk.ipPerApp; r.bulkRestDays = bulk.restDays;
         r.bulkMix = pitcherMixByPid[bulk.pid] ?? [];
