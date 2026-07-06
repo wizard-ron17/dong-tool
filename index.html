@@ -475,6 +475,13 @@
   .recap-tile-label { font-size: 0.56rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; display: block; margin-top: 0.2rem; }
   /* More dongs = a better day on a home-run site, so a big homer day reads
      GREEN, not red. Cool blue is reserved for genuinely quiet days. */
+  /* Recap stat tiles — red→yellow→green by value (HR vs league avg, games vs
+     full slate). No blue. Shared by the home widget (.hm-tile) and page (.recap-tile). */
+  .hm-tile.great b, .recap-tile.great .recap-tile-num, .recap-tile.great .recap-tile-heat-tag { color: var(--accent); }
+  .hm-tile.good  b, .recap-tile.good  .recap-tile-num, .recap-tile.good  .recap-tile-heat-tag { color: var(--good-2); }
+  .hm-tile.avg   b, .recap-tile.avg   .recap-tile-num, .recap-tile.avg   .recap-tile-heat-tag { color: var(--gold); }
+  .hm-tile.below b, .recap-tile.below .recap-tile-num, .recap-tile.below .recap-tile-heat-tag { color: var(--warn); }
+  .hm-tile.bad   b, .recap-tile.bad   .recap-tile-num, .recap-tile.bad   .recap-tile-heat-tag { color: var(--bad); }
   .recap-tile.heat-hot  .recap-tile-num { color: var(--good); }
   .recap-tile.heat-warm .recap-tile-num { color: var(--good-2); }
   .recap-tile.heat-cool .recap-tile-num { color: #4fb6d6; }
@@ -1408,7 +1415,11 @@ function renderHome() {
   const hrg      = games ? totalHRs / games : 0;
   const seasonGames = Object.values(dailyGames).reduce((a,b)=>a+b, 0);
   const seasonHRs   = Object.values(hrTotals).reduce((a,b)=>a+b, 0);
-  const heat = seasonGames ? recapDayHeat((hrg) / (seasonHRs / seasonGames)) : { cls: '', tag: '' };
+  // Red→yellow→green: HR total and HR/Game vs the league's per-game average
+  // (average day = yellow); games vs a full 15-game slate.
+  const leagueAvgHRG = seasonGames ? seasonHRs / seasonGames : 0;
+  const hrCls    = leagueAvgHRG ? hrgClass(hrg, leagueAvgHRG) : 'avg';
+  const gamesCls = slateClass(games);
   const bombers = Object.entries(dayData)
     .sort((a,b) => b[1] - a[1] || (hrTotals[b[0]]||0) - (hrTotals[a[0]]||0))
     .slice(0, 4)
@@ -1453,9 +1464,9 @@ function renderHome() {
     <div class="hm-card" onclick="openRecapFor('${last}')">
       <div class="hm-head"><span class="hm-title">${recapLabel} · ${fmtDateLong(last)}</span><span class="hm-link">Recap →</span></div>
       <div class="hm-tiles">
-        <div class="hm-tile"><b>${totalHRs}</b><span>Home Runs</span></div>
-        <div class="hm-tile"><b>${games}</b><span>Games</span></div>
-        <div class="hm-tile ${heat.cls}"><b>${hrg.toFixed(2)}</b><span>HR / Game</span></div>
+        <div class="hm-tile ${hrCls}"><b>${totalHRs}</b><span>Home Runs</span></div>
+        <div class="hm-tile ${gamesCls}"><b>${games}</b><span>Games</span></div>
+        <div class="hm-tile ${hrCls}"><b>${hrg.toFixed(2)}</b><span>HR / Game</span></div>
       </div>
       <div class="hm-chips">${bombers || '<span class="hm-subtle">No homers</span>'}</div>
     </div>
@@ -1601,6 +1612,15 @@ function homerScoreClass(s) {
   if (s <= 38) return 'bad';
   if (s <= 45) return 'below';
   return 'avg';
+}
+// Slate size → red→yellow→green. A full slate is 15 games (no double-headers),
+// ~12 is a medium slate, 8–9 is small. Same gradient bands as everything else.
+function slateClass(games) {
+  if (games >= 15) return 'great';
+  if (games >= 13) return 'good';
+  if (games >= 11) return 'avg';
+  if (games >= 10) return 'below';
+  return 'bad';
 }
 // Compact game weather chip for the Schedule venue row.
 function schedWeatherChip(w) {
@@ -1986,6 +2006,10 @@ function renderRecap() {
   const leagueAvgHRPerGame = seasonGames ? seasonHRs / seasonGames : 0;
   const hrPerGame = games ? totalHRs / games : 0;
   const dayHeat = leagueAvgHRPerGame ? recapDayHeat(hrPerGame / leagueAvgHRPerGame) : { cls: '', tag: '' };
+  // Red→yellow→green tiles (no blue): HR total + HR/Game vs league per-game
+  // average (average day = yellow); games vs a full 15-game slate.
+  const hrCls    = leagueAvgHRPerGame ? hrgClass(hrPerGame, leagueAvgHRPerGame) : 'avg';
+  const gamesCls = slateClass(games);
 
   // Chalk/dog meter: median season HR total of today's bombers vs. the
   // median season HR total of everyday regulars around the league. The
@@ -2032,9 +2056,9 @@ function renderRecap() {
 
   document.getElementById('recap-content').innerHTML = `
     <div class="recap-summary">
-      <div class="recap-tile"><span class="recap-tile-num">${games}</span><span class="recap-tile-label">${games===1?'Game':'Games'}</span></div>
-      <div class="recap-tile ${dayHeat.cls}"><span class="recap-tile-num">${totalHRs}</span><span class="recap-tile-label">Home Runs</span></div>
-      <div class="recap-tile ${dayHeat.cls}"><span class="recap-tile-num">${hrPerGame.toFixed(2)}</span><span class="recap-tile-label">HR / Game</span>${dayHeat.tag?`<span class="recap-tile-heat-tag">${dayHeat.tag}</span>`:''}</div>
+      <div class="recap-tile ${gamesCls}"><span class="recap-tile-num">${games}</span><span class="recap-tile-label">${games===1?'Game':'Games'}</span></div>
+      <div class="recap-tile ${hrCls}"><span class="recap-tile-num">${totalHRs}</span><span class="recap-tile-label">Home Runs</span></div>
+      <div class="recap-tile ${hrCls}"><span class="recap-tile-num">${hrPerGame.toFixed(2)}</span><span class="recap-tile-label">HR / Game</span>${dayHeat.tag?`<span class="recap-tile-heat-tag">${dayHeat.tag}</span>`:''}</div>
     </div>
     <div class="recap-meter-card">
       <div class="recap-meter-head">
