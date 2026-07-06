@@ -1048,7 +1048,7 @@ let lbSortCol      = null;
 let lbSortDir      = -1;
 let dueSortCol     = null;
 let dueSortDir     = -1;
-let dueFilters     = { minHR: 0, hideCold: false, longestOnly: false };
+let dueFilters     = { minHR: 0, hideCold: false, longestOnly: false, hideOffBench: false };
 let dueFiltersPanelOpen = false;
 let dueStreaks = {};   // pid -> { since, maxScore, bestRank } for players currently on the list
 let dueHistory = [];   // one entry per scored day: { date, of, grads: [...] }
@@ -1113,16 +1113,20 @@ function injuryBadge(pid, compact) {
 // lineup isn't posted yet (can't tell, so stay silent rather than guess), or
 // the lineup's posted and he's not on it (worth flagging — rest, platoon, or
 // a knock that hasn't hit the IL transaction wire yet).
-function lineupBadge(pid, compact) {
-  if (injuryStatus[pid]) return '';
+// 'off' = player's team isn't playing today; 'bench' = lineup posted and he's
+// not in it; null = starting, or unknown (lineup not posted / no team).
+function lineupStatusOf(pid) {
+  if (injuryStatus[pid]) return null; // injured is surfaced via injuryBadge instead
   const team = playerTeams[pid];
-  if (!team) return '';
-  if (!todayTeamsPlaying.has(team)) {
-    return `<span class="lineup-badge off" title="${team} has no game today">💤${compact ? '' : ' Off'}</span>`;
-  }
-  if (todayLineupsPostedTeams.has(team) && !todayStarterPids.has(pid)) {
-    return `<span class="lineup-badge bench" title="Not in today's starting lineup">🪑${compact ? '' : ' Bench'}</span>`;
-  }
+  if (!team) return null;
+  if (!todayTeamsPlaying.has(team)) return 'off';
+  if (todayLineupsPostedTeams.has(team) && !todayStarterPids.has(pid)) return 'bench';
+  return null;
+}
+function lineupBadge(pid, compact) {
+  const st = lineupStatusOf(pid);
+  if (st === 'off')   return `<span class="lineup-badge off" title="${playerTeams[pid]} has no game today">💤${compact ? '' : ' Off'}</span>`;
+  if (st === 'bench') return `<span class="lineup-badge bench" title="Not in today's starting lineup">🪑${compact ? '' : ' Bench'}</span>`;
   return '';
 }
 // Cross-tab rank badges — shows a player's standing in Due and/or Picks
@@ -2289,18 +2293,19 @@ function toggleDueExplainer() {
   document.getElementById('due-explainer-toggle').setAttribute('aria-expanded', String(dueExplainerOpen));
 }
 
-function dueFiltersActive() { return dueFilters.minHR > 0 || dueFilters.hideCold || dueFilters.longestOnly; }
+function dueFiltersActive() { return dueFilters.minHR > 0 || dueFilters.hideCold || dueFilters.longestOnly || dueFilters.hideOffBench; }
 function applyDueFilters(rows) {
   return rows.filter(r => {
     if (r.hrs < dueFilters.minHR) return false;
     if (dueFilters.hideCold && contactTagInfo(r.contactFactor).cls === 'bad') return false;
     if (dueFilters.longestOnly && !r.isLongestEver) return false;
+    if (dueFilters.hideOffBench && lineupStatusOf(r.pid)) return false; // 'off' or 'bench'
     return true;
   });
 }
 function setDueMinHR(n) { dueFilters.minHR = n; renderDue(); }
 function toggleDueFilter(key) { dueFilters[key] = !dueFilters[key]; renderDue(); }
-function clearDueFilters() { dueFilters = { minHR: 0, hideCold: false, longestOnly: false }; renderDue(); }
+function clearDueFilters() { dueFilters = { minHR: 0, hideCold: false, longestOnly: false, hideOffBench: false }; renderDue(); }
 function toggleDueFiltersPanel() { dueFiltersPanelOpen = !dueFiltersPanelOpen; renderDueFilters(); }
 function renderDueFilters() {
   const minHrOptions = [0, 10, 15, 20];
@@ -2314,12 +2319,13 @@ function renderDueFilters() {
     </div>
     <button class="due-filter-toggle${dueFilters.hideCold?' active':''}" onclick="toggleDueFilter('hideCold')">❄️ Hide Cold Contact</button>
     <button class="due-filter-toggle${dueFilters.longestOnly?' active':''}" onclick="toggleDueFilter('longestOnly')">🔥 Longest Drought Only</button>
+    <button class="due-filter-toggle${dueFilters.hideOffBench?' active':''}" onclick="toggleDueFilter('hideOffBench')">🪑 Hide Off / Benched</button>
     ${dueFiltersActive() ? `<button class="due-filter-clear" onclick="clearDueFilters()">Clear filters ×</button>` : ''}
   `;
   document.getElementById('due-filter-row').style.display = dueFiltersPanelOpen ? '' : 'none';
   document.getElementById('due-filters-chevron').textContent = dueFiltersPanelOpen ? '▴' : '▾';
   document.getElementById('due-filters-toggle').setAttribute('aria-expanded', String(dueFiltersPanelOpen));
-  const activeCount = (dueFilters.minHR > 0 ? 1 : 0) + (dueFilters.hideCold ? 1 : 0) + (dueFilters.longestOnly ? 1 : 0);
+  const activeCount = (dueFilters.minHR > 0 ? 1 : 0) + (dueFilters.hideCold ? 1 : 0) + (dueFilters.longestOnly ? 1 : 0) + (dueFilters.hideOffBench ? 1 : 0);
   const badge = document.getElementById('due-filters-badge');
   badge.style.display = activeCount ? 'inline-flex' : 'none';
   badge.textContent = activeCount;
