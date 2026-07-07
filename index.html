@@ -302,6 +302,10 @@
   .pick-score-big.great { color: var(--accent); }
   .pick-score-big.good  { color: var(--gold); }
   .pick-score-big.ok    { color: #ff7040; }
+  /* Pick Score → HR probability + American odds. */
+  .pick-odds-line { display: block; font-size: 0.62rem; color: var(--muted); margin-top: 0.2rem; white-space: nowrap; }
+  .pick-odds-line b { color: var(--text-strong); font-family: var(--font-m); font-weight: 700; }
+  .pick-odds { display: block; font-family: var(--font-m); font-size: 0.6rem; font-weight: 600; color: var(--muted); margin-top: 0.08rem; }
   .pick-opp { font-size: 0.6rem; color: var(--muted); margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pick-projected { display: inline-flex; align-items: center; font-size: 0.57rem; font-weight: 700; padding: 0.04rem 0.3rem; border-radius: 4px; margin-left: 0.3rem; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); vertical-align: middle; }
   .pick-indicators { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-top: 0.35rem; }
@@ -970,6 +974,7 @@
           <li><b>Weather.</b> Game-time air density (temperature, humidity, pressure, altitude) plus wind projected onto the park's home-plate→center-field axis — hot, thin air and a wind blowing out both help the ball carry; cold, dense air and a wind blowing in suppress it. Roofed parks are treated neutral. The stadium's orientation, roof type, and coordinates come straight from the MLB API.</li>
           <li><b>Lineups.</b> Uses confirmed lineups when posted. Before lineups drop, falls back to projected starters — players with 15+ games this season, 1.5+ AB/game, active in the last 7 days — the same pool the books use pre-lineup. Projected picks are labeled so you know which ones are speculative.</li>
           <li><b>Openers.</b> When today's "starter" is really an opener (2+ starts averaging ≤3 IP, on a team that's recently used the piggyback pattern), his weight drops to the inning or two he actually covers, and the likely bulk arm — the rested rotation-type pitcher whose turn it is — gets his own platoon and pitch-mix slice of the score. Flagged in the pick modal so you know who you're really betting against.</li>
+          <li><b>Probability & odds.</b> The score is also shown as a single-game HR chance and American odds. Read pick score ÷ 100 as the matchup-adjusted HR rate per at-bat, applied over ~4 at-bats — but the matchup multiplier stacks several correlated signals, so we temper it before converting so the implied odds stay realistic (a great matchup tops out near a ~28% chance). It's our model's read, not a sportsbook line, and carries no vig — so expect it to sit a bit shorter than what a book would post.</li>
         </ul>
       </div>
     </div>
@@ -2814,6 +2819,22 @@ function renderPicksFilters() {
 }
 
 function pickScoreClass(s) { return s >= 15 ? 'great' : s >= 9 ? 'good' : 'ok'; }
+// Pick Score → modeled single-game HR probability → American odds.
+// pickScore/100 is the matchup-adjusted HR-per-AB rate; over ~4 ABs that's the
+// chance of going deep. The matchup multiplier stacks several correlated
+// signals so it runs hot as a literal rate — tempered here to keep the implied
+// odds realistic (a great matchup tops out around a ~28% HR chance).
+const PICK_ABS_PER_GAME = 4;
+const PICK_RATE_TEMPER  = 0.5;
+function pickHrProb(score) {
+  const rate = Math.max(0, Math.min(0.25, (score / 100) * PICK_RATE_TEMPER));
+  return 1 - Math.pow(1 - rate, PICK_ABS_PER_GAME);
+}
+function toAmericanOdds(p) {
+  if (!(p > 0) || p >= 1) return '—';
+  return p >= 0.5 ? String(Math.round(-100 * p / (1 - p))) : '+' + Math.round(100 * (1 - p) / p);
+}
+function pickOddsText(score) { return toAmericanOdds(pickHrProb(score)); }
 
 function pitchAbbrClient(name) { return PITCH_ABBR[name] || name; }
 function pitchSynergyScore(hrProfile, pitcherMix) {
@@ -3013,6 +3034,7 @@ function pickModalHtml(r) {
           <span class="pk-vs-txt">VS</span>
           <span class="pick-score-big ${cls}">${r.pickScore.toFixed(1)}</span>
           <span class="due-modal-headline-lbl">Pick Score</span>
+          <span class="pick-odds-line">${Math.round(pickHrProb(r.pickScore) * 100)}% HR · <b>${pickOddsText(r.pickScore)}</b></span>
         </div>
         <div class="pk-side">
           <img src="${playerPhotoUrl(r.oppPid)}" alt="">
@@ -3212,7 +3234,7 @@ function renderPicks() {
           <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}</div>
         </div>
       </div></td>
-      <td class="pick-z ${cls}">${r.pickScore.toFixed(1)}</td>
+      <td class="pick-z ${cls}">${r.pickScore.toFixed(1)}<span class="pick-odds">${pickOddsText(r.pickScore)}</span></td>
       <td class="lb-num hr-col">${r.hrs}</td>
       <td class="lb-num stat-col">${r.venue}</td>
     </tr>`;
@@ -3230,7 +3252,7 @@ function renderPicks() {
           <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}</div>
         </div>
-        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${r.pickScore.toFixed(1)}</span><span class="lbc-headline-lbl">Pick Score</span></div>
+        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${r.pickScore.toFixed(1)}</span><span class="lbc-headline-lbl">Pick Score</span><span class="pick-odds">${pickOddsText(r.pickScore)}</span></div>
       </div>
       <div class="pick-indicators">${pickIndicators(r)}</div>
     </div>`;
