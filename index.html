@@ -1100,8 +1100,12 @@ function addDaysToDateStr(str, delta) {
   dt.setUTCDate(dt.getUTCDate() + delta);
   return dt.toISOString().split('T')[0];
 }
+// "Yesterday" is relative to the server-resolved active game date (todayDate),
+// which already holds on a slate whose late games are still live — so this
+// stays aligned with the build's day boundary. Falls back to wall-clock ET
+// only before data has loaded.
 function yesterday() {
-  return addDaysToDateStr(etDateStr(new Date()), -1);
+  return addDaysToDateStr(todayDate || etDateStr(new Date()), -1);
 }
 function isMob() {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 600;

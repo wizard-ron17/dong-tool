@@ -1003,8 +1003,34 @@ async function fetchTeamAbbreviations() {
   } catch (e) { return { idToAbbr: {}, abbrToId: {} }; }
 }
 
-function todayET() {
+// The baseball "day" doesn't end at midnight ET — west-coast games routinely
+// run past it. Rather than guess a cutoff time, resolve the active date from
+// the actual slate: if yesterday's games are still live (ran past midnight),
+// we're still on yesterday. Resolved once per build (see main) and cached so
+// every synchronous todayET() consumer gets the same answer.
+let _activeGameDate = null;
+function calDateET() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+}
+function shiftDateStr(str, delta) {
+  const [y, m, d] = str.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + delta);
+  return dt.toISOString().split('T')[0];
+}
+function todayET() { return _activeGameDate || calDateET(); }
+async function resolveActiveGameDate() {
+  const cal = calDateET();
+  try {
+    const prev = shiftDateStr(cal, -1);
+    const sched = await fetch(`${MLB}/schedule?sportId=1&date=${prev}&gameType=R`).then(r => r.json());
+    const games = sched.dates?.[0]?.games ?? [];
+    // Any of yesterday's games still being played (past midnight)? Then the
+    // slate isn't over and we're still on that day. Postponed/suspended games
+    // aren't "Live", so they don't keep us stuck.
+    if (games.some(g => g.status?.abstractGameState === 'Live')) return prev;
+  } catch (e) { /* fall back to the calendar date */ }
+  return cal;
 }
 
 // Powers both the new Schedule tab and the lineup-based call-up/bench
@@ -1667,6 +1693,11 @@ async function fetchInjuryStatus() {
 
 async function main() {
   console.log(`Building data.json — season start ${SEASON_START}`);
+
+  // Resolve the active game date before anything reads todayET() — holds on
+  // yesterday while its late games are still live instead of jumping ahead.
+  _activeGameDate = await resolveActiveGameDate();
+  console.log(`Active game date: ${_activeGameDate}${_activeGameDate !== calDateET() ? ` (yesterday's slate still live; calendar is ${calDateET()})` : ''}`);
 
   // Read the existing data.json BEFORE we overwrite it, so we can carry forward
   // yesterday's picks and score them against actual HR results. This runs before
