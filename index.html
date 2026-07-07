@@ -1555,28 +1555,22 @@ function renderHome() {
     </div>`;
   }).join('');
 
-  // Top homer combos — the single most-frequent group at each size (duo, trio,
-  // quad, quint) so the widget spans group sizes, not just pairs. Ties on count
-  // break to whichever combo did it most recently.
-  const topCombo = size => {
-    const arr = groups[size] ?? [];
-    if (!arr.length) return null;
-    let maxCount = 0;
-    for (const g of arr) if (g.count > maxCount) maxCount = g.count;
-    return arr.filter(g => g.count === maxCount)
-      .sort((a, b) => (b.dates[b.dates.length - 1] || '').localeCompare(a.dates[a.dates.length - 1] || ''))[0];
-  };
+  // Top pairings — rather than naming a single combo per size, summarize each
+  // group size (duo, trio, quad, quint): how many distinct groups reached the
+  // highest co-occurrence, and what that peak frequency is. e.g. "5 pairs · 9×"
+  // = five different 2-man combos each homered together on 9 separate days.
+  const sizeWord = { 2: 'pair', 3: 'trio', 4: 'quad', 5: 'quint' };
   const topDuos = [2, 3, 4, 5].map(size => {
-    const g = topCombo(size);
-    if (!g) return '';
-    // Cap at two names so even a quint stays one clean line at any column
-    // width — the size tag conveys the group size and "+N" the rest.
-    const shown = g.pids.slice(0, 2).map(p => compactPlayerName(playerNames[p] || p));
-    const names = shown.join(' + ') + (g.pids.length > 2 ? ` +${g.pids.length - 2}` : '');
-    return `<div class="hm-row">
-      <span class="hm-combo-tag" title="${size} players homered the same day">${size}</span>
-      <span class="hm-name">${names}</span>
-      <span class="hm-score" style="color:var(--silver);font-size:0.85rem">${g.count}<span class="hm-subtle" style="font-size:0.62rem">×</span></span>
+    const arr = groups[size] ?? [];
+    if (!arr.length) return '';
+    let max = 0;
+    for (const g of arr) if (g.count > max) max = g.count;
+    const atMax = arr.filter(g => g.count === max).length;
+    const word = sizeWord[size] + (atMax === 1 ? '' : 's');
+    return `<div class="hm-row" title="${atMax} ${word} each homered together on ${max} separate days — the most of any ${size}-man group this season">
+      <span class="hm-combo-tag">${size}</span>
+      <span class="hm-name">${atMax} ${word}</span>
+      <span class="hm-score" style="color:var(--silver);font-size:0.85rem">${max}<span class="hm-subtle" style="font-size:0.62rem">×</span></span>
     </div>`;
   }).filter(Boolean).join('');
 
@@ -1623,7 +1617,7 @@ function renderHome() {
       ${prospectRows || '<div class="hm-subtle">No fresh call-ups right now.</div>'}
     </div>
     <div class="hm-card" onclick="switchNav('pairs')">
-      <div class="hm-head"><span class="hm-title">Top Combos</span><span class="hm-link">Pairs →</span></div>
+      <div class="hm-head"><span class="hm-title">Top Pairings</span><span class="hm-link">Pairs →</span></div>
       ${topDuos || '<div class="hm-subtle">No co-occurrences yet.</div>'}
     </div>
   </div>`;
