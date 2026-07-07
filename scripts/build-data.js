@@ -1692,17 +1692,28 @@ async function fetchInjuryStatus() {
   return status;
 }
 
-// Merge fresh picks with the previous build's, freezing any whose game has
-// already started: started games keep their pre-game score (so the day's own
-// results can't retroactively change a pick), not-yet-started games get the
-// fresh score. Only carries forward when the previous build was this same slate.
-function freezeStartedPicks(fresh, prev, sameSlate, schedule) {
-  const started = {}; // teamAbbr -> game has started
-  for (const g of schedule) for (const side of [g.home, g.away]) started[side.teamAbbr] = !!g.started;
-  const frozen = sameSlate ? (prev ?? []).filter(p => started[p.team]) : [];
-  const seen = new Set(frozen.map(p => p.pid));
-  const live = fresh.filter(p => !started[p.team] && !seen.has(p.pid));
-  return [...frozen, ...live].sort((a, b) => b.pickScore - a.pickScore);
+// Once a player's game starts, the day's own results shouldn't retroactively
+// change what was a pre-game projection (a pick/due score for a game he's
+// already homered in). So we freeze: rows whose team's game has started keep
+// their previous-build (pre-game) value; only not-yet-started games get fresh
+// scores. Applied to picks and the due list; homer scores freeze the same way
+// per game. Carries forward only when the previous build was this same slate.
+function startedTeams(schedule) {
+  const m = {}; // teamAbbr -> its game has started (Live/Final)
+  for (const g of schedule) for (const side of [g.home, g.away]) m[side.teamAbbr] = !!g.started;
+  return m;
+}
+function freezeStartedRows(fresh, prev, sameSlate, started, cmp) {
+  const frozen = sameSlate ? (prev ?? []).filter(r => started[r.team]) : [];
+  const seen = new Set(frozen.map(r => r.pid));
+  const live = fresh.filter(r => !started[r.team] && !seen.has(r.pid));
+  return [...frozen, ...live].sort(cmp);
+}
+function freezeStartedHomer(schedule, prevSchedule, sameSlate) {
+  if (!sameSlate) return;
+  const prevHomer = {};
+  for (const g of prevSchedule ?? []) if (g.homer) prevHomer[g.gamePk] = g.homer;
+  for (const g of schedule) if (g.started && prevHomer[g.gamePk]) g.homer = prevHomer[g.gamePk];
 }
 
 async function main() {
@@ -1717,7 +1728,7 @@ async function main() {
   // yesterday's picks and score them against actual HR results. This runs before
   // fetchAll() so we have the old data in hand; we cross-reference after fetchAll
   // once dailyHRs is fully populated for the previous date.
-  let prevPicks = [], prevDate = null, picksHistory = [];
+  let prevPicks = [], prevDate = null, picksHistory = [], prevSchedule = [];
   let prevDueRows = [], dueStreaks = null, dueHistory = [];
   try {
     const fs = await import('node:fs');
@@ -1726,6 +1737,7 @@ async function main() {
     prevPicks    = old.picks       ?? [];
     prevDate     = old.todayDate   ?? null;
     picksHistory = old.picksHistory ?? [];
+    prevSchedule = old.todaySchedule ?? [];  // for freezing started games' Homer Score
     prevDueRows  = old.dueRows     ?? [];
     dueStreaks   = old.dueStreaks  ?? null;  // null (not {}) = first run, triggers backfill seeding
     dueHistory   = old.dueHistory  ?? [];
@@ -1734,7 +1746,7 @@ async function main() {
   await fetchAll();
 
   const groups = computeAllGroups(dailyHRs);
-  const dueRows = computeDueRows();
+  let dueRows = computeDueRows();
 
   console.log("Fetching Statcast contact-quality data for Due candidates...");
   await attachContactQuality(dueRows);
@@ -1743,6 +1755,14 @@ async function main() {
   const { idToAbbr: teamIdToAbbr, abbrToId: teamIds } = await fetchTeamAbbreviations();
   const todaySchedule = await fetchTodaySchedule(teamIdToAbbr);
   await attachHands(todaySchedule);
+
+  // Freeze scores for games already underway (see freezeStartedRows): a due
+  // hitter whose game has started keeps his pre-game score instead of dropping
+  // off the moment he homers, so the day's due list stays put until the slate
+  // is over. Picks and Homer Score freeze the same way below.
+  const started = startedTeams(todaySchedule);
+  const sameSlate = prevDate === todayET();
+  dueRows = freezeStartedRows(dueRows, prevDueRows, sameSlate, started, (a, b) => b.dueScore - a.dueScore || b.z - a.z);
 
   console.log("Fetching today's probable pitchers' HR stats...");
   const probablePitcherIds = todaySchedule.flatMap(g => [g.home.probablePitcherId, g.away.probablePitcherId]).filter(Boolean);
@@ -1762,14 +1782,13 @@ async function main() {
   console.log("Computing today's HR picks (matchups, splits, pitch-type profiles)...");
   const freshPicks = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue);
 
-  // Freeze picks whose game has already started: keep the pre-game score from
-  // the last build so today's results don't retroactively recalculate a pick
-  // that's already in progress or final. Only games not yet started get fresh
-  // scores. The day's picks stay visible until the whole slate is over.
-  const picks = freezeStartedPicks(freshPicks, prevPicks, prevDate === todayET(), todaySchedule);
+  // Freeze picks whose game has already started (pre-game score from the last
+  // build); only not-yet-started games get fresh scores.
+  const picks = freezeStartedRows(freshPicks, prevPicks, sameSlate, started, (a, b) => b.pickScore - a.pickScore);
 
   console.log('Scoring per-game Homer Scores...');
   computeHomerScores(todaySchedule, pitcherStats, bullpens);
+  freezeStartedHomer(todaySchedule, prevSchedule, sameSlate); // keep started games' Homer Score pre-game
 
   console.log('Checking for rookie debuts and recent call-ups...');
   const prospects = await computeProspects(todaySchedule, teamIdToAbbr);
