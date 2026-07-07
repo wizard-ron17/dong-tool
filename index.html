@@ -1710,6 +1710,14 @@ function slateClass(games) {
   if (games >= 10) return 'below';
   return 'bad';
 }
+// Slate-size label, mirroring the HR/Game "Average Day" tag under the number.
+function slateTag(games) {
+  if (games >= 15) return 'Full Slate';
+  if (games >= 13) return 'Big Slate';
+  if (games >= 11) return 'Medium Slate';
+  if (games >= 10) return 'Light Slate';
+  return 'Small Slate';
+}
 // Compact game weather chip for the Schedule venue row.
 function schedWeatherChip(w) {
   if (!w) return '';
@@ -2144,7 +2152,7 @@ function renderRecap() {
 
   document.getElementById('recap-content').innerHTML = `
     <div class="recap-summary">
-      <div class="recap-tile ${gamesCls}"><span class="recap-tile-num">${games}</span><span class="recap-tile-label">${games===1?'Game':'Games'}</span></div>
+      <div class="recap-tile ${gamesCls}"><span class="recap-tile-num">${games}</span><span class="recap-tile-label">${games===1?'Game':'Games'}</span><span class="recap-tile-heat-tag">${slateTag(games)}</span></div>
       <div class="recap-tile ${hrCls}"><span class="recap-tile-num">${totalHRs}</span><span class="recap-tile-label">Home Runs</span></div>
       <div class="recap-tile ${hrCls}"><span class="recap-tile-num">${hrPerGame.toFixed(2)}</span><span class="recap-tile-label">HR / Game</span>${dayHeat.tag?`<span class="recap-tile-heat-tag">${dayHeat.tag}</span>`:''}</div>
     </div>
