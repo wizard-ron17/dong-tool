@@ -558,14 +558,12 @@
   .sched-homer-num.avg   { color: var(--gold); }
   .sched-homer-num.below { color: var(--warn); }
   .sched-homer-num.bad   { color: var(--bad); }
-  .sched-day-homer { display: flex; align-items: baseline; gap: 0.5rem; margin: 0.1rem 0 0.5rem; }
-  .sched-day-homer-lbl { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-  .sched-day-homer-num { font-family: var(--font-d); font-weight: 700; font-size: 1.5rem; line-height: 1; }
-  .sched-day-homer-num.great { color: var(--accent); }
-  .sched-day-homer-num.good  { color: var(--good-2); }
-  .sched-day-homer-num.avg   { color: var(--gold); }
-  .sched-day-homer-num.below { color: var(--warn); }
-  .sched-day-homer-num.bad   { color: var(--bad); }
+  .sched-meta-avg { font-family: var(--font-d); font-weight: 700; font-size: 0.85rem; }
+  .sched-meta-avg.great { color: var(--accent); }
+  .sched-meta-avg.good  { color: var(--good-2); }
+  .sched-meta-avg.avg   { color: var(--gold); }
+  .sched-meta-avg.below { color: var(--warn); }
+  .sched-meta-avg.bad   { color: var(--bad); }
   .homer-legend { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.6rem; color: var(--muted); margin: 0.1rem 0 0.7rem; }
   .homer-legend b { color: var(--text); font-weight: 700; }
   .homer-legend .hl-scale { display: inline-flex; height: 0.55rem; width: 4rem; border-radius: 3px; background: linear-gradient(90deg, var(--bad), var(--gold), var(--accent)); }
@@ -2374,6 +2372,8 @@ function toggleSchedBullpens(pk, evt) {
 function toggleSchedGame(pk) {
   document.getElementById(`sched-game-${pk}`)?.classList.toggle('expanded');
 }
+let schedSort = 'time'; // 'time' (earliest first) or 'homer' (highest Homer Score first)
+function setSchedSort(s) { schedSort = s; renderSchedule(); }
 function renderSchedule() {
   const metaEl = document.getElementById('schedule-meta');
   const contentEl = document.getElementById('schedule-content');
@@ -2382,21 +2382,26 @@ function renderSchedule() {
     contentEl.innerHTML = '<div class="empty">No games scheduled today</div>';
     return;
   }
-  const sorted = [...todaySchedule].sort((a, b) => new Date(a.gameDate) - new Date(b.gameDate));
-  metaEl.textContent = `${sorted.length} game${sorted.length === 1 ? '' : 's'}` + (todayDate ? ` · ${fmtDateLong(todayDate)}` : '');
   const leagueAvg = leagueHRPerGame();
-  const homerScores = sorted.filter(g => g.homer).map(g => g.homer.score);
+  const homerScores = todaySchedule.filter(g => g.homer).map(g => g.homer.score);
   const anyHomer = homerScores.length > 0;
   const dayAvg = anyHomer ? Math.round(homerScores.reduce((a, b) => a + b, 0) / homerScores.length) : null;
-  const dayAvgHtml = anyHomer ? `<div class="sched-day-homer" title="Average Homer Score across all ${homerScores.length} scored games today (50 = average day)">
-    <span class="sched-day-homer-lbl">Avg Homer Score</span>
-    <span class="sched-day-homer-num ${homerScoreClass(dayAvg)}">${dayAvg}</span>
+  const byTime = (a, b) => new Date(a.gameDate) - new Date(b.gameDate);
+  const byHomer = (a, b) => (b.homer?.score ?? -Infinity) - (a.homer?.score ?? -Infinity) || byTime(a, b);
+  const sorted = [...todaySchedule].sort(anyHomer && schedSort === 'homer' ? byHomer : byTime);
+  metaEl.innerHTML = `${sorted.length} game${sorted.length === 1 ? '' : 's'}`
+    + (todayDate ? ` · ${fmtDateLong(todayDate)}` : '')
+    + (anyHomer ? ` · Avg Homer Score <span class="sched-meta-avg ${homerScoreClass(dayAvg)}" title="Average Homer Score across all ${homerScores.length} scored games today (50 = average day)">${dayAvg}</span>` : '');
+  const sortBar = anyHomer ? `<div class="picks-sort">
+    <span class="due-filter-label">Sort</span>
+    <button class="due-filter-chip${schedSort==='time'?' active':''}" onclick="setSchedSort('time')">Game Time</button>
+    <button class="due-filter-chip${schedSort==='homer'?' active':''}" onclick="setSchedSort('homer')">Homer Score</button>
   </div>` : '';
   const legend = anyHomer ? `<div class="homer-legend">
     <b>Homer Score</b> = HR-betting confidence per game (park, weather, both lineups, starters, pens). 50 = average.
     <span class="hl-scale"></span> <span>colder → hotter</span>
   </div>` : '';
-  contentEl.innerHTML = dayAvgHtml + legend + `<div class="sched-list">${sorted.map(g => {
+  contentEl.innerHTML = legend + sortBar + `<div class="sched-list">${sorted.map(g => {
     const info = schedStatusInfo(g);
     const lineupStatus = schedLineupStatus(g);
     const awayLabel = g.away.teamAbbr || g.away.teamName, homeLabel = g.home.teamAbbr || g.home.teamName;
