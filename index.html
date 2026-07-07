@@ -303,6 +303,8 @@
   .pick-score-big.good  { color: var(--gold); }
   .pick-score-big.ok    { color: #ff7040; }
   .pick-opp { font-size: 0.6rem; color: var(--muted); margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pick-gametime { color: var(--dim); }
+  .picks-sort { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.6rem; flex-wrap: wrap; }
   .pick-projected { display: inline-flex; align-items: center; font-size: 0.57rem; font-weight: 700; padding: 0.04rem 0.3rem; border-radius: 4px; margin-left: 0.3rem; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); vertical-align: middle; }
   .pick-indicators { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-top: 0.35rem; }
   .pick-ind { font-size: 0.56rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 10px; background: var(--surface2); color: var(--muted); white-space: nowrap; }
@@ -1034,7 +1036,8 @@ let pitcherStats = {}; // pid -> { hr, hr9, ip, era } for today's probable pitch
 let bullpens = {}; // team abbr -> [{ pid, name, hand, era, saves, holds, gamesPitched, lastOuting, pitchMix }]
 let picks    = []; // today's HR pick candidates, pre-scored server-side
 let picksHistory = [];
-let picksFilters     = { minHR: 3, minScore: 7 }; // 3 = server HR floor ("All"), 7 = server score floor — show everything by default
+let picksFilters     = { minHR: 3, minScore: 7, hideUnavailable: true }; // 3 = server HR floor ("All"), 7 = server score floor; hide off/bench/IL by default
+let picksSort        = 'score'; // 'score' (desc) or 'game' (earliest first)
 let picksFiltersPanelOpen = false;
 let picksSubTab = 'today';
 
@@ -2789,10 +2792,17 @@ function togglePicksExplainer() {
 function togglePicksFiltersPanel() { picksFiltersPanelOpen = !picksFiltersPanelOpen; renderPicksFilters(); }
 function setPicksMinHR(n)    { picksFilters.minHR    = n; renderPicks(); }
 function setPicksMinScore(n) { picksFilters.minScore = n; renderPicks(); }
-function clearPicksFilters() { picksFilters = { minHR: 3, minScore: 7 }; renderPicks(); }
-function picksFiltersActive() { return picksFilters.minHR !== 3 || picksFilters.minScore !== 7; }
+function setPicksSort(s)     { picksSort = s; renderPicks(); }
+function togglePicksFilter(key) { picksFilters[key] = !picksFilters[key]; renderPicks(); }
+function clearPicksFilters() { picksFilters = { minHR: 3, minScore: 7, hideUnavailable: true }; renderPicks(); }
+// hideUnavailable is on by default, so "active" means a deviation from default.
+function picksFiltersActive() { return picksFilters.minHR !== 3 || picksFilters.minScore !== 7 || picksFilters.hideUnavailable !== true; }
 function applyPicksFilters(rows) {
-  return rows.filter(r => r.hrs >= picksFilters.minHR && r.pickScore >= picksFilters.minScore);
+  return rows.filter(r =>
+    r.hrs >= picksFilters.minHR &&
+    r.pickScore >= picksFilters.minScore &&
+    !(picksFilters.hideUnavailable && isUnavailableToday(r.pid)) // off / bench / IL
+  );
 }
 function renderPicksFilters() {
   const hrOpts    = [3, 5, 10, 15];
@@ -2802,12 +2812,13 @@ function renderPicksFilters() {
   document.getElementById('picks-filter-row').innerHTML = `
     <div class="due-filter-group"><span class="due-filter-label">Min HR</span><div class="due-filter-chips">${hrChips}</div></div>
     <div class="due-filter-group"><span class="due-filter-label">Min Score</span><div class="due-filter-chips">${scoreChips}</div></div>
+    <button class="due-filter-toggle${picksFilters.hideUnavailable?' active':''}" onclick="togglePicksFilter('hideUnavailable')">🚫 Hide Off / Bench / IL</button>
     ${picksFiltersActive() ? `<button class="due-filter-clear" onclick="clearPicksFilters()">Reset ×</button>` : ''}
   `;
   document.getElementById('picks-filter-row').style.display = picksFiltersPanelOpen ? '' : 'none';
   document.getElementById('picks-filters-chevron').textContent = picksFiltersPanelOpen ? '▴' : '▾';
   document.getElementById('picks-filters-toggle').setAttribute('aria-expanded', String(picksFiltersPanelOpen));
-  const activeCount = (picksFilters.minHR !== 3 ? 1 : 0) + (picksFilters.minScore !== 7 ? 1 : 0);
+  const activeCount = (picksFilters.minHR !== 3 ? 1 : 0) + (picksFilters.minScore !== 7 ? 1 : 0) + (picksFilters.hideUnavailable !== true ? 1 : 0);
   const badge = document.getElementById('picks-filters-badge');
   badge.style.display = activeCount ? 'inline-flex' : 'none';
   badge.textContent = activeCount;
@@ -3191,14 +3202,22 @@ function renderPicks() {
     ? `${confirmedCount} confirmed · ${projCount} projected`
     : projCount ? `${projCount} projected (no lineups posted yet)`
     : `${confirmedCount} confirmed`;
-  metaEl.textContent = `${filtered.length}${filtersOn ? ` of ${picks.length}` : ''} picks · ${lineupNote} · sorted by Pick Score`;
+  metaEl.textContent = `${filtered.length}${filtersOn ? ` of ${picks.length}` : ''} picks · ${lineupNote} · sorted by ${picksSort === 'game' ? 'game time' : 'Pick Score'}`;
   if (!filtered.length) {
     contentEl.innerHTML = `<div class="empty">Nobody matches these filters. <a href="javascript:void(0)" onclick="clearPicksFilters()">Reset</a></div>`;
     return;
   }
-  const ranked = filtered;
+  // Map each pick to its game for game-time sort/display.
+  const gameByTeam = {};
+  for (const g of todaySchedule) { gameByTeam[g.away.teamAbbr] = g; gameByTeam[g.home.teamAbbr] = g; }
+  const gameDateOf = r => gameByTeam[r.team]?.gameDate || '';
+  const gameTimeOf = r => { const d = gameDateOf(r); return d ? new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''; };
+  const ranked = picksSort === 'game'
+    ? [...filtered].sort((a, b) => gameDateOf(a).localeCompare(gameDateOf(b)) || b.pickScore - a.pickScore)
+    : filtered; // already Pick Score desc
 
-  const rankClass = i => i===0?'gold':i===1?'silver':i===2?'bronze':'';
+  // Medals only make sense when ranked by score; game order gets plain numbers.
+  const rankClass = i => (picksSort === 'score' && i < 3) ? (i===0?'gold':i===1?'silver':'bronze') : '';
   const tableRows = ranked.map((r, i) => {
     const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const cls = pickScoreClass(r.pickScore);
@@ -3209,7 +3228,7 @@ function renderPicks() {
         <div>
           <div class="lb-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, false, true)}</div>
           <div class="lb-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
-          <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}</div>
+          <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
       </div></td>
       <td class="pick-z ${cls}">${r.pickScore.toFixed(1)}</td>
@@ -3228,7 +3247,7 @@ function renderPicks() {
         <div class="lbc-info">
           <div class="lbc-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, false, true)}</div>
           <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
-          <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}</div>
+          <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
         <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${r.pickScore.toFixed(1)}</span><span class="lbc-headline-lbl">Pick Score</span></div>
       </div>
@@ -3237,6 +3256,11 @@ function renderPicks() {
   }).join('');
 
   contentEl.innerHTML = `
+    <div class="picks-sort">
+      <span class="due-filter-label">Sort</span>
+      <button class="due-filter-chip${picksSort==='score'?' active':''}" onclick="setPicksSort('score')">Pick Score</button>
+      <button class="due-filter-chip${picksSort==='game'?' active':''}" onclick="setPicksSort('game')">Game Time</button>
+    </div>
     <div class="lb-view-table tbl-scroll">
       <table class="lb-table">
         <thead><tr>
