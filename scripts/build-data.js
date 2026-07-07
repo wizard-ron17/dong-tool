@@ -384,14 +384,27 @@ function parseCsv(text) {
   });
 }
 
-async function fetchBattedBalls(pids) {
-  if (!pids.length) return [];
+// Savant's CSV search endpoint hard-caps every request at 25,000 rows and
+// silently truncates the OLDEST data past that — a full 16-game candidate pool
+// (~180 batters × ~140 pitch-detail rows) blows past it, so each batter's
+// HR-pitch profile and contact stats were being built from only their most
+// recent games (e.g. Wood showing 13 of 24 HRs, missing his March fastballs).
+// Chunk small enough that even a heavy pool stays well under the cap, then
+// concatenate — the callers already bucket rows by batter, so order is moot.
+const BATTED_BALLS_BATCH = 60; // ~8k rows/request, comfortable margin under 25k
+async function fetchBattedBallsChunk(pids) {
   const lookup = pids.map(pid => `&batters_lookup%5B%5D=${pid}`).join('');
   const url = `https://baseballsavant.mlb.com/statcast_search/csv?all=true&hfGT=R%7C&hfSea=${SEASON_YEAR}%7C` +
     `&player_type=batter&game_date_gt=${SEASON_START}&game_date_lt=${todayET()}&group_by=name&min_pitches=0` +
     `&min_results=0&type=details&hfBBT=ground_ball%7Cline_drive%7Cfly_ball%7Cpopup%7C${lookup}`;
   const text = await savantFetch(url);
   return text ? parseCsv(text) : [];
+}
+async function fetchBattedBalls(pids) {
+  if (!pids.length) return [];
+  const batches = chunk(pids, BATTED_BALLS_BATCH);
+  const results = await Promise.all(batches.map(fetchBattedBallsChunk));
+  return results.flat();
 }
 
 // Sweet Spot% = launch angle 8-32°, Statcast's standard window for the
