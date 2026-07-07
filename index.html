@@ -104,7 +104,11 @@
 
   /* Desktop: segmented pill bar — 4 direct tabs + a Tools dropdown. Icons are
      mobile-only; on desktop the pills stay text. */
-  nav { position: relative; display: flex; gap: 0.15rem; margin-bottom: 1.3rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 13px; padding: 0.28rem; }
+  /* Shell wraps the bar + dropdown as siblings so the opaque bar can paint a
+     layer above the menu — letting the menu slide out from *behind* the bar
+     (a child could never render behind its own parent's background). */
+  .nav-shell { position: relative; z-index: 210; margin-bottom: 1.3rem; }
+  nav { position: relative; z-index: 2; display: flex; gap: 0.15rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 13px; padding: 0.28rem; }
   .nav-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.35rem; background: transparent; border: none; border-radius: 9px; color: var(--muted); font-family: var(--font-d); font-size: 1.02rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.5rem 0.6rem; cursor: pointer; transition: color 0.15s, background 0.15s; white-space: nowrap; }
   .nav-btn:hover:not(.active):not(:disabled) { color: var(--text); background: var(--surface2); }
   .nav-btn.active { color: #04170f; background: var(--accent); box-shadow: 0 1px 10px rgba(51,208,124,0.28); }
@@ -114,9 +118,12 @@
   nav.tools-open .nav-caret { transform: rotate(180deg); }
 
   /* Tools menu: dropdown card on desktop, slide-up sheet on mobile. */
-  .nav-tools-backdrop { position: fixed; inset: 0; z-index: 210; background: transparent; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .nav-tools-backdrop { position: fixed; inset: 0; z-index: 200; background: transparent; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
   .nav-tools-backdrop.open { opacity: 1; pointer-events: auto; }
-  .nav-tools-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 220; min-width: 250px; background: var(--surface1); border: 1px solid var(--border2); border-radius: 12px; padding: 0.35rem; box-shadow: 0 14px 40px rgba(0,0,0,0.45); opacity: 0; transform: translateY(-6px); pointer-events: none; transition: opacity 0.16s, transform 0.16s; }
+  /* z-index 1 (below the bar's z-index 2, both inside .nav-shell) + a top that
+     tucks under the bar's bottom edge = the card is hidden behind the bar and
+     slides down out from under it. */
+  .nav-tools-menu { position: absolute; top: calc(100% - 10px); right: 0; z-index: 1; min-width: 250px; background: var(--surface1); border: 1px solid var(--border2); border-radius: 12px; padding: 0.35rem; box-shadow: 0 14px 40px rgba(0,0,0,0.45); opacity: 0; transform: translateY(-8px); pointer-events: none; transition: opacity 0.16s, transform 0.16s; }
   .nav-tools-menu.open { opacity: 1; transform: none; pointer-events: auto; }
   .nav-menu-item { display: flex; align-items: center; gap: 0.6rem; width: 100%; background: transparent; border: none; border-radius: 8px; padding: 0.55rem 0.65rem; cursor: pointer; text-align: left; transition: background 0.15s; }
   .nav-menu-item:hover:not(:disabled) { background: var(--surface2); }
@@ -848,6 +855,7 @@
     </div>
   </header>
 
+  <div class="nav-shell">
   <nav id="main-nav">
     <button class="nav-btn active" data-nav="home" onclick="switchNav('home')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.2 12 4l9 7.2M5.5 9.4V20h13V9.4"/></svg>
@@ -869,6 +877,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>
       <span>Tools</span><span class="nav-caret">▾</span>
     </button>
+  </nav>
     <div class="nav-tools-menu" id="nav-tools-menu">
       <button class="nav-menu-item" data-nav="picks" onclick="switchNav('picks')" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.75" fill="currentColor"/></svg>
@@ -887,7 +896,7 @@
         <span><span class="nm-name">Prospects</span><span class="nm-desc">Call-ups and debut bombs</span></span>
       </button>
     </div>
-  </nav>
+  </div>
   <!-- Backdrop sits OUTSIDE nav: the nav's backdrop-filter makes it the
        containing block for its fixed children, so a backdrop inside could
        only ever cover the bar's own box, never the page. The mobile nav gets
