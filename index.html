@@ -1490,6 +1490,32 @@ function renderHome() {
     </div>`;
   }).join('');
 
+  // Top homer duos — pairs (group size 2) who've gone deep on the same day the
+  // most times. groups[2] is pre-sorted by count desc server-side.
+  const topDuos = (groups[2] ?? []).slice(0, 5).map(g => {
+    const [a, b] = g.pids;
+    return `<div class="hm-row">
+      <span class="hm-name">${compactPlayerName(playerNames[a] || a)} <span class="hm-subtle">+</span> ${compactPlayerName(playerNames[b] || b)}</span>
+      <span class="hm-score" style="color:var(--silver);font-size:0.85rem">${g.count}<span class="hm-subtle" style="font-size:0.62rem">×</span></span>
+    </div>`;
+  }).join('');
+
+  // Prospects — debut bombs first (rare, exciting), then fresh call-ups by
+  // minors power pedigree. Mirrors each prospect card's headline stat.
+  const prospectRows = [
+    ...prospects.debutBombs.map(r => ({ r, bomb: true })),
+    ...prospects.justCalledUp.map(r => ({ r, bomb: false })),
+  ].slice(0, 5).map(({ r, bomb }) => {
+    const stat = bomb
+      ? `<span class="hm-score" style="color:var(--accent);font-size:0.78rem">${r.hrs}<span class="hm-subtle" style="font-size:0.6rem"> HR</span></span>`
+      : `<span class="hm-score" style="color:var(--gold);font-size:0.75rem">${r.milbAbPerHR ? r.milbAbPerHR.toFixed(1) : '—'}<span class="hm-subtle" style="font-size:0.58rem"> AB/HR</span></span>`;
+    return `<div class="hm-row">
+      <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
+      <span class="hm-name">${bomb ? '💣 ' : ''}${compactPlayerName(r.name)}<span class="hm-subtle"> · ${r.team}${bomb ? '' : ' · just up'}</span></span>
+      ${stat}
+    </div>`;
+  }).join('');
+
   // "Yesterday's Homers" only when the last completed slate was literally
   // yesterday — after an off day it's "Last Homers · <date>" instead.
   const recapLabel = last === yesterday() ? "Yesterday's Homers" : 'Last Homers';
@@ -1514,6 +1540,14 @@ function renderHome() {
     <div class="hm-card" onclick="switchNav('due')">
       <div class="hm-head"><span class="hm-title">Most Due</span><span class="hm-link">Due →</span></div>
       ${topDue || '<div class="hm-subtle">Nobody qualifies right now.</div>'}
+    </div>
+    <div class="hm-card" onclick="switchNav('prospects')">
+      <div class="hm-head"><span class="hm-title">Prospects</span><span class="hm-link">Prospects →</span></div>
+      ${prospectRows || '<div class="hm-subtle">No fresh call-ups right now.</div>'}
+    </div>
+    <div class="hm-card" onclick="switchNav('pairs')">
+      <div class="hm-head"><span class="hm-title">Top Duos</span><span class="hm-link">Pairs →</span></div>
+      ${topDuos || '<div class="hm-subtle">No co-occurrences yet.</div>'}
     </div>
   </div>`;
 }
