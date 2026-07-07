@@ -305,6 +305,7 @@
   .pick-opp { font-size: 0.6rem; color: var(--muted); margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pick-gametime { color: var(--dim); }
   .picks-sort { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.6rem; flex-wrap: wrap; }
+  .pairs-filter-row { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.7rem; flex-wrap: wrap; }
   .pick-projected { display: inline-flex; align-items: center; font-size: 0.57rem; font-weight: 700; padding: 0.04rem 0.3rem; border-radius: 4px; margin-left: 0.3rem; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); vertical-align: middle; }
   .pick-indicators { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-top: 0.35rem; }
   .pick-ind { font-size: 0.56rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 10px; background: var(--surface2); color: var(--muted); white-space: nowrap; }
@@ -910,6 +911,10 @@
       <input type="text" id="player-search" placeholder="Search players… commas for multiple (Judge, Ohtani)" oninput="onSearchInput()">
       <div class="search-hint">Comma-separate names to require ALL of them in a group</div>
       <div class="search-tags" id="search-tags"></div>
+    </div>
+    <div class="pairs-filter-row">
+      <span class="due-filter-label">Filter</span>
+      <button class="due-filter-chip" id="pairs-avail-chip" onclick="togglePairsAvail()" title="Hide any grouping with a member who's on the IL, benched, or whose team is off today">Available today only</button>
     </div>
     <div class="result-meta" id="pairs-meta"></div>
     <div id="cards"><div class="empty">Loading data…</div></div>
@@ -1628,6 +1633,15 @@ function renderHome() {
 
 // ── PAIRS ──────────────────────────────────────────────────────────────
 const RENDER_LIMIT = 200;
+// Hide any grouping with a member who can't bat today (IL / team off / benched)
+// — off by default since Pairs is a season-long history view, not a today board.
+let pairsHideUnavailable = false;
+function togglePairsAvail() {
+  pairsHideUnavailable = !pairsHideUnavailable;
+  const chip = document.getElementById('pairs-avail-chip');
+  if (chip) chip.classList.toggle('active', pairsHideUnavailable);
+  _render(activePairSize);
+}
 
 function switchPairSize(size) {
   activePairSize = size;
@@ -1651,6 +1665,11 @@ function _render(size) {
     });
   }
 
+  // Drop any group where a single member can't bat today (IL / off / benched).
+  if (pairsHideUnavailable) {
+    groupList = groupList.filter(item => !item.pids.some(pid => isUnavailableToday(pid)));
+  }
+
   const maxCount = groupList[0]?.count ?? 0;
   const termDesc = activeTerms.length > 1
     ? `filtering for: ${activeTerms.join(' + ')}`
@@ -1659,6 +1678,7 @@ function _render(size) {
   document.getElementById('pairs-meta').textContent =
     `${groupList.length.toLocaleString()} unique ${sizeNames[size]}` +
     (size === 2 || size === 5 ? ' · min 3 occurrences' : ' · min 2 occurrences') +
+    (pairsHideUnavailable ? ' · available only' : '') +
     (termDesc ? ` · ${termDesc}` : '') +
     (groupList.length > RENDER_LIMIT ? ` · showing top ${RENDER_LIMIT}` : '');
 
@@ -1687,7 +1707,7 @@ function _render(size) {
         <img class="player-photo" src="${photoUrl}" alt="">
         <span class="player-name">${name}</span>
         <span class="player-hr">${hrTotals[pid]??'—'}</span>
-        <span class="player-hr-lbl">HR</span>${injuryBadge(pid, true)}${lineupBadge(pid, true)}</div>`;
+        <span class="player-hr-lbl">HR</span>${injuryBadge(pid, true)}${lineupBadge(pid, true)}${crossTabBadge(pid)}</div>`;
     }).join('');
     const datePills = item.dates.map((d,di)=>`<span class="date-pill${di===item.dates.length-1?' latest':''}">${fmtDate(d)}</span>`).join('');
     card.innerHTML = `
