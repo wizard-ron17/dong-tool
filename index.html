@@ -565,7 +565,8 @@
   .sched-pitcher-info { min-width: 0; overflow: hidden; }
   .sched-pitcher-name { font-size: 0.68rem; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sched-pitcher-stat { font-size: 0.57rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .sched-pitcher.empty { color: var(--dim); font-size: 0.62rem; font-style: italic; }
+  .sched-pitcher.sched-tbd { color: var(--dim); font-size: 0.62rem; font-style: italic; }
+  .sched-tbd-row { justify-content: center; color: var(--dim); font-size: 0.62rem; font-style: italic; letter-spacing: 0.04em; }
   .sched-vs { font-size: 0.57rem; color: var(--dim); flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.05em; }
   .sched-expand-row { margin-top: 0.4rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
   .sched-expand-hint { color: var(--dim); font-size: 0.57rem; letter-spacing: 0.05em; text-transform: uppercase; }
@@ -2216,9 +2217,17 @@ function schedLineupHtml(side) {
 }
 // HR-focused probable-pitcher line — a guy giving up a lot of homers (high
 // HR9) is exactly the matchup context this whole site is about.
+// Both starters unannounced -> one compact centered line instead of two big
+// "TBD" blocks. Otherwise the normal away · vs · home row.
+function schedPitchersRow(g) {
+  if (!g.away.probablePitcher && !g.home.probablePitcher) {
+    return `<div class="sched-pitchers-row sched-tbd-row">Starters TBD</div>`;
+  }
+  return `<div class="sched-pitchers-row">${schedPitcherHtml(g.away)}<span class="sched-vs">vs</span>${schedPitcherHtml(g.home)}</div>`;
+}
 function schedPitcherHtml(side) {
   if (!side.probablePitcher) {
-    return `<div class="sched-pitcher empty">TBD to start</div>`;
+    return `<div class="sched-pitcher sched-tbd">TBD</div>`;
   }
   const stat = side.probablePitcherId ? pitcherStats[side.probablePitcherId] : null;
   // Higher HR/9 = a juicier matchup for this site's purposes, so it gets the
@@ -2342,11 +2351,7 @@ function renderSchedule() {
         </div>
       </div>
       <div class="sched-venue-row">${g.venue}${venueGames ? ` · <span class="hrg-val ${venueCls}">${venueHRG.toFixed(2)}</span> HR/G` : ''}${schedWeatherChip(g.weather)}</div>
-      <div class="sched-pitchers-row">
-        ${schedPitcherHtml(g.away)}
-        <span class="sched-vs">vs</span>
-        ${schedPitcherHtml(g.home)}
-      </div>
+      ${schedPitchersRow(g)}
       <div class="sched-expand-row" onclick="toggleSchedGame(${g.gamePk})">
         <span class="sched-lineup-status ${lineupStatus.cls}">${lineupStatus.text}</span>
         <span class="sched-expand-hint">▾</span>
