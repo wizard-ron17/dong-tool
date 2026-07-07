@@ -769,7 +769,10 @@
   .hm-photo { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; background: var(--surface2); flex-shrink: 0; }
   .hm-name { font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .hm-subtle { font-size: 0.6rem; color: var(--muted); font-weight: 400; }
-  .hm-combo-tag { flex-shrink: 0; min-width: 1.15rem; text-align: center; font-family: var(--font-m); font-size: 0.62rem; font-weight: 700; color: var(--silver); background: var(--surface2); border-radius: 4px; padding: 0.05rem 0.28rem; }
+  .hm-combo-tag { flex-shrink: 0; text-align: center; font-family: var(--font-m); font-size: 0.66rem; font-weight: 700; color: var(--text); background: var(--surface2); border: 1px solid var(--border2); border-radius: 5px; padding: 0.1rem 0.38rem; letter-spacing: 0.02em; }
+  .hm-tag-sub { color: var(--muted); font-weight: 600; }
+  .hm-pair-score { color: var(--accent); }
+  .hm-x { font-size: 0.72rem; color: var(--muted); font-weight: 700; margin-left: 0.08rem; }
   .hm-score { margin-left: auto; font-family: var(--font-d); font-weight: 700; font-size: 0.95rem; flex-shrink: 0; }
   .hm-score.hot, .hm-score.great { color: var(--accent); }
   .hm-score.warm, .hm-score.good { color: var(--gold); }
@@ -1568,9 +1571,9 @@ function renderHome() {
     const atMax = arr.filter(g => g.count === max).length;
     const word = sizeWord[size] + (atMax === 1 ? '' : 's');
     return `<div class="hm-row" title="${atMax} ${word} each homered together on ${max} separate days — the most of any ${size}-man group this season">
-      <span class="hm-combo-tag">${size}</span>
+      <span class="hm-combo-tag">${size}<span class="hm-tag-sub">-man</span></span>
       <span class="hm-name">${atMax} ${word}</span>
-      <span class="hm-score" style="color:var(--silver);font-size:0.85rem">${max}<span class="hm-subtle" style="font-size:0.62rem">×</span></span>
+      <span class="hm-score hm-pair-score">${max}<span class="hm-x">×</span></span>
     </div>`;
   }).filter(Boolean).join('');
 
