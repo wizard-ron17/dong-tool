@@ -716,6 +716,7 @@
   .hm-photo { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; background: var(--surface2); flex-shrink: 0; }
   .hm-name { font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .hm-subtle { font-size: 0.6rem; color: var(--muted); font-weight: 400; }
+  .hm-combo-tag { flex-shrink: 0; min-width: 1.15rem; text-align: center; font-family: var(--font-m); font-size: 0.62rem; font-weight: 700; color: var(--silver); background: var(--surface2); border-radius: 4px; padding: 0.05rem 0.28rem; }
   .hm-score { margin-left: auto; font-family: var(--font-d); font-weight: 700; font-size: 0.95rem; flex-shrink: 0; }
   .hm-score.hot, .hm-score.great { color: var(--accent); }
   .hm-score.warm, .hm-score.good { color: var(--gold); }
@@ -1490,29 +1491,38 @@ function renderHome() {
     </div>`;
   }).join('');
 
-  // Top homer duos — pairs (group size 2) who've gone deep on the same day the
-  // most times. groups[2] is pre-sorted by count desc server-side.
-  const topDuos = (groups[2] ?? []).slice(0, 5).map(g => {
-    const [a, b] = g.pids;
+  // Top homer combos — the single most-frequent group at each size (duo, trio,
+  // quad, quint) so the widget spans group sizes, not just pairs. Ties on count
+  // break to whichever combo did it most recently.
+  const topCombo = size => {
+    const arr = groups[size] ?? [];
+    if (!arr.length) return null;
+    let maxCount = 0;
+    for (const g of arr) if (g.count > maxCount) maxCount = g.count;
+    return arr.filter(g => g.count === maxCount)
+      .sort((a, b) => (b.dates[b.dates.length - 1] || '').localeCompare(a.dates[a.dates.length - 1] || ''))[0];
+  };
+  const topDuos = [2, 3, 4, 5].map(size => {
+    const g = topCombo(size);
+    if (!g) return '';
+    const names = g.pids.map(p => compactPlayerName(playerNames[p] || p)).join(' + ');
     return `<div class="hm-row">
-      <span class="hm-name">${compactPlayerName(playerNames[a] || a)} <span class="hm-subtle">+</span> ${compactPlayerName(playerNames[b] || b)}</span>
+      <span class="hm-combo-tag" title="${size} players homered the same day">${size}</span>
+      <span class="hm-name">${names}</span>
       <span class="hm-score" style="color:var(--silver);font-size:0.85rem">${g.count}<span class="hm-subtle" style="font-size:0.62rem">×</span></span>
     </div>`;
-  }).join('');
+  }).filter(Boolean).join('');
 
-  // Prospects — debut bombs first (rare, exciting), then fresh call-ups by
-  // minors power pedigree. Mirrors each prospect card's headline stat.
-  const prospectRows = [
-    ...prospects.debutBombs.map(r => ({ r, bomb: true })),
-    ...prospects.justCalledUp.map(r => ({ r, bomb: false })),
-  ].slice(0, 5).map(({ r, bomb }) => {
-    const stat = bomb
-      ? `<span class="hm-score" style="color:var(--accent);font-size:0.78rem">${r.hrs}<span class="hm-subtle" style="font-size:0.6rem"> HR</span></span>`
-      : `<span class="hm-score" style="color:var(--gold);font-size:0.75rem">${r.milbAbPerHR ? r.milbAbPerHR.toFixed(1) : '—'}<span class="hm-subtle" style="font-size:0.58rem"> AB/HR</span></span>`;
+  // Prospects — fresh call-ups only (no debut bombs), ranked by minors power
+  // pedigree, with a bit of their minor-league line for context.
+  const prospectRows = prospects.justCalledUp.slice(0, 5).map(r => {
+    const lvl = r.milb?.aaa ? 'AAA' : (r.milb?.aa ? 'AA' : '');
+    const line = r.milb?.aaa || r.milb?.aa;
+    const sub = [r.team, line?.hrs != null ? `${line.hrs} HR` : null, line?.ops ? `${line.ops} OPS` : null].filter(Boolean).join(' · ');
     return `<div class="hm-row">
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
-      <span class="hm-name">${bomb ? '💣 ' : ''}${compactPlayerName(r.name)}<span class="hm-subtle"> · ${r.team}${bomb ? '' : ' · just up'}</span></span>
-      ${stat}
+      <span class="hm-name">${compactPlayerName(r.name)}<span class="hm-subtle"> · ${sub}</span></span>
+      <span class="hm-score" style="color:var(--gold);font-size:0.75rem">${r.milbAbPerHR ? r.milbAbPerHR.toFixed(1) : '—'}<span class="hm-subtle" style="font-size:0.58rem"> ${lvl} AB/HR</span></span>
     </div>`;
   }).join('');
 
@@ -1546,7 +1556,7 @@ function renderHome() {
       ${prospectRows || '<div class="hm-subtle">No fresh call-ups right now.</div>'}
     </div>
     <div class="hm-card" onclick="switchNav('pairs')">
-      <div class="hm-head"><span class="hm-title">Top Duos</span><span class="hm-link">Pairs →</span></div>
+      <div class="hm-head"><span class="hm-title">Top Combos</span><span class="hm-link">Pairs →</span></div>
       ${topDuos || '<div class="hm-subtle">No co-occurrences yet.</div>'}
     </div>
   </div>`;

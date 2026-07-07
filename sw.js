@@ -14,7 +14,7 @@
 // On a new version we deliberately DON'T skipWaiting: the new worker installs
 // and waits, the page notices and shows a "refresh to update" prompt, and only
 // then do we take over (see the SKIP_WAITING message handler).
-const APP_VERSION = 'f0a46a071d';
+const APP_VERSION = '84e7485672';
 const CACHE_NAME = 'dong-tool-' + APP_VERSION;
 const SHELL_ASSETS = [
   './',
