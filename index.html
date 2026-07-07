@@ -696,7 +696,7 @@
   /* Home dashboard */
   .hm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
   @media (max-width: 640px) { .hm-grid { grid-template-columns: 1fr; } }
-  .hm-card { background: var(--surface0); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 0.85rem; cursor: pointer; transition: border-color 0.15s, background 0.15s; animation: fadeIn 0.15s ease; }
+  .hm-card { min-width: 0; background: var(--surface0); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 0.85rem; cursor: pointer; transition: border-color 0.15s, background 0.15s; animation: fadeIn 0.15s ease; }
   .hm-card:hover { border-color: var(--accent); background: var(--surface1); }
   .hm-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; margin-bottom: 0.55rem; }
   .hm-title { font-family: var(--font-d); font-weight: 700; font-size: 0.98rem; color: var(--text-strong); letter-spacing: 0.02em; }
@@ -1505,7 +1505,10 @@ function renderHome() {
   const topDuos = [2, 3, 4, 5].map(size => {
     const g = topCombo(size);
     if (!g) return '';
-    const names = g.pids.map(p => compactPlayerName(playerNames[p] || p)).join(' + ');
+    // Cap at two names so even a quint stays one clean line at any column
+    // width — the size tag conveys the group size and "+N" the rest.
+    const shown = g.pids.slice(0, 2).map(p => compactPlayerName(playerNames[p] || p));
+    const names = shown.join(' + ') + (g.pids.length > 2 ? ` +${g.pids.length - 2}` : '');
     return `<div class="hm-row">
       <span class="hm-combo-tag" title="${size} players homered the same day">${size}</span>
       <span class="hm-name">${names}</span>
