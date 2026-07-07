@@ -3216,13 +3216,15 @@ function renderPicks() {
     ? [...filtered].sort((a, b) => gameDateOf(a).localeCompare(gameDateOf(b)) || b.pickScore - a.pickScore)
     : filtered; // already Pick Score desc
 
-  // Medals only make sense when ranked by score; game order gets plain numbers.
-  const rankClass = i => (picksSort === 'score' && i < 3) ? (i===0?'gold':i===1?'silver':'bronze') : '';
+  // Each pick keeps its Pick Score rank (and medal) no matter the sort order.
+  const scoreRank = {};
+  filtered.forEach((r, i) => { scoreRank[r.pid] = i + 1; });
+  const rankClass = rk => rk===1?'gold':rk===2?'silver':rk===3?'bronze':'';
   const tableRows = ranked.map((r, i) => {
     const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const cls = pickScoreClass(r.pickScore);
     return `<tr class="due-row-clickable" onclick="openPickModal('${r.pid}')">
-      <td class="lb-rank ${rankClass(i)}">${i+1}</td>
+      <td class="lb-rank ${rankClass(scoreRank[r.pid])}">${scoreRank[r.pid]}</td>
       <td><div class="lb-player">
         <img class="lb-photo" src="${photo}" alt="">
         <div>
@@ -3242,7 +3244,7 @@ function renderPicks() {
     const cls = pickScoreClass(r.pickScore);
     return `<div class="lbc-card due-row-clickable" onclick="openPickModal('${r.pid}')">
       <div class="lbc-top">
-        <span class="lbc-rank ${rankClass(i)}">${i+1}</span>
+        <span class="lbc-rank ${rankClass(scoreRank[r.pid])}">${scoreRank[r.pid]}</span>
         <img class="lbc-photo" src="${photo}" alt="">
         <div class="lbc-info">
           <div class="lbc-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, false, true)}</div>
