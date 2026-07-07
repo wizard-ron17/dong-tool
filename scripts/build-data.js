@@ -1180,6 +1180,7 @@ async function fetchTodaySchedule(teamIdToAbbr) {
       const loc = g.venue?.location ?? {};
       return {
         gamePk: g.gamePk, gameDate: g.gameDate, status: g.status?.detailedState ?? '',
+        started: (g.status?.abstractGameState ?? 'Preview') !== 'Preview', // Live or Final
         venue: g.venue?.name ?? '', home: side('home'), away: side('away'),
         venueId: g.venue?.id ?? null,
         lat: loc.defaultCoordinates?.latitude ?? null,
@@ -1691,6 +1692,19 @@ async function fetchInjuryStatus() {
   return status;
 }
 
+// Merge fresh picks with the previous build's, freezing any whose game has
+// already started: started games keep their pre-game score (so the day's own
+// results can't retroactively change a pick), not-yet-started games get the
+// fresh score. Only carries forward when the previous build was this same slate.
+function freezeStartedPicks(fresh, prev, sameSlate, schedule) {
+  const started = {}; // teamAbbr -> game has started
+  for (const g of schedule) for (const side of [g.home, g.away]) started[side.teamAbbr] = !!g.started;
+  const frozen = sameSlate ? (prev ?? []).filter(p => started[p.team]) : [];
+  const seen = new Set(frozen.map(p => p.pid));
+  const live = fresh.filter(p => !started[p.team] && !seen.has(p.pid));
+  return [...frozen, ...live].sort((a, b) => b.pickScore - a.pickScore);
+}
+
 async function main() {
   console.log(`Building data.json — season start ${SEASON_START}`);
 
@@ -1746,7 +1760,13 @@ async function main() {
   const bullpens = await fetchBullpens(todaySchedule, teamIdToAbbr);
 
   console.log("Computing today's HR picks (matchups, splits, pitch-type profiles)...");
-  const picks = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue);
+  const freshPicks = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue);
+
+  // Freeze picks whose game has already started: keep the pre-game score from
+  // the last build so today's results don't retroactively recalculate a pick
+  // that's already in progress or final. Only games not yet started get fresh
+  // scores. The day's picks stay visible until the whole slate is over.
+  const picks = freezeStartedPicks(freshPicks, prevPicks, prevDate === todayET(), todaySchedule);
 
   console.log('Scoring per-game Homer Scores...');
   computeHomerScores(todaySchedule, pitcherStats, bullpens);
