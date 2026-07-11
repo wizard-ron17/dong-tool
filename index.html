@@ -316,6 +316,17 @@
   .daylate-grid { display: flex; flex-direction: column; gap: 0.5rem; }
   .dl-yesterday { font-size: 0.62rem; color: var(--dim); margin-top: 0.15rem; letter-spacing: 0.02em; }
   .dl-opp { color: var(--muted); }
+  /* Returning Boppers */
+  .rb-section { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--accent); margin: 1rem 0 0.45rem; }
+  .rb-grid { display: flex; flex-direction: column; gap: 0.5rem; }
+  .lbc-card.rb-back { border-color: rgba(74,222,128,0.45); box-shadow: inset 0 0 0 1px rgba(74,222,128,0.18); }
+  .rb-back-line { font-size: 0.66rem; margin-top: 0.18rem; color: #4ade80; font-weight: 600; }
+  .rb-injury { font-size: 0.62rem; color: var(--dim); margin-top: 0.18rem; }
+  .rb-return { font-size: 0.66rem; color: var(--dim); margin-top: 0.15rem; }
+  .rb-return b { color: var(--text); font-weight: 600; }
+  .rb-return.soon b { color: var(--accent); }
+  .rb-comment { font-size: 0.6rem; color: var(--muted); margin-top: 0.3rem; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .lineup-badge.il { color: #ff5f6e; background: rgba(255,95,110,0.1); border: 1px solid rgba(255,95,110,0.35); }
   .pick-projected { display: inline-flex; align-items: center; font-size: 0.57rem; font-weight: 700; padding: 0.04rem 0.3rem; border-radius: 4px; margin-left: 0.3rem; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); vertical-align: middle; }
   .pick-indicators { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-top: 0.35rem; }
   .pick-ind { font-size: 0.56rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 10px; background: var(--surface2); color: var(--muted); white-space: nowrap; }
@@ -903,6 +914,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3.5 4.5V9H8"/><path d="M12 8v4.3l2.8 1.7"/></svg>
         <span><span class="nm-name">Day Late</span><span class="nm-desc">Yesterday's picks that didn't go yard</span></span>
       </button>
+      <button class="nav-menu-item" data-nav="returning" onclick="switchNav('returning')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9.5 9 5M4 9.5h10a6 6 0 0 1 0 12h-3"/></svg>
+        <span><span class="nm-name">Returning</span><span class="nm-desc">Injured boppers and when they're back</span></span>
+      </button>
     </div>
   </div>
   <!-- Backdrop sits OUTSIDE nav: the nav's backdrop-filter makes it the
@@ -1090,6 +1105,30 @@
     <div id="daylate-results-wrap" style="display:none"></div>
   </div>
 
+  <!-- RETURNING BOPPERS -->
+  <div id="panel-returning" class="panel">
+    <div class="due-explainer" id="returning-explainer-toggle" onclick="toggleReturningExplainer()" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">Returning Boppers</span>
+        <span class="due-explainer-chevron" id="returning-explainer-chevron">▾</span>
+      </div>
+      <div class="due-explainer-teaser">Injured power bats and when they're due back — the first game off the injury is a classic homer spot.</div>
+      <div class="due-explainer-body" id="returning-explainer-body" style="display:none">
+        <ul>
+          <li><b>Who's here.</b> Every hitter we track who's on an injured list or day-to-day per ESPN's injury report, with his season homers and today's Due / Pick badges where they apply.</li>
+          <li><b>Return dates.</b> ESPN's estimated return date — a target, not a promise. Near-term dates are usually solid; a date weeks out can slide with setbacks or rehab stints.</li>
+          <li><b>Just back.</b> When a hitter drops off the injury report (and isn't on the IL), he's flagged here for his first 3 days back — the "homers in his first game back" window. A guy still on the report but confirmed in today's lineup counts as back too.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="pairs-filter-row">
+      <span class="due-filter-label">Filter</span>
+      <button class="due-filter-chip active" id="returning-hr-chip" onclick="toggleReturningMinHR()" title="Only hitters with 5+ homers this season — it's a bopper tool">5+ HR only</button>
+    </div>
+    <div class="result-meta" id="returning-meta"></div>
+    <div id="returning-content"><div class="empty">Loading data…</div></div>
+  </div>
+
   <footer>
     <span>Source: MLB Stats API (statsapi.mlb.com)</span>
   </footer>
@@ -1118,6 +1157,8 @@ let dueRows      = [];
 let prospects    = { justCalledUp: [], debutBombs: [] };
 let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if currently on the IL
 let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questionable (NOT on the IL), from ESPN
+let returningInjured = []; // injured hitters (IL + DTD) with ESPN's estimated return dates — Returning Boppers tool
+let justBack = [];         // [{ pid, backDate, from, type }] — activated in the last 3 days, the first-game-back window
 let todayDate     = null;   // YYYY-MM-DD, ET — the same "today" build-data.js used for todaySchedule
 let todaySchedule = [];     // [{ gamePk, gameDate, status, venue, home:{...}, away:{...} }]
 let todayTeamsPlaying      = new Set(); // team abbrs with a game today, regardless of lineup status
@@ -1374,6 +1415,8 @@ function applyData(data) {
   dueStreaks = data.dueStreaks ?? {}; dueHistory = data.dueHistory ?? [];
   injuryStatus = data.injuryStatus ?? {};
   dtdStatus = data.dtdStatus ?? {};
+  returningInjured = data.returningInjured ?? [];
+  justBack = data.justBack ?? [];
   todayDate = data.todayDate ?? null;
   todaySchedule = data.todaySchedule ?? [];
   teamIds = data.teamIds ?? {};
@@ -1435,7 +1478,7 @@ function toggleTheme() {
 }
 
 // ── Nav ────────────────────────────────────────────────────────────────
-const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'prospects', 'daylate'];
+const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'prospects', 'daylate', 'returning'];
 const PAIR_SIZE_TO_SLUG = { 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' };
 const PAIR_SLUG_TO_SIZE = { pairs: 2, trios: 3, quads: 4, quints: 5 };
 
@@ -1511,7 +1554,7 @@ function migrateLegacyHash() {
 }
 // The four pages that live in the Tools menu rather than the main bar; the
 // Tools pill lights up when any of them is active.
-const TOOLS_NAVS = ['picks', 'due', 'pairs', 'prospects', 'daylate'];
+const TOOLS_NAVS = ['picks', 'due', 'pairs', 'prospects', 'daylate', 'returning'];
 let navToolsOpen = false;
 function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
 function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
@@ -1538,6 +1581,7 @@ function renderCurrentPanel() {
   if (activeNav === 'picks')   { renderPicks(); applyPicksSub(picksSubTab); }
   if (activeNav === 'prospects') renderProspects();
   if (activeNav === 'daylate')  { renderDayLate(); applyDayLateSub(dayLateSubTab); }
+  if (activeNav === 'returning') renderReturning();
 }
 window.addEventListener('popstate', applyRouteState);
 let activeStatsView = 'league';
@@ -3773,6 +3817,115 @@ function renderDayLateResults() {
     <div class="ph-buckets">${bucketHtml}</div>
     <div class="ph-buckets-head" style="margin-top:1rem">Day-by-Day <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· who bounced back the next day</span></div>
     <div class="ph-days">${dayRows}</div>`;
+}
+
+// ── Returning Boppers ──────────────────────────────────────────────────
+// Injured power bats and when they come back. No score of its own — the bet
+// thesis is the return itself (Trout homering his first game off the IL), so
+// the card leads with the return date and lets the Due/Pick badges carry any
+// extra signal. "Just back" guys (activated within 3 days, flagged by the
+// build) and still-listed guys already confirmed in today's lineup get the
+// spotlight section up top.
+let returningMinHR = true;   // 5+ HR only, default on — it's a bopper tool
+let returningSort  = 'date'; // date | hr
+function toggleReturningExplainer() {
+  const body = document.getElementById('returning-explainer-body');
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  document.getElementById('returning-explainer-chevron').textContent = open ? '▴' : '▾';
+  document.getElementById('returning-explainer-toggle').setAttribute('aria-expanded', String(open));
+}
+function toggleReturningMinHR() {
+  returningMinHR = !returningMinHR;
+  document.getElementById('returning-hr-chip')?.classList.toggle('active', returningMinHR);
+  renderReturning();
+}
+function setReturningSort(s) { returningSort = s; renderReturning(); }
+function renderReturning() {
+  const metaEl = document.getElementById('returning-meta');
+  const contentEl = document.getElementById('returning-content');
+  if (!returningInjured.length && !justBack.length) {
+    metaEl.textContent = '';
+    contentEl.innerHTML = '<div class="empty">No injured hitters matched right now — either everyone\'s healthy (unlikely) or the injury feed hasn\'t loaded.</div>';
+    return;
+  }
+  const hrOf = pid => hrTotals[pid] ?? 0;
+  const minOk = pid => !returningMinHR || hrOf(pid) >= 5;
+
+  // Spotlight: activated in the last 3 days, plus anyone still on the injury
+  // report but confirmed in today's posted lineup — the lineup is ground truth.
+  const flagged = new Set(justBack.map(e => e.pid));
+  const backEntries = [
+    ...justBack.map(e => ({ ...e })),
+    ...returningInjured
+      .filter(r => todayStarterPids.has(r.pid) && !flagged.has(r.pid))
+      .map(r => ({ pid: r.pid, backDate: todayDate, from: r.status, type: r.type, inLineup: true })),
+  ].filter(e => minOk(e.pid));
+  const backIds = new Set(backEntries.map(e => e.pid));
+
+  const coming = returningInjured.filter(r => !backIds.has(r.pid) && !todayStarterPids.has(r.pid) && minOk(r.pid));
+  const sorters = {
+    date: (a, b) => (a.returnDate ?? '9999').localeCompare(b.returnDate ?? '9999') || hrOf(b.pid) - hrOf(a.pid),
+    hr:   (a, b) => hrOf(b.pid) - hrOf(a.pid) || (a.returnDate ?? '9999').localeCompare(b.returnDate ?? '9999'),
+  };
+  coming.sort(sorters[returningSort] || sorters.date);
+
+  const hiddenByHR = returningMinHR ? returningInjured.length - coming.length - backEntries.filter(e => !e.inLineup).length : 0;
+  metaEl.textContent = `${coming.length} injured bopper${coming.length === 1 ? '' : 's'} on the mend`
+    + (backEntries.length ? ` · ${backEntries.length} just back` : '')
+    + (returningMinHR && hiddenByHR > 0 ? ` · ${hiddenByHR} under 5 HR hidden` : '');
+
+  const sortBar = `<div class="picks-sort">
+    <span class="due-filter-label">Sort</span>
+    <button class="due-filter-chip${returningSort==='date'?' active':''}" onclick="setReturningSort('date')">Return Date</button>
+    <button class="due-filter-chip${returningSort==='hr'?' active':''}" onclick="setReturningSort('hr')">Season HR</button>
+  </div>`;
+
+  const daysUntil = d => Math.round((new Date(d) - new Date(todayDate || etDateStr(new Date()))) / 86400000);
+  const returnLine = r => {
+    if (!r.returnDate) return `<div class="rb-return">Est. return: <b>TBD</b></div>`;
+    const n = daysUntil(r.returnDate);
+    if (n <= 0)  return `<div class="rb-return soon">Est. return: <b>any day now</b></div>`;
+    if (n === 1) return `<div class="rb-return soon">Est. back <b>tomorrow</b></div>`;
+    return `<div class="rb-return${n <= 3 ? ' soon' : ''}">Est. back <b>${fmtDateLong(r.returnDate)}</b> · ${n} days</div>`;
+  };
+  const injuryText = r => {
+    if (!r.type) return '';
+    const detail = r.detail && r.detail.toLowerCase() !== String(r.type).toLowerCase() ? ` — ${String(r.detail).toLowerCase()}` : '';
+    const side = r.side && !/not specified/i.test(r.side) ? ` (${String(r.side).toLowerCase()})` : '';
+    return `<div class="rb-injury">${r.type}${detail}${side}</div>`;
+  };
+  const statusChip = r => `<span class="lineup-badge ${r.dtd ? 'dtd' : 'il'}">${r.dtd ? '🤕 ' + (r.status === 'Day-To-Day' ? 'DTD' : r.status) : '🚑 ' + r.status}</span>`;
+  const card = (pid, inner, back) => `<div class="lbc-card${back ? ' rb-back' : ''}">
+    <div class="lbc-top">
+      <img class="lbc-photo" src="${playerPhotoUrl(pid)}" alt="">
+      <div class="lbc-info">
+        <div class="lbc-name">${playerNames[pid] || pid}${crossTabBadge(pid)}</div>
+        ${inner}
+      </div>
+      <div class="lbc-headline"><span class="lbc-headline-num">${hrOf(pid)}</span><span class="lbc-headline-lbl">Season HR</span></div>
+    </div>
+  </div>`;
+  const teamLine = pid => `<div class="lbc-team">${teamLogoImg(playerTeams[pid], 'team-logo')}${playerTeams[pid] || ''}`;
+
+  const backCards = backEntries.map(e => {
+    const what = e.type ? ` (${String(e.type).toLowerCase()})` : '';
+    const when = e.inLineup ? "in today's lineup" : (e.backDate === todayDate ? 'back today' : `back ${fmtDateLong(e.backDate)}`);
+    return card(e.pid, `
+      ${teamLine(e.pid)}${lineupBadge(e.pid)}</div>
+      <div class="rb-back-line">🔥 Was ${e.from || 'out'}${what} — ${when}</div>`, true);
+  }).join('');
+
+  const comingCards = coming.map(r => card(r.pid, `
+      ${teamLine(r.pid)}${statusChip(r)}</div>
+      ${injuryText(r)}
+      ${returnLine(r)}
+      ${r.comment ? `<div class="rb-comment" title="${r.comment.replace(/"/g, '&quot;')}">${r.comment}</div>` : ''}`)).join('');
+
+  contentEl.innerHTML = sortBar
+    + (backCards ? `<div class="rb-section">🔥 Just Back — first games off the injury</div><div class="rb-grid">${backCards}</div>` : '')
+    + (comingCards ? `<div class="rb-section">On the Mend</div><div class="rb-grid">${comingCards}</div>`
+                   : '<div class="empty">Nobody over 5 HR is on the shelf right now.</div>');
 }
 
 // ── UI helpers ─────────────────────────────────────────────────────────

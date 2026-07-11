@@ -1720,15 +1720,20 @@ function normName(s) {
     .replace(/\s+/g, ' ')
     .trim();
 }
-async function fetchDTDStatus() {
+// One ESPN pass feeds two things: dtdStatus (the non-IL day-to-day layer) and
+// the full injured-hitter list for the Returning Boppers tool. ESPN's
+// details.returnDate is the only public estimated-return field around, so it
+// rides along even when it's a rough guess. ok:false means the fetch failed —
+// the caller keeps the previous build's data instead of emptying the tool.
+async function fetchESPNInjuries() {
   let data;
   try {
     data = await fetch('https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/injuries', {
       headers: { 'User-Agent': 'Mozilla/5.0' },
     }).then(r => r.json());
   } catch (e) {
-    console.warn('  ESPN injuries fetch failed — no day-to-day data this build.');
-    return {};
+    console.warn('  ESPN injuries fetch failed — no day-to-day or returning data this build.');
+    return { dtdStatus: {}, returning: [], ok: false };
   }
   // normalized name -> [pids] for the batters we track
   const nameToPids = {};
@@ -1736,17 +1741,38 @@ async function fetchDTDStatus() {
     const k = normName(name);
     if (k) (nameToPids[k] ??= []).push(pid);
   }
-  const out = {};
+  const dtdStatus = {};
+  const returning = [];
+  const seen = new Set();
   for (const team of (data.injuries ?? [])) {
     for (const it of (team.injuries ?? [])) {
       const status = (it.status || '').trim();
-      if (!/^(day-to-day|out|questionable)$/i.test(status)) continue; // IL / suspension / etc handled elsewhere
+      const isDTD = /^(day-to-day|out|questionable)$/i.test(status);
+      const ilMatch = status.match(/^(\d+)-day[- ]il$/i);
+      if (!isDTD && !ilMatch) continue; // suspension / bereavement — not an injury return
       const pids = nameToPids[normName(it.athlete?.displayName)];
       if (!pids || pids.length !== 1) continue; // unmatched or ambiguous name — skip
-      out[pids[0]] = { status, type: it.details?.type || it.type || null };
+      const pid = pids[0];
+      if (isDTD) dtdStatus[pid] ??= { status, type: it.details?.type || it.type || null };
+      if (seen.has(pid)) continue; // feed lists newest entry first — keep it
+      seen.add(pid);
+      returning.push({
+        pid,
+        status: ilMatch ? `${ilMatch[1]}-Day IL` : status,
+        dtd: isDTD,
+        type: it.details?.type ?? null,
+        detail: it.details?.detail ?? null,
+        side: it.details?.side ?? null,
+        returnDate: it.details?.returnDate ?? null,
+        comment: (it.shortComment || '').trim().slice(0, 260) || null,
+        updated: (it.date || '').slice(0, 10) || null,
+      });
     }
   }
-  return out;
+  returning.sort((a, b) =>
+    (a.returnDate ?? '9999').localeCompare(b.returnDate ?? '9999') ||
+    (hrTotals[b.pid] ?? 0) - (hrTotals[a.pid] ?? 0));
+  return { dtdStatus, returning, ok: true };
 }
 
 // Once a player's game starts, the day's own results shouldn't retroactively
@@ -1787,6 +1813,7 @@ async function main() {
   // once dailyHRs is fully populated for the previous date.
   let prevPicks = [], prevDate = null, picksHistory = [], prevSchedule = [];
   let prevDueRows = [], dueStreaks = null, dueHistory = [];
+  let prevReturning = [], prevJustBack = [];
   try {
     const fs = await import('node:fs');
     const raw = fs.readFileSync(new URL('../data.json', import.meta.url), 'utf8');
@@ -1798,6 +1825,8 @@ async function main() {
     prevDueRows  = old.dueRows     ?? [];
     dueStreaks   = old.dueStreaks  ?? null;  // null (not {}) = first run, triggers backfill seeding
     dueHistory   = old.dueHistory  ?? [];
+    prevReturning = old.returningInjured ?? [];
+    prevJustBack  = old.justBack ?? [];
   } catch { /* first run or file missing — start fresh */ }
 
   await fetchAll();
@@ -1853,10 +1882,30 @@ async function main() {
   console.log('Checking injured-list status...');
   const injuryStatus = await fetchInjuryStatus();
 
-  console.log('Checking day-to-day (non-IL) status via ESPN...');
-  const dtdStatus = await fetchDTDStatus();
+  console.log('Checking day-to-day + returning injured hitters via ESPN...');
+  const espnInj = await fetchESPNInjuries();
+  const dtdStatus = espnInj.dtdStatus;
   for (const pid of Object.keys(dtdStatus)) if (injuryStatus[pid]) delete dtdStatus[pid]; // IL wins
-  console.log(`  ${Object.keys(dtdStatus).length} day-to-day players matched.`);
+  // If ESPN was down this build, carry the previous list — an empty feed would
+  // otherwise both blank the tool and mark every injured hitter "just back".
+  const returningInjured = espnInj.ok ? espnInj.returning : prevReturning;
+  let justBack = prevJustBack;
+  if (espnInj.ok) {
+    // A hitter who was on the injured feed last build and is gone now (and not
+    // on the IL per MLB's own feed) has been activated — that's the "Trout
+    // homers first game back" window. Flag him for 3 days, then age out.
+    const injuredNow = new Set(returningInjured.map(r => r.pid));
+    const ageDays = d => Math.round((new Date(todayET()) - new Date(d)) / 86400000);
+    justBack = prevJustBack.filter(e =>
+      !injuredNow.has(e.pid) && !injuryStatus[e.pid] && ageDays(e.backDate) <= 3);
+    const carried = new Set(justBack.map(e => e.pid));
+    for (const r of prevReturning) {
+      if (injuredNow.has(r.pid) || injuryStatus[r.pid] || carried.has(r.pid)) continue;
+      justBack.push({ pid: r.pid, backDate: todayET(), from: r.status, type: r.type });
+    }
+    justBack.sort((a, b) => (hrTotals[b.pid] ?? 0) - (hrTotals[a.pid] ?? 0));
+  }
+  console.log(`  ${Object.keys(dtdStatus).length} day-to-day, ${returningInjured.length} injured hitters, ${justBack.length} just back.`);
 
   // Score yesterday's picks against actual HR results now that dailyHRs is fresh.
   // Guard 1: don't score if this date is already in history (cron fires multiple
@@ -1978,7 +2027,7 @@ async function main() {
     dailyHRs, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus, dtdStatus,
     todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks, picksHistory,
-    dueStreaks, dueHistory,
+    dueStreaks, dueHistory, returningInjured, justBack,
   };
 
   const fs = await import('node:fs');
