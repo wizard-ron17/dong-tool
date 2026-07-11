@@ -2626,6 +2626,11 @@ function renderDueResults() {
 function renderDue() {
   renderDueFilters();
   const filtered = applyDueFilters(dueRows.slice());
+  // Each hitter keeps his Due Score rank (and medal) no matter which column the
+  // list is sorted by. Captured here — while `filtered` is still in Due Score
+  // order — over the available set, so the injury/bench/off filter renumbers it.
+  const dueScoreRank = {};
+  filtered.forEach((r, i) => { dueScoreRank[r.pid] = i + 1; });
   const rows = sortDueRows(filtered);
   const metaEl=document.getElementById('due-meta');
   const filtersOn = dueFiltersActive();
@@ -2638,13 +2643,14 @@ function renderDue() {
       : '<div class="empty">Nobody stands out yet — check back as the season builds HR history</div>';
     return;
   }
-  const rankClass = i=>i===0?'gold':i===1?'silver':i===2?'bronze':'';
+  const rankClass = rk=>rk===1?'gold':rk===2?'silver':rk===3?'bronze':'';
   const tableRows = rows.slice(0,100).map((r,i)=>{
+    const rk = dueScoreRank[r.pid];
     const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const lastCls  = r.lastAgo<=3?'recent':r.lastAgo<=10?'warm':'cold';
     const lastTxt  = `${fmtDateLong(r.lastHR)}<span class="ago">${r.lastAgo}d ago</span>`;
     return `<tr class="due-row-clickable" onclick="openDueModal('${r.pid}')">
-      <td class="lb-rank ${rankClass(i)}">${i+1}</td>
+      <td class="lb-rank ${rankClass(rk)}">${rk}</td>
       <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}${crossTabBadge(r.pid, true)}</div><div class="lb-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div></div></td>
       <td class="due-z ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</td>
       <td class="lb-num stat-col">${contactPillHtml(r)}</td>
@@ -2658,12 +2664,13 @@ function renderDue() {
   }).join('');
 
   const cardsHtml = rows.slice(0,100).map((r,i)=>{
+    const rk = dueScoreRank[r.pid];
     const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const lastCls  = r.lastAgo<=3?'recent':r.lastAgo<=10?'warm':'cold';
     const lastTxt  = `${fmtDate(r.lastHR)} · ${r.lastAgo}d`;
     return `<div class="lbc-card due-row-clickable" onclick="openDueModal('${r.pid}')">
       <div class="lbc-top">
-        <span class="lbc-rank ${rankClass(i)}">${i+1}</span>
+        <span class="lbc-rank ${rankClass(rk)}">${rk}</span>
         <img class="lbc-photo" src="${photoUrl}" alt="">
         <div class="lbc-info"><div class="lbc-name">${r.name}${crossTabBadge(r.pid, true)}</div><div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
         <div class="lbc-headline"><span class="lbc-headline-num ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</span><span class="lbc-headline-lbl">Due Score</span></div>
@@ -2681,9 +2688,10 @@ function renderDue() {
   }).join('');
 
   const compactHtml = rows.slice(0,100).map((r,i)=>{
+    const rk = dueScoreRank[r.pid];
     const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     return `<div class="lb-compact-row due-row-clickable" onclick="openDueModal('${r.pid}')">
-      <span class="lbcp-rank ${rankClass(i)}">${i+1}</span>
+      <span class="lbcp-rank ${rankClass(rk)}">${rk}</span>
       <img class="lbcp-photo" src="${photoUrl}" alt="">
       <span class="lbcp-name">${r.name}</span>
       ${teamLogoImg(r.team,'lbcp-logo')}
