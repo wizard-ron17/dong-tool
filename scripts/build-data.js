@@ -1705,6 +1705,50 @@ async function fetchInjuryStatus() {
   return status;
 }
 
+// Day-to-day and other non-IL "out today" statuses never touch MLB's
+// transactions feed, so a knock that doesn't trigger an IL move leaves a hitter
+// looking like a plain healthy scratch. ESPN's injuries feed does separate
+// Day-To-Day / Out / Questionable from the IL, so we layer it on to tell a real
+// injury from a rest day. Matched to our players by normalized name (ESPN uses
+// its own athlete IDs); ambiguous names are skipped, and IL always wins.
+function normName(s) {
+  return (s || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\b(jr|sr|ii|iii|iv|v)\b/g, '')
+    .replace(/[^a-z ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+async function fetchDTDStatus() {
+  let data;
+  try {
+    data = await fetch('https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/injuries', {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+    }).then(r => r.json());
+  } catch (e) {
+    console.warn('  ESPN injuries fetch failed — no day-to-day data this build.');
+    return {};
+  }
+  // normalized name -> [pids] for the batters we track
+  const nameToPids = {};
+  for (const [pid, name] of Object.entries(playerNames)) {
+    const k = normName(name);
+    if (k) (nameToPids[k] ??= []).push(pid);
+  }
+  const out = {};
+  for (const team of (data.injuries ?? [])) {
+    for (const it of (team.injuries ?? [])) {
+      const status = (it.status || '').trim();
+      if (!/^(day-to-day|out|questionable)$/i.test(status)) continue; // IL / suspension / etc handled elsewhere
+      const pids = nameToPids[normName(it.athlete?.displayName)];
+      if (!pids || pids.length !== 1) continue; // unmatched or ambiguous name — skip
+      out[pids[0]] = { status, type: it.details?.type || it.type || null };
+    }
+  }
+  return out;
+}
+
 // Once a player's game starts, the day's own results shouldn't retroactively
 // change what was a pre-game projection (a pick/due score for a game he's
 // already homered in). So we freeze: rows whose team's game has started keep
@@ -1808,6 +1852,11 @@ async function main() {
 
   console.log('Checking injured-list status...');
   const injuryStatus = await fetchInjuryStatus();
+
+  console.log('Checking day-to-day (non-IL) status via ESPN...');
+  const dtdStatus = await fetchDTDStatus();
+  for (const pid of Object.keys(dtdStatus)) if (injuryStatus[pid]) delete dtdStatus[pid]; // IL wins
+  console.log(`  ${Object.keys(dtdStatus).length} day-to-day players matched.`);
 
   // Score yesterday's picks against actual HR results now that dailyHRs is fresh.
   // Guard 1: don't score if this date is already in history (cron fires multiple
@@ -1927,7 +1976,7 @@ async function main() {
     daysWithData: allDates.length,
     totalHRCount,
     dailyHRs, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
-    teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus,
+    teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus, dtdStatus,
     todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks, picksHistory,
     dueStreaks, dueHistory,
   };

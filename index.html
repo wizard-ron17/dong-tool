@@ -413,6 +413,7 @@
   .lineup-badge { display: inline-flex; align-items: center; gap: 0.12rem; font-size: 0.57rem; font-weight: 700; border-radius: 4px; padding: 0.04rem 0.28rem; margin-left: 0.3rem; white-space: nowrap; cursor: default; vertical-align: middle; }
   .lineup-badge.off   { color: var(--muted); background: rgba(83,109,136,0.12); border: 1px solid rgba(83,109,136,0.35); }
   .lineup-badge.bench { color: var(--gold); background: rgba(240,192,64,0.1); border: 1px solid rgba(240,192,64,0.35); }
+  .lineup-badge.dtd   { color: #ff7040; background: rgba(255,112,64,0.12); border: 1px solid rgba(255,112,64,0.4); }
 
   /* Logos use MLB's "cap-on-dark" light variant (see teamLogoUrl), so they
      read cleanly on the dark background with no chip behind them. */
@@ -1115,6 +1116,7 @@ let groups       = {};  // size -> [{pids, count, dates}], pre-filtered & sorted
 let dueRows      = [];
 let prospects    = { justCalledUp: [], debutBombs: [] };
 let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if currently on the IL
+let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questionable (NOT on the IL), from ESPN
 let todayDate     = null;   // YYYY-MM-DD, ET — the same "today" build-data.js used for todaySchedule
 let todaySchedule = [];     // [{ gamePk, gameDate, status, venue, home:{...}, away:{...} }]
 let todayTeamsPlaying      = new Set(); // team abbrs with a game today, regardless of lineup status
@@ -1158,7 +1160,7 @@ let lbSortCol      = null;
 let lbSortDir      = -1;
 let dueSortCol     = null;
 let dueSortDir     = -1;
-let dueFilters     = { minHR: 0, hideCold: false, longestOnly: false, hideUnavailable: true };
+let dueFilters     = { minHR: 0, hideCold: false, longestOnly: false, hideDTD: false, hideUnavailable: true };
 let dueFiltersPanelOpen = false;
 let dueStreaks = {};   // pid -> { since, maxScore, bestRank } for players currently on the list
 let dueHistory = [];   // one entry per scored day: { date, of, grads: [...] }
@@ -1229,8 +1231,12 @@ function injuryBadge(pid, compact) {
 // a knock that hasn't hit the IL transaction wire yet).
 // 'off' = player's team isn't playing today; 'bench' = lineup posted and he's
 // not in it; null = starting, or unknown (lineup not posted / no team).
+// Day-to-day (hurt but not IL'd, per ESPN). Distinct from a plain bench: he's
+// not resting, he's dinged up. IL always wins over a day-to-day flag.
+function isDayToDay(pid) { return !!dtdStatus[pid] && !injuryStatus[pid]; }
 function lineupStatusOf(pid) {
   if (injuryStatus[pid]) return null; // injured is surfaced via injuryBadge instead
+  if (isDayToDay(pid))   return null; // day-to-day surfaced via its own badge, not "bench"
   const team = playerTeams[pid];
   if (!team) return null;
   if (!todayTeamsPlaying.has(team)) return 'off';
@@ -1238,6 +1244,12 @@ function lineupStatusOf(pid) {
   return null;
 }
 function lineupBadge(pid, compact) {
+  if (isDayToDay(pid)) {
+    const d = dtdStatus[pid];
+    const short = d.status === 'Day-To-Day' ? 'DTD' : d.status;
+    const title = `Day-to-day${d.type ? ' · ' + String(d.type).toLowerCase() : ''} — not on the IL`.replace(/"/g, '&quot;');
+    return `<span class="lineup-badge dtd" title="${title}">🤕${compact ? '' : ' ' + short}</span>`;
+  }
   const st = lineupStatusOf(pid);
   if (st === 'off')   return `<span class="lineup-badge off" title="${playerTeams[pid]} has no game today">💤${compact ? '' : ' Off'}</span>`;
   if (st === 'bench') return `<span class="lineup-badge bench" title="Not in today's starting lineup">🪑${compact ? '' : ' Bench'}</span>`;
@@ -1355,6 +1367,7 @@ function applyData(data) {
   groups = data.groups; dueRows = data.dueRows; prospects = data.prospects ?? prospects;
   dueStreaks = data.dueStreaks ?? {}; dueHistory = data.dueHistory ?? [];
   injuryStatus = data.injuryStatus ?? {};
+  dtdStatus = data.dtdStatus ?? {};
   todayDate = data.todayDate ?? null;
   todaySchedule = data.todaySchedule ?? [];
   teamIds = data.teamIds ?? {};
@@ -2525,19 +2538,20 @@ function toggleDueExplainer() {
 
 // hideUnavailable is on by default, so "active" means a DEVIATION from the
 // default view — either an added filter, or hide-unavailable turned OFF.
-function dueFiltersActive() { return dueFilters.minHR > 0 || dueFilters.hideCold || dueFilters.longestOnly || dueFilters.hideUnavailable !== true; }
+function dueFiltersActive() { return dueFilters.minHR > 0 || dueFilters.hideCold || dueFilters.longestOnly || dueFilters.hideDTD || dueFilters.hideUnavailable !== true; }
 function applyDueFilters(rows) {
   return rows.filter(r => {
     if (r.hrs < dueFilters.minHR) return false;
     if (dueFilters.hideCold && contactTagInfo(r.contactFactor).cls === 'bad') return false;
     if (dueFilters.longestOnly && !r.isLongestEver) return false;
+    if (dueFilters.hideDTD && isDayToDay(r.pid)) return false;
     if (dueFilters.hideUnavailable && isUnavailableToday(r.pid)) return false; // IL / off / bench
     return true;
   });
 }
 function setDueMinHR(n) { dueFilters.minHR = n; renderDue(); }
 function toggleDueFilter(key) { dueFilters[key] = !dueFilters[key]; renderDue(); }
-function clearDueFilters() { dueFilters = { minHR: 0, hideCold: false, longestOnly: false, hideUnavailable: true }; renderDue(); }
+function clearDueFilters() { dueFilters = { minHR: 0, hideCold: false, longestOnly: false, hideDTD: false, hideUnavailable: true }; renderDue(); }
 function toggleDueFiltersPanel() { dueFiltersPanelOpen = !dueFiltersPanelOpen; renderDueFilters(); }
 function renderDueFilters() {
   const minHrOptions = [0, 10, 15, 20];
@@ -2551,13 +2565,14 @@ function renderDueFilters() {
     </div>
     <button class="due-filter-toggle${dueFilters.hideCold?' active':''}" onclick="toggleDueFilter('hideCold')">❄️ Hide Cold Contact</button>
     <button class="due-filter-toggle${dueFilters.longestOnly?' active':''}" onclick="toggleDueFilter('longestOnly')">🔥 Longest Drought Only</button>
+    <button class="due-filter-toggle${dueFilters.hideDTD?' active':''}" onclick="toggleDueFilter('hideDTD')">🤕 Hide Day-to-Day</button>
     <button class="due-filter-toggle${dueFilters.hideUnavailable?' active':''}" onclick="toggleDueFilter('hideUnavailable')">🚫 Hide Off / Bench / IL</button>
     ${dueFiltersActive() ? `<button class="due-filter-clear" onclick="clearDueFilters()">Clear filters ×</button>` : ''}
   `;
   document.getElementById('due-filter-row').style.display = dueFiltersPanelOpen ? '' : 'none';
   document.getElementById('due-filters-chevron').textContent = dueFiltersPanelOpen ? '▴' : '▾';
   document.getElementById('due-filters-toggle').setAttribute('aria-expanded', String(dueFiltersPanelOpen));
-  const activeCount = (dueFilters.minHR > 0 ? 1 : 0) + (dueFilters.hideCold ? 1 : 0) + (dueFilters.longestOnly ? 1 : 0) + (dueFilters.hideUnavailable !== true ? 1 : 0);
+  const activeCount = (dueFilters.minHR > 0 ? 1 : 0) + (dueFilters.hideCold ? 1 : 0) + (dueFilters.longestOnly ? 1 : 0) + (dueFilters.hideDTD ? 1 : 0) + (dueFilters.hideUnavailable !== true ? 1 : 0);
   const badge = document.getElementById('due-filters-badge');
   badge.style.display = activeCount ? 'inline-flex' : 'none';
   badge.textContent = activeCount;
