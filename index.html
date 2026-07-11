@@ -998,8 +998,8 @@
           <li><b>The drought.</b> Every hitter's current AB count since his last HR is compared to his own season-long gap pattern, not a flat number — a 30-AB drought means something very different for a guy who usually homers every 12 ABs than one who homers every 28. We z-score it: how many standard deviations beyond his typical gap he is right now.</li>
           <li><b>The weighting.</b> That z-score is weighted up for proven power (more season HRs = more signal worth trusting) and for confidence (more historical gaps logged = a sturdier personal average, so one early-season fluke doesn't swing things).</li>
           <li><b>The contact nudge.</b> Up to ±15% is layered on top based on Statcast's own per-batted-ball contact-quality grade (1-6, weak contact to barrel — already a joint read on exit velo and launch angle), averaged across every batted ball since his last HR vs. before it, and blended with his season rate so one lucky or unlucky swing in a short stretch can't swing the result on its own. Cooling contact nudges his score down even if the raw AB math says he's "due"; contact that's still scalding nudges it up. Exit velo, Sweet Spot%, and Barrel% are shown below for context but don't separately drive the score — they're already folded into that one grade.</li>
-          <li><b>Eligibility.</b> z ≥ 1.0, 5+ HR this season, AB/HR ≤ 30, and excludes anyone inactive 5+ days (injured, benched, or demoted) — a stale drought doesn't count. A day-to-day guy who's still been playing stays eligible; his drought is real, he's just nursing something.</li>
-          <li><b>Who's shown.</b> By default the list hides players who can't bat today — on the IL, team not playing, or out of a posted lineup — since a due hitter who can't play isn't actionable. Their droughts keep tracking in the background; flip off the "Hide Off / Bench / IL" filter to see them. Day-to-day guys are the exception: hurt but not IL'd (🤕, pulled from ESPN's injury report), they stay on the board since they're usually back within a game or two — with their own "Hide Day-to-Day" toggle if you'd rather not see them.</li>
+          <li><b>Eligibility.</b> z ≥ 1.0, 5+ HR this season, AB/HR ≤ 30, and excludes anyone inactive 5+ days (injured, benched, or demoted) — a stale drought doesn't count. A day-to-day guy who's still in the lineup stays fully eligible; his drought is real, he's just playing through something.</li>
+          <li><b>Who's shown.</b> By default the list hides players who can't bat today — on the IL, team not playing, or out of a posted lineup — since a due hitter who can't play isn't actionable. Their droughts keep tracking in the background; flip off the "Hide Off / Bench / IL" filter to see them. Day-to-day guys (hurt but not IL'd, 🤕, pulled from ESPN's injury report) are handled by lineup: in today's lineup, he plays through it and the tag drops; out of it, he's treated like a benched/injured guy — hidden by default and dropped from the rankings, but tagged 🤕 (not "bench") so the reason is clear. A separate "Hide Day-to-Day" toggle hides them even when the off/bench/IL filter is off.</li>
         </ul>
         <div class="due-explainer-legend">
           <span class="due-legend-item">💤 Off — no game today</span>
@@ -1258,13 +1258,16 @@ function lineupBadge(pid, compact) {
   if (st === 'bench') return `<span class="lineup-badge bench" title="Not in today's starting lineup">🪑${compact ? '' : ' Bench'}</span>`;
   return '';
 }
-// Can't-play-today: on the IL, team idle, or confirmed out of the lineup. These
-// are hidden from the Due list by default — a due hitter who can't bat today
-// isn't actionable (e.g. an IL guy lingers until the 5-day inactivity cutoff
-// finally drops him). Tracking is unaffected: dueRows still holds everyone, so
-// ranks and drought streaks are intact — this only filters the view.
+// Can't-play-today: on the IL, team idle, confirmed out of the lineup, or
+// day-to-day and NOT in today's lineup (isDayToDay is already false for a
+// confirmed starter, so a DTD guy who's actually playing stays available). A
+// day-to-day guy who sits can't bat, so he's treated like injured/benched —
+// hidden by default and dropped from the available-only rankings. These are all
+// hidden from the Due list by default since a hitter who can't bat isn't
+// actionable. Tracking is unaffected: dueRows still holds everyone, so drought
+// history is intact — this only filters the view and the available ranking.
 function isUnavailableToday(pid) {
-  return !!injuryStatus[pid] || lineupStatusOf(pid) != null;
+  return !!injuryStatus[pid] || isDayToDay(pid) || lineupStatusOf(pid) != null;
 }
 // A player's rank among *available* due hitters (off/bench/IL excluded), to
 // match the Due page's default numbering. null if he's not in that actionable
