@@ -313,7 +313,6 @@
   .pick-gametime { color: var(--dim); }
   .picks-sort { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.6rem; flex-wrap: wrap; }
   .pairs-filter-row { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.7rem; flex-wrap: wrap; }
-  .dl-tagline { font-size: 0.9rem; color: var(--muted); font-style: italic; margin-bottom: 0.7rem; }
   .daylate-grid { display: flex; flex-direction: column; gap: 0.5rem; }
   .dl-yesterday { font-size: 0.62rem; color: var(--dim); margin-top: 0.15rem; letter-spacing: 0.02em; }
   .dl-opp { color: var(--muted); }
@@ -1073,10 +1072,10 @@
 
   <!-- DAY LATE -->
   <div id="panel-daylate" class="panel">
-    <div class="dl-tagline">Bad luck? Bet yesterday's picks that didn't go yard.</div>
     <div class="pairs-filter-row">
       <span class="due-filter-label">Filter</span>
       <button class="due-filter-chip active" id="daylate-avail-chip" onclick="toggleDayLateAvail()" title="Hide anyone who can't bat today — on the IL, benched, or whose team is off">Available today only</button>
+      <button class="due-filter-chip" id="daylate-pick-chip" onclick="toggleDayLateTodayPicks()" title="Only guys who are also on today's Picks board">On today's Picks</button>
     </div>
     <div class="result-meta" id="daylate-meta"></div>
     <div id="daylate-content"><div class="empty">Loading data…</div></div>
@@ -3551,16 +3550,23 @@ function renderProspects() {
 }
 
 // ── DAY LATE ───────────────────────────────────────────────────────────
-// Yesterday's picks that didn't homer — the "day late" bet is that HR luck is
-// day-to-day, so a strong pick that whiffed is worth another shot today. No
+// Yesterday's picks that didn't go deep — the "day late" bet is that HR luck is
+// day-to-day, so a strong pick that missed is worth another shot today. No
 // score is recomputed on purpose; the whole premise is that it doesn't matter.
-let dayLateHideUnavailable = true; // hide off/bench/injured by default
+let dayLateHideUnavailable = true;  // hide off/bench/injured by default
+let dayLateTodayPicksOnly  = false; // limit to guys also on today's Picks board
+let dayLateSort = 'yrank';          // yrank | hr | pick | due
 function toggleDayLateAvail() {
   dayLateHideUnavailable = !dayLateHideUnavailable;
-  const chip = document.getElementById('daylate-avail-chip');
-  if (chip) chip.classList.toggle('active', dayLateHideUnavailable);
+  document.getElementById('daylate-avail-chip')?.classList.toggle('active', dayLateHideUnavailable);
   renderDayLate();
 }
+function toggleDayLateTodayPicks() {
+  dayLateTodayPicksOnly = !dayLateTodayPicksOnly;
+  document.getElementById('daylate-pick-chip')?.classList.toggle('active', dayLateTodayPicksOnly);
+  renderDayLate();
+}
+function setDayLateSort(s) { dayLateSort = s; renderDayLate(); }
 function renderDayLate() {
   const metaEl = document.getElementById('daylate-meta');
   const contentEl = document.getElementById('daylate-content');
@@ -3570,8 +3576,8 @@ function renderDayLate() {
     contentEl.innerHTML = '<div class="empty">No completed pick days yet — check back once a slate finishes and gets scored.</div>';
     return;
   }
-  // Whiffs, in yesterday's original Pick Score order; each keeps its rank from
-  // that day. rank is a historical fact, so it ignores today's filter.
+  // Misses, in yesterday's original Pick Score order; each keeps its rank from
+  // that day. rank is a historical fact, so it ignores today's filters.
   const misses = entry.picks
     .map((p, i) => ({ ...p, rank: i + 1 }))
     .filter(p => !p.hit);
@@ -3580,43 +3586,70 @@ function renderDayLate() {
     contentEl.innerHTML = '<div class="empty">Every one of that day\'s picks homered — nothing to fade. 🎉</div>';
     return;
   }
-  const shown = dayLateHideUnavailable ? misses.filter(p => !isUnavailableToday(p.pid)) : misses;
+
+  // Today's cross-tab standings, as maps so sorts/filters are cheap.
+  const pickRankMap = {};
+  applyPicksFilters(picks).forEach((r, i) => { pickRankMap[r.pid] = i + 1; });
+  const dueRankMap = {};
+  { let dr = 0; for (const r of dueRows) { if (isUnavailableToday(r.pid)) continue; dueRankMap[r.pid] = ++dr; } }
+
+  let shown = dayLateHideUnavailable ? misses.filter(p => !isUnavailableToday(p.pid)) : misses;
+  if (dayLateTodayPicksOnly) shown = shown.filter(p => pickRankMap[p.pid] != null);
+
+  const sorters = {
+    yrank: (a, b) => a.rank - b.rank,
+    hr:    (a, b) => (hrTotals[b.pid] ?? b.hr) - (hrTotals[a.pid] ?? a.hr) || a.rank - b.rank,
+    pick:  (a, b) => (pickRankMap[a.pid] ?? Infinity) - (pickRankMap[b.pid] ?? Infinity) || a.rank - b.rank,
+    due:   (a, b) => (dueRankMap[a.pid]  ?? Infinity) - (dueRankMap[b.pid]  ?? Infinity) || a.rank - b.rank,
+  };
+  const ordered = [...shown].sort(sorters[dayLateSort] || sorters.yrank);
+
+  const filtersOn = dayLateHideUnavailable || dayLateTodayPicksOnly;
+  metaEl.textContent = `${ordered.length}${filtersOn && ordered.length !== misses.length ? ` of ${misses.length}` : ''} missed pick${ordered.length === 1 ? '' : 's'} from ${fmtDateLong(entry.date)}`
+    + ` · ${entry.picks.length - misses.length}/${entry.picks.length} of that day's picks homered`;
+
+  const sortBar = `<div class="picks-sort">
+    <span class="due-filter-label">Sort</span>
+    <button class="due-filter-chip${dayLateSort==='yrank'?' active':''}" onclick="setDayLateSort('yrank')">Yesterday's #</button>
+    <button class="due-filter-chip${dayLateSort==='hr'?' active':''}" onclick="setDayLateSort('hr')">Season HR</button>
+    <button class="due-filter-chip${dayLateSort==='pick'?' active':''}" onclick="setDayLateSort('pick')">Today's Pick #</button>
+    <button class="due-filter-chip${dayLateSort==='due'?' active':''}" onclick="setDayLateSort('due')">Today's Due #</button>
+  </div>`;
+
+  if (!ordered.length) {
+    contentEl.innerHTML = sortBar + `<div class="empty">Nobody matches these filters. <a href="javascript:void(0)" onclick="dayLateTodayPicksOnly&&toggleDayLateTodayPicks();dayLateHideUnavailable&&toggleDayLateAvail()">Show all</a></div>`;
+    return;
+  }
 
   const gameByTeam = {};
   for (const g of todaySchedule) { gameByTeam[g.away.teamAbbr] = g; gameByTeam[g.home.teamAbbr] = g; }
   const todayOpp = pid => {
-    const team = playerTeams[pid];
-    const g = gameByTeam[team];
+    const g = gameByTeam[playerTeams[pid]];
     if (!g) return '';
-    const opp = g.home.teamAbbr === team ? g.away : g.home;
+    const opp = g.home.teamAbbr === playerTeams[pid] ? g.away : g.home;
     if (!opp.probablePitcher) return '';
     const hand = opp.probablePitcherThrows ? ` (${opp.probablePitcherThrows}HP)` : '';
     return `<span class="dl-opp"> · vs ${compactPlayerName(opp.probablePitcher)}${hand}</span>`;
   };
+  const rankClass = rk => rk===1?'gold':rk===2?'silver':rk===3?'bronze':'';
 
-  metaEl.textContent = `${shown.length}${dayLateHideUnavailable && shown.length !== misses.length ? ` of ${misses.length}` : ''} whiffed pick${shown.length === 1 ? '' : 's'} from ${fmtDateLong(entry.date)}`
-    + ` · ${entry.picks.length - misses.length}/${entry.picks.length} of that day's picks homered`;
-
-  if (!shown.length) {
-    contentEl.innerHTML = `<div class="empty">None of yesterday's whiffs can bat today. <a href="javascript:void(0)" onclick="toggleDayLateAvail()">Show all</a></div>`;
-    return;
-  }
-
-  const cards = shown.map(p => {
+  const cards = ordered.map((p, i) => {
+    const rk = i + 1;
     const hr = hrTotals[p.pid] ?? p.hr;
     return `<div class="lbc-card">
       <div class="lbc-top">
+        <span class="lbc-rank ${rankClass(rk)}">${rk}</span>
         <img class="lbc-photo" src="${playerPhotoUrl(p.pid)}" alt="">
         <div class="lbc-info">
           <div class="lbc-name">${p.name}${crossTabBadge(p.pid)}</div>
           <div class="lbc-team">${teamLogoImg(playerTeams[p.pid], 'team-logo')}${playerTeams[p.pid] || ''}${injuryBadge(p.pid)}${lineupBadge(p.pid)}${todayOpp(p.pid)}</div>
-          <div class="dl-yesterday">Was ${p.projected ? 'projected ' : ''}#${p.rank} pick yesterday · didn't homer</div>
+          <div class="dl-yesterday">Was ${p.projected ? 'projected ' : ''}#${p.rank} pick yesterday · didn't go yard</div>
         </div>
         <div class="lbc-headline"><span class="lbc-headline-num">${hr}</span><span class="lbc-headline-lbl">Season HR</span></div>
       </div>
     </div>`;
   }).join('');
-  contentEl.innerHTML = `<div class="daylate-grid">${cards}</div>`;
+  contentEl.innerHTML = sortBar + `<div class="daylate-grid">${cards}</div>`;
 }
 
 // ── UI helpers ─────────────────────────────────────────────────────────
