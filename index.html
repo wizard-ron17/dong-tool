@@ -1072,13 +1072,20 @@
 
   <!-- DAY LATE -->
   <div id="panel-daylate" class="panel">
-    <div class="pairs-filter-row">
-      <span class="due-filter-label">Filter</span>
-      <button class="due-filter-chip active" id="daylate-avail-chip" onclick="toggleDayLateAvail()" title="Hide anyone who can't bat today — on the IL, benched, or whose team is off">Available today only</button>
-      <button class="due-filter-chip" id="daylate-pick-chip" onclick="toggleDayLateTodayPicks()" title="Only guys who are also on today's Picks board">On today's Picks</button>
+    <div class="sub-tabs" id="daylate-sub-tabs">
+      <button class="sub-btn active" id="daylate-sub-today" onclick="switchDayLateSub('today')">Day Late</button>
+      <button class="sub-btn" id="daylate-sub-results" onclick="switchDayLateSub('results')">Results</button>
     </div>
-    <div class="result-meta" id="daylate-meta"></div>
-    <div id="daylate-content"><div class="empty">Loading data…</div></div>
+    <div id="daylate-today-wrap">
+      <div class="pairs-filter-row">
+        <span class="due-filter-label">Filter</span>
+        <button class="due-filter-chip active" id="daylate-avail-chip" onclick="toggleDayLateAvail()" title="Hide anyone who can't bat today — on the IL, benched, or whose team is off">Available today only</button>
+        <button class="due-filter-chip" id="daylate-pick-chip" onclick="toggleDayLateTodayPicks()" title="Only guys who are also on today's Picks board">On today's Picks</button>
+      </div>
+      <div class="result-meta" id="daylate-meta"></div>
+      <div id="daylate-content"><div class="empty">Loading data…</div></div>
+    </div>
+    <div id="daylate-results-wrap" style="display:none"></div>
   </div>
 
   <footer>
@@ -1426,6 +1433,7 @@ function currentPath() {
   else if (activeNav === 'picks'     && picksSubTab === 'results')           p += '/results';
   else if (activeNav === 'due'       && dueSubTab === 'results')             p += '/results';
   else if (activeNav === 'prospects' && activeProspectTab === 'debutBombs')  p += '/debut-bombs';
+  else if (activeNav === 'daylate'   && dayLateSubTab === 'results')         p += '/results';
   return p;
 }
 function commitRoute() {
@@ -1459,6 +1467,8 @@ function applyRouteState() {
     dueSubTab = sub === 'results' ? 'results' : 'list';
   } else if (validNav === 'prospects') {
     activeProspectTab = sub === 'debut-bombs' ? 'debutBombs' : 'justCalledUp';
+  } else if (validNav === 'daylate') {
+    dayLateSubTab = sub === 'results' ? 'results' : 'today';
   }
 
   switchNav(validNav);
@@ -1508,7 +1518,7 @@ function renderCurrentPanel() {
   if (activeNav === 'due')     { renderDue(); applyDueSub(dueSubTab); }
   if (activeNav === 'picks')   { renderPicks(); applyPicksSub(picksSubTab); }
   if (activeNav === 'prospects') renderProspects();
-  if (activeNav === 'daylate')  renderDayLate();
+  if (activeNav === 'daylate')  { renderDayLate(); applyDayLateSub(dayLateSubTab); }
 }
 window.addEventListener('popstate', applyRouteState);
 let activeStatsView = 'league';
@@ -3556,6 +3566,16 @@ function renderProspects() {
 let dayLateHideUnavailable = true;  // hide off/bench/injured by default
 let dayLateTodayPicksOnly  = false; // limit to guys also on today's Picks board
 let dayLateSort = 'yrank';          // yrank | hr | pick | due
+let dayLateSubTab = 'today';        // today | results
+function applyDayLateSub(sub) {
+  dayLateSubTab = sub;
+  document.getElementById('daylate-today-wrap').style.display   = sub === 'today'   ? '' : 'none';
+  document.getElementById('daylate-results-wrap').style.display = sub === 'results' ? '' : 'none';
+  document.getElementById('daylate-sub-today').classList.toggle('active',   sub === 'today');
+  document.getElementById('daylate-sub-results').classList.toggle('active', sub === 'results');
+  if (sub === 'results') renderDayLateResults();
+}
+function switchDayLateSub(sub) { applyDayLateSub(sub); commitRoute(); }
 function toggleDayLateAvail() {
   dayLateHideUnavailable = !dayLateHideUnavailable;
   document.getElementById('daylate-avail-chip')?.classList.toggle('active', dayLateHideUnavailable);
@@ -3650,6 +3670,88 @@ function renderDayLate() {
     </div>`;
   }).join('');
   contentEl.innerHTML = sortBar + `<div class="daylate-grid">${cards}</div>`;
+}
+
+// Day-late tracking: for each scored pick day, its misses are the bets you'd
+// place the NEXT slate — so grade them against that day's actual HRs. Computed
+// entirely from picksHistory + dailyHRs already on the client (no build step).
+function renderDayLateResults() {
+  const el = document.getElementById('daylate-results-wrap');
+  const hist = picksHistory || [];
+  if (hist.length < 2) {
+    el.innerHTML = `<div class="empty">No results yet — a day-late bet needs the next slate to finish before it can be graded. Check back after a couple of days.</div>`;
+    return;
+  }
+  // Pair each pick day with the following slate (the day you'd bet its misses).
+  // The most recent day is skipped — its misses are today's live bets.
+  const graded = [];
+  for (let i = 0; i < hist.length - 1; i++) {
+    const betDate = hist[i + 1].date;
+    const dayHRs = dailyHRs[betDate] || {};
+    const rows = hist[i].picks
+      .map((p, idx) => ({ name: p.name, pid: p.pid, yrank: idx + 1, hit: !p.hit && (dayHRs[p.pid] || 0) > 0, missed: !p.hit }))
+      .filter(p => p.missed);
+    if (rows.length) graded.push({ betDate, rows });
+  }
+  if (!graded.length) {
+    el.innerHTML = `<div class="empty">No graded day-late bets yet.</div>`;
+    return;
+  }
+
+  const allBets   = graded.flatMap(g => g.rows);
+  const totalBets = allBets.length;
+  const totalHits = allBets.filter(r => r.hit).length;
+  const hitRate   = totalBets ? (totalHits / totalBets * 100).toFixed(1) : '0.0';
+
+  // Does it pay to fade only the strongest misses? Bucket by yesterday's rank.
+  const tiers = [{ label: 'Top 3', n: 3 }, { label: 'Top 5', n: 5 }, { label: 'Top 10', n: 10 }, { label: 'All', n: Infinity }];
+  const bucketHtml = tiers.map(t => {
+    let hits = 0, total = 0;
+    for (const g of graded) { const pool = g.rows.filter(r => r.yrank <= t.n); total += pool.length; hits += pool.filter(r => r.hit).length; }
+    const pct = total ? (hits / total * 100).toFixed(0) : '—';
+    const cls = total && hits / total >= 0.20 ? 'great' : total && hits / total >= 0.12 ? 'good' : 'avg';
+    return `<div class="ph-bucket"><span class="ph-bucket-range">${t.label}</span><span class="ph-bucket-rate hrg-val ${cls}">${pct}${total ? '%' : ''}</span><span class="ph-bucket-n">${hits}/${total}</span></div>`;
+  }).join('');
+
+  const seasonGames = Object.values(dailyGames).reduce((a, b) => a + b, 0);
+  const seasonHRs   = Object.values(hrTotals).reduce((a, b) => a + b, 0);
+  const leagueAvgHRPerGame = seasonGames ? seasonHRs / seasonGames : 0;
+
+  const dayRows = [...graded].reverse().map(g => {
+    const total = g.rows.length;
+    const hits  = g.rows.filter(r => r.hit);
+    const pct   = total ? (hits.length / total * 100).toFixed(0) : 0;
+    const cls   = hits.length / total >= 0.20 ? 'great' : hits.length / total >= 0.12 ? 'good' : 'avg';
+    const hitNames = hits.sort((a, b) => a.yrank - b.yrank).map(r =>
+      `<span class="ph-hit-name"><span class="ph-hit-rank">#${r.yrank}</span>${compactPlayerName(r.name)}</span>`).join('');
+    const dayHRs   = dailyHRs[g.betDate] || {};
+    const dayTotHR = Object.values(dayHRs).reduce((a, b) => a + b, 0);
+    const dayGames = dailyGames[g.betDate] || 0;
+    const dayHRG   = dayGames ? dayTotHR / dayGames : 0;
+    const heat     = (leagueAvgHRPerGame && dayGames) ? recapDayHeat(dayHRG / leagueAvgHRPerGame) : { cls: '' };
+    const hrgBadge = dayGames
+      ? `<span class="ph-day-hrg ${heat.cls}" title="${dayTotHR} HR across ${dayGames} games">${dayHRG.toFixed(2)}<span class="ph-day-hrg-unit"> HR/G</span></span>`
+      : `<span class="ph-day-hrg" style="color:var(--dim)">—</span>`;
+    return `<div class="ph-day-row" title="Bet on ${g.betDate} from the prior slate's misses">
+      <span class="ph-day-date">${g.betDate}</span>
+      <span class="ph-day-fraction">${hits.length}/${total}</span>
+      <span class="ph-day-pct hrg-val ${cls}">${pct}%</span>
+      ${hrgBadge}
+      <span class="ph-day-hits">${hitNames || '<span style="color:var(--dim)">—</span>'}</span>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="ph-summary">
+      <div class="ph-stat"><span class="ph-stat-val hrg-val ${parseFloat(hitRate)>=18?'great':parseFloat(hitRate)>=12?'good':'avg'}">${hitRate}%</span><span class="ph-stat-lbl">Bounce-Back Rate</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${totalHits}</span><span class="ph-stat-lbl">Bounced Back</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${totalBets}</span><span class="ph-stat-lbl">Day-Late Bets</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${graded.length}</span><span class="ph-stat-lbl">Days Tracked</span></div>
+    </div>
+    <div class="ph-buckets-head">Bounce-Back Rate by Yesterday's Rank <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· did the strongest misses convert best?</span></div>
+    <div class="ph-buckets">${bucketHtml}</div>
+    <div class="ph-buckets-head" style="margin-top:1rem">Day-by-Day <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· who bounced back the next day</span></div>
+    <div class="ph-days">${dayRows}</div>`;
 }
 
 // ── UI helpers ─────────────────────────────────────────────────────────
