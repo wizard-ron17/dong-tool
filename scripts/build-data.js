@@ -1840,6 +1840,16 @@ async function main() {
   console.log("Fetching today's schedule and lineups...");
   const { idToAbbr: teamIdToAbbr, abbrToId: teamIds } = await fetchTeamAbbreviations();
   const todaySchedule = await fetchTodaySchedule(teamIdToAbbr);
+  // Degraded-build guard #1: fetchTodaySchedule swallows fetch errors into [],
+  // which once shipped a "0 games today" data.json on a 15-game day. If the
+  // hydrated call came back empty, double-check against the bare schedule
+  // endpoint — if MLB says games exist, abort so the previous build survives
+  // (cron only commits on a zero exit).
+  if (!todaySchedule.length) {
+    const check = await fetch(`${MLB}/schedule?sportId=1&date=${todayET()}&gameType=R`).then(r => r.json()).catch(() => null);
+    const expected = check?.totalGames ?? 0;
+    if (expected > 0) throw new Error(`Degraded build: schedule hydrate returned 0 games but MLB lists ${expected} for ${todayET()} — refusing to write data.json`);
+  }
   await attachHands(todaySchedule);
 
   // Freeze scores for games already underway (see freezeStartedRows): a due
@@ -1867,6 +1877,14 @@ async function main() {
 
   console.log("Computing today's HR picks (matchups, splits, pitch-type profiles)...");
   const freshPicks = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue);
+  // Degraded-build guard #2: fetchPlatoonSplits swallows fetch errors into {},
+  // which once collapsed a 28-pick slate to 1 pick (every pick null-handed,
+  // platoon factors gone, scores under the floor). On a real build with games,
+  // hands are always known for at least some picks — all-null means the splits
+  // fetch failed, so abort rather than ship a gutted board.
+  if (freshPicks.length && freshPicks.every(p => !p.bHand && !p.oppHand)) {
+    throw new Error(`Degraded build: batter/pitcher handedness missing on all ${freshPicks.length} picks — platoon splits fetch failed; refusing to write data.json`);
+  }
 
   // Freeze picks whose game has already started (pre-game score from the last
   // build); only not-yet-started games get fresh scores.
