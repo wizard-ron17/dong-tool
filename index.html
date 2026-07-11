@@ -313,6 +313,10 @@
   .pick-gametime { color: var(--dim); }
   .picks-sort { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.6rem; flex-wrap: wrap; }
   .pairs-filter-row { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.7rem; flex-wrap: wrap; }
+  .dl-tagline { font-size: 0.9rem; color: var(--muted); font-style: italic; margin-bottom: 0.7rem; }
+  .daylate-grid { display: flex; flex-direction: column; gap: 0.5rem; }
+  .dl-yesterday { font-size: 0.62rem; color: var(--dim); margin-top: 0.15rem; letter-spacing: 0.02em; }
+  .dl-opp { color: var(--muted); }
   .pick-projected { display: inline-flex; align-items: center; font-size: 0.57rem; font-weight: 700; padding: 0.04rem 0.3rem; border-radius: 4px; margin-left: 0.3rem; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); vertical-align: middle; }
   .pick-indicators { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-top: 0.35rem; }
   .pick-ind { font-size: 0.56rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 10px; background: var(--surface2); color: var(--muted); white-space: nowrap; }
@@ -895,6 +899,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3.8l2.3 5 5.4.5-4.1 3.7 1.2 5.4L12 15.6l-4.8 2.8 1.2-5.4-4.1-3.7 5.4-.5z"/></svg>
         <span><span class="nm-name">Prospects</span><span class="nm-desc">Call-ups and debut bombs</span></span>
       </button>
+      <button class="nav-menu-item" data-nav="daylate" onclick="switchNav('daylate')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3.5 4.5V9H8"/><path d="M12 8v4.3l2.8 1.7"/></svg>
+        <span><span class="nm-name">Day Late</span><span class="nm-desc">Yesterday's picks that didn't go yard</span></span>
+      </button>
     </div>
   </div>
   <!-- Backdrop sits OUTSIDE nav: the nav's backdrop-filter makes it the
@@ -959,7 +967,7 @@
     </div>
   </div>
 
-  <!-- DAY LATE -->
+  <!-- RECAP -->
   <div id="panel-recap" class="panel">
     <div class="recap-nav">
       <button class="recap-nav-btn" id="recap-prev-btn" onclick="shiftRecapDate(-1)" aria-label="Previous game day">‹</button>
@@ -1061,6 +1069,17 @@
   <div id="panel-prospects" class="panel">
     <div class="result-meta" id="prospects-meta"></div>
     <div id="prospects-content"><div class="empty">Loading data…</div></div>
+  </div>
+
+  <!-- DAY LATE -->
+  <div id="panel-daylate" class="panel">
+    <div class="dl-tagline">Bad luck? Bet yesterday's picks that didn't go yard.</div>
+    <div class="pairs-filter-row">
+      <span class="due-filter-label">Filter</span>
+      <button class="due-filter-chip active" id="daylate-avail-chip" onclick="toggleDayLateAvail()" title="Hide anyone who can't bat today — on the IL, benched, or whose team is off">Available today only</button>
+    </div>
+    <div class="result-meta" id="daylate-meta"></div>
+    <div id="daylate-content"><div class="empty">Loading data…</div></div>
   </div>
 
   <footer>
@@ -1391,7 +1410,7 @@ function toggleTheme() {
 }
 
 // ── Nav ────────────────────────────────────────────────────────────────
-const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'prospects'];
+const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'prospects', 'daylate'];
 const PAIR_SIZE_TO_SLUG = { 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' };
 const PAIR_SLUG_TO_SIZE = { pairs: 2, trios: 3, quads: 4, quints: 5 };
 
@@ -1464,7 +1483,7 @@ function migrateLegacyHash() {
 }
 // The four pages that live in the Tools menu rather than the main bar; the
 // Tools pill lights up when any of them is active.
-const TOOLS_NAVS = ['picks', 'due', 'pairs', 'prospects'];
+const TOOLS_NAVS = ['picks', 'due', 'pairs', 'prospects', 'daylate'];
 let navToolsOpen = false;
 function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
 function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
@@ -1490,6 +1509,7 @@ function renderCurrentPanel() {
   if (activeNav === 'due')     { renderDue(); applyDueSub(dueSubTab); }
   if (activeNav === 'picks')   { renderPicks(); applyPicksSub(picksSubTab); }
   if (activeNav === 'prospects') renderProspects();
+  if (activeNav === 'daylate')  renderDayLate();
 }
 window.addEventListener('popstate', applyRouteState);
 let activeStatsView = 'league';
@@ -2095,7 +2115,7 @@ function sortLb(col) {
 }
 function setLbSort(col) { lbSortCol = col; lbSortDir = lbDefaultDir(col); renderLeaders(); }
 
-// ── DAY LATE ──────────────────────────────────────────────────────────
+// ── RECAP ─────────────────────────────────────────────────────────────
 function median(nums) {
   if (!nums.length) return 0;
   const s = [...nums].sort((a, b) => a - b), mid = Math.floor(s.length / 2);
@@ -3528,6 +3548,75 @@ function renderProspects() {
     : `<div class="empty">${isBomb ? 'No rookie home runs in the last 14 days' : 'No fresh call-ups in the last 14 days'}</div>`;
 
   document.getElementById('prospects-content').innerHTML = tabsHtml + gridHtml;
+}
+
+// ── DAY LATE ───────────────────────────────────────────────────────────
+// Yesterday's picks that didn't homer — the "day late" bet is that HR luck is
+// day-to-day, so a strong pick that whiffed is worth another shot today. No
+// score is recomputed on purpose; the whole premise is that it doesn't matter.
+let dayLateHideUnavailable = true; // hide off/bench/injured by default
+function toggleDayLateAvail() {
+  dayLateHideUnavailable = !dayLateHideUnavailable;
+  const chip = document.getElementById('daylate-avail-chip');
+  if (chip) chip.classList.toggle('active', dayLateHideUnavailable);
+  renderDayLate();
+}
+function renderDayLate() {
+  const metaEl = document.getElementById('daylate-meta');
+  const contentEl = document.getElementById('daylate-content');
+  const entry = (picksHistory || []).length ? picksHistory[picksHistory.length - 1] : null;
+  if (!entry || !entry.picks?.length) {
+    metaEl.textContent = '';
+    contentEl.innerHTML = '<div class="empty">No completed pick days yet — check back once a slate finishes and gets scored.</div>';
+    return;
+  }
+  // Whiffs, in yesterday's original Pick Score order; each keeps its rank from
+  // that day. rank is a historical fact, so it ignores today's filter.
+  const misses = entry.picks
+    .map((p, i) => ({ ...p, rank: i + 1 }))
+    .filter(p => !p.hit);
+  if (!misses.length) {
+    metaEl.textContent = `${fmtDateLong(entry.date)} · every pick went yard`;
+    contentEl.innerHTML = '<div class="empty">Every one of that day\'s picks homered — nothing to fade. 🎉</div>';
+    return;
+  }
+  const shown = dayLateHideUnavailable ? misses.filter(p => !isUnavailableToday(p.pid)) : misses;
+
+  const gameByTeam = {};
+  for (const g of todaySchedule) { gameByTeam[g.away.teamAbbr] = g; gameByTeam[g.home.teamAbbr] = g; }
+  const todayOpp = pid => {
+    const team = playerTeams[pid];
+    const g = gameByTeam[team];
+    if (!g) return '';
+    const opp = g.home.teamAbbr === team ? g.away : g.home;
+    if (!opp.probablePitcher) return '';
+    const hand = opp.probablePitcherThrows ? ` (${opp.probablePitcherThrows}HP)` : '';
+    return `<span class="dl-opp"> · vs ${compactPlayerName(opp.probablePitcher)}${hand}</span>`;
+  };
+
+  metaEl.textContent = `${shown.length}${dayLateHideUnavailable && shown.length !== misses.length ? ` of ${misses.length}` : ''} whiffed pick${shown.length === 1 ? '' : 's'} from ${fmtDateLong(entry.date)}`
+    + ` · ${entry.picks.length - misses.length}/${entry.picks.length} of that day's picks homered`;
+
+  if (!shown.length) {
+    contentEl.innerHTML = `<div class="empty">None of yesterday's whiffs can bat today. <a href="javascript:void(0)" onclick="toggleDayLateAvail()">Show all</a></div>`;
+    return;
+  }
+
+  const cards = shown.map(p => {
+    const hr = hrTotals[p.pid] ?? p.hr;
+    return `<div class="lbc-card">
+      <div class="lbc-top">
+        <img class="lbc-photo" src="${playerPhotoUrl(p.pid)}" alt="">
+        <div class="lbc-info">
+          <div class="lbc-name">${p.name}${crossTabBadge(p.pid)}</div>
+          <div class="lbc-team">${teamLogoImg(playerTeams[p.pid], 'team-logo')}${playerTeams[p.pid] || ''}${injuryBadge(p.pid)}${lineupBadge(p.pid)}${todayOpp(p.pid)}</div>
+          <div class="dl-yesterday">Was ${p.projected ? 'projected ' : ''}#${p.rank} pick yesterday · didn't homer</div>
+        </div>
+        <div class="lbc-headline"><span class="lbc-headline-num">${hr}</span><span class="lbc-headline-lbl">Season HR</span></div>
+      </div>
+    </div>`;
+  }).join('');
+  contentEl.innerHTML = `<div class="daylate-grid">${cards}</div>`;
 }
 
 // ── UI helpers ─────────────────────────────────────────────────────────
