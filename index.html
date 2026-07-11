@@ -1233,8 +1233,10 @@ function injuryBadge(pid, compact) {
 // 'off' = player's team isn't playing today; 'bench' = lineup posted and he's
 // not in it; null = starting, or unknown (lineup not posted / no team).
 // Day-to-day (hurt but not IL'd, per ESPN). Distinct from a plain bench: he's
-// not resting, he's dinged up. IL always wins over a day-to-day flag.
-function isDayToDay(pid) { return !!dtdStatus[pid] && !injuryStatus[pid]; }
+// not resting, he's dinged up. IL always wins over a day-to-day flag. And a
+// confirmed spot in today's posted lineup is ground truth — if he's in it, he's
+// playing through it, so the tag drops even if ESPN's report hasn't caught up.
+function isDayToDay(pid) { return !!dtdStatus[pid] && !injuryStatus[pid] && !todayStarterPids.has(pid); }
 function lineupStatusOf(pid) {
   if (injuryStatus[pid]) return null; // injured is surfaced via injuryBadge instead
   if (isDayToDay(pid))   return null; // day-to-day surfaced via its own badge, not "bench"
