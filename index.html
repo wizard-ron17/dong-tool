@@ -1122,8 +1122,12 @@
       </div>
     </div>
     <div class="pairs-filter-row">
-      <span class="due-filter-label">Filter</span>
-      <button class="due-filter-chip active" id="returning-hr-chip" onclick="toggleReturningMinHR()" title="Only hitters with 5+ homers this season — it's a bopper tool">5+ HR only</button>
+      <span class="due-filter-label">Min HR</span>
+      <button class="due-filter-chip" data-rbhr="0" onclick="setReturningMinHR(0)">All</button>
+      <button class="due-filter-chip active" data-rbhr="5" onclick="setReturningMinHR(5)">5+</button>
+      <button class="due-filter-chip" data-rbhr="10" onclick="setReturningMinHR(10)">10+</button>
+      <button class="due-filter-chip" data-rbhr="15" onclick="setReturningMinHR(15)">15+</button>
+      <button class="due-filter-chip" data-rbhr="20" onclick="setReturningMinHR(20)">20+</button>
     </div>
     <div class="result-meta" id="returning-meta"></div>
     <div id="returning-content"><div class="empty">Loading data…</div></div>
@@ -3826,7 +3830,7 @@ function renderDayLateResults() {
 // extra signal. "Just back" guys (activated within 3 days, flagged by the
 // build) and still-listed guys already confirmed in today's lineup get the
 // spotlight section up top.
-let returningMinHR = true;   // 5+ HR only, default on — it's a bopper tool
+let returningMinHR = 5;      // season-HR floor (0/5/10/15/20), default 5 — it's a bopper tool
 let returningSort  = 'date'; // date | hr
 function toggleReturningExplainer() {
   const body = document.getElementById('returning-explainer-body');
@@ -3835,9 +3839,9 @@ function toggleReturningExplainer() {
   document.getElementById('returning-explainer-chevron').textContent = open ? '▴' : '▾';
   document.getElementById('returning-explainer-toggle').setAttribute('aria-expanded', String(open));
 }
-function toggleReturningMinHR() {
-  returningMinHR = !returningMinHR;
-  document.getElementById('returning-hr-chip')?.classList.toggle('active', returningMinHR);
+function setReturningMinHR(n) {
+  returningMinHR = n;
+  document.querySelectorAll('[data-rbhr]').forEach(b => b.classList.toggle('active', +b.dataset.rbhr === n));
   renderReturning();
 }
 function setReturningSort(s) { returningSort = s; renderReturning(); }
@@ -3850,7 +3854,7 @@ function renderReturning() {
     return;
   }
   const hrOf = pid => hrTotals[pid] ?? 0;
-  const minOk = pid => !returningMinHR || hrOf(pid) >= 5;
+  const minOk = pid => hrOf(pid) >= returningMinHR;
 
   // Spotlight: activated in the last 3 days, plus anyone still on the injury
   // report but confirmed in today's posted lineup — the lineup is ground truth.
@@ -3873,7 +3877,7 @@ function renderReturning() {
   const hiddenByHR = returningMinHR ? returningInjured.length - coming.length - backEntries.filter(e => !e.inLineup).length : 0;
   metaEl.textContent = `${coming.length} injured bopper${coming.length === 1 ? '' : 's'} on the mend`
     + (backEntries.length ? ` · ${backEntries.length} just back` : '')
-    + (returningMinHR && hiddenByHR > 0 ? ` · ${hiddenByHR} under 5 HR hidden` : '');
+    + (returningMinHR && hiddenByHR > 0 ? ` · ${hiddenByHR} under ${returningMinHR} HR hidden` : '');
 
   const sortBar = `<div class="picks-sort">
     <span class="due-filter-label">Sort</span>
@@ -3925,7 +3929,7 @@ function renderReturning() {
   contentEl.innerHTML = sortBar
     + (backCards ? `<div class="rb-section">🔥 Just Back — first games off the injury</div><div class="rb-grid">${backCards}</div>` : '')
     + (comingCards ? `<div class="rb-section">On the Mend</div><div class="rb-grid">${comingCards}</div>`
-                   : '<div class="empty">Nobody over 5 HR is on the shelf right now.</div>');
+                   : `<div class="empty">Nobody${returningMinHR ? ` with ${returningMinHR}+ HR` : ''} is on the shelf right now. <a href="javascript:void(0)" onclick="setReturningMinHR(0)">Show all</a></div>`);
 }
 
 // ── UI helpers ─────────────────────────────────────────────────────────
