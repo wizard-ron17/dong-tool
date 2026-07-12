@@ -426,6 +426,7 @@ function battedBallStats(rows) {
   const sweetSpot = las.filter(v => v >= 8 && v <= 32).length;
   return {
     n: valid.length,
+    barrels,
     avgEV: avg(evs),
     avgLA: las.length ? avg(las) : null,
     hardHitPct: 100 * hardHit / valid.length,
@@ -489,6 +490,10 @@ async function attachContactQuality(dueRows) {
     const baseline = battedBallStats(baselineBalls);
     const drought = battedBallStats(droughtBalls);
     r.contact = { baseline, drought };
+    // Most recent barrel, full season — a HR is itself a barrel, so this is
+    // never older than lastHR; during a drought it answers "is he still
+    // squaring anything up, and how recently?"
+    r.lastBarrel = balls.reduce((m, b) => (b.launch_speed_angle === '6' && b.game_date > (m ?? '')) ? b.game_date : m, null);
     if (!baseline || !drought || drought.n < CONTACT_MIN_DROUGHT_BBE || !baseline.avgContactQ || !drought.avgContactQ) continue;
 
     const shrunkDroughtQ = (drought.avgContactQ * drought.contactQN + baseline.avgContactQ * CONTACT_SHRINK_K) / (drought.contactQN + CONTACT_SHRINK_K);
