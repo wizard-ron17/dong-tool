@@ -1749,6 +1749,13 @@ function normName(s) {
 // details.returnDate is the only public estimated-return field around, so it
 // rides along even when it's a rough guess. ok:false means the fetch failed —
 // the caller keeps the previous build's data instead of emptying the tool.
+//
+// RETURNING_MIN_HR gates the pool: MLB's boxscore `batters` array lists
+// pitchers who entered the game, so relievers end up in playerNames (with games
+// but zero at-bats) and match ESPN's injury feed — a hurt reliever is not a
+// returning bopper. Requiring at least one HR this season drops every pitcher
+// and zero-power bench bat while keeping the Min-HR filter's low end meaningful.
+const RETURNING_MIN_HR = 1;
 async function fetchESPNInjuries() {
   let data;
   try {
@@ -1777,7 +1784,8 @@ async function fetchESPNInjuries() {
       const pids = nameToPids[normName(it.athlete?.displayName)];
       if (!pids || pids.length !== 1) continue; // unmatched or ambiguous name — skip
       const pid = pids[0];
-      if (isDTD) dtdStatus[pid] ??= { status, type: it.details?.type || it.type || null };
+      if (isDTD) dtdStatus[pid] ??= { status, type: it.details?.type || it.type || null }; // DTD layer keeps everyone (Due tool decides who's relevant)
+      if ((hrTotals[pid] ?? 0) < RETURNING_MIN_HR) continue; // pitchers / zero-power bats aren't returning boppers
       if (seen.has(pid)) continue; // feed lists newest entry first — keep it
       seen.add(pid);
       returning.push({
@@ -1938,12 +1946,13 @@ async function main() {
     // on the IL per MLB's own feed) has been activated — that's the "Trout
     // homers first game back" window. Flag him for 3 days, then age out.
     const injuredNow = new Set(returningInjured.map(r => r.pid));
+    const isBopper = pid => (hrTotals[pid] ?? 0) >= RETURNING_MIN_HR; // same pool gate — drops pitchers carried from a pre-floor build
     const ageDays = d => Math.round((new Date(todayET()) - new Date(d)) / 86400000);
     justBack = prevJustBack.filter(e =>
-      !injuredNow.has(e.pid) && !injuryStatus[e.pid] && ageDays(e.backDate) <= 3);
+      isBopper(e.pid) && !injuredNow.has(e.pid) && !injuryStatus[e.pid] && ageDays(e.backDate) <= 3);
     const carried = new Set(justBack.map(e => e.pid));
     for (const r of prevReturning) {
-      if (injuredNow.has(r.pid) || injuryStatus[r.pid] || carried.has(r.pid)) continue;
+      if (injuredNow.has(r.pid) || injuryStatus[r.pid] || carried.has(r.pid) || !isBopper(r.pid)) continue;
       justBack.push({ pid: r.pid, backDate: todayET(), from: r.status, type: r.type });
     }
     justBack.sort((a, b) => (hrTotals[b.pid] ?? 0) - (hrTotals[a.pid] ?? 0));
@@ -1957,13 +1966,18 @@ async function main() {
   // first build that sees one, and a MISS only once the window has fully
   // elapsed with none. Keyed by pid@backDate so a later re-injury and second
   // return this season tracks as its own separate event.
+  // Tracking is stricter than the display pool: the return-day-HR RATE should
+  // reflect genuine boppers, not a 2-HR utility bat who returns and (predictably)
+  // doesn't go deep. RETURN_TRACK_MIN_HR filters new entries and purges any that
+  // slipped in under an earlier, looser rule.
   const RETURN_WINDOW_DAYS = 3;
-  let returningHistory = prevReturningHistory;
+  const RETURN_TRACK_MIN_HR = 5;
+  let returningHistory = prevReturningHistory.filter(h => (hrTotals[h.pid] ?? 0) >= RETURN_TRACK_MIN_HR);
   if (espnInj.ok) {
     const keyOf = e => `${e.pid}@${e.backDate}`;
     const known = new Map(returningHistory.map(h => [keyOf(h), h]));
     for (const e of justBack) {
-      if (known.has(keyOf(e))) continue;
+      if (known.has(keyOf(e)) || (hrTotals[e.pid] ?? 0) < RETURN_TRACK_MIN_HR) continue;
       const entry = { pid: e.pid, name: playerNames[e.pid] ?? e.pid, team: playerTeams[e.pid] ?? '',
                       backDate: e.backDate, from: e.from, type: e.type, hrDate: null, done: false };
       returningHistory.push(entry);
