@@ -332,6 +332,8 @@
   .rb-res-name { font-weight: 600; color: var(--text); flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.3rem; }
   .rb-res-sub { font-size: 0.6rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rb-res-hr { margin-left: auto; flex-shrink: 0; font-family: var(--font-d); font-weight: 700; font-size: 0.72rem; color: var(--dim); }
+  .offday-banner { background: var(--surface1); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 0.6rem 0.85rem; margin-bottom: 1.1rem; font-size: 0.72rem; line-height: 1.5; color: var(--dim); }
+  .offday-banner b { color: var(--text); }
   .rb-hit-row { background: rgba(74,222,128,0.06); }
   .rb-hit-row .rb-res-hr { color: #4ade80; }
   .rb-miss-row .rb-res-name { color: var(--dim); }
@@ -934,6 +936,8 @@
        a z-index above this layer so the bar and sheet stay clear of the dim. -->
   <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
 
+  <div id="offday-banner" class="offday-banner" style="display:none"></div>
+
   <!-- PAIRS -->
   <!-- HOME -->
   <div id="panel-home" class="panel visible">
@@ -1462,6 +1466,7 @@ function applyData(data) {
 
   setStatus('ready', `${data.daysWithData}d · ${data.totalHRCount} HR · upd ${timeAgo(data.generatedAt)}`);
 
+  updateOffdayBanner();
   populateTotalsFilterSelect();
 
   disableNav(false);
@@ -1632,11 +1637,10 @@ function renderHome() {
   const el = document.getElementById('home-content');
   if (!Object.keys(dailyHRs).length) return; // pre-load; applyData re-renders
 
-  // Latest COMPLETED day (yesterday, or last game day before an off day).
-  // dailyHRs can contain today's early-finishing games mid-day (Final-games
-  // boundary, not a calendar one), so exclude today — "Last Night" must never
-  // show a partial slate.
-  const dates = Object.keys(dailyHRs).sort().filter(d => !todayDate || d < todayDate);
+  // Latest COMPLETED day: the finished active-date slate, or the last game day
+  // before an off day / All-Star break. Never a partial slate (see
+  // completedGameDates — today counts only once all its games are Final).
+  const dates = completedGameDates();
   const last  = dates[dates.length - 1];
   if (!last) { el.innerHTML = '<div class="empty">No completed game days yet.</div>'; return; }
   const dayData  = dailyHRs[last] ?? {};
@@ -2244,10 +2248,31 @@ function recapChalkTag(ratio) {
 }
 
 let recapDate = null; // explicit user-picked date, or null = show the latest day with data
-// Today is excluded until it's over: dailyHRs picks up today's early Finals
-// mid-day (a Final-games boundary, not a calendar one), and a recap of a
-// half-played slate is exactly what this site avoids. Tomorrow it appears.
-function recapAvailableDates() { return Object.keys(dailyHRs).sort().filter(d => !todayDate || d < todayDate); }
+// The active date's slate is "in the books" only when every one of its games is
+// Final. dailyHRs fills in mid-day as early games finish, so this gate is what
+// keeps a half-played slate out of Recap / Stats / the Home card.
+function todaySlateComplete() { return todaySchedule.length > 0 && todaySchedule.every(g => g.status === 'Final'); }
+function noGamesToday() { return Object.keys(dailyHRs).length > 0 && todaySchedule.length === 0; }
+// Days whose games are all done. Excludes the active date while it's still being
+// played, but INCLUDES it the moment its slate is complete — so a finished night
+// recaps right away, and across an off day or the All-Star break the last real
+// slate keeps showing (todayDate advances to the empty calendar day, so the
+// last game day is < todayDate and stays selected) until games resume.
+function completedGameDates() {
+  const inc = todaySlateComplete();
+  return Object.keys(dailyHRs).sort().filter(d => !todayDate || d < todayDate || (inc && d === todayDate));
+}
+function recapAvailableDates() { return completedGameDates(); }
+// Off-day / All-Star-break notice. Shown whenever the slate is empty but data
+// loaded fine, so Picks & Schedule don't just read as blank with no reason.
+function updateOffdayBanner() {
+  const el = document.getElementById('offday-banner');
+  if (!el) return;
+  if (!noGamesToday()) { el.style.display = 'none'; return; }
+  const last = recapLatestDate();
+  el.style.display = '';
+  el.innerHTML = `⚾ <b>No MLB games today.</b> ${last ? `Recap shows the last slate (${fmtDateLong(last)}), and Due` : 'Due'} still lists who's overdue to go deep. Picks & Schedule come back when the next slate does.`;
+}
 function recapLatestDate() { const d = recapAvailableDates(); return d[d.length - 1]; }
 function shiftRecapDate(delta) {
   const dates = recapAvailableDates();
@@ -2292,7 +2317,7 @@ function renderRecap() {
   }
   const count = Object.keys(dayData).length, totalHRs = Object.values(dayData).reduce((a,b)=>a+b,0);
   const games = dailyGames[date] || 0;
-  const tag = date === yesterday() ? 'Yesterday' : (date === latest ? 'Latest Available' : null);
+  const tag = date === todayDate ? 'Today (Final)' : date === yesterday() ? 'Yesterday' : (date === latest ? 'Latest Available' : null);
   metaEl.innerHTML = `${tag ? `<span class="recap-meta-tag">${tag}</span>, ` : ''}${fmtDateFull(date)}`;
 
   // Stats recap: how loud was this day relative to the season as a whole?
@@ -2522,7 +2547,7 @@ function renderSchedule() {
   const contentEl = document.getElementById('schedule-content');
   if (!todaySchedule.length) {
     metaEl.textContent = '';
-    contentEl.innerHTML = '<div class="empty">No games scheduled today</div>';
+    contentEl.innerHTML = '<div class="empty">No games scheduled today — the slate returns when the next game day does. Head to <a href="javascript:void(0)" onclick="switchNav(\'recap\')">Recap</a> for the last one.</div>';
     return;
   }
   const leagueAvg = leagueHRPerGame();
@@ -3508,8 +3533,10 @@ function renderPicks() {
   const metaEl = document.getElementById('picks-meta');
   const contentEl = document.getElementById('picks-content');
   if (!picks.length) {
-    metaEl.textContent = todaySchedule.length ? 'Picks populate once lineups are posted' : '';
-    contentEl.innerHTML = '<div class="empty">No picks yet — lineups must be posted for matchup scoring to run</div>';
+    metaEl.textContent = '';
+    contentEl.innerHTML = todaySchedule.length
+      ? '<div class="empty">No picks yet — lineups must be posted for matchup scoring to run</div>'
+      : '<div class="empty">No games today, so no picks — they resume with the next slate. Meanwhile <a href="javascript:void(0)" onclick="switchNav(\'due\')">Due</a> still tracks who\'s overdue.</div>';
     return;
   }
   const filtered = applyPicksFilters(picks);
