@@ -2599,7 +2599,7 @@ function applyDueFilters(rows) {
     if (r.hrs < dueFilters.minHR) return false;
     if (dueFilters.hideCold && contactTagInfo(r.contactFactor).cls === 'bad') return false;
     if (dueFilters.longestOnly && !r.isLongestEver) return false;
-    if (dueFilters.hideNoBarrels && !((r.contact?.drought?.barrels ?? 0) > 0)) return false; // zero barrels since his last HR
+    if (dueFilters.hideNoBarrels && !(r.droughtBarrels > 0)) return false; // zero barrels since his last HR
     if (dueFilters.hideDTD && isDayToDay(r.pid)) return false;
     if (dueFilters.hideUnavailable && isUnavailableToday(r.pid)) return false; // IL / off / bench
     return true;
@@ -2727,8 +2727,14 @@ function renderDueResults() {
 function renderDue() {
   // Flatten barrel info to own props so the column sorter (r[key]) and the
   // 0-barrel filter can reach it. Idempotent — recomputed on every render.
+  // The count doesn't need the build's explicit `barrels` field: barrelPct is
+  // 100·barrels/n, so barrelPct·n/100 recovers it exactly from data we already
+  // ship (matters for rows frozen from a pre-upgrade build). lastBarrel has no
+  // such fallback — per-ball dates never ship — so it stays "—" until the row
+  // is rebuilt fresh.
   dueRows.forEach(r => {
-    r.droughtBarrels = r.contact?.drought?.barrels ?? 0;
+    const dr = r.contact?.drought;
+    r.droughtBarrels = dr ? (dr.barrels ?? Math.round(dr.barrelPct * dr.n / 100)) : 0;
     r.lastBarrelAgo  = r.lastBarrel ? daysSince(r.lastBarrel) : 9999;
   });
   renderDueFilters();
