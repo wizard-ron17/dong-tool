@@ -628,9 +628,8 @@ function ipToFloat(ip) { // "88.1" = 88 innings + 1 out, not 88.1
   return (+whole || 0) + (+(outs || 0)) / 3;
 }
 function starterShareFor(stat) {
-  if (!stat || !(stat.gamesStarted > 0)) return STARTER_WEIGHT;
-  const avgIP = ipToFloat(stat.ip) / stat.gamesStarted;
-  return Math.max(STARTER_SHARE_MIN, Math.min(STARTER_SHARE_MAX, avgIP / 9));
+  if (!stat || stat.avgStartIP == null) return STARTER_WEIGHT;
+  return Math.max(STARTER_SHARE_MIN, Math.min(STARTER_SHARE_MAX, stat.avgStartIP / 9));
 }
 
 async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {}, openerBulk = {}, weatherByVenue = {}) {
@@ -877,7 +876,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       // averaging 7 IP means his pen barely matters; a 4.5-IP starter's pen
       // is nearly half the matchup.
       const startStat = r.oppPid ? pitcherSeasonStats[r.oppPid] : null;
-      const startAvgIP = startStat?.gamesStarted > 0 ? ipToFloat(startStat.ip) / startStat.gamesStarted : null;
+      const startAvgIP = startStat?.avgStartIP ?? null;
       r.starterAvgIP = startAvgIP != null ? Math.round(startAvgIP * 10) / 10 : null;
 
       // Opener day: the announced "starter" covers an inning or two, a likely
@@ -1245,10 +1244,30 @@ async function fetchPitcherHRStats(pids) {
           hr: stat.homeRuns ?? 0, hr9: stat.homeRunsPer9 ?? null,
           ip: stat.inningsPitched ?? '0.0', era: stat.era ?? null,
           gamesStarted: stat.gamesStarted ?? 0,
+          gamesPlayed: stat.gamesPlayed ?? 0,
         };
       } catch (e) {}
     }));
   }
+  // avgStartIP: how deep this guy goes when he STARTS. Swingmen and
+  // reliever-openers bank most of their innings out of the pen, so season
+  // IP / gamesStarted wildly overstates them (a 27-IP reliever with one
+  // 2-inning start is not a 27-IP-per-start workhorse — it also hid them
+  // from opener detection and handed them a max starter share). Anyone with
+  // relief appearances on the season line gets his starts averaged from the
+  // game log instead; pure starters keep the cheap division.
+  await Promise.all(Object.entries(stats).map(async ([pid, st]) => {
+    if (!(st.gamesStarted > 0)) { st.avgStartIP = null; return; }
+    const naive = ipToFloat(st.ip) / st.gamesStarted;
+    if (st.gamesPlayed <= st.gamesStarted) { st.avgStartIP = naive; return; }
+    try {
+      const res = await fetch(`${MLB}/people/${pid}/stats?stats=gameLog&group=pitching&season=${SEASON_YEAR}&sportId=1`).then(r => r.json());
+      const starts = (res.stats?.[0]?.splits ?? []).filter(s => (s.stat?.gamesStarted ?? 0) > 0);
+      st.avgStartIP = starts.length
+        ? starts.reduce((a, s) => a + ipToFloat(s.stat.inningsPitched), 0) / starts.length
+        : naive; // game log empty — better than nothing
+    } catch (e) { st.avgStartIP = naive; }
+  }));
   return stats;
 }
 
@@ -1290,7 +1309,7 @@ async function detectOpenerBulk(todaySchedule, pitcherStats) {
     for (const s of [g.home, g.away]) {
       const st = s.probablePitcherId ? pitcherStats[s.probablePitcherId] : null;
       if (!st || (st.gamesStarted ?? 0) < OPENER_MIN_STARTS || !s.teamId) continue;
-      if (ipToFloat(st.ip) / st.gamesStarted <= OPENER_MAX_AVG_IP) openerSides.push(s);
+      if ((st.avgStartIP ?? Infinity) <= OPENER_MAX_AVG_IP) openerSides.push(s);
     }
   }
 
