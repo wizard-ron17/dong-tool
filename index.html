@@ -328,6 +328,13 @@
   .rb-comment { font-size: 0.6rem; color: var(--muted); margin-top: 0.3rem; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .lineup-badge.il { color: #ff5f6e; background: rgba(255,95,110,0.1); border: 1px solid rgba(255,95,110,0.35); }
   .brl-zero { color: #ff5f6e; }
+  .rb-res-mark { flex-shrink: 0; font-size: 0.8rem; width: 1.1rem; text-align: center; }
+  .rb-res-name { font-weight: 600; color: var(--text); flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.3rem; }
+  .rb-res-sub { font-size: 0.6rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rb-res-hr { margin-left: auto; flex-shrink: 0; font-family: var(--font-d); font-weight: 700; font-size: 0.72rem; color: var(--dim); }
+  .rb-hit-row { background: rgba(74,222,128,0.06); }
+  .rb-hit-row .rb-res-hr { color: #4ade80; }
+  .rb-miss-row .rb-res-name { color: var(--dim); }
   .pick-projected { display: inline-flex; align-items: center; font-size: 0.57rem; font-weight: 700; padding: 0.04rem 0.3rem; border-radius: 4px; margin-left: 0.3rem; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); vertical-align: middle; }
   .pick-indicators { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-top: 0.35rem; }
   .pick-ind { font-size: 0.56rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 10px; background: var(--surface2); color: var(--muted); white-space: nowrap; }
@@ -1119,19 +1126,27 @@
           <li><b>Who's here.</b> Every hitter we track who's on an injured list or day-to-day per ESPN's injury report, with his season homers and today's Due / Pick badges where they apply.</li>
           <li><b>Return dates.</b> ESPN's estimated return date — a target, not a promise. Near-term dates are usually solid; a date weeks out can slide with setbacks or rehab stints.</li>
           <li><b>Just back.</b> When a hitter drops off the injury report (and isn't on the IL), he's flagged here for his first 3 days back — the "homers in his first game back" window. A guy still on the report but confirmed in today's lineup counts as back too.</li>
+          <li><b>Results.</b> Every flagged return is tracked: homer within that 3-day window and he moves to the <b>Results</b> tab as a hit; the window closes with no homer and he's logged as a miss. The tab shows the running return-day homer rate.</li>
         </ul>
       </div>
     </div>
-    <div class="pairs-filter-row">
-      <span class="due-filter-label">Min HR</span>
-      <button class="due-filter-chip" data-rbhr="0" onclick="setReturningMinHR(0)">All</button>
-      <button class="due-filter-chip active" data-rbhr="5" onclick="setReturningMinHR(5)">5+</button>
-      <button class="due-filter-chip" data-rbhr="10" onclick="setReturningMinHR(10)">10+</button>
-      <button class="due-filter-chip" data-rbhr="15" onclick="setReturningMinHR(15)">15+</button>
-      <button class="due-filter-chip" data-rbhr="20" onclick="setReturningMinHR(20)">20+</button>
+    <div class="sub-tabs" id="returning-sub-tabs">
+      <button class="sub-btn active" id="returning-sub-today" onclick="switchReturningSub('today')">Returning</button>
+      <button class="sub-btn" id="returning-sub-results" onclick="switchReturningSub('results')">Results</button>
     </div>
-    <div class="result-meta" id="returning-meta"></div>
-    <div id="returning-content"><div class="empty">Loading data…</div></div>
+    <div id="returning-today-wrap">
+      <div class="pairs-filter-row">
+        <span class="due-filter-label">Min HR</span>
+        <button class="due-filter-chip" data-rbhr="0" onclick="setReturningMinHR(0)">All</button>
+        <button class="due-filter-chip active" data-rbhr="5" onclick="setReturningMinHR(5)">5+</button>
+        <button class="due-filter-chip" data-rbhr="10" onclick="setReturningMinHR(10)">10+</button>
+        <button class="due-filter-chip" data-rbhr="15" onclick="setReturningMinHR(15)">15+</button>
+        <button class="due-filter-chip" data-rbhr="20" onclick="setReturningMinHR(20)">20+</button>
+      </div>
+      <div class="result-meta" id="returning-meta"></div>
+      <div id="returning-content"><div class="empty">Loading data…</div></div>
+    </div>
+    <div id="returning-results-wrap" style="display:none"></div>
   </div>
 
   <footer>
@@ -1164,6 +1179,7 @@ let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if c
 let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questionable (NOT on the IL), from ESPN
 let returningInjured = []; // injured hitters (IL + DTD) with ESPN's estimated return dates — Returning Boppers tool
 let justBack = [];         // [{ pid, backDate, from, type }] — activated in the last 3 days, the first-game-back window
+let returningHistory = []; // [{ pid, name, team, backDate, from, type, hrDate, done }] — graded return-window HR log
 let todayDate     = null;   // YYYY-MM-DD, ET — the same "today" build-data.js used for todaySchedule
 let todaySchedule = [];     // [{ gamePk, gameDate, status, venue, home:{...}, away:{...} }]
 let todayTeamsPlaying      = new Set(); // team abbrs with a game today, regardless of lineup status
@@ -1422,6 +1438,7 @@ function applyData(data) {
   dtdStatus = data.dtdStatus ?? {};
   returningInjured = data.returningInjured ?? [];
   justBack = data.justBack ?? [];
+  returningHistory = data.returningHistory ?? [];
   todayDate = data.todayDate ?? null;
   todaySchedule = data.todaySchedule ?? [];
   teamIds = data.teamIds ?? {};
@@ -1501,6 +1518,7 @@ function currentPath() {
   else if (activeNav === 'due'       && dueSubTab === 'results')             p += '/results';
   else if (activeNav === 'prospects' && activeProspectTab === 'debutBombs')  p += '/debut-bombs';
   else if (activeNav === 'daylate'   && dayLateSubTab === 'results')         p += '/results';
+  else if (activeNav === 'returning' && returningSubTab === 'results')       p += '/results';
   return p;
 }
 function commitRoute() {
@@ -1536,6 +1554,8 @@ function applyRouteState() {
     activeProspectTab = sub === 'debut-bombs' ? 'debutBombs' : 'justCalledUp';
   } else if (validNav === 'daylate') {
     dayLateSubTab = sub === 'results' ? 'results' : 'today';
+  } else if (validNav === 'returning') {
+    returningSubTab = sub === 'results' ? 'results' : 'today';
   }
 
   switchNav(validNav);
@@ -1586,7 +1606,7 @@ function renderCurrentPanel() {
   if (activeNav === 'picks')   { renderPicks(); applyPicksSub(picksSubTab); }
   if (activeNav === 'prospects') renderProspects();
   if (activeNav === 'daylate')  { renderDayLate(); applyDayLateSub(dayLateSubTab); }
-  if (activeNav === 'returning') renderReturning();
+  if (activeNav === 'returning') { renderReturning(); applyReturningSub(returningSubTab); }
 }
 window.addEventListener('popstate', applyRouteState);
 let activeStatsView = 'league';
@@ -3856,6 +3876,16 @@ function renderDayLateResults() {
 // spotlight section up top.
 let returningMinHR = 5;      // season-HR floor (0/5/10/15/20), default 5 — it's a bopper tool
 let returningSort  = 'date'; // date | hr
+let returningSubTab = 'today'; // today | results
+function applyReturningSub(sub) {
+  returningSubTab = sub;
+  document.getElementById('returning-today-wrap').style.display   = sub === 'today'   ? '' : 'none';
+  document.getElementById('returning-results-wrap').style.display = sub === 'results' ? '' : 'none';
+  document.getElementById('returning-sub-today').classList.toggle('active',   sub === 'today');
+  document.getElementById('returning-sub-results').classList.toggle('active', sub === 'results');
+  if (sub === 'results') renderReturningResults();
+}
+function switchReturningSub(sub) { applyReturningSub(sub); commitRoute(); }
 function toggleReturningExplainer() {
   const body = document.getElementById('returning-explainer-body');
   const open = body.style.display === 'none';
@@ -3882,13 +3912,16 @@ function renderReturning() {
 
   // Spotlight: activated in the last 3 days, plus anyone still on the injury
   // report but confirmed in today's posted lineup — the lineup is ground truth.
+  // A guy who's already homered in his window has cashed the bet — he's dropped
+  // from the live spotlight and lives on the Results tab instead.
+  const homeredBack = new Set(returningHistory.filter(h => h.hrDate).map(h => `${h.pid}@${h.backDate}`));
   const flagged = new Set(justBack.map(e => e.pid));
   const backEntries = [
     ...justBack.map(e => ({ ...e })),
     ...returningInjured
       .filter(r => todayStarterPids.has(r.pid) && !flagged.has(r.pid))
       .map(r => ({ pid: r.pid, backDate: todayDate, from: r.status, type: r.type, inLineup: true })),
-  ].filter(e => minOk(e.pid));
+  ].filter(e => minOk(e.pid) && !homeredBack.has(`${e.pid}@${e.backDate}`));
   const backIds = new Set(backEntries.map(e => e.pid));
 
   const coming = returningInjured.filter(r => !backIds.has(r.pid) && !todayStarterPids.has(r.pid) && minOk(r.pid));
@@ -3954,6 +3987,66 @@ function renderReturning() {
     + (backCards ? `<div class="rb-section">🔥 Just Back — first games off the injury</div><div class="rb-grid">${backCards}</div>` : '')
     + (comingCards ? `<div class="rb-section">On the Mend</div><div class="rb-grid">${comingCards}</div>`
                    : `<div class="empty">Nobody${returningMinHR ? ` with ${returningMinHR}+ HR` : ''} is on the shelf right now. <a href="javascript:void(0)" onclick="setReturningMinHR(0)">Show all</a></div>`);
+}
+
+// Tracking: how the "he homers his first game back" thesis actually plays out.
+// The build grades every flagged return against a HR inside its 3-day window;
+// this just renders that log — a running return-day homer rate, the hits, the
+// misses, and anyone whose window is still open.
+function renderReturningResults() {
+  const el = document.getElementById('returning-results-wrap');
+  const completed = returningHistory.filter(h => h.done);
+  const pending   = returningHistory.filter(h => !h.done);
+  const hits = completed.filter(h => h.hrDate);
+  if (!completed.length && !pending.length) {
+    el.innerHTML = `<div class="empty">No returns tracked yet — once a flagged hitter's first few games back are in the books, his result lands here.</div>`;
+    return;
+  }
+  const rate = completed.length ? Math.round(100 * hits.length / completed.length) : 0;
+  const rateCls = rate >= 30 ? 'great' : rate >= 18 ? 'good' : 'avg';
+
+  const rows = [...completed]
+    .sort((a, b) => b.backDate.localeCompare(a.backDate) || (b.hrDate ? 1 : 0) - (a.hrDate ? 1 : 0))
+    .map(h => {
+      const hr = hrTotals[h.pid] ?? 0;
+      const logo = teamLogoImg(h.team, 'team-logo');
+      if (h.hrDate) {
+        const daysBack = Math.round((new Date(h.hrDate) - new Date(h.backDate)) / 86400000);
+        const backTxt = daysBack <= 0 ? 'on his return day' : `${daysBack} day${daysBack === 1 ? '' : 's'} back`;
+        return `<div class="ph-day-row rb-hit-row">
+          <span class="rb-res-mark">🟢</span>
+          <span class="rb-res-name">${h.name}${logo}</span>
+          <span class="rb-res-sub">Homered ${fmtDateLong(h.hrDate)} · ${backTxt} · was ${h.from || 'out'}</span>
+          <span class="rb-res-hr">${hr} HR</span>
+        </div>`;
+      }
+      return `<div class="ph-day-row rb-miss-row">
+        <span class="rb-res-mark">⚪</span>
+        <span class="rb-res-name">${h.name}${logo}</span>
+        <span class="rb-res-sub">No HR in his window · back ${fmtDateLong(h.backDate)} · was ${h.from || 'out'}</span>
+        <span class="rb-res-hr">${hr} HR</span>
+      </div>`;
+    }).join('');
+
+  const pendingHtml = pending.length ? `
+    <div class="ph-buckets-head" style="margin-top:1rem">Still in Window <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· return-day bet still live</span></div>
+    <div class="ph-days">${[...pending].sort((a, b) => b.backDate.localeCompare(a.backDate)).map(h => `<div class="ph-day-row">
+      <span class="rb-res-mark">⏳</span>
+      <span class="rb-res-name">${h.name}${teamLogoImg(h.team, 'team-logo')}</span>
+      <span class="rb-res-sub">Back ${fmtDateLong(h.backDate)} · watching for a homer</span>
+      <span class="rb-res-hr">${hrTotals[h.pid] ?? 0} HR</span>
+    </div>`).join('')}</div>` : '';
+
+  el.innerHTML = `
+    <div class="ph-summary">
+      <div class="ph-stat"><span class="ph-stat-val hrg-val ${rateCls}">${completed.length ? rate + '%' : '—'}</span><span class="ph-stat-lbl">Return-HR Rate</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${hits.length}</span><span class="ph-stat-lbl">Homered</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${completed.length}</span><span class="ph-stat-lbl">Tracked Returns</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${pending.length}</span><span class="ph-stat-lbl">In Window</span></div>
+    </div>
+    <div class="ph-buckets-head">Returns <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· did he go deep in his first games back?</span></div>
+    <div class="ph-days">${rows || '<div class="ph-day-row"><span style="color:var(--dim)">No completed returns yet — check the live watchlist below.</span></div>'}</div>
+    ${pendingHtml}`;
 }
 
 // ── UI helpers ─────────────────────────────────────────────────────────

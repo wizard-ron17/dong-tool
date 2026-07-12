@@ -1837,7 +1837,7 @@ async function main() {
   // once dailyHRs is fully populated for the previous date.
   let prevPicks = [], prevDate = null, picksHistory = [], prevSchedule = [];
   let prevDueRows = [], dueStreaks = null, dueHistory = [];
-  let prevReturning = [], prevJustBack = [];
+  let prevReturning = [], prevJustBack = [], prevReturningHistory = [];
   try {
     const fs = await import('node:fs');
     const raw = fs.readFileSync(new URL('../data.json', import.meta.url), 'utf8');
@@ -1851,6 +1851,7 @@ async function main() {
     dueHistory   = old.dueHistory  ?? [];
     prevReturning = old.returningInjured ?? [];
     prevJustBack  = old.justBack ?? [];
+    prevReturningHistory = old.returningHistory ?? [];
   } catch { /* first run or file missing — start fresh */ }
 
   await fetchAll();
@@ -1947,7 +1948,42 @@ async function main() {
     }
     justBack.sort((a, b) => (hrTotals[b.pid] ?? 0) - (hrTotals[a.pid] ?? 0));
   }
-  console.log(`  ${Object.keys(dtdStatus).length} day-to-day, ${returningInjured.length} injured hitters, ${justBack.length} just back.`);
+
+  // Return tracking: the tool's whole thesis is "he homers his first game(s)
+  // back," so grade it. Every just-back guy gets a persistent history entry the
+  // first build he's flagged; we then check whether he homered inside his flag
+  // window (backDate .. backDate+RETURN_WINDOW_DAYS). Idempotent across the
+  // ~48 same-day rebuilds: HRs only accrue in dailyHRs, so we lock a HIT the
+  // first build that sees one, and a MISS only once the window has fully
+  // elapsed with none. Keyed by pid@backDate so a later re-injury and second
+  // return this season tracks as its own separate event.
+  const RETURN_WINDOW_DAYS = 3;
+  let returningHistory = prevReturningHistory;
+  if (espnInj.ok) {
+    const keyOf = e => `${e.pid}@${e.backDate}`;
+    const known = new Map(returningHistory.map(h => [keyOf(h), h]));
+    for (const e of justBack) {
+      if (known.has(keyOf(e))) continue;
+      const entry = { pid: e.pid, name: playerNames[e.pid] ?? e.pid, team: playerTeams[e.pid] ?? '',
+                      backDate: e.backDate, from: e.from, type: e.type, hrDate: null, done: false };
+      returningHistory.push(entry);
+      known.set(keyOf(e), entry);
+    }
+    for (const h of returningHistory) {
+      if (h.done) continue;
+      const windowEnd = shiftDateStr(h.backDate, RETURN_WINDOW_DAYS);
+      let hrDate = null;
+      for (let i = 0; i <= RETURN_WINDOW_DAYS; i++) {
+        const date = shiftDateStr(h.backDate, i);
+        if ((dailyHRs[date]?.[h.pid] ?? 0) > 0) { hrDate = date; break; }
+      }
+      if (hrDate) { h.hrDate = hrDate; h.done = true; }       // homered in his window
+      else if (todayET() > windowEnd) { h.done = true; }      // window elapsed, no HR
+    }
+    returningHistory = returningHistory.slice(-200); // keep data.json lean
+  }
+  const returnedHR = returningHistory.filter(h => h.hrDate).length;
+  console.log(`  ${Object.keys(dtdStatus).length} day-to-day, ${returningInjured.length} injured hitters, ${justBack.length} just back, ${returningHistory.length} tracked returns (${returnedHR} homered).`);
 
   // Score yesterday's picks against actual HR results now that dailyHRs is fresh.
   // Guard 1: don't score if this date is already in history (cron fires multiple
@@ -2069,7 +2105,7 @@ async function main() {
     dailyHRs, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus, dtdStatus,
     todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks, picksHistory,
-    dueStreaks, dueHistory, returningInjured, justBack,
+    dueStreaks, dueHistory, returningInjured, justBack, returningHistory,
   };
 
   const fs = await import('node:fs');
