@@ -1999,14 +1999,18 @@ async function main() {
   const returnedHR = returningHistory.filter(h => h.hrDate).length;
   console.log(`  ${Object.keys(dtdStatus).length} day-to-day, ${returningInjured.length} injured hitters, ${justBack.length} just back, ${returningHistory.length} tracked returns (${returnedHR} homered).`);
 
-  // Score yesterday's picks against actual HR results now that dailyHRs is fresh.
-  // Guard 1: don't score if this date is already in history (cron fires multiple
-  //   times per day — only the first run that sees a new date should score it).
-  // Guard 2: don't score today's picks mid-day. dailyHRs only contains Final
-  //   games, so if prevDate === today the pool is empty/partial and all picks
-  //   would show hit:false permanently (the dedup guard blocks later correction).
-  //   Only score once prevDate is strictly in the past.
-  if (prevPicks.length && prevDate && prevDate < todayET() && !picksHistory.some(e => e.date === prevDate)) {
+  // A slate is scorable once every one of its games is Final — dailyHRs is then
+  // complete for that date, so no pick can be wrongly locked at hit:false by the
+  // dedup guard. That's automatically true for any past date, and ALSO true for
+  // the active date the moment tonight's games all end — so results advance as
+  // soon as the slate finishes instead of waiting for the calendar to roll.
+  const slateComplete = todaySchedule.length > 0 && todaySchedule.every(g => g.status === 'Final');
+  const scorable = date => !!date && (date < todayET() || (date === todayET() && slateComplete));
+
+  // Score the previous build's picks against actual HR results now that dailyHRs
+  // is fresh. Guard: only once per date (cron fires many times a day), and only
+  // once that slate is complete (see scorable).
+  if (prevPicks.length && scorable(prevDate) && !picksHistory.some(e => e.date === prevDate)) {
     const dayHRs = dailyHRs[prevDate] ?? {};
     const entry = {
       date: prevDate,
@@ -2029,12 +2033,12 @@ async function main() {
   // he "graduates" — record how long he sat on the list, his due score, and his
   // rank at his last appearance. Uses the previous build's dueRows (the list as
   // the day ended — Final-games-only lag keeps him listed all day even after he
-  // homers), with the same two guards as picks: only score dates strictly in
-  // the past, and only once per date.
+  // homers), with the same guards as picks: only once per date, and only once
+  // that slate is complete (scorable).
   const daysOnList = (since, until) =>
     since ? Math.max(1, Math.round((new Date(until) - new Date(since)) / 86400000) + 1) : null;
 
-  if (prevDueRows.length && prevDate && prevDate < todayET() && !dueHistory.some(e => e.date === prevDate)) {
+  if (prevDueRows.length && scorable(prevDate) && !dueHistory.some(e => e.date === prevDate)) {
     const dayHRs = dailyHRs[prevDate] ?? {};
     const grads = [];
     prevDueRows.forEach((row, i) => {
