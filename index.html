@@ -200,10 +200,20 @@
     .recap-date-input { font-size: 0.62rem; padding: 0.4rem 0.3rem; }
     .recap-nav-center { gap: 0.3rem; }
   }
-  .recap-meta-row { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
-  .recap-meta-row .result-meta { margin-bottom: 0; }
-  .recap-watchall-btn { background: var(--surface1); border: 1px solid var(--accent); color: var(--accent); font-size: 0.58rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.3rem 0.6rem; border-radius: 6px; cursor: pointer; white-space: nowrap; }
-  .recap-watchall-btn:hover { background: rgba(46,176,95,0.12); }
+  /* Floating centered pill, fixed above the content at the bottom of the
+     viewport. Lives inside #panel-recap so it only shows on the Recap tab and
+     vanishes on any other. Sits under the video overlays (reels z400 / modal
+     z300). */
+  .recap-watchall-btn { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(1rem + env(safe-area-inset-bottom)); z-index: 250; display: flex; align-items: center; gap: 0.45rem; background: var(--accent); border: none; color: #fff; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.6rem 1.35rem; border-radius: 999px; cursor: pointer; white-space: nowrap; box-shadow: 0 5px 20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.07); transition: transform 0.14s, background 0.14s; }
+  .recap-watchall-btn:hover { background: #2eb05f; transform: translateX(-50%) translateY(-2px); }
+  /* Clearance so the pill never covers the last row of bombers. */
+  #panel-recap.visible { padding-bottom: 3.5rem; }
+  /* On mobile the nav is a fixed bottom bar (~3.6rem) — float the pill above it,
+     and leave more content clearance so nothing hides behind either. */
+  @media (max-width: 600px) {
+    .recap-watchall-btn { bottom: calc(4.2rem + env(safe-area-inset-bottom)); }
+    #panel-recap.visible { padding-bottom: 7rem; }
+  }
 
   #cards { display: flex; flex-direction: column; gap: 0.5rem; }
   .card { border-radius: 8px; padding: 0.75rem 0.85rem; border: 1px solid var(--border); background: var(--surface0); animation: fadeIn 0.15s ease; }
@@ -1048,11 +1058,9 @@
       </div>
       <button class="recap-jump-btn" id="recap-latest-btn" onclick="resetRecapToLatest()" title="Jump to the most recent completed day">Latest</button>
     </div>
-    <div class="recap-meta-row">
-      <div class="result-meta" id="recap-meta"></div>
-      <button class="recap-watchall-btn" id="recap-watchall-btn" onclick="watchAllRecap()" style="display:none" title="Play every homer of this day, top of the board first">▶ Watch All</button>
-    </div>
+    <div class="result-meta" id="recap-meta"></div>
     <div id="recap-content"><div class="empty">Loading data…</div></div>
+    <button class="recap-watchall-btn" id="recap-watchall-btn" onclick="watchAllRecap()" style="display:none" title="Play every homer of this day, top of the board first">▶ Watch all dongs</button>
   </div>
 
   <!-- SCHEDULE -->
