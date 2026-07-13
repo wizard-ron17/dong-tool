@@ -2350,6 +2350,26 @@ async function loadRecapClips(date) {
         for (const pid of pids) if (hrPids.has(pid)) (byPid[pid] ??= []).push(clip);
       }
     }
+    // MLB cuts the same homer several ways (Statcast angle, "Field View", rally
+    // montages) — but the canonical per-HR highlight carries the season HR
+    // number in its title, e.g. "Shohei Ohtani's leadoff home run (22)". Two
+    // clips sharing a number are the same homer: keep one per number and drop
+    // unnumbered extras. If a player has NO numbered clip, keep what we have —
+    // an alternate cut beats no video.
+    const HR_NUM = /\((\d+)\)/;
+    for (const pid of Object.keys(byPid)) {
+      const clips = byPid[pid];
+      if (clips.length < 2) continue;
+      const hasNumbered = clips.some(c => HR_NUM.test(c.title));
+      const seen = new Set();
+      byPid[pid] = clips.filter(c => {
+        const m = c.title.match(HR_NUM);
+        if (!m) return !hasNumbered;
+        if (seen.has(m[1])) return false;
+        seen.add(m[1]);
+        return true;
+      });
+    }
   } catch (e) {
     delete recapClipsCache[date]; // transient fetch failure — retry next visit
     return;
