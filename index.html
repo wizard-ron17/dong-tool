@@ -584,6 +584,16 @@
   .reels-multi { font-size: 0.6rem; font-weight: 600; color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.14); border-radius: 999px; padding: 0.1rem 0.45rem; }
   .reels-headline { font-size: 0.7rem; line-height: 1.45; color: rgba(255,255,255,0.88); }
   .reels-count { position: absolute; right: 0.9rem; bottom: max(1.4rem, env(safe-area-inset-bottom)); font-family: var(--font-d); font-size: 0.7rem; font-weight: 700; color: rgba(255,255,255,0.65); text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+  .reels-indicator { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 62px; height: 62px; border-radius: 50%; background: rgba(15,17,22,0.55); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; letter-spacing: -2px; pointer-events: none; opacity: 0; transition: opacity 0.25s; backdrop-filter: blur(3px); }
+  .reels-indicator.show { opacity: 1; }
+  .reels-next { position: absolute; top: 62%; left: 50%; transform: translateX(-50%); background: rgba(15,17,22,0.65); color: rgba(255,255,255,0.9); font-size: 0.7rem; font-weight: 600; border-radius: 999px; padding: 0.35rem 0.85rem; pointer-events: none; opacity: 0; transition: opacity 0.2s; backdrop-filter: blur(3px); white-space: nowrap; }
+  .reels-next.show { opacity: 1; }
+  .reels-next b { font-family: var(--font-d); color: var(--accent); }
+  .reels-ph { display: flex; flex-direction: column; align-items: center; gap: 0.55rem; text-align: center; padding: 1rem; }
+  .reels-ph-photo { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.7); background: #222; }
+  .reels-ph-name { color: #fff; font-weight: 700; font-size: 0.95rem; }
+  .reels-ph-sub { color: rgba(255,255,255,0.75); font-size: 0.75rem; }
+  .reels-ph-tag { color: rgba(255,255,255,0.55); font-size: 0.65rem; background: rgba(255,255,255,0.1); border-radius: 999px; padding: 0.25rem 0.7rem; margin-top: 0.3rem; }
   .recap-info { flex: 1; min-width: 0; overflow: hidden; }
   .recap-name { font-size: 0.74rem; color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .recap-sub  { font-size: 0.57rem; color: var(--muted); margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2327,7 +2337,9 @@ function renderRecapNav(date, dates, latest) {
 // (keeps data.json untouched), cached for the session; the recap re-renders
 // when clips land so the ▶ badges appear.
 const recapClipsCache = {}; // date -> { pid: [{title, mp4, poster, duration}] } | 'loading' | 'none'
-const HR_CLIP_RE = /homer|home run|grand slam|walk-?off blast|goes deep/i;
+const HR_CLIP_RE = /homer|home run|grand slam|walk-?off blast|goes deep|back[- ]to[- ]back|goes yard/i;
+// Accent-insensitive lowercase for name-in-headline matching ("Domínguez" ≡ "dominguez").
+function normClipText(s) { return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
 async function loadRecapClips(date) {
   if (recapClipsCache[date]) return;
   recapClipsCache[date] = 'loading';
@@ -2345,8 +2357,16 @@ async function loadRecapClips(date) {
         const clip = { title: h.headline ?? 'Home run', mp4, poster, duration: (h.duration ?? '').replace(/^00:/, '') };
         // A clip tags everyone involved (pitcher too, sometimes both bats on
         // back-to-backs) — attach it only to players who actually homered
-        // that day, once each.
+        // that day, once each. MLB occasionally ships a clip with NO player
+        // tags at all ("Keibert Ruiz and James Wood go back to back" on 7/10
+        // had an empty tag list), so fall back to matching the day's HR
+        // hitters by name in the headline — headline only, since descriptions
+        // often name-drop other hitters.
         const pids = new Set((h.keywordsAll ?? []).filter(k => k.type === 'player_id').map(k => String(k.value)));
+        const headNorm = normClipText(h.headline);
+        for (const pid of hrPids) {
+          if (!pids.has(pid) && headNorm.includes(normClipText(playerNames[pid]))) pids.add(pid);
+        }
         for (const pid of pids) if (hrPids.has(pid)) (byPid[pid] ??= []).push(clip);
       }
     }
@@ -2368,7 +2388,9 @@ async function loadRecapClips(date) {
         if (seen.has(m[1])) return false;
         seen.add(m[1]);
         return true;
-      });
+      // Never more clips than homers — a 2-HR day with three unnumbered
+      // montage cuts would otherwise read "3 of 2 that day" in the feed.
+      }).slice(0, dailyHRs[date]?.[pid] ?? Infinity);
     }
   } catch (e) {
     delete recapClipsCache[date]; // transient fetch failure — retry next visit
@@ -2417,6 +2439,13 @@ function openHRVideo(date, pid, idx = 0) {
 // 30 mp4s at once. Ordered like the recap grid: multi-HR games first, then
 // by season power.
 let reelsObserver = null;
+// A player's season HR count as of a given date — lets a videoless placeholder
+// still say which homer it was ("his 20th of the season").
+function seasonHRNumberThrough(pid, date) {
+  let n = 0;
+  for (const d in dailyHRs) if (d <= date) n += dailyHRs[d][pid] ?? 0;
+  return n;
+}
 function recapClipPlaylist(date) {
   const clipsByPid = recapClipsCache[date];
   if (!clipsByPid || typeof clipsByPid !== 'object') return [];
@@ -2425,7 +2454,9 @@ function recapClipPlaylist(date) {
     b[1]-a[1] || (hrTotals[b[0]]||0)-(hrTotals[a[0]]||0) || (playerNames[a[0]]||'').localeCompare(playerNames[b[0]]||''));
   const list = [];
   for (const [pid, hrs] of order) {
-    (clipsByPid[pid] ?? []).forEach((clip, clipIdx) => list.push({ pid, hrs, clip, clipIdx }));
+    const clips = clipsByPid[pid] ?? [];
+    if (clips.length) clips.forEach((clip, clipIdx) => list.push({ pid, hrs, clip, clipIdx }));
+    else list.push({ pid, hrs, placeholder: true }); // every dong gets a slide — clip or not
   }
   return list;
 }
@@ -2447,22 +2478,65 @@ function reelsToggleMute() {
   el.querySelectorAll('video').forEach(v => v.muted = muted);
   document.getElementById('reels-mute').textContent = muted ? '🔇' : '🔊';
 }
-function reelsTap(v) { v.paused ? v.play() : v.pause(); }
+function reelsTap(v) {
+  if (v.ended) v.currentTime = 0; // replay a finished clip from the top
+  v.paused ? v.play() : v.pause();
+}
+// "Up next" countdown: shown when a clip ends (or on a no-video placeholder),
+// ticks 3-2-1, then snaps to the next slide. Cancelled by replaying the clip
+// or swiping away.
+function cancelReelsNext(slide) {
+  clearInterval(slide._nextTimer); slide._nextTimer = null;
+  slide.querySelector('.reels-next')?.classList.remove('show');
+}
+function startReelsNext(slide, nextEl) {
+  if (!nextEl || slide._nextTimer) return;
+  const box = slide.querySelector('.reels-next');
+  let n = 3;
+  box.querySelector('b').textContent = n;
+  box.classList.add('show');
+  slide._nextTimer = setInterval(() => {
+    if (--n <= 0) { cancelReelsNext(slide); nextEl.scrollIntoView({ behavior: 'smooth' }); return; }
+    box.querySelector('b').textContent = n;
+  }, 1000);
+}
 function openReels(date, pid, clipIdx = 0) {
   closeHRVideo(); closeReels();
   const list = recapClipPlaylist(date);
   if (!list.length) return;
   let start = list.findIndex(x => x.pid === pid && x.clipIdx === clipIdx);
   if (start === -1) start = Math.max(0, list.findIndex(x => x.pid === pid));
-  const slides = list.map((x, i) => `
+  const slides = list.map((x, i) => {
+    const name = `${compactPlayerName(playerNames[x.pid] || x.pid)} · ${playerTeams[x.pid] || ''}`;
+    const nextOverlay = `<div class="reels-next">Next dong in <b>3</b></div>`;
+    if (x.placeholder) {
+      const upto = seasonHRNumberThrough(x.pid, date);
+      const which = x.hrs > 1
+        ? `${x.hrs} homers that day — his ${ordinal(upto - x.hrs + 1)}–${ordinal(upto)} of the season`
+        : `His ${ordinal(upto)} of the season`;
+      return `<div class="reels-slide reels-noclip" data-i="${i}">
+        <div class="reels-ph">
+          <img class="reels-ph-photo" src="${playerPhotoUrl(x.pid)}" alt="">
+          <div class="reels-ph-name">${name}</div>
+          <div class="reels-ph-sub">${which}</div>
+          <div class="reels-ph-tag">🎬 No video from MLB (yet)</div>
+        </div>
+        ${nextOverlay}
+        <div class="reels-count">${i + 1}/${list.length}</div>
+      </div>`;
+    }
+    return `
     <div class="reels-slide" data-i="${i}">
       <video class="reels-video" data-src="${x.clip.mp4}" poster="${x.clip.poster}" playsinline preload="none" onclick="reelsTap(this)"></video>
+      <div class="reels-indicator">▶</div>
+      ${nextOverlay}
       <div class="reels-overlay">
-        <div class="reels-name"><img class="reels-photo" src="${playerPhotoUrl(x.pid)}" alt="">${compactPlayerName(playerNames[x.pid] || x.pid)} · ${playerTeams[x.pid] || ''}${x.hrs > 1 ? ` <span class="reels-multi">${x.clipIdx + 1} of ${x.hrs} that day</span>` : ''}</div>
+        <div class="reels-name"><img class="reels-photo" src="${playerPhotoUrl(x.pid)}" alt="">${name}${x.hrs > 1 ? ` <span class="reels-multi">${x.clipIdx + 1} of ${x.hrs} that day</span>` : ''}</div>
         <div class="reels-headline">${x.clip.title}</div>
       </div>
       <div class="reels-count">${i + 1}/${list.length}</div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   document.body.insertAdjacentHTML('beforeend', `
     <div class="reels" id="hr-reels" data-muted="0">
       <button class="reels-btn reels-close" onclick="closeReels()" aria-label="Close">✕</button>
@@ -2478,22 +2552,45 @@ function openReels(date, pid, clipIdx = 0) {
     const v = slideEls[i]?.querySelector('video');
     if (v && !v.src) v.src = v.dataset.src;
   };
+  // Center play/pause flash, YouTube-mobile style: pausing shows a persistent
+  // ▶; (re)starting flashes ❚❚ for a beat then fades.
+  slideEls.forEach((s, i) => {
+    const v = s.querySelector('video');
+    if (!v) return; // placeholder slide
+    const ind = s.querySelector('.reels-indicator');
+    let hideT = null;
+    v.addEventListener('play', () => {
+      cancelReelsNext(s);
+      ind.textContent = '❚❚';
+      ind.classList.add('show');
+      clearTimeout(hideT); hideT = setTimeout(() => ind.classList.remove('show'), 900);
+    });
+    v.addEventListener('pause', () => {
+      if (v.ended) return; // ended → countdown UI, not the play glyph
+      clearTimeout(hideT);
+      ind.textContent = '▶';
+      ind.classList.add('show');
+    });
+    v.addEventListener('ended', () => startReelsNext(s, slideEls[i + 1]));
+  });
   reelsObserver = new IntersectionObserver(entries => {
     for (const e of entries) {
       const i = +e.target.dataset.i;
       const v = e.target.querySelector('video');
       if (e.intersectionRatio >= 0.6) {
-        hydrate(i); hydrate(i + 1); hydrate(i - 1); // neighbors preload for instant swipes
+        hydrate(i + 1); hydrate(i - 1); // neighbors preload for instant swipes
+        if (!v) { startReelsNext(e.target, slideEls[i + 1]); continue; } // placeholder: pause 3s, roll on
+        hydrate(i);
         v.muted = document.getElementById('hr-reels').dataset.muted === '1';
         v.play().catch(() => { // autoplay-with-sound blocked → fall back to muted
           document.getElementById('hr-reels').dataset.muted = '1';
           document.getElementById('reels-mute').textContent = '🔇';
-          slideEls.forEach(s => s.querySelector('video').muted = true);
+          slideEls.forEach(s => { const sv = s.querySelector('video'); if (sv) sv.muted = true; });
           v.play().catch(() => {});
         });
-        v.onended = () => slideEls[i + 1]?.scrollIntoView({ behavior: 'smooth' }); // auto-advance like Shorts
       } else {
-        v.pause();
+        cancelReelsNext(e.target);
+        if (v) { v.pause(); e.target.querySelector('.reels-indicator').classList.remove('show'); }
       }
     }
   }, { root: track, threshold: [0.6] });
