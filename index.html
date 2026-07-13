@@ -187,16 +187,23 @@
   .recap-nav-btn:hover:not(:disabled) { background: var(--surface2); }
   .recap-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
   .recap-date-input { background: var(--surface1); border: 1px solid var(--border2); color: var(--text); font-family: var(--font-m); font-size: 0.7rem; padding: 0.4rem 0.5rem; border-radius: 6px; cursor: pointer; color-scheme: dark; }
-  .recap-latest-btn { background: var(--accent); border: none; color: #fff; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.45rem 0.7rem; border-radius: 6px; cursor: pointer; }
-  .recap-latest-btn:hover { background: #2eb05f; }
-  .recap-earliest-btn { background: var(--surface1); border: 1px solid var(--border2); color: var(--dim); margin-right: auto; }
-  .recap-earliest-btn:hover { background: var(--surface2); color: var(--text); }
-  .recap-latest-btn#recap-latest-btn { margin-left: auto; }
+  /* Jump buttons hold locked positions (Opening Day left, Latest right) and
+     never hide — green when they'd take you somewhere, muted when you're
+     already there. */
+  .recap-nav { justify-content: space-between; }
+  .recap-nav-center { display: flex; align-items: center; gap: 0.5rem; }
+  .recap-jump-btn { border: 1px solid transparent; background: var(--accent); color: #fff; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.45rem 0.7rem; border-radius: 6px; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
+  .recap-jump-btn:hover:not(:disabled) { background: #2eb05f; }
+  .recap-jump-btn:disabled { background: var(--surface1); border-color: var(--border2); color: var(--muted); cursor: default; }
+  @media (max-width: 560px) {
+    .recap-jump-btn { font-size: 0.55rem; padding: 0.4rem 0.45rem; letter-spacing: 0.02em; }
+    .recap-date-input { font-size: 0.62rem; padding: 0.4rem 0.3rem; }
+    .recap-nav-center { gap: 0.3rem; }
+  }
   .recap-meta-row { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
   .recap-meta-row .result-meta { margin-bottom: 0; }
   .recap-watchall-btn { background: var(--surface1); border: 1px solid var(--accent); color: var(--accent); font-size: 0.58rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.3rem 0.6rem; border-radius: 6px; cursor: pointer; white-space: nowrap; }
   .recap-watchall-btn:hover { background: rgba(46,176,95,0.12); }
-  @media (max-width: 560px) { .recap-nav { flex-wrap: wrap; } }
 
   #cards { display: flex; flex-direction: column; gap: 0.5rem; }
   .card { border-radius: 8px; padding: 0.75rem 0.85rem; border: 1px solid var(--border); background: var(--surface0); animation: fadeIn 0.15s ease; }
@@ -1033,11 +1040,13 @@
   <!-- RECAP -->
   <div id="panel-recap" class="panel">
     <div class="recap-nav">
-      <button class="recap-latest-btn recap-earliest-btn" id="recap-earliest-btn" onclick="resetRecapToEarliest()" style="display:none" title="Jump to the first game day of the season">Opening Day</button>
-      <button class="recap-nav-btn" id="recap-prev-btn" onclick="shiftRecapDate(-1)" aria-label="Previous game day">‹</button>
-      <input type="date" id="recap-date-input" class="recap-date-input" onchange="selectRecapDate(this.value)">
-      <button class="recap-nav-btn" id="recap-next-btn" onclick="shiftRecapDate(1)" aria-label="Next game day">›</button>
-      <button class="recap-latest-btn" id="recap-latest-btn" onclick="resetRecapToLatest()" style="display:none">Latest</button>
+      <button class="recap-jump-btn" id="recap-earliest-btn" onclick="resetRecapToEarliest()" title="Jump to the first game day of the season">Opening Day</button>
+      <div class="recap-nav-center">
+        <button class="recap-nav-btn" id="recap-prev-btn" onclick="shiftRecapDate(-1)" aria-label="Previous game day">‹</button>
+        <input type="date" id="recap-date-input" class="recap-date-input" onchange="selectRecapDate(this.value)">
+        <button class="recap-nav-btn" id="recap-next-btn" onclick="shiftRecapDate(1)" aria-label="Next game day">›</button>
+      </div>
+      <button class="recap-jump-btn" id="recap-latest-btn" onclick="resetRecapToLatest()" title="Jump to the most recent completed day">Latest</button>
     </div>
     <div class="recap-meta-row">
       <div class="result-meta" id="recap-meta"></div>
@@ -2301,9 +2310,11 @@ function noGamesToday() { return Object.keys(dailyHRs).length > 0 && todaySchedu
 // recaps right away, and across an off day or the All-Star break the last real
 // slate keeps showing (todayDate advances to the empty calendar day, so the
 // last game day is < todayDate and stays selected) until games resume.
+// Sourced from dailyGames, not dailyHRs — a game day with zero homers (the
+// March 25 single-game opener) is still a recappable day.
 function completedGameDates() {
   const inc = todaySlateComplete();
-  return Object.keys(dailyHRs).sort().filter(d => !todayDate || d < todayDate || (inc && d === todayDate));
+  return Object.keys(dailyGames).sort().filter(d => !todayDate || d < todayDate || (inc && d === todayDate));
 }
 function recapAvailableDates() { return completedGameDates(); }
 // Off-day / All-Star-break notice. Shown whenever the slate is empty but data
@@ -2353,8 +2364,8 @@ function renderRecapNav(date, dates, latest) {
   document.getElementById('recap-date-input').max = latest;
   document.getElementById('recap-prev-btn').disabled = date <= earliest;
   document.getElementById('recap-next-btn').disabled = date >= latest;
-  document.getElementById('recap-latest-btn').style.display = date === latest ? 'none' : '';
-  document.getElementById('recap-earliest-btn').style.display = date === earliest ? 'none' : '';
+  document.getElementById('recap-latest-btn').disabled = date >= latest;
+  document.getElementById('recap-earliest-btn').disabled = date <= earliest;
   // Watch All appears once this date's clips have loaded (they load lazily and
   // the recap re-renders on arrival).
   document.getElementById('recap-watchall-btn').style.display =

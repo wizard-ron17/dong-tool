@@ -4,7 +4,7 @@
 // have to do this work themselves.
 
 const MLB          = 'https://statsapi.mlb.com/api/v1';
-const SEASON_START = '2026-03-26';
+const SEASON_START = '2026-03-25'; // true opening day — a single NYY@SF game (season opened a day before the full slate)
 
 const dailyHRs        = {};  // date -> { pid -> hrCount }
 const dailyGames      = {};  // date -> gameCount
