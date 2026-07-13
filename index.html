@@ -189,6 +189,11 @@
   .recap-date-input { background: var(--surface1); border: 1px solid var(--border2); color: var(--text); font-family: var(--font-m); font-size: 0.7rem; padding: 0.4rem 0.5rem; border-radius: 6px; cursor: pointer; color-scheme: dark; }
   .recap-latest-btn { background: var(--accent); border: none; color: #fff; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.45rem 0.7rem; border-radius: 6px; cursor: pointer; }
   .recap-latest-btn:hover { background: #2eb05f; }
+  .recap-earliest-btn { background: var(--surface1); border: 1px solid var(--border2); color: var(--dim); }
+  .recap-earliest-btn:hover { background: var(--surface2); color: var(--text); }
+  .recap-watchall-btn { margin-left: auto; background: var(--surface1); border: 1px solid var(--accent); color: var(--accent); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.45rem 0.7rem; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+  .recap-watchall-btn:hover { background: rgba(46,176,95,0.12); }
+  @media (max-width: 560px) { .recap-nav { flex-wrap: wrap; } .recap-watchall-btn { margin-left: 0; } }
 
   #cards { display: flex; flex-direction: column; gap: 0.5rem; }
   .card { border-radius: 8px; padding: 0.75rem 0.85rem; border: 1px solid var(--border); background: var(--surface0); animation: fadeIn 0.15s ease; }
@@ -1028,6 +1033,8 @@
       <button class="recap-nav-btn" id="recap-prev-btn" onclick="shiftRecapDate(-1)" aria-label="Previous game day">‹</button>
       <input type="date" id="recap-date-input" class="recap-date-input" onchange="selectRecapDate(this.value)">
       <button class="recap-nav-btn" id="recap-next-btn" onclick="shiftRecapDate(1)" aria-label="Next game day">›</button>
+      <button class="recap-watchall-btn" id="recap-watchall-btn" onclick="watchAllRecap()" style="display:none" title="Play every homer of this day, top of the board first">▶ Watch All</button>
+      <button class="recap-latest-btn recap-earliest-btn" id="recap-earliest-btn" onclick="resetRecapToEarliest()" style="display:none" title="Jump to the first game day of the season">Opening Day</button>
       <button class="recap-latest-btn" id="recap-latest-btn" onclick="resetRecapToLatest()" style="display:none">Latest</button>
     </div>
     <div class="result-meta" id="recap-meta"></div>
@@ -1552,6 +1559,7 @@ function currentPath() {
   else if (activeNav === 'prospects' && activeProspectTab === 'debutBombs')  p += '/debut-bombs';
   else if (activeNav === 'daylate'   && dayLateSubTab === 'results')         p += '/results';
   else if (activeNav === 'returning' && returningSubTab === 'results')       p += '/results';
+  else if (activeNav === 'recap'     && recapDate)                           p += '/' + recapDate;
   return p;
 }
 function commitRoute() {
@@ -1589,6 +1597,8 @@ function applyRouteState() {
     dayLateSubTab = sub === 'results' ? 'results' : 'today';
   } else if (validNav === 'returning') {
     returningSubTab = sub === 'results' ? 'results' : 'today';
+  } else if (validNav === 'recap') {
+    recapDate = /^\d{4}-\d{2}-\d{2}$/.test(sub) ? sub : null; // /recap/2026-07-10 deep-links a day
   }
 
   switchNav(validNav);
@@ -2311,15 +2321,26 @@ function shiftRecapDate(delta) {
   idx = Math.max(0, Math.min(dates.length - 1, idx + delta));
   recapDate = dates[idx];
   renderRecap();
+  commitRoute();
 }
 function selectRecapDate(dateStr) {
   if (!dateStr) return;
   recapDate = dateStr;
   renderRecap();
+  commitRoute();
 }
-function resetRecapToLatest() { recapDate = null; renderRecap(); }
+function resetRecapToLatest() { recapDate = null; renderRecap(); commitRoute(); }
+function resetRecapToEarliest() { recapDate = recapAvailableDates()[0] ?? null; renderRecap(); commitRoute(); }
 // Home's recap card lands on the exact completed day it was showing.
 function openRecapFor(date) { recapDate = date; switchNav('recap'); }
+// Watch All: the whole slate as a feed, starting from the top of the recap
+// board (same ordering as the grid — multi-HR games first, then season power).
+function watchAllRecap() {
+  const date = recapDate || recapLatestDate();
+  const list = recapClipPlaylist(date);
+  if (!list.length) return;
+  openReels(date, list[0].pid, list[0].clipIdx ?? 0);
+}
 function renderRecapNav(date, dates, latest) {
   const earliest = dates[0];
   document.getElementById('recap-date-input').value = date;
@@ -2328,6 +2349,11 @@ function renderRecapNav(date, dates, latest) {
   document.getElementById('recap-prev-btn').disabled = date <= earliest;
   document.getElementById('recap-next-btn').disabled = date >= latest;
   document.getElementById('recap-latest-btn').style.display = date === latest ? 'none' : '';
+  document.getElementById('recap-earliest-btn').style.display = date === earliest ? 'none' : '';
+  // Watch All appears once this date's clips have loaded (they load lazily and
+  // the recap re-renders on arrival).
+  document.getElementById('recap-watchall-btn').style.display =
+    typeof recapClipsCache[date] === 'object' ? '' : 'none';
 }
 
 // ── Recap HR videos ────────────────────────────────────────────────────
@@ -2382,7 +2408,7 @@ async function loadRecapClips(date) {
       if (clips.length < 2) continue;
       const hasNumbered = clips.some(c => HR_NUM.test(c.title));
       const seen = new Set();
-      byPid[pid] = clips.filter(c => {
+      const kept = clips.filter(c => {
         const m = c.title.match(HR_NUM);
         if (!m) return !hasNumbered;
         if (seen.has(m[1])) return false;
@@ -2391,6 +2417,13 @@ async function loadRecapClips(date) {
       // Never more clips than homers — a 2-HR day with three unnumbered
       // montage cuts would otherwise read "3 of 2 that day" in the feed.
       }).slice(0, dailyHRs[date]?.[pid] ?? Infinity);
+      // MLB's feed runs newest-first, which put O'Hearn's THIRD homer ahead of
+      // his grand slam. Post-dedupe a list is all-numbered or all-unnumbered:
+      // numbered sorts by season HR number (1st, 2nd, 3rd of the night),
+      // unnumbered just reverses back to chronological.
+      byPid[pid] = hasNumbered
+        ? kept.sort((a, b) => +(a.title.match(HR_NUM)?.[1] ?? 0) - +(b.title.match(HR_NUM)?.[1] ?? 0))
+        : kept.reverse();
     }
   } catch (e) {
     delete recapClipsCache[date]; // transient fetch failure — retry next visit
