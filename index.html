@@ -763,9 +763,6 @@
   .ph-day-fraction { color: var(--text); font-weight: 700; flex-shrink: 0; width: 2.4rem; }
   .ph-day-pct { font-family: var(--font-d); font-size: 0.9rem; font-weight: 700; flex-shrink: 0; width: 2.6rem; }
   .ph-day-hrg { font-family: var(--font-d); font-size: 0.9rem; font-weight: 700; flex-shrink: 0; width: 4.6rem; color: var(--muted); }
-  .ph-day-hrg.heat-hot  { color: var(--good); }
-  .ph-day-hrg.heat-warm { color: var(--good-2); }
-  .ph-day-hrg.heat-cool { color: #4fb6d6; }
   .ph-day-hrg-unit { font-family: var(--font-m); font-size: 0.5rem; color: var(--muted); font-weight: 400; }
   .ph-day-hits { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 0.25rem; }
   .ph-hit-name { font-size: 0.6rem; font-weight: 500; background: rgba(51,208,124,0.1); color: var(--good); border: 1px solid rgba(51,208,124,0.25); border-radius: 4px; padding: 0.06rem 0.35rem; display: inline-flex; align-items: center; gap: 0.22rem; }
@@ -840,8 +837,7 @@
   :root[data-theme="light"] .due-contact-tag.avg   { background: rgba(120,135,150,0.16); color: #566677; }
   /* Cool-blue accents (quiet-day heat, LHP bullpen) darkened for contrast. */
   :root[data-theme="light"] .recap-tile.heat-cool .recap-tile-num,
-  :root[data-theme="light"] .recap-tile.heat-cool .recap-tile-heat-tag,
-  :root[data-theme="light"] .ph-day-hrg.heat-cool { color: #1f8fbf; }
+  :root[data-theme="light"] .recap-tile.heat-cool .recap-tile-heat-tag { color: #1f8fbf; }
   :root[data-theme="light"] .sched-bullpen-hand.l { color: #1580c4; }
 </style>
 <script>
@@ -3445,9 +3441,8 @@ function renderPicksResults() {
     const dayTotHR = Object.values(dayHRs).reduce((a,b)=>a+b, 0);
     const dayGames = dailyGames[entry.date] || 0;
     const dayHRG   = dayGames ? dayTotHR / dayGames : 0;
-    const heat     = (leagueAvgHRPerGame && dayGames) ? recapDayHeat(dayHRG / leagueAvgHRPerGame) : { cls: '' };
     const hrgBadge = dayGames
-      ? `<span class="ph-day-hrg ${heat.cls}" title="${dayTotHR} HR across ${dayGames} games">${dayHRG.toFixed(2)}<span class="ph-day-hrg-unit"> HR/G</span></span>`
+      ? `<span class="ph-day-hrg hrg-val ${hrgClass(dayHRG, leagueAvgHRPerGame)}" title="${dayTotHR} HR across ${dayGames} games">${dayHRG.toFixed(2)}<span class="ph-day-hrg-unit"> HR/G</span></span>`
       : `<span class="ph-day-hrg" style="color:var(--dim)">—</span>`;
 
     return `<div class="ph-day-row">
@@ -3868,9 +3863,8 @@ function renderDayLateResults() {
     const dayTotHR = Object.values(dayHRs).reduce((a, b) => a + b, 0);
     const dayGames = dailyGames[g.betDate] || 0;
     const dayHRG   = dayGames ? dayTotHR / dayGames : 0;
-    const heat     = (leagueAvgHRPerGame && dayGames) ? recapDayHeat(dayHRG / leagueAvgHRPerGame) : { cls: '' };
     const hrgBadge = dayGames
-      ? `<span class="ph-day-hrg ${heat.cls}" title="${dayTotHR} HR across ${dayGames} games">${dayHRG.toFixed(2)}<span class="ph-day-hrg-unit"> HR/G</span></span>`
+      ? `<span class="ph-day-hrg hrg-val ${hrgClass(dayHRG, leagueAvgHRPerGame)}" title="${dayTotHR} HR across ${dayGames} games">${dayHRG.toFixed(2)}<span class="ph-day-hrg-unit"> HR/G</span></span>`
       : `<span class="ph-day-hrg" style="color:var(--dim)">—</span>`;
     return `<div class="ph-day-row" title="Bet on ${g.betDate} from the prior slate's misses">
       <span class="ph-day-date">${g.betDate}</span>
