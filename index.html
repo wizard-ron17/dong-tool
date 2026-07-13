@@ -189,11 +189,14 @@
   .recap-date-input { background: var(--surface1); border: 1px solid var(--border2); color: var(--text); font-family: var(--font-m); font-size: 0.7rem; padding: 0.4rem 0.5rem; border-radius: 6px; cursor: pointer; color-scheme: dark; }
   .recap-latest-btn { background: var(--accent); border: none; color: #fff; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.45rem 0.7rem; border-radius: 6px; cursor: pointer; }
   .recap-latest-btn:hover { background: #2eb05f; }
-  .recap-earliest-btn { background: var(--surface1); border: 1px solid var(--border2); color: var(--dim); }
+  .recap-earliest-btn { background: var(--surface1); border: 1px solid var(--border2); color: var(--dim); margin-right: auto; }
   .recap-earliest-btn:hover { background: var(--surface2); color: var(--text); }
-  .recap-watchall-btn { margin-left: auto; background: var(--surface1); border: 1px solid var(--accent); color: var(--accent); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.45rem 0.7rem; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+  .recap-latest-btn#recap-latest-btn { margin-left: auto; }
+  .recap-meta-row { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+  .recap-meta-row .result-meta { margin-bottom: 0; }
+  .recap-watchall-btn { background: var(--surface1); border: 1px solid var(--accent); color: var(--accent); font-size: 0.58rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.3rem 0.6rem; border-radius: 6px; cursor: pointer; white-space: nowrap; }
   .recap-watchall-btn:hover { background: rgba(46,176,95,0.12); }
-  @media (max-width: 560px) { .recap-nav { flex-wrap: wrap; } .recap-watchall-btn { margin-left: 0; } }
+  @media (max-width: 560px) { .recap-nav { flex-wrap: wrap; } }
 
   #cards { display: flex; flex-direction: column; gap: 0.5rem; }
   .card { border-radius: 8px; padding: 0.75rem 0.85rem; border: 1px solid var(--border); background: var(--surface0); animation: fadeIn 0.15s ease; }
@@ -1030,14 +1033,16 @@
   <!-- RECAP -->
   <div id="panel-recap" class="panel">
     <div class="recap-nav">
+      <button class="recap-latest-btn recap-earliest-btn" id="recap-earliest-btn" onclick="resetRecapToEarliest()" style="display:none" title="Jump to the first game day of the season">Opening Day</button>
       <button class="recap-nav-btn" id="recap-prev-btn" onclick="shiftRecapDate(-1)" aria-label="Previous game day">‹</button>
       <input type="date" id="recap-date-input" class="recap-date-input" onchange="selectRecapDate(this.value)">
       <button class="recap-nav-btn" id="recap-next-btn" onclick="shiftRecapDate(1)" aria-label="Next game day">›</button>
-      <button class="recap-watchall-btn" id="recap-watchall-btn" onclick="watchAllRecap()" style="display:none" title="Play every homer of this day, top of the board first">▶ Watch All</button>
-      <button class="recap-latest-btn recap-earliest-btn" id="recap-earliest-btn" onclick="resetRecapToEarliest()" style="display:none" title="Jump to the first game day of the season">Opening Day</button>
       <button class="recap-latest-btn" id="recap-latest-btn" onclick="resetRecapToLatest()" style="display:none">Latest</button>
     </div>
-    <div class="result-meta" id="recap-meta"></div>
+    <div class="recap-meta-row">
+      <div class="result-meta" id="recap-meta"></div>
+      <button class="recap-watchall-btn" id="recap-watchall-btn" onclick="watchAllRecap()" style="display:none" title="Play every homer of this day, top of the board first">▶ Watch All</button>
+    </div>
     <div id="recap-content"><div class="empty">Loading data…</div></div>
   </div>
 
