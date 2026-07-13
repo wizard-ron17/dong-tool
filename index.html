@@ -562,6 +562,13 @@
   .recap-card.multi-3 .recap-stat-num,
   .recap-card.multi-4 .recap-stat-num { color: var(--good); text-shadow: 0 0 12px rgba(51,208,124,0.4); }
   .recap-photo { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: var(--surface2); flex-shrink: 0; }
+  .recap-photo-wrap { position: relative; flex-shrink: 0; display: flex; }
+  .recap-play { position: absolute; right: -6px; bottom: -4px; width: 19px; height: 19px; border-radius: 50%; border: 1px solid var(--bg); background: var(--accent); color: #fff; font-size: 0.5rem; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0 0 0 1.5px; box-shadow: 0 1px 4px rgba(0,0,0,0.45); transition: transform 0.12s; }
+  .recap-play:hover { transform: scale(1.15); }
+  .hrv-modal { background: var(--surface0); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem; max-width: 860px; width: 100%; position: relative; }
+  .hrv-title { font-size: 0.78rem; font-weight: 600; color: var(--text); margin: 0 2rem 0.6rem 0.1rem; line-height: 1.4; }
+  .hrv-video { width: 100%; border-radius: 8px; display: block; background: #000; aspect-ratio: 16/9; }
+  .hrv-chips { display: flex; gap: 0.4rem; margin-top: 0.6rem; flex-wrap: wrap; }
   .recap-info { flex: 1; min-width: 0; overflow: hidden; }
   .recap-name { font-size: 0.74rem; color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .recap-sub  { font-size: 0.57rem; color: var(--muted); margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2298,6 +2305,74 @@ function renderRecapNav(date, dates, latest) {
   document.getElementById('recap-latest-btn').style.display = date === latest ? 'none' : '';
 }
 
+// ── Recap HR videos ────────────────────────────────────────────────────
+// MLB's content feed carries every game's highlight clips as direct mp4s on
+// their CDN, tagged with player ids — one hydrated schedule call per date
+// covers the whole slate. Fetched lazily the first time a date is recapped
+// (keeps data.json untouched), cached for the session; the recap re-renders
+// when clips land so the ▶ badges appear.
+const recapClipsCache = {}; // date -> { pid: [{title, mp4, poster, duration}] } | 'loading' | 'none'
+const HR_CLIP_RE = /homer|home run|grand slam|walk-?off blast|goes deep/i;
+async function loadRecapClips(date) {
+  if (recapClipsCache[date]) return;
+  recapClipsCache[date] = 'loading';
+  let byPid = {};
+  try {
+    const res = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${date}&hydrate=game(content(highlights(highlights)))`);
+    const data = await res.json();
+    const hrPids = new Set(Object.keys(dailyHRs[date] ?? {}));
+    for (const day of (data.dates ?? [])) for (const g of (day.games ?? [])) {
+      for (const h of (g.content?.highlights?.highlights?.items ?? [])) {
+        if (!HR_CLIP_RE.test(`${h.headline ?? ''} ${h.description ?? ''}`)) continue;
+        const mp4 = (h.playbacks ?? []).map(p => p.url).find(u => /\.mp4$/.test(u ?? ''));
+        if (!mp4) continue;
+        const poster = (h.image?.cuts ?? []).find(c => c.width >= 640 && c.width <= 1000)?.src ?? h.image?.cuts?.[0]?.src ?? '';
+        const clip = { title: h.headline ?? 'Home run', mp4, poster, duration: (h.duration ?? '').replace(/^00:/, '') };
+        // A clip tags everyone involved (pitcher too, sometimes both bats on
+        // back-to-backs) — attach it only to players who actually homered
+        // that day, once each.
+        const pids = new Set((h.keywordsAll ?? []).filter(k => k.type === 'player_id').map(k => String(k.value)));
+        for (const pid of pids) if (hrPids.has(pid)) (byPid[pid] ??= []).push(clip);
+      }
+    }
+  } catch (e) {
+    delete recapClipsCache[date]; // transient fetch failure — retry next visit
+    return;
+  }
+  recapClipsCache[date] = Object.keys(byPid).length ? byPid : 'none';
+  // Still looking at this date? Re-render so the ▶ badges show up.
+  if (activeNav === 'recap' && (recapDate || recapLatestDate()) === date) renderRecap();
+}
+function recapClipsFor(date, pid) {
+  const c = recapClipsCache[date];
+  return (c && typeof c === 'object') ? (c[pid] ?? null) : null;
+}
+function hrVideoEscHandler(e) { if (e.key === 'Escape') closeHRVideo(); }
+function closeHRVideo() {
+  const el = document.getElementById('hr-video-backdrop');
+  if (el) { el.querySelector('video')?.pause(); el.remove(); }
+  document.removeEventListener('keydown', hrVideoEscHandler);
+}
+function openHRVideo(date, pid, idx = 0) {
+  const clips = recapClipsFor(date, pid);
+  if (!clips?.length) return;
+  closeHRVideo();
+  const c = clips[Math.min(idx, clips.length - 1)];
+  const chips = clips.length > 1
+    ? `<div class="hrv-chips">${clips.map((x, i) => `<button class="due-filter-chip${i === idx ? ' active' : ''}" onclick="openHRVideo('${date}','${pid}',${i})" title="${(x.title || '').replace(/"/g, '&quot;')}">Clip ${i + 1}${x.duration ? ` · ${x.duration}` : ''}</button>`).join('')}</div>`
+    : '';
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="due-modal-backdrop" id="hr-video-backdrop" onclick="if(event.target===this) closeHRVideo()">
+      <div class="hrv-modal">
+        <button class="due-modal-close" onclick="closeHRVideo()" aria-label="Close">&times;</button>
+        <div class="hrv-title">${c.title}</div>
+        <video class="hrv-video" src="${c.mp4}" poster="${c.poster}" controls autoplay playsinline></video>
+        ${chips}
+      </div>
+    </div>`);
+  document.addEventListener('keydown', hrVideoEscHandler);
+}
+
 function renderRecap() {
   const dates = recapAvailableDates();
   if (!dates.length) return;
@@ -2311,6 +2386,7 @@ function renderRecap() {
     document.getElementById('recap-content').innerHTML = `<div class="empty">${dailyGames[date] ? 'Games played, but no home runs that day' : 'No games played that day'}</div>`;
     return;
   }
+  loadRecapClips(date); // lazy — ▶ badges pop in via re-render when clips arrive
   const count = Object.keys(dayData).length, totalHRs = Object.values(dayData).reduce((a,b)=>a+b,0);
   const games = dailyGames[date] || 0;
   const tag = date === todayDate ? 'Today (Final)' : date === yesterday() ? 'Yesterday' : (date === latest ? 'Latest Available' : null);
@@ -2363,8 +2439,10 @@ function renderRecap() {
     const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${pid}/headshot/67/current`;
     const team     = playerTeams[pid]||'', seasonHR=hrTotals[pid]||hrs;
     const multiCls = hrs >= 4 ? 'multi-4' : hrs === 3 ? 'multi-3' : hrs === 2 ? 'multi-2' : '';
+    const clips    = recapClipsFor(date, pid);
+    const playBtn  = clips?.length ? `<button class="recap-play" onclick="openHRVideo('${date}','${pid}')" title="Watch ${clips.length > 1 ? `${clips.length} clips` : 'the homer'}">▶</button>` : '';
     return `<div class="recap-card ${multiCls}">
-      <img class="recap-photo" src="${photoUrl}" alt="">
+      <span class="recap-photo-wrap"><img class="recap-photo" src="${photoUrl}" alt="">${playBtn}</span>
       <div class="recap-info"><div class="recap-name">${name}</div><div class="recap-sub">${team?teamLogoImg(team,'team-logo')+team+' · ':''}${seasonHR} season${injuryBadge(pid, true)}${lineupBadge(pid, true)}</div></div>
       <div class="recap-stat"><span class="recap-stat-num">${hrs}</span><span class="recap-stat-label">${hrs===1?'HR':'HRs'}</span></div>
     </div>`;
