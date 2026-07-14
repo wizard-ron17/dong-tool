@@ -619,6 +619,20 @@
   .reels-ph-name { color: #fff; font-weight: 700; font-size: 0.95rem; }
   .reels-ph-sub { color: rgba(255,255,255,0.75); font-size: 0.75rem; }
   .reels-ph-tag { color: rgba(255,255,255,0.55); font-size: 0.65rem; background: rgba(255,255,255,0.1); border-radius: 999px; padding: 0.25rem 0.7rem; margin-top: 0.3rem; }
+  /* Day title card inside the feed — reuses the recap stat tiles + chalk meter
+     on a dark, translucent treatment. */
+  .reels-intro { flex-direction: column; padding: 1.1rem; overflow-y: auto; }
+  .reels-intro-inner { width: 100%; max-width: 440px; margin: auto; }
+  .reels-intro-date { font-family: var(--font-d); font-weight: 800; font-size: 1.35rem; color: #fff; text-align: center; margin-bottom: 1.1rem; }
+  .reels-intro .recap-summary { margin-bottom: 0.6rem; }
+  .reels-intro .recap-tile { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.13); }
+  .reels-intro .recap-tile-label { color: rgba(255,255,255,0.6); }
+  .reels-intro .recap-meter-card { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.13); margin-bottom: 0; }
+  .reels-intro .recap-meter-title { color: rgba(255,255,255,0.85); }
+  .reels-intro .recap-meter-labels { color: rgba(255,255,255,0.5); }
+  .reels-intro .recap-meter-score { color: rgba(255,255,255,0.6); }
+  .reels-intro-hint { text-align: center; color: rgba(255,255,255,0.55); font-size: 0.72rem; margin-top: 0.9rem; }
+  .reels-day { display: contents; }
   .recap-info { flex: 1; min-width: 0; overflow: hidden; }
   .recap-name { font-size: 0.74rem; color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .recap-sub  { font-size: 0.57rem; color: var(--muted); margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2361,9 +2375,7 @@ function openRecapFor(date) { recapDate = date; switchNav('recap'); }
 // board (same ordering as the grid — multi-HR games first, then season power).
 function watchAllRecap() {
   const date = recapDate || recapLatestDate();
-  const list = recapClipPlaylist(date);
-  if (!list.length) return;
-  openReels(date, list[0].pid, list[0].clipIdx ?? 0);
+  openReels(date, null); // null pid → start on the day's stats title card
 }
 function renderRecapNav(date, dates, latest) {
   const earliest = dates[0];
@@ -2386,13 +2398,19 @@ function renderRecapNav(date, dates, latest) {
 // covers the whole slate. Fetched lazily the first time a date is recapped
 // (keeps data.json untouched), cached for the session; the recap re-renders
 // when clips land so the ▶ badges appear.
-const recapClipsCache = {}; // date -> { pid: [{title, mp4, poster, duration}] } | 'loading' | 'none'
+const recapClipsCache = {}; // date -> { pid: [{title, mp4, poster, duration}] } | 'none'
+const recapClipsFetch = {}; // date -> in-flight Promise (memoized so the reels feed can await a day)
 const HR_CLIP_RE = /homer|home run|grand slam|walk-?off blast|goes deep|back[- ]to[- ]back|goes yard/i;
 // Accent-insensitive lowercase for name-in-headline matching ("Domínguez" ≡ "dominguez").
 function normClipText(s) { return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+// Fetch + match a date's HR clips once; memoized promise resolving to the cache
+// value (a {pid:[clips]} object, or 'none'). Awaitable by the cross-day reels feed.
+function ensureRecapClips(date) {
+  if (typeof recapClipsCache[date] === 'object' || recapClipsCache[date] === 'none') return Promise.resolve(recapClipsCache[date]);
+  return (recapClipsFetch[date] ??= loadRecapClips(date));
+}
 async function loadRecapClips(date) {
-  if (recapClipsCache[date]) return;
-  recapClipsCache[date] = 'loading';
+  if (typeof recapClipsCache[date] === 'object' || recapClipsCache[date] === 'none') return recapClipsCache[date];
   let byPid = {};
   try {
     const res = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${date}&hydrate=game(content(highlights(highlights)))`);
@@ -2450,12 +2468,13 @@ async function loadRecapClips(date) {
         : kept.reverse();
     }
   } catch (e) {
-    delete recapClipsCache[date]; // transient fetch failure — retry next visit
-    return;
+    delete recapClipsFetch[date]; // transient fetch failure — allow a retry next visit
+    return undefined;
   }
   recapClipsCache[date] = Object.keys(byPid).length ? byPid : 'none';
   // Still looking at this date? Re-render so the ▶ badges show up.
   if (activeNav === 'recap' && (recapDate || recapLatestDate()) === date) renderRecap();
+  return recapClipsCache[date];
 }
 function recapClipsFor(date, pid) {
   const c = recapClipsCache[date];
@@ -2489,13 +2508,11 @@ function openHRVideo(date, pid, idx = 0) {
 }
 
 // ── Reels mode (mobile) ────────────────────────────────────────────────
-// TikTok/Shorts-style vertical feed: open any homer and swipe up through
-// every homer of that slate. One full-screen snap slide per clip; the visible
-// slide plays, everything else pauses, and a finished clip auto-advances.
-// Videos hydrate lazily (current slide ± 1) so opening the feed never pulls
-// 30 mp4s at once. Ordered like the recap grid: multi-HR games first, then
-// by season power.
-let reelsObserver = null;
+// TikTok/Shorts-style vertical feed: open any homer and swipe up through every
+// homer of the slate — and past the last one into the previous (older) day,
+// which appends on the fly, each day fronted by a stats title card. The visible
+// clip plays, others pause, finished clips auto-advance. Videos hydrate lazily
+// (current slide ± 1) so the feed never pulls dozens of mp4s at once.
 // A player's season HR count as of a given date — lets a videoless placeholder
 // still say which homer it was ("his 20th of the season").
 function seasonHRNumberThrough(pid, date) {
@@ -2504,44 +2521,58 @@ function seasonHRNumberThrough(pid, date) {
   return n;
 }
 function recapClipPlaylist(date) {
+  // One entry per homer that day, in recap-board order (multi-HR games first,
+  // then season power) — each a real clip or a "no video" placeholder.
   const clipsByPid = recapClipsCache[date];
-  if (!clipsByPid || typeof clipsByPid !== 'object') return [];
   const dayData = dailyHRs[date] ?? {};
   const order = Object.entries(dayData).sort((a,b)=>
     b[1]-a[1] || (hrTotals[b[0]]||0)-(hrTotals[a[0]]||0) || (playerNames[a[0]]||'').localeCompare(playerNames[b[0]]||''));
   const list = [];
   for (const [pid, hrs] of order) {
-    const clips = clipsByPid[pid] ?? [];
+    const clips = (clipsByPid && typeof clipsByPid === 'object') ? (clipsByPid[pid] ?? []) : [];
     if (clips.length) clips.forEach((clip, clipIdx) => list.push({ pid, hrs, clip, clipIdx }));
-    else list.push({ pid, hrs, placeholder: true }); // every dong gets a slide — clip or not
+    else list.push({ pid, hrs, clipIdx: 0, placeholder: true });
   }
   return list;
 }
+
+// ── Cross-day reels feed ───────────────────────────────────────────────
+// A continuous vertical feed: each day is a block of [stats title card] +
+// [one slide per homer]. Days load lazily as you approach an edge — scroll
+// past the last dong and the PREVIOUS (older) day appends below; scroll up
+// past a day's title card and the NEXT (newer) day prepends above. reels.days
+// is the full recap date list, newest-first, so down = back in time.
+let reels = null;
+function reelsMuted() { return reels?.el?.dataset.muted === '1'; }
+function reelsAllSlides() { return reels ? [...reels.track.querySelectorAll('.reels-slide')] : []; }
+function reelsAdjacent(slide, dir) { const all = reelsAllSlides(); const i = all.indexOf(slide); return all[i + dir] || null; }
+function reelsHydrate(slide) { const v = slide?.querySelector('video'); if (v && !v.src && v.dataset.src) v.src = v.dataset.src; }
+
 function closeReels() {
-  const el = document.getElementById('hr-reels');
-  if (!el) return;
-  reelsObserver?.disconnect(); reelsObserver = null;
-  el.querySelectorAll('video').forEach(v => { v.pause(); v.removeAttribute('src'); v.load(); });
-  el.remove();
+  if (!reels) return;
+  reels.observer?.disconnect();
+  reelsAllSlides().forEach(s => clearInterval(s._nextTimer));
+  reels.track.querySelectorAll('video').forEach(v => { v.pause(); v.removeAttribute('src'); v.load(); });
+  reels.el.remove();
+  reels = null;
   document.body.style.overflow = '';
   document.removeEventListener('keydown', reelsEscHandler);
 }
 function reelsEscHandler(e) { if (e.key === 'Escape') closeReels(); }
 function reelsToggleMute() {
-  const el = document.getElementById('hr-reels');
-  if (!el) return;
-  const muted = el.dataset.muted !== '1';
-  el.dataset.muted = muted ? '1' : '0';
-  el.querySelectorAll('video').forEach(v => v.muted = muted);
+  if (!reels) return;
+  const muted = !reelsMuted();
+  reels.el.dataset.muted = muted ? '1' : '0';
+  reels.track.querySelectorAll('video').forEach(v => v.muted = muted);
   document.getElementById('reels-mute').textContent = muted ? '🔇' : '🔊';
 }
 function reelsTap(v) {
   if (v.ended) v.currentTime = 0; // replay a finished clip from the top
   v.paused ? v.play() : v.pause();
 }
-// "Up next" countdown: shown when a clip ends (or on a no-video placeholder),
-// ticks 3-2-1, then snaps to the next slide. Cancelled by replaying the clip
-// or swiping away.
+// "Up next" countdown: shown when a clip ends, or on a title card / no-video
+// placeholder — ticks 3-2-1 then snaps to the next slide. Cancelled by
+// replaying the clip or swiping away.
 function cancelReelsNext(slide) {
   clearInterval(slide._nextTimer); slide._nextTimer = null;
   slide.querySelector('.reels-next')?.classList.remove('show');
@@ -2549,6 +2580,7 @@ function cancelReelsNext(slide) {
 function startReelsNext(slide, nextEl) {
   if (!nextEl || slide._nextTimer) return;
   const box = slide.querySelector('.reels-next');
+  if (!box) return;
   let n = 3;
   box.querySelector('b').textContent = n;
   box.classList.add('show');
@@ -2557,21 +2589,28 @@ function startReelsNext(slide, nextEl) {
     box.querySelector('b').textContent = n;
   }, 1000);
 }
-function openReels(date, pid, clipIdx = 0) {
-  closeHRVideo(); closeReels();
+
+function buildDaySlidesHtml(date) {
+  const st = computeRecapDayStats(date);
   const list = recapClipPlaylist(date);
-  if (!list.length) return;
-  let start = list.findIndex(x => x.pid === pid && x.clipIdx === clipIdx);
-  if (start === -1) start = Math.max(0, list.findIndex(x => x.pid === pid));
-  const slides = list.map((x, i) => {
+  const nextOverlay = `<div class="reels-next">Up next in <b>3</b></div>`;
+  const intro = `<div class="reels-slide reels-intro" data-date="${date}" data-kind="intro">
+      <div class="reels-intro-inner">
+        <div class="reels-intro-date">${fmtDateFull(date)}</div>
+        ${recapStatsHtml(st)}
+        <div class="reels-intro-hint">${st.count ? `${st.count} bomber${st.count === 1 ? '' : 's'} · swipe up to watch ↑` : 'No homers this day'}</div>
+      </div>
+      ${nextOverlay}
+    </div>`;
+  const homers = list.map((x, i) => {
     const name = `${compactPlayerName(playerNames[x.pid] || x.pid)} · ${playerTeams[x.pid] || ''}`;
-    const nextOverlay = `<div class="reels-next">Next dong in <b>3</b></div>`;
+    const countLbl = `${fmtDateLong(date)} · ${i + 1}/${list.length}`;
     if (x.placeholder) {
       const upto = seasonHRNumberThrough(x.pid, date);
       const which = x.hrs > 1
         ? `${x.hrs} homers that day — his ${ordinal(upto - x.hrs + 1)}–${ordinal(upto)} of the season`
         : `His ${ordinal(upto)} of the season`;
-      return `<div class="reels-slide reels-noclip" data-i="${i}">
+      return `<div class="reels-slide reels-noclip" data-date="${date}" data-pid="${x.pid}" data-cidx="${x.clipIdx}">
         <div class="reels-ph">
           <img class="reels-ph-photo" src="${playerPhotoUrl(x.pid)}" alt="">
           <div class="reels-ph-name">${name}</div>
@@ -2579,11 +2618,10 @@ function openReels(date, pid, clipIdx = 0) {
           <div class="reels-ph-tag">🎬 No video from MLB (yet)</div>
         </div>
         ${nextOverlay}
-        <div class="reels-count">${i + 1}/${list.length}</div>
+        <div class="reels-count">${countLbl}</div>
       </div>`;
     }
-    return `
-    <div class="reels-slide" data-i="${i}">
+    return `<div class="reels-slide" data-date="${date}" data-pid="${x.pid}" data-cidx="${x.clipIdx}">
       <video class="reels-video" data-src="${x.clip.mp4}" poster="${x.clip.poster}" playsinline preload="none" onclick="reelsTap(this)"></video>
       <div class="reels-indicator">▶</div>
       ${nextOverlay}
@@ -2591,68 +2629,151 @@ function openReels(date, pid, clipIdx = 0) {
         <div class="reels-name"><img class="reels-photo" src="${playerPhotoUrl(x.pid)}" alt="">${name}${x.hrs > 1 ? ` <span class="reels-multi">${x.clipIdx + 1} of ${x.hrs} that day</span>` : ''}</div>
         <div class="reels-headline">${x.clip.title}</div>
       </div>
-      <div class="reels-count">${i + 1}/${list.length}</div>
+      <div class="reels-count">${countLbl}</div>
     </div>`;
   }).join('');
+  return intro + homers;
+}
+// Attach play/pause-flash listeners to a freshly mounted day's videos, and put
+// every new slide under the intersection observer.
+function reelsWireDay(dayEl) {
+  dayEl.querySelectorAll('.reels-slide').forEach(s => {
+    const v = s.querySelector('video');
+    if (v && !v._wired) {
+      v._wired = true;
+      const ind = s.querySelector('.reels-indicator');
+      let hideT = null;
+      v.addEventListener('play', () => { cancelReelsNext(s); ind.textContent = '❚❚'; ind.classList.add('show'); clearTimeout(hideT); hideT = setTimeout(() => ind.classList.remove('show'), 900); });
+      v.addEventListener('pause', () => { if (v.ended) return; clearTimeout(hideT); ind.textContent = '▶'; ind.classList.add('show'); });
+      v.addEventListener('ended', () => startReelsNext(s, reelsAdjacent(s, 1)));
+    }
+    reels.observer.observe(s);
+  });
+}
+function reelsMountDay(date) {
+  if (!reels || reels.loaded.has(date)) return;
+  reels.loaded.add(date);
+  const dayEl = document.createElement('div');
+  dayEl.className = 'reels-day';
+  dayEl.dataset.date = date;
+  dayEl.innerHTML = buildDaySlidesHtml(date);
+  reels.track.appendChild(dayEl);
+  reelsWireDay(dayEl);
+}
+// Approaching the bottom of the oldest loaded day → append the next-older one,
+// so the feed flows back through history without ever dead-ending on a day's
+// last dong. (Append-only: scroll position never has to be corrected.)
+function reelsLoadOlder(idx) {
+  const date = reels.days[idx];
+  if (!date || reels.loaded.has(date) || reels.loading.has(date)) return;
+  reels.loading.add(date);
+  ensureRecapClips(date).then(() => {
+    reels?.loading.delete(date);
+    if (!reels) return; // closed while fetching
+    reelsMountDay(date);
+    reels.botIdx = Math.max(reels.botIdx, idx);
+  });
+}
+function reelsMaybeLoadEdges(slide) {
+  const idx = reels.days.indexOf(slide.dataset.date);
+  if (idx !== reels.botIdx) return;
+  const daySlides = [...slide.closest('.reels-day').querySelectorAll('.reels-slide')];
+  if (daySlides.indexOf(slide) >= daySlides.length - 2) reelsLoadOlder(idx + 1);
+}
+
+function openReels(date, pid, clipIdx = 0) {
+  closeHRVideo(); closeReels();
+  const days = recapAvailableDates().slice().reverse(); // newest-first
+  const openIdx = days.indexOf(date);
+  if (openIdx === -1) return;
   document.body.insertAdjacentHTML('beforeend', `
     <div class="reels" id="hr-reels" data-muted="0">
       <button class="reels-btn reels-close" onclick="closeReels()" aria-label="Close">✕</button>
       <button class="reels-btn reels-mute-btn" id="reels-mute" onclick="reelsToggleMute()" aria-label="Mute">🔊</button>
-      <div class="reels-track" id="reels-track">${slides}</div>
+      <div class="reels-track" id="reels-track"></div>
     </div>`);
-  document.body.style.overflow = 'hidden';
-  document.addEventListener('keydown', reelsEscHandler);
-
-  const track = document.getElementById('reels-track');
-  const slideEls = [...track.querySelectorAll('.reels-slide')];
-  const hydrate = i => { // set src on slide i (and keep poster until it plays)
-    const v = slideEls[i]?.querySelector('video');
-    if (v && !v.src) v.src = v.dataset.src;
-  };
-  // Center play/pause flash, YouTube-mobile style: pausing shows a persistent
-  // ▶; (re)starting flashes ❚❚ for a beat then fades.
-  slideEls.forEach((s, i) => {
-    const v = s.querySelector('video');
-    if (!v) return; // placeholder slide
-    const ind = s.querySelector('.reels-indicator');
-    let hideT = null;
-    v.addEventListener('play', () => {
-      cancelReelsNext(s);
-      ind.textContent = '❚❚';
-      ind.classList.add('show');
-      clearTimeout(hideT); hideT = setTimeout(() => ind.classList.remove('show'), 900);
-    });
-    v.addEventListener('pause', () => {
-      if (v.ended) return; // ended → countdown UI, not the play glyph
-      clearTimeout(hideT);
-      ind.textContent = '▶';
-      ind.classList.add('show');
-    });
-    v.addEventListener('ended', () => startReelsNext(s, slideEls[i + 1]));
-  });
-  reelsObserver = new IntersectionObserver(entries => {
+  reels = { el: document.getElementById('hr-reels'), track: document.getElementById('reels-track'),
+            days, loaded: new Set(), loading: new Set(), topIdx: openIdx, botIdx: openIdx, observer: null };
+  reels.observer = new IntersectionObserver(entries => {
     for (const e of entries) {
-      const i = +e.target.dataset.i;
-      const v = e.target.querySelector('video');
+      const s = e.target;
+      const v = s.querySelector('video');
       if (e.intersectionRatio >= 0.6) {
-        hydrate(i + 1); hydrate(i - 1); // neighbors preload for instant swipes
-        if (!v) { startReelsNext(e.target, slideEls[i + 1]); continue; } // placeholder: pause 3s, roll on
-        hydrate(i);
-        v.muted = document.getElementById('hr-reels').dataset.muted === '1';
-        v.play().catch(() => { // autoplay-with-sound blocked → fall back to muted
-          document.getElementById('hr-reels').dataset.muted = '1';
+        reelsHydrate(reelsAdjacent(s, 1)); reelsHydrate(reelsAdjacent(s, -1));
+        reelsMaybeLoadEdges(s);
+        if (!v) { startReelsNext(s, reelsAdjacent(s, 1)); continue; } // title card / placeholder → dwell then advance
+        reelsHydrate(s);
+        v.muted = reelsMuted();
+        v.play().catch(() => { // autoplay-with-sound blocked → mute and retry
+          reels.el.dataset.muted = '1';
           document.getElementById('reels-mute').textContent = '🔇';
-          slideEls.forEach(s => { const sv = s.querySelector('video'); if (sv) sv.muted = true; });
+          reels.track.querySelectorAll('video').forEach(sv => sv.muted = true);
           v.play().catch(() => {});
         });
       } else {
-        cancelReelsNext(e.target);
-        if (v) { v.pause(); e.target.querySelector('.reels-indicator').classList.remove('show'); }
+        cancelReelsNext(s);
+        if (v) { v.pause(); s.querySelector('.reels-indicator')?.classList.remove('show'); }
       }
     }
-  }, { root: track, threshold: [0.6] });
-  slideEls.forEach(s => reelsObserver.observe(s));
-  slideEls[start].scrollIntoView({ behavior: 'instant' });
+  }, { root: reels.track, threshold: [0.6] });
+  document.body.style.overflow = 'hidden';
+  document.addEventListener('keydown', reelsEscHandler);
+
+  reelsMountDay(date);
+  // Watch All (no pid) starts on the day's title card; a specific ▶ jumps to
+  // that homer's slide.
+  const target = (pid && reels.track.querySelector(`.reels-slide[data-pid="${pid}"][data-cidx="${clipIdx}"]`))
+    || (pid && reels.track.querySelector(`.reels-slide[data-pid="${pid}"]`))
+    || reels.track.querySelector(`.reels-intro[data-date="${date}"]`)
+    || reels.track.querySelector('.reels-slide');
+  target?.scrollIntoView({ behavior: 'instant' });
+}
+
+// Day-level recap stats (games, HRs, HR/G + heat, chalk meter) — shared by the
+// Recap tab and the reels day-intro slides so the two never diverge.
+function computeRecapDayStats(date) {
+  const dayData = dailyHRs[date] ?? {};
+  const games = dailyGames[date] || 0;
+  const totalHRs = Object.values(dayData).reduce((a, b) => a + b, 0);
+  const count = Object.keys(dayData).length;
+  const seasonGames = Object.values(dailyGames).reduce((a, b) => a + b, 0);
+  const seasonHRs   = Object.values(hrTotals).reduce((a, b) => a + b, 0);
+  const leagueAvgHRPerGame = seasonGames ? seasonHRs / seasonGames : 0;
+  const hrPerGame = games ? totalHRs / games : 0;
+  const dayHeat = leagueAvgHRPerGame ? recapDayHeat(hrPerGame / leagueAvgHRPerGame) : { cls: '', tag: '' };
+  const hrCls    = leagueAvgHRPerGame ? hrgClass(hrPerGame, leagueAvgHRPerGame) : 'avg';
+  const gamesCls = slateClass(games);
+  const maxABs = Math.max(0, ...Object.values(playerABs));
+  const regularThreshold = maxABs * 0.6;
+  const dayTotals = Object.keys(dayData).map(pid => hrTotals[pid] || 0);
+  const leagueTotals = Object.keys(hrTotals)
+    .filter(pid => hrTotals[pid] >= 1 && (playerABs[pid] || 0) >= regularThreshold)
+    .map(pid => hrTotals[pid]);
+  const chalkScore = median(dayTotals);
+  const leagueRef  = median(leagueTotals);
+  const chalkRatio = leagueRef ? chalkScore / leagueRef : 1;
+  const chalk = recapChalkTag(chalkRatio);
+  const meterPct = (Math.max(0, Math.min(2, chalkRatio)) / 2) * 100;
+  return { date, games, totalHRs, count, hrPerGame, dayHeat, hrCls, gamesCls, chalkScore, leagueRef, chalk, meterPct };
+}
+function recapStatsHtml(st) {
+  return `
+    <div class="recap-summary">
+      <div class="recap-tile ${st.gamesCls}"><span class="recap-tile-num">${st.games}</span><span class="recap-tile-label">${st.games === 1 ? 'Game' : 'Games'}</span><span class="recap-tile-heat-tag">${slateTag(st.games)}</span></div>
+      <div class="recap-tile ${st.hrCls}"><span class="recap-tile-num">${st.totalHRs}</span><span class="recap-tile-label">Home Runs</span></div>
+      <div class="recap-tile ${st.hrCls}"><span class="recap-tile-num">${st.hrPerGame.toFixed(2)}</span><span class="recap-tile-label">HR / Game</span>${st.dayHeat.tag ? `<span class="recap-tile-heat-tag">${st.dayHeat.tag}</span>` : ''}</div>
+    </div>
+    <div class="recap-meter-card">
+      <div class="recap-meter-head"><span class="recap-meter-title">Chalk Meter</span></div>
+      <div class="recap-meter-track">
+        <span class="recap-meter-end left">🐶</span>
+        <span class="recap-meter-badge" style="left:${st.meterPct}%;--mc:${st.chalk.cls === 'chalk' ? '#ff8a5c' : st.chalk.cls === 'dog' ? 'var(--good)' : 'var(--silver)'}">${st.chalk.tag}</span>
+        <div class="recap-meter-marker" style="left:${st.meterPct}%"></div>
+        <span class="recap-meter-end right">🔒</span>
+      </div>
+      <div class="recap-meter-labels"><span>Dog</span><span>Chalk</span></div>
+      <div class="recap-meter-score">${st.count} bombers · median ${st.chalkScore.toFixed(1)} season HR (regulars' league median: ${st.leagueRef.toFixed(1)})</div>
+    </div>`;
 }
 
 function renderRecap() {
@@ -2669,45 +2790,9 @@ function renderRecap() {
     return;
   }
   loadRecapClips(date); // lazy — ▶ badges pop in via re-render when clips arrive
-  const count = Object.keys(dayData).length, totalHRs = Object.values(dayData).reduce((a,b)=>a+b,0);
-  const games = dailyGames[date] || 0;
+  const st = computeRecapDayStats(date);
   const tag = date === todayDate ? 'Today (Final)' : date === yesterday() ? 'Yesterday' : (date === latest ? 'Latest Available' : null);
   metaEl.innerHTML = `${tag ? `<span class="recap-meta-tag">${tag}</span>, ` : ''}${fmtDateFull(date)}`;
-
-  // Stats recap: how loud was this day relative to the season as a whole?
-  const seasonGames = Object.values(dailyGames).reduce((a,b)=>a+b, 0);
-  const seasonHRs   = Object.values(hrTotals).reduce((a,b)=>a+b, 0);
-  const leagueAvgHRPerGame = seasonGames ? seasonHRs / seasonGames : 0;
-  const hrPerGame = games ? totalHRs / games : 0;
-  const dayHeat = leagueAvgHRPerGame ? recapDayHeat(hrPerGame / leagueAvgHRPerGame) : { cls: '', tag: '' };
-  // Red→yellow→green tiles (no blue): HR total + HR/Game vs league per-game
-  // average (average day = yellow); games vs a full 15-game slate.
-  const hrCls    = leagueAvgHRPerGame ? hrgClass(hrPerGame, leagueAvgHRPerGame) : 'avg';
-  const gamesCls = slateClass(games);
-
-  // Chalk/dog meter: median season HR total of today's bombers vs. the
-  // median season HR total of everyday regulars around the league. The
-  // reference pool deliberately excludes pinch-hitters, defensive subs, and
-  // pitcher-with-one-AB types — counting every player who's hit even a
-  // single HR drags the "league" median down to ~4, which undersells how
-  // chalky a day with a bunch of double-digit-HR bats really is. Requiring
-  // at least 60% as many at-bats as the league's current AB leader keeps the
-  // baseline anchored to true everyday players, and it scales naturally as
-  // the season goes on (no hardcoded AB cutoff).
-  const maxABs           = Math.max(0, ...Object.values(playerABs));
-  const regularThreshold = maxABs * 0.6;
-  // dayData is { pid -> HRs hit that day }, so Object.keys is already one
-  // entry per player — a 2-homer game doesn't get that player's season
-  // total counted twice in the median.
-  const dayTotals    = Object.keys(dayData).map(pid => hrTotals[pid] || 0);
-  const leagueTotals = Object.keys(hrTotals)
-    .filter(pid => hrTotals[pid] >= 1 && (playerABs[pid] || 0) >= regularThreshold)
-    .map(pid => hrTotals[pid]);
-  const chalkScore   = median(dayTotals);
-  const leagueRef    = median(leagueTotals);
-  const chalkRatio   = leagueRef ? chalkScore / leagueRef : 1;
-  const chalk        = recapChalkTag(chalkRatio);
-  const meterPct     = (Math.max(0, Math.min(2, chalkRatio)) / 2) * 100;
 
   // Multi-homer guys first (by that day's HR count), then among the
   // single-HR group (where day-count ties at 1) rank by season HR total —
@@ -2730,27 +2815,7 @@ function renderRecap() {
     </div>`;
   }).join('');
 
-  document.getElementById('recap-content').innerHTML = `
-    <div class="recap-summary">
-      <div class="recap-tile ${gamesCls}"><span class="recap-tile-num">${games}</span><span class="recap-tile-label">${games===1?'Game':'Games'}</span><span class="recap-tile-heat-tag">${slateTag(games)}</span></div>
-      <div class="recap-tile ${hrCls}"><span class="recap-tile-num">${totalHRs}</span><span class="recap-tile-label">Home Runs</span></div>
-      <div class="recap-tile ${hrCls}"><span class="recap-tile-num">${hrPerGame.toFixed(2)}</span><span class="recap-tile-label">HR / Game</span>${dayHeat.tag?`<span class="recap-tile-heat-tag">${dayHeat.tag}</span>`:''}</div>
-    </div>
-    <div class="recap-meter-card">
-      <div class="recap-meter-head">
-        <span class="recap-meter-title">Chalk Meter</span>
-      </div>
-      <div class="recap-meter-track">
-        <span class="recap-meter-end left">🐶</span>
-        <span class="recap-meter-badge" style="left:${meterPct}%;--mc:${chalk.cls==='chalk'?'#ff8a5c':chalk.cls==='dog'?'var(--good)':'var(--silver)'}">${chalk.tag}</span>
-        <div class="recap-meter-marker" style="left:${meterPct}%"></div>
-        <span class="recap-meter-end right">🔒</span>
-      </div>
-      <div class="recap-meter-labels"><span>Dog</span><span>Chalk</span></div>
-      <div class="recap-meter-score">${count} bombers · median ${chalkScore.toFixed(1)} season HR (regulars' league median: ${leagueRef.toFixed(1)})</div>
-    </div>
-    <div class="recap-grid">${cards}</div>
-  `;
+  document.getElementById('recap-content').innerHTML = recapStatsHtml(st) + `<div class="recap-grid">${cards}</div>`;
 }
 
 // ── SCHEDULE ───────────────────────────────────────────────────────────
