@@ -512,19 +512,14 @@ async function attachContactQuality(dueRows) {
 // edge (both sides — is this a good matchup for the batter AND is this
 // pitcher specifically vulnerable to this side), pitch-type overlap between
 // what the batter homers off and what the pitcher actually throws, and park.
-// Both floors retuned 2026-07-16 from a backtest of 12 pick days against
-// sportsbook closing lines (SmartStake props dataset): picks under score 9
-// hit 12-14% at longshot prices (-EV), and low-power bats were the whole
-// longshot leak — the market prices HR props off raw power (corr -0.63), so
-// matchup-driven picks on light hitters were badly overpriced. Score >= 9 and
-// HR near the top half of the league (~45% of the leader: ~14 in July, scaling
-// down early season so April boards aren't empty) kept ~9 picks/day at a 34%
-// hit rate in the sample vs 19.7% for the old floors.
-function picksMinHR() {
-  const lead = Math.max(0, ...Object.values(hrTotals));
-  return Math.max(3, Math.round(0.45 * lead));
-}
-const PICKS_MIN_SCORE     = 9;
+// Floors stay permissive on purpose: ship the full board and let the client
+// filters do the trimming, so the graded history keeps one consistent
+// population. (A 2026-07-16 backtest vs sportsbook closing lines found score
+// >= 9 plus top-tier power (~15 HR in July) hit 26-34% in-sample vs 19.7%
+// overall — briefly baked in as server floors, reverted same day as
+// overfit-prone; that cut lives in the client filter chips instead.)
+const PICKS_MIN_HR        = 3;
+const PICKS_MIN_SCORE     = 7;
 const PICKS_RATIO_MIN     = 0.7;
 const PICKS_RATIO_MAX     = 1.4;
 const BASE_POWER_SHRINK_AB = 100; // pseudo-ABs of league-average prior; half-regressed at 100 AB, lightly at 300+
@@ -656,14 +651,13 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
     // under universal DH), have some power this season, and showed up in a
     // game within the last 7 days (catches injuries/demotions without needing
     // the IL feed, which runs AFTER this function in main()).
-    const MIN_HR = picksMinHR();
     function projectedLineup(teamAbbr) {
       return Object.keys(playerTeams)
         .filter(pid =>
           playerTeams[pid] === teamAbbr &&
           (playerGames[pid] ?? 0) >= 15 &&
           (playerABs[pid] ?? 0) / Math.max(playerGames[pid] ?? 1, 1) >= 1.5 &&
-          (hrTotals[pid] ?? 0) >= MIN_HR &&
+          (hrTotals[pid] ?? 0) >= PICKS_MIN_HR &&
           daysSince(playerLastGame[pid] || '2000-01-01') <= 7
         )
         .sort((a, b) => (playerGames[b] ?? 0) - (playerGames[a] ?? 0))
@@ -680,7 +674,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
           : projectedLineup(me.teamAbbr).map(p => ({ ...p, projected: true }));
         for (const p of batters) {
           if (p.position === 'P') continue;
-          if ((hrTotals[p.pid] ?? 0) < MIN_HR) continue;
+          if ((hrTotals[p.pid] ?? 0) < PICKS_MIN_HR) continue;
           if ((playerABs[p.pid] ?? 0) < 20) continue;
           candidates.push({ pid: p.pid, team: me.teamAbbr, oppTeam: opp.teamAbbr, oppPid: opp.probablePitcherId, oppName: opp.probablePitcher, venue: g.venue, projected: p.projected });
         }
