@@ -1143,6 +1143,7 @@
           <li><b>Weather.</b> Game-time air density (temperature, humidity, pressure, altitude) plus wind projected onto the park's home-plate→center-field axis — hot, thin air and a wind blowing out both help the ball carry; cold, dense air and a wind blowing in suppress it. Roofed parks are treated neutral. The stadium's orientation, roof type, and coordinates come straight from the MLB API.</li>
           <li><b>Lineups.</b> Uses confirmed lineups when posted. Before lineups drop, falls back to projected starters — players with 15+ games this season, 1.5+ AB/game, active in the last 7 days — the same pool the books use pre-lineup. Projected picks are labeled so you know which ones are speculative.</li>
           <li><b>Openers.</b> When today's "starter" is really an opener (2+ starts averaging ≤3 IP, on a team that's recently used the piggyback pattern), his weight drops to the inning or two he actually covers, and the likely bulk arm — the rested rotation-type pitcher whose turn it is — gets his own platoon and pitch-mix slice of the score. Flagged in the pick modal so you know who you're really betting against.</li>
+          <li><b>The floor.</b> Only board-worthy picks ship: Pick Score ≥ 9 <i>and</i> season power in the league's upper tier (~45% of the HR leader — about 14 HR in mid-July, scaling down early in the season so April boards aren't empty). Retuned July 16, 2026 from a backtest of 12 pick days against sportsbook closing prices: sub-floor picks were longshot-priced and clearly -EV, while the floored board hit 34% in the sample at prices that beat the market. Expect ~8-12 picks on a full slate instead of ~27.</li>
         </ul>
       </div>
     </div>
@@ -1265,7 +1266,7 @@ let pitcherStats = {}; // pid -> { hr, hr9, ip, era } for today's probable pitch
 let bullpens = {}; // team abbr -> [{ pid, name, hand, era, saves, holds, gamesPitched, lastOuting, pitchMix }]
 let picks    = []; // today's HR pick candidates, pre-scored server-side
 let picksHistory = [];
-let picksFilters     = { minHR: 3, minScore: 7, hideUnavailable: true }; // 3 = server HR floor ("All"), 7 = server score floor; hide off/bench/IL by default
+let picksFilters     = { minHR: 0, minScore: 0, hideUnavailable: true }; // 0 = "All" (the build already floors at score 9 + ~45%-of-leader HR); hide off/bench/IL by default
 let picksSort        = 'score'; // 'score' (desc) or 'game' (earliest first)
 // Shared leaderboard view mode (Picks + Due). Defaults to the responsive
 // choice — cards on phones, table on wider screens — then remembers the pick.
@@ -3502,9 +3503,9 @@ function setPicksMinHR(n)    { picksFilters.minHR    = n; renderPicks(); }
 function setPicksMinScore(n) { picksFilters.minScore = n; renderPicks(); }
 function setPicksSort(s)     { picksSort = s; renderPicks(); }
 function togglePicksFilter(key) { picksFilters[key] = !picksFilters[key]; renderPicks(); }
-function clearPicksFilters() { picksFilters = { minHR: 3, minScore: 7, hideUnavailable: true }; renderPicks(); }
+function clearPicksFilters() { picksFilters = { minHR: 0, minScore: 0, hideUnavailable: true }; renderPicks(); }
 // hideUnavailable is on by default, so "active" means a deviation from default.
-function picksFiltersActive() { return picksFilters.minHR !== 3 || picksFilters.minScore !== 7 || picksFilters.hideUnavailable !== true; }
+function picksFiltersActive() { return picksFilters.minHR !== 0 || picksFilters.minScore !== 0 || picksFilters.hideUnavailable !== true; }
 function applyPicksFilters(rows) {
   return rows.filter(r =>
     r.hrs >= picksFilters.minHR &&
@@ -3513,10 +3514,12 @@ function applyPicksFilters(rows) {
   );
 }
 function renderPicksFilters() {
-  const hrOpts    = [3, 5, 10, 15];
-  const scoreOpts = [7, 9, 11, 13];
-  const hrChips    = hrOpts.map(n => `<button class="due-filter-chip${picksFilters.minHR===n?' active':''}" onclick="setPicksMinHR(${n})">${n===3?'All':n+'+'}</button>`).join('');
-  const scoreChips = scoreOpts.map(n => `<button class="due-filter-chip${picksFilters.minScore===n?' active':''}" onclick="setPicksMinScore(${n})">${n}+</button>`).join('');
+  // "All" = everything the build ships, which since the 7/16 backtest retune is
+  // already floored at score >= 9 and season HR >= ~45% of the league leader.
+  const hrOpts    = [0, 20, 25];
+  const scoreOpts = [0, 11, 13, 15];
+  const hrChips    = hrOpts.map(n => `<button class="due-filter-chip${picksFilters.minHR===n?' active':''}" onclick="setPicksMinHR(${n})">${n===0?'All':n+'+'}</button>`).join('');
+  const scoreChips = scoreOpts.map(n => `<button class="due-filter-chip${picksFilters.minScore===n?' active':''}" onclick="setPicksMinScore(${n})">${n===0?'All':n+'+'}</button>`).join('');
   document.getElementById('picks-filter-row').innerHTML = `
     <div class="due-filter-group"><span class="due-filter-label">Min HR</span><div class="due-filter-chips">${hrChips}</div></div>
     <div class="due-filter-group"><span class="due-filter-label">Min Score</span><div class="due-filter-chips">${scoreChips}</div></div>
@@ -3526,7 +3529,7 @@ function renderPicksFilters() {
   document.getElementById('picks-filter-row').style.display = picksFiltersPanelOpen ? '' : 'none';
   document.getElementById('picks-filters-chevron').textContent = picksFiltersPanelOpen ? '▴' : '▾';
   document.getElementById('picks-filters-toggle').setAttribute('aria-expanded', String(picksFiltersPanelOpen));
-  const activeCount = (picksFilters.minHR !== 3 ? 1 : 0) + (picksFilters.minScore !== 7 ? 1 : 0) + (picksFilters.hideUnavailable !== true ? 1 : 0);
+  const activeCount = (picksFilters.minHR !== 0 ? 1 : 0) + (picksFilters.minScore !== 0 ? 1 : 0) + (picksFilters.hideUnavailable !== true ? 1 : 0);
   const badge = document.getElementById('picks-filters-badge');
   badge.style.display = activeCount ? 'inline-flex' : 'none';
   badge.textContent = activeCount;
