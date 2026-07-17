@@ -2117,7 +2117,7 @@ async function main() {
     const dt = new Date(todayET() + 'T12:00:00Z');
     dt.setUTCDate(dt.getUTCDate() - i);
     const D = dt.toISOString().split('T')[0];
-    if (D < SEASON_START || !dailyGames[D]) continue;      // no games that day
+    if (D < SEASON_START || !isRealSlate(D)) continue;     // no games, or too few to grade the list (All-Star break + makeups)
     if (dueHistory.some(e => e.date === D)) continue;      // already scored live
     const rows = computeDueRowsAsOf(D);
     if (!rows.length) continue;
