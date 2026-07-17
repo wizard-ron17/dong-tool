@@ -173,6 +173,21 @@ function computeAllGroups(dHRs) {
 // day absence from boxscores is a strong signal he isn't actually playing.
 const DUE_MIN_HRS = 5, DUE_MIN_ABS = 40, DUE_MAX_AB_PER_HR = 30, DUE_MIN_Z = 1.0, DUE_MIN_DROUGHT_ABS = 10;
 const DUE_MAX_INACTIVE_DAYS = 5;
+const DUE_MIN_TRACK_GAMES = 4; // a real evaluation slate — below this (All-Star break makeups, etc.) the day can't grade a 20-guy due list, so it's neither scored nor kept in dueHistory
+
+// How many of the player's TEAM's game days he's missed since he last appeared —
+// the real "injured/benched/demoted" signal. Counting CALENDAR days (the old
+// way) breaks over a league-wide gap: the All-Star break sat everyone 4-5
+// calendar days with no games, tripping DUE_MAX_INACTIVE_DAYS for the whole
+// league and gutting the Due list. Team game days ignore days nobody played.
+function inactiveGameDays(pid, lastGame, upto) {
+  if (!lastGame) return Infinity;
+  const tg = teamGameDays[playerTeams[pid]];
+  if (!tg) return upto ? Math.round((new Date(upto) - new Date(lastGame)) / 86400000) : daysSince(lastGame);
+  let n = 0;
+  for (const d in tg) if (d > lastGame && (!upto || d <= upto)) n++;
+  return n;
+}
 
 function cumAbsThrough(pid, date) {
   const byDate = playerAbsByDate[pid];
@@ -248,7 +263,7 @@ function computeDueRows() {
       lastHR: playerLastHR[pid],
       lastGame,
       hrDates: hrDatesFor(pid),
-      inactiveDays: lastGame ? daysSince(lastGame) : Infinity,
+      inactiveDays: inactiveGameDays(pid, lastGame),
       lastAgo: playerLastHR[pid] ? daysSince(playerLastHR[pid]) : null,
     });
     if (row) rows.push(row);
@@ -289,7 +304,7 @@ function computeDueRowsAsOf(asOf) {
       lastHR: lastHRBy[pid],
       lastGame,
       hrDates: hrDatesBy[pid],
-      inactiveDays: lastGame ? Math.round((new Date(asOf) - new Date(lastGame)) / dayMs) : Infinity,
+      inactiveDays: inactiveGameDays(pid, lastGame, asOf),
       lastAgo: Math.round((new Date(asOf) - new Date(lastHRBy[pid])) / dayMs),
     });
     if (row) rows.push(row);
@@ -2044,7 +2059,12 @@ async function main() {
   const daysOnList = (since, until) =>
     since ? Math.max(1, Math.round((new Date(until) - new Date(since)) / 86400000) + 1) : null;
 
-  if (prevDueRows.length && scorable(prevDate) && !dueHistory.some(e => e.date === prevDate)) {
+  // Only score a real slate: on a no-/tiny-game day (All-Star break, its
+  // makeups) almost none of the listed due guys even play, so "0 of 22
+  // graduated" is a phantom 0-fer that tanks the bounce-back rate. Grade the
+  // day only if it was a genuine slate; the due list itself persists untouched.
+  const isRealSlate = date => (dailyGames[date] ?? 0) >= DUE_MIN_TRACK_GAMES;
+  if (prevDueRows.length && scorable(prevDate) && isRealSlate(prevDate) && !dueHistory.some(e => e.date === prevDate)) {
     const dayHRs = dailyHRs[prevDate] ?? {};
     const grads = [];
     prevDueRows.forEach((row, i) => {
@@ -2065,6 +2085,9 @@ async function main() {
     dueHistory = [...dueHistory, { date: prevDate, of: prevDueRows.length, grads }].slice(-90);
     console.log(`Due history: scored ${prevDate} — ${grads.length}/${prevDueRows.length} graduated`);
   }
+  // Heal any phantom no-slate entries already persisted (the July 2026 All-Star
+  // break logged 0-fers for 4 gameless days before this guard existed).
+  dueHistory = dueHistory.filter(e => isRealSlate(e.date));
 
   // Rebuild streaks from today's list: carry since/maxScore/bestRank for anyone
   // still on it, start new streaks at today for newcomers. First run ever
