@@ -636,6 +636,10 @@
   .recap-info { flex: 1; min-width: 0; overflow: hidden; }
   .recap-name { font-size: 0.74rem; color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .recap-sub  { font-size: 0.57rem; color: var(--muted); margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Grand-slam (gold) / inside-the-park (green) — the day's headline homers */
+  .recap-hr-badge { font-size: 0.5rem; font-weight: 700; letter-spacing: 0.02em; border-radius: 3px; padding: 0.05rem 0.28rem; margin-right: 0.3rem; vertical-align: 1px; white-space: nowrap; }
+  .recap-hr-badge.gs  { color: var(--gold); background: rgba(212,175,55,0.14); border: 1px solid rgba(212,175,55,0.4); }
+  .recap-hr-badge.itp { color: var(--good); background: rgba(51,208,124,0.12); border: 1px solid rgba(51,208,124,0.35); }
   .recap-stat { text-align: right; flex-shrink: 0; min-width: 2rem; }
   .recap-stat-num { font-family: var(--font-d); font-size: 1.25rem; font-weight: 700; color: var(--accent); line-height: 1; display: block; }
   .recap-stat-label { font-size: 0.57rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
@@ -1237,6 +1241,7 @@
 // no MLB API calls and no combinatorics happen on the client anymore.
 
 let dailyHRs     = {};  // date -> { pid -> hrCount }
+let hrTypes      = {};  // date -> { pid -> { gs, itp } } — grand-slam / inside-the-park counts
 let dailyGames   = {};  // date -> gameCount
 let hrTotals     = {};  // pid -> total HRs
 let playerNames  = {};  // pid -> fullName
@@ -1509,7 +1514,7 @@ async function loadData() {
 }
 
 function applyData(data) {
-  dailyHRs = data.dailyHRs; dailyGames = data.dailyGames; hrTotals = data.hrTotals;
+  dailyHRs = data.dailyHRs; hrTypes = data.hrTypes || {}; dailyGames = data.dailyGames; hrTotals = data.hrTotals;
   playerNames = data.playerNames; playerTeams = data.playerTeams; playerABs = data.playerABs;
   playerGames = data.playerGames; playerLastHR = data.playerLastHR; teamGameDays = data.teamGameDays;
   venueGameDays = data.venueGameDays ?? {}; venueHRsByDate = data.venueHRsByDate ?? {};
@@ -2454,24 +2459,34 @@ async function loadRecapClips(date) {
     for (const pid of Object.keys(byPid)) {
       const clips = byPid[pid];
       if (clips.length < 2) continue;
-      const hasNumbered = clips.some(c => HR_NUM.test(c.title));
-      const seen = new Set();
-      const kept = clips.filter(c => {
+      const hrCount = dailyHRs[date]?.[pid] ?? clips.length;
+      // Split the cuts: numbered clips are the canonical per-HR highlights
+      // ("...home run (22)"), deduped since MLB ships each homer several ways
+      // (Statcast angle, "Field View"). Unnumbered ones are montages / rally /
+      // back-to-back cuts of the same homers.
+      const seen = new Set(), numbered = [], montages = [];
+      for (const c of clips) {
         const m = c.title.match(HR_NUM);
-        if (!m) return !hasNumbered;
-        if (seen.has(m[1])) return false;
+        if (!m) { montages.push(c); continue; }
+        if (seen.has(m[1])) continue;
         seen.add(m[1]);
-        return true;
-      // Never more clips than homers — a 2-HR day with three unnumbered
-      // montage cuts would otherwise read "3 of 2 that day" in the feed.
-      }).slice(0, dailyHRs[date]?.[pid] ?? Infinity);
-      // MLB's feed runs newest-first, which put O'Hearn's THIRD homer ahead of
-      // his grand slam. Post-dedupe a list is all-numbered or all-unnumbered:
-      // numbered sorts by season HR number (1st, 2nd, 3rd of the night),
-      // unnumbered just reverses back to chronological.
-      byPid[pid] = hasNumbered
-        ? kept.sort((a, b) => +(a.title.match(HR_NUM)?.[1] ?? 0) - +(b.title.match(HR_NUM)?.[1] ?? 0))
-        : kept.reverse();
+        numbered.push(c);
+      }
+      // Newest-first feed once put O'Hearn's THIRD homer ahead of his grand
+      // slam — sort numbered by season HR number (1st, 2nd, 3rd of the night).
+      numbered.sort((a, b) => +a.title.match(HR_NUM)[1] - +b.title.match(HR_NUM)[1]);
+      let kept;
+      if (numbered.length) {
+        // Prefer the individual numbered homers. When MLB only published a clip
+        // for SOME of a multi-HR game's homers (e.g. Abreu's (12) but not (13)),
+        // backfill the empty slots with montage cuts so a 2-HR game still shows
+        // 2 videos rather than 1.
+        kept = numbered.slice(0, hrCount);
+        if (kept.length < hrCount) kept = kept.concat(montages.slice(0, hrCount - kept.length));
+      } else {
+        kept = montages.reverse().slice(0, hrCount); // no per-HR clip at all → montages, chronological
+      }
+      byPid[pid] = kept;
     }
   } catch (e) {
     delete recapClipsFetch[date]; // transient fetch failure — allow a retry next visit
@@ -2485,6 +2500,17 @@ async function loadRecapClips(date) {
 function recapClipsFor(date, pid) {
   const c = recapClipsCache[date];
   return (c && typeof c === 'object') ? (c[pid] ?? null) : null;
+}
+// Grand-slam / inside-the-park badges for a player's homers on a given day.
+// A guy can hit more than one special HR (or a special + a regular one), so
+// pluralize with a ×N when it happened more than once.
+function hrTypeBadges(date, pid) {
+  const t = hrTypes[date]?.[pid];
+  if (!t) return '';
+  let out = '';
+  if (t.gs)  out += `<span class="recap-hr-badge gs" title="Grand slam${t.gs > 1 ? ` ×${t.gs}` : ''}">GRAND SLAM${t.gs > 1 ? ` ×${t.gs}` : ''}</span>`;
+  if (t.itp) out += `<span class="recap-hr-badge itp" title="Inside-the-park home run${t.itp > 1 ? ` ×${t.itp}` : ''}">INSIDE-THE-PARK${t.itp > 1 ? ` ×${t.itp}` : ''}</span>`;
+  return out;
 }
 function hrVideoEscHandler(e) { if (e.key === 'Escape') closeHRVideo(); }
 function closeHRVideo() {
@@ -2816,7 +2842,7 @@ function renderRecap() {
     const playBtn  = clips?.length ? `<button class="recap-play" onclick="openHRVideo('${date}','${pid}')" title="Watch ${clips.length > 1 ? `${clips.length} clips` : 'the homer'}">▶</button>` : '';
     return `<div class="recap-card ${multiCls}">
       <span class="recap-photo-wrap"><img class="recap-photo" src="${photoUrl}" alt="">${playBtn}</span>
-      <div class="recap-info"><div class="recap-name">${name}</div><div class="recap-sub">${team?teamLogoImg(team,'team-logo')+team+' · ':''}${seasonHR} season${injuryBadge(pid, true)}${lineupBadge(pid, true)}</div></div>
+      <div class="recap-info"><div class="recap-name">${name}</div><div class="recap-sub">${hrTypeBadges(date, pid)}${team?teamLogoImg(team,'team-logo')+team+' · ':''}${seasonHR} season${injuryBadge(pid, true)}${lineupBadge(pid, true)}</div></div>
       <div class="recap-stat"><span class="recap-stat-num">${hrs}</span><span class="recap-stat-label">${hrs===1?'HR':'HRs'}</span></div>
     </div>`;
   }).join('');

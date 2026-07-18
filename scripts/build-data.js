@@ -7,6 +7,7 @@ const MLB          = 'https://statsapi.mlb.com/api/v1';
 const SEASON_START = '2026-03-25'; // true opening day — a single NYY@SF game (season opened a day before the full slate)
 
 const dailyHRs        = {};  // date -> { pid -> hrCount }
+const hrTypes         = {};  // date -> { pid -> { gs, itp } } — grand-slam / inside-the-park counts (from play-by-play, only games with a HR)
 const dailyGames      = {};  // date -> gameCount
 const hrTotals        = {};  // pid -> total HRs
 const playerNames     = {};  // pid -> fullName
@@ -38,7 +39,15 @@ function daysSince(d) {
 async function fetchDay(date) {
   const sched = await fetch(`${MLB}/schedule?sportId=1&date=${date}&gameType=R`).then(r => r.json());
   const games = sched.dates?.[0]?.games ?? [];
-  const finalGames = games.filter(g => g.status?.abstractGameState === 'Final' && !fetchedGameIds.has(g.gamePk));
+  // A postponed/cancelled game still reports abstractGameState 'Final' on its
+  // ORIGINAL date (detailedState 'Postponed'), with the SAME gamePk it keeps
+  // when made up later. Without the detailedState guard the build counts it on
+  // the wrong date (0 HRs) AND — because gamePks are deduped across the whole
+  // run via fetchedGameIds — blocks the real, played game on its makeup date,
+  // dropping that day's game count and every homer in it.
+  const finalGames = games.filter(g => g.status?.abstractGameState === 'Final'
+    && !/Postponed|Cancel/i.test(g.status?.detailedState || '')
+    && !fetchedGameIds.has(g.gamePk));
   const ids = finalGames.map(g => g.gamePk);
   const venueByGame = {};
   finalGames.forEach(g => { venueByGame[g.gamePk] = g.venue?.name || null; });
@@ -50,6 +59,7 @@ async function fetchDay(date) {
     try {
       const box = await fetch(`${MLB}/game/${id}/boxscore`).then(r => r.json());
       const venue = venueByGame[id];
+      let gameHadHR = false;
       if (venue) {
         if (!venueGameDays[venue]) venueGameDays[venue] = {};
         venueGameDays[venue][date] = (venueGameDays[venue][date] || 0) + 1;
@@ -78,6 +88,7 @@ async function fetchDay(date) {
           if (!playerAbsByDate[pidStr]) playerAbsByDate[pidStr] = {};
           playerAbsByDate[pidStr][date] = (playerAbsByDate[pidStr][date] || 0) + abs;
           if (hrs < 1) continue;
+          gameHadHR = true;
           if (!dailyHRs[date]) dailyHRs[date] = {};
           dailyHRs[date][pidStr] = (dailyHRs[date][pidStr] || 0) + hrs;
           hrTotals[pidStr] = (hrTotals[pidStr] || 0) + hrs;
@@ -87,6 +98,29 @@ async function fetchDay(date) {
             venueHRsByDate[venue][date] = (venueHRsByDate[venue][date] || 0) + hrs;
           }
         }
+      }
+      // Grand-slam / inside-the-park are only knowable from play-by-play, not the
+      // boxscore's HR count. Fetch it just for games that actually had a homer,
+      // and tag each HR by batter so the recap can badge them.
+      if (gameHadHR) {
+        try {
+          const pbp = await fetch(`${MLB}/game/${id}/playByPlay`).then(r => r.json());
+          for (const play of (pbp.allPlays ?? [])) {
+            const r = play.result ?? {};
+            if (r.eventType !== 'home_run') continue;
+            const bpid = play.matchup?.batter?.id;
+            if (!bpid) continue;
+            const desc = r.description ?? '';
+            const gs  = r.rbi === 4 || /grand slam/i.test(desc);        // a HR with 4 RBI is by definition bases-loaded
+            const itp = /inside[- ]the[- ]park/i.test(desc);
+            if (!gs && !itp) continue;
+            const bp = String(bpid);
+            if (!hrTypes[date]) hrTypes[date] = {};
+            const t = (hrTypes[date][bp] ??= { gs: 0, itp: 0 });
+            if (gs)  t.gs++;
+            if (itp) t.itp++;
+          }
+        } catch (e) {}
       }
     } catch (e) {}
   }));
@@ -2149,7 +2183,7 @@ async function main() {
     dateRangeEnd: allDates[allDates.length - 1] ?? null,
     daysWithData: allDates.length,
     totalHRCount,
-    dailyHRs, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
+    dailyHRs, hrTypes, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus, dtdStatus,
     todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks, picksHistory,
     dueStreaks, dueHistory, returningInjured, justBack, returningHistory,
