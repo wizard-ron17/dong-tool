@@ -207,7 +207,12 @@ function computeAllGroups(dHRs) {
 // day absence from boxscores is a strong signal he isn't actually playing.
 const DUE_MIN_HRS = 5, DUE_MIN_ABS = 40, DUE_MAX_AB_PER_HR = 30, DUE_MIN_Z = 1.0, DUE_MIN_DROUGHT_ABS = 10;
 const DUE_MAX_INACTIVE_DAYS = 5;
-const DUE_MIN_TRACK_GAMES = 4; // a real evaluation slate — below this (All-Star break makeups, etc.) the day can't grade a 20-guy due list, so it's neither scored nor kept in dueHistory
+// A day is gradable for Due results if ANY MLB game was played. We used to
+// require a 4-game "real slate" to avoid phantom 0-fers on tiny All-Star-break
+// makeup days — but the honest fix is to score only due guys whose team
+// actually played (see dueEligibleCount), so the denominator shrinks to the
+// handful who could plausibly homer instead of the full ~24-man list. A single
+// makeup game (e.g. 7/16's lone Mets–Phillies makeup) now grades fairly.
 
 // How many of the player's TEAM's game days he's missed since he last appeared —
 // the real "injured/benched/demoted" signal. Counting CALENDAR days (the old
@@ -2093,12 +2098,14 @@ async function main() {
   const daysOnList = (since, until) =>
     since ? Math.max(1, Math.round((new Date(until) - new Date(since)) / 86400000) + 1) : null;
 
-  // Only score a real slate: on a no-/tiny-game day (All-Star break, its
-  // makeups) almost none of the listed due guys even play, so "0 of 22
-  // graduated" is a phantom 0-fer that tanks the bounce-back rate. Grade the
-  // day only if it was a genuine slate; the due list itself persists untouched.
-  const isRealSlate = date => (dailyGames[date] ?? 0) >= DUE_MIN_TRACK_GAMES;
-  if (prevDueRows.length && scorable(prevDate) && isRealSlate(prevDate) && !dueHistory.some(e => e.date === prevDate)) {
+  // A day is gradable if any game was played; the denominator is only the due
+  // guys whose team actually played that date (dueEligibleCount) — so a tiny
+  // makeup slate grades against the handful who could homer, not the whole
+  // ~24-man list. grads keeps each guy's FULL due-list rank (i+1), so ranks read
+  // the same as on the live board.
+  const hadGames        = date => (dailyGames[date] ?? 0) >= 1;
+  const dueEligibleCount = (rows, date) => rows.reduce((n, r) => n + (teamGameDays[playerTeams[r.pid]]?.[date] ? 1 : 0), 0);
+  if (prevDueRows.length && scorable(prevDate) && hadGames(prevDate) && !dueHistory.some(e => e.date === prevDate)) {
     const dayHRs = dailyHRs[prevDate] ?? {};
     const grads = [];
     prevDueRows.forEach((row, i) => {
@@ -2115,13 +2122,18 @@ async function main() {
         droughtABs: row.droughtABs,
       });
     });
-    // Append even when empty — the entry marks the date as processed (dedup).
-    dueHistory = [...dueHistory, { date: prevDate, of: prevDueRows.length, grads }].slice(-90);
-    console.log(`Due history: scored ${prevDate} — ${grads.length}/${prevDueRows.length} graduated`);
+    const of = dueEligibleCount(prevDueRows, prevDate);
+    // Skip a day where none of the listed guys' teams even played (of 0 ⇒ no
+    // possible graduate) — a 0/0 entry is noise. Append otherwise (marks the
+    // date processed, even at 0/of).
+    if (of > 0) {
+      dueHistory = [...dueHistory, { date: prevDate, of, grads }].slice(-90);
+      console.log(`Due history: scored ${prevDate} — ${grads.length}/${of} graduated (${prevDueRows.length} listed)`);
+    }
   }
-  // Heal any phantom no-slate entries already persisted (the July 2026 All-Star
-  // break logged 0-fers for 4 gameless days before this guard existed).
-  dueHistory = dueHistory.filter(e => isRealSlate(e.date));
+  // Heal phantom no-game entries already persisted (the July 2026 All-Star break
+  // logged 0-fers for 3 gameless days before any guard existed).
+  dueHistory = dueHistory.filter(e => hadGames(e.date));
 
   // Rebuild streaks from today's list: carry since/maxScore/bestRank for anyone
   // still on it, start new streaks at today for newcomers. First run ever
@@ -2151,7 +2163,7 @@ async function main() {
     const dt = new Date(todayET() + 'T12:00:00Z');
     dt.setUTCDate(dt.getUTCDate() - i);
     const D = dt.toISOString().split('T')[0];
-    if (D < SEASON_START || !isRealSlate(D)) continue;     // no games, or too few to grade the list (All-Star break + makeups)
+    if (D < SEASON_START || !hadGames(D)) continue;        // no games played that day (All-Star break gap)
     if (dueHistory.some(e => e.date === D)) continue;      // already scored live
     const rows = computeDueRowsAsOf(D);
     if (!rows.length) continue;
@@ -2167,8 +2179,10 @@ async function main() {
         droughtABs: row.droughtABs,
       });
     });
-    dueHistory.push({ date: D, of: rows.length, grads, backfilled: true });
-    console.log(`Due history: backfilled ${D} — ${grads.length}/${rows.length} graduated`);
+    const of = dueEligibleCount(rows, D);
+    if (of === 0) continue;                                 // nobody's team played — no possible graduate
+    dueHistory.push({ date: D, of, grads, backfilled: true });
+    console.log(`Due history: backfilled ${D} — ${grads.length}/${of} graduated (${rows.length} listed)`);
   }
   dueHistory.sort((a, b) => (a.date < b.date ? -1 : 1));
   dueHistory = dueHistory.slice(-90);
