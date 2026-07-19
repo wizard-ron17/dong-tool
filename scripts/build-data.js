@@ -576,6 +576,13 @@ const PICKS_MIN_HR        = 3;
 const PICKS_MIN_SCORE     = 7;
 const PICKS_RATIO_MIN     = 0.7;
 const PICKS_RATIO_MAX     = 1.4;
+// Longshots: the fringe-power half of the candidate pool (below-median base
+// power — the guys the book prices long), re-ranked by their matchup edge with
+// recent contact weighted harder than the normal pick score. A fringe bat
+// that's genuinely heating up is a live dart; a cold one gets buried. GAIN=2
+// doubles how far recent form pushes the score off neutral vs the pick score.
+const LONGSHOT_CONTACT_GAIN = 2;
+const LONGSHOT_LIMIT        = 30;
 const BASE_POWER_SHRINK_AB = 100; // pseudo-ABs of league-average prior; half-regressed at 100 AB, lightly at 300+
 // Platoon splits are HR-based rate stats, and HRs are rare enough that a
 // hard "minimum PA/IP, then trust it fully" gate still let small samples
@@ -1027,10 +1034,34 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       const contactKnown = r.recentFormRatio != null;
       r.matchupFactor = factors.reduce((a, b) => a * b, contactKnown ? 1 : 0.95);
       r.pickScore = r.basePower * r.matchupFactor * 100;
+
+      // Longshot score: same base-power × matchup scale, but recent contact is
+      // amplified (deviation from neutral doubled) so a heating-up fringe bat
+      // rises and a cold one sinks harder than on the pick board. Unknown
+      // contact leans to a mild penalty — longshots live and die on form.
+      const recentAmp = r.recentFormRatio != null
+        ? Math.max(0.5, Math.min(1.7, 1 + (r.recentFormRatio - 1) * LONGSHOT_CONTACT_GAIN))
+        : 0.9;
+      r.recentFormAmplified = Math.round(recentAmp * 100) / 100;
+      const lsFactors = [recentAmp, r.batterPlatoonRatio, effectivePitcherPlatoon, r.parkRatio, effectiveSynergy, r.weatherRatio]
+        .filter(f => f != null);
+      r.longshotScore = r.basePower * lsFactors.reduce((a, b) => a * b, 1) * 100;
     }
+
+    // Longshots = the below-median-base-power half (fringe bats the book prices
+    // long), re-ranked by longshotScore. Shipped separately because the picks
+    // board drops everyone under PICKS_MIN_SCORE — most fringe guys never make
+    // it, so they'd be invisible to a client-side re-filter of `picks`.
+    const powers = rows.map(r => r.basePower).filter(p => p != null).sort((a, b) => a - b);
+    const medianPower = powers.length ? powers[Math.floor(powers.length / 2)] : 0;
+    const longshots = rows
+      .filter(r => r.basePower <= medianPower)
+      .sort((a, b) => b.longshotScore - a.longshotScore)
+      .slice(0, LONGSHOT_LIMIT);
+
     rows.sort((a, b) => b.pickScore - a.pickScore);
-    return rows.filter(r => r.pickScore >= PICKS_MIN_SCORE);
-  } catch (e) { return []; }
+    return { picks: rows.filter(r => r.pickScore >= PICKS_MIN_SCORE), longshots };
+  } catch (e) { return { picks: [], longshots: [] }; }
 }
 
 // ── Prospects: fresh debuts who've gone deep, plus a "just called up" watchlist ──
@@ -1972,7 +2003,7 @@ async function main() {
   // yesterday's picks and score them against actual HR results. This runs before
   // fetchAll() so we have the old data in hand; we cross-reference after fetchAll
   // once dailyHRs is fully populated for the previous date.
-  let prevPicks = [], prevDate = null, picksHistory = [], prevSchedule = [];
+  let prevPicks = [], prevLongshots = [], prevDate = null, picksHistory = [], prevSchedule = [];
   let prevDueRows = [], dueStreaks = null, dueHistory = [];
   let prevReturning = [], prevJustBack = [], prevReturningHistory = [];
   try {
@@ -1980,6 +2011,7 @@ async function main() {
     const raw = fs.readFileSync(new URL('../data.json', import.meta.url), 'utf8');
     const old = JSON.parse(raw);
     prevPicks    = old.picks       ?? [];
+    prevLongshots = old.longshots  ?? [];
     prevDate     = old.todayDate   ?? null;
     picksHistory = old.picksHistory ?? [];
     prevSchedule = old.todaySchedule ?? [];  // for freezing started games' Homer Score
@@ -2038,7 +2070,7 @@ async function main() {
   const bullpens = await fetchBullpens(todaySchedule, teamIdToAbbr);
 
   console.log("Computing today's HR picks (matchups, splits, pitch-type profiles)...");
-  const freshPicks = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue);
+  const { picks: freshPicks, longshots: freshLongshots } = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue);
   // Degraded-build guard #2: fetchPlatoonSplits swallows fetch errors into {},
   // which once collapsed a 28-pick slate to 1 pick (every pick null-handed,
   // platoon factors gone, scores under the floor). On a real build with games,
@@ -2051,6 +2083,8 @@ async function main() {
   // Freeze picks whose game has already started (pre-game score from the last
   // build); only not-yet-started games get fresh scores.
   const picks = freezeStartedRows(freshPicks, prevPicks, sameSlate, started, (a, b) => b.pickScore - a.pickScore);
+  // Longshots freeze the same way — a started game's dart board shouldn't shift.
+  const longshots = freezeStartedRows(freshLongshots, prevLongshots, sameSlate, started, (a, b) => b.longshotScore - a.longshotScore);
 
   console.log('Scoring per-game Homer Scores...');
   computeHomerScores(todaySchedule, pitcherStats, bullpens);
@@ -2268,7 +2302,7 @@ async function main() {
     totalHRCount,
     dailyHRs, hrTypes, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus, dtdStatus,
-    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks, picksHistory,
+    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks, longshots, picksHistory,
     dueStreaks, dueHistory, returningInjured, justBack, returningHistory,
   };
 

@@ -1163,12 +1163,14 @@
     </div>
     <div class="sub-tabs" id="picks-sub-tabs">
       <button class="sub-btn active" id="picks-sub-today" onclick="switchPicksSub('today')">Today's Picks</button>
+      <button class="sub-btn" id="picks-sub-longshots" onclick="switchPicksSub('longshots')">🎯 Longshots</button>
       <button class="sub-btn" id="picks-sub-results" onclick="switchPicksSub('results')">Results</button>
     </div>
     <div id="picks-today-wrap">
       <div class="result-meta" id="picks-meta"></div>
       <div id="picks-content"><div class="empty">Loading data…</div></div>
     </div>
+    <div id="picks-longshots-wrap" style="display:none"></div>
     <div id="picks-results-wrap" style="display:none"></div>
   </div>
 
@@ -1273,6 +1275,8 @@ let teamIds = {}; // team abbr -> MLB team id, for team-logos/{id}.svg
 let pitcherStats = {}; // pid -> { hr, hr9, ip, era } for today's probable pitchers
 let bullpens = {}; // team abbr -> [{ pid, name, hand, era, saves, holds, gamesPitched, lastOuting, pitchMix }]
 let picks    = []; // today's HR pick candidates, pre-scored server-side
+let longshots = []; // fringe-power dart throws (below-median power, recent-form-amplified)
+let longshotMaxHR = 0; // 0 = All; else season-HR ceiling filter chip
 let picksHistory = [];
 // 3 / 7 = the server floors ("All"); hide off/bench/IL by default. Persisted:
 // a trim you set (e.g. 9+ score, 15+ HR — the backtest's profitable cut) sticks
@@ -1534,6 +1538,7 @@ function applyData(data) {
   pitcherStats = data.pitcherStats ?? {};
   bullpens = data.bullpens ?? {};
   picks        = data.picks        ?? [];
+  longshots    = data.longshots    ?? [];
   picksHistory = data.picksHistory ?? [];
   todayTeamsPlaying = new Set();
   todayLineupsPostedTeams = new Set();
@@ -1605,6 +1610,7 @@ function currentPath() {
   if      (activeNav === 'pairs'     && activePairSize !== 2)                p += '/' + PAIR_SIZE_TO_SLUG[activePairSize];
   else if (activeNav === 'stats'     && activeStatsView === 'individual')    p += '/individual';
   else if (activeNav === 'picks'     && picksSubTab === 'results')           p += '/results';
+  else if (activeNav === 'picks'     && picksSubTab === 'longshots')         p += '/longshots';
   else if (activeNav === 'due'       && dueSubTab === 'results')             p += '/results';
   else if (activeNav === 'prospects' && activeProspectTab === 'debutBombs')  p += '/debut-bombs';
   else if (activeNav === 'daylate'   && dayLateSubTab === 'results')         p += '/results';
@@ -1638,7 +1644,7 @@ function applyRouteState() {
     document.getElementById('stats-league').style.display = activeStatsView === 'league' ? '' : 'none';
     document.getElementById('stats-individual').style.display = activeStatsView === 'individual' ? '' : 'none';
   } else if (validNav === 'picks') {
-    picksSubTab = sub === 'results' ? 'results' : 'today';
+    picksSubTab = sub === 'results' ? 'results' : sub === 'longshots' ? 'longshots' : 'today';
   } else if (validNav === 'due') {
     dueSubTab = sub === 'results' ? 'results' : 'list';
   } else if (validNav === 'prospects') {
@@ -3821,7 +3827,7 @@ function closePickModal() {
   document.removeEventListener('keydown', pickModalEscHandler);
 }
 function openPickModal(pid) {
-  const r = picks.find(x => x.pid === pid);
+  const r = picks.find(x => x.pid === pid) || longshots.find(x => x.pid === pid);
   if (!r) return;
   document.body.insertAdjacentHTML('beforeend', pickModalHtml(r));
   document.addEventListener('keydown', pickModalEscHandler);
@@ -3830,15 +3836,100 @@ function openPickModal(pid) {
 // State + DOM only — used both by user clicks and when a route is applied.
 function applyPicksSub(sub) {
   picksSubTab = sub;
-  document.getElementById('picks-today-wrap').style.display  = sub === 'today'   ? '' : 'none';
-  document.getElementById('picks-results-wrap').style.display = sub === 'results' ? '' : 'none';
-  // Filters only apply to today's picks — hide the whole card on Results.
-  document.getElementById('picks-filters-card').style.display = sub === 'today' ? '' : 'none';
-  document.getElementById('picks-sub-today').classList.toggle('active',   sub === 'today');
-  document.getElementById('picks-sub-results').classList.toggle('active', sub === 'results');
-  if (sub === 'results') renderPicksResults();
+  document.getElementById('picks-today-wrap').style.display     = sub === 'today'     ? '' : 'none';
+  document.getElementById('picks-longshots-wrap').style.display = sub === 'longshots' ? '' : 'none';
+  document.getElementById('picks-results-wrap').style.display   = sub === 'results'   ? '' : 'none';
+  // The Pick Score explainer + Min HR/Score filters are for the main board only;
+  // Longshots and Results carry their own framing.
+  document.getElementById('picks-filters-card').style.display   = sub === 'today' ? '' : 'none';
+  document.getElementById('picks-explainer-toggle').style.display = sub === 'today' ? '' : 'none';
+  document.getElementById('picks-sub-today').classList.toggle('active',     sub === 'today');
+  document.getElementById('picks-sub-longshots').classList.toggle('active', sub === 'longshots');
+  document.getElementById('picks-sub-results').classList.toggle('active',   sub === 'results');
+  if (sub === 'results')   renderPicksResults();
+  if (sub === 'longshots') renderLongshots();
 }
 function switchPicksSub(sub) { applyPicksSub(sub); commitRoute(); }
+
+// Longshot scores run lower than pick scores (fringe base power), so its own scale.
+function longshotScoreClass(s) { return s >= 6 ? 'great' : s >= 4 ? 'good' : 'ok'; }
+function setLongshotMaxHR(n) { longshotMaxHR = n; renderLongshots(); }
+function renderLongshots() {
+  const el = document.getElementById('picks-longshots-wrap');
+  if (!longshots.length) {
+    el.innerHTML = todaySchedule.length
+      ? '<div class="empty">No longshots yet — lineups must be posted for matchup scoring to run.</div>'
+      : '<div class="empty">No games today, so no longshots — they resume with the next slate.</div>';
+    return;
+  }
+  // Dart throws only make sense on guys who'll actually bat — always drop IL /
+  // benched / team-off. Then an optional season-HR ceiling to tighten the fringe.
+  const pool = longshots
+    .filter(r => !isUnavailableToday(r.pid))
+    .filter(r => !longshotMaxHR || (r.hrs ?? 0) <= longshotMaxHR)
+    .sort((a, b) => (b.longshotScore ?? 0) - (a.longshotScore ?? 0));
+
+  const gameByTeam = {};
+  for (const g of todaySchedule) { gameByTeam[g.away.teamAbbr] = g; gameByTeam[g.home.teamAbbr] = g; }
+  const gameTimeOf = r => { const d = gameByTeam[r.team]?.gameDate; return d ? new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''; };
+  const rankClass = rk => rk===1?'gold':rk===2?'silver':rk===3?'bronze':'';
+
+  const hrChips = [0, 5, 8, 12].map(n =>
+    `<button class="due-filter-chip${longshotMaxHR===n?' active':''}" onclick="setLongshotMaxHR(${n})">${n===0?'All':'≤'+n+' HR'}</button>`).join('');
+
+  const cards = pool.map((r, i) => {
+    const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
+    const cls = longshotScoreClass(r.longshotScore ?? 0);
+    const hrBadge = `<span class="pick-ind" title="Season HR — fringe power is what the book prices long">${r.hrs ?? 0} HR</span>`;
+    // Amplified recent-form chip up front — the longshot list's headline signal.
+    const formChip = r.recentFormAmplified != null
+      ? `<span class="pick-ind ${r.recentFormAmplified>=1.05?'great':r.recentFormAmplified<=0.95?'bad':''}" title="Recent contact quality, weighted double vs the pick board — the guy heating up rises, the cold one sinks">${r.recentFormAmplified>=1?'▲':'▼'} Form ${r.recentFormAmplified.toFixed(2)}×</span>`
+      : '';
+    return `<div class="lbc-card due-row-clickable" onclick="openPickModal('${r.pid}')">
+      <div class="lbc-top">
+        <span class="lbc-rank ${rankClass(i+1)}">${i+1}</span>
+        <img class="lbc-photo" src="${photo}" alt="">
+        <div class="lbc-info">
+          <div class="lbc-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, false, true)}</div>
+          <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
+          <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
+        </div>
+        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${(r.longshotScore ?? 0).toFixed(1)}</span><span class="lbc-headline-lbl">Longshot</span></div>
+      </div>
+      <div class="pick-indicators">${hrBadge}${formChip}${pickIndicators(r)}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="due-explainer" id="longshot-explainer-toggle" onclick="toggleLongshotExplainer()" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">🎯 What Longshots Are</span>
+        <span class="due-explainer-chevron" id="longshot-explainer-chevron">▾</span>
+      </div>
+      <div class="due-explainer-teaser">The fringe-power half of today's board, re-ranked by matchup with recent contact weighted double — the best-positioned high-payout darts.</div>
+      <div class="due-explainer-body" id="longshot-explainer-body" style="display:none">
+        <ul>
+          <li><b>Who's here.</b> The below-median-power half of today's pick candidates — the low-HR bats the book hangs at long odds (+500 and up). The main board leans on raw power, so these guys rarely make it; this is where they surface.</li>
+          <li><b>How they're ranked.</b> Same matchup engine as Picks (pitch-type synergy vs the arm's handed mix, platoon edge, park, weather), but <b>recent contact quality is weighted double</b> — a fringe bat squaring the ball up right now is a live dart, a cold one gets buried. Unknown recent form takes a small penalty; longshots live and die on it.</li>
+          <li><b>Reality check.</b> Our July 2026 backtest against sportsbook closing prices found longshots (+550 and up) went <b>0-for-25</b> — the market usually prices these right, and blanket longshot betting lost money. This isn't a value list; it's the best-positioned darts for small stakes, where the only real edge is a matchup the book underweighted. Bet accordingly.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="picks-sort">
+      <span class="due-filter-label">Max Season HR</span>${hrChips}
+    </div>
+    <div class="result-meta">${pool.length} longshot${pool.length===1?'':'s'}${longshotMaxHR?` · ≤${longshotMaxHR} HR`:''} · ranked by matchup + hot form</div>
+    <div class="lb-views" data-view="cards"><div class="lb-view-cards">${cards || '<div class="empty">Nobody matches — widen the HR filter.</div>'}</div></div>`;
+}
+function toggleLongshotExplainer() {
+  const body = document.getElementById('longshot-explainer-body');
+  const chev = document.getElementById('longshot-explainer-chevron');
+  const wrap = document.getElementById('longshot-explainer-toggle');
+  const open = body.style.display === 'none';
+  body.style.display = open ? '' : 'none';
+  chev.textContent = open ? '▴' : '▾';
+  wrap.setAttribute('aria-expanded', String(open));
+}
 
 function renderPicksResults() {
   const el = document.getElementById('picks-results-wrap');
