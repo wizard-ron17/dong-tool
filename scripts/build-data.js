@@ -1481,7 +1481,14 @@ async function detectOpenerBulk(todaySchedule, pitcherStats) {
 // pitchers_lookup params are combined with a full-season date range (no
 // error, just quietly missing data), so this keeps each request's row count
 // comfortably under that ceiling instead of guessing it'll be fine.
-const PITCH_MIX_BATCH = 15;
+// Each pitcher contributes ~1500-2400 unfiltered pitch rows per season, so a
+// batch of 15 busy arms (~25k+ rows) blows Savant's 25,000-row cap and silently
+// truncates the OLDEST games (see the fetchBattedBalls note). The overall top-3
+// mix tolerated that, but the by-side split needs COMPLETE data to get accurate
+// L/R pitch counts — a truncated batch made established starters (Eovaldi, H.
+// Brown) fall back to their overall mix despite 300-900 pitches vs a side. Keep
+// batches small enough (~15k rows worst case) that no batch ever truncates.
+const PITCH_MIX_BATCH = 6;
 // Top-3 pitch types (by usage%) from a { pitchName -> count } tally.
 function topPitchMix(countObj) {
   const total = Object.values(countObj).reduce((a, b) => a + b, 0);
