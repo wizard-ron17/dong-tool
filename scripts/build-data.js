@@ -1498,38 +1498,54 @@ function topPitchMix(countObj) {
     .slice(0, 3)
     .map(([name, n]) => ({ name, pct: Math.round(100 * n / total) }));
 }
+// One side's pitch-name tally ({ pid -> {name->count} }) for a chunk of
+// pitchers, filtered server-side by batter handedness (batter_stands=L|R) so
+// every row is unambiguously that side — no dependence on parsing the mixed
+// CSV's per-row `stand` column, which the CI runner sometimes got as a partial
+// body (leaving splits empty while the overall mix still populated).
+async function fetchPitchMixSide(chunk, stands) {
+  const lookup = chunk.map(pid => `&pitchers_lookup%5B%5D=${pid}`).join('');
+  const url = `https://baseballsavant.mlb.com/statcast_search/csv?all=true&hfGT=R%7C&hfSea=${SEASON_YEAR}%7C` +
+    `&batter_stands=${stands}&player_type=pitcher&game_date_gt=${SEASON_START}&game_date_lt=${todayET()}` +
+    `&group_by=name&min_pitches=0&min_results=0&type=details${lookup}`;
+  const text = await savantFetch(url);
+  const counts = {};
+  if (text) for (const row of parseCsv(text)) {
+    const pid = row.pitcher, name = row.pitch_name;
+    if (!pid || !name) continue;
+    (counts[pid] ??= {})[name] = (counts[pid][name] ?? 0) + 1;
+  }
+  return counts;
+}
 // A pitcher's arsenal, overall AND split by batter side. Pitchers attack lefties
 // and righties with materially different mixes — across the league's top arms the
 // L-vs-R usage reshuffles ~27% of the arsenal on average (Cristopher Sánchez
 // throws RHB 47% changeups but LHB 60% sinkers; Skenes leans a sweeper vs RHB and
 // a change/splitter vs LHB). Matching a batter's HR-by-pitch profile against the
-// side he'll actually see is sharper than against the blended overall mix. The
-// `stand` column rides along in the same CSV, so the split costs no extra fetch.
+// side he'll actually see is sharper than against the blended overall mix.
+// Fetched per side (batter_stands), chunks sequential — the older all-at-once
+// concurrent mixed fetch got throttled into partial responses on the CI runner,
+// silently emptying splits for established starters. `all` = L + R (every pitch
+// has a batter side), so no third request is needed.
 async function fetchPitchMix(pids) {
   const chunks = [];
   for (let i = 0; i < pids.length; i += PITCH_MIX_BATCH) chunks.push(pids.slice(i, i + PITCH_MIX_BATCH));
-  const counts = {}; // pid -> { all:{name->n}, L:{...}, R:{...} }
-  await Promise.all(chunks.map(async chunk => {
-    const lookup = chunk.map(pid => `&pitchers_lookup%5B%5D=${pid}`).join('');
-    const url = `https://baseballsavant.mlb.com/statcast_search/csv?all=true&hfGT=R%7C&hfSea=${SEASON_YEAR}%7C` +
-      `&player_type=pitcher&game_date_gt=${SEASON_START}&game_date_lt=${todayET()}&group_by=name&min_pitches=0` +
-      `&min_results=0&type=details${lookup}`;
-    const text = await savantFetch(url);
-    if (text) for (const row of parseCsv(text)) {
-      const pid = row.pitcher, name = row.pitch_name, stand = row.stand;
-      if (!pid || !name) continue;
-      const c = (counts[pid] ??= { all: {}, L: {}, R: {} });
-      c.all[name] = (c.all[name] ?? 0) + 1;
-      if (stand === 'L' || stand === 'R') c[stand][name] = (c[stand][name] ?? 0) + 1;
-    }
-  }));
+  const byPid = {}; // pid -> { L:{name->n}, R:{name->n} }
+  for (const chunk of chunks) {
+    const [lc, rc] = await Promise.all([fetchPitchMixSide(chunk, 'L'), fetchPitchMixSide(chunk, 'R')]);
+    for (const pid of chunk) byPid[pid] = { L: lc[pid] ?? {}, R: rc[pid] ?? {} };
+  }
+  const sum = o => Object.values(o).reduce((a, b) => a + b, 0);
   const mix = {};
-  for (const pid of Object.keys(counts)) {
-    const c = counts[pid];
+  for (const pid of Object.keys(byPid)) {
+    const { L, R } = byPid[pid];
+    if (!sum(L) && !sum(R)) continue; // no data at all — leave undefined so callers fall back
+    const all = { ...L };
+    for (const [name, n] of Object.entries(R)) all[name] = (all[name] ?? 0) + n;
     mix[pid] = {
-      all: topPitchMix(c.all),
-      L: topPitchMix(c.L), nL: Object.values(c.L).reduce((a, b) => a + b, 0),
-      R: topPitchMix(c.R), nR: Object.values(c.R).reduce((a, b) => a + b, 0),
+      all: topPitchMix(all),
+      L: topPitchMix(L), nL: sum(L),
+      R: topPitchMix(R), nR: sum(R),
     };
   }
   return mix;
