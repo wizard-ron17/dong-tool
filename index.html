@@ -3882,7 +3882,14 @@ function switchPicksSub(sub) { applyPicksSub(sub); commitRoute(); }
 
 // Longshot scores run lower than pick scores (fringe base power), so its own scale.
 function longshotScoreClass(s) { return s >= 6 ? 'great' : s >= 4 ? 'good' : 'ok'; }
-function setLongshotMaxHR(n) { longshotMaxHR = n; renderLongshots(); }
+function setLongshotMaxHR(n) { longshotMaxHR = n; if (longshotSubTab === 'results') renderLongshotsResults(); else renderLongshots(); }
+// Season-HR filter chips — shared by the Today list and the Results tracker so
+// both always describe the same slice of longshots (default <10 HR).
+function longshotHrChips() {
+  return [[5,'≤5 HR'],[9,'<10 HR'],[12,'≤12 HR'],[0,'All']].map(([v,l]) =>
+    `<button class="due-filter-chip${longshotMaxHR===v?' active':''}" onclick="setLongshotMaxHR(${v})">${l}</button>`).join('');
+}
+function longshotHrMatch(hr) { return !longshotMaxHR || (hr ?? 0) <= longshotMaxHR; }
 function applyLongshotSub(sub) {
   longshotSubTab = sub;
   document.getElementById('longshot-today-wrap').style.display   = sub === 'today'   ? '' : 'none';
@@ -3905,7 +3912,7 @@ function renderLongshots() {
   // benched / team-off. Then a season-HR ceiling to hold the fringe (default <10).
   const pool = longshots
     .filter(r => !isUnavailableToday(r.pid))
-    .filter(r => !longshotMaxHR || (r.hrs ?? 0) <= longshotMaxHR)
+    .filter(r => longshotHrMatch(r.hrs))
     .sort((a, b) => (b.longshotScore ?? 0) - (a.longshotScore ?? 0));
 
   const gameByTeam = {};
@@ -3913,8 +3920,7 @@ function renderLongshots() {
   const gameTimeOf = r => { const d = gameByTeam[r.team]?.gameDate; return d ? new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''; };
   const rankClass = rk => rk===1?'gold':rk===2?'silver':rk===3?'bronze':'';
 
-  const hrChips = [[5,'≤5 HR'],[9,'<10 HR'],[12,'≤12 HR'],[0,'All']].map(([v,l]) =>
-    `<button class="due-filter-chip${longshotMaxHR===v?' active':''}" onclick="setLongshotMaxHR(${v})">${l}</button>`).join('');
+  const hrChips = longshotHrChips();
 
   const cards = pool.map((r, i) => {
     const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
@@ -3959,10 +3965,20 @@ function toggleLongshotExplainer() {
 function renderLongshotsResults() {
   const el = document.getElementById('longshot-results-wrap');
   if (!longshotsHistory.length) {
-    el.innerHTML = `<div class="empty">No results yet — longshots get scored each morning once the previous day's games are final.</div>`;
+    el.innerHTML = `
+      <div class="picks-sort"><span class="due-filter-label">Season HR</span>${longshotHrChips()}</div>
+      <div class="empty">No results yet — longshots get scored each morning once the previous day's games are final.</div>`;
     return;
   }
-  const all = longshotsHistory.flatMap(e => e.longshots);
+  // Track the SAME slice you're viewing: each day's list, filtered to the HR
+  // ceiling and re-ranked within it, so a <10 view reports a <10 hit rate — not
+  // the whole <15 pool. Days keep their longshotScore order, so slicing gives
+  // the top darts of the filtered set.
+  const filteredDays = longshotsHistory.map(e => ({
+    date: e.date,
+    longshots: e.longshots.filter(p => longshotHrMatch(p.hr)).map((p, i) => ({ ...p, rank: i + 1 })),
+  }));
+  const all = filteredDays.flatMap(e => e.longshots);
   const totalDarts = all.length;
   const totalHits  = all.filter(p => p.hit).length;
   const hitRate    = totalDarts ? (totalHits / totalDarts * 100).toFixed(1) : '0.0';
@@ -3973,7 +3989,7 @@ function renderLongshotsResults() {
   const tiers = [{label:'Top 3',n:3},{label:'Top 5',n:5},{label:'Top 10',n:10},{label:'All',n:Infinity}];
   const bucketHtml = tiers.map(t => {
     let hits = 0, total = 0;
-    for (const entry of longshotsHistory) { const pool = entry.longshots.slice(0, t.n); total += pool.length; hits += pool.filter(p => p.hit).length; }
+    for (const entry of filteredDays) { const pool = entry.longshots.slice(0, t.n); total += pool.length; hits += pool.filter(p => p.hit).length; }
     const pct = total ? (hits / total * 100).toFixed(0) : '—';
     return `<div class="ph-bucket">
       <span class="ph-bucket-range">${t.label}</span>
@@ -3982,22 +3998,23 @@ function renderLongshotsResults() {
     </div>`;
   }).join('');
 
-  const dayRows = [...longshotsHistory].reverse().map(entry => {
+  const dayRows = [...filteredDays].reverse().map(entry => {
     const total = entry.longshots.length;
-    const rankedHits = entry.longshots.map((p,i) => ({ ...p, rank: i+1 })).filter(p => p.hit);
+    const rankedHits = entry.longshots.filter(p => p.hit);
     const pct = total ? (rankedHits.length / total * 100).toFixed(0) : 0;
     const hitNames = rankedHits.map(p =>
-      `<span class="ph-hit-name" title="Ranked #${p.rank} that day · ${p.hr} season HR"><span class="ph-hit-rank">#${p.rank}</span>${compactPlayerName(p.name)}</span>`
+      `<span class="ph-hit-name" title="Ranked #${p.rank} that day · ${p.hr} season HR when listed"><span class="ph-hit-rank">#${p.rank}</span>${compactPlayerName(p.name)}</span>`
     ).join('');
     return `<div class="ph-day-row">
       <span class="ph-day-date">${entry.date}</span>
       <span class="ph-day-fraction">${rankedHits.length}/${total}</span>
-      <span class="ph-day-pct hrg-val ${total?lsCls(rankedHits.length/total):'avg'}">${pct}%</span>
+      <span class="ph-day-pct hrg-val ${total?lsCls(rankedHits.length/total):'avg'}">${total?pct+'%':'—'}</span>
       <span class="ph-day-hits">${hitNames || '<span style="color:var(--dim)">no darts landed</span>'}</span>
     </div>`;
   }).join('');
 
   el.innerHTML = `
+    <div class="picks-sort"><span class="due-filter-label">Season HR</span>${longshotHrChips()}</div>
     <div class="ph-summary">
       <div class="ph-stat"><span class="ph-stat-val hrg-val ${lsCls(parseFloat(hitRate)/100)}">${hitRate}%</span><span class="ph-stat-lbl">Hit Rate</span></div>
       <div class="ph-stat"><span class="ph-stat-val">${totalHits}</span><span class="ph-stat-lbl">Darts Landed</span></div>

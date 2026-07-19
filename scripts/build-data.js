@@ -2204,7 +2204,7 @@ async function main() {
         pid:   p.pid,
         name:  playerNames[p.pid] ?? p.pid,
         score: Math.round((p.longshotScore ?? 0) * 10) / 10,
-        hr:    hrTotals[p.pid] ?? 0,       // season HR total at time of scoring
+        hr:    p.hrs ?? hrTotals[p.pid] ?? 0, // season HR when he was LISTED (bet-time), so the fringe filter is honest
         hit:   !!(dayHRs[p.pid]),
         projected: p.projected ?? false,
       })),
