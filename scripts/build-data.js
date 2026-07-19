@@ -677,6 +677,25 @@ function pitchSynergyScore(hrProfile, pitcherMix) {
   for (const b of hrProfile) score += (b.pct * (usage[b.name] ?? 0)) / 100;
   return score;
 }
+// Min pitches to a given batter side before we trust that side's split on its
+// own; under it (a side this pitcher has barely faced) fall back to overall.
+const PITCH_MIX_MIN_SIDE = 100;
+// Select a pitcher's arsenal for the side a batter will actually stand on.
+// Returns { mix, split }: split=true means a real handedness split was used,
+// false means we fell back to the overall mix (thin sample or unknown side).
+function pitcherMixVs(entry, stand) {
+  if (!entry) return { mix: [], split: false };
+  if (Array.isArray(entry)) return { mix: entry, split: false }; // legacy/overall-only shape
+  if (stand === 'L' && entry.nL >= PITCH_MIX_MIN_SIDE && entry.L?.length) return { mix: entry.L, split: true };
+  if (stand === 'R' && entry.nR >= PITCH_MIX_MIN_SIDE && entry.R?.length) return { mix: entry.R, split: true };
+  return { mix: entry.all ?? [], split: false };
+}
+// The side a batter stands on against a given pitcher: a switch hitter bats
+// opposite the pitcher's hand; everyone else bats their own side.
+function batStandVs(bHand, pHand) {
+  if (bHand === 'S') return pHand === 'L' ? 'R' : (pHand === 'R' ? 'L' : null);
+  return bHand ?? null;
+}
 
 // How much of the pitcher-side signal comes from the starter vs the pen is
 // driven by how deep THIS starter actually goes: his avg innings per start
@@ -877,14 +896,18 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       const parkHRG    = venueGames ? venueHRs / venueGames : leagueHRPerGame;
       const parkRatio  = leagueHRPerGame ? Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, parkHRG / leagueHRPerGame)) : 1;
 
-      const synergyScore = pitchSynergyScore(hrProfile, pitcherMixByPid[c.oppPid]);
+      // Score the batter's HR-pitch profile against the arsenal the pitcher
+      // actually shows HIS side, not the blended overall mix (see fetchPitchMix).
+      const oppStand = batStandVs(bHand, pHand);
+      const starterMix = pitcherMixVs(pitcherMixByPid[c.oppPid], oppStand);
+      const synergyScore = pitchSynergyScore(hrProfile, starterMix.mix);
 
       rows.push({
         pid: c.pid, team: c.team, oppTeam: c.oppTeam, hrs, abs,
         oppPid: c.oppPid, oppName: c.oppName, oppHand: pHand, venue: c.venue,
         projected: c.projected ?? false,
         bHand, basePower, rawBasePower, recentFormRatio, batterPlatoonRatio, pitcherPlatoonRatio, parkRatio,
-        hrProfile, pitcherMix: pitcherMixByPid[c.oppPid] ?? [], synergyScore,
+        hrProfile, pitcherMix: starterMix.mix, pitcherMixHand: starterMix.split ? oppStand : null, synergyScore,
       });
     }
 
@@ -966,14 +989,15 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
           bulkPlatoon = Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX,
             (bulk.hand === effSide ? leaguePitcherRateSame : leaguePitcherRateOpp) / avgPitcherRate));
         }
-        const bulkSynergyRaw = pitchSynergyScore(r.hrProfile, pitcherMixByPid[bulk.pid]);
+        const bulkMix = pitcherMixVs(pitcherMixByPid[bulk.pid], batStandVs(r.bHand, bulk.hand));
+        const bulkSynergyRaw = pitchSynergyScore(r.hrProfile, bulkMix.mix);
         const rawBulkSynergyRatio = medianSynergy > 0 && bulkSynergyRaw > 0
           ? Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, bulkSynergyRaw / medianSynergy))
           : (bulkSynergyRaw === 0 ? 0.9 : 1);
         bulkSynergyRatio = regressSynergyRatio(rawBulkSynergyRatio, r.hrs);
         r.bulkPid = bulk.pid; r.bulkName = bulk.name; r.bulkHand = bulk.hand;
         r.bulkIPPerApp = bulk.ipPerApp; r.bulkRestDays = bulk.restDays;
-        r.bulkMix = pitcherMixByPid[bulk.pid] ?? [];
+        r.bulkMix = bulkMix.mix; r.bulkMixHand = bulkMix.split ? batStandVs(r.bHand, bulk.hand) : null;
       }
       const penW = 1 - sW - bulkW;
       r.starterShare = Math.round(sW * 100) / 100;
@@ -1458,10 +1482,26 @@ async function detectOpenerBulk(todaySchedule, pitcherStats) {
 // error, just quietly missing data), so this keeps each request's row count
 // comfortably under that ceiling instead of guessing it'll be fine.
 const PITCH_MIX_BATCH = 15;
+// Top-3 pitch types (by usage%) from a { pitchName -> count } tally.
+function topPitchMix(countObj) {
+  const total = Object.values(countObj).reduce((a, b) => a + b, 0);
+  if (!total) return [];
+  return Object.entries(countObj)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([name, n]) => ({ name, pct: Math.round(100 * n / total) }));
+}
+// A pitcher's arsenal, overall AND split by batter side. Pitchers attack lefties
+// and righties with materially different mixes — across the league's top arms the
+// L-vs-R usage reshuffles ~27% of the arsenal on average (Cristopher Sánchez
+// throws RHB 47% changeups but LHB 60% sinkers; Skenes leans a sweeper vs RHB and
+// a change/splitter vs LHB). Matching a batter's HR-by-pitch profile against the
+// side he'll actually see is sharper than against the blended overall mix. The
+// `stand` column rides along in the same CSV, so the split costs no extra fetch.
 async function fetchPitchMix(pids) {
   const chunks = [];
   for (let i = 0; i < pids.length; i += PITCH_MIX_BATCH) chunks.push(pids.slice(i, i + PITCH_MIX_BATCH));
-  const counts = {}; // pid -> { pitchName -> count }
+  const counts = {}; // pid -> { all:{name->n}, L:{...}, R:{...} }
   await Promise.all(chunks.map(async chunk => {
     const lookup = chunk.map(pid => `&pitchers_lookup%5B%5D=${pid}`).join('');
     const url = `https://baseballsavant.mlb.com/statcast_search/csv?all=true&hfGT=R%7C&hfSea=${SEASON_YEAR}%7C` +
@@ -1469,18 +1509,21 @@ async function fetchPitchMix(pids) {
       `&min_results=0&type=details${lookup}`;
     const text = await savantFetch(url);
     if (text) for (const row of parseCsv(text)) {
-      const pid = row.pitcher, name = row.pitch_name;
+      const pid = row.pitcher, name = row.pitch_name, stand = row.stand;
       if (!pid || !name) continue;
-      (counts[pid] ??= {})[name] = (counts[pid][name] ?? 0) + 1;
+      const c = (counts[pid] ??= { all: {}, L: {}, R: {} });
+      c.all[name] = (c.all[name] ?? 0) + 1;
+      if (stand === 'L' || stand === 'R') c[stand][name] = (c[stand][name] ?? 0) + 1;
     }
   }));
   const mix = {};
   for (const pid of Object.keys(counts)) {
-    const total = Object.values(counts[pid]).reduce((a, b) => a + b, 0);
-    mix[pid] = Object.entries(counts[pid])
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([name, n]) => ({ name, pct: Math.round(100 * n / total) }));
+    const c = counts[pid];
+    mix[pid] = {
+      all: topPitchMix(c.all),
+      L: topPitchMix(c.L), nL: Object.values(c.L).reduce((a, b) => a + b, 0),
+      R: topPitchMix(c.R), nR: Object.values(c.R).reduce((a, b) => a + b, 0),
+    };
   }
   return mix;
 }
@@ -1574,7 +1617,10 @@ async function fetchBullpens(todaySchedule, teamIdToAbbr) {
         pid: r.pid, name: m.name, hand: m.hand,
         era: r.era, saves: r.saves, holds: r.holds, gamesPitched: r.gamesPitched, inningsPitched: r.inningsPitched,
         lastOuting: lastOuting[r.pid] ?? null,
-        pitchMix: pitchMix[r.pid] ?? [],
+        // Relievers face far fewer batters per side than starters — keep them on
+        // the overall mix rather than a noisy L/R split (the pen is a weighted,
+        // secondary component of the blend anyway).
+        pitchMix: pitchMix[r.pid]?.all ?? [],
       });
     }
     for (const abbr of Object.keys(out)) assignBullpenRoles(out[abbr]);
