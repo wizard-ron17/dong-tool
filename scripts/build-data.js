@@ -583,6 +583,7 @@ const PICKS_RATIO_MAX     = 1.4;
 // doubles how far recent form pushes the score off neutral vs the pick score.
 const LONGSHOT_CONTACT_GAIN = 2;
 const LONGSHOT_LIMIT        = 30;
+const LONGSHOT_POOL_MAX_HR  = 15; // a 15+ HR bat isn't a longshot no matter the matchup; client defaults tighter (<10)
 const BASE_POWER_SHRINK_AB = 100; // pseudo-ABs of league-average prior; half-regressed at 100 AB, lightly at 300+
 // Platoon splits are HR-based rate stats, and HRs are rare enough that a
 // hard "minimum PA/IP, then trust it fully" gate still let small samples
@@ -1048,14 +1049,14 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       r.longshotScore = r.basePower * lsFactors.reduce((a, b) => a * b, 1) * 100;
     }
 
-    // Longshots = the below-median-base-power half (fringe bats the book prices
-    // long), re-ranked by longshotScore. Shipped separately because the picks
-    // board drops everyone under PICKS_MIN_SCORE — most fringe guys never make
-    // it, so they'd be invisible to a client-side re-filter of `picks`.
-    const powers = rows.map(r => r.basePower).filter(p => p != null).sort((a, b) => a - b);
-    const medianPower = powers.length ? powers[Math.floor(powers.length / 2)] : 0;
+    // Longshots = genuinely low-HR bats (the ones the book prices long), ranked
+    // by longshotScore. HR count — not base power — is the fringe line: a 15+ HR
+    // slugger having a down year can sit below median power yet clearly isn't a
+    // longshot. Shipped separately because the picks board drops everyone under
+    // PICKS_MIN_SCORE, so most fringe guys would be invisible to a re-filter of
+    // `picks`. Generous ceiling here; the client defaults to a tighter <10.
     const longshots = rows
-      .filter(r => r.basePower <= medianPower)
+      .filter(r => (r.hrs ?? 0) < LONGSHOT_POOL_MAX_HR)
       .sort((a, b) => b.longshotScore - a.longshotScore)
       .slice(0, LONGSHOT_LIMIT);
 
@@ -2003,7 +2004,7 @@ async function main() {
   // yesterday's picks and score them against actual HR results. This runs before
   // fetchAll() so we have the old data in hand; we cross-reference after fetchAll
   // once dailyHRs is fully populated for the previous date.
-  let prevPicks = [], prevLongshots = [], prevDate = null, picksHistory = [], prevSchedule = [];
+  let prevPicks = [], prevLongshots = [], prevDate = null, picksHistory = [], longshotsHistory = [], prevSchedule = [];
   let prevDueRows = [], dueStreaks = null, dueHistory = [];
   let prevReturning = [], prevJustBack = [], prevReturningHistory = [];
   try {
@@ -2014,6 +2015,7 @@ async function main() {
     prevLongshots = old.longshots  ?? [];
     prevDate     = old.todayDate   ?? null;
     picksHistory = old.picksHistory ?? [];
+    longshotsHistory = old.longshotsHistory ?? [];
     prevSchedule = old.todaySchedule ?? [];  // for freezing started games' Homer Score
     prevDueRows  = old.dueRows     ?? [];
     dueStreaks   = old.dueStreaks  ?? null;  // null (not {}) = first run, triggers backfill seeding
@@ -2191,6 +2193,27 @@ async function main() {
     console.log(`Picks history: scored ${prevDate} — ${hits}/${entry.picks.length} hit`);
   }
 
+  // Longshots history — same shape and guards as picks, tracked separately so
+  // the Longshots tab can show how the darts actually land (a different bet than
+  // the main board, so it earns its own hit-rate record).
+  if (prevLongshots.length && scorable(prevDate) && !longshotsHistory.some(e => e.date === prevDate)) {
+    const dayHRs = dailyHRs[prevDate] ?? {};
+    const entry = {
+      date: prevDate,
+      longshots: prevLongshots.map(p => ({
+        pid:   p.pid,
+        name:  playerNames[p.pid] ?? p.pid,
+        score: Math.round((p.longshotScore ?? 0) * 10) / 10,
+        hr:    hrTotals[p.pid] ?? 0,       // season HR total at time of scoring
+        hit:   !!(dayHRs[p.pid]),
+        projected: p.projected ?? false,
+      })),
+    };
+    longshotsHistory = [...longshotsHistory, entry].slice(-90);
+    const hits = entry.longshots.filter(p => p.hit).length;
+    console.log(`Longshots history: scored ${prevDate} — ${hits}/${entry.longshots.length} hit`);
+  }
+
   // ── Due tracking ──────────────────────────────────────────────────────
   // Same shape as picks history: when a player who was on the Due list homers,
   // he "graduates" — record how long he sat on the list, his due score, and his
@@ -2302,7 +2325,7 @@ async function main() {
     totalHRCount,
     dailyHRs, hrTypes, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus, dtdStatus,
-    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks, longshots, picksHistory,
+    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks, longshots, picksHistory, longshotsHistory,
     dueStreaks, dueHistory, returningInjured, justBack, returningHistory,
   };
 
