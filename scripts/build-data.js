@@ -2061,6 +2061,7 @@ async function main() {
   // fetchAll() so we have the old data in hand; we cross-reference after fetchAll
   // once dailyHRs is fully populated for the previous date.
   let prevPicks = [], prevLongshots = [], prevDate = null, picksHistory = [], longshotsHistory = [], prevSchedule = [];
+  let prevBirthdays = [], birthdayHistory = [];
   let prevDueRows = [], dueStreaks = null, dueHistory = [];
   let prevReturning = [], prevJustBack = [], prevReturningHistory = [];
   let prevProspectWatch = {}, prevProspectHistory = [];
@@ -2073,6 +2074,8 @@ async function main() {
     prevDate     = old.todayDate   ?? null;
     picksHistory = old.picksHistory ?? [];
     longshotsHistory = old.longshotsHistory ?? [];
+    prevBirthdays    = old.birthdays ?? [];
+    birthdayHistory  = old.birthdayHistory ?? [];
     prevSchedule = old.todaySchedule ?? [];  // for freezing started games' Homer Score
     prevDueRows  = old.dueRows     ?? [];
     dueStreaks   = old.dueStreaks  ?? null;  // null (not {}) = first run, triggers backfill seeding
@@ -2277,6 +2280,28 @@ async function main() {
     console.log(`Longshots history: scored ${prevDate} — ${hits}/${entry.longshots.length} hit`);
   }
 
+  // Birthday history — the silly one: did the day's birthday boys hit a dinger on
+  // their birthday? prevBirthdays are last build's celebrants (for prevDate); once
+  // that slate's final, log who went deep. `played` (had an AB) lets the Results
+  // rate honestly exclude guys whose team was off / who sat.
+  if (prevBirthdays.length && scorable(prevDate) && !birthdayHistory.some(e => e.date === prevDate)) {
+    const dayHRs = dailyHRs[prevDate] ?? {};
+    const entry = {
+      date: prevDate,
+      players: prevBirthdays.map(b => ({
+        pid:  b.pid,
+        name: b.name ?? playerNames[b.pid] ?? b.pid,
+        team: b.team ?? playerTeams[b.pid] ?? '',
+        age:  b.age ?? null,
+        hit:  !!(dayHRs[b.pid]),
+        played: (playerAbsByDate[b.pid]?.[prevDate] ?? 0) > 0,
+      })),
+    };
+    birthdayHistory = [...birthdayHistory, entry].slice(-200);
+    const hits = entry.players.filter(p => p.hit).length;
+    console.log(`Birthday history: scored ${prevDate} — ${hits}/${entry.players.length} birthday boy(s) homered 🎂`);
+  }
+
   // ── Due tracking ──────────────────────────────────────────────────────
   // Same shape as picks history: when a player who was on the Due list homers,
   // he "graduates" — record how long he sat on the list, his due score, and his
@@ -2388,7 +2413,7 @@ async function main() {
     totalHRCount,
     dailyHRs, hrTypes, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus, dtdStatus,
-    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks, longshots, picksHistory, longshotsHistory, birthdays,
+    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks, longshots, picksHistory, longshotsHistory, birthdays, birthdayHistory,
     dueStreaks, dueHistory, returningInjured, justBack, returningHistory,
   };
 

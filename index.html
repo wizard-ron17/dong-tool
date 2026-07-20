@@ -1282,8 +1282,15 @@
 
   <!-- BIRTHDAYS -->
   <div id="panel-birthdays" class="panel">
-    <div class="result-meta" id="birthdays-meta"></div>
-    <div id="birthdays-content"><div class="empty">Loading data…</div></div>
+    <div class="sub-tabs" id="birthday-sub-tabs">
+      <button class="sub-btn active" id="birthday-sub-today" onclick="switchBirthdaySub('today')">🎂 Today</button>
+      <button class="sub-btn" id="birthday-sub-results" onclick="switchBirthdaySub('results')">Results</button>
+    </div>
+    <div id="birthday-today-wrap">
+      <div class="result-meta" id="birthdays-meta"></div>
+      <div id="birthdays-content"><div class="empty">Loading data…</div></div>
+    </div>
+    <div id="birthday-results-wrap" style="display:none"></div>
   </div>
 
   <footer>
@@ -1314,6 +1321,8 @@ let groups       = {};  // size -> [{pids, count, dates}], pre-filtered & sorted
 let dueRows      = [];
 let prospects    = { justCalledUp: [], history: [] };
 let birthdays    = []; // hitters celebrating a birthday today 🎂
+let birthdayHistory = []; // past birthday boys + whether they homered
+let birthdaySubTab = 'today';
 let birthdayById = {}; // pid -> birthday entry, for the site-wide badge
 let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if currently on the IL
 let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questionable (NOT on the IL), from ESPN
@@ -1603,6 +1612,7 @@ function applyData(data) {
   venueGameDays = data.venueGameDays ?? {}; venueHRsByDate = data.venueHRsByDate ?? {};
   groups = data.groups; dueRows = data.dueRows; prospects = data.prospects ?? prospects;
   birthdays = data.birthdays ?? [];
+  birthdayHistory = data.birthdayHistory ?? [];
   birthdayById = {}; for (const b of birthdays) birthdayById[b.pid] = b;
   dueStreaks = data.dueStreaks ?? {}; dueHistory = data.dueHistory ?? [];
   injuryStatus = data.injuryStatus ?? {};
@@ -1694,6 +1704,7 @@ function currentPath() {
   else if (activeNav === 'prospects' && activeProspectTab === 'results')     p += '/results';
   else if (activeNav === 'daylate'   && dayLateSubTab === 'results')         p += '/results';
   else if (activeNav === 'returning' && returningSubTab === 'results')       p += '/results';
+  else if (activeNav === 'birthdays' && birthdaySubTab === 'results')        p += '/results';
   else if (activeNav === 'recap'     && recapDate)                           p += '/' + recapDate;
   return p;
 }
@@ -1734,6 +1745,8 @@ function applyRouteState() {
     dayLateSubTab = sub === 'results' ? 'results' : 'today';
   } else if (validNav === 'returning') {
     returningSubTab = sub === 'results' ? 'results' : 'today';
+  } else if (validNav === 'birthdays') {
+    birthdaySubTab = sub === 'results' ? 'results' : 'today';
   } else if (validNav === 'recap') {
     recapDate = /^\d{4}-\d{2}-\d{2}$/.test(sub) ? sub : null; // /recap/2026-07-10 deep-links a day
   }
@@ -1788,7 +1801,7 @@ function renderCurrentPanel() {
   if (activeNav === 'prospects') renderProspects();
   if (activeNav === 'daylate')  { renderDayLate(); applyDayLateSub(dayLateSubTab); }
   if (activeNav === 'returning') { renderReturning(); applyReturningSub(returningSubTab); }
-  if (activeNav === 'birthdays') renderBirthdays();
+  if (activeNav === 'birthdays') applyBirthdaySub(birthdaySubTab);
 }
 window.addEventListener('popstate', applyRouteState);
 let activeStatsView = 'league';
@@ -4478,6 +4491,56 @@ function renderBirthdays() {
     </div>`;
   }).join('');
   el.innerHTML = `<div class="bday-grid">${cards}</div>`;
+}
+function applyBirthdaySub(sub) {
+  birthdaySubTab = sub;
+  document.getElementById('birthday-today-wrap').style.display   = sub === 'today'   ? '' : 'none';
+  document.getElementById('birthday-results-wrap').style.display = sub === 'results' ? '' : 'none';
+  document.getElementById('birthday-sub-today').classList.toggle('active',   sub === 'today');
+  document.getElementById('birthday-sub-results').classList.toggle('active', sub === 'results');
+  if (sub === 'results') renderBirthdayResults(); else renderBirthdays();
+}
+function switchBirthdaySub(sub) { applyBirthdaySub(sub); commitRoute(); }
+
+// The silly tracker: do birthday boys hit dingers on their birthday? Rate is
+// over guys who actually PLAYED (a birthday off-day or benching isn't a miss).
+function renderBirthdayResults() {
+  const el = document.getElementById('birthday-results-wrap');
+  const hist = birthdayHistory || [];
+  if (!hist.length) {
+    el.innerHTML = `<div class="empty">No birthday results yet — the tracker fills in once a birthday boy's slate wraps. 🎂</div>`;
+    return;
+  }
+  const all = hist.flatMap(e => e.players);
+  const played  = all.filter(p => p.played);
+  const homered = all.filter(p => p.hit);
+  const rate = played.length ? (100 * homered.length / played.length).toFixed(1) : '0.0';
+  const rateCls = parseFloat(rate) >= 12 ? 'great' : parseFloat(rate) >= 6 ? 'good' : 'avg';
+
+  const dayRows = [...hist].reverse().map(entry => {
+    const boys = entry.players;
+    const dayPlayed = boys.filter(p => p.played).length;
+    const dayHR = boys.filter(p => p.hit).length;
+    const names = boys.map(p => {
+      const state = p.hit ? 'homered on his birthday! 🎉' : p.played ? 'no HR' : 'did not play';
+      return `<span class="ph-hit-name" title="${p.age?`turned ${p.age} · `:''}${state}"${p.hit?' style="border-color:rgba(236,110,173,0.5)"':''}>${p.hit?'🎂💥 ':''}${compactPlayerName(p.name)}</span>`;
+    }).join(' ');
+    return `<div class="ph-day-row">
+      <span class="ph-day-date">${fmtDateLong(entry.date)}</span>
+      <span class="ph-day-fraction">${dayHR}/${dayPlayed||boys.length}</span>
+      <span class="ph-day-hits">${names || '<span style="color:var(--dim)">—</span>'}</span>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="ph-summary">
+      <div class="ph-stat"><span class="ph-stat-val hrg-val ${rateCls}">${rate}%</span><span class="ph-stat-lbl">Birthday HR Rate</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${homered.length}</span><span class="ph-stat-lbl">Birthday Bombs 🎂</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${played.length}</span><span class="ph-stat-lbl">Boys Who Played</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${hist.length}</span><span class="ph-stat-lbl">Days Tracked</span></div>
+    </div>
+    <div class="ph-buckets-head">Birthday Box Score <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· 🎂💥 = went deep on his birthday</span></div>
+    <div class="ph-days">${dayRows}</div>`;
 }
 
 // ── DAY LATE ───────────────────────────────────────────────────────────
