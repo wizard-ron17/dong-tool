@@ -1315,9 +1315,19 @@ let picksHistory = [];
 // (score ≥ 9, 10+ HR). Fringe/low-power darts live in the Longshots tool now,
 // so the two boards split cleanly at 10 HR. Loosenable to "All" (3/7).
 const PICKS_FILTER_DEFAULTS = { minHR: 10, minScore: 9, hideUnavailable: true };
+// Bump this to force-reset everyone's saved Pick filters to the current defaults
+// once (older saved prefs are discarded on next load, then the version restamped).
+const PICKS_FILTER_VERSION = 2;
 let picksFilters = { ...PICKS_FILTER_DEFAULTS };
-try { picksFilters = { ...picksFilters, ...JSON.parse(localStorage.getItem('picksFilters') || '{}') }; } catch (e) {}
-function savePicksFilters() { try { localStorage.setItem('picksFilters', JSON.stringify(picksFilters)); } catch (e) {} }
+try {
+  if (+(localStorage.getItem('picksFiltersVer') || 0) >= PICKS_FILTER_VERSION) {
+    picksFilters = { ...picksFilters, ...JSON.parse(localStorage.getItem('picksFilters') || '{}') };
+  } else {
+    localStorage.setItem('picksFiltersVer', String(PICKS_FILTER_VERSION));
+    localStorage.setItem('picksFilters', JSON.stringify(picksFilters)); // adopt the new default cutoff
+  }
+} catch (e) {}
+function savePicksFilters() { try { localStorage.setItem('picksFilters', JSON.stringify(picksFilters)); localStorage.setItem('picksFiltersVer', String(PICKS_FILTER_VERSION)); } catch (e) {} }
 let picksSort        = 'score'; // 'score' (desc) or 'game' (earliest first)
 // Shared leaderboard view mode (Picks + Due). Defaults to the responsive
 // choice — cards on phones, table on wider screens — then remembers the pick.
