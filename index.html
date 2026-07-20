@@ -368,6 +368,7 @@
   .cross-tab-badge { display: inline-flex; align-items: center; font-size: 0.57rem; font-weight: 700; padding: 0.04rem 0.3rem; border-radius: 4px; margin-left: 0.25rem; vertical-align: middle; white-space: nowrap; cursor: default; }
   .cross-tab-badge.due-rank  { color: var(--gold); background: rgba(240,192,64,0.12); border: 1px solid rgba(240,192,64,0.3); }
   .cross-tab-badge.pick-rank { color: var(--accent); background: rgba(53,201,110,0.12); border: 1px solid rgba(53,201,110,0.3); }
+  .cross-tab-badge.bday-badge { padding: 0.02rem 0.2rem; border: 1px solid rgba(236,110,173,0.35); background: rgba(236,110,173,0.12); }
   .pick-ind.great { background: rgba(53,201,110,0.14); color: var(--accent); }
   .pick-ind.good  { background: rgba(240,192,64,0.12); color: var(--gold); }
   .pick-ind.bad   { background: rgba(224,64,90,0.12);  color: var(--bad); }
@@ -1313,6 +1314,7 @@ let groups       = {};  // size -> [{pids, count, dates}], pre-filtered & sorted
 let dueRows      = [];
 let prospects    = { justCalledUp: [], history: [] };
 let birthdays    = []; // hitters celebrating a birthday today 🎂
+let birthdayById = {}; // pid -> birthday entry, for the site-wide badge
 let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if currently on the IL
 let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questionable (NOT on the IL), from ESPN
 let returningInjured = []; // injured hitters (IL + DTD) with ESPN's estimated return dates — Returning Boppers tool
@@ -1509,8 +1511,14 @@ function availableDueRank(pid) {
 // rather than requiring the user to switch tabs to find it.
 // excludeDue / excludePick: set true when rendering *within* that tab (rank
 // is already implied by position in the list — no need to repeat it).
-function crossTabBadge(pid, excludeDue = false, excludePick = false) {
+// Site-wide 🎂 — a player celebrating a birthday today, wherever his name shows.
+function birthdayBadge(pid) {
+  const b = birthdayById[pid];
+  return b ? `<span class="cross-tab-badge bday-badge" title="Birthday today — turns ${b.age} 🎂">🎂</span>` : '';
+}
+function crossTabBadge(pid, excludeDue = false, excludePick = false, excludeBirthday = false) {
   const parts = [];
+  if (!excludeBirthday) { const bd = birthdayBadge(pid); if (bd) parts.push(bd); } // rides along next to the name on every board
   if (!excludeDue) {
     const rank = availableDueRank(pid); // matches the Due page's default (available-only) ranking
     if (rank) parts.push(`<span class="cross-tab-badge due-rank" title="Ranked #${rank} in Due">#${rank} Due</span>`);
@@ -1595,6 +1603,7 @@ function applyData(data) {
   venueGameDays = data.venueGameDays ?? {}; venueHRsByDate = data.venueHRsByDate ?? {};
   groups = data.groups; dueRows = data.dueRows; prospects = data.prospects ?? prospects;
   birthdays = data.birthdays ?? [];
+  birthdayById = {}; for (const b of birthdays) birthdayById[b.pid] = b;
   dueStreaks = data.dueStreaks ?? {}; dueHistory = data.dueHistory ?? [];
   injuryStatus = data.injuryStatus ?? {};
   dtdStatus = data.dtdStatus ?? {};
@@ -1844,7 +1853,7 @@ function renderHome() {
     <div class="hm-row">
       <span class="hm-rank">${i+1}</span>
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
-      <span class="hm-name">${playerNames[r.pid] || r.pid}<span class="hm-subtle"> vs ${compactPlayerName(r.oppName || '')} (${r.oppHand || '?'}HP)${r.projected ? ' · proj' : ''}</span></span>
+      <span class="hm-name">${playerNames[r.pid] || r.pid}${birthdayBadge(r.pid)}<span class="hm-subtle"> vs ${compactPlayerName(r.oppName || '')} (${r.oppHand || '?'}HP)${r.projected ? ' · proj' : ''}</span></span>
       <span class="hm-score ${pickScoreClass(r.pickScore)}">${r.pickScore.toFixed(1)}</span>
     </div>`).join('');
 
@@ -1856,7 +1865,7 @@ function renderHome() {
     return `<div class="hm-row">
       <span class="hm-rank">${i+1}</span>
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
-      <span class="hm-name">${r.name}<span class="hm-subtle">${days ? ` · ${days}d on list` : ''} · ${r.droughtABs} AB</span></span>
+      <span class="hm-name">${r.name}${birthdayBadge(r.pid)}<span class="hm-subtle">${days ? ` · ${days}d on list` : ''} · ${r.droughtABs} AB</span></span>
       <span class="hm-score ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</span>
     </div>`;
   }).join('');
@@ -1888,7 +1897,7 @@ function renderHome() {
     const sub = [r.team, line?.hrs != null ? `${line.hrs} HR` : null, line?.ops ? `${line.ops} OPS` : null].filter(Boolean).join(' · ');
     return `<div class="hm-row">
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
-      <span class="hm-name">${compactPlayerName(r.name)}<span class="hm-subtle"> · ${sub}</span></span>
+      <span class="hm-name">${compactPlayerName(r.name)}${birthdayBadge(r.pid)}<span class="hm-subtle"> · ${sub}</span></span>
       <span class="hm-score" style="color:var(--gold);font-size:0.75rem">${r.milbAbPerHR ? r.milbAbPerHR.toFixed(1) : '—'}<span class="hm-subtle" style="font-size:0.58rem"> ${lvl} AB/HR</span></span>
     </div>`;
   }).join('');
@@ -2925,7 +2934,7 @@ function renderRecap() {
     const playBtn  = clips?.length ? `<button class="recap-play" onclick="openHRVideo('${date}','${pid}')" title="Watch ${clips.length > 1 ? `${clips.length} clips` : 'the homer'}">▶</button>` : '';
     return `<div class="recap-card ${multiCls}">
       <span class="recap-photo-wrap"><img class="recap-photo" src="${photoUrl}" alt="">${playBtn}</span>
-      <div class="recap-info"><div class="recap-name">${name}</div><div class="recap-sub">${hrTypeBadges(date, pid)}${team?teamLogoImg(team,'team-logo')+team+' · ':''}${seasonHR} season${injuryBadge(pid, true)}${lineupBadge(pid, true)}</div></div>
+      <div class="recap-info"><div class="recap-name">${name}${birthdayBadge(pid)}</div><div class="recap-sub">${hrTypeBadges(date, pid)}${team?teamLogoImg(team,'team-logo')+team+' · ':''}${seasonHR} season${injuryBadge(pid, true)}${lineupBadge(pid, true)}</div></div>
       <div class="recap-stat"><span class="recap-stat-num">${hrs}</span><span class="recap-stat-label">${hrs===1?'HR':'HRs'}</span></div>
     </div>`;
   }).join('');
@@ -4462,7 +4471,7 @@ function renderBirthdays() {
     return `<div class="bday-card">
       <div class="bday-photo-wrap"><img class="bday-photo" src="${photo}" alt=""><span class="bday-hat">🎉</span></div>
       <div class="bday-info">
-        <div class="bday-name">${b.name}${crossTabBadge(b.pid)}${plays?'<span class="bday-plays" title="Has a game today">plays today</span>':''}</div>
+        <div class="bday-name">${b.name}${crossTabBadge(b.pid, false, false, true)}${plays?'<span class="bday-plays" title="Has a game today">plays today</span>':''}</div>
         <div class="bday-sub">${sub}</div>
       </div>
       <div class="bday-age"><span class="bday-age-num">${b.age}</span><span class="bday-age-lbl">today 🎂</span></div>
