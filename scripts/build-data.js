@@ -1114,6 +1114,7 @@ async function computeBirthdays() {
   const [ty, tm, td] = todayET().split('-');
   const out = [];
   for (const pid of ids) {
+    if (info[pid]?.positionCode === '1') continue;          // pitcher who batted — this is a hitters' app
     const bd = info[pid]?.birthDate;
     if (!bd) continue;
     const [by, bm, bday] = bd.split('-');
