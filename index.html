@@ -3587,11 +3587,13 @@ function togglePicksExplainer() {
 }
 
 function togglePicksFiltersPanel() { picksFiltersPanelOpen = !picksFiltersPanelOpen; renderPicksFilters(); }
-function setPicksMinHR(n)    { picksFilters.minHR    = n; savePicksFilters(); renderPicks(); }
-function setPicksMinScore(n) { picksFilters.minScore = n; savePicksFilters(); renderPicks(); }
+// Min HR / Min Score are shared by the board AND its Results tab, so the tracked
+// hit rate always reflects the same cutoff you're betting — re-render both.
+function setPicksMinHR(n)    { picksFilters.minHR    = n; savePicksFilters(); renderPicks(); renderPicksResults(); }
+function setPicksMinScore(n) { picksFilters.minScore = n; savePicksFilters(); renderPicks(); renderPicksResults(); }
 function setPicksSort(s)     { picksSort = s; renderPicks(); }
 function togglePicksFilter(key) { picksFilters[key] = !picksFilters[key]; savePicksFilters(); renderPicks(); }
-function clearPicksFilters() { picksFilters = { ...PICKS_FILTER_DEFAULTS }; savePicksFilters(); renderPicks(); }
+function clearPicksFilters() { picksFilters = { ...PICKS_FILTER_DEFAULTS }; savePicksFilters(); renderPicks(); renderPicksResults(); }
 // "Active" = a deviation from the default cutoff (score 9 / 10 HR / hide unavailable).
 function picksFiltersActive() { return picksFilters.minHR !== PICKS_FILTER_DEFAULTS.minHR || picksFilters.minScore !== PICKS_FILTER_DEFAULTS.minScore || picksFilters.hideUnavailable !== PICKS_FILTER_DEFAULTS.hideUnavailable; }
 function applyPicksFilters(rows) {
@@ -4041,36 +4043,47 @@ function renderLongshotsResults() {
     <div class="ph-days">${dayRows}</div>`;
 }
 
+// Min HR / Min Score chips for the Results tab — the same picksFilters the board
+// uses, so the tracked hit rate reflects the cutoff you bet (and you can loosen
+// them to backtest what a different cutoff would have hit).
+function picksResultsChips() {
+  const hrChips    = [3, 10, 15, 20].map(n => `<button class="due-filter-chip${picksFilters.minHR===n?' active':''}" onclick="setPicksMinHR(${n})">${n===3?'All':n+'+'}</button>`).join('');
+  const scoreChips = [7, 9, 11, 13].map(n => `<button class="due-filter-chip${picksFilters.minScore===n?' active':''}" onclick="setPicksMinScore(${n})">${n===7?'All':n+'+'}</button>`).join('');
+  return `<div class="picks-sort"><span class="due-filter-label">Min HR</span>${hrChips}<span class="due-filter-label" style="margin-left:0.6rem">Min Score</span>${scoreChips}</div>`;
+}
+function picksResultMatch(p) { return (p.score ?? 0) >= picksFilters.minScore && (p.hr ?? 0) >= picksFilters.minHR; }
+
 function renderPicksResults() {
   const el = document.getElementById('picks-results-wrap');
+  if (!el) return;
+  const chips = picksResultsChips();
   if (!picksHistory.length) {
-    el.innerHTML = `<div class="empty">No results yet — check back tomorrow after today's picks are scored.</div>`;
+    el.innerHTML = chips + `<div class="empty">No results yet — check back tomorrow after today's picks are scored.</div>`;
     return;
   }
 
-  // Overall stats across all history
-  const allPicks = picksHistory.flatMap(e => e.picks);
+  // Reflect the SAME cutoff you bet: filter each day's picks by score + HR and
+  // re-rank within the slice, so a 9/10 board reports a 9/10 hit rate. Every
+  // historical pick stored its score and season HR, so this applies to the whole
+  // record. (hideUnavailable is a today-only lineup filter — not applied here.)
+  const filteredDays = picksHistory.map(e => ({
+    date: e.date,
+    picks: e.picks.filter(picksResultMatch).map((p, i) => ({ ...p, rank: i + 1 })),
+  }));
+  const cut = picksFilters.minScore > 7 || picksFilters.minHR > 3;
+  const cutLabel = cut ? `score ≥ ${picksFilters.minScore} · ${picksFilters.minHR}+ HR` : 'full board (score ≥ 7)';
+
+  const allPicks = filteredDays.flatMap(e => e.picks);
   const totalPicks = allPicks.length;
   const totalHits  = allPicks.filter(p => p.hit).length;
   const hitRate    = totalPicks ? (totalHits / totalPicks * 100).toFixed(1) : '0.0';
 
-  // Cumulative hit rate by pick rank — "if you'd only played the top N each day."
-  // History picks are stored in score order, so slicing each day gives its top N.
-  // These overlap on purpose (Top 5 includes Top 3); a well-calibrated model should
-  // show the rate step DOWN as you go deeper.
-  const tiers = [
-    { label: 'Top 3',  n: 3 },
-    { label: 'Top 5',  n: 5 },
-    { label: 'Top 10', n: 10 },
-    { label: 'All',    n: Infinity },
-  ];
+  // Cumulative hit rate by pick rank — "if you'd only played the top N each day"
+  // WITHIN the current cutoff. Overlaps on purpose (Top 5 includes Top 3).
+  const tiers = [ {label:'Top 3',n:3},{label:'Top 5',n:5},{label:'Top 10',n:10},{label:'All',n:Infinity} ];
   const bucketHtml = tiers.map(t => {
     let hits = 0, total = 0;
-    for (const entry of picksHistory) {
-      const pool = entry.picks.slice(0, t.n);
-      total += pool.length;
-      hits  += pool.filter(p => p.hit).length;
-    }
+    for (const entry of filteredDays) { const pool = entry.picks.slice(0, t.n); total += pool.length; hits += pool.filter(p => p.hit).length; }
     const pct = total ? (hits / total * 100).toFixed(0) : '—';
     const cls = total && hits/total >= 0.25 ? 'great' : total && hits/total >= 0.15 ? 'good' : 'avg';
     return `<div class="ph-bucket">
@@ -4080,24 +4093,19 @@ function renderPicksResults() {
     </div>`;
   }).join('');
 
-  // League-average HR/game (same basis the Recap tab uses) so each day's
-  // HR/G can carry the same heat gradient — a loud day vs a quiet one.
   const seasonGames = Object.values(dailyGames).reduce((a,b)=>a+b, 0);
   const seasonHRs   = Object.values(hrTotals).reduce((a,b)=>a+b, 0);
   const leagueAvgHRPerGame = seasonGames ? seasonHRs / seasonGames : 0;
 
-  // Day-by-day log, newest first. Picks are stored in score order, so a
-  // hitter's index+1 is exactly the rank we showed him at that day.
-  const dayRows = [...picksHistory].reverse().map(entry => {
+  const dayRows = [...filteredDays].reverse().map(entry => {
     const total = entry.picks.length;
-    const rankedHits = entry.picks.map((p,i) => ({ ...p, rank: i+1 })).filter(p => p.hit);
+    const rankedHits = entry.picks.filter(p => p.hit);
     const pct   = total ? (rankedHits.length / total * 100).toFixed(0) : 0;
-    const cls   = rankedHits.length/total >= 0.25 ? 'great' : rankedHits.length/total >= 0.15 ? 'good' : 'avg';
+    const cls   = total && rankedHits.length/total >= 0.25 ? 'great' : total && rankedHits.length/total >= 0.15 ? 'good' : 'avg';
     const hitNames = rankedHits.map(p =>
       `<span class="ph-hit-name"><span class="ph-hit-rank">#${p.rank}</span>${compactPlayerName(p.name)}</span>`
     ).join('');
 
-    // Day's HR/game from the same daily data the Recap tab reads.
     const dayHRs   = dailyHRs[entry.date] || {};
     const dayTotHR = Object.values(dayHRs).reduce((a,b)=>a+b, 0);
     const dayGames = dailyGames[entry.date] || 0;
@@ -4109,13 +4117,15 @@ function renderPicksResults() {
     return `<div class="ph-day-row">
       <span class="ph-day-date">${entry.date}</span>
       <span class="ph-day-fraction">${rankedHits.length}/${total}</span>
-      <span class="ph-day-pct hrg-val ${cls}">${pct}%</span>
+      <span class="ph-day-pct hrg-val ${cls}">${total?pct+'%':'—'}</span>
       ${hrgBadge}
       <span class="ph-day-hits">${hitNames || '<span style="color:var(--dim)">—</span>'}</span>
     </div>`;
   }).join('');
 
   el.innerHTML = `
+    ${chips}
+    <div class="result-meta" style="margin:0.15rem 0 0.55rem">Tracking your board cutoff · <b>${cutLabel}</b> — loosen the chips to backtest a different one</div>
     <div class="ph-summary">
       <div class="ph-stat"><span class="ph-stat-val hrg-val ${parseFloat(hitRate)>=20?'great':parseFloat(hitRate)>=12?'good':'avg'}">${hitRate}%</span><span class="ph-stat-lbl">Hit Rate</span></div>
       <div class="ph-stat"><span class="ph-stat-val">${totalHits}</span><span class="ph-stat-lbl">Total HRs Hit</span></div>
