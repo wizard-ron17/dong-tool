@@ -801,6 +801,19 @@
 
   .section-label { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; margin: 1rem 0 0.5rem; }
   .section-label:first-child { margin-top: 0; }
+  /* Birthdays 🎂 */
+  .bday-grid { display: flex; flex-direction: column; gap: 0.5rem; }
+  .bday-card { display: flex; align-items: center; gap: 0.7rem; background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.85rem; animation: fadeIn 0.15s ease; }
+  .bday-photo-wrap { position: relative; flex-shrink: 0; }
+  .bday-photo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--surface2); }
+  .bday-hat { position: absolute; top: -8px; right: -6px; font-size: 0.85rem; transform: rotate(15deg); }
+  .bday-info { flex: 1; min-width: 0; }
+  .bday-name { font-size: 0.82rem; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+  .bday-plays { font-size: 0.5rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--good); background: rgba(51,208,124,0.12); border: 1px solid rgba(51,208,124,0.3); border-radius: 3px; padding: 0.04rem 0.28rem; }
+  .bday-sub { font-size: 0.62rem; color: var(--muted); margin-top: 0.12rem; display: flex; align-items: center; gap: 0.28rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bday-age { text-align: center; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; }
+  .bday-age-num { font-family: var(--font-d); font-size: 1.5rem; font-weight: 800; color: var(--gold); line-height: 1; }
+  .bday-age-lbl { font-size: 0.5rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-top: 0.1rem; }
   .prospect-grid { display: flex; flex-direction: column; gap: 0.5rem; }
   .prospect-card { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.85rem; animation: fadeIn 0.15s ease; }
   .prospect-top { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.5rem; }
@@ -1005,6 +1018,10 @@
       <button class="nav-menu-item" data-nav="returning" onclick="switchNav('returning')" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9.5 9 5M4 9.5h10a6 6 0 0 1 0 12h-3"/></svg>
         <span><span class="nm-name">Returning</span><span class="nm-desc">Injured boppers and when they're back</span></span>
+      </button>
+      <button class="nav-menu-item" data-nav="birthdays" onclick="switchNav('birthdays')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16"/><path d="M5.5 21v-9a2.5 2.5 0 0 1 2.5-2.5h8a2.5 2.5 0 0 1 2.5 2.5v9"/><path d="M5.5 15.5h13"/><path d="M9 9.5V7M12 9.5V7M15 9.5V7"/></svg>
+        <span><span class="nm-name">Birthdays</span><span class="nm-desc">Who's celebrating today 🎂</span></span>
       </button>
     </div>
   </div>
@@ -1262,6 +1279,12 @@
     <div id="returning-results-wrap" style="display:none"></div>
   </div>
 
+  <!-- BIRTHDAYS -->
+  <div id="panel-birthdays" class="panel">
+    <div class="result-meta" id="birthdays-meta"></div>
+    <div id="birthdays-content"><div class="empty">Loading data…</div></div>
+  </div>
+
   <footer>
     <span>Source: MLB Stats API (statsapi.mlb.com)</span>
   </footer>
@@ -1289,6 +1312,7 @@ let totalsFilterMode = 'team'; // 'team' | 'venue'
 let groups       = {};  // size -> [{pids, count, dates}], pre-filtered & sorted
 let dueRows      = [];
 let prospects    = { justCalledUp: [], history: [] };
+let birthdays    = []; // hitters celebrating a birthday today 🎂
 let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if currently on the IL
 let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questionable (NOT on the IL), from ESPN
 let returningInjured = []; // injured hitters (IL + DTD) with ESPN's estimated return dates — Returning Boppers tool
@@ -1570,6 +1594,7 @@ function applyData(data) {
   playerGames = data.playerGames; playerLastHR = data.playerLastHR; teamGameDays = data.teamGameDays;
   venueGameDays = data.venueGameDays ?? {}; venueHRsByDate = data.venueHRsByDate ?? {};
   groups = data.groups; dueRows = data.dueRows; prospects = data.prospects ?? prospects;
+  birthdays = data.birthdays ?? [];
   dueStreaks = data.dueStreaks ?? {}; dueHistory = data.dueHistory ?? [];
   injuryStatus = data.injuryStatus ?? {};
   dtdStatus = data.dtdStatus ?? {};
@@ -1640,7 +1665,7 @@ function toggleTheme() {
 }
 
 // ── Nav ────────────────────────────────────────────────────────────────
-const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'longshots', 'prospects', 'daylate', 'returning'];
+const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'longshots', 'prospects', 'daylate', 'returning', 'birthdays'];
 const PAIR_SIZE_TO_SLUG = { 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' };
 const PAIR_SLUG_TO_SIZE = { pairs: 2, trios: 3, quads: 4, quints: 5 };
 
@@ -1725,7 +1750,7 @@ function migrateLegacyHash() {
 }
 // The four pages that live in the Tools menu rather than the main bar; the
 // Tools pill lights up when any of them is active.
-const TOOLS_NAVS = ['picks', 'longshots', 'due', 'pairs', 'prospects', 'daylate', 'returning'];
+const TOOLS_NAVS = ['picks', 'longshots', 'due', 'pairs', 'prospects', 'daylate', 'returning', 'birthdays'];
 let navToolsOpen = false;
 function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
 function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
@@ -1754,6 +1779,7 @@ function renderCurrentPanel() {
   if (activeNav === 'prospects') renderProspects();
   if (activeNav === 'daylate')  { renderDayLate(); applyDayLateSub(dayLateSubTab); }
   if (activeNav === 'returning') { renderReturning(); applyReturningSub(returningSubTab); }
+  if (activeNav === 'birthdays') renderBirthdays();
 }
 window.addEventListener('popstate', applyRouteState);
 let activeStatsView = 'league';
@@ -4411,6 +4437,38 @@ function renderProspectResultsHtml() {
     <div class="ph-days">${gradRows || '<div class="ph-day-row"><span style="color:var(--dim)">Nobody has homered yet — first graduation lands when a watched call-up goes deep.</span></div>'}</div>
     <div class="ph-buckets-head" style="margin-top:1rem">Still Waiting <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· days on the watch so far</span></div>
     <div class="ph-days">${waitRows || '<div class="ph-day-row"><span style="color:var(--dim)">Nobody on the watch right now.</span></div>'}</div>`;
+}
+
+// ── BIRTHDAYS ──────────────────────────────────────────────────────────
+// Simple and silly: this season's hitters celebrating a birthday today.
+function renderBirthdays() {
+  const meta = document.getElementById('birthdays-meta');
+  const el   = document.getElementById('birthdays-content');
+  const dateStr = todayDate ? fmtDateLong(todayDate) : '';
+  if (!birthdays.length) {
+    meta.textContent = '';
+    el.innerHTML = `<div class="empty">🎂 No hitter birthdays today${dateStr?` · ${dateStr}`:''} — check back tomorrow.</div>`;
+    return;
+  }
+  meta.textContent = `🎂 ${birthdays.length} birthday${birthdays.length===1?'':'s'} today · ${dateStr}`;
+  const cards = birthdays.map(b => {
+    const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_120,q_auto:best/v1/people/${b.pid}/headshot/67/current`;
+    const plays = todayTeamsPlaying.has(b.team);
+    const sub = [
+      b.team ? `${teamLogoImg(b.team,'team-logo')}${b.team}` : '',
+      b.hrs ? `${b.hrs} HR` : '',
+      b.birthPlace || '',
+    ].filter(Boolean).join(' · ');
+    return `<div class="bday-card">
+      <div class="bday-photo-wrap"><img class="bday-photo" src="${photo}" alt=""><span class="bday-hat">🎉</span></div>
+      <div class="bday-info">
+        <div class="bday-name">${b.name}${crossTabBadge(b.pid)}${plays?'<span class="bday-plays" title="Has a game today">plays today</span>':''}</div>
+        <div class="bday-sub">${sub}</div>
+      </div>
+      <div class="bday-age"><span class="bday-age-num">${b.age}</span><span class="bday-age-lbl">today 🎂</span></div>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<div class="bday-grid">${cards}</div>`;
 }
 
 // ── DAY LATE ───────────────────────────────────────────────────────────

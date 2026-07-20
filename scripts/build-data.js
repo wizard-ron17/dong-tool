@@ -1095,11 +1095,39 @@ async function fetchPeopleInfo(ids) {
           fullName: p.fullName,
           debutDate: p.mlbDebutDate ?? null,
           positionCode: p.primaryPosition?.code ?? '',
+          birthDate: p.birthDate ?? null,          // "YYYY-MM-DD"
+          birthCity: p.birthCity ?? null,
+          birthCountry: p.birthCountry ?? null,
         };
       }
     } catch (e) {}
   }
   return info;
+}
+
+// Birthday tool — simple and silly: which of this season's hitters is celebrating
+// a birthday today (ET). Matches month-day, computes the age he's turning.
+async function computeBirthdays() {
+  const ids = Object.keys(playerNames);
+  if (!ids.length) return [];
+  const info = await fetchPeopleInfo(ids);
+  const [ty, tm, td] = todayET().split('-');
+  const out = [];
+  for (const pid of ids) {
+    const bd = info[pid]?.birthDate;
+    if (!bd) continue;
+    const [by, bm, bday] = bd.split('-');
+    if (bm !== tm || bday !== td) continue;                 // not today
+    out.push({
+      pid, name: playerNames[pid], team: playerTeams[pid] || '',
+      birthDate: bd, age: (+ty) - (+by),                     // the age he turns today
+      hrs: hrTotals[pid] || 0,
+      birthPlace: [info[pid]?.birthCity, info[pid]?.birthCountry].filter(Boolean).join(', ') || null,
+    });
+  }
+  // Most notable first (season HR), then name.
+  out.sort((a, b) => b.hrs - a.hrs || a.name.localeCompare(b.name));
+  return out;
 }
 
 async function fetchRecentRosterMoves(days, teamIdToAbbr) {
@@ -2125,6 +2153,10 @@ async function main() {
   console.log('Checking for rookie debuts and recent call-ups...');
   const prospects = await computeProspects(todaySchedule, teamIdToAbbr, prevProspectWatch, prevProspectHistory);
 
+  console.log('Checking for birthdays...');
+  const birthdays = await computeBirthdays();
+  if (birthdays.length) console.log(`  🎂 ${birthdays.length} birthday${birthdays.length===1?'':'s'} today: ${birthdays.map(b => b.name).join(', ')}`);
+
   console.log('Checking injured-list status...');
   const injuryStatus = await fetchInjuryStatus();
 
@@ -2355,7 +2387,7 @@ async function main() {
     totalHRCount,
     dailyHRs, hrTypes, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus, dtdStatus,
-    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks, longshots, picksHistory, longshotsHistory,
+    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks, longshots, picksHistory, longshotsHistory, birthdays,
     dueStreaks, dueHistory, returningInjured, justBack, returningHistory,
   };
 
