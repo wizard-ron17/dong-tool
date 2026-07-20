@@ -1074,6 +1074,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
 const PROSPECT_LOOKBACK_DAYS = 14;
 const PROSPECT_MAX_AB_PER_HR = 35; // minors power cutoff — a callup slower than this has no business on a homer watch
 const PROSPECT_CENSOR_GAMES  = 5;  // team game-days a watched callup can miss before we treat him as sent down / not getting ABs and stop tracking him (a send-down before he homers can't be counted)
+const PROSPECT_WASHOUT_EXPECTED_HR = 2; // drop a still-homerless watch guy once his minors pace already "owed" this many HR off his MLB ABs — the power isn't translating, he's had his look (e.g. a 0-HR bat 123 AB into the season)
 const MINOR_SPORT_IDS = { aaa: 11, aa: 12 };
 const SEASON_YEAR = SEASON_START.slice(0, 4);
 
@@ -1821,7 +1822,10 @@ async function computeProspects(todaySchedule, teamIdToAbbr, prevProspectWatch =
     if (graduated.has(pid)) continue;                            // already homered earlier this season
     const prev = prevProspectWatch[pid];
     const c = eligByPid[pid];
-    const since = prev?.since ?? c?.callupDate;
+    // Anchor the wait to his SEASON DEBUT, not a mid-season recall — a rookie who
+    // debuted in May and was optioned/recalled since has been waiting since May,
+    // not since the recall (which made him look freshly called up).
+    const since = c?.debutDate ?? prev?.since ?? c?.callupDate;
     if (!since) continue;
     const base = {
       pid, since,
@@ -1845,6 +1849,11 @@ async function computeProspects(todaySchedule, teamIdToAbbr, prevProspectWatch =
     // debuted yet is waiting, not sent down (no lastGame ⇒ don't censor him).
     const idle = playerLastGame[pid] ? inactiveGameDays(pid, playerLastGame[pid]) : 0;
     if (sentDown || idle >= PROSPECT_CENSOR_GAMES) continue;     // censored — sent down / not getting ABs, can't be tracked to a HR
+    // Wash-out: his minors pace already "owed" a couple HR off the MLB ABs he's
+    // taken, yet he has none — the power isn't translating, so he's no longer a
+    // live watch (drop, no record). This is what a 123-AB, 0-HR bat trips.
+    const expectedHR = base.milbAbPerHR ? (playerABs[pid] || 0) / base.milbAbPerHR : 0;
+    if (expectedHR >= PROSPECT_WASHOUT_EXPECTED_HR) continue;
     prospectWatch[pid] = { ...base, abs: playerABs[pid] || 0, gamesPlayed: playerGames[pid] || 0 };
   }
   prospectHistory = prospectHistory.slice(-100);
