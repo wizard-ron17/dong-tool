@@ -1288,7 +1288,7 @@ let venueHRsByDate = {}; // venue name -> date -> total HRs (both teams)
 let totalsFilterMode = 'team'; // 'team' | 'venue'
 let groups       = {};  // size -> [{pids, count, dates}], pre-filtered & sorted
 let dueRows      = [];
-let prospects    = { justCalledUp: [], debutBombs: [] };
+let prospects    = { justCalledUp: [], history: [] };
 let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if currently on the IL
 let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questionable (NOT on the IL), from ESPN
 let returningInjured = []; // injured hitters (IL + DTD) with ESPN's estimated return dates — Returning Boppers tool
@@ -1643,7 +1643,7 @@ function currentPath() {
   else if (activeNav === 'picks'     && picksSubTab === 'results')           p += '/results';
   else if (activeNav === 'longshots' && longshotSubTab === 'results')        p += '/results';
   else if (activeNav === 'due'       && dueSubTab === 'results')             p += '/results';
-  else if (activeNav === 'prospects' && activeProspectTab === 'debutBombs')  p += '/debut-bombs';
+  else if (activeNav === 'prospects' && activeProspectTab === 'results')     p += '/results';
   else if (activeNav === 'daylate'   && dayLateSubTab === 'results')         p += '/results';
   else if (activeNav === 'returning' && returningSubTab === 'results')       p += '/results';
   else if (activeNav === 'recap'     && recapDate)                           p += '/' + recapDate;
@@ -1681,7 +1681,7 @@ function applyRouteState() {
   } else if (validNav === 'due') {
     dueSubTab = sub === 'results' ? 'results' : 'list';
   } else if (validNav === 'prospects') {
-    activeProspectTab = sub === 'debut-bombs' ? 'debutBombs' : 'justCalledUp';
+    activeProspectTab = sub === 'results' ? 'results' : 'justCalledUp';
   } else if (validNav === 'daylate') {
     dayLateSubTab = sub === 'results' ? 'results' : 'today';
   } else if (validNav === 'returning') {
@@ -1706,7 +1706,7 @@ function migrateLegacyHash() {
   let path = '/' + nav;
   if      (nav === 'pairs'     && PAIR_SLUG_TO_SIZE[sub] && sub !== 'pairs') path += '/' + sub;
   else if (nav === 'stats'     && sub === 'individual')  path += '/individual';
-  else if (nav === 'prospects' && sub === 'debutbombs')  path += '/debut-bombs';
+  else if (nav === 'prospects' && sub === 'results')     path += '/results';
   history.replaceState(null, '', path);
 }
 // The four pages that live in the Tools menu rather than the main bar; the
@@ -4320,25 +4320,73 @@ function prospectCard(r, isBomb) {
   </div>`;
 }
 let activeProspectTab = 'justCalledUp';
+function prospectDaysWaiting(sinceDate) { return sinceDate ? Math.max(0, Math.round((new Date(todayDate) - new Date(sinceDate)) / 86400000)) : null; }
 function switchProspectTab(tab) { activeProspectTab = tab; renderProspects(); commitRoute(); }
 function renderProspects() {
-  const { justCalledUp, debutBombs } = prospects;
+  const justCalledUp = prospects.justCalledUp || [];
+  const history = prospects.history || [];
   document.getElementById('prospects-meta').textContent =
-    `Recent call-ups (last 14 days) · ${debutBombs.length} debut bomb${debutBombs.length===1?'':'s'} · ${justCalledUp.length} to watch · ranked by minors AB/HR (power pedigree), not MLB sample size`;
+    `${justCalledUp.length} on watch · ${history.length} homered after call-up · watch is rookie call-ups with ≤35 AB/HR minors power, ranked by that pedigree`;
 
   const tabsHtml = `
     <div class="sub-tabs">
       <button class="sub-btn ${activeProspectTab==='justCalledUp'?'active':''}" onclick="switchProspectTab('justCalledUp')"><span class="num">${justCalledUp.length}</span>Just Called Up</button>
-      <button class="sub-btn ${activeProspectTab==='debutBombs'?'active':''}" onclick="switchProspectTab('debutBombs')"><span class="num">${debutBombs.length}</span>Debut Bombs</button>
+      <button class="sub-btn ${activeProspectTab==='results'?'active':''}" onclick="switchProspectTab('results')"><span class="num">${history.length}</span>Results</button>
     </div>`;
 
-  const rows  = activeProspectTab === 'debutBombs' ? debutBombs : justCalledUp;
-  const isBomb = activeProspectTab === 'debutBombs';
-  const gridHtml = rows.length
-    ? `<div class="prospect-grid">${rows.map(r=>prospectCard(r,isBomb)).join('')}</div>`
-    : `<div class="empty">${isBomb ? 'No rookie home runs in the last 14 days' : 'No fresh call-ups in the last 14 days'}</div>`;
+  const body = activeProspectTab === 'results'
+    ? renderProspectResultsHtml()
+    : (justCalledUp.length
+        ? `<div class="prospect-grid">${justCalledUp.map(r=>prospectCard(r,false)).join('')}</div>`
+        : `<div class="empty">No power call-ups on watch right now — a rookie needs ≤35 AB/HR pedigree in the minors to make the list.</div>`);
 
-  document.getElementById('prospects-content').innerHTML = tabsHtml + gridHtml;
+  document.getElementById('prospects-content').innerHTML = tabsHtml + body;
+}
+
+// Callup tracker (Due-results style): who homered after being called up and how
+// long they waited, plus who's still on the clock. Guys sent back down before
+// homering are censored out entirely — they never got their full shot.
+function renderProspectResultsHtml() {
+  const hist = prospects.history || [];
+  const waiting = prospects.justCalledUp || [];
+  if (!hist.length && !waiting.length) {
+    return `<div class="empty">No tracked call-ups yet — a power prospect is watched from his call-up until he homers or gets sent down.</div>`;
+  }
+  const days = hist.map(h => h.daysWaited).filter(d => d != null);
+  const avg = days.length ? (days.reduce((a,b)=>a+b,0)/days.length).toFixed(1) : '—';
+  const fastest = days.length ? Math.min(...days) : null;
+
+  const gradRows = [...hist].sort((a,b) => (a.hrDate < b.hrDate ? 1 : -1)).map(h => {
+    const abhr = h.milbAbPerHR ? ` · ${h.milbAbPerHR.toFixed(1)} AB/HR minors` : '';
+    return `<div class="ph-day-row">
+      <span class="ph-day-date">${fmtDateLong(h.hrDate)}</span>
+      <span class="ph-day-pct hrg-val ${h.daysWaited<=3?'great':h.daysWaited<=8?'good':'avg'}">${h.daysWaited}d wait</span>
+      <span class="ph-day-hits"><span class="ph-hit-name">${compactPlayerName(h.name)}</span> <span style="color:var(--muted);font-size:0.62rem">called up ${fmtDateLong(h.callupDate)}${abhr}</span></span>
+    </div>`;
+  }).join('');
+
+  const waitRows = [...waiting]
+    .sort((a,b) => (prospectDaysWaiting(b.selectedDate)||0) - (prospectDaysWaiting(a.selectedDate)||0))
+    .map(w => {
+      const d = prospectDaysWaiting(w.selectedDate);
+      return `<div class="ph-day-row">
+        <span class="dr-wait-days">${d!=null?d+'d':'—'}</span>
+        <span class="dr-wait-name">${w.name}</span>
+        <span class="dr-wait-sub">${w.milbAbPerHR?w.milbAbPerHR.toFixed(1)+' AB/HR · ':''}${w.abs} MLB AB · ${w.gamesPlayed}G</span>
+      </div>`;
+    }).join('');
+
+  return `
+    <div class="ph-summary">
+      <div class="ph-stat"><span class="ph-stat-val hrg-val great">${hist.length}</span><span class="ph-stat-lbl">Homered</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${avg}</span><span class="ph-stat-lbl">Avg Days to HR</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${fastest!=null?fastest+'d':'—'}</span><span class="ph-stat-lbl">Fastest</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${waiting.length}</span><span class="ph-stat-lbl">Still Waiting</span></div>
+    </div>
+    <div class="ph-buckets-head">Homered After Call-Up <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· days from call-up to first HR (sent-down guys aren't counted)</span></div>
+    <div class="ph-days">${gradRows || '<div class="ph-day-row"><span style="color:var(--dim)">Nobody has homered yet — first graduation lands when a watched call-up goes deep.</span></div>'}</div>
+    <div class="ph-buckets-head" style="margin-top:1rem">Still Waiting <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· days on the watch so far</span></div>
+    <div class="ph-days">${waitRows || '<div class="ph-day-row"><span style="color:var(--dim)">Nobody on the watch right now.</span></div>'}</div>`;
 }
 
 // ── DAY LATE ───────────────────────────────────────────────────────────

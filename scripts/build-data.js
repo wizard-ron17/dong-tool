@@ -1072,6 +1072,8 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
 // debuted yet or have 0 HR so far — catches a hot prospect's callup before
 // he's already all over ESPN for going deep in his first game.
 const PROSPECT_LOOKBACK_DAYS = 14;
+const PROSPECT_MAX_AB_PER_HR = 35; // minors power cutoff — a callup slower than this has no business on a homer watch
+const PROSPECT_CENSOR_GAMES  = 5;  // team game-days a watched callup can miss before we treat him as sent down / not getting ABs and stop tracking him (a send-down before he homers can't be counted)
 const MINOR_SPORT_IDS = { aaa: 11, aa: 12 };
 const SEASON_YEAR = SEASON_START.slice(0, 4);
 
@@ -1757,7 +1759,7 @@ async function attachPedigree(rows) {
   }
 }
 
-async function computeProspects(todaySchedule, teamIdToAbbr) {
+async function computeProspects(todaySchedule, teamIdToAbbr, prevProspectWatch = {}, prevProspectHistory = []) {
   const seasonBatterIds = Object.keys(playerNames);
   const { callUps: selections, sentDownByPid } = await fetchRecentRosterMoves(PROSPECT_LOOKBACK_DAYS, teamIdToAbbr);
   const selectionByPid = {};
@@ -1772,78 +1774,94 @@ async function computeProspects(todaySchedule, teamIdToAbbr) {
   const allIds = new Set([...seasonBatterIds, ...Object.keys(selectionByPid)]);
   const peopleInfo = await fetchPeopleInfo([...allIds]);
 
-  // Debut Bombs: rookies who've already gone deep — bounded to the same
-  // lookback window as "just called up" so this stays about *new* call-ups,
-  // not anyone who debuted months ago and has quietly racked up 20 HRs since
-  // (at that point he's just a good rookie, not a surprise debut story).
-  const debutBombs = [];
-  for (const pid of seasonBatterIds) {
-    const info = peopleInfo[pid];
-    if (!info?.debutDate || daysSince(info.debutDate) > PROSPECT_LOOKBACK_DAYS) continue;
-    if (!hrTotals[pid]) continue;
-    const gameDates = Object.keys(playerAbsByDate[pid] ?? {}).sort();
-    const hrGames = [];
-    gameDates.forEach((d, i) => { if (dailyHRs[d]?.[pid]) hrGames.push(i + 1); });
-    debutBombs.push({
-      pid, name: playerNames[pid], team: playerTeams[pid] || '',
-      debutDate: info.debutDate, gamesPlayed: gameDates.length, abs: playerABs[pid] || 0,
-      hrs: hrTotals[pid], hrGames,
-    });
-  }
-  debutBombs.sort((a,b) => (a.hrGames[0] ?? 99) - (b.hrGames[0] ?? 99) || b.hrs - a.hrs);
-
-  // Just Called Up: recent AAA/AA selections, rookie-eligible, no HR yet —
-  // excludes pitchers (can't homer) and established players just being recalled.
-  const justCalledUp = [];
+  // ── Eligible callup pool ──────────────────────────────────────────────
+  // Rookie, non-pitcher, recently called up, with a real AAA/AA power pedigree
+  // UNDER the AB/HR cutoff. The bulk of call-ups are glove-first bats with no
+  // homer upside; they're dropped here rather than shown and never going deep.
+  const abPerHR = level => (level && level.hrs) ? level.abs / level.hrs : null;
+  const candidates = [];
   for (const [pid, sel] of Object.entries(selectionByPid)) {
     const info = peopleInfo[pid];
-    if (info?.positionCode === '1') continue;
+    if (info?.positionCode === '1') continue;                    // pitcher — can't homer
     const isRookie = !info?.debutDate || info.debutDate >= SEASON_START;
-    if (!isRookie) continue;
-    if (hrTotals[pid]) continue; // already homered — belongs in debutBombs instead
-    if (sentDownByPid[pid] && sentDownByPid[pid] > sel.date) continue; // optioned back down since this call-up
-    justCalledUp.push({
+    if (!isRookie) continue;                                     // established recall, not a prospect
+    candidates.push({
       pid, name: playerNames[pid] || info?.fullName || sel.name,
       team: playerTeams[pid] || sel.toTeam, fromTeam: sel.fromTeam,
-      selectedDate: sel.date, debutDate: info?.debutDate ?? null,
+      callupDate: sel.date, debutDate: info?.debutDate ?? null,
       status: info?.debutDate ? 'debuted' : 'selected',
-      gamesPlayed: playerGames[pid] || 0, abs: playerABs[pid] || 0, hrs: hrTotals[pid] || 0,
     });
   }
-
-  await attachPedigree(debutBombs);
-  await attachPedigree(justCalledUp);
-
-  // No current-season minor league record at all means there's nothing to
-  // judge the callup by — drop it rather than show an empty pedigree.
-  const justCalledUpRanked = justCalledUp.filter(r => r.milb.aaa || r.milb.aa);
-
-  // Rank by minors AB/HR (lower = more explosive power), independent of how many
-  // MLB at-bats he's had so far — this list is about catching a hot prospect
-  // *before* he's had a chance to prove it, so a fresh callup with elite pedigree
-  // and 4 MLB AB should still rank above a mediocre bat who's just had a longer
-  // look. (breakoutScore, below, is linear in MLB ABs — sorting by it instead
-  // would reward "has had more empty at-bats" over actual power, the opposite
-  // of the point.)
-  const abPerHR = level => (level && level.hrs) ? level.abs / level.hrs : null;
-  for (const r of justCalledUpRanked) {
-    const level = r.milb.aaa ?? r.milb.aa;
-    r.milbAbPerHR = abPerHR(level);
-    // Secondary context stat only: "how many HRs his minors pace would predict
-    // off the MLB at-bats he's already had" — informative, not the sort key.
-    r.breakoutScore = r.milbAbPerHR ? r.abs / r.milbAbPerHR : 0;
-  }
-  justCalledUpRanked.sort((a,b) => (a.milbAbPerHR ?? Infinity) - (b.milbAbPerHR ?? Infinity));
-
-  // Debut Bombs gets the same minors-vs-MLB AB/HR comparison for context (not
-  // for ranking — "Game 1" vs "Game 6" first-HR order still matters more there).
-  for (const r of debutBombs) {
-    const level = r.milb.aaa ?? r.milb.aa;
-    r.milbAbPerHR = abPerHR(level);
-    r.mlbAbPerHR = r.hrs ? r.abs / r.hrs : null;
+  await attachPedigree(candidates);
+  for (const c of candidates) c.milbAbPerHR = abPerHR(c.milb.aaa ?? c.milb.aa);
+  const eligByPid = {};
+  for (const c of candidates) {
+    if (!(c.milb.aaa || c.milb.aa)) continue;                    // no current-season minors record to judge by
+    if (c.milbAbPerHR == null || c.milbAbPerHR > PROSPECT_MAX_AB_PER_HR) continue; // too little power to bother
+    eligByPid[c.pid] = c;
   }
 
-  return { justCalledUp: justCalledUpRanked, debutBombs };
+  // ── Callup tracker ────────────────────────────────────────────────────
+  // From his callup date, watch a rookie until he homers (graduates, with the
+  // days he waited) or leaves the pool. A guy optioned back down before homering
+  // is CENSORED — dropped with no record — since he never got his full shot;
+  // only those who stayed up and either went deep or are still waiting count.
+  // Send-downs are caught explicitly (the transactions feed) and by proxy (he's
+  // stopped getting MLB ABs). State persists across builds so the wait clock and
+  // graduations survive a callup aging out of the 14-day transactions window.
+  const sortedHRDates = Object.keys(dailyHRs).sort();
+  const firstHRSince = (pid, since) => { for (const d of sortedHRDates) if (d >= since && dailyHRs[d][pid]) return d; return null; };
+  const daysBetween = (a, b) => Math.max(0, Math.round((new Date(b) - new Date(a)) / 86400000));
+
+  let prospectHistory = [...prevProspectHistory];
+  const graduated = new Set(prospectHistory.map(h => h.pid));
+  const prospectWatch = {};
+  const trackedPids = new Set([...Object.keys(eligByPid), ...Object.keys(prevProspectWatch)]);
+  for (const pid of trackedPids) {
+    if (graduated.has(pid)) continue;                            // already homered earlier this season
+    const prev = prevProspectWatch[pid];
+    const c = eligByPid[pid];
+    const since = prev?.since ?? c?.callupDate;
+    if (!since) continue;
+    const base = {
+      pid, since,
+      name: playerNames[pid] || c?.name || prev?.name || pid,
+      team: playerTeams[pid] || c?.team || prev?.team || '',
+      fromTeam: c?.fromTeam ?? prev?.fromTeam ?? '',
+      milbAbPerHR: c?.milbAbPerHR ?? prev?.milbAbPerHR ?? null,
+      milb: c?.milb ?? prev?.milb ?? {},
+      debutDate: c?.debutDate ?? prev?.debutDate ?? null,
+      status: c?.status ?? prev?.status ?? 'debuted',
+    };
+    const hrDate = firstHRSince(pid, since);
+    if (hrDate) {                                                // graduated
+      prospectHistory.push({ pid: base.pid, name: base.name, team: base.team, fromTeam: base.fromTeam,
+        callupDate: since, hrDate, daysWaited: daysBetween(since, hrDate), milbAbPerHR: base.milbAbPerHR });
+      graduated.add(pid);
+      continue;
+    }
+    const sentDown = sentDownByPid[pid] && sentDownByPid[pid] > since;
+    // Idle only counts once he's actually played — a just-selected guy who hasn't
+    // debuted yet is waiting, not sent down (no lastGame ⇒ don't censor him).
+    const idle = playerLastGame[pid] ? inactiveGameDays(pid, playerLastGame[pid]) : 0;
+    if (sentDown || idle >= PROSPECT_CENSOR_GAMES) continue;     // censored — sent down / not getting ABs, can't be tracked to a HR
+    prospectWatch[pid] = { ...base, abs: playerABs[pid] || 0, gamesPlayed: playerGames[pid] || 0 };
+  }
+  prospectHistory = prospectHistory.slice(-100);
+  prospectHistory.sort((a, b) => (a.hrDate < b.hrDate ? -1 : 1));
+
+  // Still-waiting watch = the client's "Just Called Up" board, ranked by minors
+  // AB/HR (power pedigree), independent of MLB sample size — a fresh elite-power
+  // callup with 4 ABs still outranks a mediocre bat who's had a longer look.
+  const justCalledUp = Object.values(prospectWatch).map(w => ({
+    pid: w.pid, name: w.name, team: w.team, fromTeam: w.fromTeam,
+    selectedDate: w.since, debutDate: w.debutDate, status: w.status,
+    gamesPlayed: w.gamesPlayed, abs: w.abs, hrs: 0,
+    milb: w.milb, milbAbPerHR: w.milbAbPerHR,
+    breakoutScore: w.milbAbPerHR ? w.abs / w.milbAbPerHR : 0,
+  })).sort((a, b) => (a.milbAbPerHR ?? Infinity) - (b.milbAbPerHR ?? Infinity));
+
+  return { justCalledUp, history: prospectHistory, watch: prospectWatch };
 }
 
 // Real injured-list status (not a guess from "hasn't played in N days") — MLB's
@@ -2007,6 +2025,7 @@ async function main() {
   let prevPicks = [], prevLongshots = [], prevDate = null, picksHistory = [], longshotsHistory = [], prevSchedule = [];
   let prevDueRows = [], dueStreaks = null, dueHistory = [];
   let prevReturning = [], prevJustBack = [], prevReturningHistory = [];
+  let prevProspectWatch = {}, prevProspectHistory = [];
   try {
     const fs = await import('node:fs');
     const raw = fs.readFileSync(new URL('../data.json', import.meta.url), 'utf8');
@@ -2023,6 +2042,8 @@ async function main() {
     prevReturning = old.returningInjured ?? [];
     prevJustBack  = old.justBack ?? [];
     prevReturningHistory = old.returningHistory ?? [];
+    prevProspectWatch   = old.prospects?.watch ?? {};
+    prevProspectHistory = old.prospects?.history ?? [];
   } catch { /* first run or file missing — start fresh */ }
 
   await fetchAll();
@@ -2093,7 +2114,7 @@ async function main() {
   freezeStartedHomer(todaySchedule, prevSchedule, sameSlate); // keep started games' Homer Score pre-game
 
   console.log('Checking for rookie debuts and recent call-ups...');
-  const prospects = await computeProspects(todaySchedule, teamIdToAbbr);
+  const prospects = await computeProspects(todaySchedule, teamIdToAbbr, prevProspectWatch, prevProspectHistory);
 
   console.log('Checking injured-list status...');
   const injuryStatus = await fetchInjuryStatus();
@@ -2331,7 +2352,7 @@ async function main() {
 
   const fs = await import('node:fs');
   fs.writeFileSync(new URL('../data.json', import.meta.url), JSON.stringify(output));
-  console.log(`Wrote data.json — ${allDates.length} game days, ${totalHRCount} HRs, ${dueRows.length} due rows, ${prospects.debutBombs.length} debut bombs, ${prospects.justCalledUp.length} just called up, ${todaySchedule.length} games today, ${picks.length} picks`);
+  console.log(`Wrote data.json — ${allDates.length} game days, ${totalHRCount} HRs, ${dueRows.length} due rows, ${prospects.history.length} callup graduations, ${prospects.justCalledUp.length} on watch, ${todaySchedule.length} games today, ${picks.length} picks`);
 
   // Stamp the service worker with a short hash of index.html. sw.js only
   // changes when the app code changes (not on data-only rebuilds), which is
