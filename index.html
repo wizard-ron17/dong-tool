@@ -2449,6 +2449,16 @@ function recapChalkTag(ratio) {
 }
 
 let recapDate = null; // explicit user-picked date, or null = show the latest day with data
+let recapSort = 'day'; // day | season | distance | ev
+function setRecapSort(s) { recapSort = s; renderRecap(); }
+// A player's best (max) HR-detail stat that day — for distance / EV sorting.
+function recapBestStat(date, pid, key) {
+  const list = hrDetails[date]?.[pid];
+  if (!list?.length) return null;
+  let best = null;
+  for (const dt of list) { const v = dt[key]; if (v != null && (best == null || +v > best)) best = +v; }
+  return best;
+}
 // The active date's slate is "in the books" only when every one of its games is
 // Final. dailyHRs fills in mid-day as early games finish, so this gate is what
 // keeps a half-played slate out of Recap / Stats / the Home card.
@@ -2983,13 +2993,26 @@ function renderRecap() {
   const tag = date === todayDate ? 'Today (Final)' : date === yesterday() ? 'Yesterday' : (date === latest ? 'Latest Available' : null);
   metaEl.innerHTML = `${tag ? `<span class="recap-meta-tag">${tag}</span>, ` : ''}${fmtDateFull(date)}`;
 
-  // Multi-homer guys first (by that day's HR count), then among the
-  // single-HR group (where day-count ties at 1) rank by season HR total —
-  // a guy with 25 on the year reads as more notable than one with 3, even
-  // though today they did the same thing.
-  const sorted = Object.entries(dayData).sort((a,b)=>
-    b[1]-a[1] || (hrTotals[b[0]]||0)-(hrTotals[a[0]]||0) || (playerNames[a[0]]||'').localeCompare(playerNames[b[0]]||'')
-  );
+  // Default: multi-homer guys first (by that day's HR count), then within the
+  // single-HR group rank by season HR total. Other sorts on demand — distance /
+  // EV use each guy's best shot that day (nulls, incl. pre-detail days, sink).
+  const byName = (a,b) => (playerNames[a[0]]||'').localeCompare(playerNames[b[0]]||'');
+  const dist = pid => recapBestStat(date, pid, 'dist') ?? -1;
+  const ev   = pid => recapBestStat(date, pid, 'ev')   ?? -1;
+  const recapSorters = {
+    day:      (a,b) => b[1]-a[1] || (hrTotals[b[0]]||0)-(hrTotals[a[0]]||0) || byName(a,b),
+    season:   (a,b) => (hrTotals[b[0]]||0)-(hrTotals[a[0]]||0) || b[1]-a[1] || byName(a,b),
+    distance: (a,b) => dist(b[0])-dist(a[0]) || b[1]-a[1] || byName(a,b),
+    ev:       (a,b) => ev(b[0])-ev(a[0])     || b[1]-a[1] || byName(a,b),
+  };
+  const sorted = Object.entries(dayData).sort(recapSorters[recapSort] || recapSorters.day);
+  const sortBar = `<div class="picks-sort">
+    <span class="due-filter-label">Sort</span>
+    <button class="due-filter-chip${recapSort==='day'?' active':''}" onclick="setRecapSort('day')">HRs Today</button>
+    <button class="due-filter-chip${recapSort==='season'?' active':''}" onclick="setRecapSort('season')">Season HR</button>
+    <button class="due-filter-chip${recapSort==='distance'?' active':''}" onclick="setRecapSort('distance')">Distance</button>
+    <button class="due-filter-chip${recapSort==='ev'?' active':''}" onclick="setRecapSort('ev')">Exit Velo</button>
+  </div>`;
   const cards = sorted.map(([pid,hrs])=>{
     const name     = compactPlayerName(playerNames[pid]||pid);
     const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${pid}/headshot/67/current`;
@@ -3007,7 +3030,7 @@ function renderRecap() {
     </div>`;
   }).join('');
 
-  document.getElementById('recap-content').innerHTML = recapStatsHtml(st) + `<div class="recap-grid">${cards}</div>`;
+  document.getElementById('recap-content').innerHTML = recapStatsHtml(st) + sortBar + `<div class="recap-grid">${cards}</div>`;
 }
 
 // ── SCHEDULE ───────────────────────────────────────────────────────────
