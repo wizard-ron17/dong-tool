@@ -8,6 +8,7 @@ const SEASON_START = '2026-03-25'; // true opening day — a single NYY@SF game 
 
 const dailyHRs        = {};  // date -> { pid -> hrCount }
 const hrTypes         = {};  // date -> { pid -> { gs, itp } } — grand-slam / inside-the-park counts (from play-by-play, only games with a HR)
+const hrDetails       = {};  // date -> { pid -> [ { pitcher, hand, pitch, mph, dist, ev, inning, gs, itp } ] } — one per HR, in game order
 const dailyGames      = {};  // date -> gameCount
 const hrTotals        = {};  // pid -> total HRs
 const playerNames     = {};  // pid -> fullName
@@ -113,12 +114,26 @@ async function fetchDay(date) {
             const desc = r.description ?? '';
             const gs  = r.rbi === 4 || /grand slam/i.test(desc);        // a HR with 4 RBI is by definition bases-loaded
             const itp = /inside[- ]the[- ]park/i.test(desc);
-            if (!gs && !itp) continue;
             const bp = String(bpid);
-            if (!hrTypes[date]) hrTypes[date] = {};
-            const t = (hrTypes[date][bp] ??= { gs: 0, itp: 0 });
-            if (gs)  t.gs++;
-            if (itp) t.itp++;
+            // The HR swing is the last pitch of the plate appearance — pull the
+            // pitch type/velo and the batted-ball distance/exit velo off it.
+            const pitch = [...(play.playEvents ?? [])].reverse().find(e => e.isPitch) ?? {};
+            (hrDetails[date] ??= {})[bp] ??= [];
+            hrDetails[date][bp].push({
+              pitcher: play.matchup?.pitcher?.fullName ?? null,
+              hand:    play.matchup?.pitchHand?.code ?? null,
+              pitch:   pitch.details?.type?.description ?? null,
+              mph:     pitch.pitchData?.startSpeed ?? null,
+              dist:    pitch.hitData?.totalDistance ?? null,
+              ev:      pitch.hitData?.launchSpeed ?? null,
+              inning:  play.about?.inning ?? null,
+              gs, itp,
+            });
+            if (gs || itp) {                                            // keep the badge counts
+              const t = ((hrTypes[date] ??= {})[bp] ??= { gs: 0, itp: 0 });
+              if (gs)  t.gs++;
+              if (itp) t.itp++;
+            }
           }
         } catch (e) {}
       }
@@ -2420,7 +2435,7 @@ async function main() {
     dateRangeEnd: allDates[allDates.length - 1] ?? null,
     daysWithData: allDates.length,
     totalHRCount,
-    dailyHRs, hrTypes, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
+    dailyHRs, hrTypes, hrDetails, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus, dtdStatus,
     todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks, longshots, picksHistory, longshotsHistory, birthdays, birthdayHistory,
     dueStreaks, dueHistory, returningInjured, justBack, returningHistory,

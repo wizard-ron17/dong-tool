@@ -581,7 +581,14 @@
 
   .recap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.4rem; }
   @media (max-width: 480px) { .recap-grid { grid-template-columns: 1fr 1fr; } .recap-summary { grid-template-columns: 1fr 1fr 1fr; } }
-  .recap-card { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.7rem; display: flex; align-items: center; gap: 0.5rem; animation: fadeIn 0.1s ease; min-width: 0; overflow: hidden; }
+  .recap-card { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.7rem; display: flex; flex-direction: column; gap: 0.4rem; animation: fadeIn 0.1s ease; min-width: 0; overflow: hidden; }
+  .recap-card-top { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+  /* HR detail "at a glance" chips under a recap card */
+  .hrd-block { display: flex; flex-direction: column; gap: 0.25rem; padding-left: calc(32px + 0.5rem); }
+  .hrd-row { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+  .hrd-chip { font-size: 0.56rem; font-weight: 600; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 0.05rem 0.34rem; white-space: nowrap; }
+  .hrd-chip.hrd-dist { color: var(--gold); background: rgba(240,192,64,0.1); border-color: rgba(240,192,64,0.3); }
+  .hrd-chip.hrd-pitcher { color: var(--text); }
   /* Multi-homer games are the best outcome on the page — escalate the green
      glow with each HR rather than sliding toward red. */
   .recap-card.multi-2 { border-color: rgba(51,208,124,0.45); box-shadow: 0 0 0 1px rgba(51,208,124,0.22); }
@@ -612,6 +619,9 @@
   .reels-photo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1.5px solid rgba(255,255,255,0.85); background: #222; }
   .reels-multi { font-size: 0.6rem; font-weight: 600; color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.14); border-radius: 999px; padding: 0.1rem 0.45rem; }
   .reels-headline { font-size: 0.7rem; line-height: 1.45; color: rgba(255,255,255,0.88); }
+  /* Our HR-detail caption, sits on top of MLB's — distance/pitch/pitcher */
+  .reels-detail { display: inline-block; font-size: 0.72rem; font-weight: 700; color: #ffe08a; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,224,138,0.35); border-radius: 6px; padding: 0.18rem 0.5rem; margin-bottom: 0.35rem; }
+  .hrv-detail { font-size: 0.82rem; font-weight: 700; color: var(--gold); margin: 0 2rem 0.35rem 0.1rem; }
   .reels-count { position: absolute; right: 0.9rem; bottom: max(1.4rem, env(safe-area-inset-bottom)); font-family: var(--font-d); font-size: 0.7rem; font-weight: 700; color: rgba(255,255,255,0.65); text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
   .reels-indicator { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 62px; height: 62px; border-radius: 50%; background: rgba(15,17,22,0.55); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; letter-spacing: -2px; pointer-events: none; opacity: 0; transition: opacity 0.25s; backdrop-filter: blur(3px); }
   .reels-indicator.show { opacity: 1; }
@@ -1306,6 +1316,7 @@
 
 let dailyHRs     = {};  // date -> { pid -> hrCount }
 let hrTypes      = {};  // date -> { pid -> { gs, itp } } — grand-slam / inside-the-park counts
+let hrDetails    = {};  // date -> { pid -> [ { pitcher, hand, pitch, mph, dist, ev, gs, itp } ] }
 let dailyGames   = {};  // date -> gameCount
 let hrTotals     = {};  // pid -> total HRs
 let playerNames  = {};  // pid -> fullName
@@ -1606,7 +1617,7 @@ async function loadData() {
 }
 
 function applyData(data) {
-  dailyHRs = data.dailyHRs; hrTypes = data.hrTypes || {}; dailyGames = data.dailyGames; hrTotals = data.hrTotals;
+  dailyHRs = data.dailyHRs; hrTypes = data.hrTypes || {}; hrDetails = data.hrDetails || {}; dailyGames = data.dailyGames; hrTotals = data.hrTotals;
   playerNames = data.playerNames; playerTeams = data.playerTeams; playerABs = data.playerABs;
   playerGames = data.playerGames; playerLastHR = data.playerLastHR; teamGameDays = data.teamGameDays;
   venueGameDays = data.venueGameDays ?? {}; venueHRsByDate = data.venueHRsByDate ?? {};
@@ -2617,6 +2628,37 @@ function hrTypeBadges(date, pid) {
   if (t.itp) out += `<span class="recap-hr-badge itp" title="Inside-the-park home run${t.itp > 1 ? ` ×${t.itp}` : ''}">INSIDE-THE-PARK${t.itp > 1 ? ` ×${t.itp}` : ''}</span>`;
   return out;
 }
+// One HR's details as compact "at a glance" chips: distance, pitch + velo, and
+// who he took deep. Distance is skipped for inside-the-park (it's not a moonshot).
+function hrDetailChips(dt) {
+  if (!dt) return '';
+  const chips = [];
+  if (dt.dist != null && !dt.itp) chips.push(`<span class="hrd-chip hrd-dist" title="Projected distance">🚀 ${Math.round(dt.dist)} ft</span>`);
+  if (dt.pitch) chips.push(`<span class="hrd-chip" title="Pitch he homered on${dt.mph!=null?` at ${dt.mph} mph`:''}">${dt.pitch}${dt.mph!=null?` ${(+dt.mph).toFixed(1)}`:''}</span>`);
+  if (dt.ev != null) chips.push(`<span class="hrd-chip" title="Exit velocity off the bat">${(+dt.ev).toFixed(1)} EV</span>`);
+  if (dt.pitcher) chips.push(`<span class="hrd-chip hrd-pitcher" title="Pitcher he took deep">off ${compactPlayerName(dt.pitcher)}${dt.hand?` (${dt.hand})`:''}</span>`);
+  return chips.join('');
+}
+// A player's HR-detail block for the recap card — one row per homer that day.
+function hrDetailBlock(date, pid) {
+  const list = hrDetails[date]?.[pid];
+  if (!list?.length) return '';
+  const rows = list.map(dt => {
+    const chips = hrDetailChips(dt);
+    return chips ? `<div class="hrd-row">${chips}</div>` : '';
+  }).filter(Boolean).join('');
+  return rows ? `<div class="hrd-block">${rows}</div>` : '';
+}
+// A one-line caption string for the video overlay (plain text, no HTML).
+function hrDetailCaption(date, pid, idx = 0) {
+  const dt = hrDetails[date]?.[pid]?.[idx];
+  if (!dt) return '';
+  const parts = [];
+  if (dt.dist != null && !dt.itp) parts.push(`${Math.round(dt.dist)} ft`);
+  if (dt.pitch) parts.push(`${dt.pitch}${dt.mph!=null?` ${(+dt.mph).toFixed(1)} mph`:''}`);
+  if (dt.pitcher) parts.push(`off ${compactPlayerName(dt.pitcher)}`);
+  return parts.join(' · ');
+}
 function hrVideoEscHandler(e) { if (e.key === 'Escape') closeHRVideo(); }
 function closeHRVideo() {
   const el = document.getElementById('hr-video-backdrop');
@@ -2636,6 +2678,7 @@ function openHRVideo(date, pid, idx = 0) {
     <div class="due-modal-backdrop" id="hr-video-backdrop" onclick="if(event.target===this) closeHRVideo()">
       <div class="hrv-modal">
         <button class="due-modal-close" onclick="closeHRVideo()" aria-label="Close">&times;</button>
+        ${hrDetailCaption(date, pid, idx) ? `<div class="hrv-detail">🚀 ${hrDetailCaption(date, pid, idx)}</div>` : ''}
         <div class="hrv-title">${c.title}</div>
         <video class="hrv-video" src="${c.mp4}" poster="${c.poster}" controls autoplay playsinline></video>
         ${chips}
@@ -2752,6 +2795,7 @@ function buildDaySlidesHtml(date) {
           <img class="reels-ph-photo" src="${playerPhotoUrl(x.pid)}" alt="">
           <div class="reels-ph-name">${name}</div>
           <div class="reels-ph-sub">${which}</div>
+          ${hrDetailCaption(date, x.pid, x.clipIdx) ? `<div class="reels-detail" style="position:static;margin:0.5rem auto 0">🚀 ${hrDetailCaption(date, x.pid, x.clipIdx)}</div>` : ''}
           <div class="reels-ph-tag">🎬 No video from MLB (yet)</div>
         </div>
         ${nextOverlay}
@@ -2764,6 +2808,7 @@ function buildDaySlidesHtml(date) {
       ${nextOverlay}
       <div class="reels-overlay">
         <div class="reels-name"><img class="reels-photo" src="${playerPhotoUrl(x.pid)}" alt="">${name}${x.hrs > 1 ? ` <span class="reels-multi">${x.clipIdx + 1} of ${x.hrs} that day</span>` : ''}</div>
+        ${hrDetailCaption(date, x.pid, x.clipIdx) ? `<div class="reels-detail">🚀 ${hrDetailCaption(date, x.pid, x.clipIdx)}</div>` : ''}
         <div class="reels-headline">${x.clip.title}</div>
       </div>
       <div class="reels-count">${countLbl}</div>
@@ -2946,9 +2991,12 @@ function renderRecap() {
     const clips    = recapClipsFor(date, pid);
     const playBtn  = clips?.length ? `<button class="recap-play" onclick="openHRVideo('${date}','${pid}')" title="Watch ${clips.length > 1 ? `${clips.length} clips` : 'the homer'}">▶</button>` : '';
     return `<div class="recap-card ${multiCls}">
-      <span class="recap-photo-wrap"><img class="recap-photo" src="${photoUrl}" alt="">${playBtn}</span>
-      <div class="recap-info"><div class="recap-name">${name}${birthdayBadge(pid)}</div><div class="recap-sub">${hrTypeBadges(date, pid)}${team?teamLogoImg(team,'team-logo')+team+' · ':''}${seasonHR} season${injuryBadge(pid, true)}${lineupBadge(pid, true)}</div></div>
-      <div class="recap-stat"><span class="recap-stat-num">${hrs}</span><span class="recap-stat-label">${hrs===1?'HR':'HRs'}</span></div>
+      <div class="recap-card-top">
+        <span class="recap-photo-wrap"><img class="recap-photo" src="${photoUrl}" alt="">${playBtn}</span>
+        <div class="recap-info"><div class="recap-name">${name}${birthdayBadge(pid)}</div><div class="recap-sub">${hrTypeBadges(date, pid)}${team?teamLogoImg(team,'team-logo')+team+' · ':''}${seasonHR} season${injuryBadge(pid, true)}${lineupBadge(pid, true)}</div></div>
+        <div class="recap-stat"><span class="recap-stat-num">${hrs}</span><span class="recap-stat-label">${hrs===1?'HR':'HRs'}</span></div>
+      </div>
+      ${hrDetailBlock(date, pid)}
     </div>`;
   }).join('');
 
