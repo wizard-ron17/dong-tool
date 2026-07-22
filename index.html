@@ -2628,13 +2628,20 @@ function hrTypeBadges(date, pid) {
   if (t.itp) out += `<span class="recap-hr-badge itp" title="Inside-the-park home run${t.itp > 1 ? ` ×${t.itp}` : ''}">INSIDE-THE-PARK${t.itp > 1 ? ` ×${t.itp}` : ''}</span>`;
   return out;
 }
+// Shorten MLB's spelled-out pitch names for the tight recap chips.
+function shortPitch(name) {
+  if (!name) return '';
+  return name
+    .replace(/Four-Seam Fastball/i, '4 Seam')
+    .replace(/Two-Seam Fastball/i, '2 Seam');
+}
 // One HR's details as compact "at a glance" chips: distance, pitch + velo, and
 // who he took deep. Distance is skipped for inside-the-park (it's not a moonshot).
 function hrDetailChips(dt) {
   if (!dt) return '';
   const chips = [];
   if (dt.dist != null && !dt.itp) chips.push(`<span class="hrd-chip hrd-dist" title="Projected distance">🚀 ${Math.round(dt.dist)} ft</span>`);
-  if (dt.pitch) chips.push(`<span class="hrd-chip" title="Pitch he homered on${dt.mph!=null?` at ${dt.mph} mph`:''}">${dt.pitch}${dt.mph!=null?` ${(+dt.mph).toFixed(1)}`:''}</span>`);
+  if (dt.pitch) chips.push(`<span class="hrd-chip" title="Pitch he homered on${dt.mph!=null?` at ${dt.mph} mph`:''}">${shortPitch(dt.pitch)}${dt.mph!=null?` ${(+dt.mph).toFixed(1)}`:''}</span>`);
   if (dt.ev != null) chips.push(`<span class="hrd-chip" title="Exit velocity off the bat">${(+dt.ev).toFixed(1)} EV</span>`);
   if (dt.pitcher) chips.push(`<span class="hrd-chip hrd-pitcher" title="Pitcher he took deep">off ${compactPlayerName(dt.pitcher)}${dt.hand?` (${dt.hand})`:''}</span>`);
   return chips.join('');
@@ -2655,7 +2662,7 @@ function hrDetailCaption(date, pid, idx = 0) {
   if (!dt) return '';
   const parts = [];
   if (dt.dist != null && !dt.itp) parts.push(`${Math.round(dt.dist)} ft`);
-  if (dt.pitch) parts.push(`${dt.pitch}${dt.mph!=null?` ${(+dt.mph).toFixed(1)} mph`:''}`);
+  if (dt.pitch) parts.push(`${shortPitch(dt.pitch)}${dt.mph!=null?` ${(+dt.mph).toFixed(1)} mph`:''}`);
   if (dt.pitcher) parts.push(`off ${compactPlayerName(dt.pitcher)}`);
   return parts.join(' · ');
 }
