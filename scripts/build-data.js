@@ -1097,6 +1097,7 @@ async function fetchPeopleInfo(ids) {
           positionCode: p.primaryPosition?.code ?? '',
           birthDate: p.birthDate ?? null,          // "YYYY-MM-DD"
           birthCity: p.birthCity ?? null,
+          birthState: p.birthStateProvince ?? null,
           birthCountry: p.birthCountry ?? null,
         };
       }
@@ -1105,6 +1106,14 @@ async function fetchPeopleInfo(ids) {
   return info;
 }
 
+// "City, State" for US-born players (Baltimore, MD), "City, Country" otherwise
+// (Valencia, Venezuela) — a US state is more meaningful than a bare "USA".
+function birthPlaceOf(info) {
+  if (!info?.birthCity) return null;
+  const isUS = /^(USA|US|United States)$/i.test(info.birthCountry || '');
+  const region = (isUS && info.birthState) ? info.birthState : info.birthCountry;
+  return [info.birthCity, region].filter(Boolean).join(', ') || null;
+}
 // Birthday tool — simple and silly: which of this season's hitters is celebrating
 // a birthday today (ET). Matches month-day, computes the age he's turning.
 async function computeBirthdays() {
@@ -1123,7 +1132,7 @@ async function computeBirthdays() {
       pid, name: playerNames[pid], team: playerTeams[pid] || '',
       birthDate: bd, age: (+ty) - (+by),                     // the age he turns today
       hrs: hrTotals[pid] || 0,
-      birthPlace: [info[pid]?.birthCity, info[pid]?.birthCountry].filter(Boolean).join(', ') || null,
+      birthPlace: birthPlaceOf(info[pid]),
     });
   }
   // Most notable first (season HR), then name.
