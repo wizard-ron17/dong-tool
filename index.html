@@ -911,6 +911,16 @@
   .hm-score.mild, .hm-score.ok   { color: var(--warn); }
   .hm-more { font-size: 0.6rem; color: var(--muted); padding-top: 0.35rem; }
 
+  /* Tip strip — quiet "buy me a coffee", homer edition. Bottom of home only. */
+  .hm-tip { margin-top: 0.9rem; display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.85rem; }
+  .hm-tip-emoji { font-size: 1.15rem; line-height: 1; flex-shrink: 0; }
+  .hm-tip-text { font-size: 0.72rem; color: var(--dim); line-height: 1.35; min-width: 0; flex: 1 1 12rem; }
+  .hm-tip-text b { color: var(--text); font-weight: 700; }
+  .hm-tip-note { display: block; font-size: 0.56rem; color: var(--muted); margin-top: 0.1rem; }
+  .hm-tip-cash { display: inline-flex; align-items: center; gap: 0.35rem; flex-shrink: 0; text-decoration: none; font-family: var(--font-m); font-weight: 700; font-size: 0.78rem; color: var(--accent); background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px; padding: 0.32rem 0.6rem; transition: border-color 0.15s, color 0.15s; cursor: pointer; }
+  .hm-tip-cash:hover { border-color: var(--accent); }
+  .hm-tip-copy { font-size: 0.58rem; color: var(--muted); }
+
   .theme-toggle { position: absolute; top: 0; right: 0; z-index: 5; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 9px; border: 1px solid var(--border2); background: var(--surface1); color: var(--muted); cursor: pointer; transition: color 0.15s, background 0.15s, border-color 0.15s; }
   .theme-toggle:hover { color: var(--accent); border-color: var(--accent); background: var(--surface2); }
   .theme-toggle svg { width: 18px; height: 18px; display: block; }
@@ -1959,7 +1969,22 @@ function renderHome() {
       <div class="hm-head"><span class="hm-title">Top Pairings</span><span class="hm-link">Pairs →</span></div>
       ${topDuos || '<div class="hm-subtle">No co-occurrences yet.</div>'}
     </div>
+  </div>
+  <div class="hm-tip">
+    <span class="hm-tip-emoji">💣</span>
+    <span class="hm-tip-text"><b>Board paying off?</b> Chip in on Ron's next dong parlay — no pressure, the tool's free either way.<span class="hm-tip-note">Tips just fund more longshots.</span></span>
+    <a class="hm-tip-cash" href="https://cash.app/$ronrich43" target="_blank" rel="noopener" onclick="copyCashtag(event)" title="Open Cash App or click to copy">$ronrich43<span class="hm-tip-copy" id="hm-tip-copy">copy</span></a>
   </div>`;
+}
+
+// Tip strip: let a tap copy the cashtag while still linking out to Cash App.
+function copyCashtag(e) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText('$ronrich43').then(() => {
+      const el = document.getElementById('hm-tip-copy');
+      if (el) { el.textContent = 'copied!'; setTimeout(() => { el.textContent = 'copy'; }, 1800); }
+    }).catch(() => {});
+  }
 }
 
 // ── PAIRS ──────────────────────────────────────────────────────────────
