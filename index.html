@@ -1257,6 +1257,7 @@
         <span class="due-filter-label">Filter</span>
         <button class="due-filter-chip active" id="daylate-avail-chip" onclick="toggleDayLateAvail()" title="Hide anyone who can't bat today — on the IL, benched, or whose team is off">Available today only</button>
         <button class="due-filter-chip" id="daylate-pick-chip" onclick="toggleDayLateTodayPicks()" title="Only guys who are also on today's Picks board">On today's Picks</button>
+        <button class="due-filter-chip" id="daylate-dtd-chip" onclick="toggleDayLateDTD()" title="Drop day-to-day / banged-up guys (not on the IL, but dinged)">🤕 Hide Day-to-Day</button>
       </div>
       <div class="result-meta" id="daylate-meta"></div>
       <div id="daylate-content"><div class="empty">Loading data…</div></div>
@@ -1363,6 +1364,8 @@ let longshots = []; // fringe-power dart throws (low HR, recent-form-amplified)
 let longshotsHistory = [];
 let longshotSubTab = 'today';
 let longshotMaxHR = 9; // default <10 season HR; 0 = All (up to the build's pool ceiling)
+let longshotHotOnly = false; // show only darts heating up (amplified recent form ≥ 1.05×)
+const LONGSHOT_HOT_MIN = 1.05;
 let picksHistory = [];
 // 3 / 7 = the server floors ("All"); hide off/bench/IL by default. Persisted:
 // a trim you set (e.g. 9+ score, 15+ HR — the backtest's profitable cut) sticks
@@ -4057,6 +4060,13 @@ function longshotHrChips() {
     `<button class="due-filter-chip${longshotMaxHR===v?' active':''}" onclick="setLongshotMaxHR(${v})">${l}</button>`).join('');
 }
 function longshotHrMatch(hr) { return !longshotMaxHR || (hr ?? 0) <= longshotMaxHR; }
+// "Hot" = amplified recent form at or above the threshold. Applies to today's
+// list only (Results rows carry no form snapshot). Unknown form is not hot.
+function longshotHotMatch(r) { return !longshotHotOnly || (r.recentFormAmplified ?? 0) >= LONGSHOT_HOT_MIN; }
+function toggleLongshotHot() {
+  longshotHotOnly = !longshotHotOnly;
+  renderLongshots();
+}
 function applyLongshotSub(sub) {
   longshotSubTab = sub;
   document.getElementById('longshot-today-wrap').style.display   = sub === 'today'   ? '' : 'none';
@@ -4080,6 +4090,7 @@ function renderLongshots() {
   const pool = longshots
     .filter(r => !isUnavailableToday(r.pid))
     .filter(r => longshotHrMatch(r.hrs))
+    .filter(r => longshotHotMatch(r))
     .sort((a, b) => (b.longshotScore ?? 0) - (a.longshotScore ?? 0));
 
   const gameByTeam = {};
@@ -4115,9 +4126,10 @@ function renderLongshots() {
   el.innerHTML = `
     <div class="picks-sort">
       <span class="due-filter-label">Season HR</span>${hrChips}
+      <button class="due-filter-chip${longshotHotOnly?' active':''}" onclick="toggleLongshotHot()" title="Only darts heating up — amplified recent form ≥ ${LONGSHOT_HOT_MIN.toFixed(2)}×">🔥 Hot only</button>
     </div>
     <div class="result-meta">${pool.length} longshot${pool.length===1?'':'s'} · ranked by matchup + hot form</div>
-    <div class="lb-views" data-view="cards"><div class="lb-view-cards">${cards || '<div class="empty">Nobody matches — widen the HR filter.</div>'}</div></div>`;
+    <div class="lb-views" data-view="cards"><div class="lb-view-cards">${cards || `<div class="empty">Nobody matches — ${longshotHotOnly ? '<a href="javascript:void(0)" onclick="toggleLongshotHot()">drop the Hot filter</a> or ' : ''}widen the HR filter.</div>`}</div></div>`;
 }
 function toggleLongshotExplainer() {
   const body = document.getElementById('longshot-explainer-body');
@@ -4652,6 +4664,7 @@ function renderBirthdayResults() {
 // score is recomputed on purpose; the whole premise is that it doesn't matter.
 let dayLateHideUnavailable = true;  // hide off/bench/injured by default
 let dayLateTodayPicksOnly  = false; // limit to guys also on today's Picks board
+let dayLateHideDTD         = false; // drop day-to-day / banged-up guys
 let dayLateSort = 'yrank';          // yrank | hr | pick | due
 let dayLateSubTab = 'today';        // today | results
 function applyDayLateSub(sub) {
@@ -4671,6 +4684,11 @@ function toggleDayLateAvail() {
 function toggleDayLateTodayPicks() {
   dayLateTodayPicksOnly = !dayLateTodayPicksOnly;
   document.getElementById('daylate-pick-chip')?.classList.toggle('active', dayLateTodayPicksOnly);
+  renderDayLate();
+}
+function toggleDayLateDTD() {
+  dayLateHideDTD = !dayLateHideDTD;
+  document.getElementById('daylate-dtd-chip')?.classList.toggle('active', dayLateHideDTD);
   renderDayLate();
 }
 function setDayLateSort(s) { dayLateSort = s; renderDayLate(); }
@@ -4702,6 +4720,7 @@ function renderDayLate() {
 
   let shown = dayLateHideUnavailable ? misses.filter(p => !isUnavailableToday(p.pid)) : misses;
   if (dayLateTodayPicksOnly) shown = shown.filter(p => pickRankMap[p.pid] != null);
+  if (dayLateHideDTD) shown = shown.filter(p => !isDayToDay(p.pid));
 
   const sorters = {
     yrank: (a, b) => a.rank - b.rank,
@@ -4711,7 +4730,7 @@ function renderDayLate() {
   };
   const ordered = [...shown].sort(sorters[dayLateSort] || sorters.yrank);
 
-  const filtersOn = dayLateHideUnavailable || dayLateTodayPicksOnly;
+  const filtersOn = dayLateHideUnavailable || dayLateTodayPicksOnly || dayLateHideDTD;
   metaEl.textContent = `${ordered.length}${filtersOn && ordered.length !== misses.length ? ` of ${misses.length}` : ''} missed pick${ordered.length === 1 ? '' : 's'} from ${fmtDateLong(entry.date)}`
     + ` · ${entry.picks.length - misses.length}/${entry.picks.length} of that day's picks homered`;
 
@@ -4724,7 +4743,7 @@ function renderDayLate() {
   </div>`;
 
   if (!ordered.length) {
-    contentEl.innerHTML = sortBar + `<div class="empty">Nobody matches these filters. <a href="javascript:void(0)" onclick="dayLateTodayPicksOnly&&toggleDayLateTodayPicks();dayLateHideUnavailable&&toggleDayLateAvail()">Show all</a></div>`;
+    contentEl.innerHTML = sortBar + `<div class="empty">Nobody matches these filters. <a href="javascript:void(0)" onclick="dayLateTodayPicksOnly&&toggleDayLateTodayPicks();dayLateHideDTD&&toggleDayLateDTD();dayLateHideUnavailable&&toggleDayLateAvail()">Show all</a></div>`;
     return;
   }
 
