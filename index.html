@@ -373,6 +373,7 @@
   .cross-tab-badge.daylate-badge { color: #d59bff; background: rgba(213,155,255,0.12); border: 1px solid rgba(213,155,255,0.32); }
   .cross-tab-badge.prospect-badge { color: #52c98a; background: rgba(82,201,138,0.12); border: 1px solid rgba(82,201,138,0.32); }
   .cross-tab-badge.returning-badge { color: #ff9d5c; background: rgba(255,157,92,0.12); border: 1px solid rgba(255,157,92,0.34); }
+  .cross-tab-badge.ctb-compact { font-size: 0.54rem; padding: 0.02rem 0.22rem; }
   .pick-ind.great { background: rgba(53,201,110,0.14); color: var(--accent); }
   .pick-ind.good  { background: rgba(240,192,64,0.12); color: var(--gold); }
   .pick-ind.bad   { background: rgba(224,64,90,0.12);  color: var(--bad); }
@@ -1591,24 +1592,28 @@ function isJustBack(pid)  { return (justBack || []).some(e => e.pid === pid); }
 // name appears. `exclude` suppresses a tool's own badge when rendering inside
 // that tool (its rank is already implied by list position). Keys: birthday,
 // due, pick, longshot, daylate, prospect, returning.
-function crossTabBadge(pid, exclude = {}) {
+// compact=true drops the words (keeps rank number, color, and emoji) so a
+// stack of badges fits on one line in dense rows like the Schedule lineup —
+// the full label still lives in the hover tooltip.
+function crossTabBadge(pid, exclude = {}, compact = false) {
   const parts = [];
+  const c = compact ? ' ctb-compact' : '';
   if (!exclude.birthday) { const bd = birthdayBadge(pid); if (bd) parts.push(bd); } // rides along next to the name on every board
   if (!exclude.pick) {
     const idx = applyPicksFilters(picks).findIndex(r => r.pid === pid);
-    if (idx >= 0) parts.push(`<span class="cross-tab-badge pick-rank" title="Ranked #${idx+1} in today's Picks">#${idx+1} Pick</span>`);
+    if (idx >= 0) parts.push(`<span class="cross-tab-badge pick-rank${c}" title="Ranked #${idx+1} in today's Picks">#${idx+1}${compact ? '' : ' Pick'}</span>`);
   }
   if (!exclude.due) {
     const rank = availableDueRank(pid); // matches the Due page's default (available-only) ranking
-    if (rank) parts.push(`<span class="cross-tab-badge due-rank" title="Ranked #${rank} in Due">#${rank} Due</span>`);
+    if (rank) parts.push(`<span class="cross-tab-badge due-rank${c}" title="Ranked #${rank} in Due">#${rank}${compact ? '⏳' : ' Due'}</span>`);
   }
   if (!exclude.longshot) {
     const rank = longshotRank(pid);
-    if (rank) parts.push(`<span class="cross-tab-badge longshot-rank" title="Ranked #${rank} in today's Longshots">#${rank} 🎯</span>`);
+    if (rank) parts.push(`<span class="cross-tab-badge longshot-rank${c}" title="Ranked #${rank} in today's Longshots">${compact ? '🎯' + rank : '#' + rank + ' 🎯'}</span>`);
   }
-  if (!exclude.daylate && isDayLate(pid)) parts.push(`<span class="cross-tab-badge daylate-badge" title="Missed the last Picks slate — a day-late fade candidate today">🔁 Day Late</span>`);
-  if (!exclude.prospect && isProspect(pid)) parts.push(`<span class="cross-tab-badge prospect-badge" title="Fresh call-up on the Prospects watch">🌱 Prospect</span>`);
-  if (!exclude.returning && isJustBack(pid)) parts.push(`<span class="cross-tab-badge returning-badge" title="Just back from injury — first-games-back window">🚑 Back</span>`);
+  if (!exclude.daylate && isDayLate(pid)) parts.push(`<span class="cross-tab-badge daylate-badge${c}" title="Missed the last Picks slate — a day-late fade candidate today">🔁${compact ? '' : ' Day Late'}</span>`);
+  if (!exclude.prospect && isProspect(pid)) parts.push(`<span class="cross-tab-badge prospect-badge${c}" title="Fresh call-up on the Prospects watch">🌱${compact ? '' : ' Prospect'}</span>`);
+  if (!exclude.returning && isJustBack(pid)) parts.push(`<span class="cross-tab-badge returning-badge${c}" title="Just back from injury — first-games-back window">🚑${compact ? '' : ' Back'}</span>`);
   return parts.join('');
 }
 
@@ -3169,7 +3174,7 @@ function schedLineupHtml(side) {
       const cls = lowerIsBetterClass(abPerHR, batterAvg);
       return `<div class="sched-lineup-row">
         <span class="sched-lineup-order">${i + 1}</span>
-        <span class="sched-lineup-nameblock"><span class="sched-lineup-pname">${playerNames[pid] || pid}</span><span class="sched-lineup-badges">${injuryBadge(pid, true)}${crossTabBadge(pid)}</span></span>
+        <span class="sched-lineup-nameblock"><span class="sched-lineup-pname">${playerNames[pid] || pid}</span><span class="sched-lineup-badges">${injuryBadge(pid, true)}${crossTabBadge(pid, {}, true)}</span></span>
         <span class="sched-lineup-hrval">${hrs}</span>
         <span class="sched-lineup-abhr hrg-val ${cls}">${abPerHR != null ? abPerHR.toFixed(1) : '—'}</span>
       </div>`;
@@ -3185,7 +3190,7 @@ function schedLineupHtml(side) {
       <span class="sched-lineup-order">${p.order}</span>
       <span class="sched-lineup-hand">${handBadge(p.bats, 'bats')}</span>
       <span class="sched-lineup-pos">${p.position}</span>
-      <span class="sched-lineup-nameblock"><span class="sched-lineup-pname">${playerNames[p.pid] || p.name}</span><span class="sched-lineup-badges">${injuryBadge(p.pid, true)}${crossTabBadge(p.pid)}</span></span>
+      <span class="sched-lineup-nameblock"><span class="sched-lineup-pname">${playerNames[p.pid] || p.name}</span><span class="sched-lineup-badges">${injuryBadge(p.pid, true)}${crossTabBadge(p.pid, {}, true)}</span></span>
       <span class="sched-lineup-hrval">${hrs}</span>
       <span class="sched-lineup-abhr hrg-val ${cls}">${abPerHR != null ? abPerHR.toFixed(1) : '—'}</span>
     </div>`;
