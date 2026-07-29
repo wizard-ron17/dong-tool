@@ -734,10 +734,10 @@
   .sched-proj-tag { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.03em; color: var(--gold); background: rgba(240,192,64,0.1); border: 1px solid rgba(240,192,64,0.3); border-radius: 8px; padding: 0.05rem 0.4rem; text-transform: none; }
   @media (max-width: 600px) { .sched-lineups { flex-direction: column; gap: 0.7rem; } .sched-pitchers-row { flex-wrap: wrap; } }
 
-  .sched-bullpen-toggle { display: none; font-size: 0.6rem; font-weight: 700; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; padding: 0.55rem 0 0.1rem; text-align: center; border-top: 1px solid var(--border); margin-top: 0.6rem; }
-  .sched-bullpen-toggle:hover { color: var(--text); }
-  .sched-game.expanded .sched-bullpen-toggle { display: block; }
+  .sched-bullpen-head { display: none; font-size: 0.6rem; font-weight: 700; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; padding: 0.55rem 0 0.1rem; text-align: center; border-top: 1px solid var(--border); margin-top: 0.6rem; }
+  .sched-game.expanded .sched-bullpen-head { display: block; }
   .sched-bullpens { display: none; gap: 1.2rem; margin-top: 0.5rem; }
+  .sched-game.expanded .sched-bullpens { display: flex; }
   .sched-bullpen-row { display: flex; align-items: flex-start; gap: 0.4rem; padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
   .sched-bullpen-row:last-child { border-bottom: none; }
   .sched-bullpen-hand { flex-shrink: 0; width: 1.25rem; height: 1.25rem; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 0.58rem; font-weight: 700; background: var(--surface2); color: var(--muted); margin-top: 0.1rem; }
@@ -1601,11 +1601,11 @@ function crossTabBadge(pid, exclude = {}, compact = false) {
   if (!exclude.birthday) { const bd = birthdayBadge(pid); if (bd) parts.push(bd); } // rides along next to the name on every board
   if (!exclude.pick) {
     const idx = applyPicksFilters(picks).findIndex(r => r.pid === pid);
-    if (idx >= 0) parts.push(`<span class="cross-tab-badge pick-rank${c}" title="Ranked #${idx+1} in today's Picks">#${idx+1}${compact ? '' : ' Pick'}</span>`);
+    if (idx >= 0) parts.push(`<span class="cross-tab-badge pick-rank${c}" title="Ranked #${idx+1} in today's Picks">${compact ? '🔒' + (idx+1) : '#' + (idx+1) + ' Pick'}</span>`);
   }
   if (!exclude.due) {
     const rank = availableDueRank(pid); // matches the Due page's default (available-only) ranking
-    if (rank) parts.push(`<span class="cross-tab-badge due-rank${c}" title="Ranked #${rank} in Due">#${rank}${compact ? '⏳' : ' Due'}</span>`);
+    if (rank) parts.push(`<span class="cross-tab-badge due-rank${c}" title="Ranked #${rank} in Due">${compact ? '⏳' + rank : '#' + rank + ' Due'}</span>`);
   }
   if (!exclude.longshot) {
     const rank = longshotRank(pid);
@@ -3277,16 +3277,6 @@ function schedBullpenHtml(side) {
   }).join('');
   return `<div class="sched-lineup-col"><div class="sched-lineup-head">${label} Bullpen</div>${rows}</div>`;
 }
-function toggleSchedBullpens(pk, evt) {
-  evt?.stopPropagation();
-  const body = document.getElementById(`sched-bullpens-${pk}`);
-  const btn = document.getElementById(`sched-bullpen-toggle-${pk}`);
-  if (!body) return;
-  const open = body.style.display === 'flex';
-  body.style.display = open ? 'none' : 'flex';
-  if (btn) btn.textContent = open ? 'Bullpens ▾' : 'Bullpens ▴';
-}
-
 function toggleSchedGame(pk) {
   document.getElementById(`sched-game-${pk}`)?.classList.toggle('expanded');
 }
@@ -3355,8 +3345,8 @@ function renderSchedule() {
         ${schedLineupHtml(g.away)}
         ${schedLineupHtml(g.home)}
       </div>
-      <div class="sched-bullpen-toggle" id="sched-bullpen-toggle-${g.gamePk}" onclick="toggleSchedBullpens(${g.gamePk}, event)">Bullpens ▾</div>
-      <div class="sched-bullpens" id="sched-bullpens-${g.gamePk}">
+      <div class="sched-bullpen-head">Bullpens</div>
+      <div class="sched-bullpens">
         ${schedBullpenHtml(g.away)}
         ${schedBullpenHtml(g.home)}
       </div>
