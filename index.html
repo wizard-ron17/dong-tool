@@ -1578,12 +1578,16 @@ function longshotRank(pid) {
   const idx = pool.findIndex(r => r.pid === pid);
   return idx >= 0 ? idx + 1 : null;
 }
-// Day Late = a pick that missed on the last scored slate (the fade candidate on
-// the next slate), still able to bat today.
+// Day Late = a DEFAULT-board pick (Min Score 9 / Min HR 10, so no longshot-tail
+// bats) that missed on the last scored slate — the fade candidate on the next
+// slate — still able to bat today. Uses the default cutoff, not the full board,
+// so the badge doesn't fire for sub-cutoff longshots.
 function isDayLate(pid) {
   const entry = (picksHistory || []).length ? picksHistory[picksHistory.length - 1] : null;
   if (!entry || !entry.picks) return false;
-  return entry.picks.some(p => p.pid === pid && !p.hit) && !isUnavailableToday(pid);
+  return entry.picks.some(p => p.pid === pid && !p.hit
+    && (p.score ?? 0) >= PICKS_FILTER_DEFAULTS.minScore
+    && (p.hr ?? 0) >= PICKS_FILTER_DEFAULTS.minHR) && !isUnavailableToday(pid);
 }
 function isProspect(pid)  { return (prospects.justCalledUp || []).some(r => r.pid === pid); }
 function isJustBack(pid)  { return (justBack || []).some(e => e.pid === pid); }
@@ -1600,7 +1604,7 @@ function crossTabBadge(pid, exclude = {}, compact = false) {
   const c = compact ? ' ctb-compact' : '';
   if (!exclude.birthday) { const bd = birthdayBadge(pid); if (bd) parts.push(bd); } // rides along next to the name on every board
   if (!exclude.pick) {
-    const idx = applyPicksFilters(picks).findIndex(r => r.pid === pid);
+    const idx = applyPicksFilters(picks, PICKS_FILTER_DEFAULTS).findIndex(r => r.pid === pid);
     if (idx >= 0) parts.push(`<span class="cross-tab-badge pick-rank${c}" title="Ranked #${idx+1} in today's Picks">${compact ? '🔒' + (idx+1) : '#' + (idx+1) + ' Pick'}</span>`);
   }
   if (!exclude.due) {
@@ -3826,11 +3830,14 @@ function togglePicksFilter(key) { picksFilters[key] = !picksFilters[key]; savePi
 function clearPicksFilters() { picksFilters = { ...PICKS_FILTER_DEFAULTS }; savePicksFilters(); renderPicks(); renderPicksResults(); }
 // "Active" = a deviation from the default cutoff (score 9 / 10 HR / hide unavailable).
 function picksFiltersActive() { return picksFilters.minHR !== PICKS_FILTER_DEFAULTS.minHR || picksFilters.minScore !== PICKS_FILTER_DEFAULTS.minScore || picksFilters.hideUnavailable !== PICKS_FILTER_DEFAULTS.hideUnavailable; }
-function applyPicksFilters(rows) {
+// f defaults to the user's live Picks filters (for the Picks board itself), but
+// callers can pass PICKS_FILTER_DEFAULTS — cross-tab badges do, so a player's
+// "#N Pick" standing reflects the default board, not whatever the user last set.
+function applyPicksFilters(rows, f = picksFilters) {
   return rows.filter(r =>
-    r.hrs >= picksFilters.minHR &&
-    r.pickScore >= picksFilters.minScore &&
-    !(picksFilters.hideUnavailable && isUnavailableToday(r.pid)) // off / bench / IL
+    r.hrs >= f.minHR &&
+    r.pickScore >= f.minScore &&
+    !(f.hideUnavailable && isUnavailableToday(r.pid)) // off / bench / IL
   );
 }
 function renderPicksFilters() {
