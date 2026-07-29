@@ -716,7 +716,12 @@
   .sched-lineup-order { color: var(--muted); width: 1.1rem; flex-shrink: 0; }
   .sched-lineup-hand { width: 1.35rem; flex-shrink: 0; display: inline-flex; justify-content: center; }
   .sched-lineup-pos { color: var(--muted); width: 1.6rem; flex-shrink: 0; font-size: 0.6rem; }
-  .sched-lineup-pname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* name + badges share a flexible block that wraps — badges drop to a second
+     line when tight instead of squeezing the name down to a single letter */
+  .sched-lineup-nameblock { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.12rem 0.25rem; }
+  .sched-lineup-pname { flex-shrink: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sched-lineup-badges { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.15rem; min-width: 0; }
+  .sched-lineup-badges .cross-tab-badge, .sched-lineup-badges .lineup-badge { margin-left: 0; }
   .sched-lineup-hr { font-size: 0.58rem; font-weight: 700; flex-shrink: 0; margin-left: auto; }
   .sched-lineup-empty { font-size: 0.65rem; color: var(--dim); font-style: italic; }
   .sched-proj-tag { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.03em; color: var(--gold); background: rgba(240,192,64,0.1); border: 1px solid rgba(240,192,64,0.3); border-radius: 8px; padding: 0.05rem 0.4rem; text-transform: none; }
@@ -3157,7 +3162,7 @@ function schedLineupHtml(side) {
       const cls = lowerIsBetterClass(abPerHR, batterAvg);
       return `<div class="sched-lineup-row">
         <span class="sched-lineup-order">${i + 1}</span>
-        <span class="sched-lineup-pname">${playerNames[pid] || pid}${injuryBadge(pid, true)}${crossTabBadge(pid)}</span>
+        <span class="sched-lineup-nameblock"><span class="sched-lineup-pname">${playerNames[pid] || pid}</span><span class="sched-lineup-badges">${injuryBadge(pid, true)}${crossTabBadge(pid)}</span></span>
         <span class="sched-lineup-hr hrg-val ${cls}">${hrs} HR · ${abPerHR != null ? abPerHR.toFixed(1) + ' AB/HR' : '—'}</span>
       </div>`;
     }).join('');
@@ -3172,8 +3177,7 @@ function schedLineupHtml(side) {
       <span class="sched-lineup-order">${p.order}</span>
       <span class="sched-lineup-hand">${handBadge(p.bats, 'bats')}</span>
       <span class="sched-lineup-pos">${p.position}</span>
-      <span class="sched-lineup-pname">${playerNames[p.pid] || p.name}</span>
-      ${injuryBadge(p.pid, true)}${crossTabBadge(p.pid)}
+      <span class="sched-lineup-nameblock"><span class="sched-lineup-pname">${playerNames[p.pid] || p.name}</span><span class="sched-lineup-badges">${injuryBadge(p.pid, true)}${crossTabBadge(p.pid)}</span></span>
       <span class="sched-lineup-hr hrg-val ${cls}">${hrs} HR · ${abPerHR != null ? abPerHR.toFixed(1) + ' AB/HR' : '—'}</span>
     </div>`;
   }).join('');
