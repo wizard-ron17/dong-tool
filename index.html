@@ -1275,6 +1275,7 @@
         <button class="due-filter-chip active" id="daylate-avail-chip" onclick="toggleDayLateAvail()" title="Hide anyone who can't bat today — on the IL, benched, or whose team is off">Available today only</button>
         <button class="due-filter-chip" id="daylate-pick-chip" onclick="toggleDayLateTodayPicks()" title="Only guys who are also on today's Picks board">On today's Picks</button>
         <button class="due-filter-chip" id="daylate-dtd-chip" onclick="toggleDayLateDTD()" title="Drop day-to-day / banged-up guys (not on the IL, but dinged)">🤕 Hide Day-to-Day</button>
+        <button class="due-filter-chip" id="daylate-full-chip" onclick="toggleDayLateFullBoard()" title="Include the sub-cutoff tail (below Score 9 / 10 HR) — off by default, so this fades real Picks, not longshots">Full board</button>
       </div>
       <div class="result-meta" id="daylate-meta"></div>
       <div id="daylate-content"><div class="empty">Loading data…</div></div>
@@ -4748,6 +4749,13 @@ function renderBirthdayResults() {
 let dayLateHideUnavailable = true;  // hide off/bench/injured by default
 let dayLateTodayPicksOnly  = false; // limit to guys also on today's Picks board
 let dayLateHideDTD         = false; // drop day-to-day / banged-up guys
+let dayLateFullBoard       = false; // false = default board only (real Picks, no longshot tail)
+// A day-late candidate is a miss from the DEFAULT Picks board (Score≥9 & HR≥10)
+// — the actual picks, not the sub-cutoff longshot tail the server also ships.
+// Flip dayLateFullBoard on to fade the whole board.
+function dayLateEligible(p) {
+  return dayLateFullBoard || ((p.score ?? 0) >= PICKS_FILTER_DEFAULTS.minScore && (p.hr ?? 0) >= PICKS_FILTER_DEFAULTS.minHR);
+}
 let dayLateSort = 'yrank';          // yrank | hr | pick | due
 let dayLateSubTab = 'today';        // today | results
 function applyDayLateSub(sub) {
@@ -4774,6 +4782,11 @@ function toggleDayLateDTD() {
   document.getElementById('daylate-dtd-chip')?.classList.toggle('active', dayLateHideDTD);
   renderDayLate();
 }
+function toggleDayLateFullBoard() {
+  dayLateFullBoard = !dayLateFullBoard;
+  document.getElementById('daylate-full-chip')?.classList.toggle('active', dayLateFullBoard);
+  renderDayLate();
+}
 function setDayLateSort(s) { dayLateSort = s; renderDayLate(); }
 function renderDayLate() {
   const metaEl = document.getElementById('daylate-meta');
@@ -4784,20 +4797,22 @@ function renderDayLate() {
     contentEl.innerHTML = '<div class="empty">No completed pick days yet — check back once a slate finishes and gets scored.</div>';
     return;
   }
-  // Misses, in yesterday's original Pick Score order; each keeps its rank from
-  // that day. rank is a historical fact, so it ignores today's filters.
-  const misses = entry.picks
+  // The board we're fading: default Picks (Score≥9 & HR≥10) unless Full-board is
+  // on. Rank is the player's position within THAT board — what he showed as on
+  // the Picks page — and stays fixed regardless of today's filters.
+  const board = entry.picks.filter(dayLateEligible);
+  const misses = board
     .map((p, i) => ({ ...p, rank: i + 1 }))
     .filter(p => !p.hit);
   if (!misses.length) {
     metaEl.textContent = `${fmtDateLong(entry.date)} · every pick went yard`;
-    contentEl.innerHTML = '<div class="empty">Every one of that day\'s picks homered — nothing to fade. 🎉</div>';
+    contentEl.innerHTML = `<div class="empty">${board.length ? 'Every one of that day\'s picks homered — nothing to fade. 🎉' : 'No picks cleared the board cutoff that day.'}</div>`;
     return;
   }
 
   // Today's cross-tab standings, as maps so sorts/filters are cheap.
   const pickRankMap = {};
-  applyPicksFilters(picks).forEach((r, i) => { pickRankMap[r.pid] = i + 1; });
+  applyPicksFilters(picks, PICKS_FILTER_DEFAULTS).forEach((r, i) => { pickRankMap[r.pid] = i + 1; });
   const dueRankMap = {};
   { let dr = 0; for (const r of dueRows) { if (isUnavailableToday(r.pid)) continue; dueRankMap[r.pid] = ++dr; } }
 
@@ -4815,7 +4830,7 @@ function renderDayLate() {
 
   const filtersOn = dayLateHideUnavailable || dayLateTodayPicksOnly || dayLateHideDTD;
   metaEl.textContent = `${ordered.length}${filtersOn && ordered.length !== misses.length ? ` of ${misses.length}` : ''} missed pick${ordered.length === 1 ? '' : 's'} from ${fmtDateLong(entry.date)}`
-    + ` · ${entry.picks.length - misses.length}/${entry.picks.length} of that day's picks homered`;
+    + ` · ${board.length - misses.length}/${board.length} of that day's ${dayLateFullBoard ? 'board' : 'picks'} homered`;
 
   const sortBar = `<div class="picks-sort">
     <span class="due-filter-label">Sort</span>
@@ -4878,6 +4893,7 @@ function renderDayLateResults() {
     const betDate = hist[i + 1].date;
     const dayHRs = dailyHRs[betDate] || {};
     const rows = hist[i].picks
+      .filter(dayLateEligible) // fade the default board (real Picks), unless Full-board is on
       .map((p, idx) => ({ name: p.name, pid: p.pid, yrank: idx + 1, hit: !p.hit && (dayHRs[p.pid] || 0) > 0, missed: !p.hit }))
       .filter(p => p.missed);
     if (rows.length) graded.push({ betDate, rows });
