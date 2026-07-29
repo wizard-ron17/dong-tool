@@ -369,6 +369,10 @@
   .cross-tab-badge.due-rank  { color: var(--gold); background: rgba(240,192,64,0.12); border: 1px solid rgba(240,192,64,0.3); }
   .cross-tab-badge.pick-rank { color: var(--accent); background: rgba(53,201,110,0.12); border: 1px solid rgba(53,201,110,0.3); }
   .cross-tab-badge.bday-badge { padding: 0.02rem 0.2rem; border: 1px solid rgba(236,110,173,0.35); background: rgba(236,110,173,0.12); }
+  .cross-tab-badge.longshot-rank { color: #4ea8ff; background: rgba(78,168,255,0.12); border: 1px solid rgba(78,168,255,0.3); }
+  .cross-tab-badge.daylate-badge { color: #d59bff; background: rgba(213,155,255,0.12); border: 1px solid rgba(213,155,255,0.32); }
+  .cross-tab-badge.prospect-badge { color: #52c98a; background: rgba(82,201,138,0.12); border: 1px solid rgba(82,201,138,0.32); }
+  .cross-tab-badge.returning-badge { color: #ff9d5c; background: rgba(255,157,92,0.12); border: 1px solid rgba(255,157,92,0.34); }
   .pick-ind.great { background: rgba(53,201,110,0.14); color: var(--accent); }
   .pick-ind.good  { background: rgba(240,192,64,0.12); color: var(--gold); }
   .pick-ind.bad   { background: rgba(224,64,90,0.12);  color: var(--bad); }
@@ -715,6 +719,7 @@
   .sched-lineup-pname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sched-lineup-hr { font-size: 0.58rem; font-weight: 700; flex-shrink: 0; margin-left: auto; }
   .sched-lineup-empty { font-size: 0.65rem; color: var(--dim); font-style: italic; }
+  .sched-proj-tag { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.03em; color: var(--gold); background: rgba(240,192,64,0.1); border: 1px solid rgba(240,192,64,0.3); border-radius: 8px; padding: 0.05rem 0.4rem; text-transform: none; }
   @media (max-width: 600px) { .sched-lineups { flex-direction: column; gap: 0.7rem; } .sched-pitchers-row { flex-wrap: wrap; } }
 
   .sched-bullpen-toggle { display: none; font-size: 0.6rem; font-weight: 700; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; padding: 0.55rem 0 0.1rem; text-align: center; border-top: 1px solid var(--border); margin-top: 0.6rem; }
@@ -1335,6 +1340,7 @@ let playerTeams  = {};  // pid -> teamAbbr
 let playerABs    = {};  // pid -> atBats
 let playerGames  = {};  // pid -> gamesPlayed
 let playerLastHR = {};  // pid -> latest date string
+let playerLastGame = {}; // pid -> latest date he appeared in a boxscore (for projected lineups)
 let teamGameDays = {};
 let venueGameDays  = {}; // venue name -> date -> gameCount
 let venueHRsByDate = {}; // venue name -> date -> total HRs (both teams)
@@ -1549,18 +1555,49 @@ function birthdayBadge(pid) {
   const b = birthdayById[pid];
   return b ? `<span class="cross-tab-badge bday-badge" title="Birthday today — turns ${b.age} 🎂">🎂</span>` : '';
 }
-function crossTabBadge(pid, excludeDue = false, excludePick = false, excludeBirthday = false) {
+// Rank among today's Longshots as the tool shows them by default — available
+// fringe bats under 10 HR, ordered by longshot score. Independent of the user's
+// current HR/Hot filter so the badge is stable wherever the name appears.
+function longshotRank(pid) {
+  if (!longshots.length) return null;
+  const pool = longshots
+    .filter(r => !isUnavailableToday(r.pid) && (r.hrs ?? 0) < 10)
+    .sort((a, b) => (b.longshotScore ?? 0) - (a.longshotScore ?? 0));
+  const idx = pool.findIndex(r => r.pid === pid);
+  return idx >= 0 ? idx + 1 : null;
+}
+// Day Late = a pick that missed on the last scored slate (the fade candidate on
+// the next slate), still able to bat today.
+function isDayLate(pid) {
+  const entry = (picksHistory || []).length ? picksHistory[picksHistory.length - 1] : null;
+  if (!entry || !entry.picks) return false;
+  return entry.picks.some(p => p.pid === pid && !p.hit) && !isUnavailableToday(pid);
+}
+function isProspect(pid)  { return (prospects.justCalledUp || []).some(r => r.pid === pid); }
+function isJustBack(pid)  { return (justBack || []).some(e => e.pid === pid); }
+
+// Cross-tab badges — a player's standing across every tool, shown wherever his
+// name appears. `exclude` suppresses a tool's own badge when rendering inside
+// that tool (its rank is already implied by list position). Keys: birthday,
+// due, pick, longshot, daylate, prospect, returning.
+function crossTabBadge(pid, exclude = {}) {
   const parts = [];
-  if (!excludeBirthday) { const bd = birthdayBadge(pid); if (bd) parts.push(bd); } // rides along next to the name on every board
-  if (!excludeDue) {
+  if (!exclude.birthday) { const bd = birthdayBadge(pid); if (bd) parts.push(bd); } // rides along next to the name on every board
+  if (!exclude.pick) {
+    const idx = applyPicksFilters(picks).findIndex(r => r.pid === pid);
+    if (idx >= 0) parts.push(`<span class="cross-tab-badge pick-rank" title="Ranked #${idx+1} in today's Picks">#${idx+1} Pick</span>`);
+  }
+  if (!exclude.due) {
     const rank = availableDueRank(pid); // matches the Due page's default (available-only) ranking
     if (rank) parts.push(`<span class="cross-tab-badge due-rank" title="Ranked #${rank} in Due">#${rank} Due</span>`);
   }
-  if (!excludePick) {
-    const filtered = applyPicksFilters(picks);
-    const idx = filtered.findIndex(r => r.pid === pid);
-    if (idx >= 0) parts.push(`<span class="cross-tab-badge pick-rank" title="Ranked #${idx+1} in today's Picks">#${idx+1} Pick</span>`);
+  if (!exclude.longshot) {
+    const rank = longshotRank(pid);
+    if (rank) parts.push(`<span class="cross-tab-badge longshot-rank" title="Ranked #${rank} in today's Longshots">#${rank} 🎯</span>`);
   }
+  if (!exclude.daylate && isDayLate(pid)) parts.push(`<span class="cross-tab-badge daylate-badge" title="Missed the last Picks slate — a day-late fade candidate today">🔁 Day Late</span>`);
+  if (!exclude.prospect && isProspect(pid)) parts.push(`<span class="cross-tab-badge prospect-badge" title="Fresh call-up on the Prospects watch">🌱 Prospect</span>`);
+  if (!exclude.returning && isJustBack(pid)) parts.push(`<span class="cross-tab-badge returning-badge" title="Just back from injury — first-games-back window">🚑 Back</span>`);
   return parts.join('');
 }
 
@@ -1633,6 +1670,7 @@ function applyData(data) {
   dailyHRs = data.dailyHRs; hrTypes = data.hrTypes || {}; hrDetails = data.hrDetails || {}; dailyGames = data.dailyGames; hrTotals = data.hrTotals;
   playerNames = data.playerNames; playerTeams = data.playerTeams; playerABs = data.playerABs;
   playerGames = data.playerGames; playerLastHR = data.playerLastHR; teamGameDays = data.teamGameDays;
+  playerLastGame = data.playerLastGame ?? {};
   venueGameDays = data.venueGameDays ?? {}; venueHRsByDate = data.venueHRsByDate ?? {};
   groups = data.groups; dueRows = data.dueRows; prospects = data.prospects ?? prospects;
   birthdays = data.birthdays ?? [];
@@ -3086,15 +3124,45 @@ function handBadge(code, kind) {
   const label = code === 'S' ? 'Switch hitter' : `${kind === 'throws' ? 'Throws' : 'Bats'} ${code === 'L' ? 'left' : 'right'}`;
   return `<span class="pk-hand ${code.toLowerCase()}" title="${label}">${code}</span>`;
 }
+// Likely everyday bats for a team whose lineup hasn't posted yet — mirrors the
+// build's projectedLineup (15+ games, 1.5+ AB/game, active in the last 7 days),
+// minus the HR floor so it's a full projected lineup, not just the power bats.
+// Excludes IL. The books use the same pool pre-lineup.
+function projectedLineupFor(teamAbbr) {
+  return Object.keys(playerTeams)
+    .filter(pid => playerTeams[pid] === teamAbbr
+      && (playerGames[pid] ?? 0) >= 15
+      && (playerABs[pid] ?? 0) / Math.max(playerGames[pid] ?? 1, 1) >= 1.5
+      && !injuryStatus[pid]
+      && (!playerLastGame[pid] || daysSince(playerLastGame[pid]) <= 7))
+    .sort((a, b) => (playerGames[b] ?? 0) - (playerGames[a] ?? 0))
+    .slice(0, 9);
+}
 function schedLineupHtml(side) {
   const label = side.teamAbbr || side.teamName;
-  if (!side.lineup.length) {
-    return `<div class="sched-lineup-col">
-      <div class="sched-lineup-head">${label}</div>
-      <div class="sched-lineup-empty">Lineup not posted yet</div>
-    </div>`;
-  }
   const batterAvg = avgBatterAbPerHR();
+  // No posted lineup — project the likely bats instead of a blank TBD block.
+  if (!side.lineup.length) {
+    const proj = projectedLineupFor(side.teamAbbr);
+    if (!proj.length) {
+      return `<div class="sched-lineup-col">
+        <div class="sched-lineup-head">${label}</div>
+        <div class="sched-lineup-empty">Lineup not posted yet</div>
+      </div>`;
+    }
+    const prows = proj.map((pid, i) => {
+      const hrs = hrTotals[pid] ?? 0;
+      const abs = playerABs[pid] ?? 0;
+      const abPerHR = hrs ? abs / hrs : null;
+      const cls = lowerIsBetterClass(abPerHR, batterAvg);
+      return `<div class="sched-lineup-row">
+        <span class="sched-lineup-order">${i + 1}</span>
+        <span class="sched-lineup-pname">${playerNames[pid] || pid}${injuryBadge(pid, true)}${crossTabBadge(pid)}</span>
+        <span class="sched-lineup-hr hrg-val ${cls}">${hrs} HR · ${abPerHR != null ? abPerHR.toFixed(1) + ' AB/HR' : '—'}</span>
+      </div>`;
+    }).join('');
+    return `<div class="sched-lineup-col"><div class="sched-lineup-head">${label} <span class="sched-proj-tag" title="Lineup not posted — likely everyday starters, the pool the books use pre-lineup">Projected</span></div>${prows}</div>`;
+  }
   const rows = side.lineup.map(p => {
     const hrs = hrTotals[p.pid] ?? 0;
     const abs = playerABs[p.pid] ?? 0;
@@ -3475,7 +3543,7 @@ function renderDue() {
     const brlTxt   = r.lastBarrel ? `${fmtDateLong(r.lastBarrel)}<span class="ago">${r.lastBarrelAgo}d ago</span>` : '—';
     return `<tr class="due-row-clickable" onclick="openDueModal('${r.pid}')">
       <td class="lb-rank ${rankClass(rk)}">${rk}</td>
-      <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}${crossTabBadge(r.pid, true)}</div><div class="lb-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div></div></td>
+      <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}${crossTabBadge(r.pid, {due:1})}</div><div class="lb-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div></div></td>
       <td class="due-z ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</td>
       <td class="lb-num stat-col">${contactPillHtml(r)}</td>
       <td class="lb-num stat-col${r.droughtBarrels===0?' brl-zero':''}">${r.droughtBarrels}</td>
@@ -3498,7 +3566,7 @@ function renderDue() {
       <div class="lbc-top">
         <span class="lbc-rank ${rankClass(rk)}">${rk}</span>
         <img class="lbc-photo" src="${photoUrl}" alt="">
-        <div class="lbc-info"><div class="lbc-name">${r.name}${crossTabBadge(r.pid, true)}</div><div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
+        <div class="lbc-info"><div class="lbc-name">${r.name}${crossTabBadge(r.pid, {due:1})}</div><div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
         <div class="lbc-headline"><span class="lbc-headline-num ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</span><span class="lbc-headline-lbl">Due Score</span></div>
       </div>
       <div class="lbc-stats">
@@ -4113,7 +4181,7 @@ function renderLongshots() {
         <span class="lbc-rank ${rankClass(i+1)}">${i+1}</span>
         <img class="lbc-photo" src="${photo}" alt="">
         <div class="lbc-info">
-          <div class="lbc-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, false, true)}</div>
+          <div class="lbc-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {longshot:1})}</div>
           <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
@@ -4402,7 +4470,7 @@ function renderPicks() {
       <td><div class="lb-player">
         <img class="lb-photo" src="${photo}" alt="">
         <div>
-          <div class="lb-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, false, true)}</div>
+          <div class="lb-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {longshot:1})}</div>
           <div class="lb-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
@@ -4421,7 +4489,7 @@ function renderPicks() {
         <span class="lbc-rank ${rankClass(scoreRank[r.pid])}">${scoreRank[r.pid]}</span>
         <img class="lbc-photo" src="${photo}" alt="">
         <div class="lbc-info">
-          <div class="lbc-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, false, true)}</div>
+          <div class="lbc-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {longshot:1})}</div>
           <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
@@ -4499,7 +4567,7 @@ function prospectCard(r, isBomb) {
   return `<div class="prospect-card">
     <div class="prospect-top">
       <img class="prospect-photo" src="${photoUrl}" alt="">
-      <div class="prospect-info"><div class="prospect-name">${r.name}${crossTabBadge(r.pid)}</div><div class="prospect-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
+      <div class="prospect-info"><div class="prospect-name">${r.name}${crossTabBadge(r.pid, {prospect:1})}</div><div class="prospect-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div>
       ${headline}
     </div>
     <div class="prospect-meta">${subline}</div>
@@ -4599,7 +4667,7 @@ function renderBirthdays() {
     return `<div class="bday-card">
       <div class="bday-photo-wrap"><img class="bday-photo" src="${photo}" alt=""><span class="bday-hat">🎉</span></div>
       <div class="bday-info">
-        <div class="bday-name">${b.name}${crossTabBadge(b.pid, false, false, true)}${plays?'<span class="bday-plays" title="Has a game today">plays today</span>':''}</div>
+        <div class="bday-name">${b.name}${crossTabBadge(b.pid, {birthday:1})}${plays?'<span class="bday-plays" title="Has a game today">plays today</span>':''}</div>
         <div class="bday-sub">${sub}</div>
       </div>
       <div class="bday-age"><span class="bday-age-num">${b.age}</span><span class="bday-age-lbl">today 🎂</span></div>
@@ -4767,7 +4835,7 @@ function renderDayLate() {
         <span class="lbc-rank ${rankClass(rk)}">${rk}</span>
         <img class="lbc-photo" src="${playerPhotoUrl(p.pid)}" alt="">
         <div class="lbc-info">
-          <div class="lbc-name">${p.name}${crossTabBadge(p.pid)}</div>
+          <div class="lbc-name">${p.name}${crossTabBadge(p.pid, {daylate:1})}</div>
           <div class="lbc-team">${teamLogoImg(playerTeams[p.pid], 'team-logo')}${playerTeams[p.pid] || ''}${injuryBadge(p.pid)}${lineupBadge(p.pid)}${todayOpp(p.pid)}</div>
           <div class="dl-yesterday">Was ${p.projected ? 'projected ' : ''}#${p.rank} pick yesterday</div>
         </div>
@@ -4953,7 +5021,7 @@ function renderReturning() {
     <div class="lbc-top">
       <img class="lbc-photo" src="${playerPhotoUrl(pid)}" alt="">
       <div class="lbc-info">
-        <div class="lbc-name">${playerNames[pid] || pid}${crossTabBadge(pid)}</div>
+        <div class="lbc-name">${playerNames[pid] || pid}${crossTabBadge(pid, {returning:1})}</div>
         ${inner}
       </div>
       <div class="lbc-headline"><span class="lbc-headline-num">${hrOf(pid)}</span><span class="lbc-headline-lbl">Season HR</span></div>

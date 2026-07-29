@@ -2435,7 +2435,7 @@ async function main() {
     dateRangeEnd: allDates[allDates.length - 1] ?? null,
     daysWithData: allDates.length,
     totalHRCount,
-    dailyHRs, hrTypes, hrDetails, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR,
+    dailyHRs, hrTypes, hrDetails, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR, playerLastGame,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus, dtdStatus,
     todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks, longshots, picksHistory, longshotsHistory, birthdays, birthdayHistory,
     dueStreaks, dueHistory, returningInjured, justBack, returningHistory,
