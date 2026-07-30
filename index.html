@@ -1219,8 +1219,8 @@
       </div>
     </div>
     <div class="picks-mode" id="picks-mode-bar">
-      <button class="picks-mode-btn active" id="picks-mode-chalk" onclick="setPicksMode('chalk')" title="Proven power — HR/AB blended toward a Blast%-implied rate">🪨 Chalk</button>
-      <button class="picks-mode-btn" id="picks-mode-value" onclick="setPicksMode('value')" title="Best value — ranked by Blast%, surfaces underpriced power">💥 Value</button>
+      <button class="picks-mode-btn active" id="picks-mode-chalk" onclick="setPicksMode('chalk')" title="Proven power — HR/AB blended toward a Blast%-implied rate">🔒 Chalk</button>
+      <button class="picks-mode-btn" id="picks-mode-value" onclick="setPicksMode('value')" title="Best value — ranked by Blast%, surfaces underpriced power">🎯 Value</button>
     </div>
     <div class="due-filters-card" id="picks-filters-card">
       <button class="due-filters-toggle" id="picks-filters-toggle" onclick="togglePicksFiltersPanel()" aria-expanded="false">
@@ -1584,11 +1584,11 @@ function crossTabBadge(pid, exclude = {}, compact = false) {
   if (!exclude.birthday) { const bd = birthdayBadge(pid); if (bd) parts.push(bd); } // rides along next to the name on every board
   if (!exclude.chalk) {
     const idx = applyPicksFilters(picks, PICKS_FILTER_DEFAULTS).findIndex(r => r.pid === pid);
-    if (idx >= 0) parts.push(`<span class="cross-tab-badge chalk-rank${c}" title="Ranked #${idx+1} on the Chalk board (proven power)">${compact ? '🪨' + (idx+1) : '#' + (idx+1) + ' Chalk'}</span>`);
+    if (idx >= 0) parts.push(`<span class="cross-tab-badge chalk-rank${c}" title="Ranked #${idx+1} on the Chalk board (proven power)">${compact ? '🔒' + (idx+1) : '#' + (idx+1) + ' Chalk'}</span>`);
   }
   if (!exclude.value) {
     const vr = valueRank(pid);
-    if (vr) parts.push(`<span class="cross-tab-badge value-rank${c}" title="Ranked #${vr} on the Value board (Blast%)">${compact ? '💥' + vr : '#' + vr + ' Value'}</span>`);
+    if (vr) parts.push(`<span class="cross-tab-badge value-rank${c}" title="Ranked #${vr} on the Value board (Blast%)">${compact ? '🎯' + vr : '#' + vr + ' Value'}</span>`);
   }
   if (!exclude.due) {
     const rank = availableDueRank(pid); // matches the Due page's default (available-only) ranking
