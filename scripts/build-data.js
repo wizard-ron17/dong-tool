@@ -1457,6 +1457,24 @@ async function attachHands(games) {
     for (const p of side.lineup) p.bats = hands[p.pid]?.bats ?? null;
   }
 }
+// Handedness + primary position for likely projected-lineup bats (15+ games), so
+// the Schedule can show them on teams whose lineup hasn't posted yet. Pitchers
+// dropped — they don't project into a lineup under the universal DH.
+async function fetchBatMeta() {
+  const ids = Object.keys(playerGames).filter(pid => (playerGames[pid] ?? 0) >= 15);
+  const meta = {};
+  for (const group of chunk(ids, 100)) {
+    try {
+      const res = await fetch(`${MLB}/people?personIds=${group.join(',')}`).then(r => r.json());
+      for (const p of res.people ?? []) {
+        const pos = p.primaryPosition?.abbreviation ?? '';
+        if (pos === 'P') continue;
+        meta[String(p.id)] = { b: p.batSide?.code ?? null, p: pos };
+      }
+    } catch (e) { /* leave unmarked */ }
+  }
+  return meta;
+}
 
 // HR-focused season line for each of today's probable pitchers — just enough
 // to answer "is this guy a homer-prone matchup or not" at a glance.
@@ -2187,6 +2205,7 @@ async function main() {
     if (expected > 0) throw new Error(`Degraded build: schedule hydrate returned 0 games but MLB lists ${expected} for ${todayET()} — refusing to write data.json`);
   }
   await attachHands(todaySchedule);
+  const batMeta = await fetchBatMeta();
 
   // Freeze scores for games already underway (see freezeStartedRows): a due
   // hitter whose game has started keeps his pre-game score instead of dropping
@@ -2492,7 +2511,7 @@ async function main() {
     totalHRCount,
     dailyHRs, hrTypes, hrDetails, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR, playerLastGame,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus, dtdStatus,
-    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks, value, picksHistory, valueHistory, birthdays, birthdayHistory,
+    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, batMeta, picks, value, picksHistory, valueHistory, birthdays, birthdayHistory,
     dueStreaks, dueHistory, returningInjured, justBack, returningHistory,
   };
 

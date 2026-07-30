@@ -1362,6 +1362,7 @@ let pitcherStats = {}; // pid -> { hr, hr9, ip, era } for today's probable pitch
 let bullpens = {}; // team abbr -> [{ pid, name, hand, era, saves, holds, gamesPitched, lastOuting, pitchMix }]
 let picks    = []; // today's HR pick candidates, pre-scored server-side (Chalk)
 let value    = []; // the Value board — same pool re-ranked by Blast% × matchup
+let batMeta  = {}; // pid -> { b: batSide, p: position } for projected-lineup bats
 let valueHistory = [];
 let picksMode = 'chalk'; // 'chalk' (proven power / blast-blend) | 'value' (Blast%)
 let picksHistory = [];
@@ -1675,6 +1676,7 @@ function applyData(data) {
   picks        = data.picks        ?? [];
   value        = data.value        ?? [];
   valueHistory = data.valueHistory ?? [];
+  batMeta      = data.batMeta      ?? {};
   picksHistory = data.picksHistory ?? [];
   todayTeamsPlaying = new Set();
   todayLineupsPostedTeams = new Set();
@@ -3096,7 +3098,7 @@ function schedLineupStatus(g) {
   const homeSet = g.home.lineup.length > 0, awaySet = g.away.lineup.length > 0;
   if (homeSet && awaySet) return { cls: 'set', text: 'Lineups Set' };
   if (homeSet || awaySet) return { cls: 'partial', text: '1/2 Lineups Set' };
-  return { cls: 'pending', text: 'Lineups TBD' };
+  return { cls: 'pending', text: 'Projected Lineups' };
 }
 // Small L/R/S handedness badge — reuses the pick-modal .pk-hand styling
 // (L blue, R gold, S silver). kind tweaks the tooltip (bats vs throws).
@@ -3137,8 +3139,11 @@ function schedLineupHtml(side) {
       const abs = playerABs[pid] ?? 0;
       const abPerHR = hrs ? abs / hrs : null;
       const cls = lowerIsBetterClass(abPerHR, batterAvg);
+      const m = batMeta[pid] || {};
       return `<div class="sched-lineup-row">
         <span class="sched-lineup-order">${i + 1}</span>
+        <span class="sched-lineup-hand">${handBadge(m.b, 'bats')}</span>
+        <span class="sched-lineup-pos">${m.p || ''}</span>
         <span class="sched-lineup-nameblock"><span class="sched-lineup-pname">${playerNames[pid] || pid}</span><span class="sched-lineup-badges">${injuryBadge(pid, true)}${crossTabBadge(pid, {}, true)}</span></span>
         <span class="sched-lineup-hrval">${hrs}</span>
         <span class="sched-lineup-abhr hrg-val ${cls}">${abPerHR != null ? abPerHR.toFixed(1) : '—'}</span>
