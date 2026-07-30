@@ -704,7 +704,9 @@
   .sched-tbd-row { justify-content: center; color: var(--dim); font-size: 0.62rem; font-style: italic; letter-spacing: 0.04em; }
   .sched-vs { font-size: 0.57rem; color: var(--dim); flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.05em; }
   .sched-expand-row { margin-top: 0.4rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
-  .sched-expand-hint { color: var(--dim); font-size: 0.57rem; letter-spacing: 0.05em; text-transform: uppercase; }
+  .sched-expand-hint { color: var(--muted); font-size: 1rem; font-weight: 900; line-height: 1; display: inline-block; transition: transform 0.18s ease, color 0.15s; }
+  .sched-expand-row:hover .sched-expand-hint { color: var(--accent); }
+  .sched-game.expanded .sched-expand-hint { transform: rotate(90deg); }
   .sched-lineup-status { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.12rem 0.5rem; border-radius: 10px; }
   .sched-lineup-status.set     { background: rgba(53,201,110,0.12); color: var(--accent); }
   .sched-lineup-status.partial { background: rgba(240,192,64,0.1); color: var(--gold); }
@@ -3344,7 +3346,7 @@ function renderSchedule() {
       ${schedPitchersRow(g)}
       <div class="sched-expand-row" onclick="toggleSchedGame(${g.gamePk})">
         <span class="sched-lineup-status ${lineupStatus.cls}">${lineupStatus.text}</span>
-        <span class="sched-expand-hint">▾</span>
+        <span class="sched-expand-hint">▶</span>
       </div>
       <div class="sched-lineups">
         ${schedLineupHtml(g.away)}
