@@ -511,6 +511,35 @@ function battedBallStats(rows) {
   };
 }
 
+// ── Blast% (Statcast bat tracking) ──────────────────────────────────────
+// A "blast" is the swing that produces homers: squared-up contact (you got
+// >= 80% of the exit velo physically available given bat + pitch speed) taken
+// on a fast swing (bat speed >= 75 mph). Squared-up% = EV / (1.23*bat_speed +
+// 0.23*pitch_speed) — Statcast's collision-physics max-EV formula. Blast% is a
+// leading indicator of power: it forecasts next month's HR/AB better than this
+// month's HR/AB (and is ~3x more stable), because it measures the swing rather
+// than waiting on the outcome. Drives the Chalk base-power prior and the Value
+// board's ranking.
+const BLAST_SQUARED_MIN = 0.80, BLAST_FAST_MIN = 75;
+function isBlast(row) {
+  const ev = parseFloat(row.launch_speed), bs = parseFloat(row.bat_speed), ps = parseFloat(row.effective_speed);
+  if (isNaN(ev) || isNaN(bs) || isNaN(ps) || bs <= 0) return false;
+  return bs >= BLAST_FAST_MIN && ev / (1.23 * bs + 0.23 * ps) >= BLAST_SQUARED_MIN;
+}
+// Per-batter blast tallies over his batted balls. tracked = batted balls that
+// carry bat-tracking (~96%), the denominator for blast%; bbe/hrbbe are over all
+// batted balls (for the HR-per-contact rate the blend regresses).
+function blastStats(rows) {
+  let bbe = 0, hrbbe = 0, tracked = 0, blasts = 0;
+  for (const r of rows) {
+    if (isNaN(parseFloat(r.launch_speed))) continue;
+    bbe++;
+    if (r.events === 'home_run') hrbbe++;
+    if (!isNaN(parseFloat(r.bat_speed))) { tracked++; if (isBlast(r)) blasts++; }
+  }
+  return { bbe, hrbbe, tracked, blasts, blastPct: tracked ? blasts / tracked : null };
+}
+
 // Contact factor nudges dueScore rather than overriding it — the AB-gap z
 // stays the primary signal, this just tempers it when recent contact quality
 // has genuinely diverged from the season norm.
@@ -591,14 +620,11 @@ const PICKS_MIN_HR        = 3;
 const PICKS_MIN_SCORE     = 7;
 const PICKS_RATIO_MIN     = 0.7;
 const PICKS_RATIO_MAX     = 1.4;
-// Longshots: the fringe-power half of the candidate pool (below-median base
-// power — the guys the book prices long), re-ranked by their matchup edge with
-// recent contact weighted harder than the normal pick score. A fringe bat
-// that's genuinely heating up is a live dart; a cold one gets buried. GAIN=2
-// doubles how far recent form pushes the score off neutral vs the pick score.
-const LONGSHOT_CONTACT_GAIN = 2;
-const LONGSHOT_LIMIT        = 30;
-const LONGSHOT_POOL_MAX_HR  = 15; // a 15+ HR bat isn't a longshot no matter the matchup; client defaults tighter (<10)
+// Value board: the candidate pool re-ranked by (shrunk) Blast% × matchup — the
+// leading-indicator lens that surfaces underpriced power (often lower-HR bats
+// blasting the ball before the book catches up). Replaces the old Longshots.
+const VALUE_LIMIT        = 30;
+const VALUE_CONTACT_GAIN = 2; // recent-form amplification, display cue only (not in score)
 const BASE_POWER_SHRINK_AB = 100; // pseudo-ABs of league-average prior; half-regressed at 100 AB, lightly at 300+
 // Platoon splits are HR-based rate stats, and HRs are rare enough that a
 // hard "minimum PA/IP, then trust it fully" gate still let small samples
@@ -856,6 +882,26 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
     const leagueTotalHR = Object.values(hrTotals).reduce((a, b) => a + b, 0);
     const leagueHRPerAB = leagueTotalAB ? leagueTotalHR / leagueTotalAB : 0.034;
 
+    // Blast calibration across this build's batted-ball pool: HR rate on blasts
+    // vs non-blasts (typically ~15% vs ~3%), plus league blast% / contact rate as
+    // fallbacks. A batter's Blast% becomes a blast-implied HR rate the Chalk base
+    // power regresses toward, and (shrunk) powers the Value board's ranking.
+    let bl_hr = 0, bl_n = 0, nb_hr = 0, nb_n = 0, lgBBE = 0, lgTracked = 0, lgBlasts = 0, lgABpool = 0;
+    for (const pid of batterIds) {
+      lgABpool += (playerABs[pid] ?? 0);
+      for (const r of (ballsByPid[pid] ?? [])) {
+        if (isNaN(parseFloat(r.launch_speed))) continue;
+        lgBBE++; const hr = r.events === 'home_run' ? 1 : 0;
+        if (isNaN(parseFloat(r.bat_speed))) continue;
+        lgTracked++;
+        if (isBlast(r)) { lgBlasts++; bl_n++; bl_hr += hr; } else { nb_n++; nb_hr += hr; }
+      }
+    }
+    const pHRblast = bl_n ? bl_hr / bl_n : 0.15;
+    const pHRnon   = nb_n ? nb_hr / nb_n : 0.025;
+    const leagueBlastPct    = lgTracked ? lgBlasts / lgTracked : 0.15;
+    const leagueContactRate = lgABpool ? lgBBE / lgABpool : 0.68;
+
     // Shrunk same-vs-other platoon ratio for any pitcher's splits against a
     // given batter hand — used for today's starter and, on opener days, the
     // likely bulk arm.
@@ -883,8 +929,21 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       // league average, a 300+-AB hitter barely moves. Keeps low-HR guys on
       // the board (per design) without letting a tiny hot streak top it.
       const rawBasePower = hrs / abs;
-      const basePower = shrunkRate(hrs, abs, leagueHRPerAB, BASE_POWER_SHRINK_AB);
       const balls = ballsByPid[c.pid] ?? [];
+
+      // Blast-blend (Chalk base power): instead of regressing the noisy actual
+      // HR/AB toward the flat league mean, regress it toward this hitter's
+      // blast-IMPLIED HR/AB — his Blast% run through the league blast→HR rates,
+      // scaled by his contact rate. Blast% is a stable leading indicator, so a
+      // guy squaring up the ball but not yet homering gets credited before the
+      // HRs land; a proven slugger (big AB) barely moves off his real rate.
+      const bstat = blastStats(balls);
+      const blastPct = bstat.blastPct ?? leagueBlastPct;
+      const contactRate = (bstat.bbe && abs) ? bstat.bbe / abs : leagueContactRate;
+      const blastImpliedHRperAB = (blastPct * pHRblast + (1 - blastPct) * pHRnon) * contactRate;
+      const basePower = shrunkRate(hrs, abs, blastImpliedHRperAB, BASE_POWER_SHRINK_AB);
+      // Shrunk Blast% (its own Bayesian move) powers the Value board's ranking.
+      const blastPower = shrunkRate(bstat.blasts, bstat.tracked, leagueBlastPct, 60);
 
       const recentFormRatio = computeRecentFormRatio(balls);
       const hrProfile = computeHRPitchProfile(balls);
@@ -931,6 +990,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
         projected: c.projected ?? false,
         bHand, basePower, rawBasePower, recentFormRatio, batterPlatoonRatio, pitcherPlatoonRatio, parkRatio,
         hrProfile, pitcherMix: starterMix.mix, pitcherMixHand: starterMix.split ? oppStand : null, synergyScore,
+        blastPct: bstat.blastPct, blastBBE: bstat.tracked, blastPower,
       });
     }
 
@@ -1051,33 +1111,27 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       r.matchupFactor = factors.reduce((a, b) => a * b, contactKnown ? 1 : 0.95);
       r.pickScore = r.basePower * r.matchupFactor * 100;
 
-      // Longshot score: same base-power × matchup scale, but recent contact is
-      // amplified (deviation from neutral doubled) so a heating-up fringe bat
-      // rises and a cold one sinks harder than on the pick board. Unknown
-      // contact leans to a mild penalty — longshots live and die on form.
+      // Value score: identical matchup, but power comes from (shrunk) Blast%
+      // instead of HR/AB — the leading-indicator lens. Recent form is amplified
+      // for a "hot bat" display cue only; it isn't in the score.
       const recentAmp = r.recentFormRatio != null
-        ? Math.max(0.5, Math.min(1.7, 1 + (r.recentFormRatio - 1) * LONGSHOT_CONTACT_GAIN))
+        ? Math.max(0.5, Math.min(1.7, 1 + (r.recentFormRatio - 1) * VALUE_CONTACT_GAIN))
         : 0.9;
       r.recentFormAmplified = Math.round(recentAmp * 100) / 100;
-      const lsFactors = [recentAmp, r.batterPlatoonRatio, effectivePitcherPlatoon, r.parkRatio, effectiveSynergy, r.weatherRatio]
-        .filter(f => f != null);
-      r.longshotScore = r.basePower * lsFactors.reduce((a, b) => a * b, 1) * 100;
+      r.valueScore = (r.blastPower ?? 0) * r.matchupFactor * 100;
     }
 
-    // Longshots = genuinely low-HR bats (the ones the book prices long), ranked
-    // by longshotScore. HR count — not base power — is the fringe line: a 15+ HR
-    // slugger having a down year can sit below median power yet clearly isn't a
-    // longshot. Shipped separately because the picks board drops everyone under
-    // PICKS_MIN_SCORE, so most fringe guys would be invisible to a re-filter of
-    // `picks`. Generous ceiling here; the client defaults to a tighter <10.
-    const longshots = rows
-      .filter(r => (r.hrs ?? 0) < LONGSHOT_POOL_MAX_HR)
-      .sort((a, b) => b.longshotScore - a.longshotScore)
-      .slice(0, LONGSHOT_LIMIT);
+    // Value board: the whole candidate pool (3+ HR, already gated) re-ranked by
+    // Blast% × matchup. Surfaces underpriced power — often lower-HR bats blasting
+    // the ball before the book catches up. Replaces the old Longshots tool.
+    const value = rows
+      .slice()
+      .sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0))
+      .slice(0, VALUE_LIMIT);
 
     rows.sort((a, b) => b.pickScore - a.pickScore);
-    return { picks: rows.filter(r => r.pickScore >= PICKS_MIN_SCORE), longshots };
-  } catch (e) { return { picks: [], longshots: [] }; }
+    return { picks: rows.filter(r => r.pickScore >= PICKS_MIN_SCORE), value };
+  } catch (e) { return { picks: [], value: [] }; }
 }
 
 // ── Prospects: fresh debuts who've gone deep, plus a "just called up" watchlist ──
@@ -2084,7 +2138,7 @@ async function main() {
   // yesterday's picks and score them against actual HR results. This runs before
   // fetchAll() so we have the old data in hand; we cross-reference after fetchAll
   // once dailyHRs is fully populated for the previous date.
-  let prevPicks = [], prevLongshots = [], prevDate = null, picksHistory = [], longshotsHistory = [], prevSchedule = [];
+  let prevPicks = [], prevValue = [], prevDate = null, picksHistory = [], valueHistory = [], prevSchedule = [];
   let prevBirthdays = [], birthdayHistory = [];
   let prevDueRows = [], dueStreaks = null, dueHistory = [];
   let prevReturning = [], prevJustBack = [], prevReturningHistory = [];
@@ -2094,10 +2148,10 @@ async function main() {
     const raw = fs.readFileSync(new URL('../data.json', import.meta.url), 'utf8');
     const old = JSON.parse(raw);
     prevPicks    = old.picks       ?? [];
-    prevLongshots = old.longshots  ?? [];
+    prevValue    = old.value       ?? [];
     prevDate     = old.todayDate   ?? null;
     picksHistory = old.picksHistory ?? [];
-    longshotsHistory = old.longshotsHistory ?? [];
+    valueHistory = old.valueHistory ?? [];
     prevBirthdays    = old.birthdays ?? [];
     birthdayHistory  = old.birthdayHistory ?? [];
     prevSchedule = old.todaySchedule ?? [];  // for freezing started games' Homer Score
@@ -2158,7 +2212,7 @@ async function main() {
   const bullpens = await fetchBullpens(todaySchedule, teamIdToAbbr);
 
   console.log("Computing today's HR picks (matchups, splits, pitch-type profiles)...");
-  const { picks: freshPicks, longshots: freshLongshots } = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue);
+  const { picks: freshPicks, value: freshValue } = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue);
   // Degraded-build guard #2: fetchPlatoonSplits swallows fetch errors into {},
   // which once collapsed a 28-pick slate to 1 pick (every pick null-handed,
   // platoon factors gone, scores under the floor). On a real build with games,
@@ -2171,8 +2225,8 @@ async function main() {
   // Freeze picks whose game has already started (pre-game score from the last
   // build); only not-yet-started games get fresh scores.
   const picks = freezeStartedRows(freshPicks, prevPicks, sameSlate, started, (a, b) => b.pickScore - a.pickScore);
-  // Longshots freeze the same way — a started game's dart board shouldn't shift.
-  const longshots = freezeStartedRows(freshLongshots, prevLongshots, sameSlate, started, (a, b) => b.longshotScore - a.longshotScore);
+  // Value board freezes the same way — a started game shouldn't shift the board.
+  const value = freezeStartedRows(freshValue, prevValue, sameSlate, started, (a, b) => b.valueScore - a.valueScore);
 
   console.log('Scoring per-game Homer Scores...');
   computeHomerScores(todaySchedule, pitcherStats, bullpens);
@@ -2283,25 +2337,26 @@ async function main() {
     console.log(`Picks history: scored ${prevDate} — ${hits}/${entry.picks.length} hit`);
   }
 
-  // Longshots history — same shape and guards as picks, tracked separately so
-  // the Longshots tab can show how the darts actually land (a different bet than
-  // the main board, so it earns its own hit-rate record).
-  if (prevLongshots.length && scorable(prevDate) && !longshotsHistory.some(e => e.date === prevDate)) {
+  // Value history — same shape and guards as picks, tracked separately so the
+  // Picks → Value tab shows how the Blast%-ranked board actually lands (a
+  // different bet than Chalk, so it earns its own hit-rate record).
+  if (prevValue.length && scorable(prevDate) && !valueHistory.some(e => e.date === prevDate)) {
     const dayHRs = dailyHRs[prevDate] ?? {};
     const entry = {
       date: prevDate,
-      longshots: prevLongshots.map(p => ({
+      value: prevValue.map(p => ({
         pid:   p.pid,
         name:  playerNames[p.pid] ?? p.pid,
-        score: Math.round((p.longshotScore ?? 0) * 10) / 10,
-        hr:    p.hrs ?? hrTotals[p.pid] ?? 0, // season HR when he was LISTED (bet-time), so the fringe filter is honest
+        score: Math.round((p.valueScore ?? 0) * 10) / 10,
+        hr:    p.hrs ?? hrTotals[p.pid] ?? 0, // season HR when LISTED (bet-time)
+        blastPct: p.blastPct != null ? Math.round(p.blastPct * 1000) / 10 : null, // % at bet-time
         hit:   !!(dayHRs[p.pid]),
         projected: p.projected ?? false,
       })),
     };
-    longshotsHistory = [...longshotsHistory, entry].slice(-90);
-    const hits = entry.longshots.filter(p => p.hit).length;
-    console.log(`Longshots history: scored ${prevDate} — ${hits}/${entry.longshots.length} hit`);
+    valueHistory = [...valueHistory, entry].slice(-90);
+    const hits = entry.value.filter(p => p.hit).length;
+    console.log(`Value history: scored ${prevDate} — ${hits}/${entry.value.length} hit`);
   }
 
   // Birthday history — the silly one: did the day's birthday boys hit a dinger on
@@ -2437,7 +2492,7 @@ async function main() {
     totalHRCount,
     dailyHRs, hrTypes, hrDetails, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR, playerLastGame,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus, dtdStatus,
-    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks, longshots, picksHistory, longshotsHistory, birthdays, birthdayHistory,
+    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, picks, value, picksHistory, valueHistory, birthdays, birthdayHistory,
     dueStreaks, dueHistory, returningInjured, justBack, returningHistory,
   };
 

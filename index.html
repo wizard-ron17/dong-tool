@@ -165,6 +165,13 @@
   .sub-btn .num { background: var(--surface1); border-radius: 3px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; }
   .sub-btn.active { background: var(--accent); color: #fff; }
   .sub-btn.active .num { background: rgba(255,255,255,0.2); }
+  /* Picks Chalk/Value mode toggle */
+  .picks-mode { display: flex; gap: 0.4rem; margin-bottom: 0.7rem; }
+  .picks-mode-btn { flex: 1; background: var(--surface0); border: 1px solid var(--border); color: var(--muted); font-family: var(--font-d); font-size: 0.95rem; font-weight: 700; letter-spacing: 0.04em; padding: 0.5rem; border-radius: 8px; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+  .picks-mode-btn:hover:not(.active) { color: var(--text); border-color: var(--border2); }
+  .picks-mode-btn.active { color: #fff; }
+  #picks-mode-chalk.active { background: #5b8fb0; border-color: #5b8fb0; }
+  #picks-mode-value.active { background: var(--accent); border-color: var(--accent); }
   .sub-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
   .search-wrap { display: none; margin-bottom: 0.8rem; }
@@ -369,7 +376,6 @@
   .cross-tab-badge.due-rank  { color: var(--gold); background: rgba(240,192,64,0.12); border: 1px solid rgba(240,192,64,0.3); }
   .cross-tab-badge.pick-rank { color: var(--accent); background: rgba(53,201,110,0.12); border: 1px solid rgba(53,201,110,0.3); }
   .cross-tab-badge.bday-badge { padding: 0.02rem 0.2rem; border: 1px solid rgba(236,110,173,0.35); background: rgba(236,110,173,0.12); }
-  .cross-tab-badge.longshot-rank { color: #4ea8ff; background: rgba(78,168,255,0.12); border: 1px solid rgba(78,168,255,0.3); }
   .cross-tab-badge.daylate-badge { color: #d59bff; background: rgba(213,155,255,0.12); border: 1px solid rgba(213,155,255,0.32); }
   .cross-tab-badge.prospect-badge { color: #52c98a; background: rgba(82,201,138,0.12); border: 1px solid rgba(82,201,138,0.32); }
   .cross-tab-badge.returning-badge { color: #ff9d5c; background: rgba(255,157,92,0.12); border: 1px solid rgba(255,157,92,0.34); }
@@ -1035,10 +1041,6 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.75" fill="currentColor"/></svg>
         <span><span class="nm-name">Picks</span><span class="nm-desc">Today's best HR matchups</span></span>
       </button>
-      <button class="nav-menu-item" data-nav="longshots" onclick="switchNav('longshots')" disabled>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1.5" x2="12" y2="22.5"/><path d="M17 5.5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-        <span><span class="nm-name">Longshots</span><span class="nm-desc">Fringe bats in a great spot today</span></span>
-      </button>
       <button class="nav-menu-item" data-nav="due" onclick="switchNav('due')" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h11M6.5 20.5h11M8 3.5v2.6L12 12 8 17.9v2.6M16 3.5v2.6L12 12l4 5.9v2.6"/></svg>
         <span><span class="nm-name">Due</span><span class="nm-desc">Power hitters overdue to go deep</span></span>
@@ -1211,9 +1213,13 @@
           <li><b>Weather.</b> Game-time air density (temperature, humidity, pressure, altitude) plus wind projected onto the park's home-plate→center-field axis — hot, thin air and a wind blowing out both help the ball carry; cold, dense air and a wind blowing in suppress it. Roofed parks are treated neutral. The stadium's orientation, roof type, and coordinates come straight from the MLB API.</li>
           <li><b>Lineups.</b> Uses confirmed lineups when posted. Before lineups drop, falls back to projected starters — players with 15+ games this season, 1.5+ AB/game, active in the last 7 days — the same pool the books use pre-lineup. Projected picks are labeled so you know which ones are speculative.</li>
           <li><b>Openers.</b> When today's "starter" is really an opener (2+ starts averaging ≤3 IP, on a team that's recently used the piggyback pattern), his weight drops to the inning or two he actually covers, and the likely bulk arm — the rested rotation-type pitcher whose turn it is — gets his own platoon and pitch-mix slice of the score. Flagged in the pick modal so you know who you're really betting against.</li>
-          <li><b>The board cutoff.</b> By default Picks shows the quality slice — <b>Pick Score ≥ 9</b> from <b>10+ HR</b> hitters — where a July 2026 backtest against sportsbook closing prices found the edge concentrates (9+ picks hit 26-34% in-sample, while the low-score, low-power tail was longshot-priced and lost money). Fringe-power bats (under 10 HR) live in the <a href="javascript:void(0)" onclick="switchNav('longshots')">Longshots</a> tool now, so the two boards split cleanly at 10 HR. The full board still ships and is tracked underneath — loosen the Min HR / Min Score filters above toward "All" to see everyone. Your choices are remembered between visits.</li>
+          <li><b>Chalk vs Value.</b> Two lenses on the same slate. <b>Chalk</b> is proven power — base rate is your HR/AB blended toward a <b>Blast%</b>-implied rate (so a hitter squaring the ball up gets credit before the homers land), shown from 10+ HR hitters at Score ≥ 9. <b>Value</b> re-ranks the whole pool by <b>Blast%</b> × matchup — the leading-indicator lens that surfaces underpriced power, often lower-HR bats blasting the ball before the book catches up. Value is where the long-odds money is: only take those at a real price (roughly <b>+600</b> or better). Your choices are remembered between visits.</li>
         </ul>
       </div>
+    </div>
+    <div class="picks-mode" id="picks-mode-bar">
+      <button class="picks-mode-btn active" id="picks-mode-chalk" onclick="setPicksMode('chalk')" title="Proven power — HR/AB blended toward a Blast%-implied rate">🪨 Chalk</button>
+      <button class="picks-mode-btn" id="picks-mode-value" onclick="setPicksMode('value')" title="Best value — ranked by Blast%, surfaces underpriced power">💥 Value</button>
     </div>
     <div class="due-filters-card" id="picks-filters-card">
       <button class="due-filters-toggle" id="picks-filters-toggle" onclick="togglePicksFiltersPanel()" aria-expanded="false">
@@ -1231,32 +1237,6 @@
       <div id="picks-content"><div class="empty">Loading data…</div></div>
     </div>
     <div id="picks-results-wrap" style="display:none"></div>
-  </div>
-
-  <!-- LONGSHOTS -->
-  <div id="panel-longshots" class="panel">
-    <div class="due-explainer" id="longshot-explainer-toggle" onclick="toggleLongshotExplainer()" aria-expanded="false">
-      <div class="due-explainer-head">
-        <span class="due-explainer-title">🎯 What Longshots Are</span>
-        <span class="due-explainer-chevron" id="longshot-explainer-chevron">▾</span>
-      </div>
-      <div class="due-explainer-teaser">Fringe-power bats (under 10 HR) in a genuinely great spot today — ranked by matchup with recent contact weighted double. High-payout darts, not value.</div>
-      <div class="due-explainer-body" id="longshot-explainer-body" style="display:none">
-        <ul>
-          <li><b>Who's here.</b> Genuinely low-HR bats — the ones the book hangs at long odds (+500 and up). The Picks board leans on raw power, so these guys rarely make it; this is where they surface. Defaults to under 10 season HR; loosen or tighten with the filter.</li>
-          <li><b>How they're ranked.</b> Same matchup engine as Picks (pitch-type synergy vs the arm's handed mix, platoon edge, park, weather), but <b>recent contact quality is weighted double</b> — a fringe bat squaring the ball up right now is a live dart, a cold one gets buried. Unknown recent form takes a small penalty; longshots live and die on it.</li>
-          <li><b>Price discipline.</b> Only bet these at a true longshot price — if the book isn't paying better than <b>+600</b>, pass. A fringe bat goes deep rarely enough that anything shorter doesn't cover the misses. Take the big number or leave it; the Results tab shows how they actually land.</li>
-        </ul>
-      </div>
-    </div>
-    <div class="sub-tabs" id="longshot-sub-tabs">
-      <button class="sub-btn active" id="longshot-sub-today" onclick="switchLongshotSub('today')">Today's Longshots</button>
-      <button class="sub-btn" id="longshot-sub-results" onclick="switchLongshotSub('results')">Results</button>
-    </div>
-    <div id="longshot-today-wrap">
-      <div id="longshot-content"><div class="empty">Loading data…</div></div>
-    </div>
-    <div id="longshot-results-wrap" style="display:none"></div>
   </div>
 
   <!-- PROSPECTS -->
@@ -1277,7 +1257,7 @@
         <button class="due-filter-chip active" id="daylate-avail-chip" onclick="toggleDayLateAvail()" title="Hide anyone who can't bat today — on the IL, benched, or whose team is off">Available today only</button>
         <button class="due-filter-chip" id="daylate-pick-chip" onclick="toggleDayLateTodayPicks()" title="Only guys who are also on today's Picks board">On today's Picks</button>
         <button class="due-filter-chip" id="daylate-dtd-chip" onclick="toggleDayLateDTD()" title="Drop day-to-day / banged-up guys (not on the IL, but dinged)">🤕 Hide Day-to-Day</button>
-        <button class="due-filter-chip" id="daylate-full-chip" onclick="toggleDayLateFullBoard()" title="Include the sub-cutoff tail (below Score 9 / 10 HR) — off by default, so this fades real Picks, not longshots">Full board</button>
+        <button class="due-filter-chip" id="daylate-full-chip" onclick="toggleDayLateFullBoard()" title="Include the sub-cutoff tail (below Score 9 / 10 HR) — off by default, so this fades real Picks, not low-power bats">Full board</button>
       </div>
       <div class="result-meta" id="daylate-meta"></div>
       <div id="daylate-content"><div class="empty">Loading data…</div></div>
@@ -1380,20 +1360,17 @@ let todayStarterPids       = new Set(); // pids confirmed in a posted starting l
 let teamIds = {}; // team abbr -> MLB team id, for team-logos/{id}.svg
 let pitcherStats = {}; // pid -> { hr, hr9, ip, era } for today's probable pitchers
 let bullpens = {}; // team abbr -> [{ pid, name, hand, era, saves, holds, gamesPitched, lastOuting, pitchMix }]
-let picks    = []; // today's HR pick candidates, pre-scored server-side
-let longshots = []; // fringe-power dart throws (low HR, recent-form-amplified)
-let longshotsHistory = [];
-let longshotSubTab = 'today';
-let longshotMaxHR = 9; // default <10 season HR; 0 = All (up to the build's pool ceiling)
-let longshotHotOnly = false; // show only darts heating up (amplified recent form ≥ 1.05×)
-const LONGSHOT_HOT_MIN = 1.05;
+let picks    = []; // today's HR pick candidates, pre-scored server-side (Chalk)
+let value    = []; // the Value board — same pool re-ranked by Blast% × matchup
+let valueHistory = [];
+let picksMode = 'chalk'; // 'chalk' (proven power / blast-blend) | 'value' (Blast%)
 let picksHistory = [];
 // 3 / 7 = the server floors ("All"); hide off/bench/IL by default. Persisted:
 // a trim you set (e.g. 9+ score, 15+ HR — the backtest's profitable cut) sticks
 // across visits instead of resetting every reload.
-// The board's default cutoff — the quality slice the July backtest favored
-// (score ≥ 9, 10+ HR). Fringe/low-power darts live in the Longshots tool now,
-// so the two boards split cleanly at 10 HR. Loosenable to "All" (3/7).
+// The Chalk board's default cutoff — the quality slice the July backtest favored
+// (score ≥ 9, 10+ HR). Lower-power bats surface in the Value mode instead.
+// Loosenable to "All" (3/7). (Value mode ignores this — it has its own 3+ floor.)
 const PICKS_FILTER_DEFAULTS = { minHR: 10, minScore: 9, hideUnavailable: true };
 // Bump this to force-reset everyone's saved Pick filters to the current defaults
 // once (older saved prefs are discarded on next load, then the version restamped).
@@ -1570,18 +1547,7 @@ function birthdayBadge(pid) {
   const b = birthdayById[pid];
   return b ? `<span class="cross-tab-badge bday-badge" title="Birthday today — turns ${b.age} 🎂">🎂</span>` : '';
 }
-// Rank among today's Longshots as the tool shows them by default — available
-// fringe bats under 10 HR, ordered by longshot score. Independent of the user's
-// current HR/Hot filter so the badge is stable wherever the name appears.
-function longshotRank(pid) {
-  if (!longshots.length) return null;
-  const pool = longshots
-    .filter(r => !isUnavailableToday(r.pid) && (r.hrs ?? 0) < 10)
-    .sort((a, b) => (b.longshotScore ?? 0) - (a.longshotScore ?? 0));
-  const idx = pool.findIndex(r => r.pid === pid);
-  return idx >= 0 ? idx + 1 : null;
-}
-// Day Late = a DEFAULT-board pick (Min Score 9 / Min HR 10, so no longshot-tail
+// Day Late = a DEFAULT-board pick (Min Score 9 / Min HR 10, so no low-power-tail
 // bats) that missed on the last scored slate — the fade candidate on the next
 // slate — still able to bat today. Uses the default cutoff, not the full board,
 // so the badge doesn't fire for sub-cutoff longshots.
@@ -1598,7 +1564,7 @@ function isJustBack(pid)  { return (justBack || []).some(e => e.pid === pid); }
 // Cross-tab badges — a player's standing across every tool, shown wherever his
 // name appears. `exclude` suppresses a tool's own badge when rendering inside
 // that tool (its rank is already implied by list position). Keys: birthday,
-// due, pick, longshot, daylate, prospect, returning.
+// due, pick, daylate, prospect, returning.
 // compact=true drops the words (keeps rank number, color, and emoji) so a
 // stack of badges fits on one line in dense rows like the Schedule lineup —
 // the full label still lives in the hover tooltip.
@@ -1613,10 +1579,6 @@ function crossTabBadge(pid, exclude = {}, compact = false) {
   if (!exclude.due) {
     const rank = availableDueRank(pid); // matches the Due page's default (available-only) ranking
     if (rank) parts.push(`<span class="cross-tab-badge due-rank${c}" title="Ranked #${rank} in Due">${compact ? '⏳' + rank : '#' + rank + ' Due'}</span>`);
-  }
-  if (!exclude.longshot) {
-    const rank = longshotRank(pid);
-    if (rank) parts.push(`<span class="cross-tab-badge longshot-rank${c}" title="Ranked #${rank} in today's Longshots">${compact ? '🎯' + rank : '#' + rank + ' 🎯'}</span>`);
   }
   if (!exclude.daylate && isDayLate(pid)) parts.push(`<span class="cross-tab-badge daylate-badge${c}" title="Missed the last Picks slate — a day-late fade candidate today">🔁${compact ? '' : ' Day Late'}</span>`);
   if (!exclude.prospect && isProspect(pid)) parts.push(`<span class="cross-tab-badge prospect-badge${c}" title="Fresh call-up on the Prospects watch">🌱${compact ? '' : ' Prospect'}</span>`);
@@ -1711,8 +1673,8 @@ function applyData(data) {
   pitcherStats = data.pitcherStats ?? {};
   bullpens = data.bullpens ?? {};
   picks        = data.picks        ?? [];
-  longshots    = data.longshots    ?? [];
-  longshotsHistory = data.longshotsHistory ?? [];
+  value        = data.value        ?? [];
+  valueHistory = data.valueHistory ?? [];
   picksHistory = data.picksHistory ?? [];
   todayTeamsPlaying = new Set();
   todayLineupsPostedTeams = new Set();
@@ -1769,7 +1731,7 @@ function toggleTheme() {
 }
 
 // ── Nav ────────────────────────────────────────────────────────────────
-const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'longshots', 'prospects', 'daylate', 'returning', 'birthdays'];
+const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'prospects', 'daylate', 'returning', 'birthdays'];
 const PAIR_SIZE_TO_SLUG = { 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' };
 const PAIR_SLUG_TO_SIZE = { pairs: 2, trios: 3, quads: 4, quints: 5 };
 
@@ -1784,7 +1746,6 @@ function currentPath() {
   if      (activeNav === 'pairs'     && activePairSize !== 2)                p += '/' + PAIR_SIZE_TO_SLUG[activePairSize];
   else if (activeNav === 'stats'     && activeStatsView === 'individual')    p += '/individual';
   else if (activeNav === 'picks'     && picksSubTab === 'results')           p += '/results';
-  else if (activeNav === 'longshots' && longshotSubTab === 'results')        p += '/results';
   else if (activeNav === 'due'       && dueSubTab === 'results')             p += '/results';
   else if (activeNav === 'prospects' && activeProspectTab === 'results')     p += '/results';
   else if (activeNav === 'daylate'   && dayLateSubTab === 'results')         p += '/results';
@@ -1820,8 +1781,6 @@ function applyRouteState() {
     document.getElementById('stats-individual').style.display = activeStatsView === 'individual' ? '' : 'none';
   } else if (validNav === 'picks') {
     picksSubTab = sub === 'results' ? 'results' : 'today';
-  } else if (validNav === 'longshots') {
-    longshotSubTab = sub === 'results' ? 'results' : 'today';
   } else if (validNav === 'due') {
     dueSubTab = sub === 'results' ? 'results' : 'list';
   } else if (validNav === 'prospects') {
@@ -1857,7 +1816,7 @@ function migrateLegacyHash() {
 }
 // The four pages that live in the Tools menu rather than the main bar; the
 // Tools pill lights up when any of them is active.
-const TOOLS_NAVS = ['picks', 'longshots', 'due', 'pairs', 'prospects', 'daylate', 'returning', 'birthdays'];
+const TOOLS_NAVS = ['picks', 'due', 'pairs', 'prospects', 'daylate', 'returning', 'birthdays'];
 let navToolsOpen = false;
 function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
 function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
@@ -1882,7 +1841,6 @@ function renderCurrentPanel() {
   if (activeNav === 'schedule') renderSchedule();
   if (activeNav === 'due')     { renderDue(); applyDueSub(dueSubTab); }
   if (activeNav === 'picks')   { renderPicks(); applyPicksSub(picksSubTab); }
-  if (activeNav === 'longshots') applyLongshotSub(longshotSubTab);
   if (activeNav === 'prospects') renderProspects();
   if (activeNav === 'daylate')  { renderDayLate(); applyDayLateSub(dayLateSubTab); }
   if (activeNav === 'returning') { renderReturning(); applyReturningSub(returningSubTab); }
@@ -2036,7 +1994,7 @@ function renderHome() {
   </div>
   <div class="hm-tip">
     <span class="hm-tip-emoji">💣</span>
-    <span class="hm-tip-text"><b>Board paying off?</b> Chip in on Ron's next dong parlay — no pressure, the tool's free either way.<span class="hm-tip-note">Tips just fund more longshots.</span></span>
+    <span class="hm-tip-text"><b>Board paying off?</b> Chip in on Ron's next dong parlay — no pressure, the tool's free either way.<span class="hm-tip-note">Tips just fund more dongs.</span></span>
     <a class="hm-tip-cash" href="https://cash.app/$ronrich43" target="_blank" rel="noopener" onclick="copyCashtag(event)" title="Open Cash App or click to copy">$ronrich43<span class="hm-tip-copy" id="hm-tip-copy">copy</span></a>
   </div>`;
 }
@@ -4057,7 +4015,7 @@ function pickModalHtml(r) {
           <img src="${photoUrl}" alt="">
           <div class="pk-name">${playerNames[r.pid] || r.pid}</div>
           <div class="pk-sub">${teamLogoImg(r.team,'team-logo')}${r.team} · Bats ${batHand}${injuryBadge(r.pid, true)}${lineupBadge(r.pid, true)}</div>
-          <div class="pk-stat"><span class="hrg-val great">${r.hrs} HR</span>${abPerHR ? ` <span class="pk-stat-dim">· ${abPerHR} AB/HR</span>` : ''}</div>
+          <div class="pk-stat"><span class="hrg-val great">${r.hrs} HR</span>${abPerHR ? ` <span class="pk-stat-dim">· ${abPerHR} AB/HR</span>` : ''}${r.blastPct != null ? ` <span class="pk-stat-dim">· <span title="Blast% — squared-up + fast-swing rate, the swing that makes homers (leading indicator of power)">💥 ${Math.round(r.blastPct*100)}% Blast</span></span>` : ''}</div>
         </div>
         <div class="pk-vs">
           <span class="pk-vs-txt">VS</span>
@@ -4117,7 +4075,7 @@ function closePickModal() {
   document.removeEventListener('keydown', pickModalEscHandler);
 }
 function openPickModal(pid) {
-  const r = picks.find(x => x.pid === pid) || longshots.find(x => x.pid === pid);
+  const r = picks.find(x => x.pid === pid) || value.find(x => x.pid === pid);
   if (!r) return;
   document.body.insertAdjacentHTML('beforeend', pickModalHtml(r));
   document.addEventListener('keydown', pickModalEscHandler);
@@ -4136,157 +4094,114 @@ function applyPicksSub(sub) {
 }
 function switchPicksSub(sub) { applyPicksSub(sub); commitRoute(); }
 
-// Longshot scores run lower than pick scores (fringe base power), so its own scale.
-function longshotScoreClass(s) { return s >= 6 ? 'great' : s >= 4 ? 'good' : 'ok'; }
-function setLongshotMaxHR(n) { longshotMaxHR = n; if (longshotSubTab === 'results') renderLongshotsResults(); else renderLongshots(); }
-// Season-HR filter chips — shared by the Today list and the Results tracker so
-// both always describe the same slice of longshots (default <10 HR).
-function longshotHrChips() {
-  return [[5,'≤5 HR'],[9,'<10 HR'],[12,'≤12 HR'],[0,'All']].map(([v,l]) =>
-    `<button class="due-filter-chip${longshotMaxHR===v?' active':''}" onclick="setLongshotMaxHR(${v})">${l}</button>`).join('');
+// ── Picks: Chalk / Value mode ───────────────────────────────────────────
+function setPicksMode(mode) {
+  picksMode = mode;
+  document.getElementById('picks-mode-chalk')?.classList.toggle('active', mode === 'chalk');
+  document.getElementById('picks-mode-value')?.classList.toggle('active', mode === 'value');
+  const fc = document.getElementById('picks-filters-card');
+  if (fc) fc.style.display = mode === 'value' ? 'none' : ''; // Value has no HR/score cutoff
+  renderPicks();
+  renderPicksResults();
+  commitRoute();
 }
-function longshotHrMatch(hr) { return !longshotMaxHR || (hr ?? 0) <= longshotMaxHR; }
-// "Hot" = amplified recent form at or above the threshold. Applies to today's
-// list only (Results rows carry no form snapshot). Unknown form is not hot.
-function longshotHotMatch(r) { return !longshotHotOnly || (r.recentFormAmplified ?? 0) >= LONGSHOT_HOT_MIN; }
-function toggleLongshotHot() {
-  longshotHotOnly = !longshotHotOnly;
-  renderLongshots();
+// Value score = (shrunk) Blast% × matchup × 100 — runs a bit higher than a raw
+// pick score, so its own color scale.
+function valueScoreClass(s) { return s >= 15 ? 'great' : s >= 11 ? 'good' : 'ok'; }
+function blastPctBadge(pct) {
+  if (pct == null) return '';
+  const p = Math.round(pct * 100);
+  const cls = pct >= 0.20 ? 'great' : pct >= 0.13 ? 'good' : pct >= 0.08 ? '' : 'bad';
+  return `<span class="pick-ind ${cls}" title="Blast% — squared-up contact on a fast swing (the swing that produces homers), over his batted balls. A leading indicator of power.">💥 ${p}% Blast</span>`;
 }
-function applyLongshotSub(sub) {
-  longshotSubTab = sub;
-  document.getElementById('longshot-today-wrap').style.display   = sub === 'today'   ? '' : 'none';
-  document.getElementById('longshot-results-wrap').style.display = sub === 'results' ? '' : 'none';
-  document.getElementById('longshot-sub-today').classList.toggle('active',   sub === 'today');
-  document.getElementById('longshot-sub-results').classList.toggle('active', sub === 'results');
-  if (sub === 'results') renderLongshotsResults(); else renderLongshots();
-}
-function switchLongshotSub(sub) { applyLongshotSub(sub); commitRoute(); }
 
-function renderLongshots() {
-  const el = document.getElementById('longshot-content');
-  if (!longshots.length) {
+function renderValueBoard() {
+  const metaEl = document.getElementById('picks-meta');
+  const el = document.getElementById('picks-content');
+  if (!value.length) {
+    metaEl.textContent = '';
     el.innerHTML = todaySchedule.length
-      ? '<div class="empty">No longshots yet — lineups must be posted for matchup scoring to run.</div>'
-      : '<div class="empty">No games today, so no longshots — they resume with the next slate. Meanwhile <a href="javascript:void(0)" onclick="switchNav(\'picks\')">Picks</a> and <a href="javascript:void(0)" onclick="switchNav(\'due\')">Due</a> carry over.</div>';
+      ? '<div class="empty">No Value board yet — lineups must be posted for matchup scoring to run.</div>'
+      : '<div class="empty">No games today. The Value board resumes with the next slate; meanwhile <a href="javascript:void(0)" onclick="switchNav(\'due\')">Due</a> still tracks who\'s overdue.</div>';
     return;
   }
-  // Dart throws only make sense on guys who'll actually bat — always drop IL /
-  // benched / team-off. Then a season-HR ceiling to hold the fringe (default <10).
-  const pool = longshots
+  // Value only makes sense on guys who'll actually bat — drop IL / bench / off.
+  const pool = value
     .filter(r => !isUnavailableToday(r.pid))
-    .filter(r => longshotHrMatch(r.hrs))
-    .filter(r => longshotHotMatch(r))
-    .sort((a, b) => (b.longshotScore ?? 0) - (a.longshotScore ?? 0));
-
+    .sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0));
   const gameByTeam = {};
   for (const g of todaySchedule) { gameByTeam[g.away.teamAbbr] = g; gameByTeam[g.home.teamAbbr] = g; }
   const gameTimeOf = r => { const d = gameByTeam[r.team]?.gameDate; return d ? new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''; };
   const rankClass = rk => rk===1?'gold':rk===2?'silver':rk===3?'bronze':'';
-
-  const hrChips = longshotHrChips();
-
+  metaEl.textContent = `${pool.length} value bat${pool.length===1?'':'s'} · ranked by Blast% × matchup · long-odds board — take these at a real price (≈ +600 or better)`;
   const cards = pool.map((r, i) => {
     const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
-    const cls = longshotScoreClass(r.longshotScore ?? 0);
-    const hrBadge = `<span class="pick-ind" title="Season HR — fringe power is what the book prices long">${r.hrs ?? 0} HR</span>`;
-    // Amplified recent-form chip up front — the longshot list's headline signal.
-    const formChip = r.recentFormAmplified != null
-      ? `<span class="pick-ind ${r.recentFormAmplified>=1.05?'great':r.recentFormAmplified<=0.95?'bad':''}" title="Recent contact quality, weighted double vs the pick board — the guy heating up rises, the cold one sinks">${r.recentFormAmplified>=1?'▲':'▼'} Form ${r.recentFormAmplified.toFixed(2)}×</span>`
-      : '';
+    const cls = valueScoreClass(r.valueScore ?? 0);
+    const hrBadge = `<span class="pick-ind" title="Season HR">${r.hrs ?? 0} HR</span>`;
     return `<div class="lbc-card due-row-clickable" onclick="openPickModal('${r.pid}')">
       <div class="lbc-top">
         <span class="lbc-rank ${rankClass(i+1)}">${i+1}</span>
         <img class="lbc-photo" src="${photo}" alt="">
         <div class="lbc-info">
-          <div class="lbc-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {longshot:1})}</div>
+          <div class="lbc-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {pick:1})}</div>
           <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
-        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${(r.longshotScore ?? 0).toFixed(1)}</span><span class="lbc-headline-lbl">Longshot</span></div>
+        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${(r.valueScore ?? 0).toFixed(1)}</span><span class="lbc-headline-lbl">Value</span></div>
       </div>
-      <div class="pick-indicators">${hrBadge}${formChip}${pickIndicators(r)}</div>
+      <div class="pick-indicators">${blastPctBadge(r.blastPct)}${hrBadge}${pickIndicators(r)}</div>
     </div>`;
   }).join('');
-
-  el.innerHTML = `
-    <div class="picks-sort">
-      <span class="due-filter-label">Season HR</span>${hrChips}
-      <button class="due-filter-chip${longshotHotOnly?' active':''}" onclick="toggleLongshotHot()" title="Only darts heating up — amplified recent form ≥ ${LONGSHOT_HOT_MIN.toFixed(2)}×">🔥 Hot only</button>
-    </div>
-    <div class="result-meta">${pool.length} longshot${pool.length===1?'':'s'} · ranked by matchup + hot form</div>
-    <div class="lb-views" data-view="cards"><div class="lb-view-cards">${cards || `<div class="empty">Nobody matches — ${longshotHotOnly ? '<a href="javascript:void(0)" onclick="toggleLongshotHot()">drop the Hot filter</a> or ' : ''}widen the HR filter.</div>`}</div></div>`;
-}
-function toggleLongshotExplainer() {
-  const body = document.getElementById('longshot-explainer-body');
-  const chev = document.getElementById('longshot-explainer-chevron');
-  const wrap = document.getElementById('longshot-explainer-toggle');
-  const open = body.style.display === 'none';
-  body.style.display = open ? '' : 'none';
-  chev.textContent = open ? '▴' : '▾';
-  wrap.setAttribute('aria-expanded', String(open));
+  el.innerHTML = `<div class="lb-views" data-view="cards"><div class="lb-view-cards">${cards}</div></div>`;
 }
 
-function renderLongshotsResults() {
-  const el = document.getElementById('longshot-results-wrap');
-  if (!longshotsHistory.length) {
-    el.innerHTML = `
-      <div class="picks-sort"><span class="due-filter-label">Season HR</span>${longshotHrChips()}</div>
-      <div class="empty">No results yet — longshots get scored each morning once the previous day's games are final.</div>`;
+function renderValueResults() {
+  const el = document.getElementById('picks-results-wrap');
+  if (!el) return;
+  if (!valueHistory.length) {
+    el.innerHTML = `<div class="empty">No Value results yet — the board gets scored each morning once the previous day's games are final.</div>`;
     return;
   }
-  // Track the SAME slice you're viewing: each day's list, filtered to the HR
-  // ceiling and re-ranked within it, so a <10 view reports a <10 hit rate — not
-  // the whole <15 pool. Days keep their longshotScore order, so slicing gives
-  // the top darts of the filtered set.
-  const filteredDays = longshotsHistory.map(e => ({
-    date: e.date,
-    longshots: e.longshots.filter(p => longshotHrMatch(p.hr)).map((p, i) => ({ ...p, rank: i + 1 })),
-  }));
-  const all = filteredDays.flatMap(e => e.longshots);
-  const totalDarts = all.length;
-  const totalHits  = all.filter(p => p.hit).length;
-  const hitRate    = totalDarts ? (totalHits / totalDarts * 100).toFixed(1) : '0.0';
-
-  // Calibration: does the model's own ranking hold? Top darts should hit more
-  // than the tail. Longshots hit rarely, so the color bands sit lower than Picks.
-  const lsCls = r => r >= 0.15 ? 'great' : r >= 0.09 ? 'good' : 'avg';
+  const days = valueHistory.map(e => ({ date: e.date, value: (e.value || []).map((p, i) => ({ ...p, rank: i + 1 })) }));
+  const all = days.flatMap(e => e.value);
+  const total0 = all.length;
+  const totalHits = all.filter(p => p.hit).length;
+  const hitRate = total0 ? (totalHits / total0 * 100).toFixed(1) : '0.0';
+  // Value bats are long-odds — hit rate bands sit lower than Chalk.
+  const vCls = r => r >= 0.15 ? 'great' : r >= 0.09 ? 'good' : 'avg';
   const tiers = [{label:'Top 3',n:3},{label:'Top 5',n:5},{label:'Top 10',n:10},{label:'All',n:Infinity}];
   const bucketHtml = tiers.map(t => {
     let hits = 0, total = 0;
-    for (const entry of filteredDays) { const pool = entry.longshots.slice(0, t.n); total += pool.length; hits += pool.filter(p => p.hit).length; }
+    for (const entry of days) { const pool = entry.value.slice(0, t.n); total += pool.length; hits += pool.filter(p => p.hit).length; }
     const pct = total ? (hits / total * 100).toFixed(0) : '—';
     return `<div class="ph-bucket">
       <span class="ph-bucket-range">${t.label}</span>
-      <span class="ph-bucket-rate hrg-val ${total?lsCls(hits/total):'avg'}">${pct}${total ? '%' : ''}</span>
+      <span class="ph-bucket-rate hrg-val ${total?vCls(hits/total):'avg'}">${pct}${total ? '%' : ''}</span>
       <span class="ph-bucket-n">${hits}/${total}</span>
     </div>`;
   }).join('');
-
-  const dayRows = [...filteredDays].reverse().map(entry => {
-    const total = entry.longshots.length;
-    const rankedHits = entry.longshots.filter(p => p.hit);
+  const dayRows = [...days].reverse().map(entry => {
+    const total = entry.value.length;
+    const rankedHits = entry.value.filter(p => p.hit);
     const pct = total ? (rankedHits.length / total * 100).toFixed(0) : 0;
     const hitNames = rankedHits.map(p =>
-      `<span class="ph-hit-name" title="Ranked #${p.rank} that day · ${p.hr} season HR when listed"><span class="ph-hit-rank">#${p.rank}</span>${compactPlayerName(p.name)}</span>`
+      `<span class="ph-hit-name" title="Ranked #${p.rank} that day · ${p.hr} season HR${p.blastPct!=null?` · ${p.blastPct}% Blast`:''} when listed"><span class="ph-hit-rank">#${p.rank}</span>${compactPlayerName(p.name)}</span>`
     ).join('');
     return `<div class="ph-day-row">
       <span class="ph-day-date">${entry.date}</span>
       <span class="ph-day-fraction">${rankedHits.length}/${total}</span>
-      <span class="ph-day-pct hrg-val ${total?lsCls(rankedHits.length/total):'avg'}">${total?pct+'%':'—'}</span>
-      <span class="ph-day-hits">${hitNames || '<span style="color:var(--dim)">no darts landed</span>'}</span>
+      <span class="ph-day-pct hrg-val ${total?vCls(rankedHits.length/total):'avg'}">${total?pct+'%':'—'}</span>
+      <span class="ph-day-hits">${hitNames || '<span style="color:var(--dim)">none landed</span>'}</span>
     </div>`;
   }).join('');
-
   el.innerHTML = `
-    <div class="picks-sort"><span class="due-filter-label">Season HR</span>${longshotHrChips()}</div>
     <div class="ph-summary">
-      <div class="ph-stat"><span class="ph-stat-val hrg-val ${lsCls(parseFloat(hitRate)/100)}">${hitRate}%</span><span class="ph-stat-lbl">Hit Rate</span></div>
-      <div class="ph-stat"><span class="ph-stat-val">${totalHits}</span><span class="ph-stat-lbl">Darts Landed</span></div>
-      <div class="ph-stat"><span class="ph-stat-val">${totalDarts}</span><span class="ph-stat-lbl">Total Darts</span></div>
-      <div class="ph-stat"><span class="ph-stat-val">${longshotsHistory.length}</span><span class="ph-stat-lbl">Days Tracked</span></div>
+      <div class="ph-stat"><span class="ph-stat-val hrg-val ${vCls(parseFloat(hitRate)/100)}">${hitRate}%</span><span class="ph-stat-lbl">Hit Rate</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${totalHits}</span><span class="ph-stat-lbl">Bats Landed</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${total0}</span><span class="ph-stat-lbl">Total Bats</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${valueHistory.length}</span><span class="ph-stat-lbl">Days Tracked</span></div>
     </div>
-    <div class="ph-buckets-head">Hit Rate by Rank <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· do the top darts beat the tail?</span></div>
+    <div class="ph-buckets-head">Hit Rate by Rank <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· do the top value bats beat the tail?</span></div>
     <div class="ph-buckets">${bucketHtml}</div>
     <div class="ph-buckets-head" style="margin-top:1rem">Day-by-Day</div>
     <div class="ph-days">${dayRows}</div>`;
@@ -4303,6 +4218,7 @@ function picksResultsChips() {
 function picksResultMatch(p) { return (p.score ?? 0) >= picksFilters.minScore && (p.hr ?? 0) >= picksFilters.minHR; }
 
 function renderPicksResults() {
+  if (picksMode === 'value') return renderValueResults();
   const el = document.getElementById('picks-results-wrap');
   if (!el) return;
   const chips = picksResultsChips();
@@ -4444,6 +4360,7 @@ function shareDue() {
 }
 
 function renderPicks() {
+  if (picksMode === 'value') return renderValueBoard();
   renderPicksFilters();
   const metaEl = document.getElementById('picks-meta');
   const contentEl = document.getElementById('picks-content');
@@ -4488,7 +4405,7 @@ function renderPicks() {
       <td><div class="lb-player">
         <img class="lb-photo" src="${photo}" alt="">
         <div>
-          <div class="lb-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {longshot:1})}</div>
+          <div class="lb-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {pick:1})}</div>
           <div class="lb-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
@@ -4507,7 +4424,7 @@ function renderPicks() {
         <span class="lbc-rank ${rankClass(scoreRank[r.pid])}">${scoreRank[r.pid]}</span>
         <img class="lbc-photo" src="${photo}" alt="">
         <div class="lbc-info">
-          <div class="lbc-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {longshot:1})}</div>
+          <div class="lbc-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {pick:1})}</div>
           <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
