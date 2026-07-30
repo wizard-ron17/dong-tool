@@ -374,7 +374,8 @@
   .pick-ind { font-size: 0.56rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 10px; background: var(--surface2); color: var(--muted); white-space: nowrap; }
   .cross-tab-badge { display: inline-flex; align-items: center; font-size: 0.57rem; font-weight: 700; padding: 0.04rem 0.3rem; border-radius: 4px; margin-left: 0.25rem; vertical-align: middle; white-space: nowrap; cursor: default; }
   .cross-tab-badge.due-rank  { color: var(--gold); background: rgba(240,192,64,0.12); border: 1px solid rgba(240,192,64,0.3); }
-  .cross-tab-badge.pick-rank { color: var(--accent); background: rgba(53,201,110,0.12); border: 1px solid rgba(53,201,110,0.3); }
+  .cross-tab-badge.chalk-rank { color: #7ea9c4; background: rgba(91,143,176,0.14); border: 1px solid rgba(91,143,176,0.4); }
+  .cross-tab-badge.value-rank { color: var(--accent); background: rgba(53,201,110,0.12); border: 1px solid rgba(53,201,110,0.3); }
   .cross-tab-badge.bday-badge { padding: 0.02rem 0.2rem; border: 1px solid rgba(236,110,173,0.35); background: rgba(236,110,173,0.12); }
   .cross-tab-badge.daylate-badge { color: #d59bff; background: rgba(213,155,255,0.12); border: 1px solid rgba(213,155,255,0.32); }
   .cross-tab-badge.prospect-badge { color: #52c98a; background: rgba(82,201,138,0.12); border: 1px solid rgba(82,201,138,0.32); }
@@ -1561,11 +1562,19 @@ function isDayLate(pid) {
 }
 function isProspect(pid)  { return (prospects.justCalledUp || []).some(r => r.pid === pid); }
 function isJustBack(pid)  { return (justBack || []).some(e => e.pid === pid); }
+// Rank on the Value board (available bats, Blast% × matchup order) — stable
+// wherever the name shows, independent of which Picks mode is on screen.
+function valueRank(pid) {
+  if (!value.length) return null;
+  const pool = value.filter(r => !isUnavailableToday(r.pid)).sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0));
+  const idx = pool.findIndex(r => r.pid === pid);
+  return idx >= 0 ? idx + 1 : null;
+}
 
 // Cross-tab badges — a player's standing across every tool, shown wherever his
 // name appears. `exclude` suppresses a tool's own badge when rendering inside
 // that tool (its rank is already implied by list position). Keys: birthday,
-// due, pick, daylate, prospect, returning.
+// chalk, value, due, daylate, prospect, returning.
 // compact=true drops the words (keeps rank number, color, and emoji) so a
 // stack of badges fits on one line in dense rows like the Schedule lineup —
 // the full label still lives in the hover tooltip.
@@ -1573,9 +1582,13 @@ function crossTabBadge(pid, exclude = {}, compact = false) {
   const parts = [];
   const c = compact ? ' ctb-compact' : '';
   if (!exclude.birthday) { const bd = birthdayBadge(pid); if (bd) parts.push(bd); } // rides along next to the name on every board
-  if (!exclude.pick) {
+  if (!exclude.chalk) {
     const idx = applyPicksFilters(picks, PICKS_FILTER_DEFAULTS).findIndex(r => r.pid === pid);
-    if (idx >= 0) parts.push(`<span class="cross-tab-badge pick-rank${c}" title="Ranked #${idx+1} in today's Picks">${compact ? '🔒' + (idx+1) : '#' + (idx+1) + ' Pick'}</span>`);
+    if (idx >= 0) parts.push(`<span class="cross-tab-badge chalk-rank${c}" title="Ranked #${idx+1} on the Chalk board (proven power)">${compact ? '🪨' + (idx+1) : '#' + (idx+1) + ' Chalk'}</span>`);
+  }
+  if (!exclude.value) {
+    const vr = valueRank(pid);
+    if (vr) parts.push(`<span class="cross-tab-badge value-rank${c}" title="Ranked #${vr} on the Value board (Blast%)">${compact ? '💥' + vr : '#' + vr + ' Value'}</span>`);
   }
   if (!exclude.due) {
     const rank = availableDueRank(pid); // matches the Due page's default (available-only) ranking
@@ -4148,7 +4161,7 @@ function renderValueBoard() {
         <span class="lbc-rank ${rankClass(i+1)}">${i+1}</span>
         <img class="lbc-photo" src="${photo}" alt="">
         <div class="lbc-info">
-          <div class="lbc-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {pick:1})}</div>
+          <div class="lbc-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {value:1})}</div>
           <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
@@ -4410,7 +4423,7 @@ function renderPicks() {
       <td><div class="lb-player">
         <img class="lb-photo" src="${photo}" alt="">
         <div>
-          <div class="lb-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {pick:1})}</div>
+          <div class="lb-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {chalk:1})}</div>
           <div class="lb-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
@@ -4429,7 +4442,7 @@ function renderPicks() {
         <span class="lbc-rank ${rankClass(scoreRank[r.pid])}">${scoreRank[r.pid]}</span>
         <img class="lbc-photo" src="${photo}" alt="">
         <div class="lbc-info">
-          <div class="lbc-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {pick:1})}</div>
+          <div class="lbc-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {chalk:1})}</div>
           <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
