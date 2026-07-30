@@ -4105,9 +4105,9 @@ function setPicksMode(mode) {
   renderPicksResults();
   commitRoute();
 }
-// Value score = (shrunk) Blast% × matchup × 100 — runs a bit higher than a raw
-// pick score, so its own color scale.
-function valueScoreClass(s) { return s >= 15 ? 'great' : s >= 11 ? 'good' : 'ok'; }
+// Value score = (shrunk) Blast% × matchup × 100 — runs higher than a raw pick
+// score (Blast% ~15-50% vs HR/AB ~4-7%), so its own color bands.
+function valueScoreClass(s) { return s >= 55 ? 'great' : s >= 38 ? 'good' : 'ok'; }
 function blastPctBadge(pct) {
   if (pct == null) return '';
   const p = Math.round(pct * 100);
