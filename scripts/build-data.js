@@ -624,6 +624,7 @@ const PICKS_RATIO_MAX     = 1.4;
 // leading-indicator lens that surfaces underpriced power (often lower-HR bats
 // blasting the ball before the book catches up). Replaces the old Longshots.
 const VALUE_LIMIT        = 30;
+const VALUE_SURPLUS_MIN  = 1.1; // blast must imply ≥10% more HR than he's produced to count as "value" (underpriced)
 const VALUE_CONTACT_GAIN = 2; // recent-form amplification, display cue only (not in score)
 const BASE_POWER_SHRINK_AB = 100; // pseudo-ABs of league-average prior; half-regressed at 100 AB, lightly at 300+
 // Platoon splits are HR-based rate stats, and HRs are rare enough that a
@@ -942,8 +943,16 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       const contactRate = (bstat.bbe && abs) ? bstat.bbe / abs : leagueContactRate;
       const blastImpliedHRperAB = (blastPct * pHRblast + (1 - blastPct) * pHRnon) * contactRate;
       const basePower = shrunkRate(hrs, abs, blastImpliedHRperAB, BASE_POWER_SHRINK_AB);
-      // Shrunk Blast% (its own Bayesian move) powers the Value board's ranking.
+      // Shrunk Blast% (its own Bayesian move) — the quality floor for Value.
       const blastPower = shrunkRate(bstat.blasts, bstat.tracked, leagueBlastPct, 60);
+      // Blast SURPLUS = how much his contact (blast-implied HR/AB) outruns his
+      // actual production (HR/AB shrunk toward league). >1 = blasting harder than
+      // he's homering, so the book — pricing off HR totals — is behind him =
+      // underpriced. This is what Value ranks on now, which orthogonalizes it
+      // from Chalk: a slugger already cashing his blast (surplus ≤ 1) drops off
+      // Value and lives on Chalk alone, killing the top-of-both-boards overlap.
+      const actualHRperAB = shrunkRate(hrs, abs, leagueHRPerAB, BASE_POWER_SHRINK_AB);
+      const blastSurplus = actualHRperAB > 0 ? blastImpliedHRperAB / actualHRperAB : 1;
 
       const recentFormRatio = computeRecentFormRatio(balls);
       const hrProfile = computeHRPitchProfile(balls);
@@ -991,6 +1000,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
         bHand, basePower, rawBasePower, recentFormRatio, batterPlatoonRatio, pitcherPlatoonRatio, parkRatio,
         hrProfile, pitcherMix: starterMix.mix, pitcherMixHand: starterMix.split ? oppStand : null, synergyScore,
         blastPct: bstat.blastPct, blastBBE: bstat.tracked, blastPower,
+        blastSurplus: Math.round(blastSurplus * 100) / 100,
       });
     }
 
@@ -1118,14 +1128,20 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
         ? Math.max(0.5, Math.min(1.7, 1 + (r.recentFormRatio - 1) * VALUE_CONTACT_GAIN))
         : 0.9;
       r.recentFormAmplified = Math.round(recentAmp * 100) / 100;
-      r.valueScore = (r.blastPower ?? 0) * r.matchupFactor * 100;
+      // Blast quality × matchup, weighted by surplus so the ranking rewards guys
+      // whose contact is running ahead of their HR total (the underpriced ones)
+      // and demotes those already cashing it. Surplus clamped so a divide-by-thin
+      // actual rate can't run away with the board.
+      const surplusW = Math.max(0.5, Math.min(2.5, r.blastSurplus ?? 1));
+      r.valueScore = (r.blastPower ?? 0) * r.matchupFactor * 100 * surplusW;
     }
 
-    // Value board: the whole candidate pool (3+ HR, already gated) re-ranked by
-    // Blast% × matchup. Surfaces underpriced power — often lower-HR bats blasting
-    // the ball before the book catches up. Replaces the old Longshots tool.
+    // Value board: only the underpriced slice (blast implies meaningfully more
+    // than he's produced), re-ranked by that surplus-weighted blast score. A
+    // slugger already homering at his blast rate falls below the surplus gate and
+    // stays on Chalk — so Value and Chalk no longer surface the same names.
     const value = rows
-      .slice()
+      .filter(r => (r.blastSurplus ?? 1) >= VALUE_SURPLUS_MIN)
       .sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0))
       .slice(0, VALUE_LIMIT);
 
