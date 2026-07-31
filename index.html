@@ -137,22 +137,26 @@
   @media (max-width: 600px) {
     /* z-index 230 keeps the whole bar (and the sheet inside it) above the
        page-dimming backdrop at 210. */
-    nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 230; margin: 0; border: none; border-top: 1px solid var(--border2); border-radius: 0; background: rgba(10,17,32,0.92); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); padding: 0.3rem 0.4rem calc(0.35rem + env(safe-area-inset-bottom)); gap: 0; }
+    /* Floating pill: detached from the screen edges with side + bottom gaps,
+       fully rounded, its own border + drop shadow. --nav-h is the measured bar
+       height (padding+icon+label, minus safe-area) — the Tools sheet, backdrop,
+       and body padding all anchor off (--nav-bottom + --nav-h) = the bar's top. */
+    :root { --nav-side: 0.75rem; --nav-bottom: calc(0.55rem + env(safe-area-inset-bottom)); --nav-h: 3.61rem; }
+    nav { position: fixed; left: var(--nav-side); right: var(--nav-side); bottom: var(--nav-bottom); z-index: 230; margin: 0; border: 1px solid var(--border2); border-radius: 24px; background: rgba(10,17,32,0.92); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); padding: 0.3rem 0.4rem 0.35rem; gap: 0; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
     :root[data-theme="light"] nav { background: rgba(255,255,255,0.92); }
     .nav-btn { flex-direction: column; gap: 0.18rem; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.02em; padding: 0.42rem 0.1rem 0.3rem; border-radius: 10px; }
     .nav-btn svg { display: block; }
     /* App-style active state: tinted icon+label, no filled pill. */
     .nav-btn.active { color: var(--accent); background: transparent; box-shadow: none; }
     .nav-caret { display: none; }
-    body { padding-bottom: calc(4.6rem + env(safe-area-inset-bottom)); }
-    /* Tools becomes a bottom sheet docked on TOP of the tab bar — the bar
-       stays visible and tappable below it, so sheet and backdrop both stop
-       at its top edge. 3.61rem = measured bar height (padding+icon+label). */
-    .nav-tools-backdrop { background: rgba(0,0,0,0.45); bottom: calc(3.61rem + env(safe-area-inset-bottom)); }
+    body { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
+    /* Tools is a floating card docked just above the floating bar — the bar
+       stays visible and tappable below it, so the backdrop stops at the bar's
+       top edge (--nav-bottom + --nav-h) and the sheet sits 0.5rem above that. */
+    .nav-tools-backdrop { background: rgba(0,0,0,0.45); bottom: calc(var(--nav-bottom) + var(--nav-h)); }
     /* visibility flips AFTER the slide-out finishes (0s delay trick) so the
-       closed sheet can never peek out below the bar — translateY(115%) alone
-       left a strip visible on devices with a large safe-area inset. */
-    .nav-tools-menu { position: fixed; top: auto; left: 0; right: 0; bottom: calc(3.61rem + env(safe-area-inset-bottom)); min-width: 0; border-radius: 18px 18px 0 0; border-bottom: none; padding: 0.6rem 0.7rem 0.7rem; opacity: 1; transform: translateY(115%); visibility: hidden; transition: transform 0.24s ease, visibility 0s linear 0.24s; }
+       closed sheet can never peek — translateY(135%) clears the bottom gap. */
+    .nav-tools-menu { position: fixed; top: auto; left: var(--nav-side); right: var(--nav-side); bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.5rem); min-width: 0; border: 1px solid var(--border2); border-radius: 20px; padding: 0.6rem 0.7rem 0.7rem; opacity: 1; transform: translateY(135%); visibility: hidden; transition: transform 0.24s ease, visibility 0s linear 0.24s; box-shadow: 0 10px 34px rgba(0,0,0,0.5); }
     .nav-tools-menu.open { transform: none; visibility: visible; transition: transform 0.24s ease; }
     .nav-menu-item { padding: 0.8rem 0.7rem; }
     .nav-menu-item .nm-name { font-size: 1.05rem; }
