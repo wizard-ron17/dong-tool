@@ -3649,9 +3649,14 @@ function ddGameRows(g) {
   const homeHR = homeLeans.slice(0, 2).map((l, i) => ddLeanLine(l, i === 0)).join('');
   const hrHtml = (awayHR + (awayHR && homeHR ? '<div class="dd-lean-sep"></div>' : '') + homeHR) || '<span class="dd-empty">—</span>';
   const otherHtml = [...awayLeans.slice(2), ...homeLeans.slice(2)].map(l => ddLeanLine(l, false)).join('') || '<span class="dd-empty">—</span>';
-  // Each starter faces the *other* team's bats, so his dot reads that side's leans.
-  const awayDot = ddPitcherColor(g.away.probablePitcherId, homeLeans.length);
-  const homeDot = ddPitcherColor(g.home.probablePitcherId, awayLeans.length);
+  // Offense-centric: each row is a TEAM'S BATS, and the dot grades how good a
+  // HR spot they're in vs the arm they face (the opposing starter). So the row
+  // shows the opposing SP, and the dot reads his HR9 + this team's own leans.
+  const awayDot = ddPitcherColor(g.home.probablePitcherId, awayLeans.length); // away bats vs home SP
+  const homeDot = ddPitcherColor(g.away.probablePitcherId, homeLeans.length); // home bats vs away SP
+  const awayAb = g.away.teamAbbr || g.away.teamName, homeAb = g.home.teamAbbr || g.home.teamName;
+  const homeSP = g.home.probablePitcher ? ddLastName(g.home.probablePitcher) : 'TBD';
+  const awaySP = g.away.probablePitcher ? ddLastName(g.away.probablePitcher) : 'TBD';
   const homer = g.homer;
   const overallCell = homer && homer.score != null
     ? `<td rowspan="2" class="dd-overall dd-cell-${ddOverallColor(homer.score)}"><span class="dd-overall-num">${homer.score}</span></td>`
@@ -3668,8 +3673,8 @@ function ddGameRows(g) {
   }
   return `<tr class="dd-g-top">
       ${ddTeamCell(g.away)}
-      ${ddPitcherCell(g.away)}
-      <td class="dd-mm dd-cell-${awayDot}">${ddDot(awayDot)}</td>
+      ${ddPitcherCell(g.home)}
+      <td class="dd-mm dd-cell-${awayDot}" title="How ${awayAb}'s bats project for HRs vs ${homeSP}">${ddDot(awayDot)}</td>
       ${wpCell}
       ${overallCell}
       <td rowspan="2" class="dd-leans">${hrHtml}</td>
@@ -3678,8 +3683,8 @@ function ddGameRows(g) {
     </tr>
     <tr class="dd-g-bot">
       ${ddTeamCell(g.home)}
-      ${ddPitcherCell(g.home)}
-      <td class="dd-mm dd-cell-${homeDot}">${ddDot(homeDot)}</td>
+      ${ddPitcherCell(g.away)}
+      <td class="dd-mm dd-cell-${homeDot}" title="How ${homeAb}'s bats project for HRs vs ${awaySP}">${ddDot(homeDot)}</td>
     </tr>`;
 }
 function dingerDigestHtml() {
@@ -3697,7 +3702,7 @@ function dingerDigestHtml() {
         <div class="dd-scroll">
           <table class="dd-table">
             <thead><tr>
-              <th>Team</th><th>Pitchers</th><th>Pitching<br>Matchup</th><th>Weather / Park</th><th>Overall</th><th>HR Leans</th><th>Notes</th><th>Other Leans</th>
+              <th>Team</th><th>Opp. SP</th><th>Bat<br>Matchup</th><th>Weather / Park</th><th>Overall</th><th>HR Leans</th><th>Notes</th><th>Other Leans</th>
             </tr></thead>
             <tbody>${rows}</tbody>
           </table>
@@ -3705,7 +3710,7 @@ function dingerDigestHtml() {
         <div class="dd-legend">
           <span>🔒 Chalk</span><span>🎯 Value</span><span>⏳ Due</span>
           <span class="dd-legend-sep"></span>
-          <span>${ddDot('green')} Target</span><span>${ddDot('yellow')} Neutral</span><span>${ddDot('red')} Tough</span>
+          <span>Bat Matchup vs Opp. SP:</span><span>${ddDot('green')} Good spot</span><span>${ddDot('yellow')} Even</span><span>${ddDot('red')} Tough</span>
         </div>
         <div class="dd-credit">Ron's Dong Tool · dong-tool.netlify.app</div>
       </div>
