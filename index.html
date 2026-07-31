@@ -977,6 +977,55 @@
   :root[data-theme="light"] .recap-tile.heat-cool .recap-tile-num,
   :root[data-theme="light"] .recap-tile.heat-cool .recap-tile-heat-tag { color: #1f8fbf; }
   :root[data-theme="light"] .sched-bullpen-hand.l { color: #1580c4; }
+
+  /* ── Dinger Digest — GMG-style shareable slate sheet ──────────────── */
+  .sched-toolbar { display:flex; justify-content:flex-end; margin-bottom:10px; }
+  .dinger-digest-btn { background:var(--accent, #35c96e); color:#06210f; font-weight:700;
+    border:none; border-radius:8px; padding:8px 15px; font-size:13px; cursor:pointer;
+    display:inline-flex; align-items:center; gap:6px; box-shadow:0 1px 4px rgba(0,0,0,.25); }
+  .dinger-digest-btn:hover { filter:brightness(1.08); }
+  .dd-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:1000;
+    display:flex; align-items:flex-start; justify-content:center; padding:24px 16px; overflow:auto; }
+  .dd-modal { position:relative; margin:auto; }
+  .dd-close { position:absolute; top:-30px; right:-2px; background:none; border:none; color:#fff;
+    font-size:26px; line-height:1; cursor:pointer; opacity:.85; }
+  .dd-close:hover { opacity:1; }
+  /* The sheet is a fixed light card so screenshots look the same in either theme. */
+  .dd-sheet { background:#fff; color:#1a1a1a; border-radius:12px; padding:18px 20px 14px;
+    box-shadow:0 12px 44px rgba(0,0,0,.5); max-width:880px; }
+  .dd-head { text-align:center; margin-bottom:12px; }
+  .dd-title { font-size:23px; font-weight:800; letter-spacing:-.02em; }
+  .dd-sub { font-size:12px; color:#666; margin-top:2px; }
+  .dd-scroll { overflow-x:auto; }
+  .dd-table { border-collapse:collapse; width:100%; font-size:12.5px; }
+  .dd-table th { background:#2b2b2b; color:#fff; font-weight:700; padding:7px 9px;
+    border:1px solid #8f8f8f; text-align:center; font-size:11px; white-space:nowrap; }
+  .dd-table td { border:1px solid #d2d2d2; padding:6px 9px; vertical-align:middle; }
+  .dd-pitcher { white-space:nowrap; }
+  .dd-logo { width:19px; height:19px; vertical-align:middle; margin-right:7px; }
+  .dd-p-name { font-weight:700; }
+  .dd-p-sub { color:#8a8a8a; font-size:10px; margin-left:7px; }
+  .dd-mm, .dd-wp, .dd-overall { text-align:center; }
+  .dd-dot { display:inline-block; width:16px; height:16px; border-radius:50%; border:1px solid rgba(0,0,0,.28); }
+  .dd-green { background:#4caf50; } .dd-yellow { background:#ffd54a; }
+  .dd-red { background:#e5534b; } .dd-na { background:#dcdcdc; }
+  .dd-overall-pill { display:inline-block; min-width:28px; padding:3px 7px; border-radius:7px; font-weight:800; }
+  .dd-overall-pill.dd-green { background:#4caf50; color:#fff; }
+  .dd-overall-pill.dd-yellow { background:#ffd54a; color:#1a1a1a; }
+  .dd-overall-pill.dd-red { background:#e5534b; color:#fff; }
+  .dd-leans { line-height:1.55; }
+  .dd-lean { white-space:nowrap; }
+  .dd-lean-top { font-weight:800; }
+  .dd-other { color:#555; font-size:11.5px; line-height:1.5; }
+  .dd-notes { min-width:70px; }
+  .dd-empty { color:#c0c0c0; }
+  .dd-g-bot td { border-bottom:2px solid #9a9a9a; }
+  .dd-legend { display:flex; flex-wrap:wrap; gap:12px; justify-content:center;
+    font-size:11px; color:#555; margin-top:12px; align-items:center; }
+  .dd-legend .dd-dot { width:11px; height:11px; vertical-align:-1px; margin-right:3px; }
+  .dd-legend-sep { width:1px; height:14px; background:#ddd; }
+  .dd-credit { text-align:center; font-size:10px; color:#b0b0b0; margin-top:7px; }
+  .dd-hint { text-align:center; color:#fff; font-size:12px; margin-top:12px; opacity:.85; }
 </style>
 <script>
   // Set the theme before first paint to avoid a flash: saved choice wins,
@@ -3265,6 +3314,139 @@ function toggleSchedGame(pk) {
 }
 let schedSort = 'time'; // 'time' (earliest first) or 'homer' (highest Homer Score first)
 function setSchedSort(s) { schedSort = s; renderSchedule(); }
+
+// ── Dinger Digest ─────────────────────────────────────────────────────
+// A GMG-style shareable slate sheet: two pitcher rows per game (each with a
+// red/yellow/green "how juicy is this arm" dot), one merged park/weather dot,
+// the Homer Score as an Overall pill, and our best HR leans pulled straight
+// from the Chalk / Value / Due boards so the badge language carries over.
+function ddAbbrevName(full) {
+  const p = String(full || '').trim().split(/\s+/);
+  return p.length < 2 ? String(full || '') : p[0][0] + '. ' + p.slice(1).join(' ');
+}
+function ddLastName(full) {
+  const p = String(full || '').trim().split(/\s+/);
+  return p.length ? p[p.length - 1] : String(full || '');
+}
+function ddLogoImg(abbr) {
+  const id = teamIds[abbr];
+  // Force the light logo variant — the sheet is always a white card.
+  return id ? `<img class="dd-logo" src="https://www.mlbstatic.com/team-logos/team-cap-on-light/${id}.svg" alt="${abbr || ''}">` : '';
+}
+function ddDot(color) { return `<span class="dd-dot dd-${color}"></span>`; }
+// Overall = Homer Score. Per Ron's bands: <40 red, 40–59 yellow, 60+ green.
+function ddOverallColor(s) { return s >= 60 ? 'green' : s < 40 ? 'red' : 'yellow'; }
+// Park × weather multiplier — a hitter-friendly yard/day trends green.
+function ddWeatherParkColor(park, weather) {
+  const pw = (park ?? 1) * (weather ?? 1);
+  return pw >= 1.05 ? 'green' : pw <= 0.95 ? 'red' : 'yellow';
+}
+// Pitching Matchup dot: juicier (greener) the more HR-prone the arm (HR/9 vs
+// league) and the more of our leans are hitting against him.
+function ddPitcherColor(pid, nLeans) {
+  const stat = pid ? pitcherStats[pid] : null;
+  const lg = avgPitcherHR9();
+  let score = 0;
+  if (stat && lg) {
+    const ratio = parseFloat(stat.hr9) / lg;
+    if (ratio >= 1.35) score += 2; else if (ratio >= 1.12) score += 1;
+    else if (ratio <= 0.75) score -= 2; else if (ratio <= 0.9) score -= 1;
+  }
+  score += nLeans >= 3 ? 2 : nLeans >= 2 ? 1 : nLeans >= 1 ? 0.5 : 0;
+  return score >= 2 ? 'green' : score <= -1 ? 'red' : 'yellow';
+}
+// Our leans for one team, tiered Chalk > Value > Due, in the same rank order
+// the cross-tab badges use (so the digest and the badges never disagree).
+// Only available bats today (off/bench/IL already excluded by each board).
+function ddTeamLeans(teamAbbr) {
+  const seen = new Set(), out = [];
+  applyPicksFilters(picks, PICKS_FILTER_DEFAULTS).forEach((r, i) => {
+    if (r.team === teamAbbr && !seen.has(r.pid)) { seen.add(r.pid); out.push({ pid: r.pid, tier: 0, ord: i }); }
+  });
+  value.filter(r => !isUnavailableToday(r.pid)).sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0))
+    .forEach((r, i) => { if (r.team === teamAbbr && !seen.has(r.pid)) { seen.add(r.pid); out.push({ pid: r.pid, tier: 1, ord: i }); } });
+  { let rank = 0; for (const r of dueRows) { if (isUnavailableToday(r.pid)) continue; rank++;
+    if (r.team === teamAbbr && !seen.has(r.pid)) { seen.add(r.pid); out.push({ pid: r.pid, tier: 2, ord: rank }); } } }
+  out.sort((a, b) => a.tier - b.tier || a.ord - b.ord);
+  return out;
+}
+function ddLeanLine(l, bold) {
+  const emoji = l.tier === 0 ? '🔒' : l.tier === 1 ? '🎯' : '⏳';
+  return `<div class="dd-lean${bold ? ' dd-lean-top' : ''}">${emoji} ${ddAbbrevName(playerNames[l.pid] || l.pid)}</div>`;
+}
+function ddPitcherCell(side) {
+  const nm = side.probablePitcher ? ddLastName(side.probablePitcher) : 'TBD';
+  const stat = side.probablePitcherId ? pitcherStats[side.probablePitcherId] : null;
+  const sub = stat ? `<span class="dd-p-sub">${stat.hr9} HR9</span>` : '';
+  return `<td class="dd-pitcher">${ddLogoImg(side.teamAbbr)}<span class="dd-p-name">${side.probablePitcher ? nm : 'TBD'}</span>${sub}</td>`;
+}
+function ddGameRows(g) {
+  const awayLeans = ddTeamLeans(g.away.teamAbbr), homeLeans = ddTeamLeans(g.home.teamAbbr);
+  const hrHtml = awayLeans.slice(0, 2).map((l, i) => ddLeanLine(l, i === 0)).join('')
+    + homeLeans.slice(0, 2).map((l, i) => ddLeanLine(l, i === 0)).join('');
+  const otherHtml = [...awayLeans.slice(2), ...homeLeans.slice(2)].map(l => ddLeanLine(l, false)).join('');
+  // Each starter faces the *other* team's bats, so his dot reads that side's leans.
+  const awayDot = ddPitcherColor(g.away.probablePitcherId, homeLeans.length);
+  const homeDot = ddPitcherColor(g.home.probablePitcherId, awayLeans.length);
+  const homer = g.homer;
+  const overall = homer && homer.score != null
+    ? `<span class="dd-overall-pill dd-${ddOverallColor(homer.score)}">${homer.score}</span>` : '<span class="dd-empty">—</span>';
+  const wp = homer && homer.score != null ? ddDot(ddWeatherParkColor(homer.park, homer.weather)) : '<span class="dd-empty">—</span>';
+  return `<tr class="dd-g-top">
+      ${ddPitcherCell(g.away)}
+      <td class="dd-mm">${ddDot(awayDot)}</td>
+      <td rowspan="2" class="dd-wp">${wp}</td>
+      <td rowspan="2" class="dd-overall">${overall}</td>
+      <td rowspan="2" class="dd-leans">${hrHtml || '<span class="dd-empty">—</span>'}</td>
+      <td rowspan="2" class="dd-notes"></td>
+      <td rowspan="2" class="dd-other">${otherHtml || '<span class="dd-empty">—</span>'}</td>
+    </tr>
+    <tr class="dd-g-bot">
+      ${ddPitcherCell(g.home)}
+      <td class="dd-mm">${ddDot(homeDot)}</td>
+    </tr>`;
+}
+function dingerDigestHtml() {
+  const games = [...todaySchedule].sort((a, b) => new Date(a.gameDate) - new Date(b.gameDate));
+  const rows = games.map(ddGameRows).join('');
+  const dateStr = todayDate ? fmtDateLong(todayDate) : '';
+  return `<div class="dd-backdrop" id="dd-backdrop" onclick="if(event.target===this) closeDingerDigest()">
+    <div class="dd-modal">
+      <button class="dd-close" onclick="closeDingerDigest()" aria-label="Close">&times;</button>
+      <div class="dd-sheet" id="dd-sheet">
+        <div class="dd-head">
+          <div class="dd-title">🚀 Dinger Digest</div>
+          <div class="dd-sub">${dateStr}${games.length ? ` · ${games.length} game${games.length === 1 ? '' : 's'}` : ''}</div>
+        </div>
+        <div class="dd-scroll">
+          <table class="dd-table">
+            <thead><tr>
+              <th>Pitchers</th><th>Pitching<br>Matchup</th><th>Weather / Park</th><th>Overall</th><th>HR Leans</th><th>Notes</th><th>Other Leans</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <div class="dd-legend">
+          <span>🔒 Chalk</span><span>🎯 Value</span><span>⏳ Due</span>
+          <span class="dd-legend-sep"></span>
+          <span>${ddDot('green')} Target</span><span>${ddDot('yellow')} Neutral</span><span>${ddDot('red')} Tough</span>
+        </div>
+        <div class="dd-credit">Ron's Dong Tool · dong-tool.netlify.app</div>
+      </div>
+      <div class="dd-hint">📸 Screenshot to share</div>
+    </div>
+  </div>`;
+}
+function dingerDigestEscHandler(e) { if (e.key === 'Escape') closeDingerDigest(); }
+function closeDingerDigest() {
+  const el = document.getElementById('dd-backdrop');
+  if (el) el.remove();
+  document.removeEventListener('keydown', dingerDigestEscHandler);
+}
+function openDingerDigest() {
+  document.body.insertAdjacentHTML('beforeend', dingerDigestHtml());
+  document.addEventListener('keydown', dingerDigestEscHandler);
+}
 function renderSchedule() {
   const metaEl = document.getElementById('schedule-meta');
   const contentEl = document.getElementById('schedule-content');
@@ -3292,7 +3474,8 @@ function renderSchedule() {
     <b>Homer Score</b> = HR-betting confidence per game (park, weather, both lineups, starters, pens). 50 = average.
     <span class="hl-scale"></span> <span>colder → hotter</span>
   </div>` : '';
-  contentEl.innerHTML = legend + sortBar + `<div class="sched-list">${sorted.map(g => {
+  const digestBtn = `<div class="sched-toolbar"><button class="dinger-digest-btn" onclick="openDingerDigest()" title="A GMG-style slate sheet of today's pitching matchups, park/weather, Homer Scores, and our best HR leans — screenshot &amp; share">🚀 Dinger Digest</button></div>`;
+  contentEl.innerHTML = digestBtn + legend + sortBar + `<div class="sched-list">${sorted.map(g => {
     const info = schedStatusInfo(g);
     const lineupStatus = schedLineupStatus(g);
     const awayLabel = g.away.teamAbbr || g.away.teamName, homeLabel = g.home.teamAbbr || g.home.teamName;
