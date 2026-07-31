@@ -979,10 +979,11 @@
   :root[data-theme="light"] .sched-bullpen-hand.l { color: #1580c4; }
 
   /* ── Dinger Digest — GMG-style shareable slate sheet ──────────────── */
-  .sched-toolbar { display:flex; justify-content:flex-end; margin-bottom:10px; }
+  .sched-toolbar { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; }
+  .sched-toolbar .picks-sort { margin:0; }
   .dinger-digest-btn { background:var(--accent, #35c96e); color:#06210f; font-weight:700;
-    border:none; border-radius:8px; padding:8px 15px; font-size:13px; cursor:pointer;
-    display:inline-flex; align-items:center; gap:6px; box-shadow:0 1px 4px rgba(0,0,0,.25); }
+    border:none; border-radius:7px; padding:5px 11px; font-size:12px; cursor:pointer; white-space:nowrap;
+    display:inline-flex; align-items:center; gap:5px; box-shadow:0 1px 4px rgba(0,0,0,.25); }
   .dinger-digest-btn:hover { filter:brightness(1.08); }
   .dd-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:1000;
     display:flex; align-items:flex-start; justify-content:center; padding:24px 16px; overflow:auto; }
@@ -3494,8 +3495,9 @@ function renderSchedule() {
     <b>Homer Score</b> = HR-betting confidence per game (park, weather, both lineups, starters, pens). 50 = average.
     <span class="hl-scale"></span> <span>colder → hotter</span>
   </div>` : '';
-  const digestBtn = `<div class="sched-toolbar"><button class="dinger-digest-btn" onclick="openDingerDigest()" title="A GMG-style slate sheet of today's pitching matchups, park/weather, Homer Scores, and our best HR leans — screenshot &amp; share">🚀 Dinger Digest</button></div>`;
-  contentEl.innerHTML = digestBtn + legend + sortBar + `<div class="sched-list">${sorted.map(g => {
+  const digestBtn = `<button class="dinger-digest-btn" onclick="openDingerDigest()" title="A GMG-style slate sheet of today's pitching matchups, park/weather, Homer Scores, and our best HR leans — screenshot &amp; share">🚀 Dinger Digest</button>`;
+  const toolbar = `<div class="sched-toolbar">${sortBar || '<span></span>'}${digestBtn}</div>`;
+  contentEl.innerHTML = legend + toolbar + `<div class="sched-list">${sorted.map(g => {
     const info = schedStatusInfo(g);
     const lineupStatus = schedLineupStatus(g);
     const awayLabel = g.away.teamAbbr || g.away.teamName, homeLabel = g.home.teamAbbr || g.home.teamName;
