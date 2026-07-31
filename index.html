@@ -3658,9 +3658,9 @@ function ddGameRows(g) {
   const homeHR = homeLeans.slice(0, 2).map(l => ddLeanLine(l)).join('');
   const hrHtml = (awayHR + (awayHR && homeHR ? '<div class="dd-lean-sep"></div>' : '') + homeHR) || '<span class="dd-empty">—</span>';
   const otherHtml = [...awayLeans.slice(2), ...homeLeans.slice(2)].map(l => ddLeanLine(l)).join('') || '<span class="dd-empty">—</span>';
-  // Offense-centric: each row is a TEAM'S BATS, and the dot grades how good a
-  // HR spot they're in vs the arm they face (the opposing starter). So the row
-  // shows the opposing SP, and the dot reads his HR9 + this team's own leans.
+  // Each row: the team's logo, THEIR OWN pitcher, then a dot grading how good a
+  // HR spot THAT TEAM'S BATS are in vs the opposing starter they face. So the
+  // dot reads the opposing SP's HR9 + this team's own leans.
   const awayDot = ddPitcherColor(g.home.probablePitcherId, awayLeans.length); // away bats vs home SP
   const homeDot = ddPitcherColor(g.away.probablePitcherId, homeLeans.length); // home bats vs away SP
   const awayAb = g.away.teamAbbr || g.away.teamName, homeAb = g.home.teamAbbr || g.home.teamName;
@@ -3682,7 +3682,7 @@ function ddGameRows(g) {
   }
   return `<tr class="dd-g-top">
       ${ddTeamCell(g.away)}
-      ${ddPitcherCell(g.home)}
+      ${ddPitcherCell(g.away)}
       <td class="dd-mm dd-cell-${awayDot}" title="How ${awayAb}'s bats project for HRs vs ${homeSP}">${ddDot(awayDot)}</td>
       ${wpCell}
       ${overallCell}
@@ -3692,7 +3692,7 @@ function ddGameRows(g) {
     </tr>
     <tr class="dd-g-bot">
       ${ddTeamCell(g.home)}
-      ${ddPitcherCell(g.away)}
+      ${ddPitcherCell(g.home)}
       <td class="dd-mm dd-cell-${homeDot}" title="How ${homeAb}'s bats project for HRs vs ${awaySP}">${ddDot(homeDot)}</td>
     </tr>`;
 }
@@ -3711,7 +3711,7 @@ function dingerDigestHtml() {
         <div class="dd-scroll">
           <table class="dd-table">
             <thead><tr>
-              <th>Team</th><th>Opp. SP</th><th>Bat<br>Matchup</th><th>Weather / Park</th><th>Overall</th><th>HR Leans</th><th>Notes</th><th>Other Leans</th>
+              <th>Team</th><th>Pitcher</th><th>Bat<br>Matchup</th><th>Weather / Park</th><th>Overall</th><th>HR Leans</th><th>Notes</th><th>Other Leans</th>
             </tr></thead>
             <tbody>${rows}</tbody>
           </table>
