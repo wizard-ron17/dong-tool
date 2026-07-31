@@ -1001,21 +1001,26 @@
   .dd-table th { background:#2b2b2b; color:#fff; font-weight:700; padding:7px 9px;
     border:1px solid #8f8f8f; text-align:center; font-size:11px; white-space:nowrap; }
   .dd-table td { border:1px solid #d2d2d2; padding:6px 9px; vertical-align:middle; }
+  .dd-team { text-align:center; width:32px; }
+  .dd-team .dd-logo { margin:0; }
   .dd-pitcher { white-space:nowrap; }
-  .dd-logo { width:19px; height:19px; vertical-align:middle; margin-right:7px; }
+  .dd-logo { width:19px; height:19px; vertical-align:middle; }
   .dd-p-name { font-weight:700; }
   .dd-p-sub { color:#8a8a8a; font-size:10px; margin-left:7px; }
   .dd-mm, .dd-wp, .dd-overall { text-align:center; }
   .dd-dot { display:inline-block; width:16px; height:16px; border-radius:50%; border:1px solid rgba(0,0,0,.28); }
   .dd-green { background:#4caf50; } .dd-yellow { background:#ffd54a; }
   .dd-red { background:#e5534b; } .dd-na { background:#dcdcdc; }
-  .dd-overall-pill { display:inline-block; min-width:28px; padding:3px 7px; border-radius:7px; font-weight:800; }
-  .dd-overall-pill.dd-green { background:#4caf50; color:#fff; }
-  .dd-overall-pill.dd-yellow { background:#ffd54a; color:#1a1a1a; }
-  .dd-overall-pill.dd-red { background:#e5534b; color:#fff; }
+  /* Muted result wash behind the three scored cells (matchup / weather / overall). */
+  .dd-cell-green  { background:#d8efd9; }
+  .dd-cell-yellow { background:#fdf1c9; }
+  .dd-cell-red    { background:#f7dcda; }
+  .dd-cell-dome   { background:#dde6ee; font-size:15px; }
+  .dd-overall-num { font-weight:800; font-size:14px; }
   .dd-leans { line-height:1.55; }
   .dd-lean { white-space:nowrap; }
   .dd-lean-top { font-weight:800; }
+  .dd-lean-sep { border-top:1px solid #cbcbcb; margin:4px 0; }
   .dd-other { color:#555; font-size:11.5px; line-height:1.5; }
   .dd-notes { min-width:70px; }
   .dd-empty { color:#c0c0c0; }
@@ -3374,36 +3379,51 @@ function ddLeanLine(l, bold) {
   const emoji = l.tier === 0 ? '🔒' : l.tier === 1 ? '🎯' : '⏳';
   return `<div class="dd-lean${bold ? ' dd-lean-top' : ''}">${emoji} ${ddAbbrevName(playerNames[l.pid] || l.pid)}</div>`;
 }
+function ddTeamCell(side) { return `<td class="dd-team">${ddLogoImg(side.teamAbbr)}</td>`; }
 function ddPitcherCell(side) {
   const nm = side.probablePitcher ? ddLastName(side.probablePitcher) : 'TBD';
   const stat = side.probablePitcherId ? pitcherStats[side.probablePitcherId] : null;
   const sub = stat ? `<span class="dd-p-sub">${stat.hr9} HR9</span>` : '';
-  return `<td class="dd-pitcher">${ddLogoImg(side.teamAbbr)}<span class="dd-p-name">${side.probablePitcher ? nm : 'TBD'}</span>${sub}</td>`;
+  return `<td class="dd-pitcher"><span class="dd-p-name">${side.probablePitcher ? nm : 'TBD'}</span>${sub}</td>`;
 }
 function ddGameRows(g) {
   const awayLeans = ddTeamLeans(g.away.teamAbbr), homeLeans = ddTeamLeans(g.home.teamAbbr);
-  const hrHtml = awayLeans.slice(0, 2).map((l, i) => ddLeanLine(l, i === 0)).join('')
-    + homeLeans.slice(0, 2).map((l, i) => ddLeanLine(l, i === 0)).join('');
-  const otherHtml = [...awayLeans.slice(2), ...homeLeans.slice(2)].map(l => ddLeanLine(l, false)).join('');
+  // Away leans, a divider, then home leans — a thin rule splits the two clubs.
+  const awayHR = awayLeans.slice(0, 2).map((l, i) => ddLeanLine(l, i === 0)).join('');
+  const homeHR = homeLeans.slice(0, 2).map((l, i) => ddLeanLine(l, i === 0)).join('');
+  const hrHtml = (awayHR + (awayHR && homeHR ? '<div class="dd-lean-sep"></div>' : '') + homeHR) || '<span class="dd-empty">—</span>';
+  const otherHtml = [...awayLeans.slice(2), ...homeLeans.slice(2)].map(l => ddLeanLine(l, false)).join('') || '<span class="dd-empty">—</span>';
   // Each starter faces the *other* team's bats, so his dot reads that side's leans.
   const awayDot = ddPitcherColor(g.away.probablePitcherId, homeLeans.length);
   const homeDot = ddPitcherColor(g.home.probablePitcherId, awayLeans.length);
   const homer = g.homer;
-  const overall = homer && homer.score != null
-    ? `<span class="dd-overall-pill dd-${ddOverallColor(homer.score)}">${homer.score}</span>` : '<span class="dd-empty">—</span>';
-  const wp = homer && homer.score != null ? ddDot(ddWeatherParkColor(homer.park, homer.weather)) : '<span class="dd-empty">—</span>';
+  const overallCell = homer && homer.score != null
+    ? `<td rowspan="2" class="dd-overall dd-cell-${ddOverallColor(homer.score)}"><span class="dd-overall-num">${homer.score}</span></td>`
+    : `<td rowspan="2" class="dd-overall"><span class="dd-empty">—</span></td>`;
+  // Indoor park → 🏟️ on a muted blue-grey wash instead of a weather dot.
+  let wpCell;
+  if (g.weather && g.weather.roofed) {
+    wpCell = `<td rowspan="2" class="dd-wp dd-cell-dome" title="Indoor / roof closed">🏟️</td>`;
+  } else if (homer && homer.score != null) {
+    const c = ddWeatherParkColor(homer.park, homer.weather);
+    wpCell = `<td rowspan="2" class="dd-wp dd-cell-${c}">${ddDot(c)}</td>`;
+  } else {
+    wpCell = `<td rowspan="2" class="dd-wp"><span class="dd-empty">—</span></td>`;
+  }
   return `<tr class="dd-g-top">
+      ${ddTeamCell(g.away)}
       ${ddPitcherCell(g.away)}
-      <td class="dd-mm">${ddDot(awayDot)}</td>
-      <td rowspan="2" class="dd-wp">${wp}</td>
-      <td rowspan="2" class="dd-overall">${overall}</td>
-      <td rowspan="2" class="dd-leans">${hrHtml || '<span class="dd-empty">—</span>'}</td>
+      <td class="dd-mm dd-cell-${awayDot}">${ddDot(awayDot)}</td>
+      ${wpCell}
+      ${overallCell}
+      <td rowspan="2" class="dd-leans">${hrHtml}</td>
       <td rowspan="2" class="dd-notes"></td>
-      <td rowspan="2" class="dd-other">${otherHtml || '<span class="dd-empty">—</span>'}</td>
+      <td rowspan="2" class="dd-other">${otherHtml}</td>
     </tr>
     <tr class="dd-g-bot">
+      ${ddTeamCell(g.home)}
       ${ddPitcherCell(g.home)}
-      <td class="dd-mm">${ddDot(homeDot)}</td>
+      <td class="dd-mm dd-cell-${homeDot}">${ddDot(homeDot)}</td>
     </tr>`;
 }
 function dingerDigestHtml() {
@@ -3421,7 +3441,7 @@ function dingerDigestHtml() {
         <div class="dd-scroll">
           <table class="dd-table">
             <thead><tr>
-              <th>Pitchers</th><th>Pitching<br>Matchup</th><th>Weather / Park</th><th>Overall</th><th>HR Leans</th><th>Notes</th><th>Other Leans</th>
+              <th>Team</th><th>Pitchers</th><th>Pitching<br>Matchup</th><th>Weather / Park</th><th>Overall</th><th>HR Leans</th><th>Notes</th><th>Other Leans</th>
             </tr></thead>
             <tbody>${rows}</tbody>
           </table>
