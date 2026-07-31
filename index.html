@@ -270,6 +270,10 @@
   .roll-toggle { background: var(--surface1); border: 1px solid var(--border2); color: var(--dim); font-family: var(--font-m); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em; padding: 0.15rem 0.55rem; border-radius: 20px; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; }
   .roll-toggle:hover { color: var(--text); }
   .roll-toggle.active { background: var(--surface2); border-color: var(--c); color: var(--c); }
+  .roll-toggle.disabled { opacity: 0.32; pointer-events: none; }
+  .ta-row { margin-top: 0.35rem; }
+  .ta-note { flex-basis: 100%; font-size: 0.58rem; line-height: 1.45; color: var(--dim); letter-spacing: 0.02em; text-transform: none; margin-top: 0.15rem; }
+  .ta-note b { color: var(--muted); font-weight: 600; }
   .team-filter-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.8rem; flex-wrap: wrap; }
   .team-filter-row label { font-size: 0.63rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
   select#team-select { background: var(--surface1); border: 1px solid var(--border2); color: var(--text); font-family: var(--font-m); font-size: 0.7rem; padding: 0.32rem 0.55rem; border-radius: 5px; cursor: pointer; outline: none; }
@@ -1179,6 +1183,11 @@
         <span>HR/GAME PER DAY · hover for game count · rolling avg:</span>
         <div class="roll-toggles" id="roll-toggles"></div>
       </div>
+      <div class="chart-legend ta-row">
+        <span>TECHNICALS:</span>
+        <div class="roll-toggles" id="ta-toggles"></div>
+        <span class="ta-note" id="ta-note"></span>
+      </div>
       <div id="hrg-leaderboard"></div>
     </div>
     <div id="stats-individual" style="display:none">
@@ -1470,6 +1479,14 @@ function toggleRollWindow(days) {
   if (activeRollWindows.has(days)) activeRollWindows.delete(days); else activeRollWindows.add(days);
   renderTotals();
 }
+// Technical-analysis overlays on the HR/game "chart" — Bollinger volatility
+// band (on by default; it's the headline) and the league-wide Chalk Index line
+// (off by default, ALL scope only).
+const BOLLINGER_WIN = 20;
+let volBandsOn = true;
+let chalkIdxOn = false;
+function toggleVolBands() { volBandsOn = !volBandsOn; renderTotals(); }
+function toggleChalkIdx() { chalkIdxOn = !chalkIdxOn; renderTotals(); }
 let lbSortCol      = null;
 let lbSortDir      = -1;
 let dueSortCol     = null;
@@ -2322,6 +2339,29 @@ function renderHRGLeaderboard(rows, label, withLogos) {
     }).join('')}</div>`;
 }
 
+// Sample standard deviation of a numeric series.
+function stddev(arr) {
+  if (arr.length < 2) return 0;
+  const m = arr.reduce((a, b) => a + b, 0) / arr.length;
+  return Math.sqrt(arr.reduce((a, b) => a + (b - m) * (b - m), 0) / (arr.length - 1));
+}
+// Rolling mean + sample σ over a trailing window, plus ±2σ Bollinger bounds.
+// Each index looks back up to (w-1) days, so the series is valid from day one
+// (short early windows, widening to the full window) — no leading gap.
+function rollingBands(data, w) {
+  const mean = [], upper = [], lower = [], sigma = [];
+  for (let i = 0; i < data.length; i++) {
+    const s = data.slice(Math.max(0, i - (w - 1)), i + 1);
+    const m = s.reduce((a, b) => a + b, 0) / s.length;
+    const sd = stddev(s);
+    mean.push(Math.round(m * 100) / 100);
+    sigma.push(sd);
+    upper.push(Math.round((m + 2 * sd) * 100) / 100);
+    lower.push(Math.round(Math.max(0, m - 2 * sd) * 100) / 100);
+  }
+  return { mean, upper, lower, sigma };
+}
+
 function renderTotals() {
   // Completed days only — mid-day, dailyHRs already holds today's early Finals,
   // which would end the chart (and skew tiles/rolling averages) with a
@@ -2357,17 +2397,42 @@ function renderTotals() {
 
   const avg = totalGames ? (seasonTotal/totalGames).toFixed(2) : '—';
   const scopeLabel = filterVal==='ALL' ? 'Season' : byVenue ? 'Ballpark' : 'Team';
+  function makeMA(data,w){return data.map((_,i)=>{const s=data.slice(Math.max(0,i-(w-1)),i+1);return Math.round(s.reduce((a,b)=>a+b,0)/s.length*100)/100;});}
+
+  // ── Technicals off the daily HR/G series: Bollinger volatility + trend ──
+  const bands = rollingBands(hrPerGame, BOLLINGER_WIN);
+  const sigNow = bands.sigma[bands.sigma.length-1] || 0;
+  const sigSeason = stddev(hrPerGame);
+  const volRatio = sigSeason ? sigNow / sigSeason : 1;
+  const vol = volRatio >= 1.2 ? {t:'Choppy', c:'var(--bad)'} : volRatio <= 0.82 ? {t:'Calm', c:'var(--good)'} : {t:'Normal', c:'var(--silver)'};
+  const ma7 = makeMA(hrPerGame, 7), ma30 = makeMA(hrPerGame, 30);
+  const tNow = ma7[ma7.length-1] ?? 0, tRef = ma30[ma30.length-1] ?? 0;
+  const tPct = tRef ? (tNow - tRef) / tRef * 100 : 0;
+  const trend = tPct <= -6 ? {t:'Cooling', c:'var(--bad)', a:'↓'} : tPct >= 6 ? {t:'Heating', c:'var(--good)', a:'↑'} : {t:'Flat', c:'var(--silver)', a:'→'};
+  const taChips = hrPerGame.length >= 10 ? `
+    <div class="stat-chip"><span class="stat-chip-val" style="color:${vol.c}">±${sigNow.toFixed(2)}</span><span class="stat-chip-lbl">Volatility ${BOLLINGER_WIN}d · ${vol.t}</span></div>
+    <div class="stat-chip"><span class="stat-chip-val" style="color:${trend.c}">${trend.a} ${tPct>=0?'+':''}${tPct.toFixed(0)}%</span><span class="stat-chip-lbl">Trend 7d vs 30d · ${trend.t}</span></div>` : '';
+
   document.getElementById('totals-stats').innerHTML = `
     <div class="stat-chip"><span class="stat-chip-val">${seasonTotal.toLocaleString()}</span><span class="stat-chip-lbl">${scopeLabel} HRs</span></div>
     <div class="stat-chip"><span class="stat-chip-val">${totalGames.toLocaleString()}</span><span class="stat-chip-lbl">Games</span></div>
     <div class="stat-chip"><span class="stat-chip-val">${avg}</span><span class="stat-chip-lbl">HR/Game</span></div>
-    <div class="stat-chip"><span class="stat-chip-val">${peakVal.toFixed(2)}</span><span class="stat-chip-lbl">Peak${peakDate?' · '+fmtDate(peakDate):''}</span></div>`;
+    <div class="stat-chip"><span class="stat-chip-val">${peakVal.toFixed(2)}</span><span class="stat-chip-lbl">Peak${peakDate?' · '+fmtDate(peakDate):''}</span></div>${taChips}`;
 
   document.getElementById('roll-toggles').innerHTML = ROLL_PRESETS.map(p =>
     `<button class="roll-toggle${activeRollWindows.has(p.days)?' active':''}" style="--c:${p.color}" onclick="toggleRollWindow(${p.days})">${p.days}d</button>`
   ).join('');
 
-  function makeMA(data,w){return data.map((_,i)=>{const s=data.slice(Math.max(0,i-(w-1)),i+1);return Math.round(s.reduce((a,b)=>a+b,0)/s.length*100)/100;});}
+  const chalkScopeOK = filterVal === 'ALL';
+  document.getElementById('ta-toggles').innerHTML =
+    `<button class="roll-toggle${volBandsOn?' active':''}" style="--c:#8794ab" onclick="toggleVolBands()">σ Bands</button>`
+    + `<button class="roll-toggle${chalkIdxOn?' active':''}${chalkScopeOK?'':' disabled'}" style="--c:#e08a3c" onclick="toggleChalkIdx()"${chalkScopeOK?'':' aria-disabled="true"'}>Chalk Index</button>`;
+  let taNote = '';
+  if (volBandsOn) taNote += `<b>σ Bands</b> — ${BOLLINGER_WIN}-day ±2σ Bollinger envelope. Band width is volatility; the green line poking outside it is a move beyond normal day-to-day noise. `;
+  if (chalkIdxOn && chalkScopeOK) taNote += `<b>Chalk Index</b> (orange, right axis) — median season-HR of each day's home-run hitters. High = the usual sluggers are carrying the slate; falling = the bombs are coming from underdog bats.`;
+  else if (chalkIdxOn) taNote += `<b>Chalk Index</b> is league-wide only — switch the filter back to All Teams to see it.`;
+  document.getElementById('ta-note').innerHTML = taNote;
+
   const activePresets = ROLL_PRESETS.filter(p => activeRollWindows.has(p.days));
 
   if (hrChart){hrChart.destroy();hrChart=null;}
@@ -2384,12 +2449,31 @@ function renderTotals() {
     order: activePresets.length - i,
   }));
 
+  // Datasets: main HR/G line, rolling MAs, then (optional) Bollinger band and
+  // Chalk Index. The band is three datasets — upper fills down to lower (fill
+  // '+1' = the very next dataset), so they must stay adjacent and in that order.
+  const datasets = [
+    {label:'HR/game',data:hrPerGame,borderColor:'#35c96e',backgroundColor:'rgba(53,201,110,0.07)',borderWidth:mob?1:1.5,pointRadius:0,tension:0.35,fill:true,order:99},
+    ...rollDatasets,
+  ];
+  if (volBandsOn) {
+    datasets.push(
+      {label:'+2σ', data:bands.upper, borderColor:'rgba(135,148,171,0.4)', borderWidth:1, borderDash:[3,3], pointRadius:0, tension:0.3, fill:'+1', backgroundColor:'rgba(135,148,171,0.11)', order:120},
+      {label:'−2σ', data:bands.lower, borderColor:'rgba(135,148,171,0.4)', borderWidth:1, borderDash:[3,3], pointRadius:0, tension:0.3, fill:false, order:120},
+      {label:`${BOLLINGER_WIN}d SMA`, data:bands.mean, borderColor:'rgba(190,200,215,0.5)', borderWidth:1, borderDash:[6,4], pointRadius:0, tension:0.3, fill:false, order:120},
+    );
+  }
+  if (chalkIdxOn && filterVal==='ALL') {
+    const chalkIdx = allDates.map(d => {
+      const tots = Object.keys(dailyHRs[d]||{}).map(pid => hrTotals[pid]||0).filter(v => v>0);
+      return tots.length ? Math.round(median(tots)*10)/10 : null;
+    });
+    datasets.push({label:'Chalk Idx', data:chalkIdx, yAxisID:'y1', borderColor:'#e08a3c', backgroundColor:'transparent', borderWidth:mob?1.5:2, pointRadius:0, tension:0.35, spanGaps:true, order:8});
+  }
+
   hrChart = new Chart(ctx, {
     type:'line',
-    data:{labels:sparseLabels, datasets:[
-      {label:'HR/game',data:hrPerGame,borderColor:'#35c96e',backgroundColor:'rgba(53,201,110,0.07)',borderWidth:mob?1:1.5,pointRadius:0,tension:0.35,fill:true,order:99},
-      ...rollDatasets
-    ]},
+    data:{labels:sparseLabels, datasets},
     options:{
       responsive:true, maintainAspectRatio:false,
       interaction:{mode:'index',intersect:false},
@@ -2400,16 +2484,19 @@ function renderTotals() {
           titleColor:'#c8d8ec',bodyColor:'#8aaac0',
           titleFont:{family:"'JetBrains Mono',monospace",size:mob?10:11},
           bodyFont:{family:"'JetBrains Mono',monospace",size:mob?10:11},
-          filter:mob?(item=>item.datasetIndex===0):()=>true,
+          // Keep hover clean: on mobile just the main line; on desktop hide the
+          // band's own σ/SMA rows (the band is a visual, not a number to read).
+          filter:(item)=>{ if(mob) return item.datasetIndex===0; const l=item.dataset.label||''; return !(l.endsWith('σ')||l.includes('SMA')); },
           callbacks:{
             title:(items)=>{const i=items[0].dataIndex;const date=dateSnapshot[i];const g=filterVal==='ALL'?(dailyGames[date]||0):(gameDaysMap[filterVal]?.[date]||0);return `${labels[i]}  ·  ${g}G`;},
-            label:(item)=>` ${item.raw.toFixed(2)} ${item.dataset.label==='HR/game'?'HR/G':item.dataset.label}`
+            label:(item)=>item.dataset.label==='Chalk Idx'?` ${item.raw==null?'—':item.raw.toFixed(1)} Chalk Idx`:` ${item.raw.toFixed(2)} ${item.dataset.label==='HR/game'?'HR/G':item.dataset.label}`
           }
         }
       },
       scales:{
         x:{grid:{color:'#16243a',lineWidth:0.5},ticks:{color:'#3a5570',font:{family:"'JetBrains Mono',monospace",size:mob?8:10},maxRotation:mob?55:45,autoSkip:false}},
-        y:{grid:{color:'#16243a',lineWidth:0.5},ticks:{color:'#3a5570',font:{family:"'JetBrains Mono',monospace",size:mob?8:10},callback:v=>v.toFixed(1),maxTicksLimit:mob?5:8},min:0}
+        y:{grid:{color:'#16243a',lineWidth:0.5},ticks:{color:'#3a5570',font:{family:"'JetBrains Mono',monospace",size:mob?8:10},callback:v=>v.toFixed(1),maxTicksLimit:mob?5:8},min:0},
+        y1:{display:!!(chalkIdxOn&&filterVal==='ALL'),position:'right',grid:{drawOnChartArea:false},ticks:{color:'#e08a3c',font:{family:"'JetBrains Mono',monospace",size:mob?8:10},maxTicksLimit:mob?5:7},min:0,title:{display:!mob,text:'Chalk Index (median season HR)',color:'#e08a3c',font:{size:9}}}
       }
     }
   });
