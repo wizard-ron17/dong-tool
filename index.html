@@ -3631,9 +3631,18 @@ function ddTeamLeans(teamAbbr) {
   out.sort((a, b) => a.tier - b.tier || a.ord - b.ord);
   return out;
 }
-function ddLeanLine(l, bold) {
+// Bold a lean only if he's a top-5 pick of the day on either board — a top-5
+// Chalk (proven) or top-5 Value (underpriced) name, wherever he shows up.
+function ddIsTopPick(pid) {
+  const cIdx = applyPicksFilters(picks, PICKS_FILTER_DEFAULTS).findIndex(r => r.pid === pid);
+  if (cIdx >= 0 && cIdx < 5) return true;
+  const vr = valueRank(pid);
+  return !!(vr && vr <= 5);
+}
+function ddLeanLine(l) {
   const emoji = l.tier === 0 ? '🔒' : l.tier === 1 ? '🎯' : '⏳';
-  return `<div class="dd-lean${bold ? ' dd-lean-top' : ''}">${emoji} ${ddAbbrevName(playerNames[l.pid] || l.pid)}</div>`;
+  const top = ddIsTopPick(l.pid);
+  return `<div class="dd-lean${top ? ' dd-lean-top' : ''}"${top ? ' title="Top-5 pick of the day (Chalk or Value)"' : ''}>${emoji} ${ddAbbrevName(playerNames[l.pid] || l.pid)}</div>`;
 }
 function ddTeamCell(side) { return `<td class="dd-team">${ddLogoImg(side.teamAbbr)}</td>`; }
 function ddPitcherCell(side) {
@@ -3645,10 +3654,10 @@ function ddPitcherCell(side) {
 function ddGameRows(g) {
   const awayLeans = ddTeamLeans(g.away.teamAbbr), homeLeans = ddTeamLeans(g.home.teamAbbr);
   // Away leans, a divider, then home leans — a thin rule splits the two clubs.
-  const awayHR = awayLeans.slice(0, 2).map((l, i) => ddLeanLine(l, i === 0)).join('');
-  const homeHR = homeLeans.slice(0, 2).map((l, i) => ddLeanLine(l, i === 0)).join('');
+  const awayHR = awayLeans.slice(0, 2).map(l => ddLeanLine(l)).join('');
+  const homeHR = homeLeans.slice(0, 2).map(l => ddLeanLine(l)).join('');
   const hrHtml = (awayHR + (awayHR && homeHR ? '<div class="dd-lean-sep"></div>' : '') + homeHR) || '<span class="dd-empty">—</span>';
-  const otherHtml = [...awayLeans.slice(2), ...homeLeans.slice(2)].map(l => ddLeanLine(l, false)).join('') || '<span class="dd-empty">—</span>';
+  const otherHtml = [...awayLeans.slice(2), ...homeLeans.slice(2)].map(l => ddLeanLine(l)).join('') || '<span class="dd-empty">—</span>';
   // Offense-centric: each row is a TEAM'S BATS, and the dot grades how good a
   // HR spot they're in vs the arm they face (the opposing starter). So the row
   // shows the opposing SP, and the dot reads his HR9 + this team's own leans.
