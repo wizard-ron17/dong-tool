@@ -274,8 +274,8 @@
   .ta-row { margin-top: 0.35rem; }
   .ta-note { flex-basis: 100%; font-size: 0.58rem; line-height: 1.45; color: var(--dim); letter-spacing: 0.02em; text-transform: none; margin-top: 0.15rem; }
   .ta-note b { color: var(--muted); font-weight: 600; }
-  .macd-wrap { height: 130px; margin-top: 0.4rem; }
-  @media (max-width: 600px) { .macd-wrap { height: 120px; } }
+  .macd-wrap { height: 200px; margin-top: 0.4rem; }
+  @media (max-width: 600px) { .macd-wrap { height: 175px; } }
   .macd-title { position: absolute; top: 0.4rem; left: 0.7rem; font-family: var(--font-m); font-size: 0.56rem; letter-spacing: 0.08em; color: var(--dim); text-transform: uppercase; z-index: 1; }
   .team-filter-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.8rem; flex-wrap: wrap; }
   .team-filter-row label { font-size: 0.63rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
@@ -1494,11 +1494,9 @@ const BOLLINGER_WIN = 20;
 let volBandsOn = true;
 let chalkIdxOn = false;
 let macdOn = false;
-let crossesOn = true;
 function toggleVolBands() { volBandsOn = !volBandsOn; renderTotals(); }
 function toggleChalkIdx() { chalkIdxOn = !chalkIdxOn; renderTotals(); }
 function toggleMacd() { macdOn = !macdOn; renderTotals(); }
-function toggleCrosses() { crossesOn = !crossesOn; renderTotals(); }
 let lbSortCol      = null;
 let lbSortDir      = -1;
 let dueSortCol     = null;
@@ -2428,9 +2426,11 @@ function renderTotals() {
   const sigSeason = stddev(hrPerGame);
   const volRatio = sigSeason ? sigNow / sigSeason : 1;
   const vol = volRatio >= 1.2 ? {t:'Choppy', c:'var(--bad)'} : volRatio <= 0.82 ? {t:'Calm', c:'var(--good)'} : {t:'Normal', c:'var(--silver)'};
-  const ma7 = makeMA(hrPerGame, 7), ma30 = makeMA(hrPerGame, 30);
 
   // MACD (12/26/9) — fast EMA vs slow EMA, and the histogram vs its signal line.
+  // This subsumes the golden/death cross idea: MACD line above zero == 12d EMA
+  // above 26d EMA (a golden-cross state), and it flips smoothly instead of
+  // whipsawing on discrete days — so we don't carry a separate crosses overlay.
   const emaFast = emaSeries(hrPerGame, 12), emaSlow = emaSeries(hrPerGame, 26);
   const macdLine = hrPerGame.map((_, i) => Math.round((emaFast[i] - emaSlow[i]) * 1000) / 1000);
   const signalLine = emaSeries(macdLine, 9).map(v => Math.round(v * 1000) / 1000);
@@ -2439,18 +2439,6 @@ function renderTotals() {
   // Stance: histogram sign is the momentum trigger; the deadband keeps a flat
   // market at Neutral rather than flip-flopping on rounding.
   const stance = hNow > 0.03 ? {t:'Lean Heavy', c:'var(--good)', e:'🟢'} : hNow < -0.03 ? {t:'Go Light', c:'var(--bad)', e:'🔴'} : {t:'Neutral', c:'var(--silver)', e:'⚪'};
-
-  // Golden (7d crosses above 30d) / death (below) crosses — markers sit on the
-  // 30d line at the crossover day. Regime = which side we're on right now.
-  const goldenPts = hrPerGame.map(() => null), deathPts = hrPerGame.map(() => null);
-  let lastCross = null;
-  // Start once the 30d MA is a real 30-day average — earlier "crosses" are just
-  // two short partial windows crossing, which is noise, not a regime turn.
-  for (let i = 30; i < hrPerGame.length; i++) {
-    const prev = ma7[i-1] - ma30[i-1], cur = ma7[i] - ma30[i];
-    if (prev <= 0 && cur > 0) { goldenPts[i] = ma30[i]; lastCross = {type:'Golden', e:'🟡', i}; }
-    if (prev >= 0 && cur < 0) { deathPts[i]  = ma30[i]; lastCross = {type:'Death',  e:'🔴', i}; }
-  }
 
   const taChips = hrPerGame.length >= 10 ? `
     <div class="stat-chip"><span class="stat-chip-val" style="color:${vol.c}">±${sigNow.toFixed(2)}</span><span class="stat-chip-lbl">Volatility ${BOLLINGER_WIN}d · ${vol.t}</span></div>
@@ -2470,12 +2458,10 @@ function renderTotals() {
   document.getElementById('ta-toggles').innerHTML =
     `<button class="roll-toggle${volBandsOn?' active':''}" style="--c:#8794ab" onclick="toggleVolBands()">σ Bands</button>`
     + `<button class="roll-toggle${macdOn?' active':''}" style="--c:#3bc9e0" onclick="toggleMacd()">MACD</button>`
-    + `<button class="roll-toggle${crossesOn?' active':''}" style="--c:#f0c040" onclick="toggleCrosses()">Crosses</button>`
     + `<button class="roll-toggle${chalkIdxOn?' active':''}${chalkScopeOK?'':' disabled'}" style="--c:#e08a3c" onclick="toggleChalkIdx()"${chalkScopeOK?'':' aria-disabled="true"'}>Chalk Index</button>`;
   let taNote = '';
   if (volBandsOn) taNote += `<b>σ Bands</b> — ${BOLLINGER_WIN}-day ±2σ Bollinger envelope. Band width is volatility; the green line poking outside it is a move beyond normal day-to-day noise. `;
-  if (macdOn) taNote += `<b>MACD</b> (panel below) — histogram above zero = momentum accelerating up (lean into HR bets); below zero = rolling over (go light). `;
-  if (crossesOn) taNote += `<b>Crosses</b> — 🟡 golden (7d over 30d, bullish) / 🔴 death (7d under 30d, bearish).${lastCross ? ` Last: ${lastCross.e} ${lastCross.type} on ${labels[lastCross.i]}.` : ''} `;
+  if (macdOn) taNote += `<b>MACD</b> (panel below) — histogram above zero = momentum accelerating up (lean into HR bets); below zero = rolling over (go light). MACD line above zero is a golden-cross state (fast EMA over slow); below is a death cross. `;
   if (chalkIdxOn && chalkScopeOK) taNote += `<b>Chalk Index</b> (orange, right axis) — median season-HR of each day's home-run hitters. High = the usual sluggers are carrying the slate; falling = the bombs are coming from underdog bats.`;
   else if (chalkIdxOn) taNote += `<b>Chalk Index</b> is league-wide only — switch the filter back to All Teams to see it.`;
   document.getElementById('ta-note').innerHTML = taNote;
@@ -2517,13 +2503,6 @@ function renderTotals() {
     });
     datasets.push({label:'Chalk Idx', data:chalkIdx, yAxisID:'y1', borderColor:'#e08a3c', backgroundColor:'transparent', borderWidth:mob?1.5:2, pointRadius:0, tension:0.35, spanGaps:true, order:8});
   }
-  if (crossesOn) {
-    // Triangle up = golden, inverted red triangle = death — sit on the 30d line.
-    datasets.push(
-      {label:'Golden', data:goldenPts, borderColor:'#f0c040', backgroundColor:'#f0c040', pointStyle:'triangle', pointRadius:mob?6:8, pointHoverRadius:mob?8:10, showLine:false, order:2},
-      {label:'Death',  data:deathPts,  borderColor:'#d61f3c', backgroundColor:'#d61f3c', pointStyle:'triangle', pointRotation:180, pointRadius:mob?6:8, pointHoverRadius:mob?8:10, showLine:false, order:2},
-    );
-  }
 
   hrChart = new Chart(ctx, {
     type:'line',
@@ -2540,7 +2519,7 @@ function renderTotals() {
           bodyFont:{family:"'JetBrains Mono',monospace",size:mob?10:11},
           // Keep hover clean: on mobile just the main line; on desktop hide the
           // band's own σ/SMA rows (the band is a visual, not a number to read).
-          filter:(item)=>{ if(mob) return item.datasetIndex===0; const l=item.dataset.label||''; return !(l.endsWith('σ')||l.includes('SMA')||l==='Golden'||l==='Death'); },
+          filter:(item)=>{ if(mob) return item.datasetIndex===0; const l=item.dataset.label||''; return !(l.endsWith('σ')||l.includes('SMA')); },
           callbacks:{
             title:(items)=>{const i=items[0].dataIndex;const date=dateSnapshot[i];const g=filterVal==='ALL'?(dailyGames[date]||0):(gameDaysMap[filterVal]?.[date]||0);return `${labels[i]}  ·  ${g}G`;},
             label:(item)=>item.dataset.label==='Chalk Idx'?` ${item.raw==null?'—':item.raw.toFixed(1)} Chalk Idx`:` ${item.raw.toFixed(2)} ${item.dataset.label==='HR/game'?'HR/G':item.dataset.label}`
@@ -2567,8 +2546,8 @@ function renderTotals() {
       data:{labels:sparseLabels, datasets:[
         {type:'bar', label:'Hist', data:macdHist, order:10,
          backgroundColor:macdHist.map(v=>v>=0?'rgba(53,201,110,0.55)':'rgba(214,31,60,0.5)'), borderWidth:0, barPercentage:1, categoryPercentage:1},
-        {type:'line', label:'MACD',   data:macdLine,   borderColor:'#3bc9e0', borderWidth:mob?1.2:1.6, pointRadius:0, tension:0.3, order:1},
-        {type:'line', label:'Signal', data:signalLine, borderColor:'#e0507a', borderWidth:mob?1.2:1.6, pointRadius:0, tension:0.3, order:1},
+        {type:'line', label:'MACD',   data:macdLine,   borderColor:'#3bc9e0', borderWidth:mob?1.8:2.4, pointRadius:0, tension:0.25, order:1},
+        {type:'line', label:'Signal', data:signalLine, borderColor:'#e0507a', borderWidth:mob?1.8:2.4, pointRadius:0, tension:0.25, order:1},
       ]},
       options:{
         responsive:true, maintainAspectRatio:false,
