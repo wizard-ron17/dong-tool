@@ -15,15 +15,23 @@ on:
 permissions:
   contents: write
 
+# Serialize runs so two builds (e.g. a cron tick overlapping a manual trigger)
+# can never race to push data.json to main — the classic "fetch first" rejection.
+# cancel-in-progress:false lets the running build finish and push; the newer run
+# queues and then checks out the just-pushed main, so it rebases cleanly.
+concurrency:
+  group: build-data
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Build data.json
         run: node scripts/build-data.js
@@ -33,5 +41,15 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data.json sw.js
-          git diff --staged --quiet || git commit -m "Update data.json"
-          git push
+          git diff --staged --quiet && { echo "No changes to commit"; exit 0; }
+          git commit -m "Update data.json"
+          # main can still move under us if an unrelated commit (a code push)
+          # lands during the ~3-min build. We only touch generated files
+          # (data.json, sw.js), so replaying our commit onto the latest main is
+          # conflict-free — rebase and retry rather than failing the whole build.
+          for attempt in 1 2 3 4 5; do
+            if git push; then echo "Pushed on attempt $attempt"; exit 0; fi
+            echo "Push rejected (attempt $attempt) — rebasing onto latest main"
+            git pull --rebase --autostash origin main
+          done
+          echo "Failed to push after 5 attempts"; exit 1
