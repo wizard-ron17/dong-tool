@@ -274,6 +274,9 @@
   .ta-row { margin-top: 0.35rem; }
   .ta-note { flex-basis: 100%; font-size: 0.58rem; line-height: 1.45; color: var(--dim); letter-spacing: 0.02em; text-transform: none; margin-top: 0.15rem; }
   .ta-note b { color: var(--muted); font-weight: 600; }
+  .macd-wrap { height: 130px; margin-top: 0.4rem; }
+  @media (max-width: 600px) { .macd-wrap { height: 120px; } }
+  .macd-title { position: absolute; top: 0.4rem; left: 0.7rem; font-family: var(--font-m); font-size: 0.56rem; letter-spacing: 0.08em; color: var(--dim); text-transform: uppercase; z-index: 1; }
   .team-filter-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.8rem; flex-wrap: wrap; }
   .team-filter-row label { font-size: 0.63rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
   select#team-select { background: var(--surface1); border: 1px solid var(--border2); color: var(--text); font-family: var(--font-m); font-size: 0.7rem; padding: 0.32rem 0.55rem; border-radius: 5px; cursor: pointer; outline: none; }
@@ -1179,6 +1182,10 @@
       <div class="chart-wrap">
         <canvas id="hrChart" role="img" aria-label="HR per game per day line chart"></canvas>
       </div>
+      <div class="chart-wrap macd-wrap" id="macd-wrap" style="display:none">
+        <div class="macd-title" id="macd-title">MACD (12/26/9) · momentum</div>
+        <canvas id="macdChart" role="img" aria-label="MACD momentum histogram"></canvas>
+      </div>
       <div class="chart-legend">
         <span>HR/GAME PER DAY · hover for game count · rolling avg:</span>
         <div class="roll-toggles" id="roll-toggles"></div>
@@ -1464,6 +1471,7 @@ let picksSubTab = 'today';
 let activeNav      = 'pairs';
 let activePairSize = 2;
 let hrChart        = null;
+let macdChart      = null;
 
 const ROLL_PRESETS = [
   { days: 3,  color: '#3bc9e0', defaultOn: false },
@@ -1485,8 +1493,12 @@ function toggleRollWindow(days) {
 const BOLLINGER_WIN = 20;
 let volBandsOn = true;
 let chalkIdxOn = false;
+let macdOn = false;
+let crossesOn = true;
 function toggleVolBands() { volBandsOn = !volBandsOn; renderTotals(); }
 function toggleChalkIdx() { chalkIdxOn = !chalkIdxOn; renderTotals(); }
+function toggleMacd() { macdOn = !macdOn; renderTotals(); }
+function toggleCrosses() { crossesOn = !crossesOn; renderTotals(); }
 let lbSortCol      = null;
 let lbSortDir      = -1;
 let dueSortCol     = null;
@@ -2339,6 +2351,14 @@ function renderHRGLeaderboard(rows, label, withLogos) {
     }).join('')}</div>`;
 }
 
+// Exponential moving average — the basis for MACD (reacts faster than an SMA
+// to recent days, which is what you want out of a momentum read).
+function emaSeries(a, w) {
+  if (!a.length) return [];
+  const k = 2 / (w + 1);
+  let e = a[0];
+  return a.map((v, i) => i === 0 ? (e = v) : (e = v * k + e * (1 - k)));
+}
 // Sample standard deviation of a numeric series.
 function stddev(arr) {
   if (arr.length < 2) return 0;
@@ -2399,19 +2419,42 @@ function renderTotals() {
   const scopeLabel = filterVal==='ALL' ? 'Season' : byVenue ? 'Ballpark' : 'Team';
   function makeMA(data,w){return data.map((_,i)=>{const s=data.slice(Math.max(0,i-(w-1)),i+1);return Math.round(s.reduce((a,b)=>a+b,0)/s.length*100)/100;});}
 
-  // ── Technicals off the daily HR/G series: Bollinger volatility + trend ──
+  // ── Technicals off the daily HR/G series ────────────────────────────────
+  // Volatility (Bollinger σ), momentum (MACD), and golden/death crosses. The
+  // backtest on this season's 123 days: buy-side regimes (MACD>signal, 7d>30d)
+  // preceded ~0.3 more HR/game than sell-side — so these earn a "slate stance."
   const bands = rollingBands(hrPerGame, BOLLINGER_WIN);
   const sigNow = bands.sigma[bands.sigma.length-1] || 0;
   const sigSeason = stddev(hrPerGame);
   const volRatio = sigSeason ? sigNow / sigSeason : 1;
   const vol = volRatio >= 1.2 ? {t:'Choppy', c:'var(--bad)'} : volRatio <= 0.82 ? {t:'Calm', c:'var(--good)'} : {t:'Normal', c:'var(--silver)'};
   const ma7 = makeMA(hrPerGame, 7), ma30 = makeMA(hrPerGame, 30);
-  const tNow = ma7[ma7.length-1] ?? 0, tRef = ma30[ma30.length-1] ?? 0;
-  const tPct = tRef ? (tNow - tRef) / tRef * 100 : 0;
-  const trend = tPct <= -6 ? {t:'Cooling', c:'var(--bad)', a:'↓'} : tPct >= 6 ? {t:'Heating', c:'var(--good)', a:'↑'} : {t:'Flat', c:'var(--silver)', a:'→'};
+
+  // MACD (12/26/9) — fast EMA vs slow EMA, and the histogram vs its signal line.
+  const emaFast = emaSeries(hrPerGame, 12), emaSlow = emaSeries(hrPerGame, 26);
+  const macdLine = hrPerGame.map((_, i) => Math.round((emaFast[i] - emaSlow[i]) * 1000) / 1000);
+  const signalLine = emaSeries(macdLine, 9).map(v => Math.round(v * 1000) / 1000);
+  const macdHist = macdLine.map((v, i) => Math.round((v - signalLine[i]) * 1000) / 1000);
+  const hNow = macdHist[macdHist.length-1] ?? 0;
+  // Stance: histogram sign is the momentum trigger; the deadband keeps a flat
+  // market at Neutral rather than flip-flopping on rounding.
+  const stance = hNow > 0.03 ? {t:'Lean Heavy', c:'var(--good)', e:'🟢'} : hNow < -0.03 ? {t:'Go Light', c:'var(--bad)', e:'🔴'} : {t:'Neutral', c:'var(--silver)', e:'⚪'};
+
+  // Golden (7d crosses above 30d) / death (below) crosses — markers sit on the
+  // 30d line at the crossover day. Regime = which side we're on right now.
+  const goldenPts = hrPerGame.map(() => null), deathPts = hrPerGame.map(() => null);
+  let lastCross = null;
+  // Start once the 30d MA is a real 30-day average — earlier "crosses" are just
+  // two short partial windows crossing, which is noise, not a regime turn.
+  for (let i = 30; i < hrPerGame.length; i++) {
+    const prev = ma7[i-1] - ma30[i-1], cur = ma7[i] - ma30[i];
+    if (prev <= 0 && cur > 0) { goldenPts[i] = ma30[i]; lastCross = {type:'Golden', e:'🟡', i}; }
+    if (prev >= 0 && cur < 0) { deathPts[i]  = ma30[i]; lastCross = {type:'Death',  e:'🔴', i}; }
+  }
+
   const taChips = hrPerGame.length >= 10 ? `
     <div class="stat-chip"><span class="stat-chip-val" style="color:${vol.c}">±${sigNow.toFixed(2)}</span><span class="stat-chip-lbl">Volatility ${BOLLINGER_WIN}d · ${vol.t}</span></div>
-    <div class="stat-chip"><span class="stat-chip-val" style="color:${trend.c}">${trend.a} ${tPct>=0?'+':''}${tPct.toFixed(0)}%</span><span class="stat-chip-lbl">Trend 7d vs 30d · ${trend.t}</span></div>` : '';
+    <div class="stat-chip"><span class="stat-chip-val" style="color:${stance.c}">${stance.e} ${hNow>=0?'+':''}${hNow.toFixed(2)}</span><span class="stat-chip-lbl">Momentum · ${stance.t}</span></div>` : '';
 
   document.getElementById('totals-stats').innerHTML = `
     <div class="stat-chip"><span class="stat-chip-val">${seasonTotal.toLocaleString()}</span><span class="stat-chip-lbl">${scopeLabel} HRs</span></div>
@@ -2426,9 +2469,13 @@ function renderTotals() {
   const chalkScopeOK = filterVal === 'ALL';
   document.getElementById('ta-toggles').innerHTML =
     `<button class="roll-toggle${volBandsOn?' active':''}" style="--c:#8794ab" onclick="toggleVolBands()">σ Bands</button>`
+    + `<button class="roll-toggle${macdOn?' active':''}" style="--c:#3bc9e0" onclick="toggleMacd()">MACD</button>`
+    + `<button class="roll-toggle${crossesOn?' active':''}" style="--c:#f0c040" onclick="toggleCrosses()">Crosses</button>`
     + `<button class="roll-toggle${chalkIdxOn?' active':''}${chalkScopeOK?'':' disabled'}" style="--c:#e08a3c" onclick="toggleChalkIdx()"${chalkScopeOK?'':' aria-disabled="true"'}>Chalk Index</button>`;
   let taNote = '';
   if (volBandsOn) taNote += `<b>σ Bands</b> — ${BOLLINGER_WIN}-day ±2σ Bollinger envelope. Band width is volatility; the green line poking outside it is a move beyond normal day-to-day noise. `;
+  if (macdOn) taNote += `<b>MACD</b> (panel below) — histogram above zero = momentum accelerating up (lean into HR bets); below zero = rolling over (go light). `;
+  if (crossesOn) taNote += `<b>Crosses</b> — 🟡 golden (7d over 30d, bullish) / 🔴 death (7d under 30d, bearish).${lastCross ? ` Last: ${lastCross.e} ${lastCross.type} on ${labels[lastCross.i]}.` : ''} `;
   if (chalkIdxOn && chalkScopeOK) taNote += `<b>Chalk Index</b> (orange, right axis) — median season-HR of each day's home-run hitters. High = the usual sluggers are carrying the slate; falling = the bombs are coming from underdog bats.`;
   else if (chalkIdxOn) taNote += `<b>Chalk Index</b> is league-wide only — switch the filter back to All Teams to see it.`;
   document.getElementById('ta-note').innerHTML = taNote;
@@ -2470,6 +2517,13 @@ function renderTotals() {
     });
     datasets.push({label:'Chalk Idx', data:chalkIdx, yAxisID:'y1', borderColor:'#e08a3c', backgroundColor:'transparent', borderWidth:mob?1.5:2, pointRadius:0, tension:0.35, spanGaps:true, order:8});
   }
+  if (crossesOn) {
+    // Triangle up = golden, inverted red triangle = death — sit on the 30d line.
+    datasets.push(
+      {label:'Golden', data:goldenPts, borderColor:'#f0c040', backgroundColor:'#f0c040', pointStyle:'triangle', pointRadius:mob?6:8, pointHoverRadius:mob?8:10, showLine:false, order:2},
+      {label:'Death',  data:deathPts,  borderColor:'#d61f3c', backgroundColor:'#d61f3c', pointStyle:'triangle', pointRotation:180, pointRadius:mob?6:8, pointHoverRadius:mob?8:10, showLine:false, order:2},
+    );
+  }
 
   hrChart = new Chart(ctx, {
     type:'line',
@@ -2486,7 +2540,7 @@ function renderTotals() {
           bodyFont:{family:"'JetBrains Mono',monospace",size:mob?10:11},
           // Keep hover clean: on mobile just the main line; on desktop hide the
           // band's own σ/SMA rows (the band is a visual, not a number to read).
-          filter:(item)=>{ if(mob) return item.datasetIndex===0; const l=item.dataset.label||''; return !(l.endsWith('σ')||l.includes('SMA')); },
+          filter:(item)=>{ if(mob) return item.datasetIndex===0; const l=item.dataset.label||''; return !(l.endsWith('σ')||l.includes('SMA')||l==='Golden'||l==='Death'); },
           callbacks:{
             title:(items)=>{const i=items[0].dataIndex;const date=dateSnapshot[i];const g=filterVal==='ALL'?(dailyGames[date]||0):(gameDaysMap[filterVal]?.[date]||0);return `${labels[i]}  ·  ${g}G`;},
             label:(item)=>item.dataset.label==='Chalk Idx'?` ${item.raw==null?'—':item.raw.toFixed(1)} Chalk Idx`:` ${item.raw.toFixed(2)} ${item.dataset.label==='HR/game'?'HR/G':item.dataset.label}`
@@ -2500,6 +2554,46 @@ function renderTotals() {
       }
     }
   });
+
+  // ── MACD sub-panel (its own zero-centered scale, so it can't share the main
+  // axis) — built only when toggled on; histogram bars colored by sign. ──────
+  if (macdChart) { macdChart.destroy(); macdChart = null; }
+  const macdWrap = document.getElementById('macd-wrap');
+  macdWrap.style.display = macdOn ? '' : 'none';
+  if (macdOn) {
+    const ctx2 = document.getElementById('macdChart').getContext('2d');
+    macdChart = new Chart(ctx2, {
+      type:'bar',
+      data:{labels:sparseLabels, datasets:[
+        {type:'bar', label:'Hist', data:macdHist, order:10,
+         backgroundColor:macdHist.map(v=>v>=0?'rgba(53,201,110,0.55)':'rgba(214,31,60,0.5)'), borderWidth:0, barPercentage:1, categoryPercentage:1},
+        {type:'line', label:'MACD',   data:macdLine,   borderColor:'#3bc9e0', borderWidth:mob?1.2:1.6, pointRadius:0, tension:0.3, order:1},
+        {type:'line', label:'Signal', data:signalLine, borderColor:'#e0507a', borderWidth:mob?1.2:1.6, pointRadius:0, tension:0.3, order:1},
+      ]},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false},
+        plugins:{
+          legend:{display:false},
+          tooltip:{
+            backgroundColor:'#0c1424',borderColor:'#1e3050',borderWidth:1,
+            titleColor:'#c8d8ec',bodyColor:'#8aaac0',
+            titleFont:{family:"'JetBrains Mono',monospace",size:mob?10:11},
+            bodyFont:{family:"'JetBrains Mono',monospace",size:mob?10:11},
+            filter:mob?(item=>item.dataset.label==='Hist'):()=>true,
+            callbacks:{
+              title:(items)=>{const i=items[0].dataIndex;return labels[i];},
+              label:(item)=>` ${item.raw>=0?'+':''}${(item.raw??0).toFixed(3)} ${item.dataset.label}`
+            }
+          }
+        },
+        scales:{
+          x:{grid:{color:'#16243a',lineWidth:0.5},ticks:{color:'#3a5570',font:{family:"'JetBrains Mono',monospace",size:mob?8:10},maxRotation:mob?55:45,autoSkip:false}},
+          y:{grid:{color:(c)=>c.tick.value===0?'#2f4d70':'#16243a',lineWidth:0.5},ticks:{color:'#3a5570',font:{family:"'JetBrains Mono',monospace",size:mob?8:10},maxTicksLimit:mob?4:6}}
+        }
+      }
+    });
+  }
 }
 
 // ── LEADERS ────────────────────────────────────────────────────────────
