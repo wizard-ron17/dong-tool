@@ -4407,8 +4407,13 @@ function togglePenList() {
   if (chev) chev.textContent = open ? '▴' : '▾';
 }
 
-function pickModalHtml(r) {
-  const cls = pickScoreClass(r.pickScore);
+function pickModalHtml(r, board = 'chalk') {
+  // The headline reflects the board you opened from: Chalk shows Pick Score,
+  // Value shows the Value score (blast surplus × matchup) it was ranked by.
+  const isValue = board === 'value';
+  const headScore = isValue ? (r.valueScore ?? 0) : r.pickScore;
+  const headCls   = isValue ? valueScoreClass(headScore) : pickScoreClass(r.pickScore);
+  const headLbl   = isValue ? 'Value Score' : 'Pick Score';
   const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_120,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
   const leagueHRG = leagueHRPerGame();
   const venueGames = Object.values(venueGameDays[r.venue] ?? {}).reduce((a,b)=>a+b,0);
@@ -4493,12 +4498,12 @@ function pickModalHtml(r) {
           <img src="${photoUrl}" alt="">
           <div class="pk-name">${playerNames[r.pid] || r.pid}</div>
           <div class="pk-sub">${teamLogoImg(r.team,'team-logo')}${r.team} · Bats ${batHand}${injuryBadge(r.pid, true)}${lineupBadge(r.pid, true)}</div>
-          <div class="pk-stat"><span class="hrg-val great">${r.hrs} HR</span>${abPerHR ? ` <span class="pk-stat-dim">· ${abPerHR} AB/HR</span>` : ''}${r.blastPct != null ? ` <span class="pk-stat-dim">· <span title="Blast% — squared-up + fast-swing rate, the swing that makes homers (leading indicator of power)">💥 ${Math.round(r.blastPct*100)}% Blast</span></span>` : ''}</div>
+          <div class="pk-stat"><span class="hrg-val great">${r.hrs} HR</span>${abPerHR ? ` <span class="pk-stat-dim">· ${abPerHR} AB/HR</span>` : ''}${r.blastPct != null ? ` <span class="pk-stat-dim">· <span title="Blast% — squared-up + fast-swing rate, the swing that makes homers (leading indicator of power)">💥 ${Math.round(r.blastPct*100)}% Blast</span></span>` : ''}${isValue && r.blastSurplus > 1.04 ? ` <span class="pk-stat-dim" title="Blast surplus — his blast-implied HR rate is this far above his actual HR/AB; the market prices off HR totals, so it hasn't caught up = underpriced">· 📈 +${Math.round((r.blastSurplus-1)*100)}% vs results</span>` : ''}</div>
         </div>
         <div class="pk-vs">
           <span class="pk-vs-txt">VS</span>
-          <span class="pick-score-big ${cls}">${r.pickScore.toFixed(1)}</span>
-          <span class="due-modal-headline-lbl">Pick Score</span>
+          <span class="pick-score-big ${headCls}">${headScore.toFixed(1)}</span>
+          <span class="due-modal-headline-lbl">${headLbl}</span>
         </div>
         <div class="pk-side">
           <img src="${playerPhotoUrl(r.oppPid)}" alt="">
@@ -4552,10 +4557,14 @@ function closePickModal() {
   document.getElementById('pick-modal-backdrop')?.remove();
   document.removeEventListener('keydown', pickModalEscHandler);
 }
-function openPickModal(pid) {
-  const r = picks.find(x => x.pid === pid) || value.find(x => x.pid === pid);
+function openPickModal(pid, board = 'chalk') {
+  // For the Value board, prefer the value row (it carries valueScore/surplus);
+  // for Chalk, prefer the picks row. Either row has all the shared matchup data.
+  const r = board === 'value'
+    ? (value.find(x => x.pid === pid) || picks.find(x => x.pid === pid))
+    : (picks.find(x => x.pid === pid) || value.find(x => x.pid === pid));
   if (!r) return;
-  document.body.insertAdjacentHTML('beforeend', pickModalHtml(r));
+  document.body.insertAdjacentHTML('beforeend', pickModalHtml(r, board));
   document.addEventListener('keydown', pickModalEscHandler);
 }
 
@@ -4626,7 +4635,7 @@ function renderValueBoard() {
     const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const cls = valueScoreClass(r.valueScore ?? 0);
     const hrBadge = `<span class="pick-ind" title="Season HR">${r.hrs ?? 0} HR</span>`;
-    return `<div class="lbc-card due-row-clickable" onclick="openPickModal('${r.pid}')">
+    return `<div class="lbc-card due-row-clickable" onclick="openPickModal('${r.pid}','value')">
       <div class="lbc-top">
         <span class="lbc-rank ${rankClass(i+1)}">${i+1}</span>
         <img class="lbc-photo" src="${photo}" alt="">
