@@ -476,6 +476,12 @@
   .due-filter-chip { background: var(--surface1); border: 1px solid var(--border2); color: var(--dim); font-family: var(--font-m); font-size: 0.62rem; font-weight: 700; padding: 0.18rem 0.55rem; border-radius: 20px; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; }
   .due-filter-chip:hover { color: var(--text); }
   .due-filter-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  /* Disabled badge chip: dimmed, but keep hover so its "Mix mode only" tooltip
+     still shows (the click is blocked in JS, not via pointer-events). */
+  .due-filter-chip.disabled { opacity: 0.3; cursor: not-allowed; }
+  /* Mode toggle reads as an outlined segment, distinct from filled badge chips. */
+  .pairs-badge-mode-wrap { display: inline-flex; align-items: center; gap: 0.3rem; padding-right: 0.55rem; margin-right: 0.15rem; border-right: 1px solid var(--border2); }
+  .mode-chip.active { background: rgba(53,201,110,0.14); border-color: var(--accent); color: var(--accent); }
   .due-filter-toggle { background: var(--surface1); border: 1px solid var(--border2); color: var(--dim); font-family: var(--font-m); font-size: 0.62rem; font-weight: 700; padding: 0.22rem 0.65rem; border-radius: 20px; cursor: pointer; display: inline-flex; align-items: center; gap: 0.3rem; transition: background 0.15s, color 0.15s, border-color 0.15s; }
   .due-filter-toggle:hover { color: var(--text); }
   .due-filter-toggle.active { background: rgba(53,201,110,0.14); border-color: var(--accent); color: var(--accent); }
@@ -1163,6 +1169,22 @@
     <div class="pairs-filter-row">
       <span class="due-filter-label">Filter</span>
       <button class="due-filter-chip" id="pairs-avail-chip" onclick="togglePairsAvail()" title="Hide any grouping with a member who's on the IL, benched, or whose team is off today">Available today only</button>
+    </div>
+    <div class="pairs-filter-row" id="pairs-badge-row">
+      <span class="pairs-badge-mode-wrap" id="pairs-badge-mode-wrap">
+        <span class="due-filter-label">match</span>
+        <button class="due-filter-chip mode-chip active" data-mode="all" onclick="setPairsBadgeMode('all')" title="Every member carries one of the selected badges — e.g. two Chalk picks, a Due trio">All members</button>
+        <button class="due-filter-chip mode-chip" data-mode="mix" onclick="setPairsBadgeMode('mix')" title="The group collectively includes every selected badge, spread across members — e.g. one Chalk + one Due + one Back">Mix</button>
+      </span>
+      <span class="due-filter-label">badges</span>
+      <button class="due-filter-chip" data-badge="chalk" onclick="togglePairsBadge('chalk')">🔒 Chalk</button>
+      <button class="due-filter-chip" data-badge="value" onclick="togglePairsBadge('value')">🎯 Value</button>
+      <button class="due-filter-chip" data-badge="due" onclick="togglePairsBadge('due')">⏳ Due</button>
+      <button class="due-filter-chip mixonly disabled" data-badge="daylate" onclick="togglePairsBadge('daylate')" title="Mix mode only — 'every member is a fade candidate' isn't a useful query">🔁 Day Late</button>
+      <button class="due-filter-chip mixonly disabled" data-badge="prospect" onclick="togglePairsBadge('prospect')" title="Mix mode only">🌱 Prospect</button>
+      <button class="due-filter-chip mixonly disabled" data-badge="returning" onclick="togglePairsBadge('returning')" title="Mix mode only">🚑 Back</button>
+      <button class="due-filter-chip mixonly disabled" data-badge="birthday" onclick="togglePairsBadge('birthday')" title="Mix mode only — 'all members share a birthday' is never a real filter">🎂 Bday</button>
+      <button class="due-filter-clear" id="pairs-badge-clear" style="display:none" onclick="clearPairsBadges()">Reset ×</button>
     </div>
     <div class="result-meta" id="pairs-meta"></div>
     <div id="cards"><div class="empty">Loading data…</div></div>
@@ -2122,6 +2144,59 @@ function togglePairsAvail() {
   _render(activePairSize);
 }
 
+// Badge filter — the correlated-parlay lens. Two match modes:
+//  • 'all' — every member carries at least one selected badge (a Due trio,
+//    two Chalk picks, an all-Chalk-or-Value pair).
+//  • 'mix' — the group collectively covers every selected badge, spread across
+//    members (one Chalk + one Due + one Back). With a single badge this just
+//    means "the group contains one," so mode matters even for one selection.
+// Uses the same board membership the cross-tab badges do, so filter and badges
+// never disagree.
+const PAIRS_BADGE_LABELS = { chalk:'🔒 Chalk', value:'🎯 Value', due:'⏳ Due', daylate:'🔁 Day Late', prospect:'🌱 Prospect', returning:'🚑 Back', birthday:'🎂 Bday' };
+let pairsBadgeFilter = new Set();
+let pairsBadgeMode = 'all';
+function pidHasBadge(pid, key, chalkSet) {
+  switch (key) {
+    case 'chalk':     return chalkSet.has(pid);
+    case 'value':     return valueRank(pid) != null;
+    case 'due':       return availableDueRank(pid) != null;
+    case 'daylate':   return isDayLate(pid);
+    case 'prospect':  return isProspect(pid);
+    case 'returning': return isJustBack(pid);
+    case 'birthday':  return !!birthdayById[pid];
+  }
+  return false;
+}
+// Bday / Day Late / Prospect / Back are "does the group contain one" flavors —
+// only meaningful in Mix mode, so they're disabled (and dropped) under All.
+const PAIRS_MIXONLY_BADGES = ['daylate', 'prospect', 'returning', 'birthday'];
+function togglePairsBadge(key) {
+  if (document.querySelector(`#pairs-badge-row [data-badge="${key}"]`)?.classList.contains('disabled')) return;
+  if (pairsBadgeFilter.has(key)) pairsBadgeFilter.delete(key); else pairsBadgeFilter.add(key);
+  document.querySelector(`#pairs-badge-row [data-badge="${key}"]`)?.classList.toggle('active', pairsBadgeFilter.has(key));
+  document.getElementById('pairs-badge-clear').style.display = pairsBadgeFilter.size ? '' : 'none';
+  _render(activePairSize);
+}
+function setPairsBadgeMode(mode) {
+  pairsBadgeMode = mode;
+  document.querySelectorAll('#pairs-badge-mode-wrap .mode-chip').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  // Mix-only chips: disabled under All; if any were selected, drop them.
+  const allMode = mode === 'all';
+  for (const key of PAIRS_MIXONLY_BADGES) {
+    const chip = document.querySelector(`#pairs-badge-row [data-badge="${key}"]`);
+    if (chip) chip.classList.toggle('disabled', allMode);
+    if (allMode && pairsBadgeFilter.delete(key)) chip?.classList.remove('active');
+  }
+  document.getElementById('pairs-badge-clear').style.display = pairsBadgeFilter.size ? '' : 'none';
+  _render(activePairSize);
+}
+function clearPairsBadges() {
+  pairsBadgeFilter.clear();
+  document.querySelectorAll('#pairs-badge-row [data-badge]').forEach(b => b.classList.remove('active'));
+  document.getElementById('pairs-badge-clear').style.display = 'none';
+  _render(activePairSize);
+}
+
 function switchPairSize(size) {
   activePairSize = size;
   document.querySelectorAll('#panel-pairs .sub-btn').forEach(b => b.classList.toggle('active', +b.dataset.size === size));
@@ -2149,15 +2224,31 @@ function _render(size) {
     groupList = groupList.filter(item => !item.pids.some(pid => isUnavailableToday(pid)));
   }
 
+  // Badge filter. 'all' = every member carries a selected badge; 'mix' = every
+  // selected badge is present somewhere in the group. The Chalk board is
+  // precomputed once (it's a filtered scan of picks) so per-member checks are O(1).
+  if (pairsBadgeFilter.size) {
+    const sel = [...pairsBadgeFilter];
+    const chalkSet = new Set(applyPicksFilters(picks, PICKS_FILTER_DEFAULTS).map(r => r.pid));
+    groupList = pairsBadgeMode === 'mix'
+      ? groupList.filter(item => sel.every(k => item.pids.some(pid => pidHasBadge(pid, k, chalkSet))))
+      : groupList.filter(item => item.pids.every(pid => sel.some(k => pidHasBadge(pid, k, chalkSet))));
+  }
+
   const maxCount = groupList[0]?.count ?? 0;
   const termDesc = activeTerms.length > 1
     ? `filtering for: ${activeTerms.join(' + ')}`
     : activeTerms.length === 1 ? `filtering for: ${activeTerms[0]}` : '';
 
+  const badgeLbls = [...pairsBadgeFilter].map(k => PAIRS_BADGE_LABELS[k]);
+  const badgeDesc = badgeLbls.length
+    ? (pairsBadgeMode === 'mix' ? ` · covers ${badgeLbls.join(' + ')}` : ` · every member ${badgeLbls.join(' / ')}`)
+    : '';
   document.getElementById('pairs-meta').textContent =
     `${groupList.length.toLocaleString()} unique ${sizeNames[size]}` +
     (size === 2 || size === 5 ? ' · min 3 occurrences' : ' · min 2 occurrences') +
     (pairsHideUnavailable ? ' · available only' : '') +
+    badgeDesc +
     (termDesc ? ` · ${termDesc}` : '') +
     (groupList.length > RENDER_LIMIT ? ` · showing top ${RENDER_LIMIT}` : '');
 
