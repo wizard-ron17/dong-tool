@@ -1490,6 +1490,17 @@ try {
 } catch (e) {}
 function savePicksFilters() { try { localStorage.setItem('picksFilters', JSON.stringify(picksFilters)); localStorage.setItem('picksFiltersVer', String(PICKS_FILTER_VERSION)); } catch (e) {} }
 let picksSort        = 'score'; // 'score' (desc) or 'game' (earliest first)
+
+// Value board filters/sort — its own dimensions (Blast% quality floor, blast
+// surplus = underpricing) since HR/Score cutoffs don't fit a longshot board.
+const VALUE_FILTER_DEFAULTS = { minBlast: 0, minSurplus: 1, hideUnavailable: true };
+let valueFilters = { ...VALUE_FILTER_DEFAULTS };
+let valueSort = 'value'; // 'value' | 'blast' | 'surplus' | 'game'
+try {
+  valueFilters = { ...valueFilters, ...JSON.parse(localStorage.getItem('valueFilters') || '{}') };
+  const vs = localStorage.getItem('valueSort'); if (vs) valueSort = vs;
+} catch (e) {}
+function saveValueFilters() { try { localStorage.setItem('valueFilters', JSON.stringify(valueFilters)); localStorage.setItem('valueSort', valueSort); } catch (e) {} }
 // Shared leaderboard view mode (Picks + Due). Defaults to the responsive
 // choice — cards on phones, table on wider screens — then remembers the pick.
 let listView = (() => {
@@ -4320,6 +4331,7 @@ function applyPicksFilters(rows, f = picksFilters) {
   );
 }
 function renderPicksFilters() {
+  if (picksMode === 'value') return renderValueFilters();
   const hrOpts    = [3, 10, 15, 20];
   const scoreOpts = [7, 9, 11, 13];
   const hrChips    = hrOpts.map(n => `<button class="due-filter-chip${picksFilters.minHR===n?' active':''}" onclick="setPicksMinHR(${n})">${n===3?'All':n+'+'}</button>`).join('');
@@ -4334,6 +4346,44 @@ function renderPicksFilters() {
   document.getElementById('picks-filters-chevron').textContent = picksFiltersPanelOpen ? '▴' : '▾';
   document.getElementById('picks-filters-toggle').setAttribute('aria-expanded', String(picksFiltersPanelOpen));
   const activeCount = (picksFilters.minHR !== PICKS_FILTER_DEFAULTS.minHR ? 1 : 0) + (picksFilters.minScore !== PICKS_FILTER_DEFAULTS.minScore ? 1 : 0) + (picksFilters.hideUnavailable !== PICKS_FILTER_DEFAULTS.hideUnavailable ? 1 : 0);
+  const badge = document.getElementById('picks-filters-badge');
+  badge.style.display = activeCount ? 'inline-flex' : 'none';
+  badge.textContent = activeCount;
+}
+
+// ── Value board filters + sort (parallel to Chalk's, tuned to Value's axes) ──
+function applyValueFilters(rows, f = valueFilters) {
+  return rows.filter(r =>
+    (r.blastPct ?? 0) >= f.minBlast &&
+    (r.blastSurplus ?? 1) >= f.minSurplus &&
+    !(f.hideUnavailable && isUnavailableToday(r.pid))
+  );
+}
+function valueFiltersActive() {
+  return valueFilters.minBlast !== VALUE_FILTER_DEFAULTS.minBlast
+    || valueFilters.minSurplus !== VALUE_FILTER_DEFAULTS.minSurplus
+    || valueFilters.hideUnavailable !== VALUE_FILTER_DEFAULTS.hideUnavailable;
+}
+function setValueMinBlast(n)   { valueFilters.minBlast = n; saveValueFilters(); renderPicks(); }
+function setValueMinSurplus(n) { valueFilters.minSurplus = n; saveValueFilters(); renderPicks(); }
+function toggleValueFilter(key){ valueFilters[key] = !valueFilters[key]; saveValueFilters(); renderPicks(); }
+function clearValueFilters()   { valueFilters = { ...VALUE_FILTER_DEFAULTS }; saveValueFilters(); renderPicks(); }
+function setValueSort(s)       { valueSort = s; saveValueFilters(); renderPicks(); }
+function renderValueFilters() {
+  const blastOpts   = [0, 0.25, 0.35, 0.45];
+  const surplusOpts = [1, 1.25, 1.5, 1.75];
+  const blastChips   = blastOpts.map(n => `<button class="due-filter-chip${valueFilters.minBlast===n?' active':''}" onclick="setValueMinBlast(${n})">${n===0?'All':Math.round(n*100)+'%+'}</button>`).join('');
+  const surplusChips = surplusOpts.map(n => `<button class="due-filter-chip${valueFilters.minSurplus===n?' active':''}" onclick="setValueMinSurplus(${n})">${n===1?'All':'+'+Math.round((n-1)*100)+'%'}</button>`).join('');
+  document.getElementById('picks-filter-row').innerHTML = `
+    <div class="due-filter-group"><span class="due-filter-label" title="Blast% — squared-up, fast-swing contact rate. A quality floor.">Min Blast</span><div class="due-filter-chips">${blastChips}</div></div>
+    <div class="due-filter-group"><span class="due-filter-label" title="Blast surplus — how far his blast-implied HR rate runs above his actual HR total (how underpriced).">Min Surplus</span><div class="due-filter-chips">${surplusChips}</div></div>
+    <button class="due-filter-toggle${valueFilters.hideUnavailable?' active':''}" onclick="toggleValueFilter('hideUnavailable')">🚫 Hide Off / Bench / IL</button>
+    ${valueFiltersActive() ? `<button class="due-filter-clear" onclick="clearValueFilters()">Reset ×</button>` : ''}
+  `;
+  document.getElementById('picks-filter-row').style.display = picksFiltersPanelOpen ? '' : 'none';
+  document.getElementById('picks-filters-chevron').textContent = picksFiltersPanelOpen ? '▴' : '▾';
+  document.getElementById('picks-filters-toggle').setAttribute('aria-expanded', String(picksFiltersPanelOpen));
+  const activeCount = (valueFilters.minBlast !== VALUE_FILTER_DEFAULTS.minBlast ? 1 : 0) + (valueFilters.minSurplus !== VALUE_FILTER_DEFAULTS.minSurplus ? 1 : 0) + (valueFilters.hideUnavailable !== VALUE_FILTER_DEFAULTS.hideUnavailable ? 1 : 0);
   const badge = document.getElementById('picks-filters-badge');
   badge.style.display = activeCount ? 'inline-flex' : 'none';
   badge.textContent = activeCount;
@@ -4626,8 +4676,8 @@ function setPicksMode(mode) {
   picksMode = mode;
   document.getElementById('picks-mode-chalk')?.classList.toggle('active', mode === 'chalk');
   document.getElementById('picks-mode-value')?.classList.toggle('active', mode === 'value');
-  const fc = document.getElementById('picks-filters-card');
-  if (fc) fc.style.display = mode === 'value' ? 'none' : ''; // Value has no HR/score cutoff
+  // Both modes have a filter card now (each with its own axes) — its visibility
+  // is owned by the sub-tab (hidden on Results), so don't force it here.
   renderPicks();
   renderPicksResults();
   commitRoute();
@@ -4662,22 +4712,44 @@ function renderValueBoard() {
       : '<div class="empty">No games today. The Value board resumes with the next slate; meanwhile <a href="javascript:void(0)" onclick="switchNav(\'due\')">Due</a> still tracks who\'s overdue.</div>';
     return;
   }
-  // Value only makes sense on guys who'll actually bat — drop IL / bench / off.
-  const pool = value
-    .filter(r => !isUnavailableToday(r.pid))
-    .sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0));
+  const filtered = applyValueFilters(value);
   const gameByTeam = {};
   for (const g of todaySchedule) { gameByTeam[g.away.teamAbbr] = g; gameByTeam[g.home.teamAbbr] = g; }
-  const gameTimeOf = r => { const d = gameByTeam[r.team]?.gameDate; return d ? new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''; };
+  const gameDateOf = r => gameByTeam[r.team]?.gameDate || '';
+  const gameTimeOf = r => { const d = gameDateOf(r); return d ? new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''; };
+  // Rank/medal always follows Value score, no matter the display sort (mirrors Chalk).
+  const valueRankMap = {};
+  [...filtered].sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0)).forEach((r, i) => { valueRankMap[r.pid] = i + 1; });
+  const sorters = {
+    value:   (a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0),
+    blast:   (a, b) => (b.blastPct ?? 0) - (a.blastPct ?? 0),
+    surplus: (a, b) => (b.blastSurplus ?? 1) - (a.blastSurplus ?? 1),
+    game:    (a, b) => gameDateOf(a).localeCompare(gameDateOf(b)) || (b.valueScore ?? 0) - (a.valueScore ?? 0),
+  };
+  const pool = [...filtered].sort(sorters[valueSort] || sorters.value);
   const rankClass = rk => rk===1?'gold':rk===2?'silver':rk===3?'bronze':'';
-  metaEl.textContent = `${pool.length} value bat${pool.length===1?'':'s'} · ranked by blast surplus — contact running ahead of the HR total (underpriced) · long-odds board, take these at a real price (≈ +600 or better)`;
+  const filtersOn = valueFiltersActive();
+  const sortLbl = { value: 'Value score', blast: 'Blast%', surplus: 'surplus', game: 'game time' }[valueSort] || 'Value score';
+  metaEl.textContent = `${pool.length}${filtersOn ? ` of ${value.length}` : ''} value bat${pool.length===1?'':'s'} · sorted by ${sortLbl} · underpriced long-odds board (take at ≈ +600 or better)`;
+  if (!pool.length) {
+    el.innerHTML = `<div class="empty">Nobody matches these filters. <a href="javascript:void(0)" onclick="clearValueFilters()">Reset</a></div>`;
+    return;
+  }
+  const sortBar = `<div class="picks-sort">
+    <span class="due-filter-label">Sort</span>
+    <button class="due-filter-chip${valueSort==='value'?' active':''}" onclick="setValueSort('value')">Value</button>
+    <button class="due-filter-chip${valueSort==='blast'?' active':''}" onclick="setValueSort('blast')">Blast%</button>
+    <button class="due-filter-chip${valueSort==='surplus'?' active':''}" onclick="setValueSort('surplus')">Surplus</button>
+    <button class="due-filter-chip${valueSort==='game'?' active':''}" onclick="setValueSort('game')">Game Time</button>
+  </div>`;
   const cards = pool.map((r, i) => {
     const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const cls = valueScoreClass(r.valueScore ?? 0);
     const hrBadge = `<span class="pick-ind" title="Season HR">${r.hrs ?? 0} HR</span>`;
+    const rk = valueRankMap[r.pid];
     return `<div class="lbc-card due-row-clickable" onclick="openPickModal('${r.pid}','value')">
       <div class="lbc-top">
-        <span class="lbc-rank ${rankClass(i+1)}">${i+1}</span>
+        <span class="lbc-rank ${rankClass(rk)}">${rk}</span>
         <img class="lbc-photo" src="${photo}" alt="">
         <div class="lbc-info">
           <div class="lbc-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {value:1})}</div>
@@ -4689,7 +4761,7 @@ function renderValueBoard() {
       <div class="pick-indicators">${blastPctBadge(r.blastPct)}${blastSurplusBadge(r.blastSurplus)}${hrBadge}${pickIndicators(r)}</div>
     </div>`;
   }).join('');
-  el.innerHTML = `<div class="lb-views" data-view="cards"><div class="lb-view-cards">${cards}</div></div>`;
+  el.innerHTML = `${sortBar}<div class="lb-views" data-view="cards"><div class="lb-view-cards">${cards}</div></div>`;
 }
 
 function renderValueResults() {
@@ -4897,8 +4969,8 @@ function shareDue() {
 }
 
 function renderPicks() {
+  renderPicksFilters(); // branches to Value's filter chips when in Value mode
   if (picksMode === 'value') return renderValueBoard();
-  renderPicksFilters();
   const metaEl = document.getElementById('picks-meta');
   const contentEl = document.getElementById('picks-content');
   if (!picks.length) {
