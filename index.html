@@ -1015,6 +1015,11 @@
   .dd-title { font-size:23px; font-weight:800; letter-spacing:-.02em; }
   .dd-sub { font-size:12px; color:#666; margin-top:2px; }
   .dd-scroll { overflow-x:auto; }
+  @media (max-width:600px) {
+    .dd-backdrop { padding:14px 6px; }
+    .dd-sheet { padding:14px 10px 12px; }
+    .dd-scroll { overflow-x:hidden; }
+  }
   .dd-table { border-collapse:collapse; width:100%; font-size:12.5px; }
   .dd-table th { background:#2b2b2b; color:#fff; font-weight:700; padding:7px 9px;
     border:1px solid #8f8f8f; text-align:center; font-size:11px; white-space:nowrap; }
@@ -3728,14 +3733,33 @@ function dingerDigestHtml() {
   </div>`;
 }
 function dingerDigestEscHandler(e) { if (e.key === 'Escape') closeDingerDigest(); }
+// On mobile the 8-column sheet is wider than the screen. Rather than scroll it
+// sideways, scale the table down (zoom reflows its box, so it actually fits the
+// container instead of just visually shrinking) so the whole digest is visible.
+// The header/legend stay full size; only the wide table is scaled.
+function ddFitSheet() {
+  const sheet = document.getElementById('dd-sheet');
+  if (!sheet) return;
+  const scroll = sheet.querySelector('.dd-scroll');
+  const table = sheet.querySelector('.dd-table');
+  if (!scroll || !table) return;
+  table.style.zoom = '';
+  if (!isMob()) return;
+  const avail = scroll.clientWidth;    // room inside the sheet padding
+  const natural = table.scrollWidth;   // table's real (min-content) width
+  if (natural > avail) table.style.zoom = (avail / natural).toFixed(3);
+}
 function closeDingerDigest() {
   const el = document.getElementById('dd-backdrop');
   if (el) el.remove();
   document.removeEventListener('keydown', dingerDigestEscHandler);
+  window.removeEventListener('resize', ddFitSheet);
 }
 function openDingerDigest() {
   document.body.insertAdjacentHTML('beforeend', dingerDigestHtml());
   document.addEventListener('keydown', dingerDigestEscHandler);
+  requestAnimationFrame(ddFitSheet);
+  window.addEventListener('resize', ddFitSheet);
 }
 function renderSchedule() {
   const metaEl = document.getElementById('schedule-meta');
