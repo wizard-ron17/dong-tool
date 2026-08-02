@@ -1017,8 +1017,8 @@
   .dd-scroll { overflow-x:auto; }
   @media (max-width:600px) {
     .dd-backdrop { padding:14px 6px; }
-    .dd-sheet { padding:14px 10px 12px; }
-    .dd-scroll { overflow-x:hidden; }
+    .dd-modal { max-width:100%; }
+    .dd-sheet { padding:14px 10px 12px; max-width:100%; }
   }
   .dd-table { border-collapse:collapse; width:100%; font-size:12.5px; }
   .dd-table th { background:#2b2b2b; color:#fff; font-weight:700; padding:7px 9px;
@@ -3759,6 +3759,8 @@ function openDingerDigest() {
   document.body.insertAdjacentHTML('beforeend', dingerDigestHtml());
   document.addEventListener('keydown', dingerDigestEscHandler);
   requestAnimationFrame(ddFitSheet);
+  // Re-fit once web fonts settle (their metrics change the table's true width).
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(ddFitSheet);
   window.addEventListener('resize', ddFitSheet);
 }
 function renderSchedule() {
