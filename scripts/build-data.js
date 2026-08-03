@@ -618,6 +618,7 @@ async function attachContactQuality(dueRows) {
 // overfit-prone; that cut lives in the client filter chips instead.)
 const PICKS_MIN_HR        = 3;
 const PICKS_MIN_SCORE     = 7;
+const POWER_FLOOR_MULT    = 1.25; // Chalk "proven power" = basePower ≥ this × the regular-hitter median HR/AB
 const PICKS_RATIO_MIN     = 0.7;
 const PICKS_RATIO_MAX     = 1.4;
 // Pitcher "stuff" → HR-vulnerability factor. Validated (Aug 2026) as far and away
@@ -901,6 +902,19 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
     const leagueTotalHR = Object.values(hrTotals).reduce((a, b) => a + b, 0);
     const leagueHRPerAB = leagueTotalAB ? leagueTotalHR / leagueTotalAB : 0.034;
 
+    // "Proven power" floor for the Chalk board — self-calibrating like recap's
+    // chalk meter: the median HR/AB among REGULARS (≥60% of the league's max AB,
+    // so the pool grows with the season) × a cushion. Keys off real, sample-
+    // shrunk power (blast-blend basePower) instead of a raw HR count, so it means
+    // the same thing in April or August and no longer needs a Min-HR knob.
+    const _maxAB = Math.max(0, ...Object.values(playerABs));
+    const _regThresh = _maxAB * 0.6;
+    const _regRates = Object.keys(hrTotals)
+      .filter(p => hrTotals[p] >= 1 && (playerABs[p] || 0) >= _regThresh)
+      .map(p => hrTotals[p] / playerABs[p]).sort((a, b) => a - b);
+    const _regMedianRate = _regRates.length ? _regRates[Math.floor(_regRates.length / 2)] : leagueHRPerAB;
+    const powerBaseline = _regMedianRate * POWER_FLOOR_MULT;
+
     // Blast calibration across this build's batted-ball pool: HR rate on blasts
     // vs non-blasts (typically ~15% vs ~3%), plus league blast% / contact rate as
     // fallbacks. A batter's Blast% becomes a blast-implied HR rate the Chalk base
@@ -1019,6 +1033,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
         hrProfile, pitcherMix: starterMix.mix, pitcherMixHand: starterMix.split ? oppStand : null, synergyScore,
         blastPct: bstat.blastPct, blastBBE: bstat.tracked, blastPower,
         blastSurplus: Math.round(blastSurplus * 100) / 100,
+        provenPower: basePower >= powerBaseline, // clears Chalk's relative power floor
       });
     }
 
@@ -2462,6 +2477,7 @@ async function main() {
         hr:    hrTotals[p.pid] ?? 0,      // season HR total at time of scoring
         hit:   !!(dayHRs[p.pid]),          // did they go deep that day?
         projected: p.projected ?? false,
+        provenPower: p.provenPower ?? true, // which proven-power board it was on
       })),
     };
     picksHistory = [...picksHistory, entry].slice(-90); // cap at 90 days

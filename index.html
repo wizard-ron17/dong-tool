@@ -1505,10 +1505,13 @@ let picksHistory = [];
 // The Chalk board's default cutoff — the quality slice the July backtest favored
 // (score ≥ 9, 10+ HR). Lower-power bats surface in the Value mode instead.
 // Loosenable to "All" (3/7). (Value mode ignores this — it has its own 3+ floor.)
-const PICKS_FILTER_DEFAULTS = { minHR: 10, minScore: 9, hideUnavailable: true };
+// Standard board = "proven power" (each pick's blast-blend basePower clears the
+// self-calibrating league-regular floor, computed in the build → provenPower).
+// No more Min-HR / Min-Score knobs — just Proven vs Full board + Hide unavailable.
+const PICKS_FILTER_DEFAULTS = { board: 'proven', hideUnavailable: true };
 // Bump this to force-reset everyone's saved Pick filters to the current defaults
 // once (older saved prefs are discarded on next load, then the version restamped).
-const PICKS_FILTER_VERSION = 2;
+const PICKS_FILTER_VERSION = 3;
 let picksFilters = { ...PICKS_FILTER_DEFAULTS };
 try {
   if (+(localStorage.getItem('picksFiltersVer') || 0) >= PICKS_FILTER_VERSION) {
@@ -1573,7 +1576,7 @@ let lbSortCol      = null;
 let lbSortDir      = -1;
 let dueSortCol     = null;
 let dueSortDir     = -1;
-let dueFilters     = { minHR: 0, hideCold: false, longestOnly: false, hideNoBarrels: false, hideDTD: false, hideUnavailable: true, onChalk: false, onValue: false };
+let dueFilters     = { hideCold: false, longestOnly: false, hideNoBarrels: false, hideDTD: false, hideUnavailable: true, onChalk: false, onValue: false };
 let dueFiltersPanelOpen = false;
 let dueStreaks = {};   // pid -> { since, maxScore, bestRank } for players currently on the list
 let dueHistory = [];   // one entry per scored day: { date, of, grads: [...] }
@@ -1703,16 +1706,14 @@ function birthdayBadge(pid) {
   const b = birthdayById[pid];
   return b ? `<span class="cross-tab-badge bday-badge" title="Birthday today — turns ${b.age} 🎂">🎂</span>` : '';
 }
-// Day Late = a DEFAULT-board pick (Min Score 9 / Min HR 10, so no low-power-tail
-// bats) that missed on the last scored slate — the fade candidate on the next
-// slate — still able to bat today. Uses the default cutoff, not the full board,
-// so the badge doesn't fire for sub-cutoff longshots.
+// Day Late = a proven-power pick that missed on the last scored slate — the fade
+// candidate on the next slate — still able to bat today. Keyed to the proven-power
+// board (not the full pool) so the badge doesn't fire for sub-floor longshots.
 function isDayLate(pid) {
   const entry = (picksHistory || []).length ? picksHistory[picksHistory.length - 1] : null;
   if (!entry || !entry.picks) return false;
   return entry.picks.some(p => p.pid === pid && !p.hit
-    && (p.score ?? 0) >= PICKS_FILTER_DEFAULTS.minScore
-    && (p.hr ?? 0) >= PICKS_FILTER_DEFAULTS.minHR) && !isUnavailableToday(pid);
+    && p.provenPower !== false) && !isUnavailableToday(pid);
 }
 function isProspect(pid)  { return (prospects.justCalledUp || []).some(r => r.pid === pid); }
 function isJustBack(pid)  { return (justBack || []).some(e => e.pid === pid); }
@@ -3999,7 +4000,7 @@ function toggleDueExplainer() {
 
 // hideUnavailable is on by default, so "active" means a DEVIATION from the
 // default view — either an added filter, or hide-unavailable turned OFF.
-function dueFiltersActive() { return dueFilters.minHR > 0 || dueFilters.hideCold || dueFilters.longestOnly || dueFilters.hideNoBarrels || dueFilters.hideDTD || dueFilters.hideUnavailable !== true || dueFilters.onChalk || dueFilters.onValue; }
+function dueFiltersActive() { return dueFilters.hideCold || dueFilters.longestOnly || dueFilters.hideNoBarrels || dueFilters.hideDTD || dueFilters.hideUnavailable !== true || dueFilters.onChalk || dueFilters.onValue; }
 function applyDueFilters(rows) {
   // Chalk/Value board membership (same logic the cross-tab badges use) —
   // precomputed once so the per-row check is O(1). With both on it's an OR:
@@ -4008,7 +4009,6 @@ function applyDueFilters(rows) {
   const chalkSet = dueFilters.onChalk ? new Set(applyPicksFilters(picks, PICKS_FILTER_DEFAULTS).map(p => p.pid)) : null;
   const valueSet = dueFilters.onValue ? new Set(value.filter(v => !isUnavailableToday(v.pid)).map(v => v.pid)) : null;
   return rows.filter(r => {
-    if (r.hrs < dueFilters.minHR) return false;
     if (dueFilters.hideCold && contactTagInfo(r.contactFactor).cls === 'bad') return false;
     if (dueFilters.longestOnly && !r.isLongestEver) return false;
     if (dueFilters.hideNoBarrels && !(r.droughtBarrels > 0)) return false; // zero barrels since his last HR
@@ -4018,20 +4018,11 @@ function applyDueFilters(rows) {
     return true;
   });
 }
-function setDueMinHR(n) { dueFilters.minHR = n; renderDue(); }
 function toggleDueFilter(key) { dueFilters[key] = !dueFilters[key]; renderDue(); }
-function clearDueFilters() { dueFilters = { minHR: 0, hideCold: false, longestOnly: false, hideNoBarrels: false, hideDTD: false, hideUnavailable: true, onChalk: false, onValue: false }; renderDue(); }
+function clearDueFilters() { dueFilters = { hideCold: false, longestOnly: false, hideNoBarrels: false, hideDTD: false, hideUnavailable: true, onChalk: false, onValue: false }; renderDue(); }
 function toggleDueFiltersPanel() { dueFiltersPanelOpen = !dueFiltersPanelOpen; renderDueFilters(); }
 function renderDueFilters() {
-  const minHrOptions = [0, 10, 15, 20];
-  const chips = minHrOptions.map(n =>
-    `<button class="due-filter-chip${dueFilters.minHR===n?' active':''}" onclick="setDueMinHR(${n})">${n===0?'All':n+'+'}</button>`
-  ).join('');
   document.getElementById('due-filter-row').innerHTML = `
-    <div class="due-filter-group">
-      <span class="due-filter-label">Min HR</span>
-      <div class="due-filter-chips">${chips}</div>
-    </div>
     <button class="due-filter-toggle${dueFilters.onChalk?' active':''}" onclick="toggleDueFilter('onChalk')" title="Only due hitters who are also on today's Chalk board">🔒 On Chalk</button>
     <button class="due-filter-toggle${dueFilters.onValue?' active':''}" onclick="toggleDueFilter('onValue')" title="Only due hitters who are also on today's Value board">🎯 On Value</button>
     <button class="due-filter-toggle${dueFilters.hideCold?' active':''}" onclick="toggleDueFilter('hideCold')">❄️ Hide Cold Contact</button>
@@ -4044,7 +4035,7 @@ function renderDueFilters() {
   document.getElementById('due-filter-row').style.display = dueFiltersPanelOpen ? '' : 'none';
   document.getElementById('due-filters-chevron').textContent = dueFiltersPanelOpen ? '▴' : '▾';
   document.getElementById('due-filters-toggle').setAttribute('aria-expanded', String(dueFiltersPanelOpen));
-  const activeCount = (dueFilters.minHR > 0 ? 1 : 0) + (dueFilters.hideCold ? 1 : 0) + (dueFilters.longestOnly ? 1 : 0) + (dueFilters.hideNoBarrels ? 1 : 0) + (dueFilters.hideDTD ? 1 : 0) + (dueFilters.hideUnavailable !== true ? 1 : 0) + (dueFilters.onChalk ? 1 : 0) + (dueFilters.onValue ? 1 : 0);
+  const activeCount = (dueFilters.hideCold ? 1 : 0) + (dueFilters.longestOnly ? 1 : 0) + (dueFilters.hideNoBarrels ? 1 : 0) + (dueFilters.hideDTD ? 1 : 0) + (dueFilters.hideUnavailable !== true ? 1 : 0) + (dueFilters.onChalk ? 1 : 0) + (dueFilters.onValue ? 1 : 0);
   const badge = document.getElementById('due-filters-badge');
   badge.style.display = activeCount ? 'inline-flex' : 'none';
   badge.textContent = activeCount;
@@ -4447,41 +4438,37 @@ function togglePicksExplainer() {
 }
 
 function togglePicksFiltersPanel() { picksFiltersPanelOpen = !picksFiltersPanelOpen; renderPicksFilters(); }
-// Min HR / Min Score are shared by the board AND its Results tab, so the tracked
-// hit rate always reflects the same cutoff you're betting — re-render both.
-function setPicksMinHR(n)    { picksFilters.minHR    = n; savePicksFilters(); renderPicks(); renderPicksResults(); }
-function setPicksMinScore(n) { picksFilters.minScore = n; savePicksFilters(); renderPicks(); renderPicksResults(); }
+// Board choice is shared by the board AND its Results tab, so the tracked hit
+// rate always reflects the same slice you're betting — re-render both.
+function setPicksBoard(b)    { picksFilters.board = b; savePicksFilters(); renderPicks(); renderPicksResults(); }
 function setPicksSort(s)     { picksSort = s; renderPicks(); }
 function togglePicksFilter(key) { picksFilters[key] = !picksFilters[key]; savePicksFilters(); renderPicks(); }
 function clearPicksFilters() { picksFilters = { ...PICKS_FILTER_DEFAULTS }; savePicksFilters(); renderPicks(); renderPicksResults(); }
-// "Active" = a deviation from the default cutoff (score 9 / 10 HR / hide unavailable).
-function picksFiltersActive() { return picksFilters.minHR !== PICKS_FILTER_DEFAULTS.minHR || picksFilters.minScore !== PICKS_FILTER_DEFAULTS.minScore || picksFilters.hideUnavailable !== PICKS_FILTER_DEFAULTS.hideUnavailable; }
+// "Active" = a deviation from the standard board (proven power / hide unavailable).
+function picksFiltersActive() { return picksFilters.board !== PICKS_FILTER_DEFAULTS.board || picksFilters.hideUnavailable !== PICKS_FILTER_DEFAULTS.hideUnavailable; }
 // f defaults to the user's live Picks filters (for the Picks board itself), but
 // callers can pass PICKS_FILTER_DEFAULTS — cross-tab badges do, so a player's
-// "#N Pick" standing reflects the default board, not whatever the user last set.
+// "#N Pick" standing reflects the standard board, not whatever the user last set.
+// Standard board keeps only proven-power bats (build-flagged); Full shows the
+// whole candidate pool. Older data without the flag counts as proven.
 function applyPicksFilters(rows, f = picksFilters) {
   return rows.filter(r =>
-    r.hrs >= f.minHR &&
-    r.pickScore >= f.minScore &&
+    (f.board === 'full' || r.provenPower !== false) &&
     !(f.hideUnavailable && isUnavailableToday(r.pid)) // off / bench / IL
   );
 }
 function renderPicksFilters() {
   if (picksMode === 'value') return renderValueFilters();
-  const hrOpts    = [3, 10, 15, 20];
-  const scoreOpts = [7, 9, 11, 13];
-  const hrChips    = hrOpts.map(n => `<button class="due-filter-chip${picksFilters.minHR===n?' active':''}" onclick="setPicksMinHR(${n})">${n===3?'All':n+'+'}</button>`).join('');
-  const scoreChips = scoreOpts.map(n => `<button class="due-filter-chip${picksFilters.minScore===n?' active':''}" onclick="setPicksMinScore(${n})">${n===7?'All':n+'+'}</button>`).join('');
+  const boardBtn = (val, label, title) => `<button class="due-filter-chip${picksFilters.board===val?' active':''}" onclick="setPicksBoard('${val}')" title="${title}">${label}</button>`;
   document.getElementById('picks-filter-row').innerHTML = `
-    <div class="due-filter-group"><span class="due-filter-label">Min HR</span><div class="due-filter-chips">${hrChips}</div></div>
-    <div class="due-filter-group"><span class="due-filter-label">Min Score</span><div class="due-filter-chips">${scoreChips}</div></div>
+    <div class="due-filter-group"><span class="due-filter-label" title="Proven power = bats whose blast-blend power clears the self-calibrating league-regular floor. Full = every candidate.">Board</span><div class="due-filter-chips">${boardBtn('proven', 'Proven power', 'Above-average real power vs the league regulars (season-agnostic)')}${boardBtn('full', 'Full board', 'Every candidate in a lineup today, no power floor')}</div></div>
     <button class="due-filter-toggle${picksFilters.hideUnavailable?' active':''}" onclick="togglePicksFilter('hideUnavailable')">🚫 Hide Off / Bench / IL</button>
     ${picksFiltersActive() ? `<button class="due-filter-clear" onclick="clearPicksFilters()">Reset ×</button>` : ''}
   `;
   document.getElementById('picks-filter-row').style.display = picksFiltersPanelOpen ? '' : 'none';
   document.getElementById('picks-filters-chevron').textContent = picksFiltersPanelOpen ? '▴' : '▾';
   document.getElementById('picks-filters-toggle').setAttribute('aria-expanded', String(picksFiltersPanelOpen));
-  const activeCount = (picksFilters.minHR !== PICKS_FILTER_DEFAULTS.minHR ? 1 : 0) + (picksFilters.minScore !== PICKS_FILTER_DEFAULTS.minScore ? 1 : 0) + (picksFilters.hideUnavailable !== PICKS_FILTER_DEFAULTS.hideUnavailable ? 1 : 0);
+  const activeCount = (picksFilters.board !== PICKS_FILTER_DEFAULTS.board ? 1 : 0) + (picksFilters.hideUnavailable !== PICKS_FILTER_DEFAULTS.hideUnavailable ? 1 : 0);
   const badge = document.getElementById('picks-filters-badge');
   badge.style.display = activeCount ? 'inline-flex' : 'none';
   badge.textContent = activeCount;
@@ -4955,15 +4942,14 @@ function renderValueResults() {
     <div class="ph-days">${dayRows}</div>`;
 }
 
-// Min HR / Min Score chips for the Results tab — the same picksFilters the board
-// uses, so the tracked hit rate reflects the cutoff you bet (and you can loosen
-// them to backtest what a different cutoff would have hit).
+// Board toggle for the Results tab — the same picksFilters the board uses, so
+// the tracked hit rate reflects the slice you bet (flip to Full to see how the
+// whole candidate pool did).
 function picksResultsChips() {
-  const hrChips    = [3, 10, 15, 20].map(n => `<button class="due-filter-chip${picksFilters.minHR===n?' active':''}" onclick="setPicksMinHR(${n})">${n===3?'All':n+'+'}</button>`).join('');
-  const scoreChips = [7, 9, 11, 13].map(n => `<button class="due-filter-chip${picksFilters.minScore===n?' active':''}" onclick="setPicksMinScore(${n})">${n===7?'All':n+'+'}</button>`).join('');
-  return `<div class="picks-sort"><span class="due-filter-label">Min HR</span>${hrChips}<span class="due-filter-label" style="margin-left:0.6rem">Min Score</span>${scoreChips}</div>`;
+  const btn = (val, label) => `<button class="due-filter-chip${picksFilters.board===val?' active':''}" onclick="setPicksBoard('${val}')">${label}</button>`;
+  return `<div class="picks-sort"><span class="due-filter-label">Board</span>${btn('proven', 'Proven power')}${btn('full', 'Full board')}</div>`;
 }
-function picksResultMatch(p) { return (p.score ?? 0) >= picksFilters.minScore && (p.hr ?? 0) >= picksFilters.minHR; }
+function picksResultMatch(p) { return picksFilters.board === 'full' || p.provenPower !== false; }
 
 function renderPicksResults() {
   if (picksMode === 'value') return renderValueResults();
@@ -4983,8 +4969,7 @@ function renderPicksResults() {
     date: e.date,
     picks: e.picks.filter(picksResultMatch).map((p, i) => ({ ...p, rank: i + 1 })),
   }));
-  const cut = picksFilters.minScore > 7 || picksFilters.minHR > 3;
-  const cutLabel = cut ? `score ≥ ${picksFilters.minScore} · ${picksFilters.minHR}+ HR` : 'full board (score ≥ 7)';
+  const cutLabel = picksFilters.board === 'full' ? 'full board (every candidate)' : 'proven power';
 
   const allPicks = filteredDays.flatMap(e => e.picks);
   const totalPicks = allPicks.length;
@@ -5038,7 +5023,7 @@ function renderPicksResults() {
 
   el.innerHTML = `
     ${chips}
-    <div class="result-meta" style="margin:0.15rem 0 0.55rem">Tracking your board cutoff · <b>${cutLabel}</b> — loosen the chips to backtest a different one</div>
+    <div class="result-meta" style="margin:0.15rem 0 0.55rem">Tracking the <b>${cutLabel}</b> board — flip to Full to see how the whole pool did</div>
     <div class="ph-summary">
       <div class="ph-stat"><span class="ph-stat-val hrg-val ${parseFloat(hitRate)>=20?'great':parseFloat(hitRate)>=12?'good':'avg'}">${hitRate}%</span><span class="ph-stat-lbl">Hit Rate</span></div>
       <div class="ph-stat"><span class="ph-stat-val">${totalHits}</span><span class="ph-stat-lbl">Total HRs Hit</span></div>
@@ -5417,11 +5402,11 @@ let dayLateHideUnavailable = true;  // hide off/bench/injured by default
 let dayLateTodayPicksOnly  = false; // limit to guys also on today's Picks board
 let dayLateHideDTD         = false; // drop day-to-day / banged-up guys
 let dayLateFullBoard       = false; // false = default board only (real Picks, no longshot tail)
-// A day-late candidate is a miss from the DEFAULT Picks board (Score≥9 & HR≥10)
-// — the actual picks, not the sub-cutoff longshot tail the server also ships.
-// Flip dayLateFullBoard on to fade the whole board.
+// A day-late candidate is a miss from the proven-power Picks board — the actual
+// picks, not the sub-floor tail the server also ships. Flip dayLateFullBoard on
+// to fade the whole board.
 function dayLateEligible(p) {
-  return dayLateFullBoard || ((p.score ?? 0) >= PICKS_FILTER_DEFAULTS.minScore && (p.hr ?? 0) >= PICKS_FILTER_DEFAULTS.minHR);
+  return dayLateFullBoard || p.provenPower !== false;
 }
 let dayLateSort = 'yrank';          // yrank | hr | pick | due
 let dayLateSubTab = 'today';        // today | results
