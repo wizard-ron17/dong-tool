@@ -2274,6 +2274,35 @@ function freezeStartedHomer(schedule, prevSchedule, sameSlate) {
   for (const g of schedule) if (g.started && prevHomer[g.gamePk]) g.homer = prevHomer[g.gamePk];
 }
 
+// Trades move a player's club faster than his game log reflects it. playerTeams
+// is inferred from his last box score (build-data.js line ~87), so a just-traded
+// hitter still reads as his OLD team until he plays a game in the new uniform —
+// and the pre-lineup projection then matches him into the old team's game vs the
+// wrong pitcher all day. Override playerTeams from each *playing* team's active
+// roster so the move corrects the instant MLB posts it, not a game later. Failed
+// or empty fetches are skipped (keep the game-log team) so a network blip can't
+// scramble assignments.
+async function correctTeamsFromRosters(todaySchedule, teamIdToAbbr) {
+  const tids = [...new Set(todaySchedule.flatMap(g => [g.home.teamId, g.away.teamId]).filter(Boolean))];
+  let moved = 0;
+  await Promise.all(tids.map(async tid => {
+    const abbr = teamIdToAbbr[tid];
+    if (!abbr) return;
+    try {
+      const r = await fetch(`${MLB}/teams/${tid}/roster?rosterType=active`).then(r => r.json());
+      const members = r?.roster ?? [];
+      if (!members.length) return; // empty/failed payload — leave game-log teams intact
+      for (const m of members) {
+        const pid = m.person?.id != null ? String(m.person.id) : null;
+        if (!pid) continue;
+        if (playerTeams[pid] && playerTeams[pid] !== abbr) moved++;
+        playerTeams[pid] = abbr;
+      }
+    } catch { /* keep existing playerTeams for this team on a fetch error */ }
+  }));
+  if (moved) console.log(`  Roster correction: moved ${moved} player(s) to their current team (trades/call-ups)`);
+}
+
 async function main() {
   console.log(`Building data.json — season start ${SEASON_START}`);
 
@@ -2335,6 +2364,12 @@ async function main() {
     if (expected > 0) throw new Error(`Degraded build: schedule hydrate returned 0 games but MLB lists ${expected} for ${todayET()} — refusing to write data.json`);
   }
   await attachHands(todaySchedule);
+
+  // Correct team assignments from live rosters BEFORE anything reads playerTeams
+  // for today (projected lineups, teamPower, picks) so trades match the player
+  // into his new club's game instead of his old one.
+  await correctTeamsFromRosters(todaySchedule, teamIdToAbbr);
+
   const batMeta = await fetchBatMeta();
 
   // Freeze scores for games already underway (see freezeStartedRows): a due
