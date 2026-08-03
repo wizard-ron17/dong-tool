@@ -3864,6 +3864,32 @@ function statusHtml() {
   const stuffState = pk === 0 ? 'muted' : allFrozen ? 'muted' : withStuff === 0 ? 'bad' : withStuff < pk ? 'warn' : 'ok';
   const slotState = pk === 0 || allFrozen || lineupsPosted === 0 ? 'muted' : withSlot === 0 ? 'warn' : 'ok';
 
+  // Active date: green when the build is on the true ET calendar day; amber when
+  // it's deliberately holding on yesterday's slate while late games finish (a
+  // normal state, not a failure); red if it's stuck further back than that.
+  const etToday = etDateStr(new Date());
+  const etYest  = addDaysToDateStr(etToday, -1);
+  const dateState = !todayDate ? 'muted' : todayDate === etToday ? 'ok' : todayDate === etYest ? 'warn' : 'bad';
+  const dateNote  = todayDate === etToday || !todayDate ? ''
+    : todayDate === etYest ? "holding on yesterday's slate while its late games finish (normal)"
+    : 'build looks stuck on an old date — check Build logs below';
+  // Season: green as long as we have game-day data at all.
+  const seasonState = (dataMeta.daysWithData ?? 0) > 0 ? 'ok' : 'bad';
+
+  // Prospects/Bday/Back turn green only on something NEW today (vs the day
+  // before), not merely a non-empty lingering list. A call-up is "new" if it
+  // debuted/was selected today; a birthday is by definition today; "Back" gets
+  // its own row because that list persists for days, so only a same-day return
+  // should light it up.
+  const callups = prospects.justCalledUp || [];
+  const newCallups = callups.filter(p => p.selectedDate === todayDate || p.debutDate === todayDate).length;
+  const bdayToday  = birthdays.filter(b => (b.birthDate || '').slice(5) === (todayDate || 'x').slice(5)).length;
+  const pbState = (newCallups > 0 || bdayToday > 0) ? 'ok' : 'muted';
+  const pbNote  = [newCallups ? `${newCallups} new call-up${newCallups > 1 ? 's' : ''} today` : '', bdayToday ? `${bdayToday} birthday${bdayToday > 1 ? 's' : ''} today` : ''].filter(Boolean).join(' · ') || 'nothing new today';
+  const newBack = (justBack || []).filter(b => b.backDate === todayDate).length;
+  const backState = newBack > 0 ? 'ok' : 'muted';
+  const backNote  = newBack > 0 ? `${newBack} returned today` : `${(justBack || []).length} recently back · none new today`;
+
   const row = (label, val, state, note) => `<div class="st-row"><span class="st-dot st-${state}"></span><span class="st-label">${label}</span><span class="st-val">${val}</span>${note ? `<div class="st-note">${note}</div>` : ''}</div>`;
 
   return `<div class="st-backdrop" id="st-backdrop" onclick="if(event.target===this) closeStatus()">
@@ -3874,8 +3900,8 @@ function statusHtml() {
       <div class="st-sec">Build / data</div>
       ${row('Last build', ageTxt, freshState, `${dataMeta.generatedAt || '—'} · cron every ~30m`)}
       ${row('Freshness', freshState === 'ok' ? 'OK' : freshState === 'warn' ? 'aging' : 'STALE', freshState, freshState !== 'ok' ? '>90m usually means the build is failing — check Build logs below' : '')}
-      ${row('Active date', todayDate || '—', 'muted', '')}
-      ${row('Season', `${dataMeta.daysWithData ?? '?'} game days · ${(dataMeta.totalHRCount ?? 0).toLocaleString()} HR`, 'muted', '')}
+      ${row('Active date', todayDate || '—', dateState, dateNote)}
+      ${row('Season', `${dataMeta.daysWithData ?? '?'} game days · ${(dataMeta.totalHRCount ?? 0).toLocaleString()} HR`, seasonState, '')}
 
       <div class="st-sec">Today's slate</div>
       ${row('Games', `${sched.length} (${pre} pre · ${started - finals} live · ${finals} final)`, sched.length ? 'ok' : 'muted', '')}
@@ -3883,7 +3909,8 @@ function statusHtml() {
 
       <div class="st-sec">Boards</div>
       ${row('Chalk / Value / Due', `${pk} / ${value.length} / ${dueRows.length}`, pk ? 'ok' : 'muted', '')}
-      ${row('Prospects / Bday / Back', `${(prospects.justCalledUp || []).length} / ${birthdays.length} / ${justBack.length}`, 'muted', '')}
+      ${row('Prospects / Bday', `${callups.length} / ${birthdays.length}`, pbState, pbNote)}
+      ${row('Back', `${(justBack || []).length}`, backState, backNote)}
 
       <div class="st-sec">Data sources</div>
       ${row('Schedule (StatsAPI)', `${sched.length} games`, sched.length ? 'ok' : 'muted', '')}
