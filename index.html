@@ -1054,6 +1054,25 @@
   .dd-legend-sep { width:1px; height:14px; background:#ddd; }
   .dd-credit { text-align:center; font-size:10px; color:#b0b0b0; margin-top:7px; }
   .dd-hint { text-align:center; color:#fff; font-size:12px; margin-top:12px; opacity:.85; }
+
+  /* Hidden read-only health view (?status) */
+  .st-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1100; display:flex; align-items:flex-start; justify-content:center; padding:24px 12px; overflow:auto; }
+  .st-panel { position:relative; background:#0b1120; color:#c8d6e5; border:1px solid #1e3050; border-radius:12px; width:100%; max-width:520px; padding:18px 20px 14px; font-family:var(--font-m,'JetBrains Mono',monospace); font-size:12.5px; box-shadow:0 12px 44px rgba(0,0,0,.55); }
+  .st-close { position:absolute; top:8px; right:12px; background:none; border:none; color:#6b8aa8; font-size:22px; line-height:1; cursor:pointer; }
+  .st-close:hover { color:#c8d6e5; }
+  .st-title { font-size:16px; font-weight:800; margin-bottom:6px; letter-spacing:.02em; }
+  .st-sec { text-transform:uppercase; letter-spacing:.1em; font-size:9.5px; color:#5a7089; margin:13px 0 4px; border-bottom:1px solid #16243a; padding-bottom:3px; }
+  .st-row { display:flex; align-items:center; gap:8px; padding:2.5px 0; flex-wrap:wrap; }
+  .st-dot { width:8px; height:8px; border-radius:50%; flex:none; }
+  .st-ok { background:#35c96e; } .st-warn { background:#e0a83c; } .st-bad { background:#e5534b; } .st-muted { background:#44546a; }
+  .st-label { color:#8aaac0; }
+  .st-val { color:#e8f0fa; font-weight:700; margin-left:auto; }
+  .st-note { flex-basis:100%; color:#5a7089; font-size:10.5px; padding-left:16px; line-height:1.4; }
+  .st-actions { display:flex; gap:8px; margin-top:14px; }
+  .st-btn { background:#16243a; border:1px solid #1e3050; color:#8fd0a0; font-family:inherit; font-size:11.5px; padding:6px 12px; border-radius:7px; cursor:pointer; text-decoration:none; display:inline-block; }
+  .st-btn:hover { background:#1e3050; color:#c8f0d5; }
+  .st-foot { color:#4a5f78; font-size:10px; margin-top:10px; text-align:center; }
+  .st-foot code { background:#16243a; padding:1px 5px; border-radius:4px; color:#8aaac0; }
 </style>
 <script>
   // Set the theme before first paint to avoid a flash: saved choice wins,
@@ -1789,7 +1808,10 @@ async function loadData() {
   }
 }
 
+let dataMeta = {};          // build freshness/meta for the /status health view
+let statusAutoOpened = false;
 function applyData(data) {
+  dataMeta = { generatedAt: data.generatedAt, daysWithData: data.daysWithData, totalHRCount: data.totalHRCount, seasonStart: data.seasonStart, dateRangeEnd: data.dateRangeEnd };
   dailyHRs = data.dailyHRs; hrTypes = data.hrTypes || {}; hrDetails = data.hrDetails || {}; dailyGames = data.dailyGames; hrTotals = data.hrTotals;
   playerNames = data.playerNames; playerTeams = data.playerTeams; playerABs = data.playerABs;
   playerGames = data.playerGames; playerLastHR = data.playerLastHR; teamGameDays = data.teamGameDays;
@@ -1830,6 +1852,11 @@ function applyData(data) {
   });
 
   setStatus('ready', `${data.daysWithData}d · ${data.totalHRCount} HR · upd ${timeAgo(data.generatedAt)}`);
+
+  // Hidden health view: auto-open on first load if ?status is present, and keep
+  // it fresh if it's already open when data reloads.
+  if (!statusAutoOpened && new URLSearchParams(location.search).has('status')) { statusAutoOpened = true; openStatus(); }
+  else if (document.getElementById('st-backdrop')) openStatus();
 
   updateOffdayBanner();
   populateTotalsFilterSelect();
@@ -3779,6 +3806,84 @@ function openDingerDigest() {
   // Re-fit once web fonts settle (their metrics change the table's true width).
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(ddFitSheet);
   window.addEventListener('resize', ddFitSheet);
+}
+
+// ── Hidden health/status view (read-only) ───────────────────────────────
+// Open with ?status in the URL or by calling openStatus() from the console.
+// Everything is derived from data.json + the client's own state — no backend,
+// no secrets, no privileged actions. Freshness of generatedAt is the build-
+// health proxy (the build refuses to write on degradation, so a stale
+// timestamp = something's wrong). Frozen-slate state is surfaced explicitly.
+function statusEsc(e) { if (e.key === 'Escape') closeStatus(); }
+function closeStatus() { document.getElementById('st-backdrop')?.remove(); document.removeEventListener('keydown', statusEsc); }
+function openStatus() { closeStatus(); document.body.insertAdjacentHTML('beforeend', statusHtml()); document.addEventListener('keydown', statusEsc); }
+function statusHtml() {
+  const gen = dataMeta.generatedAt ? new Date(dataMeta.generatedAt).getTime() : null;
+  const ageMin = gen ? Math.round((Date.now() - gen) / 60000) : null;
+  const freshState = ageMin == null ? 'bad' : ageMin <= 45 ? 'ok' : ageMin <= 90 ? 'warn' : 'bad';
+  const ageTxt = ageMin == null ? 'unknown' : ageMin < 1 ? 'just now' : ageMin < 60 ? `${ageMin}m ago` : `${(ageMin / 60).toFixed(1)}h ago`;
+
+  const sched = todaySchedule || [];
+  const started = sched.filter(g => g.started).length;
+  const finals = sched.filter(g => g.status === 'Final' || g.status === 'Completed Early' || g.status === 'Game Over').length;
+  const pre = sched.length - started;
+  const allFrozen = sched.length > 0 && started === sched.length;
+  const freezeTxt = sched.length === 0 ? 'no games today'
+    : pre === sched.length ? 'all pre-game — scoring live, new fields visible'
+    : allFrozen ? `all ${sched.length} started → new pick fields (Stuff, Lineup-PA) hidden until the next pre-game slate`
+    : `${started}/${sched.length} started → those picks are frozen`;
+  const freezeState = sched.length === 0 ? 'muted' : allFrozen ? 'warn' : pre === sched.length ? 'ok' : 'warn';
+
+  const pk = picks.length || 0;
+  const cnt = (arr, f) => arr.filter(f).length;
+  const withHand = cnt(picks, p => p.bHand && p.oppHand);
+  const withBlast = cnt(picks, p => p.blastPct != null);
+  const withStuff = cnt(picks, p => p.pitcherStuffRatio != null);
+  const withSlot = cnt(picks, p => p.lineupOrder >= 1);
+  const lineupsPosted = todayLineupsPostedTeams ? todayLineupsPostedTeams.size : 0;
+  const gamesWx = cnt(sched, g => g.weather);
+  const penTeams = Object.keys(bullpens || {}).length;
+  const pStats = Object.keys(pitcherStats || {}).length;
+  const stuffState = pk === 0 ? 'muted' : allFrozen ? 'muted' : withStuff === 0 ? 'bad' : withStuff < pk ? 'warn' : 'ok';
+  const slotState = pk === 0 || allFrozen || lineupsPosted === 0 ? 'muted' : withSlot === 0 ? 'warn' : 'ok';
+
+  const row = (label, val, state, note) => `<div class="st-row"><span class="st-dot st-${state}"></span><span class="st-label">${label}</span><span class="st-val">${val}</span>${note ? `<div class="st-note">${note}</div>` : ''}</div>`;
+
+  return `<div class="st-backdrop" id="st-backdrop" onclick="if(event.target===this) closeStatus()">
+    <div class="st-panel">
+      <button class="st-close" onclick="closeStatus()" aria-label="Close">&times;</button>
+      <div class="st-title">🩺 System Status</div>
+
+      <div class="st-sec">Build / data</div>
+      ${row('Last build', ageTxt, freshState, `${dataMeta.generatedAt || '—'} · cron every ~30m`)}
+      ${row('Freshness', freshState === 'ok' ? 'OK' : freshState === 'warn' ? 'aging' : 'STALE', freshState, freshState !== 'ok' ? '>90m usually means the build is failing — check Build logs below' : '')}
+      ${row('Active date', todayDate || '—', 'muted', '')}
+      ${row('Season', `${dataMeta.daysWithData ?? '?'} game days · ${(dataMeta.totalHRCount ?? 0).toLocaleString()} HR`, 'muted', '')}
+
+      <div class="st-sec">Today's slate</div>
+      ${row('Games', `${sched.length} (${pre} pre · ${started - finals} live · ${finals} final)`, sched.length ? 'ok' : 'muted', '')}
+      ${row('Pick freeze', allFrozen ? 'FROZEN' : pre === sched.length ? 'live' : 'partial', freezeState, freezeTxt)}
+
+      <div class="st-sec">Boards</div>
+      ${row('Chalk / Value / Due', `${pk} / ${value.length} / ${dueRows.length}`, pk ? 'ok' : 'muted', '')}
+      ${row('Prospects / Bday / Back', `${(prospects.justCalledUp || []).length} / ${birthdays.length} / ${justBack.length}`, 'muted', '')}
+
+      <div class="st-sec">Data sources</div>
+      ${row('Schedule (StatsAPI)', `${sched.length} games`, sched.length ? 'ok' : 'muted', '')}
+      ${row('Handedness (splits)', pk ? `${withHand}/${pk}` : '—', pk ? (withHand === pk ? 'ok' : withHand > 0 ? 'warn' : 'bad') : 'muted', '')}
+      ${row('Blast% (Savant)', pk ? `${withBlast}/${pk}` : '—', pk ? (withBlast > 0 ? 'ok' : 'warn') : 'muted', '')}
+      ${row('Pitcher Stuff (Savant)', pk ? `${withStuff}/${pk}` : '—', stuffState, allFrozen ? '0 expected while the slate is frozen' : '')}
+      ${row('Lineup-PA slots', pk ? `${withSlot}/${pk}` : '—', slotState, lineupsPosted === 0 && !allFrozen ? '0 until lineups post (afternoon ET)' : '')}
+      ${row('Weather', `${gamesWx}/${sched.length}`, sched.length ? (gamesWx > 0 ? 'ok' : 'warn') : 'muted', '')}
+      ${row('Bullpens / Pitcher HR9', `${penTeams} teams / ${pStats} arms`, penTeams && pStats ? 'ok' : 'muted', '')}
+
+      <div class="st-actions">
+        <button class="st-btn" onclick="loadData()">↻ Reload data.json</button>
+        <a class="st-btn" href="https://github.com/wizard-ron17/dong-tool/actions/workflows/build-data.yml" target="_blank" rel="noopener">Build logs ↗</a>
+      </div>
+      <div class="st-foot">read-only · open with <code>?status</code> or <code>openStatus()</code></div>
+    </div>
+  </div>`;
 }
 function renderSchedule() {
   const metaEl = document.getElementById('schedule-meta');
