@@ -170,14 +170,23 @@
   .sub-btn .num { background: var(--surface1); border-radius: 3px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; }
   .sub-btn.active { background: var(--accent); color: #fff; }
   .sub-btn.active .num { background: rgba(255,255,255,0.2); }
-  /* Picks Chalk/Value mode toggle */
-  .picks-mode { display: flex; gap: 0.4rem; margin-bottom: 0.7rem; }
-  .picks-mode-btn { flex: 1; background: var(--surface0); border: 1px solid var(--border); color: var(--muted); font-family: var(--font-d); font-size: 0.95rem; font-weight: 700; letter-spacing: 0.04em; padding: 0.5rem; border-radius: 8px; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+  /* Picks Chalk/Value mode toggle — the filled, colorful "lens" switch. Bigger
+     and card-like so it reads as the primary selector, distinct from the
+     underline view tabs below it. */
+  .picks-mode { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; }
+  .picks-mode-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.4rem; background: var(--surface0); border: 1px solid var(--border); color: var(--muted); font-family: var(--font-d); font-size: 1.08rem; font-weight: 800; letter-spacing: 0.02em; padding: 0.62rem; border-radius: 11px; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s; }
   .picks-mode-btn:hover:not(.active) { color: var(--text); border-color: var(--border2); }
   .picks-mode-btn.active { color: #fff; }
-  #picks-mode-chalk.active { background: #5b8fb0; border-color: #5b8fb0; }
-  #picks-mode-value.active { background: var(--accent); border-color: var(--accent); }
+  #picks-mode-chalk.active { background: #e2883a; border-color: #e2883a; box-shadow: 0 2px 14px rgba(226,136,58,0.3); }
+  #picks-mode-value.active { background: var(--accent); border-color: var(--accent); box-shadow: 0 2px 14px rgba(53,201,110,0.28); }
   .sub-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  /* Picks page: turn the Today's Picks / Results VIEW switch into underline
+     tabs so it no longer mirrors the filled lens toggle above it. */
+  #picks-sub-tabs { background: transparent; border: none; border-bottom: 1px solid var(--border); border-radius: 0; padding: 0; gap: 1.5rem; justify-content: flex-start; margin-bottom: 1rem; }
+  #picks-sub-tabs .sub-btn { flex: 0 0 auto; background: transparent; border-radius: 0; padding: 0.5rem 0.15rem 0.55rem; color: var(--muted); position: relative; }
+  #picks-sub-tabs .sub-btn:hover:not(.active):not(:disabled) { color: var(--text); background: transparent; }
+  #picks-sub-tabs .sub-btn.active { background: transparent; color: var(--text-strong); }
+  #picks-sub-tabs .sub-btn.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2.5px; background: var(--accent); border-radius: 2px 2px 0 0; }
 
   .search-wrap { display: none; margin-bottom: 0.8rem; }
   .search-wrap.visible { display: block; }
@@ -386,7 +395,7 @@
   .pick-ind { font-size: 0.56rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 10px; background: var(--surface2); color: var(--muted); white-space: nowrap; }
   .cross-tab-badge { display: inline-flex; align-items: center; font-size: 0.57rem; font-weight: 700; padding: 0.04rem 0.3rem; border-radius: 4px; margin-left: 0.25rem; vertical-align: middle; white-space: nowrap; cursor: default; }
   .cross-tab-badge.due-rank  { color: var(--gold); background: rgba(240,192,64,0.12); border: 1px solid rgba(240,192,64,0.3); }
-  .cross-tab-badge.chalk-rank { color: #7ea9c4; background: rgba(91,143,176,0.14); border: 1px solid rgba(91,143,176,0.4); }
+  .cross-tab-badge.chalk-rank { color: #e2883a; background: rgba(226,136,58,0.14); border: 1px solid rgba(226,136,58,0.4); }
   .cross-tab-badge.value-rank { color: var(--accent); background: rgba(53,201,110,0.12); border: 1px solid rgba(53,201,110,0.3); }
   .cross-tab-badge.bday-badge { padding: 0.02rem 0.2rem; border: 1px solid rgba(236,110,173,0.35); background: rgba(236,110,173,0.12); }
   .cross-tab-badge.daylate-badge { color: #d59bff; background: rgba(213,155,255,0.12); border: 1px solid rgba(213,155,255,0.32); }
