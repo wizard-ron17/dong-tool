@@ -701,6 +701,7 @@
   .sched-venue-row { font-size: 0.6rem; color: var(--muted); margin-top: 0.35rem; }
   .sched-wx { margin-left: 0.15rem; white-space: nowrap; }
   .sched-wx-sep { opacity: 0.5; margin: 0 0.15rem; }
+  .wx-favor { color: var(--accent); font-weight: 700; }
   /* Homer Score: per-game HR-betting confidence, red→yellow→green gradient. */
   .sched-homer { display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0; }
   .sched-homer-lbl { font-size: 0.5rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); line-height: 1; text-align: right; }
@@ -2409,9 +2410,14 @@ function slateTag(games) {
 function schedWeatherChip(w) {
   if (!w) return '';
   if (w.roofed) return `<span class="sched-wx"><span class="sched-wx-sep">·</span>🏟️ Roof</span>`;
-  const arrow = w.windDir === 'out' ? '↗ out' : w.windDir === 'in' ? '↙ in' : '↔ cross';
+  const d = w.windDir || '';
+  const arrow = d.startsWith('out') ? '↗' : d === 'in' ? '↙' : d.startsWith('cross') ? '↔' : '';
+  const favor = w.windFavors
+    ? ` <span class="wx-favor" title="Wind out this way favors ${w.windFavors === 'R' ? 'right' : 'left'}-handed pull power">🎯 ${w.windFavors}HB</span>`
+    : '';
+  const wind = (w.windMph ?? 0) < 3 ? '🍃 calm' : `💨 ${w.windMph} mph ${arrow} ${d}${favor}`;
   return `<span class="sched-wx"><span class="sched-wx-sep">·</span>🌡️ ${w.temp}°`
-    + `<span class="sched-wx-sep">·</span>💨 ${w.windMph} mph ${arrow}</span>`;
+    + `<span class="sched-wx-sep">·</span>${wind}</span>`;
 }
 function avgBatterHRG() {
   const totalHRs = Object.values(hrTotals).reduce((a,b)=>a+b, 0);

@@ -1164,7 +1164,15 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
 
       // Game-time weather (air density + wind), a multiplier next to the park
       // factor. 1.0 for roofed parks and when no forecast is available.
-      r.weatherRatio = weatherByVenue[r.venue] ?? 1;
+      // Weather is now hand-aware: carry (air density, hand-neutral) × the wind
+      // along THIS batter's pull gap. Switch hitters take the side they'll bat
+      // from vs this pitcher. So wind out to LF lifts righties, out to RF lefties.
+      const wx = weatherByVenue[r.venue];
+      if (wx && typeof wx === 'object') {
+        const effHand = r.bHand === 'S' ? (r.oppHand === 'L' ? 'R' : 'L') : r.bHand;
+        const windPull = effHand === 'L' ? wx.windForL : effHand === 'R' ? wx.windForR : (wx.windForL + wx.windForR) / 2;
+        r.weatherRatio = Math.round(Math.max(WX_CLAMP[0], Math.min(WX_CLAMP[1], wx.carry * (1 + WX_WIND_PER_MPH * windPull))) * 1000) / 1000;
+      } else r.weatherRatio = 1;
 
       const factors = [r.recentFormRatio, r.batterPlatoonRatio, effectivePitcherPlatoon, effectiveStuff, paFactor, r.parkRatio, effectiveSynergy, r.weatherRatio]
         .filter(f => f != null);
@@ -1373,12 +1381,28 @@ function windLabelFor(fromDeg, cf) {
   const d = Math.abs((((cf - to + 540) % 360) - 180));
   return d <= 45 ? 'out' : d >= 135 ? 'in' : 'across';
 }
+// Wind component along an arbitrary field bearing (+ when the wind blows toward
+// that bearing). Used for each hand's pull gap, not just dead-center.
+function windAlongBearing(spd, toDeg, targetDeg) {
+  return spd * Math.cos(((((targetDeg - toDeg + 540) % 360) - 180)) * Math.PI / 180);
+}
+// Directional read relative to the park's CF bearing, plus the handedness it
+// favors: RHB pull to LF, LHB pull to RF — so wind out to LF helps righties,
+// out to RF helps lefties. `to` = the bearing the wind blows TOWARD.
+function windRead(toDeg, cf, spd) {
+  if (spd < 3) return { dir: 'calm', favors: null };
+  const s = (((toDeg - cf + 540) % 360) - 180); // + = toward RF side, − = toward LF side
+  const a = Math.abs(s);
+  if (a <= 50) return s < -18 ? { dir: 'out to LF', favors: 'R' } : s > 18 ? { dir: 'out to RF', favors: 'L' } : { dir: 'out to CF', favors: null };
+  if (a >= 130) return { dir: 'in', favors: null };
+  return s > 0 ? { dir: 'cross to RF', favors: 'L' } : { dir: 'cross to LF', favors: 'R' };
+}
 // Attaches g.weather to each game and returns { venueName -> ratio } for Picks.
 async function fetchWeather(games) {
   const OM = 'https://api.open-meteo.com/v1/forecast';
   const byVenue = {};
   await Promise.all(games.map(async g => {
-    if (g.roofType && g.roofType !== 'Open') { g.weather = { roofed: true, ratio: 1 }; byVenue[g.venue] = 1; return; }
+    if (g.roofType && g.roofType !== 'Open') { g.weather = { roofed: true, ratio: 1 }; byVenue[g.venue] = { carry: 1, windForR: 0, windForL: 0 }; return; }
     if (g.lat == null || g.cfAzimuth == null) { g.weather = null; return; }
     try {
       const q = `latitude=${g.lat}&longitude=${g.lon}&hourly=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=GMT`;
@@ -1392,18 +1416,23 @@ async function fetchWeather(games) {
       const rh   = avg(idx.map(i => h.relative_humidity_2m[i]));
       const pres = avg(idx.map(i => h.surface_pressure[i]));
       const carry = Math.pow(WX_RHO0 / airDensity(temp, rh, pres), WX_CARRY_EXP);
-      const out = WX_WIND_DAMPEN * avg(idx.map(i => windAlongCF(h.wind_speed_10m[i], h.wind_direction_10m[i], g.cfAzimuth)));
       const uTo = avg(idx.map(i => h.wind_speed_10m[i] * Math.sin(((h.wind_direction_10m[i] + 180) % 360) * Math.PI / 180)));
       const vTo = avg(idx.map(i => h.wind_speed_10m[i] * Math.cos(((h.wind_direction_10m[i] + 180) % 360) * Math.PI / 180)));
       const spd = Math.hypot(uTo, vTo);
-      const wdir = (Math.atan2(uTo, vTo) * 180 / Math.PI + 180 + 360) % 360;
-      const ratio = Math.max(WX_CLAMP[0], Math.min(WX_CLAMP[1], carry * (1 + WX_WIND_PER_MPH * out)));
+      const to = (Math.atan2(uTo, vTo) * 180 / Math.PI + 360) % 360; // bearing the wind blows TOWARD
+      // Along-CF (hand-neutral, for display + Homer Score) and along each hand's
+      // pull gap — RHB ≈ CF−30° (LF), LHB ≈ CF+30° (RF) — for hand-aware scoring.
+      const outCF    = WX_WIND_DAMPEN * windAlongBearing(spd, to, g.cfAzimuth);
+      const windForR = WX_WIND_DAMPEN * windAlongBearing(spd, to, (g.cfAzimuth - 30 + 360) % 360);
+      const windForL = WX_WIND_DAMPEN * windAlongBearing(spd, to, (g.cfAzimuth + 30) % 360);
+      const ratio = Math.max(WX_CLAMP[0], Math.min(WX_CLAMP[1], carry * (1 + WX_WIND_PER_MPH * outCF)));
+      const read = windRead(to, g.cfAzimuth, spd);
       g.weather = {
         roofed: false, ratio: Math.round(ratio * 1000) / 1000,
         temp: Math.round(temp), rh: Math.round(rh),
-        windMph: Math.round(spd), windDir: windLabelFor(wdir, g.cfAzimuth),
+        windMph: Math.round(spd), windDir: read.dir, windFavors: read.favors,
       };
-      byVenue[g.venue] = g.weather.ratio;
+      byVenue[g.venue] = { carry, windForR, windForL };
     } catch (e) { g.weather = null; }
   }));
   return byVenue;
