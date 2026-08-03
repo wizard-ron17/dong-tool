@@ -4914,7 +4914,57 @@ function renderValueBoard() {
       <div class="pick-indicators">${blastPctBadge(r.blastPct)}${blastSurplusBadge(r.blastSurplus)}${hrBadge}${pickIndicators(r)}</div>
     </div>`;
   }).join('');
-  el.innerHTML = `${sortBar}<div class="lb-views" data-view="cards"><div class="lb-view-cards">${cards}</div></div>`;
+  const fmtBlast   = r => r.blastPct != null ? `${Math.round(r.blastPct * 100)}%` : '—';
+  const fmtSurplus = r => r.blastSurplus != null ? `+${Math.round((r.blastSurplus - 1) * 100)}%` : '—';
+  const tableRows = pool.map(r => {
+    const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
+    const cls = valueScoreClass(r.valueScore ?? 0);
+    const rk = valueRankMap[r.pid];
+    return `<tr class="due-row-clickable" onclick="openPickModal('${r.pid}','value')">
+      <td class="lb-rank ${rankClass(rk)}">${rk}</td>
+      <td><div class="lb-player">
+        <img class="lb-photo" src="${photo}" alt="">
+        <div>
+          <div class="lb-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {value:1})}</div>
+          <div class="lb-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
+          <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
+        </div>
+      </div></td>
+      <td class="pick-z ${cls}">${(r.valueScore ?? 0).toFixed(1)}</td>
+      <td class="lb-num hr-col">${fmtBlast(r)}</td>
+      <td class="lb-num stat-col">${fmtSurplus(r)}</td>
+    </tr>`;
+  }).join('');
+  const compactHtml = pool.map(r => {
+    const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
+    const cls = valueScoreClass(r.valueScore ?? 0);
+    return `<div class="lb-compact-row due-row-clickable" onclick="openPickModal('${r.pid}','value')">
+      <span class="lbcp-rank ${rankClass(valueRankMap[r.pid])}">${valueRankMap[r.pid]}</span>
+      <img class="lbcp-photo" src="${photo}" alt="">
+      <span class="lbcp-name">${playerNames[r.pid] || r.pid}</span>
+      ${teamLogoImg(r.team,'lbcp-logo')}
+      <span class="lbcp-score ${cls}">${(r.valueScore ?? 0).toFixed(1)}</span>
+    </div>`;
+  }).join('');
+  el.innerHTML = `
+    ${viewSwitcherHtml('shareValue')}
+    ${sortBar}
+    <div class="lb-views" data-view="${listView}">
+      <div class="lb-view-table tbl-scroll">
+        <table class="lb-table">
+          <thead><tr>
+            <th style="width:24px"></th>
+            <th>Player</th>
+            <th class="r">Value</th>
+            <th class="r">Blast%</th>
+            <th class="r">Surplus</th>
+          </tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+      <div class="lb-view-cards">${cards}</div>
+      <div class="lb-view-compact"><div class="lb-compact-grid">${compactHtml}</div></div>
+    </div>`;
 }
 
 function renderValueResults() {
@@ -5108,6 +5158,15 @@ function sharePicks() {
     `${i + 1}. ${playerNames[r.pid] || r.pid} — ${r.pickScore.toFixed(1)} · ${r.team} vs ${r.oppName || 'TBD'}${r.oppHand ? ` (${r.oppHand}HP)` : ''}`);
   const more = filtered.length > ranked.length ? `\n…+${filtered.length - ranked.length} more` : '';
   shareText(`🌭 Dong Tool — HR Picks · ${fmtDateLong(todayDate)}\n\n${lines.join('\n')}${more}`);
+}
+function shareValue() {
+  const filtered = applyValueFilters(value);
+  if (!filtered.length) { dtToast('No value bats to share'); return; }
+  const ranked = [...filtered].sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0)).slice(0, 15);
+  const lines = ranked.map((r, i) =>
+    `${i + 1}. ${playerNames[r.pid] || r.pid} — ${(r.valueScore ?? 0).toFixed(1)} · ${r.team} vs ${r.oppName || 'TBD'}${r.oppHand ? ` (${r.oppHand}HP)` : ''}`);
+  const more = filtered.length > ranked.length ? `\n…+${filtered.length - ranked.length} more` : '';
+  shareText(`🌭 Dong Tool — Value Bats · ${fmtDateLong(todayDate)}\n\n${lines.join('\n')}${more}`);
 }
 function shareDue() {
   const rows = sortDueRows(applyDueFilters(dueRows.slice()));
