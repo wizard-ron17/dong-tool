@@ -2198,7 +2198,7 @@ function normName(s) {
 // but zero at-bats) and match ESPN's injury feed — a hurt reliever is not a
 // returning bopper. Requiring at least one HR this season drops every pitcher
 // and zero-power bench bat while keeping the Min-HR filter's low end meaningful.
-const RETURNING_MIN_HR = 1;
+const RETURNING_MIN_HR = 12; // Returning Boppers is a real-power list: a ≥1 gate let ~everyone through
 async function fetchESPNInjuries() {
   let data;
   try {
@@ -2228,6 +2228,7 @@ async function fetchESPNInjuries() {
       if (!pids || pids.length !== 1) continue; // unmatched or ambiguous name — skip
       const pid = pids[0];
       if (isDTD) dtdStatus[pid] ??= { status, type: it.details?.type || it.type || null }; // DTD layer keeps everyone (Due tool decides who's relevant)
+      if (isDTD) continue; // day-to-day isn't a "returning bopper" — only real IL stints, where the market actually lags. (dtdStatus above still feeds the Due tool.)
       if ((hrTotals[pid] ?? 0) < RETURNING_MIN_HR) continue; // pitchers / zero-power bats aren't returning boppers
       if (seen.has(pid)) continue; // feed lists newest entry first — keep it
       seen.add(pid);
@@ -2441,10 +2442,12 @@ async function main() {
     const injuredNow = new Set(returningInjured.map(r => r.pid));
     const isBopper = pid => (hrTotals[pid] ?? 0) >= RETURNING_MIN_HR; // same pool gate — drops pitchers carried from a pre-floor build
     const ageDays = d => Math.round((new Date(todayET()) - new Date(d)) / 86400000);
+    const wasDTD = from => /day-to-day|questionable|^out$/i.test(from || ''); // origin string on a just-back entry
     justBack = prevJustBack.filter(e =>
-      isBopper(e.pid) && !injuredNow.has(e.pid) && !injuryStatus[e.pid] && ageDays(e.backDate) <= 3);
+      !wasDTD(e.from) && isBopper(e.pid) && !injuredNow.has(e.pid) && !injuryStatus[e.pid] && ageDays(e.backDate) <= 3);
     const carried = new Set(justBack.map(e => e.pid));
     for (const r of prevReturning) {
+      if (r.dtd || wasDTD(r.status)) continue; // DTD no longer feeds Returning Boppers (clears DTD entries carried from a pre-change build)
       if (injuredNow.has(r.pid) || injuryStatus[r.pid] || carried.has(r.pid) || !isBopper(r.pid)) continue;
       justBack.push({ pid: r.pid, backDate: todayET(), from: r.status, type: r.type });
     }
