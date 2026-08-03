@@ -630,6 +630,13 @@ const STUFF_W_VELO   = 0.05;  // per mph below the day's median 4-seam velo
 const STUFF_W_HARD   = 1.7;   // per unit of (hard-hit% − median), as a fraction
 const STUFF_MIN_BBE  = 40;    // batted balls needed for a hard-hit% read
 const STUFF_MIN_FB   = 20;    // 4-seam pitches needed for a velo read
+// Lineup position → plate-appearance multiplier. A HR bet is a single-game
+// event, and expected PAs fall ~0.1 per lineup slot — leadoff sees roughly a
+// full extra look vs the bottom third, ≈+9% / −9% of single-game HR chances.
+// Curve is expected-PA-by-slot normalized to the lineup average (slot 5 ≈ 1.0);
+// an unknown slot (projected lineup, order 0) stays neutral.
+const LINEUP_PA_FACTOR = [1.094, 1.071, 1.047, 1.024, 1.0, 0.976, 0.953, 0.929, 0.906];
+function lineupPAFactor(order) { return (order >= 1 && order <= 9) ? LINEUP_PA_FACTOR[order - 1] : 1; }
 // Value board: the candidate pool re-ranked by (shrunk) Blast% × matchup — the
 // leading-indicator lens that surfaces underpriced power (often lower-HR bats
 // blasting the ball before the book catches up). Replaces the old Longshots.
@@ -809,7 +816,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
           if (p.position === 'P') continue;
           if ((hrTotals[p.pid] ?? 0) < PICKS_MIN_HR) continue;
           if ((playerABs[p.pid] ?? 0) < 20) continue;
-          candidates.push({ pid: p.pid, team: me.teamAbbr, oppTeam: opp.teamAbbr, oppPid: opp.probablePitcherId, oppName: opp.probablePitcher, venue: g.venue, projected: p.projected });
+          candidates.push({ pid: p.pid, team: me.teamAbbr, oppTeam: opp.teamAbbr, oppPid: opp.probablePitcherId, oppName: opp.probablePitcher, venue: g.venue, projected: p.projected, order: p.order });
         }
       }
     }
@@ -1007,7 +1014,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       rows.push({
         pid: c.pid, team: c.team, oppTeam: c.oppTeam, hrs, abs,
         oppPid: c.oppPid, oppName: c.oppName, oppHand: pHand, venue: c.venue,
-        projected: c.projected ?? false,
+        projected: c.projected ?? false, lineupOrder: c.order ?? 0,
         bHand, basePower, rawBasePower, recentFormRatio, batterPlatoonRatio, pitcherPlatoonRatio, parkRatio,
         hrProfile, pitcherMix: starterMix.mix, pitcherMixHand: starterMix.split ? oppStand : null, synergyScore,
         blastPct: bstat.blastPct, blastBBE: bstat.tracked, blastPower,
@@ -1150,11 +1157,16 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       r.pitcherFbVelo = pstuff?.fbVelo != null && pstuff.fbN >= STUFF_MIN_FB ? Math.round(pstuff.fbVelo * 10) / 10 : null;
       r.pitcherHardPct = pstuff?.hardPct != null && pstuff.bbe >= STUFF_MIN_BBE ? Math.round(pstuff.hardPct * 1000) / 10 : null;
 
+      // Lineup-position PA multiplier — extra plate appearances up top mean more
+      // single-game HR chances. Neutral (1.0) when the slot is unknown (projected).
+      const paFactor = lineupPAFactor(r.lineupOrder);
+      r.lineupPAFactor = Math.round(paFactor * 1000) / 1000;
+
       // Game-time weather (air density + wind), a multiplier next to the park
       // factor. 1.0 for roofed parks and when no forecast is available.
       r.weatherRatio = weatherByVenue[r.venue] ?? 1;
 
-      const factors = [r.recentFormRatio, r.batterPlatoonRatio, effectivePitcherPlatoon, effectiveStuff, r.parkRatio, effectiveSynergy, r.weatherRatio]
+      const factors = [r.recentFormRatio, r.batterPlatoonRatio, effectivePitcherPlatoon, effectiveStuff, paFactor, r.parkRatio, effectiveSynergy, r.weatherRatio]
         .filter(f => f != null);
       const contactKnown = r.recentFormRatio != null;
       r.matchupFactor = factors.reduce((a, b) => a * b, contactKnown ? 1 : 0.95);

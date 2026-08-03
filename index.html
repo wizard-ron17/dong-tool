@@ -4602,7 +4602,7 @@ function pickModalHtml(r, board = 'chalk') {
         <div class="pk-side">
           <img src="${photoUrl}" alt="">
           <div class="pk-name">${playerNames[r.pid] || r.pid}</div>
-          <div class="pk-sub">${teamLogoImg(r.team,'team-logo')}${r.team} · Bats ${batHand}${injuryBadge(r.pid, true)}${lineupBadge(r.pid, true)}</div>
+          <div class="pk-sub">${teamLogoImg(r.team,'team-logo')}${r.team} · Bats ${batHand}${r.lineupOrder >= 1 ? ` · <span title="Batting ${r.lineupOrder}${r.lineupOrder===1?'st':r.lineupOrder===2?'nd':r.lineupOrder===3?'rd':'th'} — spot in the order drives how many plate appearances he gets">#${r.lineupOrder} spot</span>` : ''}${injuryBadge(r.pid, true)}${lineupBadge(r.pid, true)}</div>
           <div class="pk-stat"><span class="hrg-val great">${r.hrs} HR</span>${abPerHR ? ` <span class="pk-stat-dim">· ${abPerHR} AB/HR</span>` : ''}${r.blastPct != null ? ` <span class="pk-stat-dim">· <span title="Blast% — squared-up + fast-swing rate, the swing that makes homers (leading indicator of power)">💥 ${Math.round(r.blastPct*100)}% Blast</span></span>` : ''}${isValue && r.blastSurplus > 1.04 ? ` <span class="pk-stat-dim" title="Blast surplus — his blast-implied HR rate is this far above his actual HR/AB; the market prices off HR totals, so it hasn't caught up = underpriced">· 📈 +${Math.round((r.blastSurplus-1)*100)}% vs results</span>` : ''}</div>
         </div>
         <div class="pk-vs">
@@ -4643,6 +4643,7 @@ function pickModalHtml(r, board = 'chalk') {
       <div class="pick-factor-grid">
         ${factorRatio(r.recentFormRatio, 'Recent Contact Quality')}
         ${factorRatio(r.batterPlatoonRatio, 'Batter Platoon Edge')}
+        ${r.lineupPAFactor && r.lineupPAFactor !== 1 ? factorRatio(r.lineupPAFactor, 'Lineup Spot (PA)') : ''}
         ${factorRatio(r.pitcherPlatoonRatio, 'Starter Vulnerability')}
         ${factorRatio(r.pitcherStuffRatio, 'Arm Stuff (velo + contact)')}
         ${factorRatio(r.bullpenPlatoonFactor, 'Bullpen Vulnerability')}
