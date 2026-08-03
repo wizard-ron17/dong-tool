@@ -1220,7 +1220,9 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       .slice(0, VALUE_LIMIT);
 
     rows.sort((a, b) => b.pickScore - a.pickScore);
-    return { picks: rows.filter(r => r.pickScore >= PICKS_MIN_SCORE), value };
+    // Gate on the *rounded* score so a pick that displays "9.0" (toFixed(1)) always
+    // ships — the UI shows one decimal, so a raw 8.95–8.99 read as 9.0 shouldn't be cut.
+    return { picks: rows.filter(r => Math.round(r.pickScore * 10) / 10 >= PICKS_MIN_SCORE), value };
   } catch (e) { return { picks: [], value: [] }; }
 }
 
