@@ -617,7 +617,7 @@ async function attachContactQuality(dueRows) {
 // overall — briefly baked in as server floors, reverted same day as
 // overfit-prone; that cut lives in the client filter chips instead.)
 const PICKS_MIN_HR        = 3;
-const PICKS_MIN_SCORE     = 7;
+const PICKS_MIN_SCORE     = 9; // Chalk pool floor (Full board). Proven adds the power floor on top.
 const POWER_FLOOR_MULT    = 1.25; // Chalk "proven power" = basePower ≥ this × the regular-hitter median HR/AB
 const PICKS_RATIO_MIN     = 0.7;
 const PICKS_RATIO_MAX     = 1.4;
