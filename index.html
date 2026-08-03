@@ -1543,7 +1543,7 @@ let lbSortCol      = null;
 let lbSortDir      = -1;
 let dueSortCol     = null;
 let dueSortDir     = -1;
-let dueFilters     = { minHR: 0, hideCold: false, longestOnly: false, hideNoBarrels: false, hideDTD: false, hideUnavailable: true };
+let dueFilters     = { minHR: 0, hideCold: false, longestOnly: false, hideNoBarrels: false, hideDTD: false, hideUnavailable: true, onChalk: false, onValue: false };
 let dueFiltersPanelOpen = false;
 let dueStreaks = {};   // pid -> { since, maxScore, bestRank } for players currently on the list
 let dueHistory = [];   // one entry per scored day: { date, of, grads: [...] }
@@ -3872,8 +3872,14 @@ function toggleDueExplainer() {
 
 // hideUnavailable is on by default, so "active" means a DEVIATION from the
 // default view — either an added filter, or hide-unavailable turned OFF.
-function dueFiltersActive() { return dueFilters.minHR > 0 || dueFilters.hideCold || dueFilters.longestOnly || dueFilters.hideNoBarrels || dueFilters.hideDTD || dueFilters.hideUnavailable !== true; }
+function dueFiltersActive() { return dueFilters.minHR > 0 || dueFilters.hideCold || dueFilters.longestOnly || dueFilters.hideNoBarrels || dueFilters.hideDTD || dueFilters.hideUnavailable !== true || dueFilters.onChalk || dueFilters.onValue; }
 function applyDueFilters(rows) {
+  // Chalk/Value board membership (same logic the cross-tab badges use) —
+  // precomputed once so the per-row check is O(1). With both on it's an OR:
+  // keep a due hitter who's on either board.
+  const wantBoard = dueFilters.onChalk || dueFilters.onValue;
+  const chalkSet = dueFilters.onChalk ? new Set(applyPicksFilters(picks, PICKS_FILTER_DEFAULTS).map(p => p.pid)) : null;
+  const valueSet = dueFilters.onValue ? new Set(value.filter(v => !isUnavailableToday(v.pid)).map(v => v.pid)) : null;
   return rows.filter(r => {
     if (r.hrs < dueFilters.minHR) return false;
     if (dueFilters.hideCold && contactTagInfo(r.contactFactor).cls === 'bad') return false;
@@ -3881,12 +3887,13 @@ function applyDueFilters(rows) {
     if (dueFilters.hideNoBarrels && !(r.droughtBarrels > 0)) return false; // zero barrels since his last HR
     if (dueFilters.hideDTD && isDayToDay(r.pid)) return false;
     if (dueFilters.hideUnavailable && isUnavailableToday(r.pid)) return false; // IL / off / bench
+    if (wantBoard && !((chalkSet && chalkSet.has(r.pid)) || (valueSet && valueSet.has(r.pid)))) return false;
     return true;
   });
 }
 function setDueMinHR(n) { dueFilters.minHR = n; renderDue(); }
 function toggleDueFilter(key) { dueFilters[key] = !dueFilters[key]; renderDue(); }
-function clearDueFilters() { dueFilters = { minHR: 0, hideCold: false, longestOnly: false, hideNoBarrels: false, hideDTD: false, hideUnavailable: true }; renderDue(); }
+function clearDueFilters() { dueFilters = { minHR: 0, hideCold: false, longestOnly: false, hideNoBarrels: false, hideDTD: false, hideUnavailable: true, onChalk: false, onValue: false }; renderDue(); }
 function toggleDueFiltersPanel() { dueFiltersPanelOpen = !dueFiltersPanelOpen; renderDueFilters(); }
 function renderDueFilters() {
   const minHrOptions = [0, 10, 15, 20];
@@ -3898,6 +3905,8 @@ function renderDueFilters() {
       <span class="due-filter-label">Min HR</span>
       <div class="due-filter-chips">${chips}</div>
     </div>
+    <button class="due-filter-toggle${dueFilters.onChalk?' active':''}" onclick="toggleDueFilter('onChalk')" title="Only due hitters who are also on today's Chalk board">🔒 On Chalk</button>
+    <button class="due-filter-toggle${dueFilters.onValue?' active':''}" onclick="toggleDueFilter('onValue')" title="Only due hitters who are also on today's Value board">🎯 On Value</button>
     <button class="due-filter-toggle${dueFilters.hideCold?' active':''}" onclick="toggleDueFilter('hideCold')">❄️ Hide Cold Contact</button>
     <button class="due-filter-toggle${dueFilters.hideNoBarrels?' active':''}" onclick="toggleDueFilter('hideNoBarrels')" title="Drop anyone without a single Statcast barrel since his last HR — a drought with zero barrels isn't power waiting to land, it's a guy not squaring anything up">🛢️ Hide 0-Barrel Droughts</button>
     <button class="due-filter-toggle${dueFilters.longestOnly?' active':''}" onclick="toggleDueFilter('longestOnly')">🔥 Longest Drought Only</button>
@@ -3908,7 +3917,7 @@ function renderDueFilters() {
   document.getElementById('due-filter-row').style.display = dueFiltersPanelOpen ? '' : 'none';
   document.getElementById('due-filters-chevron').textContent = dueFiltersPanelOpen ? '▴' : '▾';
   document.getElementById('due-filters-toggle').setAttribute('aria-expanded', String(dueFiltersPanelOpen));
-  const activeCount = (dueFilters.minHR > 0 ? 1 : 0) + (dueFilters.hideCold ? 1 : 0) + (dueFilters.longestOnly ? 1 : 0) + (dueFilters.hideNoBarrels ? 1 : 0) + (dueFilters.hideDTD ? 1 : 0) + (dueFilters.hideUnavailable !== true ? 1 : 0);
+  const activeCount = (dueFilters.minHR > 0 ? 1 : 0) + (dueFilters.hideCold ? 1 : 0) + (dueFilters.longestOnly ? 1 : 0) + (dueFilters.hideNoBarrels ? 1 : 0) + (dueFilters.hideDTD ? 1 : 0) + (dueFilters.hideUnavailable !== true ? 1 : 0) + (dueFilters.onChalk ? 1 : 0) + (dueFilters.onValue ? 1 : 0);
   const badge = document.getElementById('due-filters-badge');
   badge.style.display = activeCount ? 'inline-flex' : 'none';
   badge.textContent = activeCount;
