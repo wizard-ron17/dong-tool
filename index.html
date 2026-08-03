@@ -2582,29 +2582,35 @@ function renderTotals() {
   if (hrChart){hrChart.destroy();hrChart=null;}
   const ctx = document.getElementById('hrChart').getContext('2d');
   const mob = isMob();
-  const tickStep     = Math.max(1, Math.ceil(labels.length/(mob?5:14)));
+  const tickStep     = Math.max(1, Math.ceil(labels.length/(mob?4:14)));
   const sparseLabels = labels.map((l,i)=>i%tickStep===0?l:'');
   const gameDaysMap = byVenue ? venueGameDays : teamGameDays;
   const dateSnapshot = filterVal==='ALL' ? allDates : allDates.filter(d=>(gameDaysMap[filterVal]?.[d]||0)>0);
 
   const rollDatasets = activePresets.map((p,i) => ({
     label: `${p.days}d`, data: makeMA(hrPerGame, p.days), borderColor: p.color,
-    backgroundColor: 'transparent', borderWidth: mob?1.5:2, pointRadius:0, tension:0.4,
+    backgroundColor: 'transparent', borderWidth: 2, pointRadius:0, tension:0.4,
     order: activePresets.length - i,
   }));
 
   // Datasets: main HR/G line, rolling MAs, then (optional) Bollinger band and
   // Chalk Index. The band is three datasets — upper fills down to lower (fill
   // '+1' = the very next dataset), so they must stay adjacent and in that order.
+  // On mobile the raw daily line is the noisy part (123 whipsawing points in a
+  // narrow width), so it recedes to a faint, unfilled background texture and the
+  // smooth rolling averages carry the chart. The band's dashed guide lines mute
+  // too, keeping their shaded fill (the useful bit) without the extra clutter.
+  const bandLine = mob ? 'rgba(135,148,171,0.26)' : 'rgba(135,148,171,0.4)';
+  const bandSMA  = mob ? 'rgba(190,200,215,0.3)'  : 'rgba(190,200,215,0.5)';
   const datasets = [
-    {label:'HR/game',data:hrPerGame,borderColor:'#35c96e',backgroundColor:'rgba(53,201,110,0.07)',borderWidth:mob?1:1.5,pointRadius:0,tension:0.35,fill:true,order:99},
+    {label:'HR/game',data:hrPerGame,borderColor:mob?'rgba(53,201,110,0.38)':'#35c96e',backgroundColor:mob?'transparent':'rgba(53,201,110,0.07)',borderWidth:mob?0.8:1.5,pointRadius:0,tension:0.35,fill:!mob,order:99},
     ...rollDatasets,
   ];
   if (volBandsOn) {
     datasets.push(
-      {label:'+2σ', data:bands.upper, borderColor:'rgba(135,148,171,0.4)', borderWidth:1, borderDash:[3,3], pointRadius:0, tension:0.3, fill:'+1', backgroundColor:'rgba(135,148,171,0.11)', order:120},
-      {label:'−2σ', data:bands.lower, borderColor:'rgba(135,148,171,0.4)', borderWidth:1, borderDash:[3,3], pointRadius:0, tension:0.3, fill:false, order:120},
-      {label:`${BOLLINGER_WIN}d SMA`, data:bands.mean, borderColor:'rgba(190,200,215,0.5)', borderWidth:1, borderDash:[6,4], pointRadius:0, tension:0.3, fill:false, order:120},
+      {label:'+2σ', data:bands.upper, borderColor:bandLine, borderWidth:1, borderDash:[3,3], pointRadius:0, tension:0.3, fill:'+1', backgroundColor:'rgba(135,148,171,0.11)', order:120},
+      {label:'−2σ', data:bands.lower, borderColor:bandLine, borderWidth:1, borderDash:[3,3], pointRadius:0, tension:0.3, fill:false, order:120},
+      {label:`${BOLLINGER_WIN}d SMA`, data:bands.mean, borderColor:bandSMA, borderWidth:1, borderDash:[6,4], pointRadius:0, tension:0.3, fill:false, order:120},
     );
   }
   if (chalkIdxOn && filterVal==='ALL') {
