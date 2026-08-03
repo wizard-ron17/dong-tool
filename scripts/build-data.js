@@ -620,6 +620,16 @@ const PICKS_MIN_HR        = 3;
 const PICKS_MIN_SCORE     = 7;
 const PICKS_RATIO_MIN     = 0.7;
 const PICKS_RATIO_MAX     = 1.4;
+// Pitcher "stuff" → HR-vulnerability factor. Validated (Aug 2026) as far and away
+// the best forward predictor of a pitcher's homer-proneness: 4-seam velocity
+// (r≈−0.37 vs future HR) + hard-hit% allowed (r≈+0.29) reach R≈0.46, versus
+// HR/9's ≈0 — and movement/spin added ~nothing, so we skip them. Weights convert
+// each unit of deviation from the day's median into a multiplier: slower velo /
+// louder contact = more vulnerable (>1), a flamethrower who muffles contact = <1.
+const STUFF_W_VELO   = 0.05;  // per mph below the day's median 4-seam velo
+const STUFF_W_HARD   = 1.7;   // per unit of (hard-hit% − median), as a fraction
+const STUFF_MIN_BBE  = 40;    // batted balls needed for a hard-hit% read
+const STUFF_MIN_FB   = 20;    // 4-seam pitches needed for a velo read
 // Value board: the candidate pool re-ranked by (shrunk) Blast% × matchup — the
 // leading-indicator lens that surfaces underpriced power (often lower-HR bats
 // blasting the ball before the book catches up). Replaces the old Longshots.
@@ -813,12 +823,13 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
     const bulkPids   = Object.values(openerBulk).map(o => o.bulk?.pid).filter(Boolean);
     const pitcherIds = [...new Set([...uniq.map(c => c.oppPid), ...bulkPids])];
 
-    const [batterSplits, pitcherSplits, batterBalls, pitcherMixByPid] = await Promise.all([
+    const [batterSplits, pitcherSplits, batterBalls, pitchData] = await Promise.all([
       fetchPlatoonSplits(batterIds, 'hitting'),
       fetchPlatoonSplits(pitcherIds, 'pitching'),
       fetchBattedBalls(batterIds),
       fetchPitchMix(pitcherIds),
     ]);
+    const pitcherMixByPid = pitchData.mix, pitcherStuffByPid = pitchData.stuff;
     const ballsByPid = {};
     for (const row of batterBalls) (ballsByPid[row.batter] ??= []).push(row);
 
@@ -1013,6 +1024,22 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
     const medianSynergy = synergyScores.length ? synergyScores[Math.floor(synergyScores.length / 2)] : 0;
     const avgPitcherRate = (leaguePitcherRateSame + leaguePitcherRateOpp) / 2 || 1;
 
+    // Pitcher stuff → HR-vulnerability. Baseline is the median 4-seam velo /
+    // hard-hit% across today's actual starters (deduped), self-calibrating like
+    // medianSynergy — no hardcoded league constant to drift with the era.
+    const med = (arr) => { const s = arr.filter(v => v != null).sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
+    const starterStuff = [...new Map(rows.map(r => [r.oppPid, pitcherStuffByPid[r.oppPid]])).values()].filter(Boolean);
+    const medVelo = med(starterStuff.filter(s => s.fbN >= STUFF_MIN_FB).map(s => s.fbVelo)) ?? 94;
+    const medHard = med(starterStuff.filter(s => s.bbe >= STUFF_MIN_BBE).map(s => s.hardPct)) ?? 0.39;
+    // >1 = more homer-prone (slow velo / loud contact allowed), <1 = tougher.
+    function pitcherStuffRatio(s) {
+      if (!s) return null;
+      let logit = 0, have = false;
+      if (s.fbVelo != null && s.fbN >= STUFF_MIN_FB) { logit += STUFF_W_VELO * (medVelo - s.fbVelo); have = true; }
+      if (s.hardPct != null && s.bbe >= STUFF_MIN_BBE) { logit += STUFF_W_HARD * (s.hardPct - medHard); have = true; }
+      return have ? Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, 1 + logit)) : null;
+    }
+
     for (const r of rows) {
       // How much to trust this batter's pitch profile at all, given how many
       // HRs it's built from. Also shipped to the client so the modal can say
@@ -1111,11 +1138,23 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
         [penW, bullpenPlatoonFactor != null ? r.bullpenSynergyRatio : null],
       ]) ?? r.synergyRatio;
 
+      // Pitcher stuff (velo + hard-hit%) is the pitcher's overall HR-vulnerability
+      // LEVEL — the platoon ratios only carry his L/R skew, so this is genuinely
+      // new signal. Applied over the starter's share of the game; the pen/bulk
+      // portion stays neutral (we don't fetch their velo yet), so a flamethrower
+      // starter only protects his own innings.
+      const starterStuffRatio = pitcherStuffRatio(pitcherStuffByPid[r.oppPid]);
+      const effectiveStuff = starterStuffRatio != null ? sW * starterStuffRatio + (1 - sW) * 1 : null;
+      r.pitcherStuffRatio = starterStuffRatio != null ? Math.round(starterStuffRatio * 1000) / 1000 : null;
+      const pstuff = pitcherStuffByPid[r.oppPid];
+      r.pitcherFbVelo = pstuff?.fbVelo != null && pstuff.fbN >= STUFF_MIN_FB ? Math.round(pstuff.fbVelo * 10) / 10 : null;
+      r.pitcherHardPct = pstuff?.hardPct != null && pstuff.bbe >= STUFF_MIN_BBE ? Math.round(pstuff.hardPct * 1000) / 10 : null;
+
       // Game-time weather (air density + wind), a multiplier next to the park
       // factor. 1.0 for roofed parks and when no forecast is available.
       r.weatherRatio = weatherByVenue[r.venue] ?? 1;
 
-      const factors = [r.recentFormRatio, r.batterPlatoonRatio, effectivePitcherPlatoon, r.parkRatio, effectiveSynergy, r.weatherRatio]
+      const factors = [r.recentFormRatio, r.batterPlatoonRatio, effectivePitcherPlatoon, effectiveStuff, r.parkRatio, effectiveSynergy, r.weatherRatio]
         .filter(f => f != null);
       const contactKnown = r.recentFormRatio != null;
       r.matchupFactor = factors.reduce((a, b) => a * b, contactKnown ? 1 : 0.95);
@@ -1685,13 +1724,20 @@ async function fetchPitchMixSide(chunk, stands) {
     `&batter_stands=${stands}&player_type=pitcher&game_date_gt=${SEASON_START}&game_date_lt=${todayET()}` +
     `&group_by=name&min_pitches=0&min_results=0&type=details${lookup}`;
   const text = await savantFetch(url);
-  const counts = {};
+  const counts = {}, stuff = {};
   if (text) for (const row of parseCsv(text)) {
     const pid = row.pitcher, name = row.pitch_name;
     if (!pid || !name) continue;
     (counts[pid] ??= {})[name] = (counts[pid][name] ?? 0) + 1;
+    // Stuff, from the same rows: 4-seam velo (over every fastball) + hard-hit%
+    // allowed (over batted balls, rows that carry a launch_speed).
+    const s = (stuff[pid] ??= { vSum: 0, vN: 0, hard: 0, bbe: 0 });
+    const velo = parseFloat(row.release_speed);
+    if (name === '4-Seam Fastball' && !isNaN(velo)) { s.vSum += velo; s.vN++; }
+    const ev = parseFloat(row.launch_speed);
+    if (!isNaN(ev)) { s.bbe++; if (ev >= 95) s.hard++; }
   }
-  return counts;
+  return { counts, stuff };
 }
 // A pitcher's arsenal, overall AND split by batter side. Pitchers attack lefties
 // and righties with materially different mixes — across the league's top arms the
@@ -1707,9 +1753,14 @@ async function fetchPitchMix(pids) {
   const chunks = [];
   for (let i = 0; i < pids.length; i += PITCH_MIX_BATCH) chunks.push(pids.slice(i, i + PITCH_MIX_BATCH));
   const byPid = {}; // pid -> { L:{name->n}, R:{name->n} }
+  const stuffRaw = {}; // pid -> { vSum, vN, hard, bbe } aggregated across both sides
   for (const chunk of chunks) {
     const [lc, rc] = await Promise.all([fetchPitchMixSide(chunk, 'L'), fetchPitchMixSide(chunk, 'R')]);
-    for (const pid of chunk) byPid[pid] = { L: lc[pid] ?? {}, R: rc[pid] ?? {} };
+    for (const pid of chunk) {
+      byPid[pid] = { L: lc.counts[pid] ?? {}, R: rc.counts[pid] ?? {} };
+      const agg = (stuffRaw[pid] ??= { vSum: 0, vN: 0, hard: 0, bbe: 0 });
+      for (const src of [lc.stuff[pid], rc.stuff[pid]]) if (src) { agg.vSum += src.vSum; agg.vN += src.vN; agg.hard += src.hard; agg.bbe += src.bbe; }
+    }
   }
   const sum = o => Object.values(o).reduce((a, b) => a + b, 0);
   const mix = {};
@@ -1724,7 +1775,12 @@ async function fetchPitchMix(pids) {
       R: topPitchMix(R), nR: sum(R),
     };
   }
-  return mix;
+  const stuff = {};
+  for (const pid in stuffRaw) {
+    const s = stuffRaw[pid];
+    stuff[pid] = { fbVelo: s.vN ? s.vSum / s.vN : null, fbN: s.vN, hardPct: s.bbe ? s.hard / s.bbe : null, bbe: s.bbe };
+  }
+  return { mix, stuff };
 }
 
 // Bullpen scouting for today's games: who a team typically brings in once the

@@ -4616,6 +4616,7 @@ function pickModalHtml(r, board = 'chalk') {
           <div class="pk-sub">${teamLogoImg(r.oppTeam,'team-logo')}${r.oppTeam} · Throws ${throwHand}</div>
           ${r.openerLikely ? '<span class="pk-opener-badge">LIKELY OPENER</span>' : ''}
           <div class="pk-stat">${pitcherStat ? `<span class="hrg-val ${hr9Cls}">${pitcherStat.hr9} HR9</span> <span class="pk-stat-dim">· ${pitcherStat.hr} HR allowed${r.starterAvgIP != null ? ` · ${r.starterAvgIP} IP/start` : ''}</span>` : '<span class="pk-stat-dim">No stats yet</span>'}</div>
+          ${r.pitcherFbVelo != null || r.pitcherHardPct != null ? `<div class="pk-stat pk-stat-dim" title="The pitcher's HR-vulnerability signal — 4-seam velocity and hard-hit% allowed predict homers far better than HR/9">${r.pitcherFbVelo != null ? `🔥 ${r.pitcherFbVelo} mph FB` : ''}${r.pitcherFbVelo != null && r.pitcherHardPct != null ? ' · ' : ''}${r.pitcherHardPct != null ? `💥 ${r.pitcherHardPct}% hard-hit` : ''}</div>` : ''}
         </div>
       </div>
       ${bulkStripHtml}
@@ -4643,6 +4644,7 @@ function pickModalHtml(r, board = 'chalk') {
         ${factorRatio(r.recentFormRatio, 'Recent Contact Quality')}
         ${factorRatio(r.batterPlatoonRatio, 'Batter Platoon Edge')}
         ${factorRatio(r.pitcherPlatoonRatio, 'Starter Vulnerability')}
+        ${factorRatio(r.pitcherStuffRatio, 'Arm Stuff (velo + contact)')}
         ${factorRatio(r.bullpenPlatoonFactor, 'Bullpen Vulnerability')}
         ${factorRatio(r.synergyRatio, 'Starter Pitch Synergy')}
         ${factorRatio(r.bullpenSynergyRatio, 'Bullpen Pitch Synergy')}
