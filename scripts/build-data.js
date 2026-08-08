@@ -645,6 +645,9 @@ const VALUE_LIMIT        = 30;
 const VALUE_SURPLUS_MIN  = 1.1; // blast must imply ≥10% more HR than he's produced to count as "value" (underpriced)
 const VALUE_CONTACT_GAIN = 2; // recent-form amplification, display cue only (not in score)
 const BASE_POWER_SHRINK_AB = 100; // pseudo-ABs of league-average prior; half-regressed at 100 AB, lightly at 300+
+// Matchup Lab: qualifying floors for the per-entity cards shipped to matchup-cards.json.
+const MATCHUP_MIN_AB = 100; // batters with a real sample this season
+const MATCHUP_MIN_GS = 5;   // pitchers with a real starter sample this season
 // Platoon splits are HR-based rate stats, and HRs are rare enough that a
 // hard "minimum PA/IP, then trust it fully" gate still let small samples
 // swing wildly once they cleared the bar (1 HR vs 4 HR over ~50 PA each
@@ -950,6 +953,20 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       if (sameSplit == null || otherSplit == null || !(otherSplit > 0)) return null;
       return Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, sameSplit / otherSplit));
     }
+    // Batter's HR ratio facing a pitcher of hand `pHand` — his same/opposite
+    // split each shrunk toward its own handedness prior, then compared. Extracted
+    // so the Matchup Lab cards use the exact same math as the pick loop below.
+    function batterPlatoonVs(bInfo, pHand) {
+      if (!bInfo || !pHand) return null;
+      const vsLPrior = bInfo.hand === 'L' ? leagueBatterRateSame : leagueBatterRateOpp;
+      const vsRPrior = bInfo.hand === 'R' ? leagueBatterRateSame : leagueBatterRateOpp;
+      const shrunkVsL = bInfo.vsL ? shrunkRate(bInfo.vsL.hr, bInfo.vsL.pa, vsLPrior, PLATOON_SHRINK_PA) : null;
+      const shrunkVsR = bInfo.vsR ? shrunkRate(bInfo.vsR.hr, bInfo.vsR.pa, vsRPrior, PLATOON_SHRINK_PA) : null;
+      const todaySplit = pHand === 'L' ? shrunkVsL : shrunkVsR;
+      const otherSplit = pHand === 'L' ? shrunkVsR : shrunkVsL;
+      if (todaySplit == null || otherSplit == null || !(otherSplit > 0)) return null;
+      return Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, todaySplit / otherSplit));
+    }
 
     const rows = [];
     for (const c of uniq) {
@@ -998,18 +1015,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       // his own batSide) before comparing today's relevant split against the
       // other — not toward a flat vs-L/vs-R prior, which has no real platoon
       // signal once pooled across both lefty and righty batters.
-      let batterPlatoonRatio = null;
-      if (bInfo && pHand) {
-        const vsLPrior = bInfo.hand === 'L' ? leagueBatterRateSame : leagueBatterRateOpp;
-        const vsRPrior = bInfo.hand === 'R' ? leagueBatterRateSame : leagueBatterRateOpp;
-        const shrunkVsL = bInfo.vsL ? shrunkRate(bInfo.vsL.hr, bInfo.vsL.pa, vsLPrior, PLATOON_SHRINK_PA) : null;
-        const shrunkVsR = bInfo.vsR ? shrunkRate(bInfo.vsR.hr, bInfo.vsR.pa, vsRPrior, PLATOON_SHRINK_PA) : null;
-        const todaySplit = pHand === 'L' ? shrunkVsL : shrunkVsR;
-        const otherSplit = pHand === 'L' ? shrunkVsR : shrunkVsL;
-        if (todaySplit != null && otherSplit != null && otherSplit > 0) {
-          batterPlatoonRatio = Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, todaySplit / otherSplit));
-        }
-      }
+      const batterPlatoonRatio = batterPlatoonVs(bInfo, pHand);
 
       const bHand = bInfo?.hand ?? null;
       const pitcherPlatoonRatio = pitcherPlatoonVs(pInfo, bHand);
@@ -1220,9 +1226,106 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       .slice(0, VALUE_LIMIT);
 
     rows.sort((a, b) => b.pickScore - a.pickScore);
+    // ── Matchup Lab cards ────────────────────────────────────────────────
+    // Ship per-entity components (a batter card × a pitcher card) so the client
+    // can reproduce this exact breakdown for ANY batter vs ANY pitcher — the
+    // matchup factor is separable, so we ship each side's finished pieces and the
+    // client just multiplies. Isolated in try/catch: nothing here may break
+    // picks / value / data.json. Cards use league-wide baselines (stuff medians,
+    // synergy median) instead of the day's tiny pool, so they're stable slate-to-slate.
+    let cards = null;
+    try {
+      const cardBatterIds = Object.keys(playerABs).filter(pid => (playerABs[pid] ?? 0) >= MATCHUP_MIN_AB);
+      const lb = await fetch(`${MLB}/stats?stats=season&group=pitching&season=${SEASON_YEAR}&sportId=1&gameType=R&limit=3000&playerPool=all`).then(r => r.json()).catch(() => null);
+      const pMeta = {};
+      for (const sp of (lb?.stats?.[0]?.splits ?? []))
+        if ((sp.stat?.gamesStarted ?? 0) >= MATCHUP_MIN_GS && sp.player?.id)
+          pMeta[String(sp.player.id)] = { name: sp.player.fullName, team: sp.team?.abbreviation ?? playerTeams[String(sp.player.id)] ?? '' };
+      const cardPitcherIds = Object.keys(pMeta);
+      const [cBat, cPit, cBalls, cPitch] = await Promise.all([
+        fetchPlatoonSplits(cardBatterIds, 'hitting'),
+        fetchPlatoonSplits(cardPitcherIds, 'pitching'),
+        fetchBattedBalls(cardBatterIds),
+        fetchPitchMix(cardPitcherIds),
+      ]);
+      const cMix = cPitch.mix, cStuff = cPitch.stuff;
+      const cBallsByPid = {};
+      for (const row of cBalls) (cBallsByPid[row.batter] ??= []).push(row);
+      // League-wide stuff medians — a stable baseline, not today's ~15-starter pool.
+      const cStuffArr = Object.values(cStuff).filter(Boolean);
+      const cMedVelo = med(cStuffArr.filter(s => s.fbN >= STUFF_MIN_FB).map(s => s.fbVelo)) ?? 94;
+      const cMedHard = med(cStuffArr.filter(s => s.bbe >= STUFF_MIN_BBE).map(s => s.hardPct)) ?? 0.39;
+      const cardStuff = s => {
+        if (!s) return null;
+        let logit = 0, have = false;
+        if (s.fbVelo != null && s.fbN >= STUFF_MIN_FB) { logit += STUFF_W_VELO * (cMedVelo - s.fbVelo); have = true; }
+        if (s.hardPct != null && s.bbe >= STUFF_MIN_BBE) { logit += STUFF_W_HARD * (s.hardPct - cMedHard); have = true; }
+        return have ? Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, 1 + logit)) : null;
+      };
+      const r3 = x => x == null ? null : Math.round(x * 1000) / 1000;
+      const batters = [];
+      for (const pid of cardBatterIds) {
+        const abs = playerABs[pid] ?? 0, hrs = hrTotals[pid] ?? 0;
+        const balls = cBallsByPid[pid] ?? [];
+        const bstat = blastStats(balls);
+        const blastPct = bstat.blastPct ?? leagueBlastPct;
+        const contactRate = (bstat.bbe && abs) ? bstat.bbe / abs : leagueContactRate;
+        const blastImplied = (blastPct * pHRblast + (1 - blastPct) * pHRnon) * contactRate;
+        const basePower = shrunkRate(hrs, abs, blastImplied, BASE_POWER_SHRINK_AB);
+        const blastPower = shrunkRate(bstat.blasts, bstat.tracked, leagueBlastPct, 60);
+        const actualHRperAB = shrunkRate(hrs, abs, leagueHRPerAB, BASE_POWER_SHRINK_AB);
+        const bInfo = cBat[pid] ?? null;
+        batters.push({
+          pid, name: playerNames[pid] || pid, team: playerTeams[pid] || '', hand: bInfo?.hand ?? null, hrs, abs,
+          basePower: r3(basePower), blastPct: bstat.blastPct != null ? Math.round(bstat.blastPct * 1000) / 1000 : null,
+          blastPower: r3(blastPower), blastSurplus: actualHRperAB > 0 ? Math.round(blastImplied / actualHRperAB * 100) / 100 : 1,
+          provenPower: basePower >= powerBaseline, form: r3(computeRecentFormRatio(balls)),
+          platoonVsL: r3(batterPlatoonVs(bInfo, 'L')), platoonVsR: r3(batterPlatoonVs(bInfo, 'R')),
+          hrProfile: computeHRPitchProfile(balls),
+        });
+      }
+      const pitchers = [];
+      for (const pid of cardPitcherIds) {
+        const pInfo = cPit[pid] ?? null, st = cStuff[pid];
+        pitchers.push({
+          pid, name: pMeta[pid].name, team: pMeta[pid].team, hand: pInfo?.hand ?? null,
+          stuffRatio: r3(cardStuff(st)),
+          fbVelo: st?.fbVelo != null && st.fbN >= STUFF_MIN_FB ? Math.round(st.fbVelo * 10) / 10 : null,
+          hardPct: st?.hardPct != null && st.bbe >= STUFF_MIN_BBE ? Math.round(st.hardPct * 1000) / 10 : null,
+          platoonVsL: r3(pitcherPlatoonVs(pInfo, 'L')), platoonVsR: r3(pitcherPlatoonVs(pInfo, 'R')),
+          mix: cMix[pid] ?? null,
+        });
+      }
+      // Stable synergy baseline: median overlap across all card pairs (batter HR
+      // profile × pitcher overall mix), so the client normalizes synergy the same
+      // way picks do — against a league-wide median instead of the day's pool.
+      const synScores = [];
+      for (const b of batters) { if (!b.hrProfile?.length) continue;
+        for (const p of pitchers) { const mix = p.mix?.all ?? (Array.isArray(p.mix) ? p.mix : null);
+          if (!mix) continue; const s = pitchSynergyScore(b.hrProfile, mix); if (s > 0) synScores.push(s); } }
+      synScores.sort((a, b) => a - b);
+      const synergyBaseline = synScores.length ? synScores[Math.floor(synScores.length / 2)] : 0;
+      const parkFactors = {};
+      for (const v of Object.keys(venueGameDays)) {
+        const g = Object.values(venueGameDays[v] ?? {}).reduce((a, b) => a + b, 0);
+        const h = Object.values(venueHRsByDate[v] ?? {}).reduce((a, b) => a + b, 0);
+        if (g >= 10 && leagueHRPerGame) parkFactors[v] = Math.round(Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, (h / g) / leagueHRPerGame)) * 1000) / 1000;
+      }
+      const shipped = rows.filter(r => Math.round(r.pickScore * 10) / 10 >= PICKS_MIN_SCORE);
+      const top = shipped[0] ?? null;
+      cards = {
+        generatedAt: new Date().toISOString(), ratioClamp: [PICKS_RATIO_MIN, PICKS_RATIO_MAX],
+        synergyBaseline: Math.round(synergyBaseline * 1000) / 1000, synergyHrFull: SYNERGY_HR_FULL,
+        valueContactGain: VALUE_CONTACT_GAIN, parkFactors,
+        default: top ? { batterPid: top.pid, pitcherPid: top.oppPid, venue: top.venue } : null,
+        batters, pitchers,
+      };
+      console.log(`  Matchup cards: ${batters.length} batters × ${pitchers.length} pitchers`);
+    } catch (e) { console.warn('  Matchup cards skipped:', e.message); cards = null; }
+
     // Gate on the *rounded* score so a pick that displays "9.0" (toFixed(1)) always
     // ships — the UI shows one decimal, so a raw 8.95–8.99 read as 9.0 shouldn't be cut.
-    return { picks: rows.filter(r => Math.round(r.pickScore * 10) / 10 >= PICKS_MIN_SCORE), value };
+    return { picks: rows.filter(r => Math.round(r.pickScore * 10) / 10 >= PICKS_MIN_SCORE), value, cards };
   } catch (e) { return { picks: [], value: [] }; }
 }
 
@@ -2397,7 +2500,7 @@ async function main() {
   const bullpens = await fetchBullpens(todaySchedule, teamIdToAbbr);
 
   console.log("Computing today's HR picks (matchups, splits, pitch-type profiles)...");
-  const { picks: freshPicks, value: freshValue } = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue);
+  const { picks: freshPicks, value: freshValue, cards: matchupCards } = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue);
   // Degraded-build guard #2: fetchPlatoonSplits swallows fetch errors into {},
   // which once collapsed a 28-pick slate to 1 pick (every pick null-handed,
   // platoon factors gone, scores under the floor). On a real build with games,
@@ -2687,6 +2790,15 @@ async function main() {
   const fs = await import('node:fs');
   fs.writeFileSync(new URL('../data.json', import.meta.url), JSON.stringify(output));
   console.log(`Wrote data.json — ${allDates.length} game days, ${totalHRCount} HRs, ${dueRows.length} due rows, ${prospects.history.length} callup graduations, ${prospects.justCalledUp.length} on watch, ${todaySchedule.length} games today, ${picks.length} picks`);
+
+  // Matchup Lab cards ship as a SEPARATE file, lazy-loaded only when the tool is
+  // opened, so the ~200 KB of per-entity cards never weighs down the main app
+  // load. Only overwrite on a good build (cards present) — a skipped card build
+  // keeps the last good file instead of blanking the tool.
+  if (matchupCards) {
+    fs.writeFileSync(new URL('../matchup-cards.json', import.meta.url), JSON.stringify(matchupCards));
+    console.log(`Wrote matchup-cards.json — ${matchupCards.batters.length} batters, ${matchupCards.pitchers.length} pitchers`);
+  }
 
   // Stamp the service worker with a short hash of index.html. sw.js only
   // changes when the app code changes (not on data-only rebuilds), which is

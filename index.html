@@ -416,6 +416,26 @@
   .pk-pen-chev { color: var(--dim); font-size: 0.6rem; margin-left: 0.15rem; }
   .pick-factor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
   .pick-factor { background: var(--surface1); border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem 0.45rem; }
+  /* Matchups (Matchup Lab) */
+  .nm-new { font-family: var(--font-d); font-size: 0.5rem; font-weight: 800; letter-spacing: 0.08em; color: #0b1220; background: var(--accent); border-radius: 4px; padding: 0.05rem 0.28rem; vertical-align: middle; margin-left: 0.25rem; }
+  .mu-pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.7rem; }
+  .mu-field { display: flex; flex-direction: column; gap: 0.2rem; }
+  .mu-field.full { grid-column: 1 / -1; }
+  .mu-field label { font-size: 0.57rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; }
+  .mu-select { font-family: var(--font-b); font-size: 0.9rem; font-weight: 600; color: var(--text); background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.6rem; width: 100%; -webkit-appearance: none; appearance: none; cursor: pointer; }
+  .mu-select:focus { outline: none; border-color: var(--accent); }
+  .mu-swap { grid-column: 1 / -1; display: flex; justify-content: center; }
+  .mu-swap button { background: var(--surface1); border: 1px solid var(--border); color: var(--muted); font-family: var(--font-b); font-weight: 700; font-size: 0.7rem; padding: 0.28rem 0.7rem; border-radius: 999px; cursor: pointer; }
+  .mu-swap button:hover { border-color: var(--accent); color: var(--accent); }
+  .mu-note { font-size: 0.63rem; color: var(--muted); text-align: center; margin: 0.5rem 0 0.2rem; line-height: 1.4; }
+  .hm-feature { display: flex; align-items: center; gap: 0.7rem; padding: 0.8rem 0.9rem; margin-bottom: 0.8rem; cursor: pointer; border-radius: 12px; background: linear-gradient(120deg, rgba(88,166,255,0.14), rgba(88,166,255,0.04)); border: 1px solid rgba(88,166,255,0.34); transition: border-color 0.15s, transform 0.05s; }
+  .hm-feature:hover { border-color: var(--accent); }
+  .hm-feature:active { transform: scale(0.995); }
+  .hm-feature-badge { font-family: var(--font-d); font-size: 0.52rem; font-weight: 800; letter-spacing: 0.1em; color: #0b1220; background: var(--accent); border-radius: 5px; padding: 0.12rem 0.34rem; flex: none; }
+  .hm-feature-body { flex: 1; min-width: 0; }
+  .hm-feature-title { font-family: var(--font-d); font-weight: 800; font-size: 0.98rem; color: var(--text); }
+  .hm-feature-desc { font-size: 0.68rem; color: var(--muted); margin-top: 0.15rem; line-height: 1.35; }
+  .hm-feature-cta { font-family: var(--font-d); font-weight: 800; font-size: 0.72rem; color: var(--accent); flex: none; }
   .pick-factor-label { font-size: 0.57rem; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
   .pick-factor-val { font-family: var(--font-d); font-size: 0.85rem; font-weight: 700; }
   /* Pitch matchup: batter's HR pitches vs pitcher's arsenal, squared up like the fight card. */
@@ -1145,6 +1165,10 @@
     </button>
   </nav>
     <div class="nav-tools-menu" id="nav-tools-menu">
+      <button class="nav-menu-item nav-menu-new" data-nav="matchups" onclick="switchNav('matchups')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 20 4M15 4h5v5M4 9V4h5M9 20H4v-5"/></svg>
+        <span><span class="nm-name">Matchups <span class="nm-new">NEW</span></span><span class="nm-desc">Break down any batter vs any pitcher</span></span>
+      </button>
       <button class="nav-menu-item" data-nav="picks" onclick="switchNav('picks')" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.75" fill="currentColor"/></svg>
         <span><span class="nm-name">Picks</span><span class="nm-desc">Today's best HR matchups</span></span>
@@ -1187,6 +1211,24 @@
   <!-- HOME -->
   <div id="panel-home" class="panel visible">
     <div id="home-content"><div class="empty">Loading data…</div></div>
+  </div>
+
+  <!-- MATCHUPS (Matchup Lab) -->
+  <div id="panel-matchups" class="panel">
+    <div class="due-explainer" id="matchups-explainer-toggle" onclick="toggleMatchupsExplainer()" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">Matchups</span>
+        <span class="due-explainer-chevron" id="matchups-explainer-chevron">▾</span>
+      </div>
+      <div class="due-explainer-body" id="matchups-explainer-body" style="display:none">
+        Pick <b>any</b> hitter and <b>any</b> starter and get the same breakdown our Picks board runs —
+        power, blast%, both platoon edges, arm stuff, pitch-type synergy, and park — combined into a matchup score.
+        It's the <b>starter-only</b> view: bullpen, lineup spot, and game-time weather are live-game factors, so they're
+        left neutral here (you'll see those on the real <a href="javascript:void(0)" onclick="switchNav('picks')">Picks</a> board).
+        Defaults to today's top Chalk pick vs the arm he's facing.
+      </div>
+    </div>
+    <div id="matchups-content"><div class="empty">Loading matchup data…</div></div>
   </div>
 
   <div id="panel-pairs" class="panel">
@@ -1901,7 +1943,7 @@ function toggleTheme() {
 }
 
 // ── Nav ────────────────────────────────────────────────────────────────
-const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'prospects', 'daylate', 'returning', 'birthdays'];
+const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'matchups', 'prospects', 'daylate', 'returning', 'birthdays'];
 const PAIR_SIZE_TO_SLUG = { 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' };
 const PAIR_SLUG_TO_SIZE = { pairs: 2, trios: 3, quads: 4, quints: 5 };
 
@@ -1986,7 +2028,7 @@ function migrateLegacyHash() {
 }
 // The four pages that live in the Tools menu rather than the main bar; the
 // Tools pill lights up when any of them is active.
-const TOOLS_NAVS = ['picks', 'due', 'pairs', 'prospects', 'daylate', 'returning', 'birthdays'];
+const TOOLS_NAVS = ['matchups', 'picks', 'due', 'pairs', 'prospects', 'daylate', 'returning', 'birthdays'];
 let navToolsOpen = false;
 function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
 function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
@@ -2011,6 +2053,7 @@ function renderCurrentPanel() {
   if (activeNav === 'schedule') renderSchedule();
   if (activeNav === 'due')     { renderDue(); applyDueSub(dueSubTab); }
   if (activeNav === 'picks')   { renderPicks(); applyPicksSub(picksSubTab); }
+  if (activeNav === 'matchups') renderMatchups();
   if (activeNav === 'prospects') renderProspects();
   if (activeNav === 'daylate')  { renderDayLate(); applyDayLateSub(dayLateSubTab); }
   if (activeNav === 'returning') { renderReturning(); applyReturningSub(returningSubTab); }
@@ -2131,7 +2174,16 @@ function renderHome() {
   // "Yesterday's Homers" only when the last completed slate was literally
   // yesterday — after an off day it's "Last Homers · <date>" instead.
   const recapLabel = last === yesterday() ? "Yesterday's Homers" : 'Last Homers';
-  el.innerHTML = `<div class="hm-grid">
+  el.innerHTML = `
+  <div class="hm-feature" onclick="switchNav('matchups')">
+    <div class="hm-feature-badge">NEW</div>
+    <div class="hm-feature-body">
+      <div class="hm-feature-title">🎯 Matchups</div>
+      <div class="hm-feature-desc">Break down <b>any</b> batter vs <b>any</b> pitcher — power, platoons, arm stuff, pitch synergy &amp; park, scored like our Picks board.</div>
+    </div>
+    <span class="hm-feature-cta">Open →</span>
+  </div>
+  <div class="hm-grid">
     <div class="hm-card" onclick="openRecapFor('${last}')">
       <div class="hm-head"><span class="hm-title">${recapLabel} · ${fmtDateLong(last)}</span><span class="hm-link">Recap →</span></div>
       <div class="hm-tiles">
@@ -4801,6 +4853,155 @@ function openPickModal(pid, board = 'chalk') {
   if (!r) return;
   document.body.insertAdjacentHTML('beforeend', pickModalHtml(r, board));
   document.addEventListener('keydown', pickModalEscHandler);
+}
+
+// ── MATCHUPS (Matchup Lab) ──────────────────────────────────────────────
+// Per-entity cards (matchup-cards.json) are lazy-loaded only when the tool is
+// opened, so the ~230 KB never weighs down the main app load. The matchup factor
+// is separable, so the build ships each side's finished pieces and we just
+// multiply here — reproducing the pick model's starter-only slice for ANY pair.
+let matchupCards = null, matchupCardsLoading = false, muInitialized = false;
+let muBatterPid = null, muPitcherPid = null, muVenue = '__neutral__';
+
+async function ensureMatchupCards() {
+  if (matchupCards || matchupCardsLoading) return;
+  matchupCardsLoading = true;
+  try {
+    const res = await fetch('matchup-cards.json', { cache: 'no-cache' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    matchupCards = await res.json();
+    matchupCards._bIdx = Object.fromEntries(matchupCards.batters.map(b => [b.pid, b]));
+    matchupCards._pIdx = Object.fromEntries(matchupCards.pitchers.map(p => [p.pid, p]));
+  } catch (e) { matchupCards = 'error'; }
+  finally { matchupCardsLoading = false; }
+  if (activeNav === 'matchups') renderMatchups();
+}
+// Pitcher's arsenal for the side a batter stands on (mirrors build's pitcherMixVs).
+function muMixVs(entry, stand) {
+  if (!entry) return [];
+  if (Array.isArray(entry)) return entry;
+  if (stand === 'L' && entry.nL >= 100 && entry.L?.length) return entry.L;
+  if (stand === 'R' && entry.nR >= 100 && entry.R?.length) return entry.R;
+  return entry.all ?? [];
+}
+function muSynScore(profile, mix) {
+  if (!profile?.length || !mix?.length) return 0;
+  const u = {}; for (const m of mix) u[m.name] = m.pct;
+  let s = 0; for (const b of profile) s += (b.pct * (u[b.name] ?? 0)) / 100;
+  return s;
+}
+// Score B vs P at a venue — the starter-only slice of the pick model. Bullpen,
+// lineup-PA and weather are game-day factors, so they stay neutral (1.0) here.
+function scoreMatchup(b, p, venue) {
+  const C = matchupCards, [LO, HI] = C.ratioClamp;
+  const clamp = x => Math.max(LO, Math.min(HI, x));
+  const park = (venue && venue !== '__neutral__') ? (C.parkFactors[venue] ?? 1) : 1;
+  const bEff = b.hand === 'S' ? (p.hand === 'L' ? 'R' : 'L') : b.hand;
+  const batP = p.hand ? (p.hand === 'L' ? b.platoonVsL : b.platoonVsR) : null;
+  const pitP = bEff ? (bEff === 'L' ? p.platoonVsL : p.platoonVsR) : null;
+  const stuff = p.stuffRatio;
+  const mix = muMixVs(p.mix, bEff);
+  const synScore = muSynScore(b.hrProfile, mix);
+  const rawSyn = C.synergyBaseline > 0 ? (synScore > 0 ? clamp(synScore / C.synergyBaseline) : 0.9) : 1;
+  const syn = 1 + (rawSyn - 1) * (b.hrs / (b.hrs + C.synergyHrFull));
+  const form = b.form;
+  const factorList = [form, batP, pitP, stuff, park, syn].filter(f => f != null);
+  const mf = factorList.reduce((a, c) => a * c, form != null ? 1 : 0.95);
+  const surplusW = Math.max(0.5, Math.min(2.5, b.blastSurplus ?? 1));
+  return {
+    pickScore: b.basePower * mf * 100,
+    valueScore: b.blastPower * mf * 100 * surplusW,
+    matchupFactor: mf, factors: { form, batP, pitP, stuff, syn, park }, stand: bEff, mix,
+  };
+}
+function setMatchupBatter(pid)  { muBatterPid  = pid; renderMatchups(); }
+function setMatchupPitcher(pid) { muPitcherPid = pid; renderMatchups(); }
+function setMatchupVenue(v)     { muVenue      = v;   renderMatchups(); }
+function toggleMatchupsExplainer() {
+  const body = document.getElementById('matchups-explainer-body');
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  document.getElementById('matchups-explainer-chevron').textContent = open ? '▴' : '▾';
+  document.getElementById('matchups-explainer-toggle').setAttribute('aria-expanded', String(open));
+}
+function renderMatchups() {
+  const el = document.getElementById('matchups-content');
+  if (matchupCards === 'error') { el.innerHTML = '<div class="empty">Couldn\'t load matchup data. <a href="javascript:void(0)" onclick="matchupCards=null;renderMatchups()">Retry</a></div>'; return; }
+  if (!matchupCards) { el.innerHTML = '<div class="empty">Loading matchup data…</div>'; ensureMatchupCards(); return; }
+  const C = matchupCards;
+  if (!muInitialized) {
+    muBatterPid  = (C.default?.batterPid  && C._bIdx[C.default.batterPid])  ? C.default.batterPid  : C.batters[0]?.pid;
+    muPitcherPid = (C.default?.pitcherPid && C._pIdx[C.default.pitcherPid]) ? C.default.pitcherPid : C.pitchers[0]?.pid;
+    muVenue = (C.default?.venue && C.parkFactors[C.default.venue]) ? C.default.venue : '__neutral__';
+    muInitialized = true;
+  }
+  const b = C._bIdx[muBatterPid], p = C._pIdx[muPitcherPid];
+  const opt = (x, sel) => `<option value="${x.pid}"${x.pid === sel ? ' selected' : ''}>${x.name}${x.team ? ` (${x.team})` : ''}</option>`;
+  const batterOpts  = [...C.batters].sort((a, c) => a.name.localeCompare(c.name)).map(x => opt(x, muBatterPid)).join('');
+  const pitcherOpts = [...C.pitchers].sort((a, c) => a.name.localeCompare(c.name)).map(x => opt(x, muPitcherPid)).join('');
+  const parkOpts = `<option value="__neutral__"${muVenue === '__neutral__' ? ' selected' : ''}>Neutral park</option>`
+    + Object.keys(C.parkFactors).sort().map(v => `<option value="${v}"${v === muVenue ? ' selected' : ''}>${v} (${C.parkFactors[v].toFixed(2)}×)</option>`).join('');
+  const pickers = `<div class="mu-pickers">
+    <div class="mu-field"><label>Batter</label><select class="mu-select" onchange="setMatchupBatter(this.value)">${batterOpts}</select></div>
+    <div class="mu-field"><label>Pitcher</label><select class="mu-select" onchange="setMatchupPitcher(this.value)">${pitcherOpts}</select></div>
+    <div class="mu-field full"><label>Park</label><select class="mu-select" onchange="setMatchupVenue(this.value)">${parkOpts}</select></div>
+  </div>`;
+  el.innerHTML = pickers + ((b && p) ? matchupBreakdownHtml(b, p) : '<div class="empty">Pick a batter and a pitcher.</div>');
+}
+function matchupBreakdownHtml(b, p) {
+  const s = scoreMatchup(b, p, muVenue), f = s.factors, cls = pickScoreClass(s.pickScore);
+  const bHandTxt = b.hand === 'S' ? '<span class="pk-hand s">S</span>' : b.hand ? `<span class="pk-hand ${b.hand.toLowerCase()}">${b.hand}</span>` : '';
+  const pHandTxt = p.hand ? `<span class="pk-hand ${p.hand.toLowerCase()}">${p.hand}</span>` : '';
+  const abPerHR = b.hrs ? (b.abs / b.hrs).toFixed(1) : null;
+  const factorRatio = (val, label) => val == null ? '' : `
+    <div class="pick-factor">
+      <div class="pick-factor-label">${label}</div>
+      <div class="pick-factor-val hrg-val ${val>=1.05?'great':val<=0.95?'bad':val>=1.02?'good':'avg'}">${val>=1?'+':val<=0.99?'−':'≈'} ${val.toFixed(2)}×</div>
+    </div>`;
+  const mixNames = new Set((s.mix ?? []).map(m => m.name));
+  const hrNames  = new Set((b.hrProfile ?? []).map(h => h.name));
+  const pitchRow = (name, right, match) => `<div class="pk-pitch-row${match ? ' match' : ''}"><span>${pitchAbbrClient(name)}</span><span class="pk-pitch-pct">${right}</span></div>`;
+  const hrRows  = b.hrProfile?.length ? b.hrProfile.map(h => pitchRow(h.name, `${h.pct}%${h.n != null ? ` · ${h.n} HR` : ''}`, mixNames.has(h.name))).join('') : '<div class="pk-pitch-empty">No HR data yet</div>';
+  const mixRows = s.mix?.length ? s.mix.map(m => pitchRow(m.name, `${m.pct}%`, hrNames.has(m.name))).join('') : '<div class="pk-pitch-empty">No mix data yet</div>';
+  const overlap = b.hrProfile?.some(h => mixNames.has(h.name));
+  return `
+    <div class="pk-face">
+      <div class="pk-side">
+        <img src="${playerPhotoUrl(b.pid)}" alt="">
+        <div class="pk-name">${b.name}</div>
+        <div class="pk-sub">${teamLogoImg(b.team,'team-logo')}${b.team} · Bats ${bHandTxt}</div>
+        <div class="pk-stat"><span class="hrg-val great">${b.hrs} HR</span>${abPerHR ? ` <span class="pk-stat-dim">· ${abPerHR} AB/HR</span>` : ''}${b.blastPct != null ? ` <span class="pk-stat-dim">· 💥 ${Math.round(b.blastPct*100)}% Blast</span>` : ''}</div>
+      </div>
+      <div class="pk-vs">
+        <span class="pk-vs-txt">VS</span>
+        <span class="pick-score-big ${cls}">${s.pickScore.toFixed(1)}</span>
+        <span class="due-modal-headline-lbl">Matchup Score</span>
+        <span class="pk-stat-dim" style="font-size:0.6rem;margin-top:0.25rem">Value ${s.valueScore.toFixed(1)}</span>
+      </div>
+      <div class="pk-side">
+        <img src="${playerPhotoUrl(p.pid)}" alt="">
+        <div class="pk-name">${p.name}</div>
+        <div class="pk-sub">${teamLogoImg(p.team,'team-logo')}${p.team} · Throws ${pHandTxt}</div>
+        <div class="pk-stat">${p.fbVelo != null || p.hardPct != null ? `<span class="pk-stat-dim">${p.fbVelo != null ? `🔥 ${p.fbVelo} mph` : ''}${p.fbVelo != null && p.hardPct != null ? ' · ' : ''}${p.hardPct != null ? `💥 ${p.hardPct}% hard` : ''}</span>` : '<span class="pk-stat-dim">No stuff data</span>'}</div>
+      </div>
+    </div>
+    <div class="pick-section-title">Pitch Matchup${s.stand ? ` <span class="pk-mix-hand">vs ${s.stand}HB</span>` : ''}</div>
+    <div class="pk-pitch-face">
+      <div class="pk-pitch-side"><div class="pk-pitch-side-lbl">Goes deep on</div><div class="pk-pitch-list">${hrRows}</div></div>
+      <div class="pk-pitch-vs"><span class="pk-vs-txt">VS</span></div>
+      <div class="pk-pitch-side"><div class="pk-pitch-side-lbl">He throws</div><div class="pk-pitch-list">${mixRows}</div></div>
+    </div>
+    <div class="pk-pitch-note">${overlap ? '<b>Green</b> = a pitch this arm throws that the batter has homered on.' : 'No overlap — this arm doesn’t lean on the batter’s HR pitches.'}</div>
+    <div class="pick-section-title">Matchup Factors</div>
+    <div class="pick-factor-grid">
+      ${factorRatio(f.form, 'Recent Contact Quality')}
+      ${factorRatio(f.batP, 'Batter Platoon Edge')}
+      ${factorRatio(f.pitP, 'Starter Vulnerability')}
+      ${factorRatio(f.stuff, 'Arm Stuff (velo + contact)')}
+      ${factorRatio(f.syn, 'Pitch Synergy')}
+      ${factorRatio(f.park, 'Park Factor')}
+    </div>
+    <div class="mu-note">Starter-only matchup — bullpen, lineup spot, and game-time weather are live-game factors and stay neutral here.</div>`;
 }
 
 // State + DOM only — used both by user clicks and when a route is applied.
