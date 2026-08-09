@@ -433,6 +433,7 @@
   .mu-swap button { background: var(--surface1); border: 1px solid var(--border); color: var(--muted); font-family: var(--font-b); font-weight: 700; font-size: 0.7rem; padding: 0.28rem 0.7rem; border-radius: 999px; cursor: pointer; }
   .mu-swap button:hover { border-color: var(--accent); color: var(--accent); }
   .mu-note { font-size: 0.63rem; color: var(--muted); text-align: center; margin: 0.5rem 0 0.2rem; line-height: 1.4; }
+  .mu-note.mu-thin { color: var(--gold); background: rgba(224,168,60,0.1); border: 1px solid rgba(224,168,60,0.28); border-radius: 7px; padding: 0.45rem 0.6rem; }
   .hm-feature { display: flex; align-items: center; gap: 0.7rem; padding: 0.8rem 0.9rem; margin-bottom: 0.8rem; cursor: pointer; border-radius: 12px; background: linear-gradient(120deg, rgba(88,166,255,0.14), rgba(88,166,255,0.04)); border: 1px solid rgba(88,166,255,0.34); transition: border-color 0.15s, transform 0.05s; }
   .hm-feature:hover { border-color: var(--accent); }
   .hm-feature:active { transform: scale(0.995); }
@@ -4922,7 +4923,7 @@ function scoreMatchup(b, p, venue) {
     matchupFactor: mf, factors: { form, batP, pitP, stuff, syn, park }, stand: bEff, mix,
   };
 }
-function muLabel(x) { return `${x.name}${x.team ? ` (${x.team})` : ''}`; }
+function muLabel(x) { const tag = [x.team, x.role].filter(Boolean).join(' · '); return `${x.name}${tag ? ` (${tag})` : ''}`; }
 // Resolve a typed/picked search value back to a pid. On no match (a partial the
 // user didn't finish), just re-render — that restores the input to the current
 // pick's label, so a stray keystroke can't clear the selection.
@@ -5006,7 +5007,7 @@ function matchupBreakdownHtml(b, p) {
       <div class="pk-side">
         <img src="${playerPhotoUrl(p.pid)}" alt="">
         <div class="pk-name">${p.name}</div>
-        <div class="pk-sub">${teamLogoImg(p.team,'team-logo')}${p.team} · Throws ${pHandTxt}</div>
+        <div class="pk-sub">${teamLogoImg(p.team,'team-logo')}${p.team} · Throws ${pHandTxt}${p.role ? ` · ${p.role}` : ''}</div>
         <div class="pk-stat">${p.fbVelo != null || p.hardPct != null ? `<span class="pk-stat-dim">${p.fbVelo != null ? `🔥 ${p.fbVelo} mph` : ''}${p.fbVelo != null && p.hardPct != null ? ' · ' : ''}${p.hardPct != null ? `💥 ${p.hardPct}% hard` : ''}</span>` : '<span class="pk-stat-dim">No stuff data</span>'}</div>
       </div>
     </div>
@@ -5026,7 +5027,10 @@ function matchupBreakdownHtml(b, p) {
       ${factorRatio(f.syn, 'Pitch Synergy')}
       ${factorRatio(f.park, 'Park Factor')}
     </div>
-    <div class="mu-note">Starter-only matchup — bullpen, lineup spot, and game-time weather are live-game factors and stay neutral here.</div>`;
+    ${p.ip != null && p.ip < 10 ? `<div class="mu-note mu-thin">⚠︎ Thin sample — only ~${p.ip} IP for ${p.name.split(' ').pop()}, so his stuff, splits, and arsenal are pulled toward league average. Read it as a near-neutral matchup (no book on him yet), not a real edge either way.</div>` : ''}
+    <div class="mu-note">${p.role === 'RP' || p.role === 'CL'
+      ? 'One-look matchup — a reliever faces a hitter ~1 PA, so the factors are real but the score reads as full-game exposure. Bullpen depth, lineup spot, and weather stay neutral.'
+      : 'Starter-only matchup — bullpen, lineup spot, and game-time weather are live-game factors and stay neutral here.'}</div>`;
 }
 
 // State + DOM only — used both by user clicks and when a route is applied.

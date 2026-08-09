@@ -1238,9 +1238,20 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       const cardBatterIds = Object.keys(playerABs).filter(pid => (playerABs[pid] ?? 0) >= MATCHUP_MIN_AB);
       const lb = await fetch(`${MLB}/stats?stats=season&group=pitching&season=${SEASON_YEAR}&sportId=1&gameType=R&limit=3000&playerPool=all`).then(r => r.json()).catch(() => null);
       const pMeta = {};
-      for (const sp of (lb?.stats?.[0]?.splits ?? []))
-        if ((sp.stat?.gamesStarted ?? 0) >= MATCHUP_MIN_GS && sp.player?.id)
-          pMeta[String(sp.player.id)] = { name: sp.player.fullName, team: sp.team?.abbreviation ?? playerTeams[String(sp.player.id)] ?? '' };
+      for (const sp of (lb?.stats?.[0]?.splits ?? [])) {
+        const pid = sp.player?.id ? String(sp.player.id) : null;
+        if (!pid) continue;
+        const st = sp.stat ?? {};
+        const gs = st.gamesStarted ?? 0, gp = st.gamesPitched ?? 0, sv = st.saves ?? 0;
+        // Inclusive: any real pitcher who's thrown (a start, or 2+ relief outings),
+        // so fresh call-ups / spot starters / surprise bullpen arms are searchable —
+        // the ones you didn't plan for. Drop position players who only mopped up
+        // (they carry a real AB total). Thin samples just shrink toward a neutral
+        // matchup, which is the honest read for a guy with no book on him.
+        if (!(gs >= 1 || gp >= 2) || (playerABs[pid] ?? 0) >= 50) continue;
+        const role = (gs >= 5 || (gs >= 1 && gs >= gp - gs)) ? 'SP' : (sv >= 5 ? 'CL' : 'RP');
+        pMeta[pid] = { name: sp.player.fullName, team: sp.team?.abbreviation ?? playerTeams[pid] ?? '', role, ip: Math.round(parseFloat(st.inningsPitched || 0)) };
+      }
       const cardPitcherIds = Object.keys(pMeta);
       const [cBat, cPit, cBalls, cPitch] = await Promise.all([
         fetchPlatoonSplits(cardBatterIds, 'hitting'),
@@ -1288,7 +1299,8 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       for (const pid of cardPitcherIds) {
         const pInfo = cPit[pid] ?? null, st = cStuff[pid];
         pitchers.push({
-          pid, name: pMeta[pid].name, team: pMeta[pid].team, hand: pInfo?.hand ?? null,
+          pid, name: pMeta[pid].name, team: pMeta[pid].team, role: pMeta[pid].role, ip: pMeta[pid].ip,
+          hand: pInfo?.hand ?? null,
           stuffRatio: r3(cardStuff(st)),
           fbVelo: st?.fbVelo != null && st.fbN >= STUFF_MIN_FB ? Math.round(st.fbVelo * 10) / 10 : null,
           hardPct: st?.hardPct != null && st.bbe >= STUFF_MIN_BBE ? Math.round(st.hardPct * 1000) / 10 : null,
