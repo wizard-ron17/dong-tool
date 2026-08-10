@@ -3414,12 +3414,52 @@ function hrDetailIdxForClip(date, pid, clip) {
   const list = hrDetails[date]?.[pid];
   if (!list?.length) return -1;
   if (list.length === 1) return 0;
-  const m = String(clip?.title || '').match(/(\d{2,3})\s*[-–]?\s*(?:foot|ft)\b/i);
-  if (!m) return -1;
-  const target = +m[1];
-  let best = -1, diff = Infinity;
-  list.forEach((dt, i) => { if (dt.dist == null) return; const d = Math.abs(dt.dist - target); if (d < diff) { diff = d; best = i; } });
-  return diff <= 5 ? best : -1;
+  const title = String(clip?.title || '');
+  // 1) Distance in the title ("…448-foot home run") → the detail at that distance.
+  const dm = title.match(/(\d{2,3})\s*[-–]?\s*(?:foot|ft)\b/i);
+  if (dm) {
+    const target = +dm[1]; let best = -1, diff = Infinity;
+    list.forEach((dt, i) => { if (dt.dist == null) return; const d = Math.abs(dt.dist - target); if (d < diff) { diff = d; best = i; } });
+    if (diff <= 5) return best;
+  }
+  // 2) Season HR number in the title ("…home run (40)") → the nth homer that day,
+  // since hrDetails is in game order and the day's homers are consecutive numbers.
+  const nm = title.match(/\((\d{1,3})\)/);
+  if (nm) {
+    const before = seasonHRNumberThrough(pid, date) - (dailyHRs[date]?.[pid] ?? 0);
+    const i = +nm[1] - before - 1;
+    if (i >= 0 && i < list.length) return i;
+  }
+  return -1; // can't confidently tie this clip (montage / team cut) to one homer
+}
+// A clip that shows BOTH homers ("homers twice", "two homers", "multi-homer game").
+function isBothClip(clip) {
+  return /\btwice\b|two (?:home runs|homers|hr)\b|multi-?homer|both (?:homers|home runs)/i.test(String(clip?.title || ''));
+}
+// Assign each of a player's clips to a homer detail — by distance/number, then
+// process of elimination (if one clip and one homer are left, they must pair).
+// Returns an array parallel to the clips: a detail index, 'both', or null.
+function assignClipDetails(date, pid) {
+  const clips = recapClipsFor(date, pid) || [];
+  const list = hrDetails[date]?.[pid] || [];
+  if (!list.length) return clips.map(() => null);
+  if (list.length === 1) return clips.map(() => 0);
+  const out = clips.map(() => null), used = new Set();
+  clips.forEach((c, ci) => {
+    if (isBothClip(c)) { out[ci] = 'both'; return; }
+    const idx = hrDetailIdxForClip(date, pid, c);
+    if (idx >= 0 && !used.has(idx)) { out[ci] = idx; used.add(idx); }
+  });
+  const unClips = clips.map((_, i) => i).filter(i => out[i] == null);
+  const unIdx = list.map((_, i) => i).filter(i => !used.has(i));
+  if (unClips.length === 1 && unIdx.length === 1) out[unClips[0]] = unIdx[0]; // elimination
+  return out;
+}
+// The detail caption for clip #ci — a single homer's pitch/distance, or '' when
+// we can't confidently tie it to ONE homer (a both-homers/montage/team cut).
+function hrClipCaption(date, pid, ci) {
+  const a = assignClipDetails(date, pid)[ci];
+  return typeof a === 'number' ? hrDetailCaption(date, pid, a) : '';
 }
 function hrVideoEscHandler(e) { if (e.key === 'Escape') closeHRVideo(); }
 function closeHRVideo() {
@@ -3433,7 +3473,7 @@ function openHRVideo(date, pid, idx = 0) {
   if (isMob()) { openReels(date, pid, idx); return; } // phones get the vertical swipe feed
   closeHRVideo();
   const c = clips[Math.min(idx, clips.length - 1)];
-  const dci = hrDetailIdxForClip(date, pid, c), capIdx = dci >= 0 ? dci : idx;
+  const cap = hrClipCaption(date, pid, Math.min(idx, clips.length - 1));
   const chips = clips.length > 1
     ? `<div class="hrv-chips">${clips.map((x, i) => `<button class="due-filter-chip${i === idx ? ' active' : ''}" onclick="openHRVideo('${date}','${pid}',${i})" title="${(x.title || '').replace(/"/g, '&quot;')}">Clip ${i + 1}${x.duration ? ` · ${x.duration}` : ''}</button>`).join('')}</div>`
     : '';
@@ -3441,7 +3481,7 @@ function openHRVideo(date, pid, idx = 0) {
     <div class="due-modal-backdrop" id="hr-video-backdrop" onclick="if(event.target===this) closeHRVideo()">
       <div class="hrv-modal">
         <button class="due-modal-close" onclick="closeHRVideo()" aria-label="Close">&times;</button>
-        ${hrDetailCaption(date, pid, capIdx) ? `<div class="hrv-detail">🚀 ${hrDetailCaption(date, pid, capIdx)}</div>` : ''}
+        ${cap ? `<div class="hrv-detail">🚀 ${cap}</div>` : ''}
         <div class="hrv-title">${c.title}</div>
         <video class="hrv-video" src="${c.mp4}" poster="${c.poster}" controls autoplay playsinline></video>
         ${chips}
@@ -3565,14 +3605,14 @@ function buildDaySlidesHtml(date) {
         <div class="reels-count">${countLbl}</div>
       </div>`;
     }
-    const di = hrDetailIdxForClip(date, x.pid, x.clip), detIdx = di >= 0 ? di : x.clipIdx;
+    const cap = hrClipCaption(date, x.pid, x.clipIdx);
     return `<div class="reels-slide" data-date="${date}" data-pid="${x.pid}" data-cidx="${x.clipIdx}">
       <video class="reels-video" data-src="${x.clip.mp4}" poster="${x.clip.poster}" playsinline preload="none" onclick="reelsTap(this)"></video>
       <div class="reels-indicator">▶</div>
       ${nextOverlay}
       <div class="reels-overlay">
-        <div class="reels-name"><img class="reels-photo" src="${playerPhotoUrl(x.pid)}" alt="">${name}${x.hrs > 1 ? ` <span class="reels-multi">${detIdx + 1} of ${x.hrs} that day</span>` : ''}</div>
-        ${hrDetailCaption(date, x.pid, detIdx) ? `<div class="reels-detail">🚀 ${hrDetailCaption(date, x.pid, detIdx)}</div>` : ''}
+        <div class="reels-name"><img class="reels-photo" src="${playerPhotoUrl(x.pid)}" alt="">${name}${x.hrs > 1 ? ` <span class="reels-multi">${x.clipIdx + 1} of ${x.hrs} that day</span>` : ''}</div>
+        ${cap ? `<div class="reels-detail">🚀 ${cap}</div>` : ''}
         <div class="reels-headline">${x.clip.title}</div>
       </div>
       <div class="reels-count">${countLbl}</div>
