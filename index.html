@@ -475,6 +475,19 @@
   .hm-feature-cta { font-family: var(--font-d); font-weight: 800; font-size: 0.72rem; color: var(--accent); flex: none; }
   .pick-factor-label { font-size: 0.57rem; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
   .pick-factor-val { font-family: var(--font-d); font-size: 0.85rem; font-weight: 700; }
+  /* Matchup factors as a diverging (tornado) bar chart — each factor grows from a
+     center 1.0× baseline: right/green helps the batter, left/red hurts. */
+  .fbars { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.1rem; }
+  .fbar-legend { font-size: 0.56rem; color: var(--dim); margin: 0.1rem 0 0.35rem; letter-spacing: 0.02em; }
+  .fbar { display: grid; grid-template-columns: minmax(5.5rem, 1.1fr) 2fr 3.2rem; align-items: center; gap: 0.5rem; }
+  .fbar-label { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.02em; text-transform: uppercase; font-weight: 600; line-height: 1.1; }
+  .fbar-track { position: relative; height: 15px; background: var(--surface1); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .fbar-track::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--border2); }
+  .fbar-fill { position: absolute; top: 1px; bottom: 1px; border-radius: 2px; min-width: 1px; }
+  .fbar-fill.pos { background: linear-gradient(90deg, rgba(53,201,110,0.32), rgba(53,201,110,0.85)); }
+  .fbar-fill.neg { background: linear-gradient(270deg, rgba(229,83,75,0.32), rgba(229,83,75,0.85)); }
+  .fbar-val { font-family: var(--font-d); font-weight: 700; font-size: 0.74rem; text-align: right; }
+  .fbar-note { font-size: 0.58rem; color: var(--muted); margin-top: 0.5rem; }
   /* Pitch matchup: batter's HR pitches vs pitcher's arsenal, squared up like the fight card. */
   .pk-pitch-face { display: flex; align-items: stretch; gap: 0.45rem; margin-bottom: 0.35rem; }
   .pk-pitch-side { flex: 1; min-width: 0; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.45rem; }
@@ -4895,6 +4908,30 @@ function togglePenList() {
   if (chev) chev.textContent = open ? '▴' : '▾';
 }
 
+// Diverging (tornado) bar chart for the matchup multipliers. items =
+// [{label, value}] where value is a ratio around 1.0 (null = skip). Each bar
+// grows from a center 1.0× baseline: right/green helps the batter, left/red
+// hurts, length ∝ distance from neutral. Sorted biggest-mover first.
+function factorBarsHtml(items) {
+  const rows = items.filter(it => it.value != null);
+  if (!rows.length) return '';
+  const MAXDEV = 0.4; // matchup ratios clamp to ~[0.7, 1.4] → ±0.4 from neutral
+  rows.sort((a, b) => Math.abs(b.value - 1) - Math.abs(a.value - 1));
+  const bars = rows.map(it => {
+    const d = it.value - 1;
+    const w = Math.min(Math.abs(d) / MAXDEV, 1) * 50; // % of full track (half = 50%)
+    const dir = d >= 0 ? 'pos' : 'neg';
+    const vcls = it.value >= 1.05 ? 'great' : it.value <= 0.95 ? 'bad' : it.value >= 1.02 ? 'good' : 'avg';
+    const sign = it.value > 1 ? '+' : it.value < 1 ? '−' : '≈';
+    const fill = d >= 0 ? `left:50%;width:${w}%` : `right:50%;width:${w}%`;
+    return `<div class="fbar">
+      <span class="fbar-label">${it.label}</span>
+      <div class="fbar-track"><div class="fbar-fill ${dir}" style="${fill}"></div></div>
+      <span class="fbar-val hrg-val ${vcls}">${sign}${it.value.toFixed(2)}×</span>
+    </div>`;
+  }).join('');
+  return `<div class="fbar-legend">← tougher · <b>1.0× neutral</b> · juicier →</div><div class="fbars">${bars}</div>`;
+}
 function pickModalInner(r, board = 'chalk') {
   // The headline reflects the board you opened from: Chalk shows Pick Score,
   // Value shows the Value score (blast surplus × matchup) it was ranked by.
@@ -5027,22 +5064,19 @@ function pickModalInner(r, board = 'chalk') {
       ${bullpenModalHtml(r)}
 
       <div class="pick-section-title">Matchup Factors</div>
-      <div class="pick-factor-grid">
-        ${factorRatio(r.recentFormRatio, 'Recent Contact Quality')}
-        ${factorRatio(r.batterPlatoonRatio, 'Batter Platoon Edge')}
-        ${r.lineupPAFactor && r.lineupPAFactor !== 1 ? factorRatio(r.lineupPAFactor, 'Lineup Spot (PA)') : ''}
-        ${factorRatio(r.pitcherPlatoonRatio, 'Starter Vulnerability')}
-        ${factorRatio(r.pitcherStuffRatio, 'Arm Stuff (velo + contact)')}
-        ${factorRatio(r.bullpenPlatoonFactor, 'Bullpen Vulnerability')}
-        ${factorRatio(r.synergyRatio, 'Starter Pitch Synergy')}
-        ${factorRatio(r.bullpenSynergyRatio, 'Bullpen Pitch Synergy')}
-        ${factorRatio(r.parkRatio, 'Park Factor')}
-        ${r.weatherRatio && r.weatherRatio !== 1 ? factorRatio(r.weatherRatio, 'Weather') : ''}
-        <div class="pick-factor">
-          <div class="pick-factor-label">Venue</div>
-          <div class="pick-factor-val hrg-val ${venueCls}">${venueHRG.toFixed(2)} HR/G</div>
-        </div>
-      </div>
+      ${factorBarsHtml([
+        { label: 'Recent Contact', value: r.recentFormRatio },
+        { label: 'Batter Platoon', value: r.batterPlatoonRatio },
+        { label: 'Lineup PA', value: (r.lineupPAFactor && r.lineupPAFactor !== 1) ? r.lineupPAFactor : null },
+        { label: 'Starter Vuln.', value: r.pitcherPlatoonRatio },
+        { label: 'Arm Stuff', value: r.pitcherStuffRatio },
+        { label: 'Bullpen Vuln.', value: r.bullpenPlatoonFactor },
+        { label: 'Starter Synergy', value: r.synergyRatio },
+        { label: 'Bullpen Synergy', value: r.bullpenSynergyRatio },
+        { label: 'Park', value: r.parkRatio },
+        { label: 'Weather', value: (r.weatherRatio && r.weatherRatio !== 1) ? r.weatherRatio : null },
+      ])}
+      <div class="fbar-note">Venue: <span class="hrg-val ${venueCls}">${venueHRG.toFixed(2)} HR/G</span> at ${r.venue}</div>
     </div>`;
 }
 function pickModalHtml(r, board = 'chalk') {
@@ -5266,14 +5300,14 @@ function matchupBreakdownHtml(b, p) {
     </div>
     <div class="pk-pitch-note">${overlap ? '<b>Green</b> = a pitch this arm throws that the batter has homered on.' : 'No overlap — this arm doesn’t lean on the batter’s HR pitches.'}</div>
     <div class="pick-section-title">Matchup Factors</div>
-    <div class="pick-factor-grid">
-      ${factorRatio(f.form, 'Recent Contact Quality')}
-      ${factorRatio(f.batP, 'Batter Platoon Edge')}
-      ${factorRatio(f.pitP, 'Starter Vulnerability')}
-      ${factorRatio(f.stuff, 'Arm Stuff (velo + contact)')}
-      ${factorRatio(f.syn, 'Pitch Synergy')}
-      ${factorRatio(f.park, 'Park Factor')}
-    </div>
+    ${factorBarsHtml([
+      { label: 'Recent Contact', value: f.form },
+      { label: 'Batter Platoon', value: f.batP },
+      { label: 'Starter Vuln.', value: f.pitP },
+      { label: 'Arm Stuff', value: f.stuff },
+      { label: 'Pitch Synergy', value: f.syn },
+      { label: 'Park', value: f.park },
+    ])}
     ${p.ip != null && p.ip < 10 ? `<div class="mu-note mu-thin">⚠︎ Thin sample — only ~${p.ip} IP for ${p.name.split(' ').pop()}, so his stuff, splits, and arsenal are pulled toward league average. Read it as a near-neutral matchup (no book on him yet), not a real edge either way.</div>` : ''}
     <div class="mu-note">${p.role === 'RP' || p.role === 'CL'
       ? 'One-look matchup — a reliever faces a hitter ~1 PA, so the factors are real but the score reads as full-game exposure. Bullpen depth, lineup spot, and weather stay neutral.'
