@@ -1,20 +1,21 @@
 // App-shell caching so the tool installs as a real PWA and still opens
 // (with last-known data) when offline. Two different strategies on purpose:
 //
-// - data.json changes multiple times a day and freshness is the whole point
-//   of the tool, so it's network-first: always try the network, only fall
-//   back to whatever's cached if the request fails (offline).
-// - Everything else (index.html, icons, manifest) is stale-while-revalidate:
-//   serve the cached copy instantly, then refetch in the background.
+// - data.json AND the document (index.html / client-side routes) are
+//   network-first: always try the network, fall back to cache only when the
+//   fetch fails (offline). Freshness is the whole point — a code push or a data
+//   rebuild should show up on the very next load, not the one after.
+// - Static shell assets (icons, manifest) are stale-while-revalidate: serve the
+//   cached copy instantly, then refetch in the background.
 //
 // APP_VERSION is stamped by scripts/build-data.js = a short hash of index.html,
 // so it changes exactly when the app CODE changes (not on the 30-min data-only
 // rebuilds). A changed sw.js is the only thing the browser treats as "new
 // version available" — so this is what makes a homescreen PWA actually update.
-// On a new version we deliberately DON'T skipWaiting: the new worker installs
-// and waits, the page notices and shows a "refresh to update" prompt, and only
-// then do we take over (see the SKIP_WAITING message handler).
-const APP_VERSION = '6ae603c251';
+// A new worker skipWaiting()s and claims clients, so it controls fetches right
+// away; combined with network-first documents, the next load is fresh. The
+// update-prompt path (SKIP_WAITING message) is kept for an in-session heads-up.
+const APP_VERSION = 'a3c683b29c';
 const CACHE_NAME = 'dong-tool-' + APP_VERSION;
 const SHELL_ASSETS = [
   './',
@@ -37,7 +38,10 @@ self.addEventListener('install', (event) => {
       ))
     )
   );
-  // No skipWaiting() — wait so the page can prompt before we swap versions.
+  // Activate immediately: the page is network-first for the document (below), so
+  // a reload always fetches fresh code online — no more serving a stale cached
+  // page until the user happens to tap an update prompt.
+  self.skipWaiting();
 });
 
 // The page posts this when the user taps "refresh" on the update prompt.
@@ -71,6 +75,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // The document (index.html / any client-side route) is network-first too: the
+  // whole app is one file that changes with every code push, and freshness beats
+  // a marginally faster stale paint. Falls back to the cached shell offline so
+  // deep-links still open. This is what stops "I pushed a fix but see the old page."
+  const isDoc = event.request.mode === 'navigate'
+    || url.pathname === '/' || url.pathname.endsWith('/') || url.pathname.endsWith('index.html');
+  if (isDoc) {
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => { const copy = res.clone(); caches.open(CACHE_NAME).then((c) => c.put('./index.html', copy)); return res; })
+        .catch(() => caches.match(event.request).then((r) => r || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // Everything else (icons, manifest) stays stale-while-revalidate.
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {
       const cached = await cache.match(event.request);
