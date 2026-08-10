@@ -652,7 +652,7 @@ const VALUE_SURPLUS_MIN  = 1.1; // blast must imply ≥10% more HR than he's pro
 const VALUE_CONTACT_GAIN = 2; // recent-form amplification, display cue only (not in score)
 const BASE_POWER_SHRINK_AB = 100; // pseudo-ABs of league-average prior; half-regressed at 100 AB, lightly at 300+
 // Matchup Lab: qualifying floors for the per-entity cards shipped to matchup-cards.json.
-const MATCHUP_MIN_AB = 100; // batters with a real sample this season
+const MATCHUP_MIN_AB = 50; // batters with a real sample this season (low, so injured/part-time bats are still searchable — thin power just shrinks to neutral)
 const MATCHUP_MIN_GS = 5;   // pitchers with a real starter sample this season
 // Platoon splits are HR-based rate stats, and HRs are rare enough that a
 // hard "minimum PA/IP, then trust it fully" gate still let small samples
@@ -1249,14 +1249,17 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
         if (!pid) continue;
         const st = sp.stat ?? {};
         const gs = st.gamesStarted ?? 0, gp = st.gamesPitched ?? 0, sv = st.saves ?? 0;
+        const ipRaw = parseFloat(st.inningsPitched || 0);
         // Inclusive: any real pitcher who's thrown (a start, or 2+ relief outings),
         // so fresh call-ups / spot starters / surprise bullpen arms are searchable —
-        // the ones you didn't plan for. Drop position players who only mopped up
-        // (they carry a real AB total). Thin samples just shrink toward a neutral
-        // matchup, which is the honest read for a guy with no book on him.
-        if (!(gs >= 1 || gp >= 2) || (playerABs[pid] ?? 0) >= 50) continue;
+        // the ones you didn't plan for. Exclude ONLY position players who mopped up:
+        // a real AB total with no starts and trivial innings. Keyed on pitching
+        // workload, not AB alone, so genuine two-way pitchers (Ohtani hits AND makes
+        // real starts) stay in. Thin samples shrink toward a neutral matchup anyway.
+        if (!(gs >= 1 || gp >= 2)) continue;
+        if ((playerABs[pid] ?? 0) >= 50 && gs === 0 && ipRaw < 10) continue;
         const role = (gs >= 5 || (gs >= 1 && gs >= gp - gs)) ? 'SP' : (sv >= 5 ? 'CL' : 'RP');
-        pMeta[pid] = { name: sp.player.fullName, team: sp.team?.abbreviation ?? playerTeams[pid] ?? '', role, ip: Math.round(parseFloat(st.inningsPitched || 0)) };
+        pMeta[pid] = { name: sp.player.fullName, team: sp.team?.abbreviation ?? playerTeams[pid] ?? '', role, ip: Math.round(ipRaw) };
       }
       const cardPitcherIds = Object.keys(pMeta);
       const [cBat, cPit, cBalls, cPitch] = await Promise.all([
