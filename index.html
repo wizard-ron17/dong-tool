@@ -429,6 +429,16 @@
   .mu-neutral-btn { flex: none; background: var(--surface1); border: 1px solid var(--border); color: var(--muted); font-family: var(--font-b); font-weight: 700; font-size: 0.78rem; padding: 0 0.85rem; border-radius: 8px; cursor: pointer; white-space: nowrap; }
   .mu-neutral-btn:hover { border-color: var(--accent); color: var(--text); }
   .mu-neutral-btn.active { background: rgba(88,166,255,0.15); border-color: var(--accent); color: var(--accent); }
+  /* Pick modal deck navigation (swipe / arrows through the board) */
+  .pk-deck-nav { display: flex; align-items: center; justify-content: center; gap: 0.9rem; margin: 0 2rem 0.55rem; }
+  .pk-nav { width: 32px; height: 32px; flex: none; border: 1px solid var(--border); border-radius: 8px; background: var(--surface1); color: var(--text); font-size: 1.35rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+  .pk-nav:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .pk-nav:disabled { opacity: 0.28; cursor: default; }
+  .pk-nav-count { font-family: var(--font-d); font-size: 0.7rem; font-weight: 700; color: var(--muted); letter-spacing: 0.06em; min-width: 3rem; text-align: center; }
+  @keyframes pkSlideNext { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
+  @keyframes pkSlidePrev { from { opacity: 0; transform: translateX(-26px); } to { opacity: 1; transform: none; } }
+  .due-modal.pk-slide-next { animation: pkSlideNext 0.17s ease; }
+  .due-modal.pk-slide-prev { animation: pkSlidePrev 0.17s ease; }
   .mu-swap { grid-column: 1 / -1; display: flex; justify-content: center; }
   .mu-swap button { background: var(--surface1); border: 1px solid var(--border); color: var(--muted); font-family: var(--font-b); font-weight: 700; font-size: 0.7rem; padding: 0.28rem 0.7rem; border-radius: 999px; cursor: pointer; }
   .mu-swap button:hover { border-color: var(--accent); color: var(--accent); }
@@ -4697,7 +4707,7 @@ function togglePenList() {
   if (chev) chev.textContent = open ? '▴' : '▾';
 }
 
-function pickModalHtml(r, board = 'chalk') {
+function pickModalInner(r, board = 'chalk') {
   // The headline reflects the board you opened from: Chalk shows Pick Score,
   // Value shows the Value score (blast surplus × matchup) it was ranked by.
   const isValue = board === 'value';
@@ -4779,10 +4789,14 @@ function pickModalHtml(r, board = 'chalk') {
         unannounced arm throws the bulk, so this score leans mostly on the pen.</div>
       </div>`;
 
-  return `<div class="due-modal-backdrop" id="pick-modal-backdrop" onclick="if(event.target===this) closePickModal()">
-    <div class="due-modal">
+  const deckNav = pickDeck.length > 1 ? `<div class="pk-deck-nav">
+        <button class="pk-nav" onclick="pickModalGo(-1)" aria-label="Previous pick"${pickDeckIdx <= 0 ? ' disabled' : ''}>‹</button>
+        <span class="pk-nav-count">${pickDeckIdx + 1} / ${pickDeck.length}</span>
+        <button class="pk-nav" onclick="pickModalGo(1)" aria-label="Next pick"${pickDeckIdx >= pickDeck.length - 1 ? ' disabled' : ''}>›</button>
+      </div>` : '';
+  return `<div class="due-modal">
       <button class="due-modal-close" onclick="closePickModal()" aria-label="Close">&times;</button>
-
+      ${deckNav}
       <div class="pk-face">
         <div class="pk-side">
           <img src="${photoUrl}" alt="">
@@ -4841,22 +4855,64 @@ function pickModalHtml(r, board = 'chalk') {
           <div class="pick-factor-val hrg-val ${venueCls}">${venueHRG.toFixed(2)} HR/G</div>
         </div>
       </div>
-    </div>
-  </div>`;
+    </div>`;
+}
+function pickModalHtml(r, board = 'chalk') {
+  return `<div class="due-modal-backdrop" id="pick-modal-backdrop" onclick="if(event.target===this) closePickModal()" ontouchstart="pickTouchStart(event)" ontouchend="pickTouchEnd(event)">${pickModalInner(r, board)}</div>`;
 }
 
-function pickModalEscHandler(e) { if (e.key === 'Escape') closePickModal(); }
+// Deck navigation: swipe / arrow-key / button through the picks in the order the
+// board is showing them, like flipping cards. pickDeck holds that ordered pid
+// list, captured when the board renders (or rebuilt from live data as a fallback).
+let pickDeck = [], pickDeckBoard = 'chalk', pickDeckIdx = -1;
+let pickChalkOrder = [], pickValueOrder = [], _pkTouchX = null, _pkTouchY = null;
+function pickRowFor(pid, board) {
+  return board === 'value'
+    ? (value.find(x => x.pid === pid) || picks.find(x => x.pid === pid))
+    : (picks.find(x => x.pid === pid) || value.find(x => x.pid === pid));
+}
+function pickModalGo(delta) {
+  const n = pickDeckIdx + delta;
+  if (n < 0 || n >= pickDeck.length) return;
+  const r = pickRowFor(pickDeck[n], pickDeckBoard);
+  const bd = document.getElementById('pick-modal-backdrop');
+  if (!r || !bd) return;
+  pickDeckIdx = n;
+  bd.innerHTML = pickModalInner(r, pickDeckBoard);
+  const modal = bd.querySelector('.due-modal');
+  if (modal) modal.classList.add(delta > 0 ? 'pk-slide-next' : 'pk-slide-prev');
+  bd.scrollTop = 0;
+}
+function pickTouchStart(e) { const t = e.changedTouches[0]; _pkTouchX = t.clientX; _pkTouchY = t.clientY; }
+function pickTouchEnd(e) {
+  if (_pkTouchX == null) return;
+  const t = e.changedTouches[0], dx = t.clientX - _pkTouchX, dy = t.clientY - _pkTouchY;
+  _pkTouchX = _pkTouchY = null;
+  // Horizontal swipe (not a vertical scroll): left = next, right = previous.
+  if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.5) pickModalGo(dx < 0 ? 1 : -1);
+}
+function pickModalEscHandler(e) {
+  if (e.key === 'Escape') closePickModal();
+  else if (e.key === 'ArrowRight') pickModalGo(1);
+  else if (e.key === 'ArrowLeft') pickModalGo(-1);
+}
 function closePickModal() {
   document.getElementById('pick-modal-backdrop')?.remove();
   document.removeEventListener('keydown', pickModalEscHandler);
 }
 function openPickModal(pid, board = 'chalk') {
-  // For the Value board, prefer the value row (it carries valueScore/surplus);
-  // for Chalk, prefer the picks row. Either row has all the shared matchup data.
-  const r = board === 'value'
-    ? (value.find(x => x.pid === pid) || picks.find(x => x.pid === pid))
-    : (picks.find(x => x.pid === pid) || value.find(x => x.pid === pid));
+  const r = pickRowFor(pid, board);
   if (!r) return;
+  // Build the swipe deck from the order the board is showing (captured at render);
+  // fall back to the live filtered/scored list when opened from Home/Digest/etc.
+  let deck = board === 'value' ? pickValueOrder : pickChalkOrder;
+  if (!deck || !deck.includes(pid)) {
+    deck = (board === 'value'
+      ? [...applyValueFilters(value)].sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0))
+      : applyPicksFilters(picks)).map(x => x.pid);
+    if (!deck.includes(pid)) deck = [pid];
+  }
+  pickDeck = deck; pickDeckBoard = board; pickDeckIdx = deck.indexOf(pid);
   document.body.insertAdjacentHTML('beforeend', pickModalHtml(r, board));
   document.addEventListener('keydown', pickModalEscHandler);
 }
@@ -5105,6 +5161,7 @@ function renderValueBoard() {
     game:    (a, b) => gameDateOf(a).localeCompare(gameDateOf(b)) || (b.valueScore ?? 0) - (a.valueScore ?? 0),
   };
   const pool = [...filtered].sort(sorters[valueSort] || sorters.value);
+  pickValueOrder = pool.map(r => r.pid); // swipe-deck order for the pick modal
   const rankClass = rk => rk===1?'gold':rk===2?'silver':rk===3?'bronze':'';
   const filtersOn = valueFiltersActive();
   const sortLbl = { value: 'Value score', blast: 'Blast%', surplus: 'surplus', game: 'game time' }[valueSort] || 'Value score';
@@ -5436,6 +5493,7 @@ function renderPicks() {
   const ranked = picksSort === 'game'
     ? [...filtered].sort((a, b) => gameDateOf(a).localeCompare(gameDateOf(b)) || b.pickScore - a.pickScore)
     : filtered; // already Pick Score desc
+  pickChalkOrder = ranked.map(r => r.pid); // swipe-deck order for the pick modal
 
   // Each pick keeps its Pick Score rank (and medal) no matter the sort order.
   const scoreRank = {};
