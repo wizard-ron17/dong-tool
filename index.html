@@ -499,6 +499,22 @@
   .pk-pitch-row { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; font-size: 0.63rem; font-weight: 700; padding: 0.16rem 0.5rem; background: var(--surface2); border: 1px solid transparent; border-radius: 6px; color: var(--dim); }
   .pk-pitch-pct { font-family: var(--font-b); font-weight: 400; color: var(--muted); }
   .pk-pitch-row.match { background: rgba(53,201,110,0.12); border-color: rgba(53,201,110,0.35); color: var(--accent); }
+  /* Back-to-back "population pyramid" pitch matchup: batter HR share (left/gold)
+     vs pitcher usage% (right/blue) per pitch type; overlap rows highlighted. */
+  .pm-head { display: flex; justify-content: space-between; font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 0.15rem 0.15rem 0.4rem; }
+  .pm-bars { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.35rem; }
+  .pm-row { display: grid; grid-template-columns: 4.4rem 1fr 4.5rem 1fr 2.2rem; align-items: center; gap: 0.3rem; padding: 0.08rem 0.2rem; }
+  .pm-bval { text-align: right; font-family: var(--font-d); font-weight: 700; font-size: 0.6rem; color: var(--gold); white-space: nowrap; }
+  .pm-bval .pm-n { color: var(--dim); font-weight: 600; }
+  .pm-pval { text-align: left; font-family: var(--font-d); font-weight: 700; font-size: 0.62rem; color: #7ba6d6; }
+  .pm-bbar { display: flex; justify-content: flex-end; }
+  .pm-bbar i, .pm-pbar i { display: block; height: 12px; min-width: 0; }
+  .pm-bbar i { border-radius: 3px 0 0 3px; background: linear-gradient(270deg, rgba(240,168,60,0.9), rgba(240,168,60,0.28)); }
+  .pm-pbar i { border-radius: 0 3px 3px 0; background: linear-gradient(90deg, rgba(123,166,214,0.9), rgba(123,166,214,0.28)); }
+  .pm-name { text-align: center; font-size: 0.62rem; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pm-row.pm-hit { background: rgba(53,201,110,0.09); border-radius: 6px; }
+  .pm-row.pm-hit .pm-name { color: var(--accent); font-weight: 800; }
+  .pm-hit-key { color: var(--accent); }
   .pk-pitch-row.match .pk-pitch-pct { color: var(--accent); }
   .pk-pitch-vs { display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0 0.15rem; }
   .pk-pitch-empty { font-size: 0.62rem; color: var(--muted); text-align: center; padding: 0.2rem 0; }
@@ -4803,6 +4819,33 @@ function renderValueFilters() {
 function pickScoreClass(s) { return s >= 15 ? 'great' : s >= 9 ? 'good' : 'ok'; }
 
 function pitchAbbrClient(name) { return PITCH_ABBR[name] || name; }
+// Back-to-back pitch matchup: each pitch type gets the batter's HR share (left,
+// gold) and the pitcher's usage % (right, blue) on one row, sorted so the "he
+// homers on it AND this arm throws it" pitches float to the top. Surfaces a
+// low-usage pitch a batter crushes that a top-N list would hide.
+function pitchMatchupHtml(hrProfile, mix, standLabel) {
+  const bmap = {}, pmap = {};
+  (hrProfile || []).forEach(h => { bmap[h.name] = h; });
+  (mix || []).forEach(m => { pmap[m.name] = m.pct; });
+  const names = [...new Set([...(hrProfile || []).map(h => h.name), ...(mix || []).map(m => m.name)])];
+  if (!names.length) return '<div class="pk-pitch-empty">No pitch data yet</div>';
+  const rows = names.map(name => ({ name, bp: bmap[name]?.pct || 0, n: bmap[name]?.n || 0, pp: pmap[name] || 0 }));
+  const maxPct = Math.max(1, ...rows.map(r => Math.max(r.bp, r.pp)));
+  rows.sort((a, b) => (b.bp * b.pp) - (a.bp * a.pp) || b.pp - a.pp || b.bp - a.bp);
+  const anyHit = rows.some(r => r.bp > 0 && r.pp > 0);
+  const bars = rows.map(r => `<div class="pm-row${r.bp > 0 && r.pp > 0 ? ' pm-hit' : ''}">
+      <span class="pm-bval">${r.bp ? `${r.bp}%${r.n ? `<span class="pm-n"> · ${r.n}HR</span>` : ''}` : ''}</span>
+      <span class="pm-bbar"><i style="width:${r.bp / maxPct * 100}%"></i></span>
+      <span class="pm-name">${pitchAbbrClient(r.name)}</span>
+      <span class="pm-pbar"><i style="width:${r.pp / maxPct * 100}%"></i></span>
+      <span class="pm-pval">${r.pp ? `${r.pp}%` : ''}</span>
+    </div>`).join('');
+  return `<div class="pm-head"><span>◀ Homers on</span><span>Arsenal${standLabel ? ` <span class="pk-mix-hand">vs ${standLabel}HB</span>` : ''} ▶</span></div>
+    <div class="pm-bars">${bars}</div>
+    <div class="pk-pitch-note">${anyHit
+      ? '<b class="pm-hit-key">Highlighted</b> = a pitch he homers on that this arm actually throws — the danger overlap.'
+      : 'No overlap — this arm doesn’t lean on the batter’s HR pitches.'}</div>`;
+}
 function pitchSynergyScore(hrProfile, pitcherMix) {
   if (!hrProfile?.length || !pitcherMix?.length) return 0;
   const usage = {};
@@ -5045,20 +5088,7 @@ function pickModalInner(r, board = 'chalk') {
       </div>
       ${bulkStripHtml}
       <div class="pick-section-title">Pitch Matchup</div>
-      <div class="pk-pitch-face">
-        <div class="pk-pitch-side">
-          <div class="pk-pitch-side-lbl">Goes deep on</div>
-          <div class="pk-pitch-list">${hrRowsHtml}</div>
-        </div>
-        <div class="pk-pitch-vs"><span class="pk-vs-txt">VS</span></div>
-        <div class="pk-pitch-side">
-          <div class="pk-pitch-side-lbl">He throws${r.pitcherMixHand ? ` <span class="pk-mix-hand" title="This is his pitch mix specifically against ${r.pitcherMixHand === 'L' ? 'left' : 'right'}-handed batters — pitchers attack the two sides differently">vs ${r.pitcherMixHand}HB</span>` : ''}</div>
-          <div class="pk-pitch-list">${mixRowsHtml}</div>
-        </div>
-      </div>
-      <div class="pk-pitch-note">${pitchOverlap
-        ? `<b>Green</b> = pitch in the ${r.openerLikely ? 'arsenal he’ll see' : 'starter’s arsenal'} that the batter has homered on.`
-        : `No overlap — the ${r.openerLikely ? 'arms he’ll see don’t' : 'starter doesn’t'} lean on the batter’s HR pitches.`}</div>
+      ${pitchMatchupHtml(r.hrProfile, r.pitcherMix, r.pitcherMixHand)}
       ${thinNote}
 
       ${bullpenModalHtml(r)}
@@ -5293,12 +5323,7 @@ function matchupBreakdownHtml(b, p) {
       </div>
     </div>
     <div class="pick-section-title">Pitch Matchup</div>
-    <div class="pk-pitch-face">
-      <div class="pk-pitch-side"><div class="pk-pitch-side-lbl">Goes deep on</div><div class="pk-pitch-list">${hrRows}</div></div>
-      <div class="pk-pitch-vs"><span class="pk-vs-txt">VS</span></div>
-      <div class="pk-pitch-side"><div class="pk-pitch-side-lbl">He throws${s.mixSplit ? ` <span class="pk-mix-hand" title="His pitch mix specifically against ${s.stand === 'L' ? 'left' : 'right'}-handed batters — pitchers attack the two sides differently. Shown only when he's faced that side enough; otherwise it's his overall mix.">vs ${s.stand}HB</span>` : ''}</div><div class="pk-pitch-list">${mixRows}</div></div>
-    </div>
-    <div class="pk-pitch-note">${overlap ? '<b>Green</b> = a pitch this arm throws that the batter has homered on.' : 'No overlap — this arm doesn’t lean on the batter’s HR pitches.'}</div>
+    ${pitchMatchupHtml(b.hrProfile, s.mix, s.mixSplit ? s.stand : null)}
     <div class="pick-section-title">Matchup Factors</div>
     ${factorBarsHtml([
       { label: 'Recent Contact', value: f.form },

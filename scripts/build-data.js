@@ -727,7 +727,7 @@ function computeHRPitchProfile(balls) {
   for (const b of hrBalls) counts[b.pitch_name] = (counts[b.pitch_name] ?? 0) + 1;
   return Object.entries(counts)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
+    .slice(0, 5)
     .map(([name, n]) => ({ name, pct: Math.round(100 * n / hrBalls.length), n }));
 }
 
@@ -1887,13 +1887,15 @@ async function detectOpenerBulk(todaySchedule, pitcherStats) {
 // Brown) fall back to their overall mix despite 300-900 pitches vs a side. Keep
 // batches small enough (~15k rows worst case) that no batch ever truncates.
 const PITCH_MIX_BATCH = 6;
-// Top-3 pitch types (by usage%) from a { pitchName -> count } tally.
+// Top-5 pitch types (by usage%) from a { pitchName -> count } tally — enough to
+// show a starter's whole real arsenal, so a low-usage pitch a batter happens to
+// crush isn't hidden (and the synergy score sees it too).
 function topPitchMix(countObj) {
   const total = Object.values(countObj).reduce((a, b) => a + b, 0);
   if (!total) return [];
   return Object.entries(countObj)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
+    .slice(0, 5)
     .map(([name, n]) => ({ name, pct: Math.round(100 * n / total) }));
 }
 // One side's pitch-name tally ({ pid -> {name->count} }) for a chunk of
