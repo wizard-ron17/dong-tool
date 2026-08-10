@@ -1029,6 +1029,12 @@
   .hm-cols { display: flex; gap: 0.6rem; align-items: flex-start; }
   .hm-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.6rem; }
   @media (max-width: 640px) { .hm-cols { flex-direction: column; } }
+  /* On phones, pull the home cards out toward the screen edges (offsetting the
+     page's side padding) and trim their inner padding so they read wider. */
+  @media (max-width: 600px) {
+    #home-content { margin-left: -0.55rem; margin-right: -0.55rem; }
+    #home-content .hm-card { padding: 0.75rem 0.7rem; }
+  }
   .hm-card { min-width: 0; background: var(--surface0); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 0.85rem; cursor: pointer; transition: border-color 0.15s, background 0.15s; animation: fadeIn 0.15s ease; }
   .hm-card:hover { border-color: var(--accent); background: var(--surface1); }
   .hm-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; margin-bottom: 0.55rem; }
