@@ -477,12 +477,16 @@
   .pick-factor-val { font-family: var(--font-d); font-size: 0.85rem; font-weight: 700; }
   /* Matchup factors as a diverging (tornado) bar chart — each factor grows from a
      center 1.0× baseline: right/green helps the batter, left/red hurts. */
-  .fbars { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.1rem; }
-  .fbar-legend { font-size: 0.56rem; color: var(--dim); margin: 0.1rem 0 0.35rem; letter-spacing: 0.02em; }
-  .fbar { display: grid; grid-template-columns: minmax(5.5rem, 1.1fr) 2fr 3.2rem; align-items: center; gap: 0.5rem; }
+  .fbars { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.1rem; position: relative; }
+  .fbar-legend { font-size: 0.56rem; color: var(--dim); margin: 0.1rem 0 0.75rem; letter-spacing: 0.02em; text-align: center; }
+  /* Fixed side columns so the track center (the 1.0× baseline) lands at a known
+     x — calc(50% + (6rem - 3.2rem)/2) = calc(50% + 1.4rem) — for the full-height
+     white baseline below to line up through every bar's neutral point. */
+  .fbar { display: grid; grid-template-columns: 6rem 1fr 3.2rem; align-items: center; gap: 0.5rem; }
+  .fbar-baseline { position: absolute; left: calc(50% + 1.4rem); top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.5); z-index: 2; pointer-events: none; }
+  .fbar-baseline::before { content: '1.00×'; position: absolute; top: 0; left: 50%; transform: translate(-50%, -105%); font-family: var(--font-d); font-weight: 700; font-size: 0.5rem; color: rgba(255,255,255,0.85); background: var(--surface0); padding: 0 0.22rem; border-radius: 3px; white-space: nowrap; }
   .fbar-label { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.02em; text-transform: uppercase; font-weight: 600; line-height: 1.1; }
   .fbar-track { position: relative; height: 15px; background: var(--surface1); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
-  .fbar-track::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--border2); }
   .fbar-fill { position: absolute; top: 1px; bottom: 1px; border-radius: 2px; min-width: 1px; }
   .fbar-fill.pos { background: linear-gradient(90deg, rgba(53,201,110,0.32), rgba(53,201,110,0.85)); }
   .fbar-fill.neg { background: linear-gradient(270deg, rgba(229,83,75,0.32), rgba(229,83,75,0.85)); }
@@ -4975,7 +4979,7 @@ function factorBarsHtml(items) {
       <span class="fbar-val hrg-val ${vcls}">${sign}${it.value.toFixed(2)}×</span>
     </div>`;
   }).join('');
-  return `<div class="fbar-legend">← tougher · <b>1.0× neutral</b> · juicier →</div><div class="fbars">${bars}</div>`;
+  return `<div class="fbar-legend">← tougher · <b>1.0× neutral</b> · juicier →</div><div class="fbars"><div class="fbar-baseline"></div>${bars}</div>`;
 }
 function pickModalInner(r, board = 'chalk') {
   // The headline reflects the board you opened from: Chalk shows Pick Score,
@@ -5095,7 +5099,7 @@ function pickModalInner(r, board = 'chalk') {
 
       ${bullpenModalHtml(r)}
 
-      <div class="pick-section-title">Matchup Factors</div>
+      <div class="pick-section-title pm-title">Matchup Factors</div>
       ${factorBarsHtml([
         { label: 'Recent Contact', value: r.recentFormRatio },
         { label: 'Batter Platoon', value: r.batterPlatoonRatio },
@@ -5326,7 +5330,7 @@ function matchupBreakdownHtml(b, p) {
     </div>
     <div class="pick-section-title pm-title">Pitch Matchup</div>
     ${pitchMatchupHtml(b.hrProfile, s.mix, s.mixSplit ? s.stand : null)}
-    <div class="pick-section-title">Matchup Factors</div>
+    <div class="pick-section-title pm-title">Matchup Factors</div>
     ${factorBarsHtml([
       { label: 'Recent Contact', value: f.form },
       { label: 'Batter Platoon', value: f.batP },
