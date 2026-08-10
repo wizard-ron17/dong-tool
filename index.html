@@ -292,6 +292,14 @@
 
   .chart-wrap { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.8rem; position: relative; width: 100%; height: 300px; }
   @media (max-width: 600px) { .chart-wrap { height: 380px; padding: 0.5rem 0.3rem 0.5rem 0.5rem; } }
+  .stats-zoom-row { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin: 0.1rem 0 0.5rem; }
+  .stats-zoom-lbl { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-right: 0.1rem; }
+  .stats-zoom-reset { background: transparent; border: 1px solid var(--border); color: var(--muted); font-family: var(--font-b); font-weight: 700; font-size: 0.62rem; padding: 0.15rem 0.5rem; border-radius: 999px; cursor: pointer; }
+  .stats-zoom-reset:hover { border-color: var(--accent); color: var(--accent); }
+  .stats-zoom-hint { font-size: 0.58rem; color: var(--dim); margin-left: 0.15rem; }
+  @media (max-width: 600px) { .stats-zoom-hint { display: none; } }
+  .stats-zoom-sel { position: absolute; top: 0.8rem; bottom: 2.1rem; background: rgba(88,166,255,0.16); border-left: 1px solid #58a6ff; border-right: 1px solid #58a6ff; pointer-events: none; z-index: 3; }
+  #hrChart { touch-action: pan-y; } /* let vertical scroll pass, claim horizontal drags for zoom */
   .chart-legend { margin-top: 0.5rem; font-size: 0.58rem; color: var(--muted); letter-spacing: 0.08em; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
   .roll-toggles { display: flex; gap: 0.3rem; flex-wrap: wrap; }
   .roll-toggle { background: var(--surface1); border: 1px solid var(--border2); color: var(--dim); font-family: var(--font-b); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em; padding: 0.15rem 0.55rem; border-radius: 20px; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; }
@@ -1318,6 +1326,15 @@
         </div>
         <select id="team-select" onchange="renderTotals()"><option value="ALL">All Teams</option></select>
       </div>
+      <div class="stats-zoom-row" id="stats-zoom-row">
+        <span class="stats-zoom-lbl">Zoom</span>
+        <button class="due-filter-chip active" data-zoom="0" onclick="setStatsZoomDays(0)">Season</button>
+        <button class="due-filter-chip" data-zoom="90" onclick="setStatsZoomDays(90)">3M</button>
+        <button class="due-filter-chip" data-zoom="30" onclick="setStatsZoomDays(30)">1M</button>
+        <button class="due-filter-chip" data-zoom="14" onclick="setStatsZoomDays(14)">2W</button>
+        <button class="stats-zoom-reset" id="stats-zoom-reset" onclick="resetStatsZoom()" style="display:none">✕ Reset</button>
+        <span class="stats-zoom-hint">or drag across the chart to highlight a range</span>
+      </div>
       <div class="chart-wrap">
         <canvas id="hrChart" role="img" aria-label="HR per game per day line chart"></canvas>
       </div>
@@ -1639,6 +1656,83 @@ const BOLLINGER_WIN = 20;
 let volBandsOn = true;
 let chalkIdxOn = false;
 let macdOn = false;
+// ── Stats chart zoom (subset view) ──────────────────────────────────────
+// Zoom to a slice of the HR/G timeline — preset windows or drag-highlight a
+// range on the chart. Indicators (Bollinger, MACD) are still computed on the
+// FULL series; we only limit the visible x-range, so the bands/momentum inside
+// the window keep their real lookback.
+let statsZoom = null;       // { min, max } category indices, or null = full season
+let statsChartDates = [];   // per-index date strings (set in renderTotals), for date presets
+let statsZoomPreset = 0;    // active preset in days (0 = season, -1 = custom drag)
+let statsDragBound = false;
+function clampStatsZoom(n) {
+  if (!statsZoom || !n) return null;
+  const lo = Math.max(0, Math.min(n - 1, Math.floor(statsZoom.min)));
+  const hi = Math.max(0, Math.min(n - 1, Math.ceil(statsZoom.max)));
+  return hi - lo >= 1 ? { min: lo, max: hi } : null;
+}
+function setStatsZoomDays(days) {
+  const n = statsChartDates.length; if (!n) return;
+  statsZoomPreset = days;
+  if (!days) { statsZoom = null; }
+  else {
+    const cutoff = addDaysToDateStr(etDateStr(new Date()), -days);
+    let s = statsChartDates.findIndex(d => d >= cutoff);
+    if (s < 0) s = 0;
+    statsZoom = (n - 1 - s >= 1) ? { min: s, max: n - 1 } : null;
+  }
+  renderTotals();
+}
+function resetStatsZoom() { statsZoom = null; statsZoomPreset = 0; renderTotals(); }
+function updateStatsZoomUI() {
+  document.querySelectorAll('#stats-zoom-row [data-zoom]').forEach(b => b.classList.toggle('active', +b.dataset.zoom === statsZoomPreset));
+  const rb = document.getElementById('stats-zoom-reset'); if (rb) rb.style.display = statsZoom ? '' : 'none';
+}
+// Drag across the main chart to highlight a range, then zoom to it. Bound once
+// (the canvas persists across chart rebuilds); a plain click (<2 cols) is left
+// to the tooltip.
+function bindStatsDrag() {
+  if (statsDragBound) return;
+  const canvas = document.getElementById('hrChart');
+  const wrap = canvas?.closest('.chart-wrap');
+  if (!canvas || !wrap) return;
+  statsDragBound = true;
+  let startX = null, sel = null;
+  const idxAt = clientX => {
+    const r = canvas.getBoundingClientRect();
+    const v = hrChart?.scales?.x?.getValueForPixel(clientX - r.left);
+    return v == null ? null : Math.round(v);
+  };
+  canvas.addEventListener('pointerdown', e => {
+    if (!hrChart || e.button != null && e.button !== 0) return;
+    startX = e.clientX;
+    const r = wrap.getBoundingClientRect();
+    sel = document.createElement('div');
+    sel.className = 'stats-zoom-sel';
+    sel.style.left = (e.clientX - r.left) + 'px'; sel.style.width = '0px';
+    wrap.appendChild(sel);
+    try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (startX == null || !sel) return;
+    const r = wrap.getBoundingClientRect();
+    const x0 = Math.min(startX, e.clientX) - r.left, x1 = Math.max(startX, e.clientX) - r.left;
+    sel.style.left = x0 + 'px'; sel.style.width = (x1 - x0) + 'px';
+  });
+  const finish = e => {
+    if (startX == null) return;
+    const a = idxAt(startX), b = idxAt(e.clientX);
+    if (sel) { sel.remove(); sel = null; }
+    startX = null;
+    if (a != null && b != null && Math.abs(a - b) >= 2) {
+      statsZoom = { min: Math.min(a, b), max: Math.max(a, b) };
+      statsZoomPreset = -1;
+      renderTotals();
+    }
+  };
+  canvas.addEventListener('pointerup', finish);
+  canvas.addEventListener('pointercancel', () => { if (sel) { sel.remove(); sel = null; } startX = null; });
+}
 function toggleVolBands() { volBandsOn = !volBandsOn; renderTotals(); }
 function toggleChalkIdx() { chalkIdxOn = !chalkIdxOn; renderTotals(); }
 function toggleMacd() { macdOn = !macdOn; renderTotals(); }
@@ -2772,6 +2866,8 @@ function renderTotals() {
   const sparseLabels = labels.map((l,i)=>i%tickStep===0?l:'');
   const gameDaysMap = byVenue ? venueGameDays : teamGameDays;
   const dateSnapshot = filterVal==='ALL' ? allDates : allDates.filter(d=>(gameDaysMap[filterVal]?.[d]||0)>0);
+  statsChartDates = dateSnapshot;                    // for the zoom presets
+  const zc = clampStatsZoom(labels.length);          // visible x-window, or null = full
 
   const rollDatasets = activePresets.map((p,i) => ({
     label: `${p.days}d`, data: makeMA(hrPerGame, p.days), borderColor: p.color,
@@ -2830,12 +2926,14 @@ function renderTotals() {
         }
       },
       scales:{
-        x:{grid:{color:'#16243a',lineWidth:0.5},ticks:{color:'#3a5570',font:{family:"'JetBrains Mono',monospace",size:mob?8:10},maxRotation:mob?55:45,autoSkip:false}},
+        x:{min:zc?zc.min:undefined,max:zc?zc.max:undefined,grid:{color:'#16243a',lineWidth:0.5},ticks:{color:'#3a5570',font:{family:"'JetBrains Mono',monospace",size:mob?8:10},maxRotation:mob?55:45,autoSkip:false}},
         y:{grid:{color:'#16243a',lineWidth:0.5},ticks:{color:'#3a5570',font:{family:"'JetBrains Mono',monospace",size:mob?8:10},callback:v=>v.toFixed(1),maxTicksLimit:mob?5:8},min:0},
         y1:{display:!!(chalkIdxOn&&filterVal==='ALL'),position:'right',grid:{drawOnChartArea:false},ticks:{color:'#e08a3c',font:{family:"'JetBrains Mono',monospace",size:mob?8:10},maxTicksLimit:mob?5:7},min:0,title:{display:!mob,text:'Chalk Index (median season HR)',color:'#e08a3c',font:{size:9}}}
       }
     }
   });
+  bindStatsDrag();
+  updateStatsZoomUI();
 
   // ── MACD sub-panel (its own zero-centered scale, so it can't share the main
   // axis) — built only when toggled on; histogram bars colored by sign. ──────
@@ -2870,7 +2968,7 @@ function renderTotals() {
           }
         },
         scales:{
-          x:{grid:{color:'#16243a',lineWidth:0.5},ticks:{color:'#3a5570',font:{family:"'JetBrains Mono',monospace",size:mob?8:10},maxRotation:mob?55:45,autoSkip:false}},
+          x:{min:zc?zc.min:undefined,max:zc?zc.max:undefined,grid:{color:'#16243a',lineWidth:0.5},ticks:{color:'#3a5570',font:{family:"'JetBrains Mono',monospace",size:mob?8:10},maxRotation:mob?55:45,autoSkip:false}},
           y:{grid:{color:(c)=>c.tick.value===0?'#2f4d70':'#16243a',lineWidth:0.5},ticks:{color:'#3a5570',font:{family:"'JetBrains Mono',monospace",size:mob?8:10},maxTicksLimit:mob?4:6}}
         }
       }
