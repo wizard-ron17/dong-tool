@@ -5089,7 +5089,7 @@ function pickModalInner(r, board = 'chalk') {
       ${deckNav}
       <div class="pk-face">
         <div class="pk-side">
-          <img src="${photoUrl}" alt="">
+          ${muPhotoTag(r.pid, r.team)}
           <div class="pk-name">${playerNames[r.pid] || r.pid}</div>
           <div class="pk-sub">${teamLogoImg(r.team,'team-logo')}${r.team} · Bats ${batHand}${r.lineupOrder >= 1 ? ` · <span title="Batting ${r.lineupOrder}${r.lineupOrder===1?'st':r.lineupOrder===2?'nd':r.lineupOrder===3?'rd':'th'} — spot in the order drives how many plate appearances he gets">#${r.lineupOrder} spot</span>` : ''}${injuryBadge(r.pid, true)}${lineupBadge(r.pid, true)}</div>
           <div class="pk-stat"><span class="hrg-val great">${r.hrs} HR</span>${abPerHR ? ` <span class="pk-stat-dim">· ${abPerHR} AB/HR</span>` : ''}${r.blastPct != null ? ` <span class="pk-stat-dim">· <span title="Blast% — squared-up + fast-swing rate, the swing that makes homers (leading indicator of power)">💥 ${Math.round(r.blastPct*100)}% Blast</span></span>` : ''}${isValue && r.blastSurplus > 1.04 ? ` <span class="pk-stat-dim" title="Blast surplus — his blast-implied HR rate is this far above his actual HR/AB; the market prices off HR totals, so it hasn't caught up = underpriced">· 📈 +${Math.round((r.blastSurplus-1)*100)}% vs results</span>` : ''}</div>
@@ -5100,7 +5100,7 @@ function pickModalInner(r, board = 'chalk') {
           <span class="due-modal-headline-lbl">${headLbl}</span>
         </div>
         <div class="pk-side">
-          <img src="${playerPhotoUrl(r.oppPid)}" alt="">
+          ${muPhotoTag(r.oppPid, r.oppTeam)}
           <div class="pk-name">${r.oppName || 'TBD'}</div>
           <div class="pk-sub">${teamLogoImg(r.oppTeam,'team-logo')}${r.oppTeam} · Throws ${throwHand}</div>
           ${r.openerLikely ? '<span class="pk-opener-badge">LIKELY OPENER</span>' : ''}
