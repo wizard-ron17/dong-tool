@@ -15,7 +15,7 @@
 // A new worker skipWaiting()s and claims clients, so it controls fetches right
 // away; combined with network-first documents, the next load is fresh. The
 // update-prompt path (SKIP_WAITING message) is kept for an in-session heads-up.
-const APP_VERSION = '9334d81f89';
+const APP_VERSION = '6b673bd9de';
 const CACHE_NAME = 'dong-tool-' + APP_VERSION;
 const SHELL_ASSETS = [
   './',

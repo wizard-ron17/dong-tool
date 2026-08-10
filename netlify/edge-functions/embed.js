@@ -23,6 +23,7 @@ const ROUTES = {
   daylate:   { title: "Day Late · Ron's Dong Tool", desc: "Yesterday's picks that didn't go yard — bounce-back candidates for today." },
   returning: { title: "Returning Boppers · Ron's Dong Tool", desc: "Injured sluggers on their way back and the first-games-back home-run window." },
   birthdays: { title: "Birthdays · Ron's Dong Tool", desc: "Which boppers are celebrating a birthday today 🎂." },
+  milestones: { title: "Milestone Watch · Ron's Dong Tool", desc: "Hitters closing in on a career home-run milestone — 100, 200, 300 and up — plus who just crossed one 🏆." },
 };
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

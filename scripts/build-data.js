@@ -1425,6 +1425,56 @@ async function computeBirthdays() {
   return out;
 }
 
+// ── CAREER HR MILESTONES ───────────────────────────────────────────────
+// "Milestone watch": who's closing in on a round-number career HR total (100,
+// 200, 300, …). Round hundreds only — the 50s aren't a real milestone. Also
+// celebrates anyone who crossed a hundred *this* season. Regular-season career
+// HR, batched from the people endpoint (one aggregated split per player).
+const MILESTONE_STEP   = 100;   // only the round hundreds count as a milestone
+const MILESTONE_WINDOW = 25;    // "in the hunt" = this many or fewer from the next hundred
+const MILESTONE_MIN_AB = 10;    // must be an actual current hitter, not a spot pitcher
+
+async function fetchCareerHR(ids) {
+  const out = {};
+  for (const group of chunk([...new Set(ids)], 120)) {
+    if (!group.length) continue;
+    try {
+      const res = await fetch(`${MLB}/people?personIds=${group.join(',')}&hydrate=stats(group=[hitting],type=[career])`).then(r => r.json());
+      for (const p of res.people ?? []) {
+        const sp = p.stats?.[0]?.splits ?? [];
+        const hr = sp.length ? (sp[0].stat?.homeRuns ?? null) : null;
+        if (hr != null) out[String(p.id)] = hr;
+      }
+    } catch (e) {}
+  }
+  return out;
+}
+
+async function computeMilestones() {
+  const ids = Object.keys(playerTeams).filter(pid => (playerABs[pid] ?? 0) >= MILESTONE_MIN_AB);
+  if (!ids.length) return [];
+  const career = await fetchCareerHR(ids);
+  const out = [];
+  for (const pid of ids) {
+    const total = career[pid];
+    if (total == null || total < 1) continue;
+    const seasonHrs   = hrTotals[pid] || 0;
+    const games       = playerGames[pid] || 0;
+    const startCareer = total - seasonHrs;                       // career HR entering this season
+    const next        = (Math.floor(total / MILESTONE_STEP) + 1) * MILESTONE_STEP;
+    const away        = next - total;
+    // Highest hundred crossed *this* season (0 if none) → the celebration flag.
+    let reached = 0;
+    for (let m = MILESTONE_STEP; m <= total; m += MILESTONE_STEP) if (startCareer < m) reached = m;
+    if (reached === 0 && away > MILESTONE_WINDOW) continue;       // not close, and didn't just cross
+    out.push({ pid, name: playerNames[pid] || pid, team: playerTeams[pid] || '',
+               career: total, next, away, seasonHrs, games, reached });
+  }
+  // Celebrations up top (biggest milestone first), then the closest chasers.
+  out.sort((a, b) => (b.reached - a.reached) || (a.away - b.away) || (b.career - a.career));
+  return out.slice(0, 60);
+}
+
 async function fetchRecentRosterMoves(days, teamIdToAbbr) {
   const end = new Date(), start = new Date();
   start.setUTCDate(start.getUTCDate() - days);
@@ -2448,6 +2498,7 @@ async function main() {
   let prevDueRows = [], dueStreaks = null, dueHistory = [];
   let prevReturning = [], prevJustBack = [], prevReturningHistory = [];
   let prevProspectWatch = {}, prevProspectHistory = [];
+  let prevMilestones = [];
   try {
     const fs = await import('node:fs');
     const raw = fs.readFileSync(new URL('../data.json', import.meta.url), 'utf8');
@@ -2468,6 +2519,7 @@ async function main() {
     prevReturningHistory = old.returningHistory ?? [];
     prevProspectWatch   = old.prospects?.watch ?? {};
     prevProspectHistory = old.prospects?.history ?? [];
+    prevMilestones      = old.milestones ?? [];
   } catch { /* first run or file missing — start fresh */ }
 
   await fetchAll();
@@ -2550,6 +2602,12 @@ async function main() {
   console.log('Checking for birthdays...');
   const birthdays = await computeBirthdays();
   if (birthdays.length) console.log(`  🎂 ${birthdays.length} birthday${birthdays.length===1?'':'s'} today: ${birthdays.map(b => b.name).join(', ')}`);
+
+  console.log('Checking career HR milestones...');
+  let milestones = [];
+  try { milestones = await computeMilestones(); }
+  catch (e) { console.warn('  milestone fetch failed — reusing previous:', e.message); milestones = prevMilestones; }
+  if (milestones.length) console.log(`  🏆 ${milestones.length} on milestone watch (closest: ${milestones.map(m => `${m.name} ${m.career}→${m.next}`).slice(0,3).join(', ')})`);
 
   console.log('Checking injured-list status...');
   const injuryStatus = await fetchInjuryStatus();
@@ -2808,7 +2866,7 @@ async function main() {
     dailyHRs, hrTypes, hrDetails, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR, playerLastGame,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus, dtdStatus,
     todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, batMeta, picks, value, picksHistory, valueHistory, birthdays, birthdayHistory,
-    dueStreaks, dueHistory, returningInjured, justBack, returningHistory,
+    dueStreaks, dueHistory, returningInjured, justBack, returningHistory, milestones,
   };
 
   const fs = await import('node:fs');

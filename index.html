@@ -981,6 +981,35 @@
   .bday-age { text-align: center; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; }
   .bday-age-num { font-family: var(--font-d); font-size: 1.5rem; font-weight: 800; color: var(--gold); line-height: 1; }
   .bday-age-lbl { font-size: 0.5rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-top: 0.1rem; }
+  /* ── Milestones ── */
+  .ms-section-head { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0.9rem 0 0.5rem; }
+  .ms-section-head:first-child { margin-top: 0.2rem; }
+  .ms-reached { display: flex; flex-direction: column; gap: 0.45rem; }
+  .ms-crossed { display: flex; align-items: center; gap: 0.65rem; background: linear-gradient(90deg, rgba(242,201,76,0.10), var(--surface0) 60%); border: 1px solid rgba(242,201,76,0.35); border-radius: 8px; padding: 0.55rem 0.8rem; animation: fadeIn 0.15s ease; }
+  .ms-crossed-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.12rem; }
+  .ms-badge { flex-shrink: 0; text-align: center; display: flex; flex-direction: column; align-items: center; }
+  .ms-badge { font-family: var(--font-d); font-size: 1.35rem; font-weight: 800; color: var(--gold); line-height: 1; }
+  .ms-badge-lbl { font-family: var(--font); font-size: 0.5rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); margin-top: 0.15rem; }
+  .ms-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .ms-card { display: flex; align-items: center; gap: 0.7rem; background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.8rem; animation: fadeIn 0.15s ease; }
+  .ms-card.ms-close { border-color: rgba(242,201,76,0.4); }
+  .ms-card.ms-doorstep { border-color: rgba(255,107,107,0.55); background: linear-gradient(90deg, rgba(255,107,107,0.09), var(--surface0) 55%); }
+  .ms-photo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; object-position: center 12%; background: var(--surface2); flex-shrink: 0; }
+  .ms-photo.sm { width: 38px; height: 38px; }
+  .ms-body { flex: 1; min-width: 0; }
+  .ms-top { display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap; }
+  .ms-name { font-size: 0.82rem; font-weight: 600; color: var(--text); display: inline-flex; align-items: center; gap: 0.35rem; }
+  .ms-plays { font-size: 0.5rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--good); background: rgba(51,208,124,0.12); border: 1px solid rgba(51,208,124,0.3); border-radius: 3px; padding: 0.04rem 0.28rem; }
+  .ms-sub { font-size: 0.62rem; color: var(--muted); display: inline-flex; align-items: center; gap: 0.28rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ms-bar { position: relative; height: 7px; background: var(--surface2); border-radius: 4px; margin: 0.4rem 0 0.28rem; overflow: hidden; }
+  .ms-fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #7ba6d6, var(--gold)); border-radius: 4px; }
+  .ms-doorstep .ms-fill { background: linear-gradient(90deg, var(--gold), #ff6b6b); }
+  .ms-bar-goal { position: absolute; right: 0.3rem; top: 50%; transform: translateY(-50%); font-size: 0.5rem; font-weight: 700; color: var(--text); opacity: 0.7; text-shadow: 0 0 3px var(--surface0); }
+  .ms-pace { font-size: 0.6rem; color: var(--muted); }
+  .ms-away { flex-shrink: 0; text-align: center; display: flex; flex-direction: column; align-items: center; min-width: 2.6rem; }
+  .ms-away-num { font-family: var(--font-d); font-size: 1.6rem; font-weight: 800; color: var(--gold); line-height: 1; }
+  .ms-doorstep .ms-away-num { color: #ff6b6b; }
+  .ms-away-lbl { font-size: 0.5rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); margin-top: 0.12rem; white-space: nowrap; }
   .prospect-grid { display: flex; flex-direction: column; gap: 0.5rem; }
   .prospect-card { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.85rem; animation: fadeIn 0.15s ease; }
   .prospect-top { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.5rem; }
@@ -1263,6 +1292,10 @@
       <button class="nav-menu-item nav-menu-new" data-nav="matchups" onclick="switchNav('matchups')" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 20 4M15 4h5v5M4 9V4h5M9 20H4v-5"/></svg>
         <span><span class="nm-name">Matchups <span class="nm-new">NEW</span></span><span class="nm-desc">Break down any batter vs any pitcher</span></span>
+      </button>
+      <button class="nav-menu-item nav-menu-new" data-nav="milestones" onclick="switchNav('milestones')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V3M6 4h11l-2.2 3L17 10H6"/></svg>
+        <span><span class="nm-name">Milestones <span class="nm-new">NEW</span></span><span class="nm-desc">Chasing 100 · 200 · 300 career HR</span></span>
       </button>
       <button class="nav-menu-item" data-nav="picks" onclick="switchNav('picks')" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.75" fill="currentColor"/></svg>
@@ -1585,6 +1618,11 @@
     <div id="birthday-results-wrap" style="display:none"></div>
   </div>
 
+  <div id="panel-milestones" class="panel">
+    <div class="result-meta" id="milestones-meta"></div>
+    <div id="milestones-content"><div class="empty">Loading data…</div></div>
+  </div>
+
   <footer>
     <span>Source: MLB Stats API (statsapi.mlb.com)</span>
   </footer>
@@ -1618,6 +1656,7 @@ let birthdays    = []; // hitters celebrating a birthday today 🎂
 let birthdayHistory = []; // past birthday boys + whether they homered
 let birthdaySubTab = 'today';
 let birthdayById = {}; // pid -> birthday entry, for the site-wide badge
+let milestones   = []; // hitters closing in on (or just past) a round-hundred career HR total
 let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if currently on the IL
 let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questionable (NOT on the IL), from ESPN
 let returningInjured = []; // injured hitters (IL + DTD) with ESPN's estimated return dates — Returning Boppers tool
@@ -2048,6 +2087,7 @@ function applyData(data) {
   birthdays = data.birthdays ?? [];
   birthdayHistory = data.birthdayHistory ?? [];
   birthdayById = {}; for (const b of birthdays) birthdayById[b.pid] = b;
+  milestones = data.milestones ?? [];
   dueStreaks = data.dueStreaks ?? {}; dueHistory = data.dueHistory ?? [];
   injuryStatus = data.injuryStatus ?? {};
   dtdStatus = data.dtdStatus ?? {};
@@ -2124,7 +2164,7 @@ function toggleTheme() {
 }
 
 // ── Nav ────────────────────────────────────────────────────────────────
-const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'matchups', 'prospects', 'daylate', 'returning', 'birthdays'];
+const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'matchups', 'prospects', 'daylate', 'returning', 'birthdays', 'milestones'];
 const PAIR_SIZE_TO_SLUG = { 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' };
 const PAIR_SLUG_TO_SIZE = { pairs: 2, trios: 3, quads: 4, quints: 5 };
 
@@ -2209,7 +2249,7 @@ function migrateLegacyHash() {
 }
 // The four pages that live in the Tools menu rather than the main bar; the
 // Tools pill lights up when any of them is active.
-const TOOLS_NAVS = ['matchups', 'picks', 'due', 'pairs', 'prospects', 'daylate', 'returning', 'birthdays'];
+const TOOLS_NAVS = ['matchups', 'milestones', 'picks', 'due', 'pairs', 'prospects', 'daylate', 'returning', 'birthdays'];
 let navToolsOpen = false;
 function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
 function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
@@ -2223,6 +2263,7 @@ const PAGE_TITLES = {
   stats: "Stats · Ron's Dong Tool", recap: "Recap · Ron's Dong Tool", pairs: "Top Pairings · Ron's Dong Tool",
   prospects: "Prospects · Ron's Dong Tool", daylate: "Day Late · Ron's Dong Tool",
   returning: "Returning Boppers · Ron's Dong Tool", birthdays: "Birthdays · Ron's Dong Tool",
+  milestones: "Milestone Watch · Ron's Dong Tool",
 };
 function switchNav(nav) {
   activeNav = nav;
@@ -2249,6 +2290,7 @@ function renderCurrentPanel() {
   if (activeNav === 'daylate')  { renderDayLate(); applyDayLateSub(dayLateSubTab); }
   if (activeNav === 'returning') { renderReturning(); applyReturningSub(returningSubTab); }
   if (activeNav === 'birthdays') applyBirthdaySub(birthdaySubTab);
+  if (activeNav === 'milestones') renderMilestones();
 }
 window.addEventListener('popstate', applyRouteState);
 let activeStatsView = 'league';
@@ -2395,6 +2437,14 @@ function renderHome() {
       <span class="hm-score" style="color:var(--gold);font-size:0.9rem">${r.hrs ?? 0}<span class="hm-subtle" style="font-size:0.58rem"> HR</span></span>
     </div>`).join('');
 
+  // Milestones — closest to a round-hundred career HR (celebrations first).
+  const msRows = [...(milestones || [])].slice(0, 4).map(r => `
+    <div class="hm-row">
+      <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
+      <span class="hm-name">${compactPlayerName(r.name)}<span class="hm-subtle"> · ${r.team} · ${r.career} HR</span></span>
+      <span class="hm-score" style="color:${r.reached ? 'var(--good)' : r.away <= 2 ? '#ff6b6b' : 'var(--gold)'};font-size:0.9rem">${r.reached ? `${r.reached}💥` : r.away}<span class="hm-subtle" style="font-size:0.58rem"> ${r.reached ? 'career' : `to ${r.next}`}</span></span>
+    </div>`).join('');
+
   // "Yesterday's Homers" only when the last completed slate was literally
   // yesterday — after an off day it's "Last Homers · <date>" instead.
   const recapLabel = last === yesterday() ? "Yesterday's Homers" : 'Last Homers';
@@ -2442,6 +2492,10 @@ function renderHome() {
       <div class="hm-card" onclick="switchNav('returning')">
         <div class="hm-head"><span class="hm-title">Returning Boppers</span><span class="hm-link">Returning →</span></div>
         ${returningRows || '<div class="hm-subtle">Nobody due back right now.</div>'}
+      </div>
+      <div class="hm-card" onclick="switchNav('milestones')">
+        <div class="hm-head"><span class="hm-title">Milestone Watch 🏆</span><span class="hm-link">Milestones →</span></div>
+        ${msRows || '<div class="hm-subtle">Nobody near a career HR milestone right now.</div>'}
       </div>
       <div class="hm-card" onclick="switchNav('birthdays')">
         <div class="hm-head"><span class="hm-title">Birthdays 🎂</span><span class="hm-link">Birthdays →</span></div>
@@ -6103,6 +6157,72 @@ function renderBirthdayResults() {
     </div>
     <div class="ph-buckets-head">Birthday Box Score <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· 🎂💥 = went deep on his birthday</span></div>
     <div class="ph-days">${dayRows}</div>`;
+}
+
+// ── MILESTONES ─────────────────────────────────────────────────────────
+// Who's closing in on a round-hundred career HR total (100 / 200 / 300 …), and
+// who just crossed one this season. The 50s aren't a milestone — hundreds only.
+// Server ships {career, next, away, seasonHrs, games, reached}; the pace/ETA is
+// computed here from this season's HR rate.
+const MILESTONE_STEP = 100; // mirrors the server — round hundreds are the milestones
+function milestoneCard(m) {
+  const plays = todayTeamsPlaying.has(m.team);
+  // How far into the current hundred he is (away=5 → 95% of the way there).
+  const pct = Math.max(4, Math.min(100, Math.round((MILESTONE_STEP - m.away) / MILESTONE_STEP * 100)));
+  const tier = m.away <= 2 ? 'doorstep' : m.away <= 9 ? 'close' : 'range';
+  // Pace ETA — games to the next hundred at this year's HR rate.
+  let pace = '';
+  if (m.away > 0) {
+    if (m.seasonHrs > 0 && m.games > 0) {
+      const g = Math.ceil(m.away / (m.seasonHrs / m.games));
+      pace = `~${g} game${g === 1 ? '' : 's'} at his pace · ${m.seasonHrs} HR / ${m.games} G`;
+    } else {
+      pace = `${m.seasonHrs || 'no'} HR this season`;
+    }
+  }
+  return `<div class="ms-card ms-${tier}">
+    <img class="ms-photo" src="${playerPhotoUrl(m.pid)}" alt="" loading="lazy">
+    <div class="ms-body">
+      <div class="ms-top">
+        <span class="ms-name">${compactPlayerName(m.name)}${plays ? '<span class="ms-plays" title="Has a game today">plays today</span>' : ''}</span>
+        <span class="ms-sub">${m.team ? `${teamLogoImg(m.team, 'team-logo')} ${m.team}` : ''} · ${m.career} career HR</span>
+      </div>
+      <div class="ms-bar"><div class="ms-fill" style="width:${pct}%"></div><span class="ms-bar-goal">${m.next}</span></div>
+      ${pace ? `<div class="ms-pace">${pace}</div>` : ''}
+    </div>
+    <div class="ms-away"><span class="ms-away-num">${m.away}</span><span class="ms-away-lbl">from ${m.next}</span></div>
+  </div>`;
+}
+function renderMilestones() {
+  const meta = document.getElementById('milestones-meta');
+  const el   = document.getElementById('milestones-content');
+  const dateStr = todayDate ? fmtDateLong(todayDate) : '';
+  if (!milestones || !milestones.length) {
+    meta.textContent = '';
+    el.innerHTML = `<div class="empty">🏆 Nobody's within striking distance of a career HR milestone right now — check back as the totals climb.</div>`;
+    return;
+  }
+  const reached = milestones.filter(m => m.reached > 0);
+  const hunting = milestones.filter(m => m.reached === 0);
+  meta.textContent = `🏆 ${hunting.length} in the hunt${reached.length ? ` · ${reached.length} just crossed a milestone` : ''}${dateStr ? ` · ${dateStr}` : ''}`;
+
+  const reachedBlock = reached.length ? `
+    <div class="ms-section-head">🎉 Reached this season</div>
+    <div class="ms-reached">${reached.map(m => `
+      <div class="ms-crossed">
+        <img class="ms-photo sm" src="${playerPhotoUrl(m.pid)}" alt="" loading="lazy">
+        <div class="ms-crossed-body">
+          <span class="ms-name">${compactPlayerName(m.name)}</span>
+          <span class="ms-sub">${m.team ? `${teamLogoImg(m.team, 'team-logo')} ${m.team}` : ''} · now ${m.career} career</span>
+        </div>
+        <span class="ms-badge">${m.reached}<span class="ms-badge-lbl">career HR 💥</span></span>
+      </div>`).join('')}</div>` : '';
+
+  const huntBlock = hunting.length ? `
+    <div class="ms-section-head">🎯 Closing in</div>
+    <div class="ms-list">${hunting.map(milestoneCard).join('')}</div>` : '';
+
+  el.innerHTML = reachedBlock + huntBlock;
 }
 
 // ── DAY LATE ───────────────────────────────────────────────────────────
