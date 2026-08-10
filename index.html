@@ -972,11 +972,15 @@
   /* Two independent columns so a short card lets the next one rise (no row-gaps). */
   .hm-cols { display: flex; gap: 0.6rem; align-items: flex-start; }
   .hm-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.6rem; }
-  .hm-card-wide { margin-top: 0.6rem; }
   @media (max-width: 640px) { .hm-cols { flex-direction: column; } }
   .hm-card { min-width: 0; background: var(--surface0); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 0.85rem; cursor: pointer; transition: border-color 0.15s, background 0.15s; animation: fadeIn 0.15s ease; }
   .hm-card:hover { border-color: var(--accent); background: var(--surface1); }
   .hm-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; margin-bottom: 0.55rem; }
+  /* Section label inside a combined card (Chalk / Value in the Picks card). */
+  .hm-subhead { font-size: 0.58rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin: 0.5rem 0 0.12rem; display: inline-block; }
+  .hm-subhead.link { cursor: pointer; }
+  .hm-subhead.link:hover { color: var(--accent); }
+  .hm-head + .hm-subhead { margin-top: 0.05rem; }
   .hm-title { font-family: var(--font-d); font-weight: 700; font-size: 0.98rem; color: var(--text-strong); letter-spacing: 0.02em; }
   .hm-link { font-size: 0.6rem; color: var(--accent); font-weight: 700; white-space: nowrap; }
   .hm-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin-bottom: 0.55rem; }
@@ -2136,8 +2140,8 @@ function renderHome() {
   }).join('');
   const moreGames = sortedGames.length > 4 ? `<div class="hm-more">+ ${sortedGames.length - 4} more</div>` : '';
 
-  // Top picks / most due
-  const topPicks = applyPicksFilters(picks).slice(0, 5).map((r, i) => `
+  // Top picks / most due — Chalk and Value share one "Picks" card, 3 each.
+  const topPicks = applyPicksFilters(picks).slice(0, 3).map((r, i) => `
     <div class="hm-row">
       <span class="hm-rank">${i+1}</span>
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
@@ -2191,7 +2195,7 @@ function renderHome() {
   }).join('');
 
   // Best value bats — the underpriced board's top names (blast surplus × matchup).
-  const topValue = [...applyValueFilters(value)].sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0)).slice(0, 5).map((r, i) => `
+  const topValue = [...applyValueFilters(value)].sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0)).slice(0, 3).map((r, i) => `
     <div class="hm-row">
       <span class="hm-rank">${i+1}</span>
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
@@ -2247,8 +2251,11 @@ function renderHome() {
         <div class="hm-chips">${bombers || '<span class="hm-subtle">No homers</span>'}</div>
       </div>
       <div class="hm-card" onclick="switchNav('picks')">
-        <div class="hm-head"><span class="hm-title">Top Picks (Chalk)</span><span class="hm-link">Picks →</span></div>
-        ${topPicks || '<div class="hm-subtle">No Chalk picks clear the bar today — check Best Value.</div>'}
+        <div class="hm-head"><span class="hm-title">Picks</span><span class="hm-link">Picks →</span></div>
+        <div class="hm-subhead link" onclick="event.stopPropagation(); switchNav('picks'); setPicksMode('chalk')">🔒 Chalk</div>
+        ${topPicks || '<div class="hm-subtle">No Chalk picks clear the bar today.</div>'}
+        <div class="hm-subhead link" onclick="event.stopPropagation(); switchNav('picks'); setPicksMode('value')">🎯 Value</div>
+        ${topValue || '<div class="hm-subtle">No value bats yet.</div>'}
       </div>
       <div class="hm-card" onclick="switchNav('due')">
         <div class="hm-head"><span class="hm-title">Most Due</span><span class="hm-link">Due →</span></div>
@@ -2264,10 +2271,6 @@ function renderHome() {
         <div class="hm-head"><span class="hm-title">Today's Schedule · ${sortedGames.length ? `${sortedGames.length} Games` : 'No Games'}</span><span class="hm-link">Schedule →</span></div>
         ${gameRows || '<div class="hm-subtle">Nothing on the slate.</div>'}${moreGames}
       </div>
-      <div class="hm-card" onclick="switchNav('picks'); setPicksMode('value')">
-        <div class="hm-head"><span class="hm-title">Best Value</span><span class="hm-link">Value →</span></div>
-        ${topValue || '<div class="hm-subtle">No value bats yet — check back closer to game time.</div>'}
-      </div>
       <div class="hm-card" onclick="switchNav('returning')">
         <div class="hm-head"><span class="hm-title">Returning Boppers</span><span class="hm-link">Returning →</span></div>
         ${returningRows || '<div class="hm-subtle">Nobody due back right now.</div>'}
@@ -2276,11 +2279,11 @@ function renderHome() {
         <div class="hm-head"><span class="hm-title">Birthdays 🎂</span><span class="hm-link">Birthdays →</span></div>
         ${bdayRows || '<div class="hm-subtle">No birthdays on the board today.</div>'}
       </div>
+      <div class="hm-card" onclick="switchNav('pairs')">
+        <div class="hm-head"><span class="hm-title">Top Pairings</span><span class="hm-link">Pairs →</span></div>
+        ${topDuos || '<div class="hm-subtle">No co-occurrences yet.</div>'}
+      </div>
     </div>
-  </div>
-  <div class="hm-card hm-card-wide" onclick="switchNav('pairs')">
-    <div class="hm-head"><span class="hm-title">Top Pairings</span><span class="hm-link">Pairs →</span></div>
-    ${topDuos || '<div class="hm-subtle">No co-occurrences yet.</div>'}
   </div>
   <div class="hm-tip">
     <span class="hm-tip-emoji">💣</span>
