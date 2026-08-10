@@ -3405,6 +3405,22 @@ function hrDetailCaption(date, pid, idx = 0) {
   if (dt.pitcher) parts.push(`off ${compactPlayerName(dt.pitcher)}`);
   return parts.join(' · ');
 }
+// MLB's clips for a multi-HR day don't come in game order, but hrDetails does —
+// so indexing a detail by clip position mis-tags a 448-ft clip with the 378-ft
+// homer's pitch/distance. The clip title carries the distance ("…448-foot home
+// run"), so match each clip to the detail whose distance matches. Returns the
+// detail index, or -1 to fall back to the clip index.
+function hrDetailIdxForClip(date, pid, clip) {
+  const list = hrDetails[date]?.[pid];
+  if (!list?.length) return -1;
+  if (list.length === 1) return 0;
+  const m = String(clip?.title || '').match(/(\d{2,3})\s*[-–]?\s*(?:foot|ft)\b/i);
+  if (!m) return -1;
+  const target = +m[1];
+  let best = -1, diff = Infinity;
+  list.forEach((dt, i) => { if (dt.dist == null) return; const d = Math.abs(dt.dist - target); if (d < diff) { diff = d; best = i; } });
+  return diff <= 5 ? best : -1;
+}
 function hrVideoEscHandler(e) { if (e.key === 'Escape') closeHRVideo(); }
 function closeHRVideo() {
   const el = document.getElementById('hr-video-backdrop');
@@ -3417,6 +3433,7 @@ function openHRVideo(date, pid, idx = 0) {
   if (isMob()) { openReels(date, pid, idx); return; } // phones get the vertical swipe feed
   closeHRVideo();
   const c = clips[Math.min(idx, clips.length - 1)];
+  const dci = hrDetailIdxForClip(date, pid, c), capIdx = dci >= 0 ? dci : idx;
   const chips = clips.length > 1
     ? `<div class="hrv-chips">${clips.map((x, i) => `<button class="due-filter-chip${i === idx ? ' active' : ''}" onclick="openHRVideo('${date}','${pid}',${i})" title="${(x.title || '').replace(/"/g, '&quot;')}">Clip ${i + 1}${x.duration ? ` · ${x.duration}` : ''}</button>`).join('')}</div>`
     : '';
@@ -3424,7 +3441,7 @@ function openHRVideo(date, pid, idx = 0) {
     <div class="due-modal-backdrop" id="hr-video-backdrop" onclick="if(event.target===this) closeHRVideo()">
       <div class="hrv-modal">
         <button class="due-modal-close" onclick="closeHRVideo()" aria-label="Close">&times;</button>
-        ${hrDetailCaption(date, pid, idx) ? `<div class="hrv-detail">🚀 ${hrDetailCaption(date, pid, idx)}</div>` : ''}
+        ${hrDetailCaption(date, pid, capIdx) ? `<div class="hrv-detail">🚀 ${hrDetailCaption(date, pid, capIdx)}</div>` : ''}
         <div class="hrv-title">${c.title}</div>
         <video class="hrv-video" src="${c.mp4}" poster="${c.poster}" controls autoplay playsinline></video>
         ${chips}
@@ -3548,13 +3565,14 @@ function buildDaySlidesHtml(date) {
         <div class="reels-count">${countLbl}</div>
       </div>`;
     }
+    const di = hrDetailIdxForClip(date, x.pid, x.clip), detIdx = di >= 0 ? di : x.clipIdx;
     return `<div class="reels-slide" data-date="${date}" data-pid="${x.pid}" data-cidx="${x.clipIdx}">
       <video class="reels-video" data-src="${x.clip.mp4}" poster="${x.clip.poster}" playsinline preload="none" onclick="reelsTap(this)"></video>
       <div class="reels-indicator">▶</div>
       ${nextOverlay}
       <div class="reels-overlay">
-        <div class="reels-name"><img class="reels-photo" src="${playerPhotoUrl(x.pid)}" alt="">${name}${x.hrs > 1 ? ` <span class="reels-multi">${x.clipIdx + 1} of ${x.hrs} that day</span>` : ''}</div>
-        ${hrDetailCaption(date, x.pid, x.clipIdx) ? `<div class="reels-detail">🚀 ${hrDetailCaption(date, x.pid, x.clipIdx)}</div>` : ''}
+        <div class="reels-name"><img class="reels-photo" src="${playerPhotoUrl(x.pid)}" alt="">${name}${x.hrs > 1 ? ` <span class="reels-multi">${detIdx + 1} of ${x.hrs} that day</span>` : ''}</div>
+        ${hrDetailCaption(date, x.pid, detIdx) ? `<div class="reels-detail">🚀 ${hrDetailCaption(date, x.pid, detIdx)}</div>` : ''}
         <div class="reels-headline">${x.clip.title}</div>
       </div>
       <div class="reels-count">${countLbl}</div>
