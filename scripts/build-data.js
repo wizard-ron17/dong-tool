@@ -19,6 +19,12 @@ const playerLastHR    = {};  // pid -> latest date string
 const playerLastGame  = {};  // pid -> latest date they appeared in a boxscore at all (HR or not)
 const playerAbsByDate = {};  // pid -> { date -> abs that day } (dropped from output, only used to compute "Due")
 const fetchedGameIds  = new Set();
+// Strip sponsorship renames the MLB feed carries so a park reads by its common
+// name everywhere (schedule, picks, digest, matchup cards). Applied wherever a
+// venue name is first ingested, so the normalized name is the key used for park
+// aggregation too — keeping history under one key if the feed's name changes.
+const VENUE_RENAMES = { 'UNIQLO Field at Dodger Stadium': 'Dodger Stadium' };
+function normalizeVenue(name) { return name ? (VENUE_RENAMES[name] ?? name) : name; }
 const teamGameDays    = {};
 const venueGameDays   = {};  // venue name -> date -> gameCount
 const venueHRsByDate  = {};  // venue name -> date -> total HRs (both teams), e.g. Sutter Health Park (A's
@@ -51,7 +57,7 @@ async function fetchDay(date) {
     && !fetchedGameIds.has(g.gamePk));
   const ids = finalGames.map(g => g.gamePk);
   const venueByGame = {};
-  finalGames.forEach(g => { venueByGame[g.gamePk] = g.venue?.name || null; });
+  finalGames.forEach(g => { venueByGame[g.gamePk] = normalizeVenue(g.venue?.name) || null; });
   ids.forEach(id => fetchedGameIds.add(id));
   if (!ids.length) return;
   dailyGames[date] = (dailyGames[date] || 0) + ids.length;
@@ -1652,7 +1658,7 @@ async function fetchTodaySchedule(teamIdToAbbr) {
       return {
         gamePk: g.gamePk, gameDate: g.gameDate, status: g.status?.detailedState ?? '',
         started: (g.status?.abstractGameState ?? 'Preview') !== 'Preview', // Live or Final
-        venue: g.venue?.name ?? '', home: side('home'), away: side('away'),
+        venue: normalizeVenue(g.venue?.name) ?? '', home: side('home'), away: side('away'),
         venueId: g.venue?.id ?? null,
         lat: loc.defaultCoordinates?.latitude ?? null,
         lon: loc.defaultCoordinates?.longitude ?? null,

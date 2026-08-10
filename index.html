@@ -4958,7 +4958,7 @@ function renderMatchups() {
   const b = C._bIdx[muBatterPid], p = C._pIdx[muPitcherPid];
   const dlOpts = arr => [...arr].sort((a, c) => a.name.localeCompare(c.name)).map(x => `<option value="${muLabel(x)}"></option>`).join('');
   const parkOpts = `<option value="__neutral__"${muVenue === '__neutral__' ? ' selected' : ''}>Neutral park</option>`
-    + Object.keys(C.parkFactors).sort().map(v => `<option value="${v}"${v === muVenue ? ' selected' : ''}>${v} (${C.parkFactors[v].toFixed(2)}×)</option>`).join('');
+    + Object.keys(C.parkFactors).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })).map(v => `<option value="${v}"${v === muVenue ? ' selected' : ''}>${v} (${C.parkFactors[v].toFixed(2)}×)</option>`).join('');
   const pickers = `<div class="mu-pickers">
     <div class="mu-field"><label>Batter</label>
       <input class="mu-select mu-search" list="mu-batter-list" placeholder="Search a batter…" value="${b ? muLabel(b) : ''}" onchange="setMatchupByLabel('batter', this.value)" onfocus="this.select()">
