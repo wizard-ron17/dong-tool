@@ -513,6 +513,7 @@
   .pm-bbar i { border-radius: 3px 0 0 3px; background: linear-gradient(270deg, rgba(240,168,60,0.9), rgba(240,168,60,0.28)); }
   .pm-pbar i { border-radius: 0 3px 3px 0; background: linear-gradient(90deg, rgba(123,166,214,0.9), rgba(123,166,214,0.28)); }
   .pm-name { text-align: center; font-size: 0.62rem; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pm-blank { font-size: 0.54rem; color: var(--dim); font-style: italic; white-space: nowrap; }
   .pm-row.pm-hit { background: rgba(53,201,110,0.14); box-shadow: inset 0 0 0 1px rgba(53,201,110,0.32); }
   .pm-row.pm-hit .pm-name { color: var(--accent); font-weight: 800; }
   .pm-hit-key { color: var(--accent); }
@@ -4836,9 +4837,9 @@ function pitchMatchupHtml(hrProfile, mix, standLabel) {
   const anyHit = rows.some(r => r.bp > 0 && r.pp > 0);
   const bars = rows.map(r => `<div class="pm-row${r.bp > 0 && r.pp > 0 ? ' pm-hit' : ''}">
       <span class="pm-bval">${r.bp ? `${r.bp}%${r.n ? `<span class="pm-n"> · ${r.n}HR</span>` : ''}` : ''}</span>
-      <span class="pm-bbar"><i style="width:${r.bp / maxPct * 100}%"></i></span>
+      <span class="pm-bbar">${r.bp ? `<i style="width:${r.bp / maxPct * 100}%"></i>` : '<span class="pm-blank">no HRs</span>'}</span>
       <span class="pm-name">${pitchAbbrClient(r.name)}</span>
-      <span class="pm-pbar"><i style="width:${r.pp / maxPct * 100}%"></i></span>
+      <span class="pm-pbar">${r.pp ? `<i style="width:${r.pp / maxPct * 100}%"></i>` : '<span class="pm-blank">doesn’t throw</span>'}</span>
       <span class="pm-pval">${r.pp ? `${r.pp}%` : ''}</span>
     </div>`).join('');
   return `<div class="pm-head"><span>Homers on</span><span>Arsenal${standLabel ? ` <span class="pk-mix-hand">vs ${standLabel}HB</span>` : ''}</span></div>
