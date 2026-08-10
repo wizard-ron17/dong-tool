@@ -505,15 +505,17 @@
   .pm-bars { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.35rem; }
   .pm-title { text-align: center; }
   .pm-row { display: grid; grid-template-columns: 4.4rem 1fr 4.5rem 1fr 2.2rem; align-items: center; gap: 0.3rem; padding: 0.12rem 0.2rem; border-radius: 6px; }
-  .pm-bval { text-align: right; font-family: var(--font-d); font-weight: 700; font-size: 0.6rem; color: var(--muted); white-space: nowrap; }
+  .pm-bval { text-align: right; font-family: var(--font-d); font-weight: 700; font-size: 0.6rem; color: var(--gold); white-space: nowrap; }
   .pm-bval .pm-n { color: var(--dim); font-weight: 600; }
-  .pm-pval { text-align: left; font-family: var(--font-d); font-weight: 700; font-size: 0.62rem; color: var(--muted); }
+  .pm-pval { text-align: left; font-family: var(--font-d); font-weight: 700; font-size: 0.62rem; color: #7ba6d6; }
   .pm-bbar { display: flex; justify-content: flex-end; }
   .pm-bbar i, .pm-pbar i { display: block; height: 12px; min-width: 0; }
-  .pm-bbar i { border-radius: 3px 0 0 3px; }
-  .pm-pbar i { border-radius: 0 3px 3px 0; }
+  .pm-bbar i { border-radius: 3px 0 0 3px; background: linear-gradient(270deg, rgba(240,168,60,0.9), rgba(240,168,60,0.28)); }
+  .pm-pbar i { border-radius: 0 3px 3px 0; background: linear-gradient(90deg, rgba(123,166,214,0.9), rgba(123,166,214,0.28)); }
   .pm-name { text-align: center; font-size: 0.62rem; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .pm-name.pm-hot { color: var(--text-strong); font-weight: 800; }
+  .pm-row.pm-hit { background: rgba(53,201,110,0.14); box-shadow: inset 0 0 0 1px rgba(53,201,110,0.32); }
+  .pm-row.pm-hit .pm-name { color: var(--accent); font-weight: 800; }
+  .pm-hit-key { color: var(--accent); }
   .pk-pitch-row.match .pk-pitch-pct { color: var(--accent); }
   .pk-pitch-vs { display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0 0.15rem; }
   .pk-pitch-empty { font-size: 0.62rem; color: var(--muted); text-align: center; padding: 0.2rem 0; }
@@ -4830,30 +4832,19 @@ function pitchMatchupHtml(hrProfile, mix, standLabel) {
   if (!names.length) return '<div class="pk-pitch-empty">No pitch data yet</div>';
   const rows = names.map(name => ({ name, bp: bmap[name]?.pct || 0, n: bmap[name]?.n || 0, pp: pmap[name] || 0 }));
   const maxPct = Math.max(1, ...rows.map(r => Math.max(r.bp, r.pp)));
-  rows.forEach(r => { r.threat = r.bp * r.pp; });      // "he homers on it AND this arm throws it"
-  const maxThreat = Math.max(1, ...rows.map(r => r.threat));
-  rows.sort((a, b) => b.threat - a.threat || b.pp - a.pp || b.bp - a.bp);
-  const anyHit = rows.some(r => r.threat > 0);
-  // Heat by danger: no overlap → muted slate; overlap → amber→red by threat.
-  const heat = r => {
-    if (r.threat <= 0) return { bar: 'rgba(96,116,140,0.55)', row: 'transparent' };
-    const t = Math.min(1, r.threat / maxThreat), h = 44 - 39 * t, s = 74 + 18 * t;
-    return { bar: `hsl(${h} ${s}% 55%)`, row: `hsla(${h} ${s}% 52% / ${(0.07 + 0.16 * t).toFixed(3)})` };
-  };
-  const bars = rows.map(r => {
-    const c = heat(r);
-    return `<div class="pm-row" style="background:${c.row}">
+  rows.sort((a, b) => (b.bp * b.pp) - (a.bp * a.pp) || b.pp - a.pp || b.bp - a.bp);
+  const anyHit = rows.some(r => r.bp > 0 && r.pp > 0);
+  const bars = rows.map(r => `<div class="pm-row${r.bp > 0 && r.pp > 0 ? ' pm-hit' : ''}">
       <span class="pm-bval">${r.bp ? `${r.bp}%${r.n ? `<span class="pm-n"> · ${r.n}HR</span>` : ''}` : ''}</span>
-      <span class="pm-bbar"><i style="width:${r.bp / maxPct * 100}%;background:linear-gradient(270deg, ${c.bar}, transparent)"></i></span>
-      <span class="pm-name${r.threat > 0 ? ' pm-hot' : ''}">${pitchAbbrClient(r.name)}</span>
-      <span class="pm-pbar"><i style="width:${r.pp / maxPct * 100}%;background:linear-gradient(90deg, ${c.bar}, transparent)"></i></span>
+      <span class="pm-bbar"><i style="width:${r.bp / maxPct * 100}%"></i></span>
+      <span class="pm-name">${pitchAbbrClient(r.name)}</span>
+      <span class="pm-pbar"><i style="width:${r.pp / maxPct * 100}%"></i></span>
       <span class="pm-pval">${r.pp ? `${r.pp}%` : ''}</span>
-    </div>`;
-  }).join('');
+    </div>`).join('');
   return `<div class="pm-head"><span>Homers on</span><span>Arsenal${standLabel ? ` <span class="pk-mix-hand">vs ${standLabel}HB</span>` : ''}</span></div>
     <div class="pm-bars">${bars}</div>
     <div class="pk-pitch-note">${anyHit
-      ? 'Hotter rows = a pitch he homers on that this arm actually throws — the danger overlap.'
+      ? '<b class="pm-hit-key">Highlighted</b> = a pitch he homers on that this arm actually throws — the danger overlap.'
       : 'No overlap — this arm doesn’t lean on the batter’s HR pitches.'}</div>`;
 }
 function pitchSynergyScore(hrProfile, pitcherMix) {
