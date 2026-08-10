@@ -537,6 +537,8 @@
   .pk-face { display: flex; align-items: stretch; gap: 0.45rem; margin-bottom: 0.7rem; }
   .pk-side { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.65rem 0.4rem 0.55rem; text-align: center; }
   .pk-side > img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: var(--surface2); border: 1px solid var(--border2); margin-bottom: 0.3rem; }
+  /* Matchup Lab faces: bigger, higher-res, team-colored ring (color + glow set inline). */
+  .pk-side > img.mu-photo { width: 76px; height: 76px; border-width: 3px; border-style: solid; object-position: center 12%; margin-bottom: 0.35rem; }
   .pk-name { max-width: 100%; font-family: var(--font-d); font-weight: 800; font-size: 1.02rem; color: var(--text-strong); line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* Matchup Lab: the face name IS the search box (batter/pitcher picker merged
      into the card), so a name isn't shown twice. */
@@ -5255,6 +5257,24 @@ function scoreMatchup(b, p, venue) {
   };
 }
 function muLabel(x) { const tag = [x.team, x.role].filter(Boolean).join(' · '); return `${x.name}${tag ? ` (${tag})` : ''}`; }
+// Team colors for the matchup photo rings — brightened where a team's primary
+// (navy/black) would vanish against the dark card.
+const TEAM_COLORS = {
+  ATH: '#EFB21E', ATL: '#CE1141', AZ: '#A71930', BAL: '#DF4601', BOS: '#BD3039',
+  CHC: '#3B6FD4', CIN: '#C6011F', CLE: '#E31937', COL: '#8659B5', CWS: '#C4CED4',
+  DET: '#FA4616', HOU: '#EB6E1F', KC: '#3B7BC4', LAA: '#BA0021', LAD: '#2E7DD1',
+  MIA: '#00A3E0', MIL: '#FFC52F', MIN: '#D31145', NYM: '#FF5910', NYY: '#8FA9CE',
+  PHI: '#E81828', PIT: '#FDB827', SD: '#FFC425', SEA: '#4CA5A5', SF: '#FD5A1E',
+  STL: '#C41E3A', TB: '#8FBCE6', TEX: '#C0111F', TOR: '#4B8FD8', WSH: '#AB0003',
+};
+const teamColor = abbr => TEAM_COLORS[abbr] || '#3a5570';
+// Higher-res, zoomed-out head-and-shoulders "spot"; falls back to the standard
+// headshot for anyone without a spot image.
+function muPhotoTag(pid, team, extra) {
+  const c = teamColor(team);
+  const fallback = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_240,q_auto:best/v1/people/${pid}/headshot/67/current`;
+  return `<img class="mu-photo" src="https://midfield.mlbstatic.com/v1/people/${pid}/spots/240" onerror="this.onerror=null;this.src='${fallback}'" style="border-color:${c};box-shadow:0 0 0 1px ${c}33, 0 0 12px ${c}55" alt="" ${extra || ''}>`;
+}
 // Resolve a typed/picked search value back to a pid. On no match (a partial the
 // user didn't finish), just re-render — that restores the input to the current
 // pick's label, so a stray keystroke can't clear the selection.
@@ -5314,7 +5334,7 @@ function matchupBreakdownHtml(b, p) {
   return `
     <div class="pk-face">
       <div class="pk-side">
-        <img src="${playerPhotoUrl(b.pid)}" alt="">
+        ${muPhotoTag(b.pid, b.team)}
         <input class="pk-name mu-face-input" list="mu-batter-list" value="${esc(b.name)}" onchange="setMatchupByLabel('batter', this.value)" onfocus="this.select()" aria-label="Search batter" title="Click to search a batter">
         <div class="pk-sub">${teamLogoImg(b.team,'team-logo')}${b.team} · Bats ${bHandTxt}</div>
         <div class="pk-stat"><span class="hrg-val great">${b.hrs} HR</span>${abPerHR ? ` <span class="pk-stat-dim">· ${abPerHR} AB/HR</span>` : ''}${b.blastPct != null ? ` <span class="pk-stat-dim">· 💥 ${Math.round(b.blastPct*100)}% Blast</span>` : ''}</div>
@@ -5326,7 +5346,7 @@ function matchupBreakdownHtml(b, p) {
         <span class="pk-stat-dim" style="font-size:0.6rem;margin-top:0.25rem">Value ${s.valueScore.toFixed(1)}</span>
       </div>
       <div class="pk-side">
-        <img src="${playerPhotoUrl(p.pid)}" alt="">
+        ${muPhotoTag(p.pid, p.team)}
         <input class="pk-name mu-face-input" list="mu-pitcher-list" value="${esc(p.name)}" onchange="setMatchupByLabel('pitcher', this.value)" onfocus="this.select()" aria-label="Search pitcher" title="Click to search a pitcher">
         <div class="pk-sub">${teamLogoImg(p.team,'team-logo')}${p.team} · Throws ${pHandTxt}${p.role ? ` · ${p.role}` : ''}</div>
         <div class="pk-stat">${p.fbVelo != null || p.hardPct != null ? `<span class="pk-stat-dim">${p.fbVelo != null ? `🔥 ${p.fbVelo} mph` : ''}${p.fbVelo != null && p.hardPct != null ? ' · ' : ''}${p.hardPct != null ? `💥 ${p.hardPct}% hard` : ''}</span>` : '<span class="pk-stat-dim">No stuff data</span>'}</div>
