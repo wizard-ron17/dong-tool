@@ -4886,12 +4886,15 @@ async function ensureMatchupCards() {
   if (activeNav === 'matchups') renderMatchups();
 }
 // Pitcher's arsenal for the side a batter stands on (mirrors build's pitcherMixVs).
+// Returns { mix, split } — split=true only when a REAL handedness split was used
+// (the pitcher has faced that side enough); false means we fell back to the overall
+// mix, so the "vs LHB/RHB" badge must NOT be shown (mirrors the build's pitcherMixVs).
 function muMixVs(entry, stand) {
-  if (!entry) return [];
-  if (Array.isArray(entry)) return entry;
-  if (stand === 'L' && entry.nL >= 100 && entry.L?.length) return entry.L;
-  if (stand === 'R' && entry.nR >= 100 && entry.R?.length) return entry.R;
-  return entry.all ?? [];
+  if (!entry) return { mix: [], split: false };
+  if (Array.isArray(entry)) return { mix: entry, split: false };
+  if (stand === 'L' && entry.nL >= 100 && entry.L?.length) return { mix: entry.L, split: true };
+  if (stand === 'R' && entry.nR >= 100 && entry.R?.length) return { mix: entry.R, split: true };
+  return { mix: entry.all ?? [], split: false };
 }
 function muSynScore(profile, mix) {
   if (!profile?.length || !mix?.length) return 0;
@@ -4909,8 +4912,8 @@ function scoreMatchup(b, p, venue) {
   const batP = p.hand ? (p.hand === 'L' ? b.platoonVsL : b.platoonVsR) : null;
   const pitP = bEff ? (bEff === 'L' ? p.platoonVsL : p.platoonVsR) : null;
   const stuff = p.stuffRatio;
-  const mix = muMixVs(p.mix, bEff);
-  const synScore = muSynScore(b.hrProfile, mix);
+  const mv = muMixVs(p.mix, bEff);
+  const synScore = muSynScore(b.hrProfile, mv.mix);
   const rawSyn = C.synergyBaseline > 0 ? (synScore > 0 ? clamp(synScore / C.synergyBaseline) : 0.9) : 1;
   const syn = 1 + (rawSyn - 1) * (b.hrs / (b.hrs + C.synergyHrFull));
   const form = b.form;
@@ -4920,7 +4923,7 @@ function scoreMatchup(b, p, venue) {
   return {
     pickScore: b.basePower * mf * 100,
     valueScore: b.blastPower * mf * 100 * surplusW,
-    matchupFactor: mf, factors: { form, batP, pitP, stuff, syn, park }, stand: bEff, mix,
+    matchupFactor: mf, factors: { form, batP, pitP, stuff, syn, park }, stand: bEff, mix: mv.mix, mixSplit: mv.split,
   };
 }
 function muLabel(x) { const tag = [x.team, x.role].filter(Boolean).join(' · '); return `${x.name}${tag ? ` (${tag})` : ''}`; }
@@ -5011,7 +5014,7 @@ function matchupBreakdownHtml(b, p) {
         <div class="pk-stat">${p.fbVelo != null || p.hardPct != null ? `<span class="pk-stat-dim">${p.fbVelo != null ? `🔥 ${p.fbVelo} mph` : ''}${p.fbVelo != null && p.hardPct != null ? ' · ' : ''}${p.hardPct != null ? `💥 ${p.hardPct}% hard` : ''}</span>` : '<span class="pk-stat-dim">No stuff data</span>'}</div>
       </div>
     </div>
-    <div class="pick-section-title">Pitch Matchup${s.stand ? ` <span class="pk-mix-hand">vs ${s.stand}HB</span>` : ''}</div>
+    <div class="pick-section-title">Pitch Matchup${s.mixSplit ? ` <span class="pk-mix-hand" title="His pitch mix specifically against ${s.stand === 'L' ? 'left' : 'right'}-handed batters — pitchers attack the two sides differently. Shown only when he's faced that side enough; otherwise it's his overall mix.">vs ${s.stand}HB</span>` : ''}</div>
     <div class="pk-pitch-face">
       <div class="pk-pitch-side"><div class="pk-pitch-side-lbl">Goes deep on</div><div class="pk-pitch-list">${hrRows}</div></div>
       <div class="pk-pitch-vs"><span class="pk-vs-txt">VS</span></div>
