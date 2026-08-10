@@ -538,6 +538,14 @@
   .pk-side { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.65rem 0.4rem 0.55rem; text-align: center; }
   .pk-side > img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: var(--surface2); border: 1px solid var(--border2); margin-bottom: 0.3rem; }
   .pk-name { max-width: 100%; font-family: var(--font-d); font-weight: 800; font-size: 1.02rem; color: var(--text-strong); line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Matchup Lab: the face name IS the search box (batter/pitcher picker merged
+     into the card), so a name isn't shown twice. */
+  input.pk-name.mu-face-input { width: 100%; box-sizing: border-box; background: transparent; border: none; border-bottom: 1px dashed var(--border2); border-radius: 0; text-align: center; padding: 0.05rem 0.1rem 0.14rem; cursor: text; -webkit-appearance: none; appearance: none; }
+  input.pk-name.mu-face-input:hover { border-bottom-color: var(--muted); }
+  input.pk-name.mu-face-input:focus { outline: none; border-bottom-color: var(--accent); background: var(--surface2); }
+  .mu-parkline { display: flex; align-items: center; gap: 0.4rem; margin: 0 0 0.7rem; }
+  .mu-parkline-lbl { font-size: 0.58rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); flex: none; }
+  .mu-parkline .mu-select { flex: 1; min-width: 0; }
   .pk-sub { max-width: 100%; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; column-gap: 0.25rem; font-size: 0.6rem; color: var(--muted); margin-top: 0.25rem; }
   .pk-stat { font-family: var(--font-d); font-size: 0.92rem; font-weight: 700; margin-top: auto; padding-top: 0.35rem; }
   .pk-opener-badge { display: inline-block; font-size: 0.53rem; font-weight: 800; letter-spacing: 0.07em; color: var(--gold); background: rgba(240,192,64,0.12); border: 1px solid rgba(240,192,64,0.4); border-radius: 4px; padding: 0.06rem 0.32rem; margin-top: 0.3rem; }
@@ -5251,8 +5259,12 @@ function muLabel(x) { const tag = [x.team, x.role].filter(Boolean).join(' · ');
 // user didn't finish), just re-render — that restores the input to the current
 // pick's label, so a stray keystroke can't clear the selection.
 function setMatchupByLabel(which, label) {
-  const C = matchupCards, map = which === 'batter' ? C._bLabel : C._pLabel;
-  const pid = map[label] ?? map[label.trim()];
+  const C = matchupCards, map = which === 'batter' ? C._bLabel : C._pLabel, arr = which === 'batter' ? C.batters : C.pitchers;
+  const t = (label || '').trim();
+  // The face box shows the bare name, but datalist options are "Name (TEAM · ROLE)".
+  // Resolve a picked label first, then fall back to matching by name only.
+  let pid = map[label] ?? map[t];
+  if (!pid) { const lc = t.toLowerCase(); pid = (arr.find(x => x.name.toLowerCase() === lc) || arr.find(x => muLabel(x).toLowerCase() === lc))?.pid; }
   if (pid) { if (which === 'batter') muBatterPid = pid; else muPitcherPid = pid; }
   renderMatchups();
 }
@@ -5276,29 +5288,15 @@ function renderMatchups() {
     muInitialized = true;
   }
   const b = C._bIdx[muBatterPid], p = C._pIdx[muPitcherPid];
-  const dlOpts = arr => [...arr].sort((a, c) => a.name.localeCompare(c.name)).map(x => `<option value="${muLabel(x)}"></option>`).join('');
-  const parkOpts = `<option value="__neutral__"${muVenue === '__neutral__' ? ' selected' : ''}>Neutral park</option>`
-    + Object.keys(C.parkFactors).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })).map(v => `<option value="${v}"${v === muVenue ? ' selected' : ''}>${v} (${C.parkFactors[v].toFixed(2)}×)</option>`).join('');
-  const pickers = `<div class="mu-pickers">
-    <div class="mu-field"><label>Batter</label>
-      <input class="mu-select mu-search" list="mu-batter-list" placeholder="Search a batter…" value="${b ? muLabel(b) : ''}" onchange="setMatchupByLabel('batter', this.value)" onfocus="this.select()">
-      <datalist id="mu-batter-list">${dlOpts(C.batters)}</datalist>
-    </div>
-    <div class="mu-field"><label>Pitcher</label>
-      <input class="mu-select mu-search" list="mu-pitcher-list" placeholder="Search a pitcher…" value="${p ? muLabel(p) : ''}" onchange="setMatchupByLabel('pitcher', this.value)" onfocus="this.select()">
-      <datalist id="mu-pitcher-list">${dlOpts(C.pitchers)}</datalist>
-    </div>
-    <div class="mu-field full"><label>Park</label>
-      <div class="mu-park-row">
-        <select class="mu-select" onchange="setMatchupVenue(this.value)">${parkOpts}</select>
-        <button class="mu-neutral-btn${muVenue === '__neutral__' ? ' active' : ''}" onclick="setMatchupVenue('__neutral__')" title="Reset to a neutral park (no park factor applied)">Neutral</button>
-      </div>
-    </div>
-  </div>`;
-  el.innerHTML = pickers + ((b && p) ? matchupBreakdownHtml(b, p) : '<div class="empty">Pick a batter and a pitcher.</div>');
+  el.innerHTML = (b && p) ? matchupBreakdownHtml(b, p) : '<div class="empty">Pick a batter and a pitcher.</div>';
 }
 function matchupBreakdownHtml(b, p) {
+  const C = matchupCards;
   const s = scoreMatchup(b, p, muVenue), f = s.factors, cls = pickScoreClass(s.pickScore);
+  const dlOpts = arr => [...arr].sort((a, c) => a.name.localeCompare(c.name)).map(x => `<option value="${muLabel(x)}"></option>`).join('');
+  const parkOpts = `<option value="__neutral__"${muVenue === '__neutral__' ? ' selected' : ''}>Neutral park</option>`
+    + Object.keys(C.parkFactors).sort((a, c) => a.localeCompare(c, undefined, { sensitivity: 'base' })).map(v => `<option value="${v}"${v === muVenue ? ' selected' : ''}>${v} (${C.parkFactors[v].toFixed(2)}×)</option>`).join('');
+  const esc = str => (str || '').replace(/"/g, '&quot;');
   const bHandTxt = b.hand === 'S' ? '<span class="pk-hand s">S</span>' : b.hand ? `<span class="pk-hand ${b.hand.toLowerCase()}">${b.hand}</span>` : '';
   const pHandTxt = p.hand ? `<span class="pk-hand ${p.hand.toLowerCase()}">${p.hand}</span>` : '';
   const abPerHR = b.hrs ? (b.abs / b.hrs).toFixed(1) : null;
@@ -5317,7 +5315,7 @@ function matchupBreakdownHtml(b, p) {
     <div class="pk-face">
       <div class="pk-side">
         <img src="${playerPhotoUrl(b.pid)}" alt="">
-        <div class="pk-name">${b.name}</div>
+        <input class="pk-name mu-face-input" list="mu-batter-list" value="${esc(b.name)}" onchange="setMatchupByLabel('batter', this.value)" onfocus="this.select()" aria-label="Search batter" title="Click to search a batter">
         <div class="pk-sub">${teamLogoImg(b.team,'team-logo')}${b.team} · Bats ${bHandTxt}</div>
         <div class="pk-stat"><span class="hrg-val great">${b.hrs} HR</span>${abPerHR ? ` <span class="pk-stat-dim">· ${abPerHR} AB/HR</span>` : ''}${b.blastPct != null ? ` <span class="pk-stat-dim">· 💥 ${Math.round(b.blastPct*100)}% Blast</span>` : ''}</div>
       </div>
@@ -5329,10 +5327,17 @@ function matchupBreakdownHtml(b, p) {
       </div>
       <div class="pk-side">
         <img src="${playerPhotoUrl(p.pid)}" alt="">
-        <div class="pk-name">${p.name}</div>
+        <input class="pk-name mu-face-input" list="mu-pitcher-list" value="${esc(p.name)}" onchange="setMatchupByLabel('pitcher', this.value)" onfocus="this.select()" aria-label="Search pitcher" title="Click to search a pitcher">
         <div class="pk-sub">${teamLogoImg(p.team,'team-logo')}${p.team} · Throws ${pHandTxt}${p.role ? ` · ${p.role}` : ''}</div>
         <div class="pk-stat">${p.fbVelo != null || p.hardPct != null ? `<span class="pk-stat-dim">${p.fbVelo != null ? `🔥 ${p.fbVelo} mph` : ''}${p.fbVelo != null && p.hardPct != null ? ' · ' : ''}${p.hardPct != null ? `💥 ${p.hardPct}% hard` : ''}</span>` : '<span class="pk-stat-dim">No stuff data</span>'}</div>
       </div>
+    </div>
+    <datalist id="mu-batter-list">${dlOpts(C.batters)}</datalist>
+    <datalist id="mu-pitcher-list">${dlOpts(C.pitchers)}</datalist>
+    <div class="mu-parkline">
+      <span class="mu-parkline-lbl">Park</span>
+      <select class="mu-select" onchange="setMatchupVenue(this.value)">${parkOpts}</select>
+      <button class="mu-neutral-btn${muVenue === '__neutral__' ? ' active' : ''}" onclick="setMatchupVenue('__neutral__')" title="Reset to a neutral park (no park factor applied)">Neutral</button>
     </div>
     <div class="pick-section-title pm-title">Pitch Matchup</div>
     ${pitchMatchupHtml(b.hrProfile, s.mix, s.mixSplit ? s.stand : null)}
