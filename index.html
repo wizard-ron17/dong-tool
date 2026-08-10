@@ -2515,6 +2515,10 @@ function avgPitcherHR9() {
   const vals = Object.values(pitcherStats).map(s => parseFloat(s.hr9)).filter(v => !isNaN(v));
   return vals.length ? vals.reduce((a,b)=>a+b, 0) / vals.length : 0;
 }
+function avgPitcherK9() {
+  const vals = Object.values(pitcherStats).map(s => parseFloat(s.k9)).filter(v => !isNaN(v));
+  return vals.length ? vals.reduce((a,b)=>a+b, 0) / vals.length : 0;
+}
 function parkHRGRows() {
   return Object.keys(venueGameDays).map(venue => {
     const games = Object.values(venueGameDays[venue]).reduce((a,b)=>a+b, 0);
@@ -3634,7 +3638,8 @@ function schedPitcherHtml(side) {
   // Higher HR/9 = a juicier matchup for this site's purposes, so it gets the
   // same "higher is greener" polarity as HR/game instead of lowerIsBetterClass.
   const hr9Cls = stat ? hrgClass(parseFloat(stat.hr9), avgPitcherHR9()) : 'avg';
-  const statText = stat ? `${stat.hr} HR · <span class="hrg-val ${hr9Cls}">${stat.hr9} HR9</span>` : '';
+  const k9Text = stat && stat.k9 != null ? ` · <span title="Strikeouts per 9 — higher means he misses more bats, a tougher spot for hitters">${stat.k9} K9</span>` : '';
+  const statText = stat ? `${stat.hr} HR · <span class="hrg-val ${hr9Cls}">${stat.hr9} HR9</span>${k9Text}` : '';
   const throwsBadge = handBadge(side.probablePitcherThrows, 'throws');
   const subLine = throwsBadge + (statText ? (throwsBadge ? ' ' : '') + statText : '');
   return `<div class="sched-pitcher">
@@ -3729,15 +3734,22 @@ function ddWeatherParkColor(park, weather) {
   return pw >= 1.05 ? 'green' : pw <= 0.95 ? 'red' : 'yellow';
 }
 // Pitching Matchup dot: juicier (greener) the more HR-prone the arm (HR/9 vs
-// league) and the more of our leans are hitting against him.
+// league), the fewer bats he misses (K/9 vs league — a high-K arm suppresses
+// balls in play, a tougher spot), and the more of our leans are hitting against
+// him. K/9 pulls the opposite way to HR/9 (higher K = redder).
 function ddPitcherColor(pid, nLeans) {
   const stat = pid ? pitcherStats[pid] : null;
-  const lg = avgPitcherHR9();
+  const lg = avgPitcherHR9(), lgK = avgPitcherK9();
   let score = 0;
   if (stat && lg) {
     const ratio = parseFloat(stat.hr9) / lg;
     if (ratio >= 1.35) score += 2; else if (ratio >= 1.12) score += 1;
     else if (ratio <= 0.75) score -= 2; else if (ratio <= 0.9) score -= 1;
+  }
+  if (stat && stat.k9 != null && lgK) {
+    const kr = parseFloat(stat.k9) / lgK;
+    if (kr >= 1.25) score -= 1.5; else if (kr >= 1.1) score -= 0.75;
+    else if (kr <= 0.8) score += 1.5; else if (kr <= 0.9) score += 0.75;
   }
   score += nLeans >= 3 ? 2 : nLeans >= 2 ? 1 : nLeans >= 1 ? 0.5 : 0;
   return score >= 2 ? 'green' : score <= -1 ? 'red' : 'yellow';

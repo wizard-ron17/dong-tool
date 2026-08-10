@@ -1728,6 +1728,7 @@ async function fetchPitcherHRStats(pids) {
         if (!stat) return;
         stats[pid] = {
           hr: stat.homeRuns ?? 0, hr9: stat.homeRunsPer9 ?? null,
+          k9: stat.strikeoutsPer9Inn ?? (ipToFloat(stat.inningsPitched) ? Math.round((stat.strikeOuts ?? 0) / ipToFloat(stat.inningsPitched) * 90) / 10 : null),
           ip: stat.inningsPitched ?? '0.0', era: stat.era ?? null,
           gamesStarted: stat.gamesStarted ?? 0,
           gamesPlayed: stat.gamesPlayed ?? 0,
