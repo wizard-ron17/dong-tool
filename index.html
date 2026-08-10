@@ -5,7 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ron's Dong Tool</title>
 <meta name="theme-color" content="#05080f">
-<meta name="description" content="A home run tracking tool inspired by Green Means Go.">
+<meta name="description" content="Daily MLB home run picks, value bats, due hitters, and any batter-vs-pitcher matchup breakdown. Inspired by Green Means Go.">
+<!-- Social embed. These are the DEFAULTS; the Netlify edge function
+     (netlify/edge-functions/embed.js) rewrites title/description/og per route
+     so a shared /picks or /matchups link previews with its own copy. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ron's Dong Tool">
+<meta property="og:title" content="Ron's Dong Tool">
+<meta property="og:description" content="Daily MLB home run picks, value bats, due hitters, and any batter-vs-pitcher matchup breakdown. Inspired by Green Means Go.">
+<meta property="og:image" content="https://dong-tool.netlify.app/icons/icon-512.png">
+<meta property="og:url" content="https://dong-tool.netlify.app/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Ron's Dong Tool">
+<meta name="twitter:description" content="Daily MLB home run picks, value bats, due hitters, and matchup breakdowns.">
+<meta name="twitter:image" content="https://dong-tool.netlify.app/icons/icon-512.png">
 <link rel="icon" type="image/svg+xml" href="/icons/logo.svg?v=2">
 <link rel="icon" type="image/x-icon" href="/icons/favicon.ico?v=2">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png?v=2">
@@ -2057,8 +2070,18 @@ function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-to
 function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
 function toggleNavTools(e) { e.stopPropagation(); navToolsOpen ? closeNavTools() : openNavTools(); }
 
+// Browser-tab titles per page (the edge function sets the same for shared/deep
+// links + crawlers; this keeps the tab in sync during client-side navigation).
+const PAGE_TITLES = {
+  home: "Ron's Dong Tool", picks: "HR Picks · Ron's Dong Tool", due: "Most Due · Ron's Dong Tool",
+  schedule: "Schedule · Ron's Dong Tool", matchups: "Matchup Lab · Ron's Dong Tool",
+  stats: "Stats · Ron's Dong Tool", recap: "Recap · Ron's Dong Tool", pairs: "Top Pairings · Ron's Dong Tool",
+  prospects: "Prospects · Ron's Dong Tool", daylate: "Day Late · Ron's Dong Tool",
+  returning: "Returning Boppers · Ron's Dong Tool", birthdays: "Birthdays · Ron's Dong Tool",
+};
 function switchNav(nav) {
   activeNav = nav;
+  document.title = PAGE_TITLES[nav] || "Ron's Dong Tool";
   closeNavTools();
   document.querySelectorAll('.nav-btn[data-nav]').forEach(b => b.classList.toggle('active', b.dataset.nav === nav));
   document.getElementById('nav-tools-btn').classList.toggle('active', TOOLS_NAVS.includes(nav));
