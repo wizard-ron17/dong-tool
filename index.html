@@ -969,7 +969,8 @@
   }
 
   /* Home dashboard */
-  .hm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  .hm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; align-items: start; }
+  .hm-card-wide { grid-column: 1 / -1; }
   @media (max-width: 640px) { .hm-grid { grid-template-columns: 1fr; } }
   .hm-card { min-width: 0; background: var(--surface0); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 0.85rem; cursor: pointer; transition: border-color 0.15s, background 0.15s; animation: fadeIn 0.15s ease; }
   .hm-card:hover { border-color: var(--accent); background: var(--surface1); }
@@ -2187,6 +2188,39 @@ function renderHome() {
     </div>`;
   }).join('');
 
+  // Best value bats — the underpriced board's top names (blast surplus × matchup).
+  const topValue = [...applyValueFilters(value)].sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0)).slice(0, 5).map((r, i) => `
+    <div class="hm-row">
+      <span class="hm-rank">${i+1}</span>
+      <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
+      <span class="hm-name">${playerNames[r.pid] || r.pid}${birthdayBadge(r.pid)}<span class="hm-subtle"> vs ${compactPlayerName(r.oppName || '')} (${r.oppHand || '?'}HP)${r.projected ? ' · proj' : ''}</span></span>
+      <span class="hm-score ${valueScoreClass(r.valueScore ?? 0)}">${(r.valueScore ?? 0).toFixed(1)}</span>
+    </div>`).join('');
+
+  // Returning boppers — just-back bats first (the first-games-back window), then
+  // the soonest returns by date, biggest sluggers breaking ties.
+  const shortDate = ds => { if (!ds) return ''; const dt = new Date(ds + 'T00:00:00'); return isNaN(dt) ? '' : dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
+  const retIds = new Set(), retList = [];
+  for (const e of (justBack || [])) if (!retIds.has(e.pid)) { retIds.add(e.pid); retList.push({ pid: e.pid, back: true }); }
+  [...(returningInjured || [])].sort((a, b) => (a.returnDate ?? '9999').localeCompare(b.returnDate ?? '9999') || (hrTotals[b.pid]||0) - (hrTotals[a.pid]||0))
+    .forEach(r => { if (!retIds.has(r.pid)) { retIds.add(r.pid); retList.push({ pid: r.pid, returnDate: r.returnDate, status: r.status }); } });
+  const returningRows = retList.slice(0, 5).map(r => {
+    const sub = r.back ? '🔥 just back' : (shortDate(r.returnDate) ? `back ~${shortDate(r.returnDate)}` : (r.status || 'out'));
+    return `<div class="hm-row">
+      <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
+      <span class="hm-name">${compactPlayerName(playerNames[r.pid] || r.pid)}${birthdayBadge(r.pid)}<span class="hm-subtle"> · ${playerTeams[r.pid] || ''} · ${sub}</span></span>
+      <span class="hm-score" style="color:var(--accent);font-size:0.9rem">${hrTotals[r.pid] || 0}<span class="hm-subtle" style="font-size:0.58rem"> HR</span></span>
+    </div>`;
+  }).join('');
+
+  // Birthdays — today's celebrants, biggest boppers first.
+  const bdayRows = [...(birthdays || [])].sort((a, b) => (b.hrs || 0) - (a.hrs || 0)).slice(0, 5).map(r => `
+    <div class="hm-row">
+      <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
+      <span class="hm-name">${compactPlayerName(r.name)}<span class="hm-subtle"> · ${r.team}${r.age != null ? ` · turns ${r.age}` : ''}</span></span>
+      <span class="hm-score" style="color:var(--gold);font-size:0.9rem">${r.hrs ?? 0}<span class="hm-subtle" style="font-size:0.58rem"> HR</span></span>
+    </div>`).join('');
+
   // "Yesterday's Homers" only when the last completed slate was literally
   // yesterday — after an off day it's "Last Homers · <date>" instead.
   const recapLabel = last === yesterday() ? "Yesterday's Homers" : 'Last Homers';
@@ -2214,18 +2248,30 @@ function renderHome() {
       ${gameRows || '<div class="hm-subtle">Nothing on the slate.</div>'}${moreGames}
     </div>
     <div class="hm-card" onclick="switchNav('picks')">
-      <div class="hm-head"><span class="hm-title">Top Picks</span><span class="hm-link">Picks →</span></div>
-      ${topPicks || '<div class="hm-subtle">No picks yet — check back closer to game time.</div>'}
+      <div class="hm-head"><span class="hm-title">Top Picks (Chalk)</span><span class="hm-link">Picks →</span></div>
+      ${topPicks || '<div class="hm-subtle">No Chalk picks clear the bar today — check Best Value.</div>'}
+    </div>
+    <div class="hm-card" onclick="switchNav('picks'); setPicksMode('value')">
+      <div class="hm-head"><span class="hm-title">Best Value</span><span class="hm-link">Value →</span></div>
+      ${topValue || '<div class="hm-subtle">No value bats yet — check back closer to game time.</div>'}
     </div>
     <div class="hm-card" onclick="switchNav('due')">
       <div class="hm-head"><span class="hm-title">Most Due</span><span class="hm-link">Due →</span></div>
       ${topDue || '<div class="hm-subtle">Nobody qualifies right now.</div>'}
     </div>
+    <div class="hm-card" onclick="switchNav('returning')">
+      <div class="hm-head"><span class="hm-title">Returning Boppers</span><span class="hm-link">Returning →</span></div>
+      ${returningRows || '<div class="hm-subtle">Nobody due back right now.</div>'}
+    </div>
     <div class="hm-card" onclick="switchNav('prospects')">
       <div class="hm-head"><span class="hm-title">Prospects</span><span class="hm-link">Prospects →</span></div>
       ${prospectRows || '<div class="hm-subtle">No fresh call-ups right now.</div>'}
     </div>
-    <div class="hm-card" onclick="switchNav('pairs')">
+    <div class="hm-card" onclick="switchNav('birthdays')">
+      <div class="hm-head"><span class="hm-title">Birthdays 🎂</span><span class="hm-link">Birthdays →</span></div>
+      ${bdayRows || '<div class="hm-subtle">No birthdays on the board today.</div>'}
+    </div>
+    <div class="hm-card hm-card-wide" onclick="switchNav('pairs')">
       <div class="hm-head"><span class="hm-title">Top Pairings</span><span class="hm-link">Pairs →</span></div>
       ${topDuos || '<div class="hm-subtle">No co-occurrences yet.</div>'}
     </div>
