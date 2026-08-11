@@ -1431,7 +1431,7 @@ async function computeBirthdays() {
 // celebrates anyone who crossed a hundred *this* season. Regular-season career
 // HR, batched from the people endpoint (one aggregated split per player).
 const MILESTONE_STEP   = 100;   // only the round hundreds count as a milestone
-const MILESTONE_WINDOW = 25;    // "in the hunt" = this many or fewer from the next hundred
+const MILESTONE_WINDOW = 3;     // "in the hunt" = this many or fewer from the next hundred
 const MILESTONE_MIN_AB = 10;    // must be an actual current hitter, not a spot pitcher
 
 async function fetchCareerHR(ids) {
