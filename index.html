@@ -3912,14 +3912,27 @@ function handBadge(code, kind) {
 // minus the HR floor so it's a full projected lineup, not just the power bats.
 // Excludes IL. The books use the same pool pre-lineup.
 function projectedLineupFor(teamAbbr) {
-  return Object.keys(playerTeams)
+  const eligible = Object.keys(playerTeams)
     .filter(pid => playerTeams[pid] === teamAbbr
       && (playerGames[pid] ?? 0) >= 15
       && (playerABs[pid] ?? 0) / Math.max(playerGames[pid] ?? 1, 1) >= 1.5
       && !injuryStatus[pid]
       && (!playerLastGame[pid] || daysSince(playerLastGame[pid]) <= 7))
-    .sort((a, b) => (playerGames[b] ?? 0) - (playerGames[a] ?? 0))
-    .slice(0, 9);
+    .sort((a, b) => (playerGames[b] ?? 0) - (playerGames[a] ?? 0));
+  return pickPositionalLineup(eligible, pid => (batMeta[pid] || {}).p || '');
+}
+// Field a positionally-valid lineup (one per infield spot, up to three OF, then
+// best remaining for DH / any unfilled spot) instead of just the 9 most-played
+// bats — raw playing time alone could start two 3B and skip 1B. Mirrors the
+// build's pickPositionalLineup. Input is already sorted best-first (by games).
+function pickPositionalLineup(pids, posOf, limit = 9) {
+  const used = new Set();
+  const isOF = p => p === 'LF' || p === 'CF' || p === 'RF' || p === 'OF';
+  const take = test => { for (const pid of pids) { if (!used.has(pid) && test(posOf(pid))) { used.add(pid); return; } } };
+  for (const spot of ['C', '1B', '2B', '3B', 'SS']) take(p => p === spot);
+  for (let i = 0; i < 3; i++) take(isOF);
+  for (const pid of pids) { if (used.size >= limit) break; used.add(pid); }
+  return pids.filter(pid => used.has(pid)).slice(0, limit);
 }
 function schedLineupHtml(side) {
   const label = side.teamAbbr || side.teamName;

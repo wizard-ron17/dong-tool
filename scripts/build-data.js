@@ -793,7 +793,25 @@ function starterShareFor(stat) {
   return Math.max(STARTER_SHARE_MIN, Math.min(STARTER_SHARE_MAX, stat.avgStartIP / 9));
 }
 
-async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {}, openerBulk = {}, weatherByVenue = {}) {
+// Build a positionally-valid lineup from candidates already sorted best-first
+// (by games played): one starter per infield spot, up to three outfielders,
+// then the best remaining bats fill DH + any spot with no eligible player.
+// posOf(pid) -> a primary-position abbreviation ('1B','LF','DH',…) or ''.
+// Prevents the "two 3B, no 1B" projection when raw playing time clusters at a
+// position. Returned in games-desc order (most-established first).
+function pickPositionalLineup(pids, posOf, limit = 9) {
+  const used = new Set();
+  const isOF = p => p === 'LF' || p === 'CF' || p === 'RF' || p === 'OF';
+  const take = test => {
+    for (const pid of pids) { if (!used.has(pid) && test(posOf(pid))) { used.add(pid); return; } }
+  };
+  for (const spot of ['C', '1B', '2B', '3B', 'SS']) take(p => p === spot); // one of each infield
+  for (let i = 0; i < 3; i++) take(isOF);                                   // up to three outfielders
+  for (const pid of pids) { if (used.size >= limit) break; used.add(pid); } // DH + unfilled spots → best remaining
+  return pids.filter(pid => used.has(pid)).slice(0, limit);
+}
+
+async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {}, openerBulk = {}, weatherByVenue = {}, batMetaMap = {}) {
   try {
     // Identify a team's likely everyday starters when the official lineup
     // hasn't posted yet. Uses season-long data: guys who've appeared in at
@@ -802,7 +820,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
     // game within the last 7 days (catches injuries/demotions without needing
     // the IL feed, which runs AFTER this function in main()).
     function projectedLineup(teamAbbr) {
-      return Object.keys(playerTeams)
+      const eligible = Object.keys(playerTeams)
         .filter(pid =>
           playerTeams[pid] === teamAbbr &&
           (playerGames[pid] ?? 0) >= 15 &&
@@ -810,8 +828,10 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
           (hrTotals[pid] ?? 0) >= PICKS_MIN_HR &&
           daysSince(playerLastGame[pid] || '2000-01-01') <= 7
         )
-        .sort((a, b) => (playerGames[b] ?? 0) - (playerGames[a] ?? 0))
-        .slice(0, 9)
+        .sort((a, b) => (playerGames[b] ?? 0) - (playerGames[a] ?? 0));
+      // Field a positionally-valid lineup (one per spot + DH), not just the 9
+      // most-played — sorting by games alone could start two 3B and skip 1B.
+      return pickPositionalLineup(eligible, pid => batMetaMap[pid]?.p || '')
         .map(pid => ({ pid, name: playerNames[pid] || pid, position: '', order: 0 }));
     }
 
@@ -2582,7 +2602,7 @@ async function main() {
   const bullpens = await fetchBullpens(todaySchedule, teamIdToAbbr);
 
   console.log("Computing today's HR picks (matchups, splits, pitch-type profiles)...");
-  const { picks: freshPicks, value: freshValue, cards: matchupCards, stuff: stuffCov } = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue);
+  const { picks: freshPicks, value: freshValue, cards: matchupCards, stuff: stuffCov } = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue, batMeta);
   // Degraded-build guard #2: fetchPlatoonSplits swallows fetch errors into {},
   // which once collapsed a 28-pick slate to 1 pick (every pick null-handed,
   // platoon factors gone, scores under the floor). On a real build with games,
