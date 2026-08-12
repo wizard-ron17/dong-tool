@@ -639,6 +639,10 @@
   .due-modal-headline-num.warm { color: var(--gold); }
   .due-modal-headline-num.mild { color: #ff7040; }
   .due-modal-headline-lbl { font-size: 0.57rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  /* Value modal: small secondary Pick Score under the big Value Score. */
+  .pk-score-sub { margin-top: 0.28rem; font-size: 0.62rem; color: var(--muted); letter-spacing: 0.03em; white-space: nowrap; }
+  .pk-score-sub b { font-family: var(--font-d); font-weight: 700; font-size: 0.72rem; }
+  .pk-score-sub.great b { color: var(--accent); } .pk-score-sub.good b { color: var(--gold); } .pk-score-sub.ok b { color: #ff7040; }
 
   .due-modal-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.35rem; margin-bottom: 0.9rem; }
   .due-modal-headline-sub { font-size: 0.56rem; color: var(--dim); display: block; margin-top: 0.1rem; }
@@ -5231,6 +5235,7 @@ function pickModalInner(r, board = 'chalk') {
           <span class="pk-vs-txt">VS</span>
           <span class="pick-score-big ${headCls}">${headScore.toFixed(1)}</span>
           <span class="due-modal-headline-lbl">${headLbl}</span>
+          ${isValue ? `<span class="pk-score-sub ${pickScoreClass(r.pickScore)}" title="Pick Score — the composite HR-matchup grade (power × platoons, arm stuff, pitch synergy, park &amp; weather) the Chalk board ranks by">Pick <b>${(r.pickScore ?? 0).toFixed(1)}</b></span>` : ''}
         </div>
         <div class="pk-side">
           ${muPhotoTag(r.oppPid, r.oppTeam)}
