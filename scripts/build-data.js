@@ -1346,7 +1346,13 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
 
     // Gate on the *rounded* score so a pick that displays "9.0" (toFixed(1)) always
     // ships — the UI shows one decimal, so a raw 8.95–8.99 read as 9.0 shouldn't be cut.
-    return { picks: rows.filter(r => Math.round(r.pickScore * 10) / 10 >= PICKS_MIN_SCORE), value, cards };
+    // Stuff coverage on the day's probable starters — how many got a real
+    // Savant pitch-mix. main() guards on this: if it's 0 of a full slate the
+    // pitch-mix feed failed, and the Stuff factor is neutral-for-everyone
+    // (silently sinking every score under the Chalk floor).
+    const starterPids = [...new Set(uniq.map(c => c.oppPid).filter(Boolean))];
+    const stuff = { ok: starterPids.filter(pid => pitcherStuffByPid[pid]).length, total: starterPids.length };
+    return { picks: rows.filter(r => Math.round(r.pickScore * 10) / 10 >= PICKS_MIN_SCORE), value, cards, stuff };
   } catch (e) { return { picks: [], value: [] }; }
 }
 
@@ -2576,7 +2582,7 @@ async function main() {
   const bullpens = await fetchBullpens(todaySchedule, teamIdToAbbr);
 
   console.log("Computing today's HR picks (matchups, splits, pitch-type profiles)...");
-  const { picks: freshPicks, value: freshValue, cards: matchupCards } = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue);
+  const { picks: freshPicks, value: freshValue, cards: matchupCards, stuff: stuffCov } = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue);
   // Degraded-build guard #2: fetchPlatoonSplits swallows fetch errors into {},
   // which once collapsed a 28-pick slate to 1 pick (every pick null-handed,
   // platoon factors gone, scores under the floor). On a real build with games,
@@ -2584,6 +2590,16 @@ async function main() {
   // fetch failed, so abort rather than ship a gutted board.
   if (freshPicks.length && freshPicks.every(p => !p.bHand && !p.oppHand)) {
     throw new Error(`Degraded build: batter/pitcher handedness missing on all ${freshPicks.length} picks — platoon splits fetch failed; refusing to write data.json`);
+  }
+  // Degraded-build guard #3: the Savant pitch-mix feed powers pitcher arsenals
+  // AND the Stuff matchup factor. When it comes back empty, Stuff goes neutral
+  // for every pitcher, quietly shaving all pick scores under the Chalk floor —
+  // so the board can collapse to 0 chalk with NO handedness symptom (guard #2
+  // only fires when picks survive). Detect it directly from starter Stuff
+  // coverage: zero of a full slate means the fetch failed. Abort so the last
+  // good build survives (same call the schedule/splits guards make).
+  if (stuffCov && stuffCov.total >= 5 && stuffCov.ok === 0) {
+    throw new Error(`Degraded build: pitcher Stuff/pitch-mix empty for all ${stuffCov.total} probable starters — Savant pitch-mix fetch failed; refusing to ship a Stuff-less board (Chalk collapses).`);
   }
 
   // Freeze picks whose game has already started (pre-game score from the last
