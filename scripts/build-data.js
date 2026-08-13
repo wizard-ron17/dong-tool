@@ -1564,7 +1564,27 @@ async function fetchStealData() {
   return { sprint, runners, catchers };
 }
 
-function computeSteals(todaySchedule, batMetaMap, stealData) {
+// Statcast's catcher-throwing leaderboard only covers ~72 established catchers,
+// so rookies/backups (e.g. a September call-up making a start) come back blank.
+// MLB's basic fielding line still has their caught-stealing + steals-allowed, so
+// backfill a real CS rate from there — a rookie who's been run on 12-for-12 is
+// a very different matchup than the league-average default.
+async function fetchCatcherCS(pids) {
+  const out = {};
+  await Promise.all([...new Set(pids)].map(async pid => {
+    try {
+      const res = await fetch(`${MLB}/people/${pid}/stats?stats=season&group=fielding&season=${SEASON_YEAR}`).then(r => r.json());
+      const splits = res.stats?.[0]?.splits ?? [];
+      const c = splits.find(s => (s.stat?.position?.abbreviation ?? s.position?.abbreviation) === 'C');
+      if (!c) return;
+      const cs = c.stat.caughtStealing ?? 0, sb = c.stat.stolenBases ?? 0, att = cs + sb;
+      if (att > 0) out[pid] = { att, cs, rateCs: cs / att, pop: null, arm: null };
+    } catch {}
+  }));
+  return out;
+}
+
+async function computeSteals(todaySchedule, batMetaMap, stealData) {
   const { sprint, runners, catchers } = stealData;
   if (!Object.keys(runners).length) return [];
 
@@ -1586,6 +1606,15 @@ function computeSteals(todaySchedule, batMetaMap, stealData) {
       .filter(pid => playerTeams[pid] === teamAbbr && batMetaMap[pid]?.p === 'C' && (playerGames[pid] ?? 0) >= 10)
       .sort((a, b) => (playerGames[b] ?? 0) - (playerGames[a] ?? 0))[0] || null;
   };
+
+  // Backfill CS rate for today's catchers that Statcast doesn't track (rookies/backups).
+  const catcherPids = new Set();
+  for (const g of todaySchedule) for (const [, opp] of [[g.home, g.away], [g.away, g.home]]) {
+    if (!opp.probablePitcherId) continue;
+    const cp = catcherOf(opp, opp.teamAbbr);
+    if (cp && !catchers[cp]) catcherPids.add(cp);
+  }
+  if (catcherPids.size) Object.assign(catchers, await fetchCatcherCS([...catcherPids]));
 
   const rows = [];
   for (const g of todaySchedule) {
@@ -2785,7 +2814,7 @@ async function main() {
   let steals = [];
   try {
     const stealData = await fetchStealData();
-    steals = computeSteals(todaySchedule, batMeta, stealData);
+    steals = await computeSteals(todaySchedule, batMeta, stealData);
     if (!steals.length && prevSteals.length && sameSlate) steals = prevSteals; // Savant blip on same slate — keep last good
   } catch (e) { console.warn('  steal board failed — reusing previous:', e.message); steals = prevSteals; }
   if (steals.length) console.log(`  🏃 ${steals.length} on the steal board (top: ${steals.slice(0,3).map(s => `${s.name} ${s.stealScore}`).join(', ')})`);
