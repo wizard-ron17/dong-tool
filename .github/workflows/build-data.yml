@@ -43,13 +43,26 @@ jobs:
           git add data.json matchup-cards.json sw.js
           git diff --staged --quiet && { echo "No changes to commit"; exit 0; }
           git commit -m "Update data.json"
-          # main can still move under us if an unrelated commit (a code push)
-          # lands during the ~3-min build. We only touch generated files
-          # (data.json, sw.js), so replaying our commit onto the latest main is
-          # conflict-free — rebase and retry rather than failing the whole build.
+          # main can move under us if a cron tick or a code push lands during the
+          # ~3-min build. We only (re)generate WHOLE files — data.json,
+          # matchup-cards.json, sw.js — so a rebase can't merge two full rewrites
+          # and conflicts ("could not apply … Update data.json"). Instead, on
+          # rejection, replay our freshly built files ON TOP of the latest main:
+          # reset --soft to it (keeping our built files), re-stage, re-commit,
+          # retry. Ours wins by design — this is a complete rebuild, and the
+          # degraded-build guards abort bad builds before this step. Files we
+          # didn't touch (index.html, etc.) stay at whatever latest main has.
           for attempt in 1 2 3 4 5; do
             if git push; then echo "Pushed on attempt $attempt"; exit 0; fi
-            echo "Push rejected (attempt $attempt) — rebasing onto latest main"
-            git pull --rebase --autostash origin main
+            echo "Push rejected (attempt $attempt) — replaying generated files onto latest main"
+            git fetch origin main
+            # Mixed reset: HEAD + index move to latest main, but our freshly built
+            # files stay in the working tree. Re-staging only the generated files
+            # then commits JUST those on top of main — any code files main changed
+            # (index.html, …) keep main's version, never our stale copy.
+            git reset FETCH_HEAD
+            git add data.json matchup-cards.json sw.js
+            git diff --staged --quiet && { echo "Already current with main"; exit 0; }
+            git commit -m "Update data.json"
           done
           echo "Failed to push after 5 attempts"; exit 1
