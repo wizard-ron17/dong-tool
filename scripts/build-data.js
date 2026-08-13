@@ -18,6 +18,8 @@ const playerGames     = {};  // pid -> gamesPlayed
 const playerLastHR    = {};  // pid -> latest date string
 const playerLastGame  = {};  // pid -> latest date they appeared in a boxscore at all (HR or not)
 const playerAbsByDate = {};  // pid -> { date -> abs that day } (dropped from output, only used to compute "Due")
+const dailySB         = {};  // date -> { pid -> stolen bases that day } (build-only, resolves the steal board's Results)
+const dailyCS         = {};  // date -> { pid -> caught stealing that day } (build-only)
 const fetchedGameIds  = new Set();
 // Strip sponsorship renames the MLB feed carries so a park reads by its common
 // name everywhere (schedule, picks, digest, matchup cards). Applied wherever a
@@ -94,6 +96,11 @@ async function fetchDay(date) {
           if (!playerLastGame[pidStr] || date > playerLastGame[pidStr]) playerLastGame[pidStr] = date;
           if (!playerAbsByDate[pidStr]) playerAbsByDate[pidStr] = {};
           playerAbsByDate[pidStr][date] = (playerAbsByDate[pidStr][date] || 0) + abs;
+          // Steals that day — resolves the Steal Board's Results tab. A base-stealer
+          // often doesn't homer, so capture this before the HR early-out below.
+          const sbs = p?.stats?.batting?.stolenBases ?? 0, css = p?.stats?.batting?.caughtStealing ?? 0;
+          if (sbs) (dailySB[date] ??= {})[pidStr] = (dailySB[date][pidStr] || 0) + sbs;
+          if (css) (dailyCS[date] ??= {})[pidStr] = (dailyCS[date][pidStr] || 0) + css;
           if (hrs < 1) continue;
           gameHadHR = true;
           if (!dailyHRs[date]) dailyHRs[date] = {};
@@ -2651,7 +2658,7 @@ async function main() {
   let prevReturning = [], prevJustBack = [], prevReturningHistory = [];
   let prevProspectWatch = {}, prevProspectHistory = [];
   let prevMilestones = [];
-  let prevSteals = [];
+  let prevSteals = [], stealsHistory = [];
   try {
     const fs = await import('node:fs');
     const raw = fs.readFileSync(new URL('../data.json', import.meta.url), 'utf8');
@@ -2674,6 +2681,7 @@ async function main() {
     prevProspectHistory = old.prospects?.history ?? [];
     prevMilestones      = old.milestones ?? [];
     prevSteals          = old.steals ?? [];
+    stealsHistory       = old.stealsHistory ?? [];
   } catch { /* first run or file missing — start fresh */ }
 
   await fetchAll();
@@ -2927,6 +2935,28 @@ async function main() {
     console.log(`Birthday history: scored ${prevDate} — ${hits}/${entry.players.length} birthday boy(s) homered 🎂`);
   }
 
+  // Steal-board history — once prevDate's slate is final, log which of that day's
+  // ranked base-stealers actually swiped a bag. `played` (had an AB) lets the
+  // Results rate honestly exclude guys who sat or whose team was off.
+  if (prevSteals.length && scorable(prevDate) && !stealsHistory.some(e => e.date === prevDate)) {
+    const daySB = dailySB[prevDate] ?? {}, dayCS = dailyCS[prevDate] ?? {};
+    const entry = {
+      date: prevDate,
+      players: prevSteals.map(s => ({
+        pid: s.pid, name: s.name, team: s.team,
+        stealScore: s.stealScore, runPct: s.runPct, successPct: s.successPct,
+        oppName: s.oppName, catName: s.catName,
+        sb: daySB[s.pid] ?? 0, cs: dayCS[s.pid] ?? 0,
+        stole: (daySB[s.pid] ?? 0) > 0,
+        attempted: ((daySB[s.pid] ?? 0) + (dayCS[s.pid] ?? 0)) > 0,
+        played: (playerAbsByDate[s.pid]?.[prevDate] ?? 0) > 0,
+      })),
+    };
+    stealsHistory = [...stealsHistory, entry].slice(-120);
+    const stole = entry.players.filter(p => p.stole).length;
+    console.log(`Steal history: scored ${prevDate} — ${stole}/${entry.players.length} ranked runners stole a bag 🏃`);
+  }
+
   // ── Due tracking ──────────────────────────────────────────────────────
   // Same shape as picks history: when a player who was on the Due list homers,
   // he "graduates" — record how long he sat on the list, his due score, and his
@@ -3039,7 +3069,7 @@ async function main() {
     dailyHRs, hrTypes, hrDetails, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR, playerLastGame,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus, dtdStatus,
     todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, batMeta, picks, value, picksHistory, valueHistory, birthdays, birthdayHistory,
-    dueStreaks, dueHistory, returningInjured, justBack, returningHistory, milestones, steals,
+    dueStreaks, dueHistory, returningInjured, justBack, returningHistory, milestones, steals, stealsHistory,
   };
 
   const fs = await import('node:fs');

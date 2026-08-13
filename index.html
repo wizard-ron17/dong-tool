@@ -1039,6 +1039,34 @@
   .sb-metric span { font-size: 0.48rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-top: 0.15rem; }
   .sb-score b { font-size: 1.05rem; }
   .sb-score.great b { color: var(--accent); } .sb-score.good b { color: var(--gold); } .sb-score.ok b { color: var(--silver); }
+  .sb-card { cursor: pointer; }
+  .sb-card:hover { border-color: var(--border2); background: var(--surface1); }
+  /* Steal breakdown modal — the matchup on a diamond */
+  .sb-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.66); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 1rem; animation: fadeIn 0.15s ease; }
+  .sb-modal { position: relative; background: var(--surface0); border: 1px solid var(--border2); border-radius: 14px; width: 100%; max-width: 380px; padding: 1rem 1rem 1.2rem; box-shadow: 0 12px 44px rgba(0,0,0,0.55); max-height: 92vh; overflow-y: auto; }
+  .sb-modal-close { position: absolute; top: 0.45rem; right: 0.6rem; background: none; border: none; color: var(--muted); font-size: 1.35rem; line-height: 1; cursor: pointer; padding: 0.2rem; }
+  .sb-modal-close:hover { color: var(--text); }
+  .sb-modal-name { font-family: var(--font-d); font-weight: 800; font-size: 1.02rem; color: var(--text); padding-right: 1.4rem; }
+  .sb-modal-vs { font-family: var(--font-b); font-weight: 500; font-size: 0.64rem; color: var(--muted); }
+  .sb-modal-metrics { display: flex; gap: 0.55rem; margin: 0.6rem 0 0.1rem; }
+  .sb-mm { display: flex; flex-direction: column; align-items: center; background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.3rem 0.75rem; }
+  .sb-mm b { font-family: var(--font-d); font-weight: 700; font-size: 1rem; color: var(--text); line-height: 1; }
+  .sb-mm span { font-size: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-top: 0.2rem; }
+  .sb-mm-score b { font-size: 1.2rem; }
+  .sb-mm-score.great b { color: var(--accent); } .sb-mm-score.good b { color: var(--gold); } .sb-mm-score.ok b { color: var(--silver); }
+  .sb-field { position: relative; width: 100%; max-width: 320px; margin: 0.6rem auto 0; aspect-ratio: 1 / 0.96; }
+  .sb-field-grass { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 94%, rgba(51,150,86,0.24), rgba(51,150,86,0.08) 58%, transparent 74%); border-radius: 10px; }
+  .sb-basepath { position: absolute; width: 52%; aspect-ratio: 1; left: 50%; top: 50%; transform: translate(-50%,-50%) rotate(45deg); border: 2px solid rgba(214,184,142,0.45); background: rgba(196,160,110,0.06); border-radius: 6px; }
+  .sb-base { position: absolute; width: 11px; height: 11px; background: #e7e1d5; border: 1px solid rgba(0,0,0,0.28); transform: translate(-50%,-50%) rotate(45deg); border-radius: 2px; z-index: 1; }
+  .sb-base-home { left: 50%; top: 86%; } .sb-base-1b { left: 86%; top: 50%; } .sb-base-2b { left: 50%; top: 14%; } .sb-base-3b { left: 14%; top: 50%; }
+  .sb-target { display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; background: rgba(242,201,76,0.92); border-color: var(--gold); box-shadow: 0 0 9px rgba(242,201,76,0.6); }
+  .sb-target span { transform: rotate(-45deg); font-size: 0.42rem; font-weight: 800; color: #1a1400; }
+  .sb-steal-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .sb-fp { position: absolute; width: 5.4rem; text-align: center; transform: translate(-50%,-50%); z-index: 2; }
+  .sb-fp-pitcher { left: 50%; top: 47%; } .sb-fp-catcher { left: 50%; top: 85%; } .sb-fp-runner { left: 81%; top: 50%; }
+  .sb-fp-img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; object-position: center 14%; background: var(--surface2); border: 2.5px solid var(--border2); box-shadow: 0 2px 9px rgba(0,0,0,0.45); }
+  .sb-fp-name { font-size: 0.62rem; font-weight: 700; color: var(--text); margin-top: 0.22rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sb-fp-stats { font-size: 0.53rem; color: var(--silver); line-height: 1.4; margin-top: 0.05rem; }
   .prospect-grid { display: flex; flex-direction: column; gap: 0.5rem; }
   .prospect-card { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.85rem; animation: fadeIn 0.15s ease; }
   .prospect-top { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.5rem; }
@@ -1787,8 +1815,18 @@
         </ul>
       </div>
     </div>
-    <div class="result-meta" id="steals-meta"></div>
-    <div id="steals-content"><div class="empty">Loading data…</div></div>
+    <div class="sub-tabs" id="steals-sub-tabs">
+      <button class="sub-btn active" id="steals-sub-board" onclick="switchStealsSub('board')">🏃 Board</button>
+      <button class="sub-btn" id="steals-sub-results" onclick="switchStealsSub('results')">Results</button>
+    </div>
+    <div id="steals-board-wrap">
+      <div class="result-meta" id="steals-meta"></div>
+      <div id="steals-content"><div class="empty">Loading data…</div></div>
+    </div>
+    <div id="steals-results-wrap" style="display:none">
+      <div class="result-meta" id="steals-results-meta"></div>
+      <div id="steals-results-content"><div class="empty">Loading data…</div></div>
+    </div>
   </div>
 
   <div id="panel-milestones" class="panel">
@@ -1857,6 +1895,8 @@ let birthdayById = {}; // pid -> birthday entry, for the site-wide badge
 let milestones   = []; // hitters closing in on (or just past) a round-hundred career HR total
 let milestoneSubTab = 'hunt'; // 'hunt' = Closing In (default) · 'reached' = crossed this season
 let steals       = []; // today's base-stealers ranked vs the battery they'll face
+let stealsHistory = []; // past steal boards + who actually swiped a bag
+let stealsSubTab = 'board'; // 'board' (default) | 'results'
 let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if currently on the IL
 let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questionable (NOT on the IL), from ESPN
 let returningInjured = []; // injured hitters (IL + DTD) with ESPN's estimated return dates — Returning Boppers tool
@@ -2289,6 +2329,7 @@ function applyData(data) {
   birthdayById = {}; for (const b of birthdays) birthdayById[b.pid] = b;
   milestones = data.milestones ?? [];
   steals = data.steals ?? [];
+  stealsHistory = data.stealsHistory ?? [];
   dueStreaks = data.dueStreaks ?? {}; dueHistory = data.dueHistory ?? [];
   injuryStatus = data.injuryStatus ?? {};
   dtdStatus = data.dtdStatus ?? {};
@@ -2386,6 +2427,7 @@ function currentPath() {
   else if (activeNav === 'returning' && returningSubTab === 'results')       p += '/results';
   else if (activeNav === 'birthdays' && birthdaySubTab === 'results')        p += '/results';
   else if (activeNav === 'milestones' && milestoneSubTab === 'reached')      p += '/reached';
+  else if (activeNav === 'steals'    && stealsSubTab === 'results')          p += '/results';
   else if (activeNav === 'recap'     && recapDate)                           p += '/' + recapDate;
   return p;
 }
@@ -2428,6 +2470,8 @@ function applyRouteState() {
     birthdaySubTab = sub === 'results' ? 'results' : 'today';
   } else if (validNav === 'milestones') {
     milestoneSubTab = sub === 'reached' ? 'reached' : 'hunt';
+  } else if (validNav === 'steals') {
+    stealsSubTab = sub === 'results' ? 'results' : 'board';
   } else if (validNav === 'recap') {
     recapDate = /^\d{4}-\d{2}-\d{2}$/.test(sub) ? sub : null; // /recap/2026-07-10 deep-links a day
   }
@@ -2496,7 +2540,7 @@ function renderCurrentPanel() {
   if (activeNav === 'returning') { renderReturning(); applyReturningSub(returningSubTab); }
   if (activeNav === 'birthdays') applyBirthdaySub(birthdaySubTab);
   if (activeNav === 'milestones') applyMilestoneSub(milestoneSubTab);
-  if (activeNav === 'steals') renderSteals();
+  if (activeNav === 'steals') applyStealsSub(stealsSubTab);
 }
 window.addEventListener('popstate', applyRouteState);
 let activeStatsView = 'league';
@@ -6502,7 +6546,7 @@ function stealRow(s, i) {
   const catLine = s.catName
     ? `🧤 ${compactPlayerName(s.catName)}${cs || s.catPop != null ? ` <span class="sb-dim">(${[cs, s.catPop != null ? `${s.catPop}s pop` : ''].filter(Boolean).join(' · ')})</span>` : ''}`
     : `🧤 <span class="sb-dim">catcher TBD</span>`;
-  return `<div class="sb-card">
+  return `<div class="sb-card" onclick="openStealModal('${s.pid}')" title="Tap for the full runner-vs-battery breakdown">
     <span class="sb-rank">${i + 1}</span>
     <img class="sb-photo" src="${playerPhotoUrl(s.pid)}" alt="" loading="lazy">
     <div class="sb-body">
@@ -6527,6 +6571,127 @@ function renderSteals() {
   }
   meta.textContent = `🏃 ${steals.length} base-stealers ranked vs today's batteries${dateStr ? ` · ${dateStr}` : ''}`;
   el.innerHTML = `<div class="sb-list">${steals.map(stealRow).join('')}</div>`;
+}
+function applyStealsSub(sub) {
+  stealsSubTab = sub;
+  document.getElementById('steals-board-wrap').style.display   = sub === 'board'   ? '' : 'none';
+  document.getElementById('steals-results-wrap').style.display = sub === 'results' ? '' : 'none';
+  document.getElementById('steals-sub-board').classList.toggle('active',   sub === 'board');
+  document.getElementById('steals-sub-results').classList.toggle('active', sub === 'results');
+  if (sub === 'results') renderStealsResults(); else renderSteals();
+}
+function switchStealsSub(sub) { applyStealsSub(sub); commitRoute(); }
+
+// Results: of the runners we ranked, who actually swiped a bag once their slate
+// wrapped? Rate is over guys who PLAYED (an off day / benching isn't a miss).
+function renderStealsResults() {
+  const meta = document.getElementById('steals-results-meta');
+  const el   = document.getElementById('steals-results-content');
+  const hist = stealsHistory || [];
+  if (!hist.length) {
+    meta.textContent = '';
+    el.innerHTML = `<div class="empty">No steal results yet — the tracker fills in once a ranked slate wraps. 🏃</div>`;
+    return;
+  }
+  const all = hist.flatMap(e => e.players);
+  const played = all.filter(p => p.played);
+  const stole  = all.filter(p => p.stole);
+  const bags   = stole.reduce((s, p) => s + (p.sb || 0), 0);
+  const rate = played.length ? (100 * stole.length / played.length).toFixed(1) : '0.0';
+  const rateCls = parseFloat(rate) >= 30 ? 'great' : parseFloat(rate) >= 18 ? 'good' : 'avg';
+  meta.textContent = `🏃 ${hist.length} slate${hist.length === 1 ? '' : 's'} tracked`;
+
+  const dayRows = [...hist].reverse().map(entry => {
+    const dayPlayed = entry.players.filter(p => p.played).length;
+    const dayStole  = entry.players.filter(p => p.stole).length;
+    const names = entry.players.map(p => {
+      const state = p.stole ? `stole ${p.sb} 🏃` : p.attempted ? 'caught stealing' : p.played ? 'no attempt' : 'did not play';
+      return `<span class="ph-hit-name" title="${state}"${p.stole ? ' style="border-color:rgba(51,208,124,0.5)"' : ''}>${p.stole ? '🏃💨 ' : ''}${compactPlayerName(p.name)}${p.stole && p.sb > 1 ? ` ×${p.sb}` : ''}</span>`;
+    }).join(' ');
+    return `<div class="ph-day-row">
+      <span class="ph-day-date">${fmtDateLong(entry.date)}</span>
+      <span class="ph-day-fraction">${dayStole}/${dayPlayed || entry.players.length}</span>
+      <span class="ph-day-hits">${names || '<span style="color:var(--dim)">—</span>'}</span>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="ph-summary">
+      <div class="ph-stat"><span class="ph-stat-val hrg-val ${rateCls}">${rate}%</span><span class="ph-stat-lbl">Steal Rate</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${bags}</span><span class="ph-stat-lbl">Bags Swiped 🏃</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${played.length}</span><span class="ph-stat-lbl">Ranked &amp; Played</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${hist.length}</span><span class="ph-stat-lbl">Days Tracked</span></div>
+    </div>
+    <div class="ph-buckets-head">Steal Box Score <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· 🏃💨 = swiped a bag that day</span></div>
+    <div class="ph-days">${dayRows}</div>`;
+}
+
+// ── Steal breakdown modal — the matchup on a diamond ─────────────────────
+// Runner on first, pitcher on the mound, catcher at the plate, each with the
+// stats that drive his side of the model. Data comes straight off the board row.
+function stealDiamondPlayer(role, pid, name, stats, team) {
+  const c = (typeof TEAM_COLORS !== 'undefined' && TEAM_COLORS[team]) || 'var(--border2)';
+  return `<div class="sb-fp sb-fp-${role}">
+    <img class="sb-fp-img" src="${playerPhotoUrl(pid)}" alt="" style="border-color:${c}">
+    <div class="sb-fp-name">${compactPlayerName(name || 'TBD')}</div>
+    <div class="sb-fp-stats">${stats.map(s => `<div>${s}</div>`).join('')}</div>
+  </div>`;
+}
+function stealModalHtml(s) {
+  const cls = stealScoreClass(s.stealScore);
+  const runner = stealDiamondPlayer('runner', s.pid, s.name, [
+    s.sprint != null ? `🏃 ${s.sprint} ft/s` : '',
+    `${s.sb} SB · ${s.cs} CS`,
+    s.sec != null ? `${s.sec}ft lead` : '',
+  ].filter(Boolean), s.team);
+  const pitcher = stealDiamondPlayer('pitcher', s.oppPid, s.oppName, [
+    `${s.pHand}HP`,
+    s.pHand === 'L' ? 'holds runners' : 'runs freely',
+  ], s.oppTeam);
+  const catcher = stealDiamondPlayer('catcher', s.catPid, s.catName, [
+    s.catPop != null ? `🧤 ${s.catPop}s pop` : '',
+    s.catArm != null ? `${s.catArm} mph arm` : '',
+    s.catCsRate != null ? `${Math.round(s.catCsRate * 100)}% CS` : '',
+  ].filter(Boolean), s.oppTeam);
+  return `<div class="sb-modal-backdrop" id="sb-modal-backdrop" onclick="if(event.target===this)closeStealModal()">
+    <div class="sb-modal" role="dialog" aria-label="Steal breakdown">
+      <button class="sb-modal-close" onclick="closeStealModal()" aria-label="Close">×</button>
+      <div class="sb-modal-head">
+        <div class="sb-modal-name">${playerNames[s.pid] || s.name} <span class="sb-modal-vs">stealing 2nd vs ${compactPlayerName(s.oppName || 'TBD')}${s.team ? '' : ''}</span></div>
+        <div class="sb-modal-metrics">
+          <div class="sb-mm"><b>${s.runPct}%</b><span>Run</span></div>
+          <div class="sb-mm"><b>${s.successPct}%</b><span>Safe</span></div>
+          <div class="sb-mm sb-mm-score ${cls}"><b>${s.stealScore}</b><span>Steal Score</span></div>
+        </div>
+      </div>
+      <div class="sb-field">
+        <div class="sb-field-grass"></div>
+        <div class="sb-basepath"></div>
+        <div class="sb-base sb-base-home"></div>
+        <div class="sb-base sb-base-1b"></div>
+        <div class="sb-base sb-base-2b sb-target"><span>2B</span></div>
+        <div class="sb-base sb-base-3b"></div>
+        <svg class="sb-steal-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <defs><marker id="sbArrow" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto"><path d="M0 0L6 3L0 6z" fill="var(--accent)"/></marker></defs>
+          <line x1="83" y1="49" x2="54" y2="17" stroke="var(--accent)" stroke-width="1.4" stroke-dasharray="3 2.5" marker-end="url(#sbArrow)" opacity="0.85"/>
+        </svg>
+        ${pitcher}
+        ${catcher}
+        ${runner}
+      </div>
+    </div>
+  </div>`;
+}
+function openStealModal(pid) {
+  const s = (steals || []).find(x => x.pid === pid);
+  if (!s) return;
+  closeStealModal();
+  document.body.insertAdjacentHTML('beforeend', stealModalHtml(s));
+  document.body.style.overflow = 'hidden';
+}
+function closeStealModal() {
+  document.getElementById('sb-modal-backdrop')?.remove();
+  document.body.style.overflow = '';
 }
 
 // ── DAY LATE ───────────────────────────────────────────────────────────
