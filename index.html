@@ -1773,16 +1773,18 @@
   <div id="panel-steals" class="panel">
     <div class="due-explainer" id="steals-explainer-toggle" onclick="toggleStealsExplainer()" aria-expanded="false">
       <div class="due-explainer-head">
-        <span class="due-explainer-title">🏃 Steal Board</span>
+        <span class="due-explainer-title">How the Steal Board Works</span>
         <span class="due-explainer-cta"></span>
         <span class="due-explainer-chevron" id="steals-explainer-chevron">▶</span>
       </div>
+      <div class="due-explainer-teaser">Today's base-stealers ranked against the battery they'll actually face — runner speed &amp; tendency vs pitcher hand and catcher arm.</div>
       <div class="due-explainer-body" id="steals-explainer-body" style="display:none">
-        Today's base-stealers ranked against the battery they'll actually face. Backtested on this season's steals:
-        <b>who runs</b> is driven by the runner (speed, lead, his own attempt rate) and the pitcher's <b>handedness</b>
-        (lefties hold runners ~26% better); <b>whether it works</b> is driven by the <b>catcher</b> (pop time + arm → caught-stealing rate),
-        not raw runner speed. <b>Run%</b> = how often he goes per time on base (hand-adjusted). <b>Safe%</b> = success vs this catcher
-        (runner × catcher, log5). <b>Steal</b> = expected successful steals per 100 times on base — the headline rank.
+        <ul>
+          <li><b>The model.</b> Backtested on this season's steals, it's two stages: <em>who runs</em> is driven by the runner (speed, lead, his own attempt rate) and the pitcher's <b>handedness</b> (lefties hold runners ~26% better); <em>whether it works</em> is driven by the <b>catcher</b> (pop time + arm → caught-stealing rate), not raw runner speed or pitcher tempo.</li>
+          <li><b>Run%.</b> How often he takes off per time on base, from his own season attempt rate, adjusted for the pitcher's hand.</li>
+          <li><b>Safe%.</b> His success rate vs <em>this</em> catcher — his steal-success blended with the catcher's caught-stealing rate (a runner × catcher log5).</li>
+          <li><b>Steal.</b> The headline rank — expected successful steals per 100 times on base (Run% × Safe%).</li>
+        </ul>
       </div>
     </div>
     <div class="result-meta" id="steals-meta"></div>
