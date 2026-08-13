@@ -1524,7 +1524,8 @@ const STEAL_SUCC_SHRINK = 8;     // pseudo-attempts pulling a runner's success t
 const STEAL_CS_SHRINK   = 15;    // pseudo-attempts pulling a catcher's CS rate toward league
 const STEAL_HAND_MULT = { L: 0.814, R: 1.096 }; // LHP suppress attempts, RHP invite them (backtest)
 const STEAL_MIN_ATT   = 2;       // must have actually run this year to make the board
-const STEAL_LIMIT     = 40;
+const STEAL_MIN_SCORE = 3;       // expected successful steals per 100 opps — floors out the "average runner, average spot" cluster
+const STEAL_LIMIT     = 25;
 
 // Log5 (Bill James matchup odds): combine two rates against a shared baseline.
 function log5(a, b, base) {
@@ -1660,7 +1661,7 @@ async function computeSteals(todaySchedule, batMetaMap, stealData) {
     }
   }
   rows.sort((a, b) => b.stealScore - a.stealScore);
-  return rows.slice(0, STEAL_LIMIT);
+  return rows.filter(r => r.stealScore >= STEAL_MIN_SCORE).slice(0, STEAL_LIMIT);
 }
 
 async function fetchRecentRosterMoves(days, teamIdToAbbr) {
