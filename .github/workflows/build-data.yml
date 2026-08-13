@@ -48,8 +48,9 @@ jobs:
           # matchup-cards.json, sw.js — so a rebase can't merge two full rewrites
           # and conflicts ("could not apply … Update data.json"). Instead, on
           # rejection, replay our freshly built files ON TOP of the latest main:
-          # reset --soft to it (keeping our built files), re-stage, re-commit,
-          # retry. Ours wins by design — this is a complete rebuild, and the
+          # mixed-reset to it (keeping our built files in the worktree), re-stage
+          # only the generated files, re-commit, retry. Ours wins by design —
+          # this is a complete rebuild, and the
           # degraded-build guards abort bad builds before this step. Files we
           # didn't touch (index.html, etc.) stay at whatever latest main has.
           for attempt in 1 2 3 4 5; do
