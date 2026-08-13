@@ -128,8 +128,8 @@
   .nav-btn.active { color: #04170f; background: var(--accent); box-shadow: 0 1px 10px rgba(51,208,124,0.28); }
   .nav-btn:disabled { opacity: 0.32; cursor: not-allowed; }
   .nav-btn svg { display: none; width: 20px; height: 20px; }
-  .nav-caret { font-size: 0.7rem; transition: transform 0.18s; }
-  nav.tools-open .nav-caret { transform: rotate(180deg); }
+  .nav-caret { display: inline-block; font-size: 0.72rem; font-weight: 900; line-height: 1; transition: transform 0.18s ease; }
+  nav.tools-open .nav-caret { transform: rotate(90deg); }
 
   /* Tools menu: dropdown card on desktop, slide-up sheet on mobile. */
   .nav-tools-backdrop { position: fixed; inset: 0; z-index: 200; background: transparent; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
@@ -434,7 +434,8 @@
   .pick-section-title { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0.7rem 0 0.35rem; }
   .pk-pen-head { cursor: pointer; user-select: none; }
   .pk-pen-head:hover { color: var(--text); }
-  .pk-pen-chev { color: var(--dim); font-size: 0.6rem; margin-left: 0.15rem; }
+  .pk-pen-chev { display: inline-block; color: var(--dim); font-size: 0.75rem; font-weight: 900; line-height: 1; margin-left: 0.2rem; transition: transform 0.18s ease; }
+  .pk-pen-chev.open { transform: rotate(90deg); }
   .pick-factor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
   .pick-factor { background: var(--surface1); border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem 0.45rem; }
   /* Matchups (Matchup Lab) */
@@ -567,9 +568,17 @@
 
   .due-explainer { background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.9rem; margin-bottom: 0.6rem; font-size: 0.72rem; line-height: 1.5; color: var(--dim); cursor: pointer; transition: background 0.15s; }
   .due-explainer:hover { background: var(--surface2); }
-  .due-explainer-head { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0.1rem 0; }
+  .due-explainer-head { display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.1rem 0; }
   .due-explainer-title { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
-  .due-explainer-chevron { font-size: 0.65rem; color: var(--muted); transition: transform 0.15s; }
+  /* Unified expand triangle — matches the Schedule game's big ▶ that rotates 90° when open. */
+  .due-explainer-chevron { display: inline-block; font-size: 0.82rem; font-weight: 900; line-height: 1; color: var(--muted); transition: transform 0.18s ease, color 0.15s; }
+  .due-explainer-chevron.open { transform: rotate(90deg); color: var(--accent); }
+  .due-explainer:hover .due-explainer-chevron, .due-filters-toggle:hover .due-explainer-chevron { color: var(--accent); }
+  /* Inviting "read more" pill so the collapsible explainers stop getting missed. */
+  .due-explainer-cta { margin-left: auto; font-size: 0.55rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); background: rgba(51,208,124,0.1); border: 1px solid rgba(51,208,124,0.34); border-radius: 20px; padding: 0.12rem 0.5rem; white-space: nowrap; transition: background 0.15s; }
+  .due-explainer:hover .due-explainer-cta { background: rgba(51,208,124,0.18); }
+  .due-explainer-cta::before { content: 'Read more'; }
+  .due-explainer[aria-expanded="true"] .due-explainer-cta::before { content: 'Hide'; }
   .due-explainer-teaser { margin-top: 0.3rem; color: var(--dim); }
   .due-explainer-body { margin-top: 0.55rem; padding-top: 0.55rem; border-top: 1px solid var(--border); }
   .due-explainer-body ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1305,7 +1314,7 @@
     </button>
     <button class="nav-btn" id="nav-tools-btn" onclick="toggleNavTools(event)" disabled>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>
-      <span>Tools</span><span class="nav-caret">▾</span>
+      <span>Tools</span><span class="nav-caret">▶</span>
     </button>
   </nav>
     <div class="nav-tools-menu" id="nav-tools-menu">
@@ -1370,7 +1379,8 @@
     <div class="due-explainer" id="matchups-explainer-toggle" onclick="toggleMatchupsExplainer()" aria-expanded="false">
       <div class="due-explainer-head">
         <span class="due-explainer-title">Matchups</span>
-        <span class="due-explainer-chevron" id="matchups-explainer-chevron">▾</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="matchups-explainer-chevron">▶</span>
       </div>
       <div class="due-explainer-body" id="matchups-explainer-body" style="display:none">
         Pick <b>any</b> hitter and <b>any</b> starter and get the same breakdown our Picks board runs —
@@ -1494,7 +1504,8 @@
     <div class="due-explainer" id="due-explainer-toggle" onclick="toggleDueExplainer()" aria-expanded="false">
       <div class="due-explainer-head">
         <span class="due-explainer-title">How Due Score Works</span>
-        <span class="due-explainer-chevron" id="due-explainer-chevron">▾</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="due-explainer-chevron">▶</span>
       </div>
       <div class="due-explainer-teaser">Z-scores each hitter's current drought against his own rhythm, then nudges it by how he's actually hitting the ball lately.</div>
       <div class="due-explainer-body" id="due-explainer-body" style="display:none">
@@ -1516,7 +1527,7 @@
     <div class="due-filters-card" id="due-filters-card">
       <button class="due-filters-toggle" id="due-filters-toggle" onclick="toggleDueFiltersPanel()" aria-expanded="false">
         <span class="due-explainer-title">Filters<span class="due-filters-badge" id="due-filters-badge" style="display:none"></span></span>
-        <span class="due-explainer-chevron" id="due-filters-chevron">▾</span>
+        <span class="due-explainer-chevron" id="due-filters-chevron">▶</span>
       </button>
       <div class="due-filter-row" id="due-filter-row" style="display:none"></div>
     </div>
@@ -1536,20 +1547,34 @@
     <div class="due-explainer" id="picks-explainer-toggle" onclick="togglePicksExplainer()" aria-expanded="false">
       <div class="due-explainer-head">
         <span class="due-explainer-title">How Pick Score Works</span>
-        <span class="due-explainer-chevron" id="picks-explainer-chevron">▾</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="picks-explainer-chevron">▶</span>
       </div>
       <div class="due-explainer-teaser">Today's best HR matchups, combining recent contact quality, platoon edge, pitch-type overlap, pitcher homer rate, and park.</div>
       <div class="due-explainer-body" id="picks-explainer-body" style="display:none">
+        <p style="margin:0 0 0.5rem"><b>Pick Score = base power × every matchup multiplier below.</b> Base power is each batter's season HR rate (HR/AB) blended toward his <b>Blast%</b>-implied rate and regressed toward league average when the AB sample is thin (4 HR in 51 AB won't hold up a full season, so it's pulled back until it grows). Every factor after that is a <b>× multiplier</b> — the tornado bars in each pick's modal, where <b>1.00× is neutral</b>, above 1 is juicier, below 1 is tougher.</p>
+        <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);margin:0.55rem 0 0.35rem">Every multiplier in the matchup breakdown</div>
         <ul>
-          <li><b>Base power.</b> Starts from each batter's season-long HR rate (HR per AB) — raw power is the foundation, matchup factors adjust it up or down. Thin AB samples are regressed toward league-average HR rate: 4 homers in 51 at-bats looks like an elite rate a full season rarely sustains, so it's pulled back until the sample grows. Low-HR hitters still make the board, they just can't top it on a two-week hot streak alone.</li>
-          <li><b>Recent contact quality.</b> Same Statcast 1-6 contact-quality grade used by the Due tool, but time-windowed (last 15 game dates vs his own season baseline) rather than drought-anchored — reflects how he's actually squaring the ball up right now.</li>
-          <li><b>Platoon edge.</b> How this specific batter performs against today's pitcher's handedness vs the opposite side, AND how this specific pitcher fares against batters of this batter's effective side — both shrunk heavily toward league-average platoon splits, since single-season HR-rate splits are too thin to trust at face value.</li>
-          <li><b>Pitch-type synergy.</b> Cross-references which pitch types this batter has actually gone deep on this season against the pitcher's mix — specifically the mix he throws to <em>this batter's side</em>, not his overall usage. Pitchers attack lefties and righties differently (across the league's top arms roughly a quarter of the arsenal reshuffles by batter hand — e.g. Cristopher Sánchez throws righties mostly changeups but pounds lefties with sinkers), so a lefty slugger is scored against the pitches he'll really see. A batter who homers mostly on fastballs facing a pitcher who throws his side 50% four-seamers is a more interesting target than one whose HR profile doesn't match at all. The mix shown in the pick modal is tagged <span class="pk-mix-hand">vs LHB/RHB</span> when a real handedness split is used (it falls back to the overall mix for a side he's barely faced). The edge is regressed by HR sample size, though — 3 of a hitter's 4 homers coming on fastballs says far less than 30 of 40, so a thin profile is pulled toward neutral until it's built on enough homers to trust (flagged in the pick modal when it applies).</li>
-          <li><b>Park.</b> The game's venue HR/game rate vs league average. Same signal shown on the Schedule tab, baked directly into the score.</li>
-          <li><b>Weather.</b> Game-time air density (temperature, humidity, pressure, altitude) plus wind projected onto the park's home-plate→center-field axis — hot, thin air and a wind blowing out both help the ball carry; cold, dense air and a wind blowing in suppress it. Roofed parks are treated neutral. The stadium's orientation, roof type, and coordinates come straight from the MLB API.</li>
-          <li><b>Lineups.</b> Uses confirmed lineups when posted. Before lineups drop, falls back to projected starters — players with 15+ games this season, 1.5+ AB/game, active in the last 7 days — the same pool the books use pre-lineup. Projected picks are labeled so you know which ones are speculative.</li>
-          <li><b>Openers.</b> When today's "starter" is really an opener (2+ starts averaging ≤3 IP, on a team that's recently used the piggyback pattern), his weight drops to the inning or two he actually covers, and the likely bulk arm — the rested rotation-type pitcher whose turn it is — gets his own platoon and pitch-mix slice of the score. Flagged in the pick modal so you know who you're really betting against.</li>
-          <li><b>Chalk vs Value.</b> Two lenses on the same slate. <b>Chalk</b> is proven power — base rate is your HR/AB blended toward a <b>Blast%</b>-implied rate (so a hitter squaring the ball up gets credit before the homers land). The standard board keeps bats whose blast-blend power clears a self-calibrating floor (above the league regulars' median, so it means the same in April or August) at Score ≥ 9; flip to <b>Full board</b> to drop the power floor and see every Score-9 candidate. <b>Value</b> ranks by <b>blast surplus</b> — how far a hitter's <b>Blast%</b>-implied HR rate runs <em>ahead of</em> his actual HR total, × matchup. The book prices off HR totals, so a bat squaring it up faster than the homers have landed is underpriced — until they land. A slugger already cashing his blast (surplus ≤ 1) isn't value; he sits on Chalk instead, so the two boards no longer show the same names. Value is where the long-odds money is: only take those at a real price (roughly <b>+600</b> or better). Your choices are remembered between visits.</li>
+          <li><b>Recent Contact.</b> Statcast's 1–6 contact-quality grade (weak contact → barrel, a joint read on exit velo + launch angle) over his last ~15 game dates vs his own season baseline — how well he's actually squaring the ball up right now. The same grade the Due tool uses, here time-windowed instead of drought-anchored.</li>
+          <li><b>Batter Platoon.</b> How this batter's HR rate vs today's pitcher's handedness compares to his rate against the opposite side — his own platoon edge. Shrunk hard toward the league-average platoon split, since one season of HR-rate splits is too thin to trust at face value.</li>
+          <li><b>Starter Vuln.</b> The flip side: how homer-prone this specific starter is to batters of this hitter's side vs the opposite side. Also shrunk toward league.</li>
+          <li><b>Arm Stuff.</b> The pitcher's HR-vulnerability from his <b>4-seam velocity</b> and <b>hard-hit% allowed</b> — both predict homers far better than raw HR/9. Big velo and soft contact pull it below 1× (tougher); fringe velo and loud contact push it above 1× (juicier).</li>
+          <li><b>Starter Synergy.</b> Overlap between the pitch types this batter has actually homered on this season and the mix the starter throws <em>to this batter's side</em> (not his overall usage — arms attack lefties and righties differently). A fastball-masher facing a pitcher who feeds his side 50% four-seamers scores up; a profile that doesn't match pulls toward neutral. Regressed by HR sample — 3 of 4 homers on fastballs says far less than 30 of 40.</li>
+          <li><b>Bullpen Vuln.</b> The opponent bullpen's platoon HR-proneness to this batter's side — the rested arms likely to relieve, so the middle innings are priced in too, not just the starter.</li>
+          <li><b>Bullpen Synergy.</b> The same pitch-type overlap idea, measured against the likely relief mix rather than the starter's.</li>
+          <li><b>Lineup PA.</b> His batting-order slot → how many plate appearances he projects to get (leadoff ≈ +9%, bottom of the order less). Only applies once a real lineup is known — neutral (and hidden) when the slot is projected.</li>
+          <li><b>Park.</b> The venue's HR/game rate vs league average — the same park signal shown on the Schedule tab, baked into the score.</li>
+          <li><b>Weather.</b> Game-time air density (temperature, humidity, pressure, altitude) plus wind projected onto the park's home-plate→center-field axis: hot thin air and a wind blowing out help carry, cold dense air and a wind blowing in suppress it. Roofed parks are neutral.</li>
+        </ul>
+        <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);margin:0.7rem 0 0.35rem">Chalk vs Value — two lenses on the same slate</div>
+        <ul>
+          <li><b>🔒 Chalk = proven power.</b> Base power is HR/AB blended toward the <b>Blast%</b>-implied rate, so a hitter squaring the ball up gets credit before the homers land. The standard board keeps bats whose blast-blend power clears a self-calibrating floor (above the league regulars' median, so it means the same in April or August) at <b>Pick Score ≥ 9</b>; flip to <b>Full board</b> to drop the power floor and see every Score-9 candidate. This is your "most likely to go deep" list.</li>
+          <li><b>🎯 Value = underpriced power.</b> Ranked by <b>blast surplus</b> — how far a hitter's Blast%-implied HR rate runs <em>ahead of</em> his actual HR total — × matchup. The book prices off HR totals, so a bat squaring it up faster than the homers have landed is underpriced, until they land. A slugger already cashing his blast (surplus ≤ 1) isn't value — he sits on Chalk, so the two boards no longer share names. Value is the long-odds money: only take it at a real price (roughly <b>+600</b> or better). The pick modal shows both the Value Score and, beneath it, the straight Pick Score so you can see the matchup grade too.</li>
+        </ul>
+        <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);margin:0.7rem 0 0.35rem">Good to know</div>
+        <ul>
+          <li><b>Lineups.</b> Uses confirmed lineups when posted; before they drop, it falls back to projected starters (15+ games, 1.5+ AB/game, active in the last 7 days, one per position + DH) — the same pool the books use pre-lineup. Projected picks are labeled. Because the Lineup-PA multiplier is neutral pre-lineup, scores tend to firm up (and the Chalk board fill in) once lineups post.</li>
+          <li><b>Openers.</b> When today's "starter" is really an opener (2+ starts averaging ≤3 IP on a team using the piggyback pattern), his weight drops to the inning or two he covers and the likely <b>bulk arm</b> gets his own platoon + pitch-mix slice of the score. Flagged in the pick modal so you know who you're really betting against.</li>
         </ul>
       </div>
     </div>
@@ -1564,7 +1589,7 @@
     <div class="due-filters-card" id="picks-filters-card">
       <button class="due-filters-toggle" id="picks-filters-toggle" onclick="togglePicksFiltersPanel()" aria-expanded="false">
         <span class="due-explainer-title">Filters<span class="due-filters-badge" id="picks-filters-badge" style="display:none"></span></span>
-        <span class="due-explainer-chevron" id="picks-filters-chevron">▾</span>
+        <span class="due-explainer-chevron" id="picks-filters-chevron">▶</span>
       </button>
       <div class="due-filter-row" id="picks-filter-row" style="display:none"></div>
     </div>
@@ -1606,7 +1631,8 @@
     <div class="due-explainer" id="returning-explainer-toggle" onclick="toggleReturningExplainer()" aria-expanded="false">
       <div class="due-explainer-head">
         <span class="due-explainer-title">Returning Boppers</span>
-        <span class="due-explainer-chevron" id="returning-explainer-chevron">▾</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="returning-explainer-chevron">▶</span>
       </div>
       <div class="due-explainer-teaser">Injured power bats and when they're due back — the first game off the injury is a classic homer spot.</div>
       <div class="due-explainer-body" id="returning-explainer-body" style="display:none">
@@ -1646,7 +1672,8 @@
     <div class="due-explainer" id="steals-explainer-toggle" onclick="toggleStealsExplainer()" aria-expanded="false">
       <div class="due-explainer-head">
         <span class="due-explainer-title">🏃 Steal Board</span>
-        <span class="due-explainer-chevron" id="steals-explainer-chevron">▾</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="steals-explainer-chevron">▶</span>
       </div>
       <div class="due-explainer-body" id="steals-explainer-body" style="display:none">
         Today's base-stealers ranked against the battery they'll actually face. Backtested on this season's steals:
@@ -4515,7 +4542,7 @@ let dueExplainerOpen = false;
 function toggleDueExplainer() {
   dueExplainerOpen = !dueExplainerOpen;
   document.getElementById('due-explainer-body').style.display = dueExplainerOpen ? 'block' : 'none';
-  document.getElementById('due-explainer-chevron').textContent = dueExplainerOpen ? '▴' : '▾';
+  document.getElementById('due-explainer-chevron').classList.toggle('open', dueExplainerOpen);
   document.getElementById('due-explainer-toggle').setAttribute('aria-expanded', String(dueExplainerOpen));
 }
 
@@ -4554,7 +4581,7 @@ function renderDueFilters() {
     ${dueFiltersActive() ? `<button class="due-filter-clear" onclick="clearDueFilters()">Clear filters ×</button>` : ''}
   `;
   document.getElementById('due-filter-row').style.display = dueFiltersPanelOpen ? '' : 'none';
-  document.getElementById('due-filters-chevron').textContent = dueFiltersPanelOpen ? '▴' : '▾';
+  document.getElementById('due-filters-chevron').classList.toggle('open', dueFiltersPanelOpen);
   document.getElementById('due-filters-toggle').setAttribute('aria-expanded', String(dueFiltersPanelOpen));
   const activeCount = (dueFilters.hideCold ? 1 : 0) + (dueFilters.longestOnly ? 1 : 0) + (dueFilters.hideNoBarrels ? 1 : 0) + (dueFilters.hideDTD ? 1 : 0) + (dueFilters.hideUnavailable !== true ? 1 : 0) + (dueFilters.onChalk ? 1 : 0) + (dueFilters.onValue ? 1 : 0);
   const badge = document.getElementById('due-filters-badge');
@@ -4826,13 +4853,13 @@ function toggleDueContactFoot() {
   const body = document.getElementById('due-contact-foot-body');
   const open = body.style.display !== 'none';
   body.style.display = open ? 'none' : 'block';
-  document.getElementById('due-contact-foot-toggle').textContent = open ? 'Why these numbers? ▾' : 'Why these numbers? ▴';
+  document.querySelector('#due-contact-foot-toggle .due-explainer-chevron').classList.toggle('open', !open);
 }
 function toggleDueVizFoot() {
   const body = document.getElementById('due-viz-foot-body');
   const open = body.style.display !== 'none';
   body.style.display = open ? 'none' : 'block';
-  document.getElementById('due-viz-foot-toggle').textContent = open ? 'How to read this chart? ▾' : 'How to read this chart? ▴';
+  document.querySelector('#due-viz-foot-toggle .due-explainer-chevron').classList.toggle('open', !open);
 }
 
 function dueVizHtml(r) {
@@ -4913,7 +4940,7 @@ function dueContactHtml(r) {
         <span class="due-contact-vals"><span class="dim">${base.hardHitPct.toFixed(1)}</span> → <span class="hrg-val ${hhCls}">${dr.hardHitPct.toFixed(1)}</span></span>
       </div>
     </div>
-    <button class="due-contact-toggle" id="due-contact-foot-toggle" onclick="toggleDueContactFoot()">Why these numbers? ▾</button>
+    <button class="due-contact-toggle" id="due-contact-foot-toggle" onclick="toggleDueContactFoot()">Why these numbers? <span class="due-explainer-chevron">▶</span></button>
     <div class="due-contact-foot" id="due-contact-foot-body" style="display:none">Before the drought vs. during it (${dr.n} batted balls since his last HR) — his own home-run swings are excluded from the "before" number so they don't inflate it relative to a stretch that, by definition, has none. The score itself is driven by Statcast's combined 1-6 contact-quality grade, not these four stats individually — they're shown for context.</div>
   </div>`;
 }
@@ -4943,7 +4970,7 @@ function dueModalHtml(r) {
       ${longestNote}
       <div class="due-viz-title">AB gaps between home runs this season</div>
       ${dueVizHtml(r)}
-      <button class="due-contact-toggle" id="due-viz-foot-toggle" onclick="toggleDueVizFoot()">How to read this chart? ▾</button>
+      <button class="due-contact-toggle" id="due-viz-foot-toggle" onclick="toggleDueVizFoot()">How to read this chart? <span class="due-explainer-chevron">▶</span></button>
       <div class="due-viz-foot" id="due-viz-foot-body" style="display:none">Each gray bar is the at-bats between consecutive HRs, oldest → newest. Dashed gold line = his average gap (${r.avgGap.toFixed(0)} AB). Shaded band = his normal range (±1 std dev). The orange bar is his current drought — still climbing, already ${r.z.toFixed(1)} std deviations past normal.</div>
     </div>
   </div>`;
@@ -4954,7 +4981,7 @@ let picksExplainerOpen = false;
 function togglePicksExplainer() {
   picksExplainerOpen = !picksExplainerOpen;
   document.getElementById('picks-explainer-body').style.display = picksExplainerOpen ? 'block' : 'none';
-  document.getElementById('picks-explainer-chevron').textContent = picksExplainerOpen ? '▴' : '▾';
+  document.getElementById('picks-explainer-chevron').classList.toggle('open', picksExplainerOpen);
   document.getElementById('picks-explainer-toggle').setAttribute('aria-expanded', String(picksExplainerOpen));
 }
 
@@ -4987,7 +5014,7 @@ function renderPicksFilters() {
     ${picksFiltersActive() ? `<button class="due-filter-clear" onclick="clearPicksFilters()">Reset ×</button>` : ''}
   `;
   document.getElementById('picks-filter-row').style.display = picksFiltersPanelOpen ? '' : 'none';
-  document.getElementById('picks-filters-chevron').textContent = picksFiltersPanelOpen ? '▴' : '▾';
+  document.getElementById('picks-filters-chevron').classList.toggle('open', picksFiltersPanelOpen);
   document.getElementById('picks-filters-toggle').setAttribute('aria-expanded', String(picksFiltersPanelOpen));
   const activeCount = (picksFilters.board !== PICKS_FILTER_DEFAULTS.board ? 1 : 0) + (picksFilters.hideUnavailable !== PICKS_FILTER_DEFAULTS.hideUnavailable ? 1 : 0);
   const badge = document.getElementById('picks-filters-badge');
@@ -5025,7 +5052,7 @@ function renderValueFilters() {
     ${valueFiltersActive() ? `<button class="due-filter-clear" onclick="clearValueFilters()">Reset ×</button>` : ''}
   `;
   document.getElementById('picks-filter-row').style.display = picksFiltersPanelOpen ? '' : 'none';
-  document.getElementById('picks-filters-chevron').textContent = picksFiltersPanelOpen ? '▴' : '▾';
+  document.getElementById('picks-filters-chevron').classList.toggle('open', picksFiltersPanelOpen);
   document.getElementById('picks-filters-toggle').setAttribute('aria-expanded', String(picksFiltersPanelOpen));
   const activeCount = (valueFilters.minBlast !== VALUE_FILTER_DEFAULTS.minBlast ? 1 : 0) + (valueFilters.minSurplus !== VALUE_FILTER_DEFAULTS.minSurplus ? 1 : 0) + (valueFilters.hideUnavailable !== VALUE_FILTER_DEFAULTS.hideUnavailable ? 1 : 0);
   const badge = document.getElementById('picks-filters-badge');
@@ -5155,7 +5182,7 @@ function bullpenModalHtml(r) {
   // Keep the digestible "if they go to the pen" scan always visible; tuck the
   // full per-arm list behind a toggle (collapsed by default) so it's there when
   // you want it without dumping every reliever on the page.
-  return `<div class="pick-section-title pk-pen-head" onclick="togglePenList()">Opposing Bullpen (${arms.length} rested arm${arms.length===1?'':'s'}) <span id="pk-pen-chev" class="pk-pen-chev">▾</span></div>
+  return `<div class="pick-section-title pk-pen-head" onclick="togglePenList()">Opposing Bullpen (${arms.length} rested arm${arms.length===1?'':'s'}) <span id="pk-pen-chev" class="pk-pen-chev">▶</span></div>
     ${bullpenScanHtml(r, arms)}
     <div id="pk-pen-list" class="due-contact-card" style="display:none; padding:0.4rem 0.55rem; margin-bottom:0.8rem;">${rows}</div>`;
 }
@@ -5165,7 +5192,7 @@ function togglePenList() {
   if (!el) return;
   const open = el.style.display === 'none';
   el.style.display = open ? '' : 'none';
-  if (chev) chev.textContent = open ? '▴' : '▾';
+  if (chev) chev.classList.toggle('open', open);
 }
 
 // Diverging (tornado) bar chart for the matchup multipliers. items =
@@ -5489,7 +5516,7 @@ function toggleMatchupsExplainer() {
   const body = document.getElementById('matchups-explainer-body');
   const open = body.style.display === 'none';
   body.style.display = open ? 'block' : 'none';
-  document.getElementById('matchups-explainer-chevron').textContent = open ? '▴' : '▾';
+  document.getElementById('matchups-explainer-chevron').classList.toggle('open', open);
   document.getElementById('matchups-explainer-toggle').setAttribute('aria-expanded', String(open));
 }
 function renderMatchups() {
@@ -6329,7 +6356,7 @@ function toggleStealsExplainer() {
   const body = document.getElementById('steals-explainer-body');
   const open = body.style.display === 'none';
   body.style.display = open ? 'block' : 'none';
-  document.getElementById('steals-explainer-chevron').textContent = open ? '▴' : '▾';
+  document.getElementById('steals-explainer-chevron').classList.toggle('open', open);
   document.getElementById('steals-explainer-toggle').setAttribute('aria-expanded', String(open));
 }
 function stealScoreClass(s) { return s >= 6 ? 'great' : s >= 3.5 ? 'good' : 'ok'; }
@@ -6611,7 +6638,7 @@ function toggleReturningExplainer() {
   const body = document.getElementById('returning-explainer-body');
   const open = body.style.display === 'none';
   body.style.display = open ? 'block' : 'none';
-  document.getElementById('returning-explainer-chevron').textContent = open ? '▴' : '▾';
+  document.getElementById('returning-explainer-chevron').classList.toggle('open', open);
   document.getElementById('returning-explainer-toggle').setAttribute('aria-expanded', String(open));
 }
 function setReturningSort(s) { returningSort = s; renderReturning(); }
