@@ -1023,6 +1023,7 @@
   .sb-list { display: flex; flex-direction: column; gap: 0.5rem; }
   .sb-card { display: flex; align-items: center; gap: 0.6rem; background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.7rem; animation: fadeIn 0.15s ease; }
   .sb-rank { flex-shrink: 0; width: 1.1rem; text-align: center; font-family: var(--font-d); font-weight: 700; font-size: 0.9rem; color: var(--muted); }
+  .sb-rank.gold { color: var(--gold); } .sb-rank.silver { color: var(--silver); } .sb-rank.bronze { color: #c07840; }
   .sb-photo { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; object-position: center 12%; background: var(--surface2); flex-shrink: 0; }
   .sb-body { flex: 1; min-width: 0; }
   .sb-top { display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap; }
@@ -1950,6 +1951,7 @@ let picksSort        = 'score'; // 'score' (desc) or 'game' (earliest first)
 const VALUE_FILTER_DEFAULTS = { minBlast: 0, minSurplus: 1, hideUnavailable: true };
 let valueFilters = { ...VALUE_FILTER_DEFAULTS };
 let valueSort = 'value'; // 'value' | 'blast' | 'surplus' | 'game'
+let stealSort = 'steal'; // 'steal' | 'run' | 'safe' | 'speed' | 'sb'
 try {
   valueFilters = { ...valueFilters, ...JSON.parse(localStorage.getItem('valueFilters') || '{}') };
   const vs = localStorage.getItem('valueSort'); if (vs) valueSort = vs;
@@ -6537,25 +6539,27 @@ function toggleStealsExplainer() {
   document.getElementById('steals-explainer-toggle').setAttribute('aria-expanded', String(open));
 }
 function stealScoreClass(s) { return s >= 6 ? 'great' : s >= 3.5 ? 'good' : 'ok'; }
-function stealRow(s, i) {
-  const plays = todayTeamsPlaying.has(s.team);
+const stealRankClass = rk => rk === 1 ? 'gold' : rk === 2 ? 'silver' : rk === 3 ? 'bronze' : '';
+function stealCatLine(s) {
+  const cs = s.catCsRate != null ? `${Math.round(s.catCsRate * 100)}% CS` : '';
+  return s.catName
+    ? `🧤 ${compactPlayerName(s.catName)}${cs || s.catPop != null ? ` <span class="sb-dim">(${[cs, s.catPop != null ? `${s.catPop}s pop` : ''].filter(Boolean).join(' · ')})</span>` : ''}`
+    : `🧤 <span class="sb-dim">catcher TBD</span>`;
+}
+// Cards view (the diamond-linked card).
+function stealRow(s, rank) {
   const cls = stealScoreClass(s.stealScore);
   const runnerLine = [
     s.sprint != null ? `${s.sprint} ft/s` : '',
     `${s.sb}<span class="sb-dim">SB</span>·${s.cs}<span class="sb-dim">CS</span>`,
     s.sec != null ? `${s.sec}ft lead` : '',
   ].filter(Boolean).join(' · ');
-  // Catcher context: quicker pop + higher CS% = tougher to run on.
-  const cs = s.catCsRate != null ? `${Math.round(s.catCsRate * 100)}% CS` : '';
-  const catLine = s.catName
-    ? `🧤 ${compactPlayerName(s.catName)}${cs || s.catPop != null ? ` <span class="sb-dim">(${[cs, s.catPop != null ? `${s.catPop}s pop` : ''].filter(Boolean).join(' · ')})</span>` : ''}`
-    : `🧤 <span class="sb-dim">catcher TBD</span>`;
   return `<div class="sb-card" onclick="openStealModal('${s.pid}')" title="Tap for the full runner-vs-battery breakdown">
-    <span class="sb-rank">${i + 1}</span>
+    <span class="sb-rank ${stealRankClass(rank)}">${rank}</span>
     <img class="sb-photo" src="${playerPhotoUrl(s.pid)}" alt="" loading="lazy">
     <div class="sb-body">
       <div class="sb-top"><span class="sb-name">${compactPlayerName(s.name)}${birthdayBadge(s.pid)}</span><span class="sb-sub">${teamLogoImg(s.team, 'team-logo')}${s.team} · ${runnerLine}</span></div>
-      <div class="sb-matchup">vs ${compactPlayerName(s.oppName || 'TBD')} <span class="sb-hand ${s.pHand === 'L' ? 'l' : 'r'}" title="${s.pHand === 'L' ? 'Left' : 'Right'}-handed pitcher${s.pHand === 'L' ? ' — holds runners better' : ''}">${s.pHand}HP</span> · ${catLine}</div>
+      <div class="sb-matchup">vs ${compactPlayerName(s.oppName || 'TBD')} <span class="sb-hand ${s.pHand === 'L' ? 'l' : 'r'}" title="${s.pHand === 'L' ? 'Left' : 'Right'}-handed pitcher${s.pHand === 'L' ? ' — holds runners better' : ''}">${s.pHand}HP</span> · ${stealCatLine(s)}</div>
     </div>
     <div class="sb-metrics">
       <div class="sb-metric"><b>${s.runPct}%</b><span>Run</span></div>
@@ -6563,6 +6567,44 @@ function stealRow(s, i) {
       <div class="sb-metric sb-score ${cls}"><b>${s.stealScore}</b><span>Steal</span></div>
     </div>
   </div>`;
+}
+// Table row.
+function stealTableRow(s, rank) {
+  const cls = stealScoreClass(s.stealScore);
+  return `<tr class="due-row-clickable" onclick="openStealModal('${s.pid}')">
+    <td class="lb-rank ${stealRankClass(rank)}">${rank}</td>
+    <td><div class="lb-player">
+      <img class="lb-photo" src="${playerPhotoUrl(s.pid)}" alt="">
+      <div>
+        <div class="lb-name">${compactPlayerName(s.name)}</div>
+        <div class="lb-team">${teamLogoImg(s.team, 'team-logo')}${s.team} · ${s.sb}SB/${s.cs}CS${s.sprint != null ? ` · ${s.sprint} ft/s` : ''}</div>
+        <div class="pick-opp">vs ${compactPlayerName(s.oppName || 'TBD')} (${s.pHand}HP) · ${stealCatLine(s)}</div>
+      </div>
+    </div></td>
+    <td class="pick-z ${cls}">${s.stealScore}</td>
+    <td class="lb-num hr-col">${s.runPct}%</td>
+    <td class="lb-num stat-col">${s.successPct}%</td>
+  </tr>`;
+}
+// Compact row.
+function stealCompactRow(s, rank) {
+  const cls = stealScoreClass(s.stealScore);
+  return `<div class="lb-compact-row due-row-clickable" onclick="openStealModal('${s.pid}')">
+    <span class="lbcp-rank ${stealRankClass(rank)}">${rank}</span>
+    <img class="lbcp-photo" src="${playerPhotoUrl(s.pid)}" alt="">
+    <span class="lbcp-name">${compactPlayerName(s.name)}</span>
+    ${teamLogoImg(s.team, 'lbcp-logo')}
+    <span class="lbcp-score ${cls}">${s.stealScore}</span>
+  </div>`;
+}
+function setStealSort(s) { stealSort = s; renderSteals(); }
+function shareSteals() {
+  if (!steals.length) { dtToast('No steal board to share'); return; }
+  const top = steals.slice(0, 15);
+  const lines = top.map((r, i) =>
+    `${i + 1}. ${playerNames[r.pid] || r.name} — ${r.stealScore} · ${r.team} vs ${compactPlayerName(r.oppName || 'TBD')} (${r.pHand}HP)`);
+  const more = steals.length > top.length ? `\n…+${steals.length - top.length} more` : '';
+  shareText(`🌭 Dong Tool — Steal Board · ${fmtDateLong(todayDate)}\n\n${lines.join('\n')}${more}`);
 }
 function renderSteals() {
   const meta = document.getElementById('steals-meta');
@@ -6573,8 +6615,46 @@ function renderSteals() {
     el.innerHTML = `<div class="empty">🏃 No steal board yet — it fills once today's probable pitchers are set. Check back closer to first pitch.</div>`;
     return;
   }
-  meta.textContent = `🏃 ${steals.length} base-stealers ranked vs today's batteries${dateStr ? ` · ${dateStr}` : ''}`;
-  el.innerHTML = `<div class="sb-list">${steals.map(stealRow).join('')}</div>`;
+  // Rank always follows Steal Score (the canonical order), no matter the display sort.
+  const rankMap = {};
+  [...steals].sort((a, b) => b.stealScore - a.stealScore).forEach((r, i) => { rankMap[r.pid] = i + 1; });
+  const sorters = {
+    steal: (a, b) => b.stealScore - a.stealScore,
+    run:   (a, b) => b.runPct - a.runPct,
+    safe:  (a, b) => b.successPct - a.successPct,
+    speed: (a, b) => (b.sprint ?? 0) - (a.sprint ?? 0),
+    sb:    (a, b) => b.sb - a.sb,
+  };
+  const pool = [...steals].sort(sorters[stealSort] || sorters.steal);
+  const sortLbl = { steal: 'Steal score', run: 'run rate', safe: 'success%', speed: 'speed', sb: 'stolen bases' }[stealSort] || 'Steal score';
+  meta.textContent = `🏃 ${steals.length} base-stealers · sorted by ${sortLbl}${dateStr ? ` · ${dateStr}` : ''}`;
+  const sortBar = `<div class="picks-sort">
+    <span class="due-filter-label">Sort</span>
+    <button class="due-filter-chip${stealSort==='steal'?' active':''}" onclick="setStealSort('steal')">Steal</button>
+    <button class="due-filter-chip${stealSort==='run'?' active':''}" onclick="setStealSort('run')">Run%</button>
+    <button class="due-filter-chip${stealSort==='safe'?' active':''}" onclick="setStealSort('safe')">Safe%</button>
+    <button class="due-filter-chip${stealSort==='speed'?' active':''}" onclick="setStealSort('speed')">Speed</button>
+    <button class="due-filter-chip${stealSort==='sb'?' active':''}" onclick="setStealSort('sb')">SB</button>
+  </div>`;
+  el.innerHTML = `
+    ${viewSwitcherHtml('shareSteals')}
+    ${sortBar}
+    <div class="lb-views" data-view="${listView}">
+      <div class="lb-view-table tbl-scroll">
+        <table class="lb-table">
+          <thead><tr>
+            <th style="width:24px"></th>
+            <th>Runner &amp; Matchup</th>
+            <th class="r">Steal</th>
+            <th class="r">Run%</th>
+            <th class="r">Safe%</th>
+          </tr></thead>
+          <tbody>${pool.map(s => stealTableRow(s, rankMap[s.pid])).join('')}</tbody>
+        </table>
+      </div>
+      <div class="lb-view-cards">${pool.map(s => stealRow(s, rankMap[s.pid])).join('')}</div>
+      <div class="lb-view-compact"><div class="lb-compact-grid">${pool.map(s => stealCompactRow(s, rankMap[s.pid])).join('')}</div></div>
+    </div>`;
 }
 function applyStealsSub(sub) {
   stealsSubTab = sub;
