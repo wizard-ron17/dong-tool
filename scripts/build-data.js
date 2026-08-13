@@ -1624,9 +1624,10 @@ async function computeSteals(todaySchedule, batMetaMap, stealData) {
       const pHand = opp.probablePitcherThrows === 'L' ? 'L' : 'R';
       const catPid = catcherOf(opp, opp.teamAbbr);
       const cat = catPid ? catchers[catPid] : null;
-      const battersPids = me.lineup?.length
-        ? me.lineup.filter(p => p.position !== 'P').map(p => p.pid)
-        : everyday(me.teamAbbr);
+      const projected = !me.lineup?.length;       // no posted lineup → these are likely-starter guesses
+      const battersPids = projected
+        ? everyday(me.teamAbbr)
+        : me.lineup.filter(p => p.position !== 'P').map(p => p.pid);
       for (const pid of battersPids) {
         const run = runners[pid];
         if (!run) continue;
@@ -1656,6 +1657,7 @@ async function computeSteals(todaySchedule, batMetaMap, stealData) {
           successPct: Math.round(successPct * 10) / 10,
           ev: Math.round(ev * 1000) / 1000,
           stealScore: Math.round(runPct * successPct / 100 * 10) / 10,   // exp. successful steals per 100 opps
+          projected,   // true = pre-lineup guess (no confirmed lineup yet)
         });
       }
     }

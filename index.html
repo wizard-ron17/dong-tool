@@ -1024,6 +1024,7 @@
   .sb-card { display: flex; align-items: center; gap: 0.6rem; background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.7rem; animation: fadeIn 0.15s ease; }
   .sb-rank { flex-shrink: 0; width: 1.1rem; text-align: center; font-family: var(--font-d); font-weight: 700; font-size: 0.9rem; color: var(--muted); }
   .sb-rank.gold { color: var(--gold); } .sb-rank.silver { color: var(--silver); } .sb-rank.bronze { color: #c07840; }
+  .lbcp-proj { font-size: 0.5rem; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: 0.03em; margin-left: 0.2rem; }
   .sb-photo { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; object-position: center 12%; background: var(--surface2); flex-shrink: 0; }
   .sb-body { flex: 1; min-width: 0; }
   .sb-top { display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap; }
@@ -6540,6 +6541,7 @@ function toggleStealsExplainer() {
 }
 function stealScoreClass(s) { return s >= 6 ? 'great' : s >= 3.5 ? 'good' : 'ok'; }
 const stealRankClass = rk => rk === 1 ? 'gold' : rk === 2 ? 'silver' : rk === 3 ? 'bronze' : '';
+const stealProjTag = s => s.projected ? '<span class="pick-projected" title="Lineup not posted yet — a likely-starter guess from recent playing time; drops off if he\'s not in the confirmed lineup">Projected</span>' : '';
 function stealCatLine(s) {
   const cs = s.catCsRate != null ? `${Math.round(s.catCsRate * 100)}% CS` : '';
   return s.catName
@@ -6558,7 +6560,7 @@ function stealRow(s, rank) {
     <span class="sb-rank ${stealRankClass(rank)}">${rank}</span>
     <img class="sb-photo" src="${playerPhotoUrl(s.pid)}" alt="" loading="lazy">
     <div class="sb-body">
-      <div class="sb-top"><span class="sb-name">${compactPlayerName(s.name)}${birthdayBadge(s.pid)}</span><span class="sb-sub">${teamLogoImg(s.team, 'team-logo')}${s.team} · ${runnerLine}</span></div>
+      <div class="sb-top"><span class="sb-name">${compactPlayerName(s.name)}${birthdayBadge(s.pid)}${stealProjTag(s)}</span><span class="sb-sub">${teamLogoImg(s.team, 'team-logo')}${s.team} · ${runnerLine}</span></div>
       <div class="sb-matchup">vs ${compactPlayerName(s.oppName || 'TBD')} <span class="sb-hand ${s.pHand === 'L' ? 'l' : 'r'}" title="${s.pHand === 'L' ? 'Left' : 'Right'}-handed pitcher${s.pHand === 'L' ? ' — holds runners better' : ''}">${s.pHand}HP</span> · ${stealCatLine(s)}</div>
     </div>
     <div class="sb-metrics">
@@ -6576,7 +6578,7 @@ function stealTableRow(s, rank) {
     <td><div class="lb-player">
       <img class="lb-photo" src="${playerPhotoUrl(s.pid)}" alt="">
       <div>
-        <div class="lb-name">${compactPlayerName(s.name)}</div>
+        <div class="lb-name">${compactPlayerName(s.name)}${stealProjTag(s)}</div>
         <div class="lb-team">${teamLogoImg(s.team, 'team-logo')}${s.team} · ${s.sb}SB/${s.cs}CS${s.sprint != null ? ` · ${s.sprint} ft/s` : ''}</div>
         <div class="pick-opp">vs ${compactPlayerName(s.oppName || 'TBD')} (${s.pHand}HP) · ${stealCatLine(s)}</div>
       </div>
@@ -6592,7 +6594,7 @@ function stealCompactRow(s, rank) {
   return `<div class="lb-compact-row due-row-clickable" onclick="openStealModal('${s.pid}')">
     <span class="lbcp-rank ${stealRankClass(rank)}">${rank}</span>
     <img class="lbcp-photo" src="${playerPhotoUrl(s.pid)}" alt="">
-    <span class="lbcp-name">${compactPlayerName(s.name)}</span>
+    <span class="lbcp-name">${compactPlayerName(s.name)}${s.projected ? '<span class="lbcp-proj" title="Projected — lineup not posted yet">proj</span>' : ''}</span>
     ${teamLogoImg(s.team, 'lbcp-logo')}
     <span class="lbcp-score ${cls}">${s.stealScore}</span>
   </div>`;
@@ -6627,7 +6629,8 @@ function renderSteals() {
   };
   const pool = [...steals].sort(sorters[stealSort] || sorters.steal);
   const sortLbl = { steal: 'Steal score', run: 'run rate', safe: 'success%', speed: 'speed', sb: 'stolen bases' }[stealSort] || 'Steal score';
-  meta.textContent = `🏃 ${steals.length} base-stealers · sorted by ${sortLbl}${dateStr ? ` · ${dateStr}` : ''}`;
+  const projN = steals.filter(s => s.projected).length;
+  meta.textContent = `🏃 ${steals.length} base-stealers · sorted by ${sortLbl}${projN ? ` · ${projN} projected` : ''}${dateStr ? ` · ${dateStr}` : ''}`;
   const sortBar = `<div class="picks-sort">
     <span class="due-filter-label">Sort</span>
     <button class="due-filter-chip${stealSort==='steal'?' active':''}" onclick="setStealSort('steal')">Steal</button>
@@ -6745,7 +6748,7 @@ function stealModalHtml(s) {
     <div class="sb-modal" role="dialog" aria-label="Steal breakdown">
       <button class="sb-modal-close" onclick="closeStealModal()" aria-label="Close">×</button>
       <div class="sb-modal-head">
-        <div class="sb-modal-name">${playerNames[s.pid] || s.name} <span class="sb-modal-vs">stealing 2nd vs ${compactPlayerName(s.oppName || 'TBD')}${s.team ? '' : ''}</span></div>
+        <div class="sb-modal-name">${playerNames[s.pid] || s.name}${stealProjTag(s)} <span class="sb-modal-vs">stealing 2nd vs ${compactPlayerName(s.oppName || 'TBD')}</span></div>
         <div class="sb-modal-metrics">
           <div class="sb-mm"><b>${s.runPct}%</b><span>Run</span></div>
           <div class="sb-mm"><b>${s.successPct}%</b><span>Safe</span></div>
