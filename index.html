@@ -1010,6 +1010,26 @@
   .ms-away-num { font-family: var(--font-d); font-size: 1.6rem; font-weight: 800; color: var(--gold); line-height: 1; }
   .ms-doorstep .ms-away-num { color: #ff6b6b; }
   .ms-away-lbl { font-size: 0.5rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); margin-top: 0.12rem; white-space: nowrap; }
+  /* ── Steals ── */
+  .sb-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .sb-card { display: flex; align-items: center; gap: 0.6rem; background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.7rem; animation: fadeIn 0.15s ease; }
+  .sb-rank { flex-shrink: 0; width: 1.1rem; text-align: center; font-family: var(--font-d); font-weight: 700; font-size: 0.9rem; color: var(--muted); }
+  .sb-photo { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; object-position: center 12%; background: var(--surface2); flex-shrink: 0; }
+  .sb-body { flex: 1; min-width: 0; }
+  .sb-top { display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap; }
+  .sb-name { font-size: 0.82rem; font-weight: 600; color: var(--text); display: inline-flex; align-items: center; gap: 0.3rem; }
+  .sb-sub { font-size: 0.6rem; color: var(--muted); display: inline-flex; align-items: center; gap: 0.28rem; white-space: nowrap; }
+  .sb-sub .sb-dim, .sb-matchup .sb-dim { color: var(--dim); }
+  .sb-matchup { font-size: 0.62rem; color: var(--silver); margin-top: 0.2rem; display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
+  .sb-hand { font-size: 0.5rem; font-weight: 700; letter-spacing: 0.02em; padding: 0.04rem 0.26rem; border-radius: 3px; }
+  .sb-hand.l { color: #e08a5b; background: rgba(224,138,91,0.13); border: 1px solid rgba(224,138,91,0.32); }
+  .sb-hand.r { color: #7ba6d6; background: rgba(123,166,214,0.12); border: 1px solid rgba(123,166,214,0.3); }
+  .sb-metrics { display: flex; gap: 0.5rem; flex-shrink: 0; }
+  .sb-metric { display: flex; flex-direction: column; align-items: center; min-width: 2.1rem; }
+  .sb-metric b { font-family: var(--font-d); font-weight: 700; font-size: 0.82rem; color: var(--text); line-height: 1; }
+  .sb-metric span { font-size: 0.48rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-top: 0.15rem; }
+  .sb-score b { font-size: 1.05rem; }
+  .sb-score.great b { color: var(--accent); } .sb-score.good b { color: var(--gold); } .sb-score.ok b { color: var(--silver); }
   .prospect-grid { display: flex; flex-direction: column; gap: 0.5rem; }
   .prospect-card { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.85rem; animation: fadeIn 0.15s ease; }
   .prospect-top { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.5rem; }
@@ -1296,6 +1316,10 @@
       <button class="nav-menu-item nav-menu-new" data-nav="milestones" onclick="switchNav('milestones')" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V3M6 4h11l-2.2 3L17 10H6"/></svg>
         <span><span class="nm-name">Milestones <span class="nm-new">NEW</span></span><span class="nm-desc">Chasing 100 · 200 · 300+ career HR</span></span>
+      </button>
+      <button class="nav-menu-item nav-menu-new" data-nav="steals" onclick="switchNav('steals')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h11M10 8l5 5-5 5"/><path d="M20 4v16"/></svg>
+        <span><span class="nm-name">Steals <span class="nm-new">NEW</span></span><span class="nm-desc">Who's running today — runner vs battery</span></span>
       </button>
       <button class="nav-menu-item" data-nav="picks" onclick="switchNav('picks')" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.75" fill="currentColor"/></svg>
@@ -1618,6 +1642,24 @@
     <div id="birthday-results-wrap" style="display:none"></div>
   </div>
 
+  <div id="panel-steals" class="panel">
+    <div class="due-explainer" id="steals-explainer-toggle" onclick="toggleStealsExplainer()" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">🏃 Steal Board</span>
+        <span class="due-explainer-chevron" id="steals-explainer-chevron">▾</span>
+      </div>
+      <div class="due-explainer-body" id="steals-explainer-body" style="display:none">
+        Today's base-stealers ranked against the battery they'll actually face. Backtested on this season's steals:
+        <b>who runs</b> is driven by the runner (speed, lead, his own attempt rate) and the pitcher's <b>handedness</b>
+        (lefties hold runners ~26% better); <b>whether it works</b> is driven by the <b>catcher</b> (pop time + arm → caught-stealing rate),
+        not raw runner speed. <b>Run%</b> = how often he goes per time on base (hand-adjusted). <b>Safe%</b> = success vs this catcher
+        (runner × catcher, log5). <b>Steal</b> = expected successful steals per 100 times on base — the headline rank.
+      </div>
+    </div>
+    <div class="result-meta" id="steals-meta"></div>
+    <div id="steals-content"><div class="empty">Loading data…</div></div>
+  </div>
+
   <div id="panel-milestones" class="panel">
     <div class="sub-tabs" id="milestone-sub-tabs">
       <button class="sub-btn active" id="milestone-sub-hunt" onclick="switchMilestoneSub('hunt')">🎯 Closing In</button>
@@ -1668,6 +1710,7 @@ let birthdaySubTab = 'today';
 let birthdayById = {}; // pid -> birthday entry, for the site-wide badge
 let milestones   = []; // hitters closing in on (or just past) a round-hundred career HR total
 let milestoneSubTab = 'hunt'; // 'hunt' = Closing In (default) · 'reached' = crossed this season
+let steals       = []; // today's base-stealers ranked vs the battery they'll face
 let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if currently on the IL
 let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questionable (NOT on the IL), from ESPN
 let returningInjured = []; // injured hitters (IL + DTD) with ESPN's estimated return dates — Returning Boppers tool
@@ -2099,6 +2142,7 @@ function applyData(data) {
   birthdayHistory = data.birthdayHistory ?? [];
   birthdayById = {}; for (const b of birthdays) birthdayById[b.pid] = b;
   milestones = data.milestones ?? [];
+  steals = data.steals ?? [];
   dueStreaks = data.dueStreaks ?? {}; dueHistory = data.dueHistory ?? [];
   injuryStatus = data.injuryStatus ?? {};
   dtdStatus = data.dtdStatus ?? {};
@@ -2175,7 +2219,7 @@ function toggleTheme() {
 }
 
 // ── Nav ────────────────────────────────────────────────────────────────
-const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'matchups', 'prospects', 'daylate', 'returning', 'birthdays', 'milestones'];
+const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'matchups', 'prospects', 'daylate', 'returning', 'birthdays', 'milestones', 'steals'];
 const PAIR_SIZE_TO_SLUG = { 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' };
 const PAIR_SLUG_TO_SIZE = { pairs: 2, trios: 3, quads: 4, quints: 5 };
 
@@ -2263,7 +2307,7 @@ function migrateLegacyHash() {
 }
 // The four pages that live in the Tools menu rather than the main bar; the
 // Tools pill lights up when any of them is active.
-const TOOLS_NAVS = ['matchups', 'milestones', 'picks', 'due', 'pairs', 'prospects', 'daylate', 'returning', 'birthdays'];
+const TOOLS_NAVS = ['matchups', 'milestones', 'steals', 'picks', 'due', 'pairs', 'prospects', 'daylate', 'returning', 'birthdays'];
 let navToolsOpen = false;
 function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
 function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
@@ -2278,6 +2322,7 @@ const PAGE_TITLES = {
   prospects: "Prospects · Ron's Dong Tool", daylate: "Day Late · Ron's Dong Tool",
   returning: "Returning Boppers · Ron's Dong Tool", birthdays: "Birthdays · Ron's Dong Tool",
   milestones: "Milestone Watch · Ron's Dong Tool",
+  steals: "Steal Board · Ron's Dong Tool",
 };
 function switchNav(nav) {
   activeNav = nav;
@@ -2305,6 +2350,7 @@ function renderCurrentPanel() {
   if (activeNav === 'returning') { renderReturning(); applyReturningSub(returningSubTab); }
   if (activeNav === 'birthdays') applyBirthdaySub(birthdaySubTab);
   if (activeNav === 'milestones') applyMilestoneSub(milestoneSubTab);
+  if (activeNav === 'steals') renderSteals();
 }
 window.addEventListener('popstate', applyRouteState);
 let activeStatsView = 'league';
@@ -2457,6 +2503,14 @@ function renderHome() {
     ? `<b>${compactPlayerName(msLead.name)}</b> is <b>${msLead.away}</b> from <b>${msLead.next}</b> — see who else is chasing a career HR milestone: 100, 200, 300 and up.`
     : `See who's closing in on a career HR milestone — 100, 200, 300 and up — plus who just crossed one.`;
 
+  // Steals — today's most likely base-stealers vs their battery.
+  const sbRows = [...(steals || [])].slice(0, 4).map(r => `
+    <div class="hm-row">
+      <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
+      <span class="hm-name">${compactPlayerName(r.name)}<span class="hm-subtle"> · ${r.team} vs ${r.pHand}HP · ${r.sb} SB</span></span>
+      <span class="hm-score ${stealScoreClass(r.stealScore)}" style="font-size:0.9rem">${r.stealScore}</span>
+    </div>`).join('');
+
   // "Yesterday's Homers" only when the last completed slate was literally
   // yesterday — after an off day it's "Last Homers · <date>" instead.
   const recapLabel = last === yesterday() ? "Yesterday's Homers" : 'Last Homers';
@@ -2504,6 +2558,10 @@ function renderHome() {
       <div class="hm-card" onclick="switchNav('returning')">
         <div class="hm-head"><span class="hm-title">Returning Boppers</span><span class="hm-link">Returning →</span></div>
         ${returningRows || '<div class="hm-subtle">Nobody due back right now.</div>'}
+      </div>
+      <div class="hm-card" onclick="switchNav('steals')">
+        <div class="hm-head"><span class="hm-title">Steal Board 🏃</span><span class="hm-link">Steals →</span></div>
+        ${sbRows || '<div class="hm-subtle">No steal board yet — fills once probables are set.</div>'}
       </div>
       <div class="hm-card" onclick="switchNav('matchups')">
         <div class="hm-head"><span class="hm-title">Matchups ⚔️</span><span class="hm-link">Matchups →</span></div>
@@ -6261,6 +6319,58 @@ function renderMilestonesReached() {
       </div>
       <span class="ms-badge">${m.reached}<span class="ms-badge-lbl">career HR 💥</span></span>
     </div>`).join('')}</div>`;
+}
+
+// ── STEALS ─────────────────────────────────────────────────────────────
+// Daily steal board: base-stealers ranked vs the battery they'll face. Server
+// ships the scored rows {runPct, successPct, stealScore, matchup fields}; this
+// is pure presentation. Steal score = expected successful steals / 100 opps.
+function toggleStealsExplainer() {
+  const body = document.getElementById('steals-explainer-body');
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  document.getElementById('steals-explainer-chevron').textContent = open ? '▴' : '▾';
+  document.getElementById('steals-explainer-toggle').setAttribute('aria-expanded', String(open));
+}
+function stealScoreClass(s) { return s >= 6 ? 'great' : s >= 3.5 ? 'good' : 'ok'; }
+function stealRow(s, i) {
+  const plays = todayTeamsPlaying.has(s.team);
+  const cls = stealScoreClass(s.stealScore);
+  const runnerLine = [
+    s.sprint != null ? `${s.sprint} ft/s` : '',
+    `${s.sb}<span class="sb-dim">SB</span>·${s.cs}<span class="sb-dim">CS</span>`,
+    s.sec != null ? `${s.sec}ft lead` : '',
+  ].filter(Boolean).join(' · ');
+  // Catcher context: quicker pop + higher CS% = tougher to run on.
+  const cs = s.catCsRate != null ? `${Math.round(s.catCsRate * 100)}% CS` : '';
+  const catLine = s.catName
+    ? `🧤 ${compactPlayerName(s.catName)}${cs || s.catPop != null ? ` <span class="sb-dim">(${[cs, s.catPop != null ? `${s.catPop}s pop` : ''].filter(Boolean).join(' · ')})</span>` : ''}`
+    : `🧤 <span class="sb-dim">catcher TBD</span>`;
+  return `<div class="sb-card">
+    <span class="sb-rank">${i + 1}</span>
+    <img class="sb-photo" src="${playerPhotoUrl(s.pid)}" alt="" loading="lazy">
+    <div class="sb-body">
+      <div class="sb-top"><span class="sb-name">${compactPlayerName(s.name)}${birthdayBadge(s.pid)}</span><span class="sb-sub">${teamLogoImg(s.team, 'team-logo')}${s.team} · ${runnerLine}</span></div>
+      <div class="sb-matchup">vs ${compactPlayerName(s.oppName || 'TBD')} <span class="sb-hand ${s.pHand === 'L' ? 'l' : 'r'}" title="${s.pHand === 'L' ? 'Left' : 'Right'}-handed pitcher${s.pHand === 'L' ? ' — holds runners better' : ''}">${s.pHand}HP</span> · ${catLine}</div>
+    </div>
+    <div class="sb-metrics">
+      <div class="sb-metric"><b>${s.runPct}%</b><span>Run</span></div>
+      <div class="sb-metric"><b>${s.successPct}%</b><span>Safe</span></div>
+      <div class="sb-metric sb-score ${cls}"><b>${s.stealScore}</b><span>Steal</span></div>
+    </div>
+  </div>`;
+}
+function renderSteals() {
+  const meta = document.getElementById('steals-meta');
+  const el   = document.getElementById('steals-content');
+  const dateStr = todayDate ? fmtDateLong(todayDate) : '';
+  if (!steals || !steals.length) {
+    meta.textContent = '';
+    el.innerHTML = `<div class="empty">🏃 No steal board yet — it fills once today's probable pitchers are set. Check back closer to first pitch.</div>`;
+    return;
+  }
+  meta.textContent = `🏃 ${steals.length} base-stealers ranked vs today's batteries${dateStr ? ` · ${dateStr}` : ''}`;
+  el.innerHTML = `<div class="sb-list">${steals.map(stealRow).join('')}</div>`;
 }
 
 // ── DAY LATE ───────────────────────────────────────────────────────────

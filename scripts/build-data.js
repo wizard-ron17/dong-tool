@@ -1501,6 +1501,132 @@ async function computeMilestones() {
   return out.slice(0, 60);
 }
 
+// ── STOLEN BASES ───────────────────────────────────────────────────────
+// A daily "steal environment" board: today's likely base-stealers ranked
+// against the battery they'll actually face. Backtested (n=493 attempts +
+// season leaderboards): attempts are driven by the runner (speed, lead, his own
+// rate) and pitcher HANDEDNESS (LHP suppress ~26%); success is driven by the
+// CATCHER (pop/arm → CS rate), not raw runner speed or pitcher tempo. So the
+// model is two-stage: P(attempt) from the runner + pitcher hand, P(success)
+// from a runner-vs-catcher log5. Data is three small Savant leaderboards.
+const STEAL_RUN_VALUE = 0.175;   // linear-weight value of a stolen base
+const STEAL_CS_COST   = 0.42;    // linear-weight cost of a caught stealing
+const LEAGUE_SB_SUCC  = 0.795;   // league SB success rate (backtest, attempt-weighted)
+const LEAGUE_CS_RATE  = 0.205;
+const STEAL_SUCC_SHRINK = 8;     // pseudo-attempts pulling a runner's success toward league
+const STEAL_CS_SHRINK   = 15;    // pseudo-attempts pulling a catcher's CS rate toward league
+const STEAL_HAND_MULT = { L: 0.814, R: 1.096 }; // LHP suppress attempts, RHP invite them (backtest)
+const STEAL_MIN_ATT   = 2;       // must have actually run this year to make the board
+const STEAL_LIMIT     = 40;
+
+// Log5 (Bill James matchup odds): combine two rates against a shared baseline.
+function log5(a, b, base) {
+  const num = (a * b) / base, den = num + ((1 - a) * (1 - b)) / (1 - base);
+  return den ? num / den : a;
+}
+
+async function fetchStealData() {
+  const Y = SEASON_YEAR;
+  const grab = async url => { const t = await savantFetch(url); return t ? parseCsv(t) : []; };
+  const [sprintRows, runnerRows, catcherRows] = await Promise.all([
+    grab(`https://baseballsavant.mlb.com/leaderboard/sprint_speed?year=${Y}&min=5&csv=true`),
+    grab(`https://baseballsavant.mlb.com/leaderboard/basestealing-run-value?type=runner&year=${Y}&min=1&csv=true`),
+    grab(`https://baseballsavant.mlb.com/leaderboard/catcher-throwing?year=${Y}&min=q&csv=true`),
+  ]);
+  const sprint = {};
+  for (const r of sprintRows) if (r.player_id) sprint[r.player_id] = parseFloat(r.sprint_speed) || null;
+  const runners = {};
+  for (const r of runnerRows) {
+    if (!r.player_id) continue;
+    runners[r.player_id] = {
+      sb: +r.n_sb || 0, cs: +r.n_cs || 0, pk: +r.n_pk || 0, init: +r.n_init || 0,
+      rate: parseFloat(r.rate_sbx) || 0,                 // attempts per opportunity
+      prim: parseFloat(r.r_primary_lead) || null, sec: parseFloat(r.r_secondary_lead) || null,
+      rv: parseFloat(r.runs_stolen_on_running_act) || 0,
+    };
+  }
+  const catchers = {};
+  for (const c of catcherRows) {
+    if (!c.player_id) continue;
+    catchers[c.player_id] = {
+      att: +c.sb_attempts || 0, cs: +c.n_cs || 0, rateCs: parseFloat(c.rate_cs) || 0,
+      pop: parseFloat(c.pop_time) || null, arm: parseFloat(c.arm_strength) || null,
+      exch: parseFloat(c.exchange_time) || null,
+    };
+  }
+  return { sprint, runners, catchers };
+}
+
+function computeSteals(todaySchedule, batMetaMap, stealData) {
+  const { sprint, runners, catchers } = stealData;
+  if (!Object.keys(runners).length) return [];
+
+  // Likely everyday bats for a team whose lineup hasn't posted (no power floor —
+  // base-stealers are often light hitters). Reuses the positional projector.
+  const everyday = teamAbbr => {
+    const el = Object.keys(playerTeams).filter(pid =>
+      playerTeams[pid] === teamAbbr && (playerGames[pid] ?? 0) >= 15 &&
+      (playerABs[pid] ?? 0) / Math.max(playerGames[pid] ?? 1, 1) >= 1.5 &&
+      daysSince(playerLastGame[pid] || '2000-01-01') <= 7)
+      .sort((a, b) => (playerGames[b] ?? 0) - (playerGames[a] ?? 0));
+    return pickPositionalLineup(el, pid => batMetaMap[pid]?.p || '');
+  };
+  // The catcher the runners will face: confirmed starter if posted, else the
+  // opponent's most-played catcher.
+  const catcherOf = (side, teamAbbr) => {
+    if (side.lineup?.length) { const c = side.lineup.find(p => p.position === 'C'); if (c) return c.pid; }
+    return Object.keys(playerTeams)
+      .filter(pid => playerTeams[pid] === teamAbbr && batMetaMap[pid]?.p === 'C' && (playerGames[pid] ?? 0) >= 10)
+      .sort((a, b) => (playerGames[b] ?? 0) - (playerGames[a] ?? 0))[0] || null;
+  };
+
+  const rows = [];
+  for (const g of todaySchedule) {
+    for (const [me, opp] of [[g.home, g.away], [g.away, g.home]]) {
+      if (!opp.probablePitcherId) continue;
+      const pHand = opp.probablePitcherThrows === 'L' ? 'L' : 'R';
+      const catPid = catcherOf(opp, opp.teamAbbr);
+      const cat = catPid ? catchers[catPid] : null;
+      const battersPids = me.lineup?.length
+        ? me.lineup.filter(p => p.position !== 'P').map(p => p.pid)
+        : everyday(me.teamAbbr);
+      for (const pid of battersPids) {
+        const run = runners[pid];
+        if (!run) continue;
+        const att = run.sb + run.cs;
+        if (att < STEAL_MIN_ATT) continue;               // hasn't run — not a threat
+        // Stage 1 — P(attempt) per time-on-base, adjusted for pitcher hand.
+        const runPct = Math.min(25, run.rate * STEAL_HAND_MULT[pHand] * 100);
+        // Stage 2 — P(success) from runner (shrunk) vs catcher (shrunk) via log5.
+        const runnerSucc = (run.sb + STEAL_SUCC_SHRINK * LEAGUE_SB_SUCC) / (att + STEAL_SUCC_SHRINK);
+        const catCs = cat && cat.att > 0
+          ? (cat.cs + STEAL_CS_SHRINK * LEAGUE_CS_RATE) / (cat.att + STEAL_CS_SHRINK)
+          : LEAGUE_CS_RATE;
+        const pCaught = log5(1 - runnerSucc, catCs, LEAGUE_CS_RATE);
+        const successPct = (1 - pCaught) * 100;
+        const ev = (successPct / 100) * STEAL_RUN_VALUE - (1 - successPct / 100) * STEAL_CS_COST;
+        rows.push({
+          pid, name: playerNames[pid] || pid, team: me.teamAbbr,
+          sprint: sprint[pid] ?? null, sb: run.sb, cs: run.cs, pk: run.pk,
+          prim: run.prim != null ? Math.round(run.prim * 10) / 10 : null,
+          sec: run.sec != null ? Math.round(run.sec * 10) / 10 : null,
+          oppTeam: opp.teamAbbr, oppPid: opp.probablePitcherId, oppName: opp.probablePitcher, pHand,
+          catPid, catName: catPid ? (playerNames[catPid] || null) : null,
+          catPop: cat?.pop != null ? Math.round(cat.pop * 100) / 100 : null,
+          catArm: cat?.arm != null ? Math.round(cat.arm * 10) / 10 : null,
+          catCsRate: cat && cat.att > 0 ? Math.round(catCs * 1000) / 1000 : null,
+          runPct: Math.round(runPct * 10) / 10,
+          successPct: Math.round(successPct * 10) / 10,
+          ev: Math.round(ev * 1000) / 1000,
+          stealScore: Math.round(runPct * successPct / 100 * 10) / 10,   // exp. successful steals per 100 opps
+        });
+      }
+    }
+  }
+  rows.sort((a, b) => b.stealScore - a.stealScore);
+  return rows.slice(0, STEAL_LIMIT);
+}
+
 async function fetchRecentRosterMoves(days, teamIdToAbbr) {
   const end = new Date(), start = new Date();
   start.setUTCDate(start.getUTCDate() - days);
@@ -2525,6 +2651,7 @@ async function main() {
   let prevReturning = [], prevJustBack = [], prevReturningHistory = [];
   let prevProspectWatch = {}, prevProspectHistory = [];
   let prevMilestones = [];
+  let prevSteals = [];
   try {
     const fs = await import('node:fs');
     const raw = fs.readFileSync(new URL('../data.json', import.meta.url), 'utf8');
@@ -2546,6 +2673,7 @@ async function main() {
     prevProspectWatch   = old.prospects?.watch ?? {};
     prevProspectHistory = old.prospects?.history ?? [];
     prevMilestones      = old.milestones ?? [];
+    prevSteals          = old.steals ?? [];
   } catch { /* first run or file missing — start fresh */ }
 
   await fetchAll();
@@ -2644,6 +2772,15 @@ async function main() {
   try { milestones = await computeMilestones(); }
   catch (e) { console.warn('  milestone fetch failed — reusing previous:', e.message); milestones = prevMilestones; }
   if (milestones.length) console.log(`  🏆 ${milestones.length} on milestone watch (closest: ${milestones.map(m => `${m.name} ${m.career}→${m.next}`).slice(0,3).join(', ')})`);
+
+  console.log('Scoring stolen-base matchups...');
+  let steals = [];
+  try {
+    const stealData = await fetchStealData();
+    steals = computeSteals(todaySchedule, batMeta, stealData);
+    if (!steals.length && prevSteals.length && sameSlate) steals = prevSteals; // Savant blip on same slate — keep last good
+  } catch (e) { console.warn('  steal board failed — reusing previous:', e.message); steals = prevSteals; }
+  if (steals.length) console.log(`  🏃 ${steals.length} on the steal board (top: ${steals.slice(0,3).map(s => `${s.name} ${s.stealScore}`).join(', ')})`);
 
   console.log('Checking injured-list status...');
   const injuryStatus = await fetchInjuryStatus();
@@ -2902,7 +3039,7 @@ async function main() {
     dailyHRs, hrTypes, hrDetails, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR, playerLastGame,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus, dtdStatus,
     todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, batMeta, picks, value, picksHistory, valueHistory, birthdays, birthdayHistory,
-    dueStreaks, dueHistory, returningInjured, justBack, returningHistory, milestones,
+    dueStreaks, dueHistory, returningInjured, justBack, returningHistory, milestones, steals,
   };
 
   const fs = await import('node:fs');
