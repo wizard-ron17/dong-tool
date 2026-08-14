@@ -15,7 +15,7 @@
 // A new worker skipWaiting()s and claims clients, so it controls fetches right
 // away; combined with network-first documents, the next load is fresh. The
 // update-prompt path (SKIP_WAITING message) is kept for an in-session heads-up.
-const APP_VERSION = '579ed9d851';
+const APP_VERSION = 'a6f37a8749';
 const CACHE_NAME = 'dong-tool-' + APP_VERSION;
 const SHELL_ASSETS = [
   './',
@@ -62,19 +62,12 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== location.origin) return; // leave third-party requests (fonts, MLB API) alone
 
-  // Lazy data files (data.json, matchup-cards.json, pitch-arsenal.json) are
-  // network-first — always fetch fresh, fall back to cache only when offline.
-  // Crucially, never cache a non-JSON body: before a file is deployed Netlify's
-  // SPA fallback serves index.html with a 200, and caching that HTML would wedge
-  // the feature (JSON.parse fails) until a revalidation that may not come.
-  if (url.pathname.endsWith('.json')) {
+  if (url.pathname.endsWith('data.json')) {
     event.respondWith(
       fetch(event.request)
         .then((res) => {
-          if (res.ok && (res.headers.get('content-type') || '').includes('json')) {
-            const copy = res.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          }
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
           return res;
         })
         .catch(() => caches.match(event.request))
