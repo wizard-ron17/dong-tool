@@ -6932,7 +6932,15 @@ function ptSetView(v) { ptView = v; renderPitchTypes(); }
 function ptSetGridMetric(m) { ptGridMetric = m; renderPitchTypes(); }
 // Rank 1 (best) → green, rank N (worst) → red; a translucent tint that reads on
 // both themes.
-function ptRankColor(rank, n) { const t = (rank-1)/Math.max(1, n-1); const hue = 130 - 130*t; return `background:hsla(${hue.toFixed(0)},65%,45%,0.30)`; }
+function ptRankColor(rank, n) {
+  const t = (rank-1)/Math.max(1, n-1);        // 0 = best (green) → 1 = worst (red)
+  const hue = (130 - 130*t).toFixed(0);
+  // Solid, saturated fills so the heat reads clearly — especially on light mode,
+  // where a translucent overlay just washed out.
+  return currentTheme() === 'light'
+    ? `background:hsl(${hue},82%,64%);color:#0b1220`
+    : `background:hsl(${hue},58%,36%);color:#f2f5fa`;
+}
 function ptRenderGrid() {
   const metric = ptGridMetric;
   const higher = (PT_COLS.find(c=>c.k===metric)||{}).hi !== false;
