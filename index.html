@@ -1073,6 +1073,38 @@
   .sb-fp-name { font-size: 0.62rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.05rem; }
   .sb-fp-stats { font-size: 0.53rem; color: var(--silver); line-height: 1.4; margin-top: 0.12rem; }
   .sb-fp-nodata { color: var(--muted); font-style: italic; }
+  /* ── Pitch Types ── */
+  .pt-pitchsel { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.6rem; }
+  .pt-pitch-btn { background: var(--surface1); border: 1px solid var(--border2); color: var(--dim); font-family: var(--font-b); font-size: 0.66rem; font-weight: 700; padding: 0.3rem 0.65rem; border-radius: 20px; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+  .pt-pitch-btn:hover { color: var(--text); }
+  .pt-pitch-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pt-meta { font-size: 0.62rem; color: var(--muted); margin-bottom: 0.5rem; }
+  .pt-meta b { color: var(--text); }
+  .pt-crumb { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.55rem; flex-wrap: wrap; }
+  .pt-back { background: var(--surface1); border: 1px solid var(--border2); color: var(--text); font-family: var(--font-b); font-size: 0.66rem; font-weight: 700; padding: 0.28rem 0.6rem; border-radius: 6px; cursor: pointer; }
+  .pt-back:hover { border-color: var(--accent); color: var(--accent); }
+  .pt-crumb-team { font-size: 0.74rem; font-weight: 700; color: var(--text); display: inline-flex; align-items: center; gap: 0.3rem; }
+  .pt-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+  .pt-table thead th { background: var(--surface0); font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 700; padding: 0.4rem 0.4rem; border-bottom: 1px solid var(--border2); white-space: nowrap; }
+  .pt-table th.pt-num { text-align: right; cursor: pointer; user-select: none; }
+  .pt-table th.pt-num:hover { color: var(--text); }
+  .pt-table th.pt-sorted { color: var(--accent); }
+  .pt-table th.pt-first { text-align: left; }
+  .pt-row { border-bottom: 1px solid var(--border); }
+  .pt-team-row { cursor: pointer; }
+  .pt-team-row:hover { background: var(--surface1); }
+  .pt-table td.pt-first { display: flex; align-items: center; gap: 0.4rem; padding: 0.4rem; white-space: nowrap; }
+  .pt-rank { width: 1.3rem; text-align: right; font-family: var(--font-d); font-weight: 700; color: var(--muted); font-size: 0.66rem; }
+  .pt-photo { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; object-position: center 12%; background: var(--surface2); }
+  .pt-name { font-weight: 600; color: var(--text); }
+  .pt-pa { color: var(--dim); font-size: 0.56rem; margin-left: auto; padding-left: 0.6rem; }
+  .pt-num { text-align: right; padding: 0.4rem; font-variant-numeric: tabular-nums; }
+  .pt-great { color: var(--accent); font-weight: 700; }
+  .pt-good { color: #63b97e; }
+  .pt-avg { color: var(--dim); }
+  .pt-bad { color: #ff6b6b; }
+  .pt-na { color: var(--muted); }
+  .pt-hint { color: var(--muted); font-size: 0.85em; }
   .prospect-grid { display: flex; flex-direction: column; gap: 0.5rem; }
   .prospect-card { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.85rem; animation: fadeIn 0.15s ease; }
   .prospect-top { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.5rem; }
@@ -1363,6 +1395,10 @@
       <button class="nav-menu-item nav-menu-new" data-nav="steals" onclick="switchNav('steals')" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h11M10 8l5 5-5 5"/><path d="M20 4v16"/></svg>
         <span><span class="nm-name">Steals <span class="nm-new">NEW</span></span><span class="nm-desc">Who's running today — runner vs battery</span></span>
+      </button>
+      <button class="nav-menu-item nav-menu-new" data-nav="pitchtypes" onclick="switchNav('pitchtypes')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="4"/><path d="M11 11l8 8M17 19l2-2"/></svg>
+        <span><span class="nm-name">Pitch Types <span class="nm-new">NEW</span></span><span class="nm-desc">How every team hits each pitch (BA/SLG)</span></span>
       </button>
       <button class="nav-menu-item" data-nav="picks" onclick="switchNav('picks')" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.75" fill="currentColor"/></svg>
@@ -1835,6 +1871,26 @@
     </div>
   </div>
 
+  <div id="panel-pitchtypes" class="panel">
+    <div class="due-explainer" id="pitchtypes-explainer-toggle" onclick="toggleExplainer('pitchtypes')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Pitch Types Works</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="pitchtypes-explainer-chevron">▶</span>
+      </div>
+      <div class="due-explainer-teaser">How every team — and every hitter — performs against each pitch type this season.</div>
+      <div class="due-explainer-body" id="pitchtypes-explainer-body" style="display:none">
+        <ul>
+          <li><b>Pick a pitch</b> up top, then the 30 teams rank by how they hit it. Tap a team to drill into its individual hitters vs that pitch.</li>
+          <li><b>BA &amp; SLG</b> are the headline — team numbers pool every batter's at-bats against that pitch (volume-weighted). Sort by any column.</li>
+          <li><b>Barrel% · Sweet-Spot% · Hard-Hit% · Contact (1–6)</b> come from Statcast batted balls split by pitch — the quality-of-contact read behind the results. <b>Whiff%</b> is swing-and-miss (lower is better for the hitter).</li>
+          <li>Batters need 25+ pitches of a type to qualify. Data is 2026 regular season, via Baseball Savant.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="pitchtypes-content"><div class="empty">Loading data…</div></div>
+  </div>
+
   <div id="panel-milestones" class="panel">
     <div class="due-explainer" id="milestones-explainer-toggle" onclick="toggleExplainer('milestones')" aria-expanded="false">
       <div class="due-explainer-head">
@@ -1903,6 +1959,10 @@ let milestoneSubTab = 'hunt'; // 'hunt' = Closing In (default) · 'reached' = cr
 let steals       = []; // today's base-stealers ranked vs the battery they'll face
 let stealsHistory = []; // past steal boards + who actually swiped a bag
 let stealsSubTab = 'board'; // 'board' (default) | 'results'
+let pitchArsenal = null, pitchArsenalLoading = false; // lazy-loaded pitch-arsenal.json
+let ptPitch = null;      // selected pitch type
+let ptTeam = null;       // drilled-into team (null = team leaderboard)
+let ptSort = 'slg', ptSortDir = -1; // sort column + direction (-1 desc)
 let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if currently on the IL
 let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questionable (NOT on the IL), from ESPN
 let returningInjured = []; // injured hitters (IL + DTD) with ESPN's estimated return dates — Returning Boppers tool
@@ -2413,7 +2473,7 @@ function toggleTheme() {
 }
 
 // ── Nav ────────────────────────────────────────────────────────────────
-const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'matchups', 'prospects', 'daylate', 'returning', 'birthdays', 'milestones', 'steals'];
+const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'matchups', 'prospects', 'daylate', 'returning', 'birthdays', 'milestones', 'steals', 'pitchtypes'];
 const PAIR_SIZE_TO_SLUG = { 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' };
 const PAIR_SLUG_TO_SIZE = { pairs: 2, trios: 3, quads: 4, quints: 5 };
 
@@ -2504,7 +2564,7 @@ function migrateLegacyHash() {
 }
 // The four pages that live in the Tools menu rather than the main bar; the
 // Tools pill lights up when any of them is active.
-const TOOLS_NAVS = ['matchups', 'milestones', 'steals', 'picks', 'due', 'pairs', 'prospects', 'daylate', 'returning', 'birthdays'];
+const TOOLS_NAVS = ['matchups', 'milestones', 'steals', 'pitchtypes', 'picks', 'due', 'pairs', 'prospects', 'daylate', 'returning', 'birthdays'];
 let navToolsOpen = false;
 function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
 function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
@@ -2520,6 +2580,7 @@ const PAGE_TITLES = {
   returning: "Returning Boppers · Ron's Dong Tool", birthdays: "Birthdays · Ron's Dong Tool",
   milestones: "Milestone Watch · Ron's Dong Tool",
   steals: "Steal Board · Ron's Dong Tool",
+  pitchtypes: "Pitch Types · Ron's Dong Tool",
 };
 function switchNav(nav) {
   activeNav = nav;
@@ -2548,6 +2609,7 @@ function renderCurrentPanel() {
   if (activeNav === 'birthdays') applyBirthdaySub(birthdaySubTab);
   if (activeNav === 'milestones') applyMilestoneSub(milestoneSubTab);
   if (activeNav === 'steals') applyStealsSub(stealsSubTab);
+  if (activeNav === 'pitchtypes') renderPitchTypes();
 }
 window.addEventListener('popstate', applyRouteState);
 let activeStatsView = 'league';
@@ -6783,6 +6845,94 @@ function openStealModal(pid) {
 function closeStealModal() {
   document.getElementById('sb-modal-backdrop')?.remove();
   document.body.style.overflow = '';
+}
+
+// ── PITCH TYPES ────────────────────────────────────────────────────────
+// How every team (and hitter) performs vs each pitch type. Data is a separate
+// lazy-loaded file (pitch-arsenal.json): per-batter BA/SLG/whiff + barrel/
+// sweet-spot/hard-hit/contact-quality vs each pitch. Teams are aggregated
+// (volume-weighted) client-side.
+async function ensurePitchArsenal() {
+  if (pitchArsenal || pitchArsenalLoading) return;
+  pitchArsenalLoading = true;
+  try {
+    const res = await fetch('pitch-arsenal.json', { cache: 'no-cache' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    pitchArsenal = await res.json();
+    if (!ptPitch && pitchArsenal.pitches?.length) ptPitch = pitchArsenal.pitches[0];
+  } catch (e) { pitchArsenal = 'error'; }
+  finally { pitchArsenalLoading = false; }
+  if (activeNav === 'pitchtypes') renderPitchTypes();
+}
+const PT_COLS = [
+  { k:'ba',        lbl:'BA',      hi:true,  fmt:v=>v!=null?v.toFixed(3).replace(/^0/,''):'—' },
+  { k:'slg',       lbl:'SLG',     hi:true,  fmt:v=>v!=null?v.toFixed(3).replace(/^0/,''):'—' },
+  { k:'barrel',    lbl:'Barrel%', hi:true,  fmt:v=>v!=null?v.toFixed(1):'—' },
+  { k:'hardhit',   lbl:'Hard%',   hi:true,  fmt:v=>v!=null?v.toFixed(1):'—' },
+  { k:'sweetspot', lbl:'Sweet%',  hi:true,  fmt:v=>v!=null?v.toFixed(1):'—' },
+  { k:'whiff',     lbl:'Whiff%',  hi:false, fmt:v=>v!=null?v.toFixed(1):'—' },
+  { k:'cq',        lbl:'Contact', hi:true,  fmt:v=>v!=null?v.toFixed(2):'—' },
+];
+function ptSetSort(k) { if (ptSort === k) ptSortDir = -ptSortDir; else { ptSort = k; ptSortDir = (PT_COLS.find(c=>c.k===k)?.hi === false) ? 1 : -1; } renderPitchTypes(); }
+function ptSetPitch(p) { ptPitch = p; ptTeam = null; renderPitchTypes(); }
+function ptOpenTeam(t) { ptTeam = t; renderPitchTypes(); }
+function ptBack() { ptTeam = null; renderPitchTypes(); }
+// Volume-weighted team aggregate (pool the batters' work vs this pitch).
+function ptAggTeams(rows) {
+  const by = {};
+  for (const r of rows) {
+    const t = by[r.team] || (by[r.team] = { team:r.team, batters:0, pa:0, pitches:0, bbe:0, baW:0, slgW:0, whiffW:0, barW:0, ssW:0, hhW:0, cqW:0 });
+    t.batters++; t.pa += r.pa; t.pitches += r.pitches; t.bbe += r.bbe;
+    t.baW += (r.ba||0)*r.pa; t.slgW += (r.slg||0)*r.pa; t.whiffW += (r.whiff||0)*r.pitches;
+    if (r.bbe) { t.barW += (r.barrel||0)*r.bbe; t.ssW += (r.sweetspot||0)*r.bbe; t.hhW += (r.hardhit||0)*r.bbe; t.cqW += (r.cq||0)*r.bbe; }
+  }
+  return Object.values(by).map(t => ({
+    team:t.team, batters:t.batters, pa:t.pa,
+    ba:t.pa?t.baW/t.pa:null, slg:t.pa?t.slgW/t.pa:null, whiff:t.pitches?t.whiffW/t.pitches:null,
+    barrel:t.bbe?t.barW/t.bbe:null, sweetspot:t.bbe?t.ssW/t.bbe:null, hardhit:t.bbe?t.hhW/t.bbe:null, cq:t.bbe?t.cqW/t.bbe:null,
+  }));
+}
+// Relative color vs the field's mean for that column (inverted for whiff).
+function ptCellClass(v, mean, hi) {
+  if (v == null || mean == null) return 'pt-na';
+  const better = hi ? v >= mean : v <= mean;
+  const strong = hi ? v >= mean*1.06 : v <= mean*0.94;
+  return strong ? (better?'pt-great':'pt-bad') : (better?'pt-good':'pt-avg');
+}
+function ptTableHtml(list, firstColLabel, rowRender) {
+  const means = {};
+  for (const c of PT_COLS) { const vs = list.map(r=>r[c.k]).filter(v=>v!=null); means[c.k] = vs.length ? vs.reduce((a,b)=>a+b,0)/vs.length : null; }
+  const sorted = [...list].sort((a,b) => { const av=a[ptSort], bv=b[ptSort]; if (av==null) return 1; if (bv==null) return -1; return (av-bv)*ptSortDir; });
+  const head = `<th class="pt-first">${firstColLabel}</th>` + PT_COLS.map(c =>
+    `<th class="pt-num${ptSort===c.k?' pt-sorted':''}" onclick="ptSetSort('${c.k}')">${c.lbl}${ptSort===c.k?(ptSortDir<0?' ▾':' ▴'):''}</th>`).join('');
+  return `<div class="tbl-scroll"><table class="pt-table"><thead><tr>${head}</tr></thead><tbody>${sorted.map((r,i)=>rowRender(r,i,means)).join('')}</tbody></table></div>`;
+}
+function renderPitchTypes() {
+  const el = document.getElementById('pitchtypes-content');
+  if (!pitchArsenal) { ensurePitchArsenal(); el.innerHTML = '<div class="empty">Loading pitch data… <span class="pt-hint">(first open pulls a one-time file)</span></div>'; return; }
+  if (pitchArsenal === 'error') { el.innerHTML = `<div class="empty">Couldn't load pitch data. <a href="javascript:void(0)" onclick="pitchArsenal=null;renderPitchTypes()">Retry</a></div>`; return; }
+  const pitches = pitchArsenal.pitches || [];
+  if (!ptPitch || !pitches.includes(ptPitch)) ptPitch = pitches[0];
+  const selector = `<div class="pt-pitchsel">${pitches.map(p =>
+    `<button class="pt-pitch-btn${p===ptPitch?' active':''}" onclick="ptSetPitch(${JSON.stringify(p)})">${p}</button>`).join('')}</div>`;
+  const rows = pitchArsenal.rows.filter(r => r.pitch === ptPitch);
+  let body;
+  if (ptTeam) {
+    const bats = rows.filter(r => r.team === ptTeam);
+    body = `<div class="pt-crumb"><button class="pt-back" onclick="ptBack()">← All teams</button><span class="pt-crumb-team">${teamLogoImg(ptTeam,'team-logo')} ${ptTeam} vs ${ptPitch} · ${bats.length} hitters</span></div>`
+      + ptTableHtml(bats, 'Hitter', (r,i,means) => `<tr class="pt-row">
+          <td class="pt-first"><span class="pt-rank">${i+1}</span><img class="pt-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy"><span class="pt-name">${compactPlayerName(r.name)}</span><span class="pt-pa">${r.pa} PA</span></td>
+          ${PT_COLS.map(c=>`<td class="pt-num ${ptCellClass(r[c.k],means[c.k],c.hi)}">${c.fmt(r[c.k])}</td>`).join('')}
+        </tr>`);
+  } else {
+    const teams = ptAggTeams(rows);
+    body = `<div class="pt-meta">All 30 teams vs <b>${ptPitch}</b> · tap a team for its hitters · sorted by ${ (PT_COLS.find(c=>c.k===ptSort)||{}).lbl || 'SLG' }</div>`
+      + ptTableHtml(teams, 'Team', (t,i,means) => `<tr class="pt-row pt-team-row" onclick="ptOpenTeam('${t.team}')">
+          <td class="pt-first"><span class="pt-rank">${i+1}</span>${teamLogoImg(t.team,'team-logo')}<span class="pt-name">${t.team}</span><span class="pt-pa" title="qualified hitters">${t.batters}</span></td>
+          ${PT_COLS.map(c=>`<td class="pt-num ${ptCellClass(t[c.k],means[c.k],c.hi)}">${c.fmt(t[c.k])}</td>`).join('')}
+        </tr>`);
+  }
+  el.innerHTML = selector + body;
 }
 
 // ── DAY LATE ───────────────────────────────────────────────────────────

@@ -1666,6 +1666,77 @@ async function computeSteals(todaySchedule, batMetaMap, stealData) {
   return rows.filter(r => r.stealScore >= STEAL_MIN_SCORE).slice(0, STEAL_LIMIT);
 }
 
+// ── PITCH-TYPE HITTING (Pitch Types tool) ──────────────────────────────
+// Per-batter BA/SLG/whiff/hard-hit vs each pitch type from Savant's batter
+// pitch-arsenal leaderboard (one CSV), plus barrel%/sweet-spot%/contact-quality
+// computed from that batter's own raw batted balls split by pitch. Teams are
+// aggregated client-side (volume-weighted). Ships as a separate lazy-loaded file.
+const PITCH_ARSENAL_MIN = 25; // min pitches of a type for a batter to qualify
+
+const flipName = lf => { const m = /^\s*([^,]+),\s*(.+)$/.exec(lf || ''); return m ? `${m[2].trim()} ${m[1].trim()}` : (lf || '').trim(); };
+
+async function computePitchArsenal() {
+  const url = `https://baseballsavant.mlb.com/leaderboard/pitch-arsenal-stats?type=batter&year=${SEASON_YEAR}&min=${PITCH_ARSENAL_MIN}&csv=true`;
+  const text = await savantFetch(url);
+  const arsenal = text ? parseCsv(text) : [];
+  if (!arsenal.length) return null;
+  const nameKey = Object.keys(arsenal[0]).find(k => /last_name/.test(k));
+  const rows = {};              // "pid|pitch" -> row
+  const pids = new Set();
+  for (const r of arsenal) {
+    const pid = r.player_id, pitch = r.pitch_name;
+    if (!pid || !pitch) continue;
+    const ba = parseFloat(r.ba), slg = parseFloat(r.slg);
+    if (isNaN(ba) || isNaN(slg)) continue;
+    pids.add(pid);
+    rows[`${pid}|${pitch}`] = {
+      pid, pitch,
+      name: playerNames[pid] || flipName(r[nameKey]),
+      team: playerTeams[pid] || r.team_name_alt || '',
+      pa: +r.pa || 0, pitches: +r.pitches || 0,
+      ba, slg, whiff: parseFloat(r.whiff_percent),
+      bbe: 0, barrel: null, sweetspot: null, hardhit: parseFloat(r.hard_hit_percent), cq: null,
+    };
+  }
+  // Raw batted balls for these batters, split by pitch → barrel / sweet-spot /
+  // hard-hit / contact-quality (launch_speed_angle 1-6, 6 = barrel).
+  // Raw data splits curves/sliders finer than the arsenal's 8 buckets — roll the
+  // variants into the canonical type so batted-ball rates match the BA/SLG bucket.
+  const PITCH_CANON = { 'Knuckle Curve': 'Curveball', 'Slow Curve': 'Curveball', 'Slurve': 'Slider', 'Forkball': 'Split-Finger' };
+  const balls = await fetchBattedBalls([...pids]);
+  const agg = {};
+  for (const b of balls) {
+    const canon = PITCH_CANON[b.pitch_name] || b.pitch_name;
+    const k = `${b.batter}|${canon}`;
+    if (!rows[k]) continue;      // only pitch types that cleared the arsenal min
+    const a = agg[k] || (agg[k] = { bbe: 0, barrels: 0, ss: 0, hh: 0, cqSum: 0, cqN: 0 });
+    a.bbe++;
+    if (b.launch_speed_angle === '6') a.barrels++;
+    const la = parseFloat(b.launch_angle); if (!isNaN(la) && la >= 8 && la <= 32) a.ss++;
+    const ev = parseFloat(b.launch_speed); if (!isNaN(ev) && ev >= 95) a.hh++;
+    const lsa = parseFloat(b.launch_speed_angle); if (!isNaN(lsa) && lsa >= 1 && lsa <= 6) { a.cqSum += lsa; a.cqN++; }
+  }
+  for (const [k, a] of Object.entries(agg)) {
+    const row = rows[k];
+    row.bbe = a.bbe;
+    if (a.bbe) { row.barrel = 100 * a.barrels / a.bbe; row.sweetspot = 100 * a.ss / a.bbe; row.hardhit = 100 * a.hh / a.bbe; }
+    row.cq = a.cqN ? a.cqSum / a.cqN : null;
+  }
+  const r1 = v => v == null || isNaN(v) ? null : Math.round(v * 10) / 10;
+  const r3 = v => v == null || isNaN(v) ? null : Math.round(v * 1000) / 1000;
+  const out = Object.values(rows).map(r => ({
+    pid: r.pid, name: r.name, team: r.team, pitch: r.pitch,
+    pa: r.pa, pitches: r.pitches, bbe: r.bbe,
+    ba: r3(r.ba), slg: r3(r.slg), whiff: r1(r.whiff),
+    barrel: r1(r.barrel), sweetspot: r1(r.sweetspot), hardhit: r1(r.hardhit),
+    cq: r.cq != null ? Math.round(r.cq * 100) / 100 : null,
+  }));
+  const freq = {};
+  for (const r of out) freq[r.pitch] = (freq[r.pitch] || 0) + r.pitches;
+  const pitches = [...new Set(out.map(r => r.pitch))].sort((a, b) => (freq[b] || 0) - (freq[a] || 0));
+  return { generatedAt: new Date().toISOString(), pitches, rows: out };
+}
+
 async function fetchRecentRosterMoves(days, teamIdToAbbr) {
   const end = new Date(), start = new Date();
   start.setUTCDate(start.getUTCDate() - days);
@@ -2822,6 +2893,12 @@ async function main() {
   } catch (e) { console.warn('  steal board failed — reusing previous:', e.message); steals = prevSteals; }
   if (steals.length) console.log(`  🏃 ${steals.length} on the steal board (top: ${steals.slice(0,3).map(s => `${s.name} ${s.stealScore}`).join(', ')})`);
 
+  console.log('Building pitch-type hitting (Pitch Types tool)...');
+  let pitchArsenal = null;
+  try { pitchArsenal = await computePitchArsenal(); }
+  catch (e) { console.warn('  pitch arsenal failed — keeping last good file:', e.message); }
+  if (pitchArsenal) console.log(`  ⚾ ${pitchArsenal.rows.length} batter-pitch rows across ${pitchArsenal.pitches.length} pitch types`);
+
   console.log('Checking injured-list status...');
   const injuryStatus = await fetchInjuryStatus();
 
@@ -3115,6 +3192,13 @@ async function main() {
   if (matchupCards) {
     fs.writeFileSync(new URL('../matchup-cards.json', import.meta.url), JSON.stringify(matchupCards));
     console.log(`Wrote matchup-cards.json — ${matchupCards.batters.length} batters, ${matchupCards.pitchers.length} pitchers`);
+  }
+
+  // Pitch-type hitting also ships as a separate lazy-loaded file (only fetched
+  // when the Pitch Types tool opens). Keep the last good file on a failed build.
+  if (pitchArsenal) {
+    fs.writeFileSync(new URL('../pitch-arsenal.json', import.meta.url), JSON.stringify(pitchArsenal));
+    console.log(`Wrote pitch-arsenal.json — ${pitchArsenal.rows.length} rows`);
   }
 
   // Stamp the service worker with a short hash of index.html. sw.js only
