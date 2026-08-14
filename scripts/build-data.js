@@ -1671,7 +1671,7 @@ async function computeSteals(todaySchedule, batMetaMap, stealData) {
 // pitch-arsenal leaderboard (one CSV), plus barrel%/sweet-spot%/contact-quality
 // computed from that batter's own raw batted balls split by pitch. Teams are
 // aggregated client-side (volume-weighted). Ships as a separate lazy-loaded file.
-const PITCH_ARSENAL_MIN = 25; // min pitches of a type for a batter to qualify
+const PITCH_ARSENAL_MIN = 10; // min pitches of a type for a batter to qualify — low so rare pitches (splitters) still get team-wide coverage; team numbers are PA-weighted so small samples barely move them
 
 const flipName = lf => { const m = /^\s*([^,]+),\s*(.+)$/.exec(lf || ''); return m ? `${m[2].trim()} ${m[1].trim()}` : (lf || '').trim(); };
 
