@@ -6914,7 +6914,7 @@ function renderPitchTypes() {
   const pitches = pitchArsenal.pitches || [];
   if (!ptPitch || !pitches.includes(ptPitch)) ptPitch = pitches[0];
   const selector = `<div class="pt-pitchsel">${pitches.map(p =>
-    `<button class="pt-pitch-btn${p===ptPitch?' active':''}" onclick="ptSetPitch(${JSON.stringify(p)})">${p}</button>`).join('')}</div>`;
+    `<button class="pt-pitch-btn${p===ptPitch?' active':''}" onclick="ptSetPitch('${p}')">${p}</button>`).join('')}</div>`;
   const rows = pitchArsenal.rows.filter(r => r.pitch === ptPitch);
   let body;
   if (ptTeam) {
