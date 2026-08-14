@@ -62,12 +62,19 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== location.origin) return; // leave third-party requests (fonts, MLB API) alone
 
-  if (url.pathname.endsWith('data.json')) {
+  // Lazy data files (data.json, matchup-cards.json, pitch-arsenal.json) are
+  // network-first — always fetch fresh, fall back to cache only when offline.
+  // Crucially, never cache a non-JSON body: before a file is deployed Netlify's
+  // SPA fallback serves index.html with a 200, and caching that HTML would wedge
+  // the feature (JSON.parse fails) until a revalidation that may not come.
+  if (url.pathname.endsWith('.json')) {
     event.respondWith(
       fetch(event.request)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          if (res.ok && (res.headers.get('content-type') || '').includes('json')) {
+            const copy = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
           return res;
         })
         .catch(() => caches.match(event.request))
