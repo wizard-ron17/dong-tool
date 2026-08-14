@@ -58,11 +58,13 @@ jobs:
             echo "Push rejected (attempt $attempt) — replaying generated files onto latest main"
             git fetch origin main
             # Mixed reset: HEAD + index move to latest main, but our freshly built
-            # files stay in the working tree. Re-staging only the generated files
-            # then commits JUST those on top of main — any code files main changed
-            # (index.html, …) keep main's version, never our stale copy.
+            # files stay in the working tree. Re-staging only the pure-DATA files
+            # commits just those on top of main. sw.js is deliberately NOT replayed
+            # here: it's stamped from index.html, so if a code push raced this
+            # build, main already has the correct sw.js — replaying our stale copy
+            # would revert it and desync sw.js from index.html. Keep main's.
             git reset FETCH_HEAD
-            git add data.json matchup-cards.json pitch-arsenal.json sw.js
+            git add data.json matchup-cards.json pitch-arsenal.json
             git diff --staged --quiet && { echo "Already current with main"; exit 0; }
             git commit -m "Update data.json"
           done
