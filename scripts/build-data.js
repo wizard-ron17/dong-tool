@@ -659,7 +659,7 @@ const VALUE_SURPLUS_MIN  = 1.1; // blast must imply ≥10% more HR than he's pro
 const VALUE_CONTACT_GAIN = 2; // recent-form amplification, display cue only (not in score)
 const BASE_POWER_SHRINK_AB = 100; // pseudo-ABs of league-average prior; half-regressed at 100 AB, lightly at 300+
 // Matchup Lab: qualifying floors for the per-entity cards shipped to matchup-cards.json.
-const MATCHUP_MIN_AB = 50; // batters with a real sample this season (low, so injured/part-time bats are still searchable — thin power just shrinks to neutral)
+const MATCHUP_MIN_AB = 20; // matches the Picks candidate floor, so anyone scoreable on Chalk/Value (e.g. a recent call-up like Abimelec Ortiz, ~30 AB) is also searchable in the Matchup Lab. Thin samples just shrink toward neutral.
 const MATCHUP_MIN_GS = 5;   // pitchers with a real starter sample this season
 // Platoon splits are HR-based rate stats, and HRs are rare enough that a
 // hard "minimum PA/IP, then trust it fully" gate still let small samples
