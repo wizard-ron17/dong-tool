@@ -452,11 +452,14 @@
   .mu-neutral-btn:hover { border-color: var(--accent); color: var(--text); }
   .mu-neutral-btn.active { background: rgba(88,166,255,0.15); border-color: var(--accent); color: var(--accent); }
   /* Pick modal deck navigation (swipe / arrows through the board) */
-  .pk-deck-nav { display: flex; align-items: center; justify-content: center; gap: 0.9rem; margin: 0 2rem 0.55rem; }
-  .pk-nav { width: 32px; height: 32px; flex: none; border: 1px solid var(--border); border-radius: 8px; background: var(--surface1); color: var(--text); font-size: 1.35rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
-  .pk-nav:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-  .pk-nav:disabled { opacity: 0.28; cursor: default; }
-  .pk-nav-count { font-family: var(--font-d); font-size: 0.7rem; font-weight: 700; color: var(--muted); letter-spacing: 0.06em; min-width: 3rem; text-align: center; }
+  /* Deck nav: a small counter at the modal top, arrows flanking it from outside. */
+  .pk-deck-count { text-align: center; font-family: var(--font-d); font-size: 0.66rem; font-weight: 700; color: var(--muted); letter-spacing: 0.08em; margin: -0.15rem 0 0.5rem; }
+  .pk-side-nav { position: fixed; top: 50%; transform: translateY(-50%); z-index: 210; width: 42px; height: 60px; border: 1px solid var(--border2); border-radius: 10px; background: var(--surface1); color: var(--text); font-size: 2rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; box-shadow: 0 3px 14px rgba(0,0,0,0.45); transition: background 0.15s, color 0.15s, border-color 0.15s; }
+  .pk-side-nav:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pk-side-nav:disabled { opacity: 0.22; cursor: default; }
+  .pk-side-prev { left: 0.5rem; }
+  .pk-side-next { right: 0.5rem; }
+  @media (min-width: 620px) { .pk-side-prev { left: calc(50% - 296px); } .pk-side-next { right: calc(50% - 296px); } }
   @keyframes pkSlideNext { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
   @keyframes pkSlidePrev { from { opacity: 0; transform: translateX(-26px); } to { opacity: 1; transform: none; } }
   .due-modal.pk-slide-next { animation: pkSlideNext 0.17s ease; }
@@ -5562,14 +5565,10 @@ function pickModalInner(r, board = 'chalk') {
         unannounced arm throws the bulk, so this score leans mostly on the pen.</div>
       </div>`;
 
-  const deckNav = pickDeck.length > 1 ? `<div class="pk-deck-nav">
-        <button class="pk-nav" onclick="pickModalGo(-1)" aria-label="Previous pick"${pickDeckIdx <= 0 ? ' disabled' : ''}>‹</button>
-        <span class="pk-nav-count">${pickDeckIdx + 1} / ${pickDeck.length}</span>
-        <button class="pk-nav" onclick="pickModalGo(1)" aria-label="Next pick"${pickDeckIdx >= pickDeck.length - 1 ? ' disabled' : ''}>›</button>
-      </div>` : '';
+  const deckCount = pickDeck.length > 1 ? `<div class="pk-deck-count">${pickDeckIdx + 1} / ${pickDeck.length}</div>` : '';
   return `<div class="due-modal">
       <button class="due-modal-close" onclick="closePickModal()" aria-label="Close">&times;</button>
-      ${deckNav}
+      ${deckCount}
       <div class="pk-face">
         <div class="pk-side">
           ${muPhotoTag(r.pid, r.team)}
@@ -5615,8 +5614,16 @@ function pickModalInner(r, board = 'chalk') {
       <div class="fbar-note">Venue: <span class="hrg-val ${venueCls}">${venueHRG.toFixed(2)} HR/G</span> at ${r.venue}</div>
     </div>`;
 }
+// Deck arrows live OUTSIDE the modal card (flanking it), so re-rendering the
+// card on navigation must re-emit them too — hence a shared helper.
+function pickDeckArrows() {
+  return pickDeck.length > 1
+    ? `<button class="pk-side-nav pk-side-prev" onclick="pickModalGo(-1)" aria-label="Previous pick"${pickDeckIdx <= 0 ? ' disabled' : ''}>‹</button>`
+      + `<button class="pk-side-nav pk-side-next" onclick="pickModalGo(1)" aria-label="Next pick"${pickDeckIdx >= pickDeck.length - 1 ? ' disabled' : ''}>›</button>`
+    : '';
+}
 function pickModalHtml(r, board = 'chalk') {
-  return `<div class="due-modal-backdrop" id="pick-modal-backdrop" onclick="if(event.target===this) closePickModal()" ontouchstart="pickTouchStart(event)" ontouchend="pickTouchEnd(event)">${pickModalInner(r, board)}</div>`;
+  return `<div class="due-modal-backdrop" id="pick-modal-backdrop" onclick="if(event.target===this) closePickModal()" ontouchstart="pickTouchStart(event)" ontouchend="pickTouchEnd(event)">${pickModalInner(r, board)}${pickDeckArrows()}</div>`;
 }
 
 // Deck navigation: swipe / arrow-key / button through the picks in the order the
@@ -5636,7 +5643,7 @@ function pickModalGo(delta) {
   const bd = document.getElementById('pick-modal-backdrop');
   if (!r || !bd) return;
   pickDeckIdx = n;
-  bd.innerHTML = pickModalInner(r, pickDeckBoard);
+  bd.innerHTML = pickModalInner(r, pickDeckBoard) + pickDeckArrows();
   const modal = bd.querySelector('.due-modal');
   if (modal) modal.classList.add(delta > 0 ? 'pk-slide-next' : 'pk-slide-prev');
   bd.scrollTop = 0;
