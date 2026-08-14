@@ -1105,6 +1105,13 @@
   .pt-bad { color: #ff6b6b; }
   .pt-na { color: var(--muted); }
   .pt-hint { color: var(--muted); font-size: 0.85em; }
+  .pt-gridlbl { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 700; align-self: center; margin-right: 0.15rem; }
+  .pt-grid { table-layout: auto; }
+  .pt-grid thead th.pt-gcol { text-align: center; padding: 0.4rem 0.2rem; cursor: default; min-width: 2rem; }
+  .pt-grid td.pt-gcell { text-align: center; padding: 0.4rem 0.2rem; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.72rem; color: var(--text); border-left: 1px solid var(--border); }
+  .pt-grid td.pt-first { min-width: 5rem; }
+  .pt-grid .pt-gavg { color: var(--muted); font-weight: 600; background: var(--surface1); }
+  .pt-grid thead th.pt-gavg { color: var(--muted); }
   .prospect-grid { display: flex; flex-direction: column; gap: 0.5rem; }
   .prospect-card { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.85rem; animation: fadeIn 0.15s ease; }
   .prospect-top { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.5rem; }
@@ -1972,6 +1979,8 @@ let pitchArsenal = null, pitchArsenalLoading = false; // lazy-loaded pitch-arsen
 let ptPitch = null;      // selected pitch type
 let ptTeam = null;       // drilled-into team (null = team leaderboard)
 let ptSort = 'slg', ptSortDir = -1; // sort column + direction (-1 desc)
+let ptView = 'pitch';    // 'pitch' (per-pitch board) | 'grid' (teams × pitches pivot)
+let ptGridMetric = 'slg'; // metric the pivot ranks by
 let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if currently on the IL
 let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questionable (NOT on the IL), from ESPN
 let returningInjured = []; // injured hitters (IL + DTD) with ESPN's estimated return dates — Returning Boppers tool
@@ -6916,12 +6925,55 @@ function ptTableHtml(list, firstColLabel, rowRender) {
     `<th class="pt-num${ptSort===c.k?' pt-sorted':''}" onclick="ptSetSort('${c.k}')">${c.lbl}${ptSort===c.k?(ptSortDir<0?' ▾':' ▴'):''}</th>`).join('');
   return `<div class="tbl-scroll"><table class="pt-table"><thead><tr>${head}</tr></thead><tbody>${sorted.map((r,i)=>rowRender(r,i,means)).join('')}</tbody></table></div>`;
 }
+// Short codes for the pivot's column headers.
+const PT_PITCH_ABBR = { '4-Seam Fastball':'4S', 'Sinker':'SI', 'Cutter':'FC', 'Slider':'SL', 'Sweeper':'SW', 'Curveball':'CU', 'Changeup':'CH', 'Split-Finger':'FS' };
+const PT_GRID_METRICS = [ {k:'slg',lbl:'SLG'}, {k:'ba',lbl:'BA'}, {k:'barrel',lbl:'Barrel%'}, {k:'hardhit',lbl:'Hard%'}, {k:'cq',lbl:'Contact'} ];
+function ptSetView(v) { ptView = v; renderPitchTypes(); }
+function ptSetGridMetric(m) { ptGridMetric = m; renderPitchTypes(); }
+// Rank 1 (best) → green, rank N (worst) → red; a translucent tint that reads on
+// both themes.
+function ptRankColor(rank, n) { const t = (rank-1)/Math.max(1, n-1); const hue = 130 - 130*t; return `background:hsla(${hue.toFixed(0)},65%,45%,0.30)`; }
+function ptRenderGrid() {
+  const metric = ptGridMetric;
+  const higher = (PT_COLS.find(c=>c.k===metric)||{}).hi !== false;
+  const pitches = pitchArsenal.pitches || [];
+  const teamsSet = [...new Set(pitchArsenal.rows.map(r=>r.team))];
+  const rankBy = {}, valBy = {}; // pitch -> team -> rank/value
+  for (const p of pitches) {
+    const teams = ptAggTeams(pitchArsenal.rows.filter(r=>r.pitch===p)).filter(t=>t[metric]!=null);
+    teams.sort((a,b)=> higher ? b[metric]-a[metric] : a[metric]-b[metric]);
+    rankBy[p]={}; valBy[p]={};
+    teams.forEach((t,i)=>{ rankBy[p][t.team]=i+1; valBy[p][t.team]=t[metric]; });
+  }
+  const N = teamsSet.length;
+  // Sort rows by average rank across pitches (best overall hitting teams up top).
+  const overall = teamsSet.map(team=>{ const rs=pitches.map(p=>rankBy[p][team]).filter(r=>r!=null); return { team, avg: rs.length? rs.reduce((a,b)=>a+b,0)/rs.length : 999 }; }).sort((a,b)=>a.avg-b.avg);
+  const metricLbl = (PT_GRID_METRICS.find(m=>m.k===metric)||{}).lbl || 'SLG';
+  const metricSel = `<div class="pt-pitchsel"><span class="pt-gridlbl">Rank by</span>${PT_GRID_METRICS.map(m=>`<button class="pt-pitch-btn${m.k===metric?' active':''}" onclick="ptSetGridMetric('${m.k}')">${m.lbl}</button>`).join('')}</div>`;
+  const fmt = (PT_COLS.find(c=>c.k===metric)||{}).fmt || (v=>v);
+  const head = `<th class="pt-first">Team</th>` + pitches.map(p=>`<th class="pt-gcol" title="${p}">${PT_PITCH_ABBR[p]||p}</th>`).join('') + `<th class="pt-gcol pt-gavg" title="Average rank across all pitch types">AVG</th>`;
+  const body = overall.map((o,i)=>{
+    const cells = pitches.map(p=>{
+      const rk=rankBy[p][o.team];
+      if(rk==null) return `<td class="pt-gcell pt-na">—</td>`;
+      return `<td class="pt-gcell" style="${ptRankColor(rk,N)}" title="${o.team} ranks #${rk}/${N} vs ${p} (${metricLbl} ${fmt(valBy[p][o.team])})">${rk}</td>`;
+    }).join('');
+    return `<tr class="pt-row"><td class="pt-first"><span class="pt-rank">${i+1}</span>${teamLogoImg(o.team,'team-logo')}<span class="pt-name">${o.team}</span></td>${cells}<td class="pt-gcell pt-gavg">${o.avg.toFixed(1)}</td></tr>`;
+  }).join('');
+  return `<div class="pt-meta">Each cell is that team's <b>rank vs that pitch</b> by <b>${metricLbl}</b> — <span style="color:#63b97e">green = hits it best</span>, red = worst. Rows sorted by overall (AVG rank).</div>`
+    + metricSel + `<div class="tbl-scroll"><table class="pt-table pt-grid"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
 function renderPitchTypes() {
   const el = document.getElementById('pitchtypes-content');
   if (!pitchArsenal) { ensurePitchArsenal(); el.innerHTML = '<div class="empty">Loading pitch data… <span class="pt-hint">(first open pulls a one-time file)</span></div>'; return; }
   if (pitchArsenal === 'error') { el.innerHTML = `<div class="empty">Couldn't load pitch data. <a href="javascript:void(0)" onclick="pitchArsenal=null;renderPitchTypes()">Retry</a></div>`; return; }
   const pitches = pitchArsenal.pitches || [];
   if (!ptPitch || !pitches.includes(ptPitch)) ptPitch = pitches[0];
+  const viewToggle = `<div class="lb-toolbar"><div class="view-switch">
+    <button class="view-btn${ptView==='pitch'?' active':''}" onclick="ptSetView('pitch')">By Pitch</button>
+    <button class="view-btn${ptView==='grid'?' active':''}" onclick="ptSetView('grid')">Grid</button>
+  </div></div>`;
+  if (ptView === 'grid') { el.innerHTML = viewToggle + ptRenderGrid(); return; }
   const selector = `<div class="pt-pitchsel">${pitches.map(p =>
     `<button class="pt-pitch-btn${p===ptPitch?' active':''}" onclick="ptSetPitch('${p}')">${p}</button>`).join('')}</div>`;
   const rows = pitchArsenal.rows.filter(r => r.pitch === ptPitch);
@@ -6941,7 +6993,7 @@ function renderPitchTypes() {
           ${PT_COLS.map(c=>`<td class="pt-num ${ptCellClass(t[c.k],means[c.k],c.hi)}">${c.fmt(t[c.k])}</td>`).join('')}
         </tr>`);
   }
-  el.innerHTML = selector + body;
+  el.innerHTML = viewToggle + selector + body;
 }
 
 // ── DAY LATE ───────────────────────────────────────────────────────────
