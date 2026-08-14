@@ -2985,15 +2985,30 @@ async function main() {
     const dayHRs = dailyHRs[prevDate] ?? {};
     const entry = {
       date: prevDate,
-      picks: prevPicks.map(p => ({
-        pid:   p.pid,
-        name:  playerNames[p.pid] ?? p.pid,
-        score: Math.round(p.pickScore * 10) / 10,
-        hr:    hrTotals[p.pid] ?? 0,      // season HR total at time of scoring
-        hit:   !!(dayHRs[p.pid]),          // did they go deep that day?
-        projected: p.projected ?? false,
-        provenPower: p.provenPower ?? true, // which proven-power board it was on
-      })),
+      picks: prevPicks.map(p => {
+        const r3 = v => v == null ? null : Math.round(v * 1000) / 1000;
+        return {
+          pid:   p.pid,
+          name:  playerNames[p.pid] ?? p.pid,
+          score: Math.round(p.pickScore * 10) / 10,
+          hr:    hrTotals[p.pid] ?? 0,      // season HR total at time of scoring
+          hit:   !!(dayHRs[p.pid]),          // did they go deep that day?
+          projected: p.projected ?? false,
+          provenPower: p.provenPower ?? true, // which proven-power board it was on
+          // Factor multipliers as scored (bet-time), so the log-linear model
+          // homer ~ Σ ln(factor) can be fit once enough days accumulate — separates
+          // base power from each matchup lever. Logged going forward only.
+          f: {
+            base: p.basePower != null ? Math.round(p.basePower * 1e5) / 1e5 : null,
+            mf:   r3(p.matchupFactor),
+            recent: r3(p.recentFormRatio), bplat: r3(p.batterPlatoonRatio),
+            svuln: r3(p.pitcherPlatoonRatio), stuff: r3(p.pitcherStuffRatio),
+            pa: r3(p.lineupPAFactor), syn: r3(p.synergyRatio),
+            penv: r3(p.bullpenPlatoonFactor), pensyn: r3(p.bullpenSynergyRatio),
+            park: r3(p.parkRatio), wx: r3(p.weatherRatio),
+          },
+        };
+      }),
     };
     picksHistory = [...picksHistory, entry].slice(-90); // cap at 90 days
     const hits = entry.picks.filter(p => p.hit).length;
