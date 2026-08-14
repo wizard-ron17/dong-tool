@@ -6893,7 +6893,7 @@ const PT_COLS = [
   { k:'cq',        lbl:'Contact', hi:true,  fmt:v=>v!=null?v.toFixed(2):'—' },
 ];
 function ptSetSort(k) { if (ptSort === k) ptSortDir = -ptSortDir; else { ptSort = k; ptSortDir = (PT_COLS.find(c=>c.k===k)?.hi === false) ? 1 : -1; } renderPitchTypes(); }
-function ptSetPitch(p) { ptPitch = p; ptTeam = null; renderPitchTypes(); }
+function ptSetPitch(p) { ptPitch = p; renderPitchTypes(); } // keep any drilled-in team — just swap the pitch
 function ptOpenTeam(t) { ptTeam = t; renderPitchTypes(); }
 function ptBack() { ptTeam = null; renderPitchTypes(); }
 // Volume-weighted team aggregate (pool the batters' work vs this pitch).
@@ -6989,11 +6989,13 @@ function renderPitchTypes() {
   let body;
   if (ptTeam) {
     const bats = rows.filter(r => r.team === ptTeam);
-    body = `<div class="pt-crumb"><button class="pt-back" onclick="ptBack()">← All teams</button><span class="pt-crumb-team">${teamLogoImg(ptTeam,'team-logo')} ${ptTeam} vs ${ptPitch} · ${bats.length} hitters</span></div>`
-      + ptTableHtml(bats, 'Hitter', (r,i,means) => `<tr class="pt-row">
+    const crumb = `<div class="pt-crumb"><button class="pt-back" onclick="ptBack()">← All teams</button><span class="pt-crumb-team">${teamLogoImg(ptTeam,'team-logo')} ${ptTeam} vs ${ptPitch} · ${bats.length} hitter${bats.length===1?'':'s'}</span></div>`;
+    body = crumb + (bats.length
+      ? ptTableHtml(bats, 'Hitter', (r,i,means) => `<tr class="pt-row">
           <td class="pt-first"><span class="pt-rank">${i+1}</span><img class="pt-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy"><span class="pt-name">${compactPlayerName(r.name)}</span><span class="pt-pa">${r.pa} PA</span></td>
           ${PT_COLS.map(c=>`<td class="pt-num ${ptCellClass(r[c.k],means[c.k],c.hi)}">${c.fmt(r[c.k])}</td>`).join('')}
-        </tr>`);
+        </tr>`)
+      : `<div class="empty">No ${ptTeam} hitters qualified vs ${ptPitch} — pick another pitch, or go <a href="javascript:void(0)" onclick="ptBack()">back to all teams</a>.</div>`);
   } else {
     const teams = ptAggTeams(rows);
     body = `<div class="pt-meta">All 30 teams vs <b>${ptPitch}</b> · tap a team for its hitters · sorted by ${ (PT_COLS.find(c=>c.k===ptSort)||{}).lbl || 'SLG' }</div>`
