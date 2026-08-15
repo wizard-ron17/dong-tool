@@ -1145,6 +1145,13 @@
   .pt-grid td.pt-first { min-width: 5rem; }
   .pt-grid .pt-gavg { color: var(--muted); font-weight: 600; background: var(--surface1); }
   .pt-grid thead th.pt-gavg { color: var(--muted); }
+  .pt-grid td.pt-first.pt-pinnable { cursor: pointer; }
+  .pt-grid td.pt-first.pt-pinnable:hover { background: var(--surface1); }
+  .pt-grid tr.pt-pinned td { border-top: 2px solid #ffce3a; border-bottom: 2px solid #ffce3a; }
+  .pt-grid tr.pt-pinned td.pt-first { border-left: 2px solid #ffce3a; }
+  .pt-grid tr.pt-pinned td.pt-gavg { border-right: 2px solid #ffce3a; }
+  .pt-grid tr.pt-pinned .pt-name { font-weight: 800; }
+  .pt-pin { margin-left: 0.25rem; font-size: 0.68rem; line-height: 1; }
   .prospect-grid { display: flex; flex-direction: column; gap: 0.5rem; }
   .prospect-card { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.85rem; animation: fadeIn 0.15s ease; }
   .prospect-top { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.5rem; }
@@ -2016,6 +2023,7 @@ let ptTeam = null;       // drilled-into team (null = team leaderboard)
 let ptSort = 'slg', ptSortDir = -1; // sort column + direction (-1 desc)
 let ptView = 'pitch';    // 'pitch' (per-pitch board) | 'grid' (teams × pitches pivot)
 let ptGridMetric = 'slg'; // metric the pivot ranks by
+let ptGridPin = null;    // pinned team in the grid — highlighted so the eye can follow it as rows re-sort
 let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if currently on the IL
 let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questionable (NOT on the IL), from ESPN
 let returningInjured = []; // injured hitters (IL + DTD) with ESPN's estimated return dates — Returning Boppers tool
@@ -7038,6 +7046,7 @@ const PT_PITCH_ABBR = { '4-Seam Fastball':'4S', 'Sinker':'SI', 'Cutter':'FC', 'S
 const PT_GRID_METRICS = [ {k:'slg',lbl:'SLG'}, {k:'ba',lbl:'BA'}, {k:'barrel',lbl:'Barrel%'}, {k:'hardhit',lbl:'Hard%'}, {k:'sweetspot',lbl:'Sweet%'}, {k:'whiff',lbl:'Whiff%'}, {k:'cq',lbl:'Contact'} ];
 function ptSetView(v) { ptView = v; renderPitchTypes(); }
 function ptSetGridMetric(m) { ptGridMetric = m; renderPitchTypes(); }
+function ptTogglePin(t) { ptGridPin = (ptGridPin === t) ? null : t; renderPitchTypes(); } // pin/unpin a team row in the grid
 // Rank 1 (best) → green, rank N (worst) → red; a translucent tint that reads on
 // both themes.
 function ptRankColor(rank, n) {
@@ -7075,9 +7084,10 @@ function ptRenderGrid() {
       const thin = paBy[p][o.team] < PT_THIN_TEAM_PA;
       return `<td class="pt-gcell${thin?' pt-gthin':''}" style="${ptRankColor(rk,N)}" title="${o.team} ranks #${rk}/${N} vs ${p} (${metricLbl} ${fmt(valBy[p][o.team])})${thin?` · thin sample: ${paBy[p][o.team]} PA`:''}">${rk}${thin?'<span class="pt-gstar">*</span>':''}</td>`;
     }).join('');
-    return `<tr class="pt-row"><td class="pt-first"><span class="pt-rank">${i+1}</span>${teamLogoImg(o.team,'team-logo')}<span class="pt-name">${o.team}</span></td>${cells}<td class="pt-gcell pt-gavg">${o.avg.toFixed(1)}</td></tr>`;
+    const pinned = o.team === ptGridPin;
+    return `<tr class="pt-row${pinned?' pt-pinned':''}"><td class="pt-first pt-pinnable" onclick="ptTogglePin('${o.team}')" title="Tap to ${pinned?'unpin':'pin'} ${o.team} — follow it as rows re-sort"><span class="pt-rank">${i+1}</span>${teamLogoImg(o.team,'team-logo')}<span class="pt-name">${o.team}</span>${pinned?'<span class="pt-pin">📌</span>':''}</td>${cells}<td class="pt-gcell pt-gavg">${o.avg.toFixed(1)}</td></tr>`;
   }).join('');
-  return `<div class="pt-meta">Each cell is that team's <b>rank vs that pitch</b> by <b>${metricLbl}</b> — <span style="color:#63b97e">green = hits it best</span>, red = worst. Rows sorted by overall (AVG rank). <b>*</b> = thin sample (&lt;${PT_THIN_TEAM_PA} PA, e.g. splitters).</div>`
+  return `<div class="pt-meta">Each cell is that team's <b>rank vs that pitch</b> by <b>${metricLbl}</b> — <span style="color:#63b97e">green = hits it best</span>, red = worst. Rows sorted by overall (AVG rank). <b>Tap a team name to pin it</b> and follow it as the ranking re-sorts. <b>*</b> = thin sample (&lt;${PT_THIN_TEAM_PA} PA, e.g. splitters).</div>`
     + metricSel + `<div class="tbl-scroll"><table class="pt-table pt-grid"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 function renderPitchTypes() {
