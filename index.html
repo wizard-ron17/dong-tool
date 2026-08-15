@@ -539,7 +539,8 @@
      The 56px headshot style is scoped to the direct-child img only — the little
      team logo inside .pk-sub must keep its inline 1.05em size. */
   .pk-face { display: flex; align-items: stretch; gap: 0.45rem; margin-bottom: 0.7rem; }
-  .pk-side { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.65rem 0.4rem 0.55rem; text-align: center; }
+  .pk-side { flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; align-items: center; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.65rem 0.4rem 0.55rem; text-align: center; }
+  .pk-side:focus-within { z-index: 30; } /* lift the side whose search dropdown is open above its siblings */
   .pk-side > img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: var(--surface2); border: 1px solid var(--border2); margin-bottom: 0.3rem; }
   /* Matchup Lab faces: bigger, higher-res, team-colored ring (color + glow set inline). */
   .pk-side > img.mu-photo { width: 76px; height: 76px; border-width: 3px; border-style: solid; object-position: center 30%; margin-bottom: 0.35rem; }
@@ -553,6 +554,20 @@
   input.pk-name.mu-face-input:focus { outline: none; border-bottom-color: var(--accent); background: var(--surface2); cursor: text; }
   .mu-search-ico { position: absolute; right: 1px; top: 42%; transform: translateY(-50%); width: 11px; height: 11px; color: var(--muted); pointer-events: none; transition: color 0.15s; }
   .mu-search:hover .mu-search-ico, .mu-search:focus-within .mu-search-ico { color: var(--accent); }
+  /* Custom search dropdown — options ranked by matchup score. */
+  .mu-dd { position: absolute; top: calc(100% + 5px); z-index: 60; width: 252px; max-width: 86vw; max-height: 268px; overflow-y: auto; background: var(--surface0); border: 1px solid var(--border2); border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,0.5); display: none; text-align: left; }
+  .mu-dd.open { display: block; }
+  #mu-dd-batter { left: 0; }
+  #mu-dd-pitcher { right: 0; }
+  .mu-dd-head { position: sticky; top: 0; background: var(--surface0); font-size: 0.5rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 700; padding: 0.42rem 0.6rem 0.32rem; border-bottom: 1px solid var(--border); }
+  .mu-ddi { display: flex; align-items: center; gap: 0.45rem; padding: 0.34rem 0.55rem; cursor: pointer; }
+  .mu-ddi.active, .mu-ddi:hover { background: var(--surface2); }
+  .mu-ddi-photo { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; object-position: center 30%; background: var(--surface2); flex-shrink: 0; }
+  .mu-ddi-name { flex: 1; min-width: 0; font-size: 0.72rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mu-ddi-team { font-size: 0.54rem; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+  .mu-ddi-score { font-family: var(--font-d); font-weight: 700; font-size: 0.8rem; min-width: 2.1rem; text-align: right; flex-shrink: 0; }
+  .mu-ddi-score.great { color: var(--accent); } .mu-ddi-score.good { color: var(--gold); } .mu-ddi-score.ok { color: #ff7040; }
+  .mu-dd-empty { padding: 0.7rem; color: var(--muted); font-size: 0.68rem; text-align: center; }
   .mu-parkline { display: flex; align-items: center; gap: 0.4rem; margin: 0 0 0.7rem; }
   .mu-parkline-lbl { font-size: 0.58rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); flex: none; }
   .mu-parkline .mu-select { flex: 1; min-width: 0; }
@@ -5705,6 +5720,7 @@ function openPickModal(pid, board = 'chalk') {
 // multiply here — reproducing the pick model's starter-only slice for ANY pair.
 let matchupCards = null, matchupCardsLoading = false, muInitialized = false;
 let muBatterPid = null, muPitcherPid = null, muVenue = '__neutral__';
+let muDDOpen = null, muDDIdx = -1, muDDItems = []; // custom search dropdown state
 
 async function ensureMatchupCards() {
   if (matchupCards || matchupCardsLoading) return;
@@ -5788,7 +5804,58 @@ function muPhotoTag(pid, team, extra) {
 // Tapping a loaded face erases the name (ready for a fresh search + full list)
 // rather than letting you edit mid-name; blur restores it if nothing was picked.
 function muFaceFocus(el) { el.dataset.prev = el.value; el.value = ''; }
-function muFaceBlur(el)  { if (!el.value.trim() && el.dataset.prev != null) el.value = el.dataset.prev; }
+// ── Custom search dropdown — every option shows its matchup score vs the loaded
+// opposite side, sorted best-first. Native <datalist> can't show/sort that.
+function muDDCompute(which, q) {
+  const C = matchupCards;
+  const arr = which === 'batter' ? C.batters : C.pitchers;
+  const opp = which === 'batter' ? C._pIdx[muPitcherPid] : C._bIdx[muBatterPid];
+  if (!opp) return arr.slice(0, 60).map(x => ({ x, score: 0 }));
+  const ql = (q || '').trim().toLowerCase();
+  let list = arr.map(x => ({ x, score: which === 'batter' ? scoreMatchup(x, opp, muVenue).pickScore : scoreMatchup(opp, x, muVenue).pickScore }));
+  if (ql) list = list.filter(o => o.x.name.toLowerCase().includes(ql) || (o.x.team || '').toLowerCase().includes(ql));
+  list.sort((a, b) => b.score - a.score);
+  return list.slice(0, 60);
+}
+function muDDRender(which) {
+  const input = document.getElementById('mu-input-' + which);
+  const dd = document.getElementById('mu-dd-' + which);
+  if (!input || !dd) return;
+  const items = muDDCompute(which, input.value);
+  muDDItems = items;
+  if (muDDIdx >= items.length) muDDIdx = items.length - 1;
+  const oppLbl = which === 'batter' ? 'vs this pitcher' : 'vs this batter';
+  dd.innerHTML = `<div class="mu-dd-head">Matchup score ${oppLbl} — best first</div>` + (items.length
+    ? items.map((o, i) => `<div class="mu-ddi${i === muDDIdx ? ' active' : ''}" onmousedown="event.preventDefault();muDDPick('${which}','${o.x.pid}')">
+        <img class="mu-ddi-photo" src="${playerPhotoUrl(o.x.pid)}" alt="" loading="lazy">
+        <span class="mu-ddi-name">${compactPlayerName(o.x.name)}</span>
+        <span class="mu-ddi-team">${o.x.team || ''}${o.x.role ? ' · ' + o.x.role : ''}</span>
+        <span class="mu-ddi-score ${pickScoreClass(o.score)}">${o.score.toFixed(1)}</span>
+      </div>`).join('')
+    : `<div class="mu-dd-empty">No match</div>`);
+  dd.classList.add('open');
+}
+function muDDShow(which) {
+  muDDOpen = which; muDDIdx = -1;
+  document.getElementById('mu-dd-' + (which === 'batter' ? 'pitcher' : 'batter'))?.classList.remove('open');
+  muDDRender(which);
+}
+function muDDHide(which, el) {
+  setTimeout(() => { document.getElementById('mu-dd-' + which)?.classList.remove('open'); if (muDDOpen === which) muDDOpen = null; }, 160);
+  const C = matchupCards, cur = which === 'batter' ? C._bIdx[muBatterPid] : C._pIdx[muPitcherPid];
+  if (cur && el) el.value = cur.name; // a partial/empty entry shouldn't stick
+}
+function muDDPick(which, pid) {
+  if (which === 'batter') muBatterPid = pid; else muPitcherPid = pid;
+  muDDOpen = null; renderMatchups();
+}
+function muDDScrollActive(which) { document.getElementById('mu-dd-' + which)?.querySelector('.mu-ddi.active')?.scrollIntoView({ block: 'nearest' }); }
+function muDDKey(which, e) {
+  if (e.key === 'ArrowDown') { e.preventDefault(); muDDIdx = Math.min(muDDItems.length - 1, muDDIdx + 1); muDDRender(which); muDDScrollActive(which); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); muDDIdx = Math.max(0, muDDIdx - 1); muDDRender(which); muDDScrollActive(which); }
+  else if (e.key === 'Enter') { if (muDDIdx >= 0 && muDDItems[muDDIdx]) { e.preventDefault(); muDDPick(which, muDDItems[muDDIdx].x.pid); } }
+  else if (e.key === 'Escape') { document.getElementById('mu-input-' + which)?.blur(); }
+}
 function setMatchupByLabel(which, label) {
   const C = matchupCards, map = which === 'batter' ? C._bLabel : C._pLabel, arr = which === 'batter' ? C.batters : C.pitchers;
   const t = (label || '').trim();
@@ -5824,7 +5891,6 @@ function renderMatchups() {
 function matchupBreakdownHtml(b, p) {
   const C = matchupCards;
   const s = scoreMatchup(b, p, muVenue), f = s.factors, cls = pickScoreClass(s.pickScore);
-  const dlOpts = arr => [...arr].sort((a, c) => a.name.localeCompare(c.name)).map(x => `<option value="${muLabel(x)}"></option>`).join('');
   const parkOpts = `<option value="__neutral__"${muVenue === '__neutral__' ? ' selected' : ''}>Neutral park</option>`
     + Object.keys(C.parkFactors).sort((a, c) => a.localeCompare(c, undefined, { sensitivity: 'base' })).map(v => `<option value="${v}"${v === muVenue ? ' selected' : ''}>${v} (${C.parkFactors[v].toFixed(2)}×)</option>`).join('');
   const esc = str => (str || '').replace(/"/g, '&quot;');
@@ -5846,9 +5912,10 @@ function matchupBreakdownHtml(b, p) {
     <div class="pk-face">
       <div class="pk-side">
         ${muPhotoTag(b.pid, b.team)}
-        <span class="mu-search" title="Tap to search a different batter">
-          <input class="pk-name mu-face-input" list="mu-batter-list" value="${esc(b.name)}" placeholder="Search a batter…" onchange="setMatchupByLabel('batter', this.value)" onfocus="muFaceFocus(this)" onblur="muFaceBlur(this)" aria-label="Search batter">
+        <span class="mu-search" title="Tap to search — options ranked by matchup score">
+          <input class="pk-name mu-face-input" id="mu-input-batter" value="${esc(b.name)}" placeholder="Search a batter…" autocomplete="off" onfocus="muFaceFocus(this);muDDShow('batter')" oninput="muDDShow('batter')" onkeydown="muDDKey('batter',event)" onblur="muDDHide('batter',this)" aria-label="Search batter">
           <svg class="mu-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>
+          <div class="mu-dd" id="mu-dd-batter"></div>
         </span>
         <div class="pk-sub">${teamLogoImg(b.team,'team-logo')}${b.team} · Bats ${bHandTxt}</div>
         <div class="pk-stat"><span class="hrg-val great">${b.hrs} HR</span>${abPerHR ? ` <span class="pk-stat-dim">· ${abPerHR} AB/HR</span>` : ''}${b.blastPct != null ? ` <span class="pk-stat-dim">· 💥 ${Math.round(b.blastPct*100)}% Blast</span>` : ''}</div>
@@ -5861,16 +5928,15 @@ function matchupBreakdownHtml(b, p) {
       </div>
       <div class="pk-side">
         ${muPhotoTag(p.pid, p.team)}
-        <span class="mu-search" title="Tap to search a different pitcher">
-          <input class="pk-name mu-face-input" list="mu-pitcher-list" value="${esc(p.name)}" placeholder="Search a pitcher…" onchange="setMatchupByLabel('pitcher', this.value)" onfocus="muFaceFocus(this)" onblur="muFaceBlur(this)" aria-label="Search pitcher">
+        <span class="mu-search" title="Tap to search — options ranked by matchup score">
+          <input class="pk-name mu-face-input" id="mu-input-pitcher" value="${esc(p.name)}" placeholder="Search a pitcher…" autocomplete="off" onfocus="muFaceFocus(this);muDDShow('pitcher')" oninput="muDDShow('pitcher')" onkeydown="muDDKey('pitcher',event)" onblur="muDDHide('pitcher',this)" aria-label="Search pitcher">
           <svg class="mu-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>
+          <div class="mu-dd" id="mu-dd-pitcher"></div>
         </span>
         <div class="pk-sub">${teamLogoImg(p.team,'team-logo')}${p.team} · Throws ${pHandTxt}${p.role ? ` · ${p.role}` : ''}</div>
         <div class="pk-stat">${p.fbVelo != null || p.hardPct != null ? `<span class="pk-stat-dim">${p.fbVelo != null ? `🔥 ${p.fbVelo} mph` : ''}${p.fbVelo != null && p.hardPct != null ? ' · ' : ''}${p.hardPct != null ? `💥 ${p.hardPct}% hard` : ''}</span>` : '<span class="pk-stat-dim">No stuff data</span>'}</div>
       </div>
     </div>
-    <datalist id="mu-batter-list">${dlOpts(C.batters)}</datalist>
-    <datalist id="mu-pitcher-list">${dlOpts(C.pitchers)}</datalist>
     <div class="mu-parkline">
       <span class="mu-parkline-lbl">Park</span>
       <select class="mu-select" onchange="setMatchupVenue(this.value)">${parkOpts}</select>
