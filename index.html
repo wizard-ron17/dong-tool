@@ -546,9 +546,13 @@
   .pk-name { max-width: 100%; font-family: var(--font-d); font-weight: 800; font-size: 1.02rem; color: var(--text-strong); line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* Matchup Lab: the face name IS the search box (batter/pitcher picker merged
      into the card), so a name isn't shown twice. */
-  input.pk-name.mu-face-input { width: 100%; box-sizing: border-box; background: transparent; border: none; border-bottom: 1px dashed var(--border2); border-radius: 0; text-align: center; padding: 0.05rem 0.1rem 0.14rem; cursor: text; -webkit-appearance: none; appearance: none; }
-  input.pk-name.mu-face-input:hover { border-bottom-color: var(--muted); }
-  input.pk-name.mu-face-input:focus { outline: none; border-bottom-color: var(--accent); background: var(--surface2); }
+  .mu-search { position: relative; display: block; width: 100%; }
+  input.pk-name.mu-face-input { width: 100%; box-sizing: border-box; background: transparent; border: none; border-bottom: 1px dashed var(--border2); border-radius: 0; text-align: center; padding: 0.05rem 0.85rem 0.14rem; cursor: pointer; -webkit-appearance: none; appearance: none; }
+  input.pk-name.mu-face-input::placeholder { color: var(--muted); font-weight: 500; }
+  .mu-search:hover input.pk-name.mu-face-input { border-bottom-color: var(--muted); }
+  input.pk-name.mu-face-input:focus { outline: none; border-bottom-color: var(--accent); background: var(--surface2); cursor: text; }
+  .mu-search-ico { position: absolute; right: 1px; top: 42%; transform: translateY(-50%); width: 11px; height: 11px; color: var(--muted); pointer-events: none; transition: color 0.15s; }
+  .mu-search:hover .mu-search-ico, .mu-search:focus-within .mu-search-ico { color: var(--accent); }
   .mu-parkline { display: flex; align-items: center; gap: 0.4rem; margin: 0 0 0.7rem; }
   .mu-parkline-lbl { font-size: 0.58rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); flex: none; }
   .mu-parkline .mu-select { flex: 1; min-width: 0; }
@@ -1473,12 +1477,13 @@
         <span class="due-explainer-cta"></span>
         <span class="due-explainer-chevron" id="matchups-explainer-chevron">▶</span>
       </div>
+      <div class="due-explainer-teaser">Break down any batter vs any pitcher — power, platoons, arm stuff, pitch synergy &amp; park, scored like our Picks board.</div>
       <div class="due-explainer-body" id="matchups-explainer-body" style="display:none">
-        Pick <b>any</b> hitter and <b>any</b> starter and get the same breakdown our Picks board runs —
-        power, blast%, both platoon edges, arm stuff, pitch-type synergy, and park — combined into a matchup score.
-        It's the <b>starter-only</b> view: bullpen, lineup spot, and game-time weather are live-game factors, so they're
-        left neutral here (you'll see those on the real <a href="javascript:void(0)" onclick="switchNav('picks')">Picks</a> board).
-        Defaults to today's top Chalk pick vs the arm he's facing.
+        <ul>
+          <li>Pick <b>any</b> hitter and <b>any</b> starter → the same breakdown the Picks board runs: base power, Blast%, both platoon edges, arm stuff, pitch-type synergy, and park, combined into a matchup score.</li>
+          <li><b>Starter-only view</b> — bullpen, lineup spot, and game-time weather are live-game factors, so they stay neutral here (you'll see those on the real <a href="javascript:void(0)" onclick="switchNav('picks')">Picks</a> board).</li>
+          <li>Defaults to today's top Chalk pick vs the arm he's facing. <b>Tap either name</b> (🔍) to search a different batter or pitcher.</li>
+        </ul>
       </div>
     </div>
     <div id="matchups-content"><div class="empty">Loading matchup data…</div></div>
@@ -5780,6 +5785,10 @@ function muPhotoTag(pid, team, extra) {
 // Resolve a typed/picked search value back to a pid. On no match (a partial the
 // user didn't finish), just re-render — that restores the input to the current
 // pick's label, so a stray keystroke can't clear the selection.
+// Tapping a loaded face erases the name (ready for a fresh search + full list)
+// rather than letting you edit mid-name; blur restores it if nothing was picked.
+function muFaceFocus(el) { el.dataset.prev = el.value; el.value = ''; }
+function muFaceBlur(el)  { if (!el.value.trim() && el.dataset.prev != null) el.value = el.dataset.prev; }
 function setMatchupByLabel(which, label) {
   const C = matchupCards, map = which === 'batter' ? C._bLabel : C._pLabel, arr = which === 'batter' ? C.batters : C.pitchers;
   const t = (label || '').trim();
@@ -5837,7 +5846,10 @@ function matchupBreakdownHtml(b, p) {
     <div class="pk-face">
       <div class="pk-side">
         ${muPhotoTag(b.pid, b.team)}
-        <input class="pk-name mu-face-input" list="mu-batter-list" value="${esc(b.name)}" onchange="setMatchupByLabel('batter', this.value)" onfocus="this.select()" aria-label="Search batter" title="Click to search a batter">
+        <span class="mu-search" title="Tap to search a different batter">
+          <input class="pk-name mu-face-input" list="mu-batter-list" value="${esc(b.name)}" placeholder="Search a batter…" onchange="setMatchupByLabel('batter', this.value)" onfocus="muFaceFocus(this)" onblur="muFaceBlur(this)" aria-label="Search batter">
+          <svg class="mu-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>
+        </span>
         <div class="pk-sub">${teamLogoImg(b.team,'team-logo')}${b.team} · Bats ${bHandTxt}</div>
         <div class="pk-stat"><span class="hrg-val great">${b.hrs} HR</span>${abPerHR ? ` <span class="pk-stat-dim">· ${abPerHR} AB/HR</span>` : ''}${b.blastPct != null ? ` <span class="pk-stat-dim">· 💥 ${Math.round(b.blastPct*100)}% Blast</span>` : ''}</div>
       </div>
@@ -5849,7 +5861,10 @@ function matchupBreakdownHtml(b, p) {
       </div>
       <div class="pk-side">
         ${muPhotoTag(p.pid, p.team)}
-        <input class="pk-name mu-face-input" list="mu-pitcher-list" value="${esc(p.name)}" onchange="setMatchupByLabel('pitcher', this.value)" onfocus="this.select()" aria-label="Search pitcher" title="Click to search a pitcher">
+        <span class="mu-search" title="Tap to search a different pitcher">
+          <input class="pk-name mu-face-input" list="mu-pitcher-list" value="${esc(p.name)}" placeholder="Search a pitcher…" onchange="setMatchupByLabel('pitcher', this.value)" onfocus="muFaceFocus(this)" onblur="muFaceBlur(this)" aria-label="Search pitcher">
+          <svg class="mu-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>
+        </span>
         <div class="pk-sub">${teamLogoImg(p.team,'team-logo')}${p.team} · Throws ${pHandTxt}${p.role ? ` · ${p.role}` : ''}</div>
         <div class="pk-stat">${p.fbVelo != null || p.hardPct != null ? `<span class="pk-stat-dim">${p.fbVelo != null ? `🔥 ${p.fbVelo} mph` : ''}${p.fbVelo != null && p.hardPct != null ? ' · ' : ''}${p.hardPct != null ? `💥 ${p.hardPct}% hard` : ''}</span>` : '<span class="pk-stat-dim">No stuff data</span>'}</div>
       </div>
