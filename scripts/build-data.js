@@ -818,7 +818,7 @@ function pickPositionalLineup(pids, posOf, limit = 9) {
   return pids.filter(pid => used.has(pid)).slice(0, limit);
 }
 
-async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {}, openerBulk = {}, weatherByVenue = {}, batMetaMap = {}) {
+async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {}, openerBulk = {}, weatherByVenue = {}, batMetaMap = {}, injuryStatus = {}) {
   try {
     // Identify a team's likely everyday starters when the official lineup
     // hasn't posted yet. Uses season-long data: guys who've appeared in at
@@ -833,6 +833,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
           (playerGames[pid] ?? 0) >= 15 &&
           (playerABs[pid] ?? 0) / Math.max(playerGames[pid] ?? 1, 1) >= 1.5 &&
           (hrTotals[pid] ?? 0) >= PICKS_MIN_HR &&
+          !injuryStatus[pid] &&
           daysSince(playerLastGame[pid] || '2000-01-01') <= 7
         )
         .sort((a, b) => (playerGames[b] ?? 0) - (playerGames[a] ?? 0));
@@ -851,6 +852,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
           : projectedLineup(me.teamAbbr).map(p => ({ ...p, projected: true }));
         for (const p of batters) {
           if (p.position === 'P') continue;
+          if (injuryStatus[p.pid]) continue; // on the IL — never a pick, even off a posted lineup
           if ((hrTotals[p.pid] ?? 0) < PICKS_MIN_HR) continue;
           if ((playerABs[p.pid] ?? 0) < 20) continue;
           candidates.push({ pid: p.pid, team: me.teamAbbr, oppTeam: opp.teamAbbr, oppPid: opp.probablePitcherId, oppName: opp.probablePitcher, venue: g.venue, projected: p.projected, order: p.order });
@@ -1585,7 +1587,7 @@ async function fetchCatcherCS(pids) {
   return out;
 }
 
-async function computeSteals(todaySchedule, batMetaMap, stealData) {
+async function computeSteals(todaySchedule, batMetaMap, stealData, injuryStatus = {}) {
   const { sprint, runners, catchers } = stealData;
   if (!Object.keys(runners).length) return [];
 
@@ -1595,6 +1597,7 @@ async function computeSteals(todaySchedule, batMetaMap, stealData) {
     const el = Object.keys(playerTeams).filter(pid =>
       playerTeams[pid] === teamAbbr && (playerGames[pid] ?? 0) >= 15 &&
       (playerABs[pid] ?? 0) / Math.max(playerGames[pid] ?? 1, 1) >= 1.5 &&
+      !injuryStatus[pid] &&
       daysSince(playerLastGame[pid] || '2000-01-01') <= 7)
       .sort((a, b) => (playerGames[b] ?? 0) - (playerGames[a] ?? 0));
     return pickPositionalLineup(el, pid => batMetaMap[pid]?.p || '');
@@ -2845,8 +2848,14 @@ async function main() {
   console.log("Fetching bullpen data for today's games...");
   const bullpens = await fetchBullpens(todaySchedule, teamIdToAbbr);
 
+  // IL status must be known BEFORE picks so a hitter who's on the injured list
+  // can't be projected into a lineup or chalk-picked. The client already excludes
+  // IL players from its projection; fetching here keeps the two in lockstep.
+  console.log('Checking injured-list status...');
+  const injuryStatus = await fetchInjuryStatus();
+
   console.log("Computing today's HR picks (matchups, splits, pitch-type profiles)...");
-  const { picks: freshPicks, value: freshValue, cards: matchupCards, stuff: stuffCov } = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue, batMeta);
+  const { picks: freshPicks, value: freshValue, cards: matchupCards, stuff: stuffCov } = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue, batMeta, injuryStatus);
   // Degraded-build guard #2: fetchPlatoonSplits swallows fetch errors into {},
   // which once collapsed a 28-pick slate to 1 pick (every pick null-handed,
   // platoon factors gone, scores under the floor). On a real build with games,
@@ -2893,7 +2902,7 @@ async function main() {
   let steals = [];
   try {
     const stealData = await fetchStealData();
-    steals = await computeSteals(todaySchedule, batMeta, stealData);
+    steals = await computeSteals(todaySchedule, batMeta, stealData, injuryStatus);
     if (!steals.length && prevSteals.length && sameSlate) steals = prevSteals; // Savant blip on same slate — keep last good
   } catch (e) { console.warn('  steal board failed — reusing previous:', e.message); steals = prevSteals; }
   if (steals.length) console.log(`  🏃 ${steals.length} on the steal board (top: ${steals.slice(0,3).map(s => `${s.name} ${s.stealScore}`).join(', ')})`);
@@ -2903,9 +2912,6 @@ async function main() {
   try { pitchArsenal = await computePitchArsenal(); }
   catch (e) { console.warn('  pitch arsenal failed — keeping last good file:', e.message); }
   if (pitchArsenal) console.log(`  ⚾ ${pitchArsenal.rows.length} batter-pitch rows across ${pitchArsenal.pitches.length} pitch types`);
-
-  console.log('Checking injured-list status...');
-  const injuryStatus = await fetchInjuryStatus();
 
   console.log('Checking day-to-day + returning injured hitters via ESPN...');
   const espnInj = await fetchESPNInjuries();
