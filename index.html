@@ -6293,8 +6293,17 @@ function picksResultMatch(p) { return picksFilters.board === 'full' || p.provenP
 // isn't strictly comparable to one after, so we surface these both as a list and
 // as dividers on the day-by-day timeline. Newest first; dates are ET (build day).
 const MODEL_CHANGELOG = [
-  { date: '2026-08-15', title: 'Arm Stuff now keys on barrel%-allowed', detail: 'Swapped the pitcher contact-quality input from hard-hit% to barrel%-allowed — a leak-free backtest showed barrel is the sharper HR predictor. Pick scores shift a little (~±3%).' },
+  { date: '2026-08-15', title: 'Arm Stuff now keys on barrel%-allowed', detail: 'Swapped the pitcher contact-quality input from hard-hit% to barrel%-allowed — a leak-free backtest showed barrel is the sharper HR predictor. Scores shift a little (~±3%).' },
   { date: '2026-08-15', title: 'Picks projection is injury-list aware', detail: 'A hitter freshly on the IL is no longer projected into a lineup or picked, matching the Schedule tab.' },
+  { date: '2026-08-12', title: 'Projected lineups field one of each position + DH', detail: 'Pre-lineup projection stopped starting two of a position (and skipping another), so which bats get projected — and picked — changed slightly.' },
+  { date: '2026-08-03', title: 'Self-calibrating "proven power" board + tighter floors', detail: 'Replaced the fixed HR minimum with a board that calibrates to the day\'s power, and raised the Chalk floor to Score ≥ 9 — changes who qualifies.' },
+  { date: '2026-08-03', title: 'Hand-aware wind/weather factor added', detail: 'A new scoring factor: wind direction (out to LF/RF) read against the batter\'s handedness.' },
+  { date: '2026-08-02', title: 'Pitcher Arm Stuff factor added', detail: 'Added the pitcher HR-vulnerability factor (4-seam velo + contact quality) to every score — a major addition.' },
+  { date: '2026-08-02', title: 'Lineup-slot (plate-appearances) factor added', detail: 'Scores now nudge up/down for how many PAs a lineup spot projects to see.' },
+  { date: '2026-07-31', title: 'Value board switched to residual Blast surplus', detail: 'Value re-ranked by Blast% above what raw power predicts, to de-overlap it from Chalk.' },
+  { date: '2026-07-30', title: 'Value (Blast%) board added', detail: 'Introduced the Chalk/Value toggle — the same pool re-ranked by Blast% × matchup.' },
+  { date: '2026-07-19', title: 'Pitch synergy matched to the batter\'s own side', detail: 'Synergy now compares the batter\'s HR-by-pitch profile against the pitcher\'s mix vs that batter\'s handedness, not the blended mix.' },
+  { date: '2026-07-16', title: 'Pick floors set (Score ≥ 7, ≥ 3 HR)', detail: 'Settled the Chalk cutoff and moved finer filtering to client-side controls — the start of the tracked window\'s scoring.' },
 ];
 function picksChangelogHtml() {
   if (!MODEL_CHANGELOG.length) return '';
