@@ -568,6 +568,27 @@
   .mu-ddi-score { font-family: var(--font-d); font-weight: 700; font-size: 0.8rem; min-width: 2.1rem; text-align: right; flex-shrink: 0; }
   .mu-ddi-score.great { color: var(--accent); } .mu-ddi-score.good { color: var(--gold); } .mu-ddi-score.ok { color: #ff7040; }
   .mu-dd-empty { padding: 0.7rem; color: var(--muted); font-size: 0.68rem; text-align: center; }
+  .mu-dd-hint { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--muted); opacity: 0.85; }
+  /* Handedness badge — shown in the search dropdown and suggestion cards */
+  .mu-hand { flex-shrink: 0; font-size: 0.48rem; font-weight: 800; letter-spacing: 0.03em; padding: 0.04rem 0.22rem; border-radius: 3px; vertical-align: middle; }
+  .mu-hand.l { color: #6fb2ff; background: rgba(90,150,240,0.16); }
+  .mu-hand.r { color: #ff8a5c; background: rgba(240,120,70,0.15); }
+  .mu-hand.s { color: #c99bf0; background: rgba(180,120,240,0.16); }
+  /* "Load a matchup" suggestions shelf */
+  .mu-suggest { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; margin: 0 0 0.55rem; }
+  .mu-sug-lbl { font-size: 0.56rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-right: 0.1rem; }
+  .mu-sug-chip { display: inline-flex; align-items: center; gap: 0.28rem; font-size: 0.7rem; font-weight: 700; color: var(--text); background: var(--surface1); border: 1px solid var(--border); border-radius: 999px; padding: 0.22rem 0.6rem; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .mu-sug-chip:hover { border-color: var(--muted); }
+  .mu-sug-chip.active { border-color: var(--accent); background: var(--surface2); }
+  .mu-sug-n { font-size: 0.54rem; font-weight: 800; color: var(--muted); background: var(--surface0); border-radius: 999px; padding: 0.02rem 0.32rem; }
+  .mu-sug-strip { display: flex; gap: 0.5rem; overflow-x: auto; padding: 0.1rem 0.1rem 0.55rem; margin: 0 0 0.4rem; -webkit-overflow-scrolling: touch; }
+  .mu-sug-card { flex: 0 0 auto; width: 9.7rem; display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; text-align: left; background: var(--surface1); border: 1px solid var(--border); border-radius: 9px; padding: 0.45rem 0.5rem 0.5rem; cursor: pointer; transition: border-color 0.15s, transform 0.1s; position: relative; }
+  .mu-sug-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .mu-sug-photo { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; object-position: center 30%; background: var(--surface2); }
+  .mu-sug-bat { font-size: 0.7rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .mu-sug-vs { font-size: 0.56rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .mu-sug-score { position: absolute; top: 0.4rem; right: 0.45rem; font-family: var(--font-d); font-weight: 800; font-size: 0.82rem; }
+  .mu-sug-score.great { color: var(--accent); } .mu-sug-score.good { color: var(--gold); } .mu-sug-score.ok { color: #ff7040; }
   .mu-parkline { display: flex; align-items: center; gap: 0.4rem; margin: 0 0 0.7rem; }
   .mu-parkline-lbl { font-size: 0.58rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); flex: none; }
   .mu-parkline .mu-select { flex: 1; min-width: 0; }
@@ -5729,6 +5750,7 @@ function openPickModal(pid, board = 'chalk') {
 let matchupCards = null, matchupCardsLoading = false, muInitialized = false;
 let muBatterPid = null, muPitcherPid = null, muVenue = '__neutral__';
 let muDDOpen = null, muDDIdx = -1, muDDItems = []; // custom search dropdown state
+let muSuggestCat = null; // which "Load a matchup" shelf is open: 'chalk' | 'value' | 'due' | null
 
 async function ensureMatchupCards() {
   if (matchupCards || matchupCardsLoading) return;
@@ -5821,7 +5843,14 @@ function muDDCompute(which, q) {
   if (!opp) return arr.slice(0, 60).map(x => ({ x, score: 0 }));
   const ql = (q || '').trim().toLowerCase();
   let list = arr.map(x => ({ x, score: which === 'batter' ? scoreMatchup(x, opp, muVenue).pickScore : scoreMatchup(opp, x, muVenue).pickScore }));
-  if (ql) list = list.filter(o => o.x.name.toLowerCase().includes(ql) || (o.x.team || '').toLowerCase().includes(ql));
+  if (ql) {
+    // If the query is exactly a team code (e.g. "HOU"), it's a team pick — filter to
+    // that team only, so "HOU" doesn't also drag in the "hou" inside "Chourio".
+    const teamSet = (C._teamSet ||= new Set([...C.batters, ...C.pitchers].map(x => (x.team || '').toLowerCase()).filter(Boolean)));
+    list = teamSet.has(ql)
+      ? list.filter(o => (o.x.team || '').toLowerCase() === ql)
+      : list.filter(o => o.x.name.toLowerCase().includes(ql) || (o.x.team || '').toLowerCase().includes(ql));
+  }
   list.sort((a, b) => b.score - a.score);
   return list.slice(0, 60);
 }
@@ -5833,10 +5862,10 @@ function muDDRender(which) {
   muDDItems = items;
   if (muDDIdx >= items.length) muDDIdx = items.length - 1;
   const oppLbl = which === 'batter' ? 'vs this pitcher' : 'vs this batter';
-  dd.innerHTML = `<div class="mu-dd-head">Matchup score ${oppLbl} — best first</div>` + (items.length
+  dd.innerHTML = `<div class="mu-dd-head">Matchup score ${oppLbl} — best first · <span class="mu-dd-hint">search name or team (e.g. NYY)</span></div>` + (items.length
     ? items.map((o, i) => `<div class="mu-ddi${i === muDDIdx ? ' active' : ''}" onmousedown="event.preventDefault();muDDPick('${which}','${o.x.pid}')">
         <img class="mu-ddi-photo" src="${playerPhotoUrl(o.x.pid)}" alt="" loading="lazy">
-        <span class="mu-ddi-name">${compactPlayerName(o.x.name)}</span>
+        <span class="mu-ddi-name">${compactPlayerName(o.x.name)} ${muHandTag(which, o.x.hand)}</span>
         <span class="mu-ddi-team">${o.x.team || ''}${o.x.role ? ' · ' + o.x.role : ''}</span>
         <span class="mu-ddi-score ${pickScoreClass(o.score)}">${o.score.toFixed(1)}</span>
       </div>`).join('')
@@ -5896,6 +5925,68 @@ function renderMatchups() {
   const b = C._bIdx[muBatterPid], p = C._pIdx[muPitcherPid];
   el.innerHTML = (b && p) ? matchupBreakdownHtml(b, p) : '<div class="empty">Pick a batter and a pitcher.</div>';
 }
+// Today's opposing SP + venue for each team, from the schedule — lets us turn any
+// hitter (e.g. a Due-list bat, whose row carries no opponent) into a full matchup.
+function muTodayOppByTeam() {
+  const m = {};
+  for (const g of (todaySchedule || [])) {
+    if (g.home?.teamAbbr && g.away?.probablePitcherId) m[g.home.teamAbbr] = { oppPid: String(g.away.probablePitcherId), venue: g.venue };
+    if (g.away?.teamAbbr && g.home?.probablePitcherId) m[g.away.teamAbbr] = { oppPid: String(g.home.probablePitcherId), venue: g.venue };
+  }
+  return m;
+}
+// Build a de-duped list of ready-to-load matchups for a category. Chalk/Value rows
+// already carry oppPid+venue; Due rows are joined to today's opponent by team.
+// Only matchups whose BOTH sides exist in the matchup-card set are kept.
+function muSuggestList(cat) {
+  const C = matchupCards; if (!C) return [];
+  const oppByTeam = cat === 'due' ? muTodayOppByTeam() : null;
+  const src = cat === 'chalk' ? picks : cat === 'value' ? value : dueRows;
+  const out = [], seen = new Set();
+  for (const r of (src || [])) {
+    const pid = String(r.pid);
+    const opp = cat === 'due' ? oppByTeam?.[r.team] : { oppPid: String(r.oppPid), venue: r.venue };
+    if (!opp || !opp.oppPid) continue;
+    const b = C._bIdx[pid], pit = C._pIdx[opp.oppPid];
+    if (!b || !pit) continue;
+    const key = pid + '|' + opp.oppPid; if (seen.has(key)) continue; seen.add(key);
+    out.push({ b, p: pit, venue: (opp.venue && C.parkFactors[opp.venue]) ? opp.venue : '__neutral__',
+               score: scoreMatchup(b, pit, (opp.venue && C.parkFactors[opp.venue]) ? opp.venue : '__neutral__').pickScore });
+    if (out.length >= 12) break;
+  }
+  return out;
+}
+function muToggleSuggest(cat) { muSuggestCat = (muSuggestCat === cat) ? null : cat; renderMatchups(); }
+function muLoadMatchup(pid, oppPid, venue) {
+  const C = matchupCards; if (!C._bIdx[pid] || !C._pIdx[oppPid]) return;
+  muBatterPid = pid; muPitcherPid = oppPid; muVenue = (venue && C.parkFactors[venue]) ? venue : '__neutral__';
+  muDDOpen = null; renderMatchups();
+  document.getElementById('matchups-content')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+const MU_SUGGEST_CATS = [ { k:'chalk', lbl:'🔒 Chalk' }, { k:'value', lbl:'🎯 Value' }, { k:'due', lbl:'⏳ Due' } ];
+function muHandTag(which, hand) {
+  if (!hand) return '';
+  const t = which === 'batter' ? (hand === 'S' ? 'SH' : hand + 'HB') : hand + 'HP';
+  return `<span class="mu-hand ${hand.toLowerCase()}">${t}</span>`;
+}
+function muSuggestHtml() {
+  const esc = str => (str || '').replace(/"/g, '&quot;');
+  // Only show categories that actually have loadable matchups today.
+  const avail = MU_SUGGEST_CATS.map(c => ({ ...c, n: muSuggestList(c.k).length })).filter(c => c.n > 0);
+  if (!avail.length) return '';
+  const chips = avail.map(c => `<button class="mu-sug-chip${muSuggestCat === c.k ? ' active' : ''}" onclick="muToggleSuggest('${c.k}')">${c.lbl}<span class="mu-sug-n">${c.n}</span></button>`).join('');
+  let strip = '';
+  if (muSuggestCat && avail.some(c => c.k === muSuggestCat)) {
+    strip = `<div class="mu-sug-strip">` + muSuggestList(muSuggestCat).map(o => `
+      <button class="mu-sug-card" onclick="muLoadMatchup('${o.b.pid}','${o.p.pid}','${o.venue}')" title="Load ${esc(o.b.name)} vs ${esc(o.p.name)}">
+        <img class="mu-sug-photo" src="${playerPhotoUrl(o.b.pid)}" alt="" loading="lazy">
+        <span class="mu-sug-bat">${compactPlayerName(o.b.name)} ${muHandTag('batter', o.b.hand)}</span>
+        <span class="mu-sug-vs">vs ${compactPlayerName(o.p.name)} ${muHandTag('pitcher', o.p.hand)}</span>
+        <span class="mu-sug-score ${pickScoreClass(o.score)}">${o.score.toFixed(1)}</span>
+      </button>`).join('') + `</div>`;
+  }
+  return `<div class="mu-suggest"><span class="mu-sug-lbl">Load a matchup</span>${chips}</div>${strip}`;
+}
 function matchupBreakdownHtml(b, p) {
   const C = matchupCards;
   const s = scoreMatchup(b, p, muVenue), f = s.factors, cls = pickScoreClass(s.pickScore);
@@ -5917,11 +6008,12 @@ function matchupBreakdownHtml(b, p) {
   const mixRows = s.mix?.length ? s.mix.map(m => pitchRow(m.name, `${m.pct}%`, hrNames.has(m.name))).join('') : '<div class="pk-pitch-empty">No mix data yet</div>';
   const overlap = b.hrProfile?.some(h => mixNames.has(h.name));
   return `
+    ${muSuggestHtml()}
     <div class="pk-face">
       <div class="pk-side">
         ${muPhotoTag(b.pid, b.team)}
         <span class="mu-search" title="Tap to search — options ranked by matchup score">
-          <input class="pk-name mu-face-input" id="mu-input-batter" value="${esc(b.name)}" placeholder="Search a batter…" autocomplete="off" onfocus="muFaceFocus(this);muDDShow('batter')" oninput="muDDShow('batter')" onkeydown="muDDKey('batter',event)" onblur="muDDHide('batter',this)" aria-label="Search batter">
+          <input class="pk-name mu-face-input" id="mu-input-batter" value="${esc(b.name)}" placeholder="Batter or team (e.g. NYY)…" autocomplete="off" onfocus="muFaceFocus(this);muDDShow('batter')" oninput="muDDShow('batter')" onkeydown="muDDKey('batter',event)" onblur="muDDHide('batter',this)" aria-label="Search batter">
           <svg class="mu-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>
           <div class="mu-dd" id="mu-dd-batter"></div>
         </span>
@@ -5937,7 +6029,7 @@ function matchupBreakdownHtml(b, p) {
       <div class="pk-side">
         ${muPhotoTag(p.pid, p.team)}
         <span class="mu-search" title="Tap to search — options ranked by matchup score">
-          <input class="pk-name mu-face-input" id="mu-input-pitcher" value="${esc(p.name)}" placeholder="Search a pitcher…" autocomplete="off" onfocus="muFaceFocus(this);muDDShow('pitcher')" oninput="muDDShow('pitcher')" onkeydown="muDDKey('pitcher',event)" onblur="muDDHide('pitcher',this)" aria-label="Search pitcher">
+          <input class="pk-name mu-face-input" id="mu-input-pitcher" value="${esc(p.name)}" placeholder="Pitcher or team (e.g. LAD)…" autocomplete="off" onfocus="muFaceFocus(this);muDDShow('pitcher')" oninput="muDDShow('pitcher')" onkeydown="muDDKey('pitcher',event)" onblur="muDDHide('pitcher',this)" aria-label="Search pitcher">
           <svg class="mu-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>
           <div class="mu-dd" id="mu-dd-pitcher"></div>
         </span>
