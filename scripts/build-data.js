@@ -646,11 +646,12 @@ const PICKS_RATIO_MAX     = 1.4;
 // velo / more barrels allowed = more vulnerable (>1), a flamethrower who muffles
 // contact = <1.
 const STUFF_W_VELO   = 0.05;  // per mph below the day's median 4-seam velo
-const STUFF_W_BARREL = 4.0;   // per unit of (barrel%−median), as a fraction. ≈ the
-                              // old hard-hit weight (1.7) rescaled for barrel%'s
-                              // ~2.3× tighter spread, so Arm Stuff's overall lever
-                              // is unchanged — only the metric sharpens. Refine off
-                              // picksHistory's logged `f` factors once they accrue.
+const STUFF_W_BARREL = 4.2;   // per unit of (barrel%−median), as a fraction = the old
+                              // hard-hit weight (1.7) rescaled by the measured spread
+                              // ratio SD(hardPct)/SD(barrelPct)=2.49 across the pitcher
+                              // pool, so Arm Stuff's overall lever is unchanged — only
+                              // the metric sharpens. Refine off picksHistory's logged
+                              // `f` factors once they accrue.
 const STUFF_MIN_BBE  = 40;    // batted balls needed for a contact-quality read
 const STUFF_MIN_FB   = 20;    // 4-seam pitches needed for a velo read
 // Lineup position → plate-appearance multiplier. A HR bet is a single-game
