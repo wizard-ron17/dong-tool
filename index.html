@@ -1024,7 +1024,7 @@
   .ms-away-lbl { font-size: 0.5rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); margin-top: 0.12rem; white-space: nowrap; }
   /* ── Steals ── */
   .sb-list { display: flex; flex-direction: column; gap: 0.5rem; }
-  .sb-card { display: flex; align-items: center; gap: 0.6rem; background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.7rem; animation: fadeIn 0.15s ease; }
+  .sb-card { display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem; background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.7rem; animation: fadeIn 0.15s ease; }
   .sb-rank { flex-shrink: 0; width: 1.1rem; text-align: center; font-family: var(--font-d); font-weight: 700; font-size: 0.9rem; color: var(--muted); }
   .sb-rank.gold { color: var(--gold); } .sb-rank.silver { color: var(--silver); } .sb-rank.bronze { color: #c07840; }
   .lbcp-proj { font-size: 0.5rem; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: 0.03em; margin-left: 0.2rem; }
@@ -1046,6 +1046,14 @@
   .sb-score.great b { color: var(--accent); } .sb-score.good b { color: var(--gold); } .sb-score.ok b { color: var(--silver); }
   .sb-card { cursor: pointer; }
   .sb-card:hover { border-color: var(--border2); background: var(--surface1); }
+  /* Mobile: the Run/Safe/Steal metrics drop to a full-width second row so the
+     name + matchup line get the whole width instead of getting scrunched. */
+  @media (max-width: 600px) {
+    .sb-metrics { flex-basis: 100%; justify-content: space-around; margin-top: 0.4rem; padding-top: 0.45rem; border-top: 1px solid var(--border); gap: 0.4rem; }
+    .sb-metric { flex: 1; min-width: 0; }
+    .sb-metric b { font-size: 0.92rem; }
+    .sb-score b { font-size: 1.15rem; }
+  }
   /* Steal breakdown modal — the matchup on a diamond */
   .sb-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.66); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 1rem; animation: fadeIn 0.15s ease; }
   .sb-modal { position: relative; background: var(--surface0); border: 1px solid var(--border2); border-radius: 14px; width: 100%; max-width: 380px; padding: 1rem 1rem 1.2rem; box-shadow: 0 12px 44px rgba(0,0,0,0.55); max-height: 92vh; overflow-y: auto; }
