@@ -6305,14 +6305,28 @@ const MODEL_CHANGELOG = [
   { date: '2026-07-19', title: 'Pitch synergy matched to the batter\'s own side', detail: 'Synergy now compares the batter\'s HR-by-pitch profile against the pitcher\'s mix vs that batter\'s handedness, not the blended mix.' },
   { date: '2026-07-16', title: 'Pick floors set (Score ≥ 7, ≥ 3 HR)', detail: 'Settled the Chalk cutoff and moved finer filtering to client-side controls — the start of the tracked window\'s scoring.' },
 ];
+let picksChangelogOpen = false; // Model Updates list is collapsed by default
+function togglePicksChangelog() {
+  picksChangelogOpen = !picksChangelogOpen;
+  const body = document.getElementById('picks-changelog-body');
+  const chev = document.getElementById('picks-changelog-chevron');
+  const head = document.getElementById('picks-changelog-head');
+  if (body) body.style.display = picksChangelogOpen ? 'block' : 'none';
+  if (chev) chev.classList.toggle('open', picksChangelogOpen);
+  if (head) head.setAttribute('aria-expanded', String(picksChangelogOpen));
+}
 function picksChangelogHtml() {
   if (!MODEL_CHANGELOG.length) return '';
+  const open = picksChangelogOpen;
   const items = MODEL_CHANGELOG.map(c => `<div class="ph-log-item">
     <span class="ph-log-date">${c.date}</span>
     <div class="ph-log-body"><span class="ph-log-title">${c.title}</span><span class="ph-log-detail">${c.detail}</span></div>
   </div>`).join('');
-  return `<div class="ph-buckets-head" style="margin-top:1rem">Model Updates <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· scores before a change aren't directly comparable to after</span></div>
-    <div class="ph-log">${items}</div>`;
+  return `<div class="ph-buckets-head due-explainer ph-log-head" id="picks-changelog-head" onclick="togglePicksChangelog()" aria-expanded="${open}" style="margin-top:1rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem">
+      <span class="due-explainer-chevron${open ? ' open' : ''}" id="picks-changelog-chevron">▶</span>
+      Model Updates <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· ${MODEL_CHANGELOG.length} changes · scores before a change aren't directly comparable to after</span>
+    </div>
+    <div class="ph-log" id="picks-changelog-body" style="display:${open ? 'block' : 'none'}">${items}</div>`;
 }
 function renderPicksResults() {
   if (picksMode === 'value') return renderValueResults();
