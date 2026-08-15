@@ -636,13 +636,22 @@ const PICKS_RATIO_MIN     = 0.7;
 const PICKS_RATIO_MAX     = 1.4;
 // Pitcher "stuff" → HR-vulnerability factor. Validated (Aug 2026) as far and away
 // the best forward predictor of a pitcher's homer-proneness: 4-seam velocity
-// (r≈−0.37 vs future HR) + hard-hit% allowed (r≈+0.29) reach R≈0.46, versus
-// HR/9's ≈0 — and movement/spin added ~nothing, so we skip them. Weights convert
-// each unit of deviation from the day's median into a multiplier: slower velo /
-// louder contact = more vulnerable (>1), a flamethrower who muffles contact = <1.
+// (r≈−0.37 vs future HR) + contact quality allowed reach R≈0.46, versus HR/9's
+// ≈0 — and movement/spin added ~nothing, so we skip them. Contact quality was
+// hard-hit% until a leak-free walk-forward (Aug 2026, ~1,700 HR out-of-sample)
+// showed barrel%-allowed *subsumes* it: with both in the model hard-hit's signal
+// dies (z 3.34→1.37) while barrel holds (z=3.10). Barrel is the exit-velo/launch-
+// angle combo that actually leaves the yard, so it's the sharper knife. Weights
+// convert each unit of deviation from the day's median into a multiplier: slower
+// velo / more barrels allowed = more vulnerable (>1), a flamethrower who muffles
+// contact = <1.
 const STUFF_W_VELO   = 0.05;  // per mph below the day's median 4-seam velo
-const STUFF_W_HARD   = 1.7;   // per unit of (hard-hit% − median), as a fraction
-const STUFF_MIN_BBE  = 40;    // batted balls needed for a hard-hit% read
+const STUFF_W_BARREL = 4.0;   // per unit of (barrel%−median), as a fraction. ≈ the
+                              // old hard-hit weight (1.7) rescaled for barrel%'s
+                              // ~2.3× tighter spread, so Arm Stuff's overall lever
+                              // is unchanged — only the metric sharpens. Refine off
+                              // picksHistory's logged `f` factors once they accrue.
+const STUFF_MIN_BBE  = 40;    // batted balls needed for a contact-quality read
 const STUFF_MIN_FB   = 20;    // 4-seam pitches needed for a velo read
 // Lineup position → plate-appearance multiplier. A HR bet is a single-game
 // event, and expected PAs fall ~0.1 per lineup slot — leadoff sees roughly a
@@ -1093,13 +1102,13 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
     const med = (arr) => { const s = arr.filter(v => v != null).sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
     const starterStuff = [...new Map(rows.map(r => [r.oppPid, pitcherStuffByPid[r.oppPid]])).values()].filter(Boolean);
     const medVelo = med(starterStuff.filter(s => s.fbN >= STUFF_MIN_FB).map(s => s.fbVelo)) ?? 94;
-    const medHard = med(starterStuff.filter(s => s.bbe >= STUFF_MIN_BBE).map(s => s.hardPct)) ?? 0.39;
-    // >1 = more homer-prone (slow velo / loud contact allowed), <1 = tougher.
+    const medBarrel = med(starterStuff.filter(s => s.bbe >= STUFF_MIN_BBE).map(s => s.barrelPct)) ?? 0.075;
+    // >1 = more homer-prone (slow velo / more barrels allowed), <1 = tougher.
     function pitcherStuffRatio(s) {
       if (!s) return null;
       let logit = 0, have = false;
       if (s.fbVelo != null && s.fbN >= STUFF_MIN_FB) { logit += STUFF_W_VELO * (medVelo - s.fbVelo); have = true; }
-      if (s.hardPct != null && s.bbe >= STUFF_MIN_BBE) { logit += STUFF_W_HARD * (s.hardPct - medHard); have = true; }
+      if (s.barrelPct != null && s.bbe >= STUFF_MIN_BBE) { logit += STUFF_W_BARREL * (s.barrelPct - medBarrel); have = true; }
       return have ? Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, 1 + logit)) : null;
     }
 
@@ -1212,6 +1221,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       const pstuff = pitcherStuffByPid[r.oppPid];
       r.pitcherFbVelo = pstuff?.fbVelo != null && pstuff.fbN >= STUFF_MIN_FB ? Math.round(pstuff.fbVelo * 10) / 10 : null;
       r.pitcherHardPct = pstuff?.hardPct != null && pstuff.bbe >= STUFF_MIN_BBE ? Math.round(pstuff.hardPct * 1000) / 10 : null;
+      r.pitcherBarrelPct = pstuff?.barrelPct != null && pstuff.bbe >= STUFF_MIN_BBE ? Math.round(pstuff.barrelPct * 1000) / 10 : null;
 
       // Lineup-position PA multiplier — extra plate appearances up top mean more
       // single-game HR chances. Neutral (1.0) when the slot is unknown (projected).
@@ -1303,12 +1313,12 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       // League-wide stuff medians — a stable baseline, not today's ~15-starter pool.
       const cStuffArr = Object.values(cStuff).filter(Boolean);
       const cMedVelo = med(cStuffArr.filter(s => s.fbN >= STUFF_MIN_FB).map(s => s.fbVelo)) ?? 94;
-      const cMedHard = med(cStuffArr.filter(s => s.bbe >= STUFF_MIN_BBE).map(s => s.hardPct)) ?? 0.39;
+      const cMedBarrel = med(cStuffArr.filter(s => s.bbe >= STUFF_MIN_BBE).map(s => s.barrelPct)) ?? 0.075;
       const cardStuff = s => {
         if (!s) return null;
         let logit = 0, have = false;
         if (s.fbVelo != null && s.fbN >= STUFF_MIN_FB) { logit += STUFF_W_VELO * (cMedVelo - s.fbVelo); have = true; }
-        if (s.hardPct != null && s.bbe >= STUFF_MIN_BBE) { logit += STUFF_W_HARD * (s.hardPct - cMedHard); have = true; }
+        if (s.barrelPct != null && s.bbe >= STUFF_MIN_BBE) { logit += STUFF_W_BARREL * (s.barrelPct - cMedBarrel); have = true; }
         return have ? Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, 1 + logit)) : null;
       };
       const r3 = x => x == null ? null : Math.round(x * 1000) / 1000;
@@ -1342,6 +1352,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
           stuffRatio: r3(cardStuff(st)),
           fbVelo: st?.fbVelo != null && st.fbN >= STUFF_MIN_FB ? Math.round(st.fbVelo * 10) / 10 : null,
           hardPct: st?.hardPct != null && st.bbe >= STUFF_MIN_BBE ? Math.round(st.hardPct * 1000) / 10 : null,
+          barrelPct: st?.barrelPct != null && st.bbe >= STUFF_MIN_BBE ? Math.round(st.barrelPct * 1000) / 10 : null,
           platoonVsL: r3(pitcherPlatoonVs(pInfo, 'L')), platoonVsR: r3(pitcherPlatoonVs(pInfo, 'R')),
           mix: cMix[pid] ?? null,
         });
@@ -2236,11 +2247,11 @@ async function fetchPitchMixSide(chunk, stands) {
     (counts[pid] ??= {})[name] = (counts[pid][name] ?? 0) + 1;
     // Stuff, from the same rows: 4-seam velo (over every fastball) + hard-hit%
     // allowed (over batted balls, rows that carry a launch_speed).
-    const s = (stuff[pid] ??= { vSum: 0, vN: 0, hard: 0, bbe: 0 });
+    const s = (stuff[pid] ??= { vSum: 0, vN: 0, hard: 0, brl: 0, bbe: 0 });
     const velo = parseFloat(row.release_speed);
     if (name === '4-Seam Fastball' && !isNaN(velo)) { s.vSum += velo; s.vN++; }
     const ev = parseFloat(row.launch_speed);
-    if (!isNaN(ev)) { s.bbe++; if (ev >= 95) s.hard++; }
+    if (!isNaN(ev)) { s.bbe++; if (ev >= 95) s.hard++; if (row.launch_speed_angle === '6') s.brl++; }
   }
   return { counts, stuff };
 }
@@ -2258,13 +2269,13 @@ async function fetchPitchMix(pids) {
   const chunks = [];
   for (let i = 0; i < pids.length; i += PITCH_MIX_BATCH) chunks.push(pids.slice(i, i + PITCH_MIX_BATCH));
   const byPid = {}; // pid -> { L:{name->n}, R:{name->n} }
-  const stuffRaw = {}; // pid -> { vSum, vN, hard, bbe } aggregated across both sides
+  const stuffRaw = {}; // pid -> { vSum, vN, hard, brl, bbe } aggregated across both sides
   for (const chunk of chunks) {
     const [lc, rc] = await Promise.all([fetchPitchMixSide(chunk, 'L'), fetchPitchMixSide(chunk, 'R')]);
     for (const pid of chunk) {
       byPid[pid] = { L: lc.counts[pid] ?? {}, R: rc.counts[pid] ?? {} };
-      const agg = (stuffRaw[pid] ??= { vSum: 0, vN: 0, hard: 0, bbe: 0 });
-      for (const src of [lc.stuff[pid], rc.stuff[pid]]) if (src) { agg.vSum += src.vSum; agg.vN += src.vN; agg.hard += src.hard; agg.bbe += src.bbe; }
+      const agg = (stuffRaw[pid] ??= { vSum: 0, vN: 0, hard: 0, brl: 0, bbe: 0 });
+      for (const src of [lc.stuff[pid], rc.stuff[pid]]) if (src) { agg.vSum += src.vSum; agg.vN += src.vN; agg.hard += src.hard; agg.brl += src.brl; agg.bbe += src.bbe; }
     }
   }
   const sum = o => Object.values(o).reduce((a, b) => a + b, 0);
@@ -2283,7 +2294,7 @@ async function fetchPitchMix(pids) {
   const stuff = {};
   for (const pid in stuffRaw) {
     const s = stuffRaw[pid];
-    stuff[pid] = { fbVelo: s.vN ? s.vSum / s.vN : null, fbN: s.vN, hardPct: s.bbe ? s.hard / s.bbe : null, bbe: s.bbe };
+    stuff[pid] = { fbVelo: s.vN ? s.vSum / s.vN : null, fbN: s.vN, hardPct: s.bbe ? s.hard / s.bbe : null, barrelPct: s.bbe ? s.brl / s.bbe : null, bbe: s.bbe };
   }
   return { mix, stuff };
 }

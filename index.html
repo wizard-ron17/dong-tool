@@ -1757,7 +1757,7 @@
           <li><b>Recent Contact.</b> Statcast's 1–6 contact-quality grade (weak contact → barrel, a joint read on exit velo + launch angle) over his last ~15 game dates vs his own season baseline — how well he's actually squaring the ball up right now. The same grade the Due tool uses, here time-windowed instead of drought-anchored.</li>
           <li><b>Batter Platoon.</b> How this batter's HR rate vs today's pitcher's handedness compares to his rate against the opposite side — his own platoon edge. Shrunk hard toward the league-average platoon split, since one season of HR-rate splits is too thin to trust at face value.</li>
           <li><b>Starter Vuln.</b> The flip side: how homer-prone this specific starter is to batters of this hitter's side vs the opposite side. Also shrunk toward league.</li>
-          <li><b>Arm Stuff.</b> The pitcher's HR-vulnerability from his <b>4-seam velocity</b> and <b>hard-hit% allowed</b> — both predict homers far better than raw HR/9. Big velo and soft contact pull it below 1× (tougher); fringe velo and loud contact push it above 1× (juicier).</li>
+          <li><b>Arm Stuff.</b> The pitcher's HR-vulnerability from his <b>4-seam velocity</b> and <b>barrel%-allowed</b> (the exit-velo/launch-angle combo that actually leaves the yard) — both predict homers far better than raw HR/9, and barrel beats hard-hit% because it ignores hard grounders that stay in the park. Big velo and few barrels pull it below 1× (tougher); fringe velo and lots of barrels push it above 1× (juicier).</li>
           <li><b>Starter Synergy.</b> Overlap between the pitch types this batter has actually homered on this season and the mix the starter throws <em>to this batter's side</em> (not his overall usage — arms attack lefties and righties differently). A fastball-masher facing a pitcher who feeds his side 50% four-seamers scores up; a profile that doesn't match pulls toward neutral. Regressed by HR sample — 3 of 4 homers on fastballs says far less than 30 of 40.</li>
           <li><b>Bullpen Vuln.</b> The opponent bullpen's platoon HR-proneness to this batter's side — the rested arms likely to relieve, so the middle innings are priced in too, not just the starter.</li>
           <li><b>Bullpen Synergy.</b> The same pitch-type overlap idea, measured against the likely relief mix rather than the starter's.</li>
@@ -5648,7 +5648,7 @@ function pickModalInner(r, board = 'chalk') {
           <div class="pk-sub">${teamLogoImg(r.oppTeam,'team-logo')}${r.oppTeam} · Throws ${throwHand}</div>
           ${r.openerLikely ? '<span class="pk-opener-badge">LIKELY OPENER</span>' : ''}
           <div class="pk-stat">${pitcherStat ? `<span class="hrg-val ${hr9Cls}">${pitcherStat.hr9} HR9</span> <span class="pk-stat-dim">· ${pitcherStat.hr} HR allowed${r.starterAvgIP != null ? ` · ${r.starterAvgIP} IP/start` : ''}</span>` : '<span class="pk-stat-dim">No stats yet</span>'}</div>
-          ${r.pitcherFbVelo != null || r.pitcherHardPct != null ? `<div class="pk-stat pk-stat-dim" title="The pitcher's HR-vulnerability signal — 4-seam velocity and hard-hit% allowed predict homers far better than HR/9">${r.pitcherFbVelo != null ? `🔥 ${r.pitcherFbVelo} mph FB` : ''}${r.pitcherFbVelo != null && r.pitcherHardPct != null ? ' · ' : ''}${r.pitcherHardPct != null ? `💥 ${r.pitcherHardPct}% hard-hit` : ''}</div>` : ''}
+          ${r.pitcherFbVelo != null || r.pitcherBarrelPct != null ? `<div class="pk-stat pk-stat-dim" title="The pitcher's HR-vulnerability signal — 4-seam velocity and barrel%-allowed (the exit-velo/launch-angle combo that leaves the yard) predict homers far better than HR/9">${r.pitcherFbVelo != null ? `🔥 ${r.pitcherFbVelo} mph FB` : ''}${r.pitcherFbVelo != null && r.pitcherBarrelPct != null ? ' · ' : ''}${r.pitcherBarrelPct != null ? `💥 ${r.pitcherBarrelPct}% barrel` : ''}</div>` : ''}
         </div>
       </div>
       ${bulkStripHtml}
@@ -6034,7 +6034,7 @@ function matchupBreakdownHtml(b, p) {
           <div class="mu-dd" id="mu-dd-pitcher"></div>
         </span>
         <div class="pk-sub">${teamLogoImg(p.team,'team-logo')}${p.team} · Throws ${pHandTxt}${p.role ? ` · ${p.role}` : ''}</div>
-        <div class="pk-stat">${p.fbVelo != null || p.hardPct != null ? `<span class="pk-stat-dim">${p.fbVelo != null ? `🔥 ${p.fbVelo} mph` : ''}${p.fbVelo != null && p.hardPct != null ? ' · ' : ''}${p.hardPct != null ? `💥 ${p.hardPct}% hard` : ''}</span>` : '<span class="pk-stat-dim">No stuff data</span>'}</div>
+        <div class="pk-stat">${p.fbVelo != null || p.barrelPct != null ? `<span class="pk-stat-dim">${p.fbVelo != null ? `🔥 ${p.fbVelo} mph` : ''}${p.fbVelo != null && p.barrelPct != null ? ' · ' : ''}${p.barrelPct != null ? `💥 ${p.barrelPct}% barrel` : ''}</span>` : '<span class="pk-stat-dim">No stuff data</span>'}</div>
       </div>
     </div>
     <div class="mu-parkline">
