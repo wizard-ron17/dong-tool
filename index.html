@@ -1210,6 +1210,18 @@
   .ph-day-row { display: flex; align-items: center; gap: 0.55rem; padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.68rem; }
   .ph-day-row:last-child { border-bottom: none; }
   .ph-day-date { color: var(--muted); flex-shrink: 0; font-size: 0.62rem; width: 5.6rem; }
+  /* Model-change divider inside the day-by-day timeline */
+  .ph-day-marker { display: flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.32rem 0.6rem; background: repeating-linear-gradient(-45deg, var(--surface1), var(--surface1) 6px, transparent 6px, transparent 12px); border-bottom: 1px solid var(--border); border-top: 1px solid var(--gold); }
+  .ph-day-marker:last-child { border-bottom: none; }
+  .ph-marker-txt { font-size: 0.56rem; font-weight: 800; letter-spacing: 0.03em; color: var(--gold); text-align: center; }
+  /* Model changelog list */
+  .ph-log { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .ph-log-item { display: flex; gap: 0.6rem; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+  .ph-log-item:last-child { border-bottom: none; }
+  .ph-log-date { flex-shrink: 0; width: 5.2rem; font-size: 0.6rem; font-weight: 700; color: var(--gold); font-variant-numeric: tabular-nums; }
+  .ph-log-body { display: flex; flex-direction: column; gap: 0.12rem; min-width: 0; }
+  .ph-log-title { font-size: 0.68rem; font-weight: 700; color: var(--text); }
+  .ph-log-detail { font-size: 0.6rem; color: var(--muted); line-height: 1.35; }
   .ph-day-fraction { color: var(--text); font-weight: 700; flex-shrink: 0; width: 2.4rem; }
   .ph-day-pct { font-family: var(--font-d); font-size: 0.9rem; font-weight: 700; flex-shrink: 0; width: 2.6rem; }
   .ph-day-hrg { font-family: var(--font-d); font-size: 0.9rem; font-weight: 700; flex-shrink: 0; width: 4.6rem; color: var(--muted); }
@@ -6277,6 +6289,22 @@ function picksResultsChips() {
 }
 function picksResultMatch(p) { return picksFilters.board === 'full' || p.provenPower !== false; }
 
+// Dated log of model/methodology changes. A pick's score from before a change
+// isn't strictly comparable to one after, so we surface these both as a list and
+// as dividers on the day-by-day timeline. Newest first; dates are ET (build day).
+const MODEL_CHANGELOG = [
+  { date: '2026-08-15', title: 'Arm Stuff now keys on barrel%-allowed', detail: 'Swapped the pitcher contact-quality input from hard-hit% to barrel%-allowed — a leak-free backtest showed barrel is the sharper HR predictor. Pick scores shift a little (~±3%).' },
+  { date: '2026-08-15', title: 'Picks projection is injury-list aware', detail: 'A hitter freshly on the IL is no longer projected into a lineup or picked, matching the Schedule tab.' },
+];
+function picksChangelogHtml() {
+  if (!MODEL_CHANGELOG.length) return '';
+  const items = MODEL_CHANGELOG.map(c => `<div class="ph-log-item">
+    <span class="ph-log-date">${c.date}</span>
+    <div class="ph-log-body"><span class="ph-log-title">${c.title}</span><span class="ph-log-detail">${c.detail}</span></div>
+  </div>`).join('');
+  return `<div class="ph-buckets-head" style="margin-top:1rem">Model Updates <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· scores before a change aren't directly comparable to after</span></div>
+    <div class="ph-log">${items}</div>`;
+}
 function renderPicksResults() {
   if (picksMode === 'value') return renderValueResults();
   const el = document.getElementById('picks-results-wrap');
@@ -6321,7 +6349,7 @@ function renderPicksResults() {
   const seasonHRs   = Object.values(hrTotals).reduce((a,b)=>a+b, 0);
   const leagueAvgHRPerGame = seasonGames ? seasonHRs / seasonGames : 0;
 
-  const dayRows = [...filteredDays].reverse().map(entry => {
+  const dayItems = [...filteredDays].reverse().map(entry => {
     const total = entry.picks.length;
     const rankedHits = entry.picks.filter(p => p.hit);
     const pct   = total ? (rankedHits.length / total * 100).toFixed(0) : 0;
@@ -6338,14 +6366,24 @@ function renderPicksResults() {
       ? `<span class="ph-day-hrg hrg-val ${hrgClass(dayHRG, leagueAvgHRPerGame)}" title="${dayTotHR} HR across ${dayGames} games">${dayHRG.toFixed(2)}<span class="ph-day-hrg-unit"> HR/G</span></span>`
       : `<span class="ph-day-hrg" style="color:var(--dim)">—</span>`;
 
-    return `<div class="ph-day-row">
+    return { date: entry.date, kind: 'day', html: `<div class="ph-day-row">
       <span class="ph-day-date">${entry.date}</span>
       <span class="ph-day-fraction">${rankedHits.length}/${total}</span>
       <span class="ph-day-pct hrg-val ${cls}">${total?pct+'%':'—'}</span>
       ${hrgBadge}
       <span class="ph-day-hits">${hitNames || '<span style="color:var(--dim)">—</span>'}</span>
-    </div>`;
-  }).join('');
+    </div>` };
+  });
+  // Interleave model-change dividers. A change on date D applies to that day and
+  // newer, so in this newest-first list its marker sits just below the D row —
+  // everything above the divider ran on the newer model.
+  const changeByDate = {};
+  for (const c of MODEL_CHANGELOG) (changeByDate[c.date] ??= []).push(c);
+  const markerItems = Object.entries(changeByDate).map(([date, cs]) => ({ date, kind: 'marker',
+    html: `<div class="ph-day-marker" title="${cs.map(c => c.title).join(' · ')}"><span class="ph-marker-txt">⚙ Model update · ${date} — ${cs.map(c => c.title).join(' · ')}</span></div>` }));
+  const dayRows = [...dayItems, ...markerItems]
+    .sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : (a.kind === 'day' ? -1 : 1))
+    .map(x => x.html).join('');
 
   el.innerHTML = `
     ${chips}
@@ -6358,6 +6396,7 @@ function renderPicksResults() {
     </div>
     <div class="ph-buckets-head">Hit Rate by Pick Rank <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· if you'd played the top N each day</span></div>
     <div class="ph-buckets">${bucketHtml}</div>
+    ${picksChangelogHtml()}
     <div class="ph-buckets-head" style="margin-top:1rem">Day-by-Day</div>
     <div class="ph-days">${dayRows}</div>`;
 }
