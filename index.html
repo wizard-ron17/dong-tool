@@ -623,6 +623,7 @@
   .due-explainer-cta::before { content: 'Read more'; }
   .due-explainer[aria-expanded="true"] .due-explainer-cta::before { content: 'Hide'; }
   .due-explainer-teaser { margin-top: 0.3rem; color: var(--dim); }
+  .due-explainer-note { margin: 0.7rem 0 0; padding: 0.55rem 0.7rem; background: var(--surface1); border-left: 3px solid var(--gold); border-radius: 6px; font-size: 0.72rem; line-height: 1.5; color: var(--muted); }
   .due-explainer-body { margin-top: 0.55rem; padding-top: 0.55rem; border-top: 1px solid var(--border); }
   .due-explainer-body ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.5rem; }
   .due-explainer-body li { color: var(--dim); }
@@ -1532,10 +1533,10 @@
         <span class="due-explainer-cta"></span>
         <span class="due-explainer-chevron" id="matchups-explainer-chevron">▶</span>
       </div>
-      <div class="due-explainer-teaser">Break down any batter vs any pitcher — power, platoons, arm stuff, pitch synergy &amp; park, scored like our Picks board.</div>
+      <div class="due-explainer-teaser">Break down any batter vs any pitcher — power, platoons, arm stuff &amp; park, scored like our Picks board.</div>
       <div class="due-explainer-body" id="matchups-explainer-body" style="display:none">
         <ul>
-          <li>Pick <b>any</b> hitter and <b>any</b> starter → the same breakdown the Picks board runs: base power, Blast%, both platoon edges, arm stuff, pitch-type synergy, and park, combined into a matchup score.</li>
+          <li>Pick <b>any</b> hitter and <b>any</b> starter → the same breakdown the Picks board runs: base power, Blast%, both platoon edges, arm stuff, and park, combined into a matchup score. (The Pitch Matchup chart is shown for context — it's no longer part of the score.)</li>
           <li><b>Starter-only view</b> — bullpen, lineup spot, and game-time weather are live-game factors, so they stay neutral here (you'll see those on the real <a href="javascript:void(0)" onclick="switchNav('picks')">Picks</a> board).</li>
           <li>Defaults to today's top Chalk pick vs the arm he's facing. <b>Tap either name</b> (🔍) to search a different batter or pitcher.</li>
         </ul>
@@ -1770,13 +1771,12 @@
           <li><b>Batter Platoon.</b> How this batter's HR rate vs today's pitcher's handedness compares to his rate against the opposite side — his own platoon edge. Shrunk hard toward the league-average platoon split, since one season of HR-rate splits is too thin to trust at face value.</li>
           <li><b>Starter Vuln.</b> The flip side: how homer-prone this specific starter is to batters of this hitter's side vs the opposite side. Also shrunk toward league.</li>
           <li><b>Arm Stuff.</b> The pitcher's HR-vulnerability from his <b>4-seam velocity</b> and <b>barrel%-allowed</b> (the exit-velo/launch-angle combo that actually leaves the yard) — both predict homers far better than raw HR/9, and barrel beats hard-hit% because it ignores hard grounders that stay in the park. Big velo and few barrels pull it below 1× (tougher); fringe velo and lots of barrels push it above 1× (juicier).</li>
-          <li><b>Starter Synergy.</b> Overlap between the pitch types this batter has actually homered on this season and the mix the starter throws <em>to this batter's side</em> (not his overall usage — arms attack lefties and righties differently). A fastball-masher facing a pitcher who feeds his side 50% four-seamers scores up; a profile that doesn't match pulls toward neutral. Regressed by HR sample — 3 of 4 homers on fastballs says far less than 30 of 40.</li>
           <li><b>Bullpen Vuln.</b> The opponent bullpen's platoon HR-proneness to this batter's side — the rested arms likely to relieve, so the middle innings are priced in too, not just the starter.</li>
-          <li><b>Bullpen Synergy.</b> The same pitch-type overlap idea, measured against the likely relief mix rather than the starter's.</li>
           <li><b>Lineup PA.</b> His batting-order slot → how many plate appearances he projects to get (leadoff ≈ +9%, bottom of the order less). Only applies once a real lineup is known — neutral (and hidden) when the slot is projected.</li>
           <li><b>Park.</b> The venue's HR/game rate vs league average — the same park signal shown on the Schedule tab, baked into the score.</li>
           <li><b>Weather.</b> Game-time air density (temperature, humidity, pressure, altitude) plus wind projected onto the park's home-plate→center-field axis: hot thin air and a wind blowing out help carry, cold dense air and a wind blowing in suppress it. Roofed parks are neutral.</li>
         </ul>
+        <p class="due-explainer-note"><b>What about pitch-type synergy?</b> We used to score the overlap between a hitter's HR-by-pitch profile and the pitcher's mix. A leak-free backtest (~1,700 homers out-of-sample) showed it adds nothing to HR prediction beyond base power — a masher mashes every pitch, so the "great overlap" is really just power we already count. We <b>removed it from the score</b> as of Aug 15. The <b>Pitch Matchup</b> chart still appears in each card as context — it's interesting to see the overlap — it just no longer moves the number.</p>
         <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);margin:0.7rem 0 0.35rem">Chalk vs Value — two lenses on the same slate</div>
         <ul>
           <li><b>🔒 Chalk = proven power.</b> Base power is HR/AB blended toward the <b>Blast%</b>-implied rate, so a hitter squaring the ball up gets credit before the homers land. The standard board keeps bats whose blast-blend power clears a self-calibrating floor (above the league regulars' median, so it means the same in April or August) at <b>Pick Score ≥ 9</b>; flip to <b>Full board</b> to drop the power floor and see every Score-9 candidate. This is your "most likely to go deep" list.</li>
@@ -2918,7 +2918,7 @@ function renderHome() {
       </div>
       <div class="hm-card" onclick="switchNav('matchups')">
         <div class="hm-head"><span class="hm-title">Matchups ⚔️</span><span class="hm-link">Matchups →</span></div>
-        <div class="hm-subtle">Break down any batter vs any pitcher — power, platoons, arm stuff, pitch synergy &amp; park, scored like our Picks board.</div>
+        <div class="hm-subtle">Break down any batter vs any pitcher — power, platoons, arm stuff &amp; park, scored like our Picks board.</div>
       </div>
       <div class="hm-card" onclick="switchNav('birthdays')">
         <div class="hm-head"><span class="hm-title">Birthdays 🎂</span><span class="hm-link">Birthdays →</span></div>
@@ -5446,7 +5446,6 @@ function pickIndicators(r) {
   if (r.recentFormRatio != null) inds.push(ratioLabel(r.recentFormRatio, 'Contact'));
   if (r.batterPlatoonRatio != null) inds.push(ratioLabel(r.batterPlatoonRatio, 'Batter Split'));
   if (r.pitcherPlatoonRatio != null) inds.push(ratioLabel(r.pitcherPlatoonRatio, 'Pitcher Split'));
-  if (r.synergyRatio != null) inds.push(ratioLabel(r.synergyRatio, 'Pitch Synergy'));
   if (r.parkRatio != null) inds.push(ratioLabel(r.parkRatio, 'Park'));
   return inds.join('');
 }
@@ -5499,12 +5498,10 @@ function bullpenModalHtml(r) {
     const effectiveSide = r.bHand === 'S' ? (rel.hand === 'L' ? 'R' : 'L') : r.bHand;
     const isSame = rel.hand === effectiveSide;
     const favorable = !isSame; // opposite-handed = harder to get batter out = good for batter
-    const syn = pitchSynergyScore(r.hrProfile, rel.pitchMix);
-    const synFav = syn > 0 && syn > (r.synergyScore * 0.8); // synergy at least 80% of starter's
     const topPitch = rel.pitchMix?.[0] ? `${pitchAbbrClient(rel.pitchMix[0].name)} ${rel.pitchMix[0].pct}%` : '—';
-    const indicator = (favorable && synFav) ? '<span class="pick-ind great">✓ Good</span>'
-                    : (!favorable && !synFav) ? '<span class="pick-ind bad">✗ Bad</span>'
-                    : '<span class="pick-ind">≈ Mixed</span>';
+    const indicator = (rel.hand == null || effectiveSide == null) ? '<span class="pick-ind">≈ Mixed</span>'
+                    : favorable ? '<span class="pick-ind great">✓ Good</span>'
+                    : '<span class="pick-ind bad">✗ Bad</span>';
     return `<div class="sched-bullpen-row">
       <span class="sched-bullpen-hand ${handCls}">${rel.hand||'?'}</span>
       <div class="sched-bullpen-info">
@@ -5597,16 +5594,13 @@ function pickModalInner(r, board = 'chalk') {
   // rate toward league average. Gate the note on the actual sample SIZE — every
   // above-average hitter gets some base-power regression, so keying off "was it
   // regressed" fired for everyone; only genuinely thin samples should surface.
-  const thinSynergy = r.hrs != null && r.hrs < 8;    // pitch profile from too few HRs
-  const thinPower   = r.abs != null && r.abs < 130;  // HR rate from too few ABs
-  const thinNote = (thinSynergy || thinPower)
-    ? `<div class="pk-pitch-note pk-thin"><b>Thin sample:</b> ${
-        thinPower && thinSynergy
-          ? `just ${r.hrs} HR in ${r.abs} AB, so both his raw HR rate and his pitch-matchup edge are regressed toward league average until the sample grows`
-          : thinPower
-            ? `only ${r.abs} AB on the season, so his HR rate is regressed toward league average — a short hot streak won’t top the board on its own`
-            : `only ${r.hrs} HR behind this profile, so the pitch-matchup edge is dialed back toward neutral — a few fastball HRs aren’t the same as an established fastball tendency`
-      }.</div>`
+  const thinProfile = r.hrs != null && r.hrs < 8;    // pitch-overlap viz built from few HRs
+  const thinPower   = r.abs != null && r.abs < 130;  // HR rate from too few ABs (still regresses the score)
+  const thinBits = [];
+  if (thinPower)   thinBits.push(`only ${r.abs} AB on the season, so his HR rate is regressed toward league average — a short hot streak won’t top the board on its own`);
+  if (thinProfile) thinBits.push(`the pitch overlap above is built from just ${r.hrs} HR, so read it as a rough sketch (it’s shown for context and no longer moves the score)`);
+  const thinNote = thinBits.length
+    ? `<div class="pk-pitch-note pk-thin"><b>Thin sample:</b> ${thinBits.join('; and ')}.</div>`
     : '';
 
   const factorRatio = (val, label, digits=2) => val == null ? '' : `
@@ -5652,7 +5646,7 @@ function pickModalInner(r, board = 'chalk') {
           <span class="pk-vs-txt">VS</span>
           <span class="pick-score-big ${headCls}">${headScore.toFixed(1)}</span>
           <span class="due-modal-headline-lbl">${headLbl}</span>
-          ${isValue ? `<span class="pk-score-sub ${pickScoreClass(r.pickScore)}" title="Pick Score — the composite HR-matchup grade (power × platoons, arm stuff, pitch synergy, park &amp; weather) the Chalk board ranks by">Pick <b>${(r.pickScore ?? 0).toFixed(1)}</b></span>` : ''}
+          ${isValue ? `<span class="pk-score-sub ${pickScoreClass(r.pickScore)}" title="Pick Score — the composite HR-matchup grade (power × platoons, arm stuff, park &amp; weather) the Chalk board ranks by">Pick <b>${(r.pickScore ?? 0).toFixed(1)}</b></span>` : ''}
         </div>
         <div class="pk-side">
           ${muPhotoTag(r.oppPid, r.oppTeam)}
@@ -5678,8 +5672,6 @@ function pickModalInner(r, board = 'chalk') {
         { label: 'Starter Vuln.', value: r.pitcherPlatoonRatio },
         { label: 'Arm Stuff', value: r.pitcherStuffRatio },
         { label: 'Bullpen Vuln.', value: r.bullpenPlatoonFactor },
-        { label: 'Starter Synergy', value: r.synergyRatio },
-        { label: 'Bullpen Synergy', value: r.bullpenSynergyRatio },
         { label: 'Park', value: r.parkRatio },
         { label: 'Weather', value: (r.weatherRatio && r.weatherRatio !== 1) ? r.weatherRatio : null },
       ])}
@@ -5808,17 +5800,16 @@ function scoreMatchup(b, p, venue) {
   const pitP = bEff ? (bEff === 'L' ? p.platoonVsL : p.platoonVsR) : null;
   const stuff = p.stuffRatio;
   const mv = muMixVs(p.mix, bEff);
-  const synScore = muSynScore(b.hrProfile, mv.mix);
-  const rawSyn = C.synergyBaseline > 0 ? (synScore > 0 ? clamp(synScore / C.synergyBaseline) : 0.9) : 1;
-  const syn = 1 + (rawSyn - 1) * (b.hrs / (b.hrs + C.synergyHrFull));
   const form = b.form;
-  const factorList = [form, batP, pitP, stuff, park, syn].filter(f => f != null);
+  // Pitch-mix synergy is no longer scored (no out-of-sample HR signal — see build);
+  // mv.mix still feeds the pitch-overlap viz below, just not the score.
+  const factorList = [form, batP, pitP, stuff, park].filter(f => f != null);
   const mf = factorList.reduce((a, c) => a * c, form != null ? 1 : 0.95);
   const surplusW = Math.max(0.5, Math.min(2.5, b.blastSurplus ?? 1));
   return {
     pickScore: b.basePower * mf * 100,
     valueScore: b.blastPower * mf * 100 * surplusW,
-    matchupFactor: mf, factors: { form, batP, pitP, stuff, syn, park }, stand: bEff, mix: mv.mix, mixSplit: mv.split,
+    matchupFactor: mf, factors: { form, batP, pitP, stuff, park }, stand: bEff, mix: mv.mix, mixSplit: mv.split,
   };
 }
 function muLabel(x) { const tag = [x.team, x.role].filter(Boolean).join(' · '); return `${x.name}${tag ? ` (${tag})` : ''}`; }
@@ -6062,7 +6053,6 @@ function matchupBreakdownHtml(b, p) {
       { label: 'Batter Platoon', value: f.batP },
       { label: 'Starter Vuln.', value: f.pitP },
       { label: 'Arm Stuff', value: f.stuff },
-      { label: 'Pitch Synergy', value: f.syn },
       { label: 'Park', value: f.park },
     ])}
     ${p.ip != null && p.ip < 10 ? `<div class="mu-note mu-thin">⚠︎ Thin sample — only ~${p.ip} IP for ${p.name.split(' ').pop()}, so his stuff, splits, and arsenal are pulled toward league average. Read it as a near-neutral matchup (no book on him yet), not a real edge either way.</div>` : ''}
@@ -6293,6 +6283,7 @@ function picksResultMatch(p) { return picksFilters.board === 'full' || p.provenP
 // isn't strictly comparable to one after, so we surface these both as a list and
 // as dividers on the day-by-day timeline. Newest first; dates are ET (build day).
 const MODEL_CHANGELOG = [
+  { date: '2026-08-15', title: 'Pitch-mix synergy removed from the score', detail: 'A leak-free backtest (~1,700 HR out-of-sample) found pitch-type synergy adds nothing to HR prediction beyond base power — in any form. Removed it as a scoring factor (the Pitch Matchup chart stays as context). Reshuffles the board a little; base power already captured the "good overlap" signal.' },
   { date: '2026-08-15', title: 'Arm Stuff now keys on barrel%-allowed', detail: 'Swapped the pitcher contact-quality input from hard-hit% to barrel%-allowed — a leak-free backtest showed barrel is the sharper HR predictor. Scores shift a little (~±3%).' },
   { date: '2026-08-15', title: 'Picks projection is injury-list aware', detail: 'A hitter freshly on the IL is no longer projected into a lineup or picked, matching the Schedule tab.' },
   { date: '2026-08-12', title: 'Projected lineups field one of each position + DH', detail: 'Pre-lineup projection stopped starting two of a position (and skipping another), so which bats get projected — and picked — changed slightly.' },

@@ -1206,10 +1206,13 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       const effectivePitcherPlatoon = wavg([
         [sW, r.pitcherPlatoonRatio], [bulkW, bulkPlatoon], [penW, bullpenPlatoonFactor],
       ]);
-      const effectiveSynergy = wavg([
-        [sW, r.synergyRatio], [bulkW, bulkSynergyRatio],
-        [penW, bullpenPlatoonFactor != null ? r.bullpenSynergyRatio : null],
-      ]) ?? r.synergyRatio;
+      // Pitch-mix SYNERGY is no longer scored. A leak-free walk-forward (Aug 2026,
+      // ~1,700 HR out-of-sample) showed it adds nothing to HR prediction beyond base
+      // power in ANY form — type-share, barrel, xSLG, HR-rate, one- or two-sided, or
+      // within-hitter relative (residual-corr ≈ 0.00). The raw "great matchup homers
+      // more" signal is almost entirely base power (a masher mashes every pitch), not
+      // the pitch overlap. We still compute + ship synergyScore/synergyRatio so the
+      // modal can SHOW the pitch overlap as info, but it no longer moves the score.
 
       // Pitcher stuff (velo + hard-hit%) is the pitcher's overall HR-vulnerability
       // LEVEL — the platoon ratios only carry his L/R skew, so this is genuinely
@@ -1241,7 +1244,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
         r.weatherRatio = Math.round(Math.max(WX_CLAMP[0], Math.min(WX_CLAMP[1], wx.carry * (1 + WX_WIND_PER_MPH * windPull))) * 1000) / 1000;
       } else r.weatherRatio = 1;
 
-      const factors = [r.recentFormRatio, r.batterPlatoonRatio, effectivePitcherPlatoon, effectiveStuff, paFactor, r.parkRatio, effectiveSynergy, r.weatherRatio]
+      const factors = [r.recentFormRatio, r.batterPlatoonRatio, effectivePitcherPlatoon, effectiveStuff, paFactor, r.parkRatio, r.weatherRatio]
         .filter(f => f != null);
       const contactKnown = r.recentFormRatio != null;
       r.matchupFactor = factors.reduce((a, b) => a * b, contactKnown ? 1 : 0.95);
