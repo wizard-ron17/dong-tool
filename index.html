@@ -7027,7 +7027,7 @@ function renderPitchTypes() {
     const teams = ptAggTeams(rows);
     body = `<div class="pt-meta">All 30 teams vs <b>${ptPitch}</b> · tap a team for its hitters · sorted by ${ (PT_COLS.find(c=>c.k===ptSort)||{}).lbl || 'SLG' }</div>`
       + ptTableHtml(teams, 'Team', (t,i,means) => `<tr class="pt-row pt-team-row" onclick="ptOpenTeam('${t.team}')">
-          <td class="pt-first"><span class="pt-rank">${i+1}</span>${teamLogoImg(t.team,'team-logo')}<span class="pt-name">${t.team}</span>${ptThinBadge(t.pa,'team',` across ${t.batters} hitter${t.batters===1?'':'s'}`)}<span class="pt-pa" title="qualified hitters">${t.batters}</span></td>
+          <td class="pt-first"><span class="pt-rank">${i+1}</span>${teamLogoImg(t.team,'team-logo')}<span class="pt-name">${t.team}</span>${ptThinBadge(t.pa,'team',` across ${t.batters} hitter${t.batters===1?'':'s'}`)}<span class="pt-pa" title="Qualified hitters pooled into this team's number">${t.batters} bats</span></td>
           ${PT_COLS.map(c=>`<td class="pt-num ${ptCellClass(t[c.k],means[c.k],c.hi)}">${c.fmt(t[c.k])}</td>`).join('')}
         </tr>`);
   }

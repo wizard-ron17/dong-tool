@@ -1692,7 +1692,12 @@ async function computePitchArsenal() {
     rows[`${pid}|${pitch}`] = {
       pid, pitch,
       name: playerNames[pid] || flipName(r[nameKey]),
-      team: playerTeams[pid] || r.team_name_alt || '',
+      // Prefer Savant's team over our boxscore-derived one: Savant updates on
+      // trade (current team), while playerTeams stays stale until the player
+      // appears in a boxscore for his new club (e.g. Curtis Mead → BOS, not the
+      // Nats he last played for with us). Same abbr convention (AZ/CWS/ATH), so
+      // logos still resolve. A player's season pitch data rolls to his new team.
+      team: r.team_name_alt || playerTeams[pid] || '',
       pa: +r.pa || 0, pitches: +r.pitches || 0,
       ba, slg, whiff: parseFloat(r.whiff_percent),
       bbe: 0, barrel: null, sweetspot: null, hardhit: parseFloat(r.hard_hit_percent), cq: null,
