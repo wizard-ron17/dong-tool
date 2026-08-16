@@ -1176,6 +1176,36 @@
   .pt-grid tr.pt-pinned td.pt-gavg { border-right: 2px solid #ffce3a; }
   .pt-grid tr.pt-pinned .pt-name { font-weight: 800; }
   .pt-pin { margin-left: 0.25rem; font-size: 0.68rem; line-height: 1; }
+  /* Pitcher Vuln */
+  .pv-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .pv-card { background: var(--surface1); border: 1px solid var(--border); border-radius: 12px; padding: 0.6rem 0.7rem; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .pv-card:hover { border-color: var(--muted); }
+  .pv-card.open { border-color: var(--accent); background: var(--surface2); }
+  .pv-main { display: flex; align-items: center; gap: 0.6rem; }
+  .pv-main .mu-photo { width: 42px; height: 42px; border-width: 2px; border-style: solid; object-fit: cover; object-position: center 30%; border-radius: 50%; flex-shrink: 0; }
+  .pv-id { flex: 1; min-width: 0; }
+  .pv-name { font-family: var(--font-d); font-size: 0.95rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 0.3rem; white-space: nowrap; overflow: hidden; }
+  .pv-sub { display: flex; align-items: center; gap: 0.25rem; font-size: 0.62rem; color: var(--muted); margin-top: 0.1rem; }
+  .pv-score { text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; }
+  .pv-juice { font-family: var(--font-d); font-weight: 800; font-size: 1.15rem; line-height: 1; }
+  .pv-juice-lbl { font-size: 0.5rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 700; margin-top: 0.1rem; }
+  .pv-caret { color: var(--muted); font-size: 0.7rem; transition: transform 0.18s; flex-shrink: 0; margin-left: 0.15rem; }
+  .pv-card.open .pv-caret { transform: rotate(90deg); color: var(--accent); }
+  .pv-status { font-size: 0.5rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); background: var(--surface0); border-radius: 4px; padding: 0.06rem 0.28rem; }
+  .pv-metrics { display: flex; flex-wrap: wrap; gap: 0.3rem 0.5rem; margin-top: 0.5rem; padding-left: 0.1rem; }
+  .pv-mtr { display: inline-flex; align-items: baseline; gap: 0.25rem; font-size: 0.64rem; }
+  .pv-mtr-lbl { color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.52rem; font-weight: 700; }
+  .pv-mtr-val { font-family: var(--font-d); font-weight: 700; color: var(--text); }
+  .pv-drill { margin-top: 0.6rem; border-top: 1px solid var(--border); padding-top: 0.5rem; }
+  .pv-drill-head { font-size: 0.56rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.35rem; }
+  .pv-bat { display: flex; align-items: center; gap: 0.45rem; padding: 0.28rem 0.1rem; }
+  .pv-bat-rank { font-size: 0.6rem; font-weight: 800; color: var(--muted); width: 1rem; flex-shrink: 0; }
+  .pv-bat-photo { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; object-position: center 30%; background: var(--surface0); flex-shrink: 0; }
+  .pv-bat-name { flex: 1; min-width: 0; font-size: 0.74rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pv-bat-hr { font-size: 0.6rem; color: var(--muted); flex-shrink: 0; }
+  .pv-bat-score { font-family: var(--font-d); font-weight: 800; font-size: 0.85rem; min-width: 2.2rem; text-align: right; flex-shrink: 0; }
+  .pv-bat-score.great { color: var(--accent); } .pv-bat-score.good { color: var(--gold); } .pv-bat-score.ok { color: #ff7040; }
+  .pv-bat-empty { font-size: 0.66rem; color: var(--muted); padding: 0.3rem 0.1rem; }
   .prospect-grid { display: flex; flex-direction: column; gap: 0.5rem; }
   .prospect-card { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.85rem; animation: fadeIn 0.15s ease; }
   .prospect-top { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.5rem; }
@@ -1492,6 +1522,10 @@
       <button class="nav-menu-item nav-menu-new" data-nav="steals" onclick="switchNav('steals')" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h11M10 8l5 5-5 5"/><path d="M20 4v16"/></svg>
         <span><span class="nm-name">Steals <span class="nm-new">NEW</span></span><span class="nm-desc">Who's running today — runner vs battery</span></span>
+      </button>
+      <button class="nav-menu-item nav-menu-new" data-nav="pitchervuln" onclick="switchNav('pitchervuln')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/></svg>
+        <span><span class="nm-name">Pitcher Vuln <span class="nm-new">NEW</span></span><span class="nm-desc">Tonight's most HR-prone arms to target</span></span>
       </button>
       <div class="nav-menu-group">Watch Lists</div>
       <button class="nav-menu-item nav-menu-new" data-nav="milestones" onclick="switchNav('milestones')" disabled>
@@ -1987,6 +2021,27 @@
     <div id="pitchtypes-content"><div class="empty">Loading data…</div></div>
   </div>
 
+  <div id="panel-pitchervuln" class="panel">
+    <div class="due-explainer" id="pitchervuln-explainer-toggle" onclick="toggleExplainer('pitchervuln')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Pitcher Vuln Works</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="pitchervuln-explainer-chevron">▶</span>
+      </div>
+      <div class="due-explainer-teaser">Tonight's starters ranked by how homer-prone they are — the flip side of Picks: the worst arms to target.</div>
+      <div class="due-explainer-body" id="pitchervuln-explainer-body" style="display:none">
+        <ul>
+          <li><b>Ranked by "Juice"</b> — a pitcher's HR-vulnerability × the park. Higher = a better spot to back a home run against him tonight. Tap a card to see the specific bats that punish him most (ranked by our matchup score).</li>
+          <li><b>Arm Stuff</b> is the core vulnerability read: <b>4-seam velocity</b> + <b>barrel%-allowed</b> (the exit-velo/launch-angle combo that leaves the yard). A leak-free backtest (~1,700 HR out-of-sample) found this predicts a pitcher's homer-proneness far better than HR/9 — and barrel beats hard-hit% because it ignores hard grounders that stay in the park. Above 1× = juicy (soft velo / loud contact), below 1× = tough.</li>
+          <li><b>Park</b> is the venue's HR/game vs league — a vulnerable arm in a bandbox is even juicier. Roofed/neutral parks sit at 1×.</li>
+          <li><b>Barrel%</b> and <b>Velo</b> are shown as the drivers behind Arm Stuff. Need ~40 batted balls for a barrel read and ~20 four-seamers for velo, else that piece stays neutral.</li>
+          <li>Relievers aren't listed — this is today's probable <b>starters</b> only. Openers show their listed arm. Data is 2026, via Baseball Savant.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="pitchervuln-content"><div class="empty">Loading data…</div></div>
+  </div>
+
   <div id="panel-milestones" class="panel">
     <div class="due-explainer" id="milestones-explainer-toggle" onclick="toggleExplainer('milestones')" aria-expanded="false">
       <div class="due-explainer-head">
@@ -2062,6 +2117,7 @@ let ptSort = 'slg', ptSortDir = -1; // sort column + direction (-1 desc)
 let ptView = 'pitch';    // 'pitch' (per-pitch board) | 'grid' (teams × pitches pivot)
 let ptGridMetric = 'slg'; // metric the pivot ranks by
 let ptGridPin = null;    // pinned team in the grid — highlighted so the eye can follow it as rows re-sort
+let pvOpenPid = null;    // Pitcher Vuln: which starter card is expanded to show the bats that punish him
 let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if currently on the IL
 let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questionable (NOT on the IL), from ESPN
 let returningInjured = []; // injured hitters (IL + DTD) with ESPN's estimated return dates — Returning Boppers tool
@@ -2574,7 +2630,7 @@ function toggleTheme() {
 }
 
 // ── Nav ────────────────────────────────────────────────────────────────
-const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'matchups', 'prospects', 'daylate', 'returning', 'birthdays', 'milestones', 'steals', 'pitchtypes'];
+const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'matchups', 'prospects', 'daylate', 'returning', 'birthdays', 'milestones', 'steals', 'pitchtypes', 'pitchervuln'];
 const PAIR_SIZE_TO_SLUG = { 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' };
 const PAIR_SLUG_TO_SIZE = { pairs: 2, trios: 3, quads: 4, quints: 5 };
 
@@ -2665,7 +2721,7 @@ function migrateLegacyHash() {
 }
 // The four pages that live in the Tools menu rather than the main bar; the
 // Tools pill lights up when any of them is active.
-const TOOLS_NAVS = ['matchups', 'milestones', 'steals', 'pitchtypes', 'picks', 'due', 'pairs', 'prospects', 'daylate', 'returning', 'birthdays'];
+const TOOLS_NAVS = ['matchups', 'milestones', 'steals', 'pitchtypes', 'pitchervuln', 'picks', 'due', 'pairs', 'prospects', 'daylate', 'returning', 'birthdays'];
 let navToolsOpen = false;
 function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
 function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
@@ -2682,6 +2738,7 @@ const PAGE_TITLES = {
   milestones: "Milestone Watch · Ron's Dong Tool",
   steals: "Steal Board · Ron's Dong Tool",
   pitchtypes: "Pitch Types · Ron's Dong Tool",
+  pitchervuln: "Pitcher Vuln · Ron's Dong Tool",
 };
 function switchNav(nav) {
   activeNav = nav;
@@ -2711,6 +2768,7 @@ function renderCurrentPanel() {
   if (activeNav === 'milestones') applyMilestoneSub(milestoneSubTab);
   if (activeNav === 'steals') applyStealsSub(stealsSubTab);
   if (activeNav === 'pitchtypes') renderPitchTypes();
+  if (activeNav === 'pitchervuln') renderPitcherVuln();
 }
 window.addEventListener('popstate', applyRouteState);
 let activeStatsView = 'league';
@@ -7152,6 +7210,7 @@ async function ensurePitchArsenal() {
   } catch (e) { pitchArsenal = 'error'; }
   finally { pitchArsenalLoading = false; }
   if (activeNav === 'pitchtypes') renderPitchTypes();
+  if (activeNav === 'pitchervuln') renderPitcherVuln();
 }
 const PT_COLS = [
   { k:'ba',        lbl:'BA',      hi:true,  fmt:v=>v!=null?v.toFixed(3).replace(/^0/,''):'—' },
@@ -7252,6 +7311,82 @@ function ptRenderGrid() {
   }).join('');
   return `<div class="pt-meta">Each cell is that team's <b>rank vs that pitch</b> by <b>${metricLbl}</b> — <span style="color:#63b97e">green = hits it best</span>, red = worst. Rows sorted by overall (AVG rank). <b>Tap a team name to pin it</b> and follow it as the ranking re-sorts. <b>*</b> = thin sample (&lt;${PT_THIN_TEAM_PA} PA, e.g. splitters).</div>`
     + metricSel + `<div class="tbl-scroll"><table class="pt-table pt-grid"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+// ── PITCHER VULN ────────────────────────────────────────────────────────
+// Tonight's probable starters ranked by "Juice" = Arm Stuff (HR-vulnerability:
+// velo + barrel%-allowed) × the park factor. The flip side of Picks — the worst
+// arms to target. Reuses matchupCards (pitcher stuff + scoreMatchup) so a card
+// expands to the opposing bats that punish that starter most.
+function pvToggle(pid) { pvOpenPid = (pvOpenPid === pid) ? null : pid; renderPitcherVuln(); }
+function pvClass(j) { return j >= 1.18 ? 'great' : j >= 1.06 ? 'good' : j <= 0.9 ? 'bad' : 'avg'; }
+function renderPitcherVuln() {
+  const el = document.getElementById('pitchervuln-content');
+  if (!el) return;
+  if (!matchupCards) { ensureMatchupCards(); el.innerHTML = '<div class="empty">Loading matchup data…</div>'; return; }
+  if (matchupCards === 'error') { el.innerHTML = `<div class="empty">Couldn't load matchup data. <a href="javascript:void(0)" onclick="matchupCards=null;renderPitcherVuln()">Retry</a></div>`; return; }
+  const C = matchupCards;
+  const park = v => (v && C.parkFactors[v] != null) ? C.parkFactors[v] : 1;
+  // Both starters in each game: a pitcher (his team) vs the other side's bats.
+  const rows = [];
+  for (const g of (todaySchedule || [])) {
+    for (const [me, opp] of [[g.home, g.away], [g.away, g.home]]) {
+      const pid = me.probablePitcherId ? String(me.probablePitcherId) : null;
+      if (!pid) continue;
+      const p = C._pIdx[pid];
+      if (!p || p.stuffRatio == null) continue; // need a stuff read to rank
+      const pk = park(g.venue);
+      rows.push({ p, team: me.teamAbbr, oppTeam: opp.teamAbbr, venue: g.venue, status: g.status,
+                  stuff: p.stuffRatio, park: pk, juice: p.stuffRatio * pk });
+    }
+  }
+  if (!rows.length) { el.innerHTML = '<div class="empty">No probable starters with data posted yet — check back closer to game time.</div>'; return; }
+  rows.sort((a, b) => b.juice - a.juice);
+  const meta = `<div class="pt-meta">Tonight's starters by <b>Juice</b> = <b>Arm Stuff</b> (velo + barrel%-allowed, our validated HR-vulnerability read) <b>× park</b>. Higher = a better spot to back a homer against him. <b>Tap a card</b> for the bats that punish him most.</div>`;
+  const cards = rows.map(r => {
+    const open = pvOpenPid === String(r.p.pid);
+    const cls = pvClass(r.juice);
+    const hand = r.p.hand ? `<span class="pk-hand ${r.p.hand.toLowerCase()}">${r.p.hand}</span>` : '';
+    const statusChip = (r.status && r.status !== 'Pre-Game') ? `<span class="pv-status">${r.status === 'Final' ? 'Final' : 'Live'}</span>` : '';
+    const mtr = (lbl, val) => `<span class="pv-mtr"><span class="pv-mtr-lbl">${lbl}</span><span class="pv-mtr-val">${val}</span></span>`;
+    let drill = '';
+    if (open) {
+      const bats = C.batters.filter(b => b.team === r.oppTeam)
+        .map(b => ({ b, s: scoreMatchup(b, r.p, r.venue).pickScore }))
+        .sort((a, b) => b.s - a.s).slice(0, 6);
+      drill = `<div class="pv-drill">
+        <div class="pv-drill-head">${r.oppTeam} bats that punish ${compactPlayerName(r.p.name)} — by matchup score</div>
+        ${bats.length ? bats.map((o, i) => `<div class="pv-bat">
+          <span class="pv-bat-rank">${i + 1}</span>
+          <img class="pv-bat-photo" src="${playerPhotoUrl(o.b.pid)}" alt="" loading="lazy">
+          <span class="pv-bat-name">${compactPlayerName(o.b.name)} ${o.b.hand ? `<span class="pk-hand ${o.b.hand.toLowerCase()}">${o.b.hand === 'S' ? 'S' : o.b.hand}</span>` : ''}</span>
+          <span class="pv-bat-hr">${o.b.hrs} HR</span>
+          <span class="pv-bat-score ${pickScoreClass(o.s)}">${o.s.toFixed(1)}</span>
+        </div>`).join('') : `<div class="pv-bat-empty">No qualified ${r.oppTeam} bats with matchup data.</div>`}
+      </div>`;
+    }
+    return `<div class="pv-card${open ? ' open' : ''}" onclick="pvToggle('${r.p.pid}')">
+      <div class="pv-main">
+        ${muPhotoTag(r.p.pid, r.team)}
+        <div class="pv-id">
+          <div class="pv-name">${compactPlayerName(r.p.name)} ${hand}${statusChip}</div>
+          <div class="pv-sub">${teamLogoImg(r.team, 'team-logo')}${r.team} vs ${r.oppTeam}${r.venue ? ` · ${r.venue}` : ''}</div>
+        </div>
+        <div class="pv-score">
+          <span class="pv-juice hrg-val ${cls}">${r.juice.toFixed(2)}×</span>
+          <span class="pv-juice-lbl">Juice</span>
+        </div>
+        <span class="pv-caret">▶</span>
+      </div>
+      <div class="pv-metrics">
+        ${mtr('Barrel', r.p.barrelPct != null ? `${r.p.barrelPct}%` : '—')}
+        ${mtr('Velo', r.p.fbVelo != null ? `${r.p.fbVelo}` : '—')}
+        ${mtr('Arm Stuff', `${r.stuff.toFixed(2)}×`)}
+        ${mtr('Park', `${r.park.toFixed(2)}×`)}
+      </div>
+      ${drill}
+    </div>`;
+  }).join('');
+  el.innerHTML = meta + `<div class="pv-list">${cards}</div>`;
 }
 function renderPitchTypes() {
   const el = document.getElementById('pitchtypes-content');

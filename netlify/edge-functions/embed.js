@@ -12,10 +12,10 @@ const BASE_DESC = 'Daily MLB home run picks, value bats, due hitters, and any ba
 // Keyed by the first path segment (the client-side route).
 const ROUTES = {
   '':        { title: "Ron's Dong Tool", desc: BASE_DESC },
-  picks:     { title: "Today's HR Picks · Ron's Dong Tool", desc: "Today's home run picks — Chalk & Value boards, scored by power, platoons, arm stuff, pitch synergy, and park." },
+  picks:     { title: "Today's HR Picks · Ron's Dong Tool", desc: "Today's home run picks — Chalk & Value boards, scored by power, platoons, arm stuff, and park." },
   due:       { title: "Most Due for a Bomb · Ron's Dong Tool", desc: "Hitters overdue for a home run, ranked by drought length and proven power." },
   schedule:  { title: "Today's Schedule · Ron's Dong Tool", desc: "Today's MLB slate with per-game Homer Scores, weather, park factors, and probable pitchers." },
-  matchups:  { title: "Matchup Lab · Ron's Dong Tool", desc: "Break down any batter vs any pitcher — power, platoons, arm stuff, pitch-type synergy, and park, scored like our Picks board." },
+  matchups:  { title: "Matchup Lab · Ron's Dong Tool", desc: "Break down any batter vs any pitcher — power, platoons, arm stuff, and park, scored like our Picks board." },
   stats:     { title: "Stats · Ron's Dong Tool", desc: "League home-run trends and leaderboards with stock-style technical-analysis overlays." },
   recap:     { title: "Recap · Ron's Dong Tool", desc: "Every home run from the last slate — distances, pitchers, and matchups." },
   pairs:     { title: "Top Pairings · Ron's Dong Tool", desc: "Which hitters go deep together — the correlated home-run parlay lens." },
@@ -26,6 +26,7 @@ const ROUTES = {
   milestones: { title: "Milestone Watch · Ron's Dong Tool", desc: "Hitters closing in on a career home-run milestone — 100, 200, 300 and up — plus who just crossed one 🏆." },
   steals:     { title: "Steal Board · Ron's Dong Tool", desc: "Today's base-stealers ranked against the battery they'll face — runner speed & tendency vs pitcher hand and catcher arm 🏃." },
   pitchtypes: { title: "Pitch Types · Ron's Dong Tool", desc: "How every MLB team and hitter performs against each pitch type this season — BA, SLG, barrel%, and more, by pitch." },
+  pitchervuln: { title: "Pitcher Vuln · Ron's Dong Tool", desc: "Tonight's starters ranked by how homer-prone they are — arm stuff (velo + barrel%-allowed) × park — plus the bats that punish each one ⚾." },
 };
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
