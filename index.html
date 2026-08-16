@@ -137,16 +137,18 @@
   /* z-index 1 (below the bar's z-index 2, both inside .nav-shell) + a top that
      tucks under the bar's bottom edge = the card is hidden behind the bar and
      slides down out from under it. */
-  .nav-tools-menu { position: absolute; top: calc(100% - 10px); right: 0; z-index: 1; min-width: 250px; background: var(--surface1); border: 1px solid var(--border2); border-radius: 12px; padding: 0.35rem; box-shadow: 0 14px 40px rgba(0,0,0,0.45); opacity: 0; transform: translateY(-8px); pointer-events: none; transition: opacity 0.16s, transform 0.16s; }
+  /* 2-column tile grid on desktop too (mobile refines sizing below). Group
+     headers span both columns; descriptions are dropped for a compact grid. */
+  .nav-tools-menu { position: absolute; top: calc(100% - 10px); right: 0; z-index: 1; min-width: 336px; background: var(--surface1); border: 1px solid var(--border2); border-radius: 14px; padding: 0.5rem; box-shadow: 0 14px 40px rgba(0,0,0,0.45); opacity: 0; transform: translateY(-8px); pointer-events: none; transition: opacity 0.16s, transform 0.16s; display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem 0.4rem; max-height: 80vh; overflow-y: auto; }
   .nav-tools-menu.open { opacity: 1; transform: none; pointer-events: auto; }
-  .nav-menu-group { font-size: 0.54rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); padding: 0.5rem 0.65rem 0.2rem; opacity: 0.75; }
-  .nav-menu-group:first-child { padding-top: 0.2rem; }
-  .nav-menu-item { display: flex; align-items: center; gap: 0.6rem; width: 100%; background: transparent; border: none; border-radius: 8px; padding: 0.55rem 0.65rem; cursor: pointer; text-align: left; transition: background 0.15s; }
+  .nav-menu-group { grid-column: 1 / -1; font-size: 0.54rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); padding: 0.4rem 0.3rem 0.1rem; opacity: 0.75; }
+  .nav-menu-group:first-child { padding-top: 0.15rem; }
+  .nav-menu-item { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.3rem; width: 100%; background: var(--surface0); border: none; border-radius: 11px; padding: 0.6rem 0.4rem; cursor: pointer; transition: background 0.15s; }
   .nav-menu-item:hover:not(:disabled) { background: var(--surface2); }
   .nav-menu-item:disabled { opacity: 0.32; cursor: not-allowed; }
-  .nav-menu-item svg { width: 19px; height: 19px; flex-shrink: 0; color: var(--muted); }
-  .nav-menu-item .nm-name { font-family: var(--font-d); font-size: 0.95rem; font-weight: 700; color: var(--text); display: block; line-height: 1.1; }
-  .nav-menu-item .nm-desc { font-size: 0.57rem; color: var(--muted); display: block; margin-top: 0.1rem; }
+  .nav-menu-item svg { width: 21px; height: 21px; flex-shrink: 0; color: var(--muted); }
+  .nav-menu-item .nm-name { font-family: var(--font-d); font-size: 0.84rem; font-weight: 700; color: var(--text); display: block; line-height: 1.15; }
+  .nav-menu-item .nm-desc { display: none; }
   .nav-menu-item.active svg, .nav-menu-item.active .nm-name { color: var(--accent); }
 
   /* Mobile: app-style bottom tab bar — icon over label, roomy touch targets. */
