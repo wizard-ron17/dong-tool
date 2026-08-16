@@ -664,12 +664,13 @@ function lineupPAFactor(order) { return (order >= 1 && order <= 9) ? LINEUP_PA_F
 // Value board: the candidate pool re-ranked by (shrunk) Blast% × matchup — the
 // leading-indicator lens that surfaces underpriced power (often lower-HR bats
 // blasting the ball before the book catches up). Replaces the old Longshots.
-// Trimmed 30 → 12 (Aug 2026). Over 16 tracked days the hit rate held ~21% through
-// the top 8 and stayed above base to ~top 12, then the tail hit at/below the 14.8%
-// base — dead weight. Capping by rank beat an HR floor ~3:1 (+20% vs +7%) and keeps
-// the low-HR surplus bats the board exists to surface. Backtest also confirmed
-// blast SURPLUS is real signal (over-performs power baseline by ~+0.36pp).
-const VALUE_LIMIT        = 12;
+// Trimmed 30 → 8 (Aug 2026). Over 16 tracked days the hit rate held ~21% through
+// the top 8 (picks 1-8 ≈ 21%), then cliffed: picks 9-12 hit ~11% combined — BELOW
+// the 14.8% base, i.e. dead weight that dilutes the board. The edge is concentrated
+// in the top 8, so that's the cut. Rank cap beat an HR floor ~3:1 and keeps the
+// low-HR surplus bats the board exists to surface. Backtest also confirmed blast
+// SURPLUS is real signal (over-performs power baseline by ~+0.36pp).
+const VALUE_LIMIT        = 8;
 const VALUE_SURPLUS_MIN  = 1.1; // blast must imply ≥10% more HR than he's produced to count as "value" (underpriced)
 const VALUE_CONTACT_GAIN = 2; // recent-form amplification, display cue only (not in score)
 const BASE_POWER_SHRINK_AB = 100; // pseudo-ABs of league-average prior; half-regressed at 100 AB, lightly at 300+
