@@ -139,6 +139,8 @@
      slides down out from under it. */
   .nav-tools-menu { position: absolute; top: calc(100% - 10px); right: 0; z-index: 1; min-width: 250px; background: var(--surface1); border: 1px solid var(--border2); border-radius: 12px; padding: 0.35rem; box-shadow: 0 14px 40px rgba(0,0,0,0.45); opacity: 0; transform: translateY(-8px); pointer-events: none; transition: opacity 0.16s, transform 0.16s; }
   .nav-tools-menu.open { opacity: 1; transform: none; pointer-events: auto; }
+  .nav-menu-group { font-size: 0.54rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); padding: 0.5rem 0.65rem 0.2rem; opacity: 0.75; }
+  .nav-menu-group:first-child { padding-top: 0.2rem; }
   .nav-menu-item { display: flex; align-items: center; gap: 0.6rem; width: 100%; background: transparent; border: none; border-radius: 8px; padding: 0.55rem 0.65rem; cursor: pointer; text-align: left; transition: background 0.15s; }
   .nav-menu-item:hover:not(:disabled) { background: var(--surface2); }
   .nav-menu-item:disabled { opacity: 0.32; cursor: not-allowed; }
@@ -1465,22 +1467,7 @@
     </button>
   </nav>
     <div class="nav-tools-menu" id="nav-tools-menu">
-      <button class="nav-menu-item nav-menu-new" data-nav="matchups" onclick="switchNav('matchups')" disabled>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 20 4M15 4h5v5M4 9V4h5M9 20H4v-5"/></svg>
-        <span><span class="nm-name">Matchups <span class="nm-new">NEW</span></span><span class="nm-desc">Break down any batter vs any pitcher</span></span>
-      </button>
-      <button class="nav-menu-item nav-menu-new" data-nav="milestones" onclick="switchNav('milestones')" disabled>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V3M6 4h11l-2.2 3L17 10H6"/></svg>
-        <span><span class="nm-name">Milestones <span class="nm-new">NEW</span></span><span class="nm-desc">Chasing 100 · 200 · 300+ career HR</span></span>
-      </button>
-      <button class="nav-menu-item nav-menu-new" data-nav="steals" onclick="switchNav('steals')" disabled>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h11M10 8l5 5-5 5"/><path d="M20 4v16"/></svg>
-        <span><span class="nm-name">Steals <span class="nm-new">NEW</span></span><span class="nm-desc">Who's running today — runner vs battery</span></span>
-      </button>
-      <button class="nav-menu-item nav-menu-new" data-nav="pitchtypes" onclick="switchNav('pitchtypes')" disabled>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="4"/><path d="M11 11l8 8M17 19l2-2"/></svg>
-        <span><span class="nm-name">Pitch Types <span class="nm-new">NEW</span></span><span class="nm-desc">How every team hits each pitch (BA/SLG)</span></span>
-      </button>
+      <div class="nav-menu-group">Today's Boards</div>
       <button class="nav-menu-item" data-nav="picks" onclick="switchNav('picks')" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.75" fill="currentColor"/></svg>
         <span><span class="nm-name">Picks</span><span class="nm-desc">Today's best HR matchups</span></span>
@@ -1493,17 +1480,35 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="12" r="4.75"/><circle cx="15" cy="12" r="4.75"/></svg>
         <span><span class="nm-name">Pairs</span><span class="nm-desc">Guys who homer on the same day</span></span>
       </button>
+      <div class="nav-menu-group">Matchup Lab</div>
+      <button class="nav-menu-item nav-menu-new" data-nav="matchups" onclick="switchNav('matchups')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 20 4M15 4h5v5M4 9V4h5M9 20H4v-5"/></svg>
+        <span><span class="nm-name">Matchups <span class="nm-new">NEW</span></span><span class="nm-desc">Break down any batter vs any pitcher</span></span>
+      </button>
+      <button class="nav-menu-item nav-menu-new" data-nav="pitchtypes" onclick="switchNav('pitchtypes')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="4"/><path d="M11 11l8 8M17 19l2-2"/></svg>
+        <span><span class="nm-name">Pitch Types <span class="nm-new">NEW</span></span><span class="nm-desc">How every team hits each pitch (BA/SLG)</span></span>
+      </button>
+      <button class="nav-menu-item nav-menu-new" data-nav="steals" onclick="switchNav('steals')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h11M10 8l5 5-5 5"/><path d="M20 4v16"/></svg>
+        <span><span class="nm-name">Steals <span class="nm-new">NEW</span></span><span class="nm-desc">Who's running today — runner vs battery</span></span>
+      </button>
+      <div class="nav-menu-group">Watch Lists</div>
+      <button class="nav-menu-item nav-menu-new" data-nav="milestones" onclick="switchNav('milestones')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V3M6 4h11l-2.2 3L17 10H6"/></svg>
+        <span><span class="nm-name">Milestones <span class="nm-new">NEW</span></span><span class="nm-desc">Chasing 100 · 200 · 300+ career HR</span></span>
+      </button>
       <button class="nav-menu-item" data-nav="prospects" onclick="switchNav('prospects')" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3.8l2.3 5 5.4.5-4.1 3.7 1.2 5.4L12 15.6l-4.8 2.8 1.2-5.4-4.1-3.7 5.4-.5z"/></svg>
         <span><span class="nm-name">Prospects</span><span class="nm-desc">Call-ups and debut bombs</span></span>
       </button>
-      <button class="nav-menu-item" data-nav="daylate" onclick="switchNav('daylate')" disabled>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3.5 4.5V9H8"/><path d="M12 8v4.3l2.8 1.7"/></svg>
-        <span><span class="nm-name">Day Late</span><span class="nm-desc">Yesterday's picks that didn't go yard</span></span>
-      </button>
       <button class="nav-menu-item" data-nav="returning" onclick="switchNav('returning')" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9.5 9 5M4 9.5h10a6 6 0 0 1 0 12h-3"/></svg>
         <span><span class="nm-name">Returning</span><span class="nm-desc">Injured boppers and when they're back</span></span>
+      </button>
+      <button class="nav-menu-item" data-nav="daylate" onclick="switchNav('daylate')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3.5 4.5V9H8"/><path d="M12 8v4.3l2.8 1.7"/></svg>
+        <span><span class="nm-name">Day Late</span><span class="nm-desc">Yesterday's picks that didn't go yard</span></span>
       </button>
       <button class="nav-menu-item" data-nav="birthdays" onclick="switchNav('birthdays')" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16"/><path d="M5.5 21v-9a2.5 2.5 0 0 1 2.5-2.5h8a2.5 2.5 0 0 1 2.5 2.5v9"/><path d="M5.5 15.5h13"/><path d="M9 9.5V7M12 9.5V7M15 9.5V7"/></svg>
