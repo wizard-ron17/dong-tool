@@ -5931,7 +5931,9 @@ function muDDCompute(which, q) {
       ? list.filter(o => (o.x.team || '').toLowerCase() === ql)
       : list.filter(o => o.x.name.toLowerCase().includes(ql) || (o.x.team || '').toLowerCase().includes(ql));
   }
-  list.sort((a, b) => b.score - a.score);
+  // IL'd players stay searchable (you can still look one up by name) but sort to
+  // the bottom, so an injured bat like a shelved slugger never ranks as "best".
+  list.sort((a, b) => (injuryStatus[a.x.pid] ? 1 : 0) - (injuryStatus[b.x.pid] ? 1 : 0) || b.score - a.score);
   return list.slice(0, 60);
 }
 function muDDRender(which) {
@@ -5945,7 +5947,7 @@ function muDDRender(which) {
   dd.innerHTML = `<div class="mu-dd-head">Matchup score ${oppLbl} — best first · <span class="mu-dd-hint">search name or team (e.g. NYY)</span></div>` + (items.length
     ? items.map((o, i) => `<div class="mu-ddi${i === muDDIdx ? ' active' : ''}" onmousedown="event.preventDefault();muDDPick('${which}','${o.x.pid}')">
         <img class="mu-ddi-photo" src="${playerPhotoUrl(o.x.pid)}" alt="" loading="lazy">
-        <span class="mu-ddi-name">${compactPlayerName(o.x.name)} ${muHandTag(which, o.x.hand)}</span>
+        <span class="mu-ddi-name">${compactPlayerName(o.x.name)} ${muHandTag(which, o.x.hand)}${injuryBadge(o.x.pid, true)}</span>
         <span class="mu-ddi-team">${o.x.team || ''}${o.x.role ? ' · ' + o.x.role : ''}</span>
         <span class="mu-ddi-score ${pickScoreClass(o.score)}">${o.score.toFixed(1)}</span>
       </div>`).join('')
@@ -6025,6 +6027,7 @@ function muSuggestList(cat) {
   const out = [], seen = new Set();
   for (const r of (src || [])) {
     const pid = String(r.pid);
+    if (injuryStatus[pid]) continue; // no shelving an IL'd bat as a ready-to-load matchup
     const opp = cat === 'due' ? oppByTeam?.[r.team] : { oppPid: String(r.oppPid), venue: r.venue };
     if (!opp || !opp.oppPid) continue;
     const b = C._bIdx[pid], pit = C._pIdx[opp.oppPid];
@@ -7362,7 +7365,7 @@ function renderPitcherVuln() {
     const mtr = (lbl, val) => `<span class="pv-mtr"><span class="pv-mtr-lbl">${lbl}</span><span class="pv-mtr-val">${val}</span></span>`;
     let drill = '';
     if (open) {
-      const bats = C.batters.filter(b => b.team === r.oppTeam)
+      const bats = C.batters.filter(b => b.team === r.oppTeam && !injuryStatus[b.pid])
         .map(b => ({ b, s: scoreMatchup(b, r.p, r.venue).pickScore }))
         .sort((a, b) => b.s - a.s).slice(0, 6);
       drill = `<div class="pv-drill">
