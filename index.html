@@ -6248,20 +6248,21 @@ function renderValueResults() {
       <span class="ph-bucket-n">${hits}/${total}</span>
     </div>`;
   }).join('');
-  const dayRows = [...days].reverse().map(entry => {
+  const dayItems = [...days].reverse().map(entry => {
     const total = entry.value.length;
     const rankedHits = entry.value.filter(p => p.hit);
     const pct = total ? (rankedHits.length / total * 100).toFixed(0) : 0;
     const hitNames = rankedHits.map(p =>
       `<span class="ph-hit-name" title="Ranked #${p.rank} that day · ${p.hr} season HR${p.blastPct!=null?` · ${p.blastPct}% Blast`:''} when listed"><span class="ph-hit-rank">#${p.rank}</span>${compactPlayerName(p.name)}</span>`
     ).join('');
-    return `<div class="ph-day-row">
+    return { date: entry.date, html: `<div class="ph-day-row">
       <span class="ph-day-date">${entry.date}</span>
       <span class="ph-day-fraction">${rankedHits.length}/${total}</span>
       <span class="ph-day-pct hrg-val ${total?vCls(rankedHits.length/total):'avg'}">${total?pct+'%':'—'}</span>
       <span class="ph-day-hits">${hitNames || '<span style="color:var(--dim)">none landed</span>'}</span>
-    </div>`;
-  }).join('');
+    </div>` };
+  });
+  const dayRows = changelogDayRows(dayItems);
   el.innerHTML = `
     <div class="ph-summary">
       <div class="ph-stat"><span class="ph-stat-val hrg-val ${vCls(parseFloat(hitRate)/100)}">${hitRate}%</span><span class="ph-stat-lbl">Hit Rate</span></div>
@@ -6271,6 +6272,7 @@ function renderValueResults() {
     </div>
     <div class="ph-buckets-head">Hit Rate by Rank <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· do the top value bats beat the tail?</span></div>
     <div class="ph-buckets">${bucketHtml}</div>
+    ${picksChangelogHtml()}
     <div class="ph-buckets-head" style="margin-top:1rem">Day-by-Day</div>
     <div class="ph-days">${dayRows}</div>`;
 }
@@ -6311,6 +6313,20 @@ function togglePicksChangelog() {
   if (body) body.style.display = picksChangelogOpen ? 'block' : 'none';
   if (chev) chev.classList.toggle('open', picksChangelogOpen);
   if (head) head.setAttribute('aria-expanded', String(picksChangelogOpen));
+}
+// Interleave model-change dividers into a newest-first list of day rows. Each dayItem
+// is { date, html }. A change on date D applies to that day and newer, so its marker
+// sits just below the D row — everything above the divider ran on the newer model.
+// noDivider entries (e.g. a limit, retroactively applied) stay out of the timeline.
+// Shared by both the Chalk and Value results views.
+function changelogDayRows(dayItems) {
+  const changeByDate = {};
+  for (const c of MODEL_CHANGELOG) if (!c.noDivider) (changeByDate[c.date] ??= []).push(c);
+  const markerItems = Object.entries(changeByDate).map(([date, cs]) => ({ date, kind: 'marker',
+    html: `<div class="ph-day-marker" title="${cs.map(c => c.title).join(' · ')}"><span class="ph-marker-txt">⚙ Model update · ${date} — ${cs.map(c => c.title).join(' · ')}</span></div>` }));
+  return [...dayItems.map(d => ({ ...d, kind: 'day' })), ...markerItems]
+    .sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : (a.kind === 'day' ? -1 : 1))
+    .map(x => x.html).join('');
 }
 function picksChangelogHtml() {
   if (!MODEL_CHANGELOG.length) return '';
@@ -6394,16 +6410,7 @@ function renderPicksResults() {
       <span class="ph-day-hits">${hitNames || '<span style="color:var(--dim)">—</span>'}</span>
     </div>` };
   });
-  // Interleave model-change dividers. A change on date D applies to that day and
-  // newer, so in this newest-first list its marker sits just below the D row —
-  // everything above the divider ran on the newer model.
-  const changeByDate = {};
-  for (const c of MODEL_CHANGELOG) if (!c.noDivider) (changeByDate[c.date] ??= []).push(c); // noDivider = list-only (e.g. a limit, retroactively applied — no results discontinuity)
-  const markerItems = Object.entries(changeByDate).map(([date, cs]) => ({ date, kind: 'marker',
-    html: `<div class="ph-day-marker" title="${cs.map(c => c.title).join(' · ')}"><span class="ph-marker-txt">⚙ Model update · ${date} — ${cs.map(c => c.title).join(' · ')}</span></div>` }));
-  const dayRows = [...dayItems, ...markerItems]
-    .sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : (a.kind === 'day' ? -1 : 1))
-    .map(x => x.html).join('');
+  const dayRows = changelogDayRows(dayItems);
 
   el.innerHTML = `
     ${chips}
