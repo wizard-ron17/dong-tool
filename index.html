@@ -5843,7 +5843,9 @@ async function ensureMatchupCards() {
     matchupCards._pLabel = Object.fromEntries(matchupCards.pitchers.map(p => [muLabel(p), p.pid]));
   } catch (e) { matchupCards = 'error'; }
   finally { matchupCardsLoading = false; }
+  // Re-render whichever matchup-card-backed tool is open now that data has arrived.
   if (activeNav === 'matchups') renderMatchups();
+  else if (activeNav === 'pitchervuln') renderPitcherVuln();
 }
 // Pitcher's arsenal for the side a batter stands on (mirrors build's pitcherMixVs).
 // Returns { mix, split } — split=true only when a REAL handedness split was used
