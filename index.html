@@ -172,12 +172,20 @@
     .nav-tools-backdrop { background: rgba(0,0,0,0.45); bottom: calc(var(--nav-bottom) + var(--nav-h)); }
     /* visibility flips AFTER the slide-out finishes (0s delay trick) so the
        closed sheet can never peek — translateY(135%) clears the bottom gap. */
-    .nav-tools-menu { position: fixed; top: auto; left: var(--nav-side); right: var(--nav-side); bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.5rem); min-width: 0; border: 1px solid var(--border2); border-radius: 20px; padding: 0.6rem 0.7rem 0.7rem; opacity: 1; transform: translateY(135%); visibility: hidden; transition: transform 0.24s ease, visibility 0s linear 0.24s; box-shadow: 0 10px 34px rgba(0,0,0,0.5); }
+    /* Mobile: a 2-column tile grid so all ~12 tools fit above the nav bar
+       instead of a tall list that runs off the top of the screen. Group
+       headers span both columns; descriptions are dropped for density; a
+       max-height scroll is the safety net if the tool count keeps growing. */
+    .nav-tools-menu { position: fixed; top: auto; left: var(--nav-side); right: var(--nav-side); bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.5rem); min-width: 0; border: 1px solid var(--border2); border-radius: 20px; padding: 0.55rem 0.6rem 0.65rem; opacity: 1; transform: translateY(135%); visibility: hidden; transition: transform 0.24s ease, visibility 0s linear 0.24s; box-shadow: 0 10px 34px rgba(0,0,0,0.5);
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 0.45rem; max-height: calc(100dvh - var(--nav-bottom) - var(--nav-h) - 2rem); overflow-y: auto; -webkit-overflow-scrolling: touch; }
     .nav-tools-menu.open { transform: none; visibility: visible; transition: transform 0.24s ease; }
-    .nav-menu-item { padding: 0.8rem 0.7rem; }
-    .nav-menu-item .nm-name { font-size: 1.05rem; }
-    .nav-menu-item .nm-desc { font-size: 0.62rem; }
-    .nav-menu-item svg { width: 22px; height: 22px; }
+    .nav-menu-group { grid-column: 1 / -1; padding: 0.4rem 0.25rem 0.05rem; }
+    .nav-menu-group:first-child { padding-top: 0.1rem; }
+    .nav-menu-item { flex-direction: column; align-items: center; text-align: center; gap: 0.3rem; padding: 0.65rem 0.35rem; border-radius: 12px; background: var(--surface0); }
+    .nav-menu-item:hover:not(:disabled), .nav-menu-item.active { background: var(--surface2); }
+    .nav-menu-item .nm-name { font-size: 0.82rem; line-height: 1.15; }
+    .nav-menu-item .nm-desc { display: none; }
+    .nav-menu-item svg { width: 23px; height: 23px; }
   }
 
   .sub-tabs { display: flex; gap: 0.3rem; margin-bottom: 1rem; background: var(--surface0); padding: 0.25rem; border-radius: 8px; border: 1px solid var(--border); }
