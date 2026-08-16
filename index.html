@@ -2074,6 +2074,7 @@ let picks    = []; // today's HR pick candidates, pre-scored server-side (Chalk)
 let value    = []; // the Value board — same pool re-ranked by Blast% × matchup
 let batMeta  = {}; // pid -> { b: batSide, p: position } for projected-lineup bats
 let valueHistory = [];
+let valueLimit   = 8;    // top-N Value board size; shipped by the build so the Results view caps history to the same depth
 let picksMode = 'chalk'; // 'chalk' (proven power / blast-blend) | 'value' (Blast%)
 let picksHistory = [];
 // 3 / 7 = the server floors ("All"); hide off/bench/IL by default. Persisted:
@@ -2505,6 +2506,7 @@ function applyData(data) {
   picks        = data.picks        ?? [];
   value        = data.value        ?? [];
   valueHistory = data.valueHistory ?? [];
+  valueLimit   = data.valueLimit   ?? valueLimit;
   batMeta      = data.batMeta      ?? {};
   picksHistory = data.picksHistory ?? [];
   todayTeamsPlaying = new Set();
@@ -6225,7 +6227,10 @@ function renderValueResults() {
     el.innerHTML = `<div class="empty">No Value results yet — the board gets scored each morning once the previous day's games are final.</div>`;
     return;
   }
-  const days = valueHistory.map(e => ({ date: e.date, value: (e.value || []).map((p, i) => ({ ...p, rank: i + 1 })) }));
+  // Cap every day's board to the CURRENT top-N so the tracked record is a consistent
+  // "how the top {valueLimit} did" — comparable across the 30→8 trim (a limit slices
+  // an already-ranked list, unlike a scoring change, so it applies cleanly to history).
+  const days = valueHistory.map(e => ({ date: e.date, value: (e.value || []).slice(0, valueLimit).map((p, i) => ({ ...p, rank: i + 1 })) }));
   const all = days.flatMap(e => e.value);
   const total0 = all.length;
   const totalHits = all.filter(p => p.hit).length;
@@ -6283,7 +6288,7 @@ function picksResultMatch(p) { return picksFilters.board === 'full' || p.provenP
 // isn't strictly comparable to one after, so we surface these both as a list and
 // as dividers on the day-by-day timeline. Newest first; dates are ET (build day).
 const MODEL_CHANGELOG = [
-  { date: '2026-08-15', title: 'Value board trimmed to top 8', detail: 'Over 16 tracked days the Value hit rate held ~21% through the top 8, then cliffed — picks 9-12 hit ~11% combined, below the 14.8% base (dead weight that diluted the board, which used to run 30 deep). The edge lives in the top 8. Rank cap beat an HR floor ~3:1 and keeps the low-HR "surplus" bats the board exists for. Chalk unchanged.' },
+  { date: '2026-08-15', noDivider: true, title: 'Value board trimmed to top 8', detail: 'Over 16 tracked days the Value hit rate held ~21% through the top 8, then cliffed — picks 9-12 hit ~11% combined, below the 14.8% base (dead weight that diluted the board, which used to run 30 deep). The edge lives in the top 8. Rank cap beat an HR floor ~3:1 and keeps the low-HR "surplus" bats the board exists for. Since a limit just slices an already-ranked list, the results record above is capped to the top 8 for EVERY day — so the hit rate stays comparable across the change (no timeline divider needed). Chalk unchanged.' },
   { date: '2026-08-15', title: 'Pitch-mix synergy removed from the score', detail: 'A leak-free backtest (~1,700 HR out-of-sample) found pitch-type synergy adds nothing to HR prediction beyond base power — in any form. Removed it as a scoring factor (the Pitch Matchup chart stays as context). Reshuffles the board a little; base power already captured the "good overlap" signal.' },
   { date: '2026-08-15', title: 'Arm Stuff now keys on barrel%-allowed', detail: 'Swapped the pitcher contact-quality input from hard-hit% to barrel%-allowed — a leak-free backtest showed barrel is the sharper HR predictor. Scores shift a little (~±3%).' },
   { date: '2026-08-15', title: 'Picks projection is injury-list aware', detail: 'A hitter freshly on the IL is no longer projected into a lineup or picked, matching the Schedule tab.' },
@@ -6393,7 +6398,7 @@ function renderPicksResults() {
   // newer, so in this newest-first list its marker sits just below the D row —
   // everything above the divider ran on the newer model.
   const changeByDate = {};
-  for (const c of MODEL_CHANGELOG) (changeByDate[c.date] ??= []).push(c);
+  for (const c of MODEL_CHANGELOG) if (!c.noDivider) (changeByDate[c.date] ??= []).push(c); // noDivider = list-only (e.g. a limit, retroactively applied — no results discontinuity)
   const markerItems = Object.entries(changeByDate).map(([date, cs]) => ({ date, kind: 'marker',
     html: `<div class="ph-day-marker" title="${cs.map(c => c.title).join(' · ')}"><span class="ph-marker-txt">⚙ Model update · ${date} — ${cs.map(c => c.title).join(' · ')}</span></div>` }));
   const dayRows = [...dayItems, ...markerItems]
