@@ -1194,6 +1194,7 @@
   .pv-card.pv-static { cursor: default; }
   .pv-card.pv-static:hover { border-color: var(--border); }
   .pv-main { display: flex; align-items: center; gap: 0.6rem; }
+  .pv-brank { font-family: var(--font-d); font-size: 0.8rem; font-weight: 800; color: var(--muted); min-width: 1.25rem; text-align: center; flex-shrink: 0; }
   .pv-main .mu-photo { width: 42px; height: 42px; border-width: 2px; border-style: solid; object-fit: cover; object-position: center 30%; border-radius: 50%; flex-shrink: 0; }
   .pv-id { flex: 1; min-width: 0; }
   .pv-name { font-family: var(--font-d); font-size: 0.95rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 0.3rem; white-space: nowrap; overflow: hidden; }
@@ -2075,6 +2076,7 @@
           <li><b>Exp K%</b> is the headline — the strikeout rate we'd expect in this specific matchup, via a log5 blend of the <b>pitcher's K%</b> and the <b>opponent's team K%</b> against the league baseline. Higher = a better strikeout spot.</li>
           <li><b>~Proj Ks</b> estimates the raw strikeout count for his start: Exp K% × the batters he projects to face (from how deep he typically goes). Handy for over/under K props.</li>
           <li><b>Why season-long, not hot/cold?</b> K% is one of the fastest-stabilizing stats in baseball (reliable by ~70 batters faced), so a season rate is already trustworthy and recency mostly adds noise. Rates are lightly regressed toward league for small samples.</li>
+          <li><b>Flip the scope</b> with the By Pitcher / By Batter toggle: By Batter ranks today's <b>hitters</b> by their expected K% vs the starter they face — the likeliest bats to whiff today.</li>
           <li>Today's probable <b>starters</b> only (openers show their listed arm). Data is 2026 regular season, via MLB Stats.</li>
         </ul>
       </div>
@@ -2095,6 +2097,7 @@
           <li><b>Exp BB%</b> is the headline — the walk rate we'd expect in this matchup, via a log5 blend of the <b>pitcher's BB%</b> and the <b>opponent's team BB%</b> (walks drawn) against the league baseline. Higher = a wilder spot.</li>
           <li><b>~Proj BB</b> estimates the walks for his start: Exp BB% × the batters he projects to face. Handy for walk props / traffic.</li>
           <li><b>Why season-long?</b> Like K%, walk rate stabilizes fast (~120 batters faced), so a season rate is reliable and recency mostly adds noise. Rates are lightly regressed toward league for small samples.</li>
+          <li><b>Flip the scope</b> with the By Pitcher / By Batter toggle: By Batter ranks today's <b>hitters</b> by their expected BB% vs the starter they face — the likeliest bats to draw a walk today.</li>
           <li>Today's probable <b>starters</b> only (openers show their listed arm). Data is 2026 regular season, via MLB Stats.</li>
         </ul>
       </div>
@@ -2179,6 +2182,7 @@ let ptGridMetric = 'slg'; // metric the pivot ranks by
 let ptGridPin = null;    // pinned team in the grid — highlighted so the eye can follow it as rows re-sort
 let pvOpenPid = null;    // Pitcher Vuln: which starter card is expanded to show the bats that punish him
 let ppOpenPid = null;    // Pitcher Ks/Walks: which starter card is expanded to show the lineup he faces
+let ppView = 'pitcher';  // Pitcher Ks/Walks scope: 'pitcher' (rank arms) | 'batter' (rank hitters likeliest to K/walk)
 let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if currently on the IL
 let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questionable (NOT on the IL), from ESPN
 let returningInjured = []; // injured hitters (IL + DTD) with ESPN's estimated return dates — Returning Boppers tool
@@ -7470,6 +7474,7 @@ function renderPitcherVuln() {
 // BB% stabilize fast, so season-long is the base (recency mostly adds noise);
 // small samples are lightly regressed toward league. Shares Pitcher Vuln's card CSS.
 function ppToggle(pid) { ppOpenPid = (ppOpenPid === pid) ? null : pid; if (activeNav === 'pitcherks') renderPitcherKs(); else renderPitcherWalks(); }
+function ppSetView(v) { ppView = v; ppOpenPid = null; if (activeNav === 'pitcherks') renderPitcherKs(); else renderPitcherWalks(); }
 function renderPitcherKs() { renderPitcherProp('k'); }
 function renderPitcherWalks() { renderPitcherProp('bb'); }
 function renderPitcherProp(kind) {
@@ -7480,6 +7485,12 @@ function renderPitcherProp(kind) {
   const lg = teamOffense.lg?.[rateKey] ?? (isK ? 0.22 : 0.083);
   const K0 = isK ? 70 : 120; // regression pseudo-batters (K% stabilizes faster than BB%)
   const log5 = (p, t, l) => { const num = (p * t) / l, den = num + ((1 - p) * (1 - t)) / (1 - l); return den ? num / den : p; };
+  const lbl = isK ? 'K' : 'BB', word = isK ? 'strikeout' : 'walk';
+  const toggle = `<div class="lb-toolbar"><div class="view-switch">
+    <button class="view-btn${ppView === 'pitcher' ? ' active' : ''}" onclick="ppSetView('pitcher')">By Pitcher</button>
+    <button class="view-btn${ppView === 'batter' ? ' active' : ''}" onclick="ppSetView('batter')">By Batter</button>
+  </div></div>`;
+  if (ppView === 'batter') { el.innerHTML = toggle + ppBatterBoard(isK, lg, K0, log5, lbl, word); return; }
   const rows = [];
   for (const g of (todaySchedule || [])) {
     for (const [me, opp] of [[g.home, g.away], [g.away, g.home]]) {
@@ -7499,9 +7510,8 @@ function renderPitcherProp(kind) {
                   lineupPids: opp.lineup?.length ? opp.lineup.map(b => String(b.pid)) : null });
     }
   }
-  if (!rows.length) { el.innerHTML = '<div class="empty">No probable starters with data posted yet — check back closer to game time.</div>'; return; }
+  if (!rows.length) { el.innerHTML = toggle + '<div class="empty">No probable starters with data posted yet — check back closer to game time.</div>'; return; }
   rows.sort((a, b) => b.exp - a.exp);
-  const lbl = isK ? 'K' : 'BB', word = isK ? 'strikeout' : 'walk';
   const meta = `<div class="pt-meta">Today's starters by <b>Exp ${lbl}%</b> — a log5 blend of the pitcher's ${lbl}% and the opponent lineup's ${word} rate vs league. Higher = a ${isK ? 'better strikeout spot' : 'wilder, walk-prone spot'}. <b>~Proj ${lbl}</b> is the projected count for his start.</div>`;
   const cards = rows.map(r => {
     const open = ppOpenPid === r.pid;
@@ -7549,7 +7559,63 @@ function renderPitcherProp(kind) {
       ${drill}
     </div>`;
   }).join('');
-  el.innerHTML = meta + `<div class="pv-list">${cards}</div>`;
+  el.innerHTML = toggle + meta + `<div class="pv-list">${cards}</div>`;
+}
+// Batter view: rank today's hitters by their expected K% / BB% vs the starter
+// they face — the flip side of the pitcher board. batter rate × pitcher rate via
+// log5, both lightly regressed. Flat list (no drill; the matchup is the pitcher).
+function ppBatterBoard(isK, lg, K0, log5, lbl, word) {
+  const brows = [], seen = new Set();
+  for (const g of (todaySchedule || [])) {
+    for (const [me, opp] of [[g.home, g.away], [g.away, g.home]]) {
+      // me = batting side, opp = pitching side
+      const spid = opp.probablePitcherId ? String(opp.probablePitcherId) : null;
+      if (!spid) continue;
+      const ps = pitcherStats[spid];
+      if (!ps || !ps.bf) continue;
+      const pCnt = isK ? (ps.k ?? 0) : (ps.bb ?? 0);
+      const pRate = (pCnt + K0 * lg) / (ps.bf + K0);
+      const bats = me.lineup?.length ? me.lineup.map(b => ({ pid: String(b.pid), bats: b.bats }))
+                                     : (projectedLineupFor(me.teamAbbr) || []).map(pid => ({ pid: String(pid), bats: null }));
+      for (const { pid, bats: hnd } of bats) {
+        if (seen.has(pid)) continue; seen.add(pid);
+        const bd = batterDiscipline[pid];
+        if (!bd || !bd.pa) continue;
+        const bCnt = isK ? bd.k : bd.bb;
+        const bRate = (bCnt + K0 * lg) / (bd.pa + K0);
+        brows.push({ pid, name: playerNames[pid] || pid, team: me.teamAbbr, hand: hnd, spName: playerNames[spid] || spid,
+                     throws: opp.probablePitcherThrows, bRaw: bCnt / bd.pa, pRaw: pCnt / ps.bf, exp: log5(bRate, pRate, lg) });
+      }
+    }
+  }
+  if (!brows.length) { return '<div class="empty">No lineups with data posted yet — check back closer to game time.</div>'; }
+  brows.sort((a, b) => b.exp - a.exp);
+  const meta = `<div class="pt-meta">Today's hitters by <b>Exp ${lbl}%</b> — their season ${lbl}% blended (log5) against the starter they face. Higher = likeliest to ${word} today.</div>`;
+  const mtr = (l, v) => `<span class="pv-mtr"><span class="pv-mtr-lbl">${l}</span><span class="pv-mtr-val">${v}</span></span>`;
+  const cards = brows.map((r, i) => {
+    const cls = pvClass(r.exp / lg);
+    const hand = r.hand ? `<span class="pk-hand ${r.hand.toLowerCase()}">${r.hand}</span>` : '';
+    return `<div class="pv-card pv-static">
+      <div class="pv-main">
+        <span class="pv-brank">${i + 1}</span>
+        ${muPhotoTag(r.pid, r.team)}
+        <div class="pv-id">
+          <div class="pv-name">${compactPlayerName(r.name)} ${hand}</div>
+          <div class="pv-sub">${teamLogoImg(r.team, 'team-logo')}${r.team} vs ${compactPlayerName(r.spName)}${r.throws ? ` (${r.throws}HP)` : ''}</div>
+        </div>
+        <div class="pv-score">
+          <span class="pv-juice hrg-val ${cls}">${(r.exp * 100).toFixed(1)}%</span>
+          <span class="pv-juice-lbl">Exp ${lbl}%</span>
+        </div>
+      </div>
+      <div class="pv-metrics">
+        ${mtr(`Batter ${lbl}%`, `${(r.bRaw * 100).toFixed(1)}%`)}
+        ${mtr(`Pitcher ${lbl}%`, `${(r.pRaw * 100).toFixed(1)}%`)}
+        ${mtr('Lg', `${(lg * 100).toFixed(1)}%`)}
+      </div>
+    </div>`;
+  }).join('');
+  return meta + `<div class="pv-list">${cards}</div>`;
 }
 function renderPitchTypes() {
   const el = document.getElementById('pitchtypes-content');
