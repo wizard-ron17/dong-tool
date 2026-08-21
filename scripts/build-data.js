@@ -2106,14 +2106,16 @@ async function fetchPitcherHRStats(pids) {
 // Team plate discipline (K% and BB% drawn) for the Pitcher Ks / Walks tools —
 // "does this offense strike out / walk a lot?" One call for all 30 clubs. Keyed
 // by team abbreviation; also returns league rates for the log5 blend.
-async function fetchTeamOffense() {
+async function fetchTeamOffense(teamIdToAbbr = {}) {
   try {
     const res = await fetch(`${MLB}/teams/stats?stats=season&group=hitting&season=${SEASON_YEAR}&sportId=1&gameType=R`).then(r => r.json());
     const splits = res.stats?.[0]?.splits ?? [];
     const teams = {};
     let totK = 0, totBB = 0, totPA = 0;
     for (const s of splits) {
-      const abbr = s.team?.abbreviation, st = s.stat;
+      // The team-stats payload carries only { id, name, link } — no abbreviation —
+      // so map the id to our abbr.
+      const abbr = teamIdToAbbr[s.team?.id], st = s.stat;
       if (!abbr || !st?.plateAppearances) continue;
       const pa = st.plateAppearances, k = st.strikeOuts ?? 0, bb = st.baseOnBalls ?? 0;
       teams[abbr] = { pa, kPct: Math.round(k / pa * 1000) / 1000, bbPct: Math.round(bb / pa * 1000) / 1000 };
@@ -2884,7 +2886,7 @@ async function main() {
   const pitcherStats = await fetchPitcherHRStats(probablePitcherIds);
 
   console.log('Fetching team plate discipline (K% / BB%) for the Pitcher Ks/Walks tools...');
-  const teamOffense = await fetchTeamOffense();
+  const teamOffense = await fetchTeamOffense(teamIdToAbbr);
 
   console.log('Checking for opener situations...');
   const openerBulk = await detectOpenerBulk(todaySchedule, pitcherStats);
