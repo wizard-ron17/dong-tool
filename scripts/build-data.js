@@ -2126,6 +2126,24 @@ async function fetchTeamOffense(teamIdToAbbr = {}) {
   } catch (e) { return { teams: {}, lg: { kPct: 0.22, bbPct: 0.083 } }; }
 }
 
+// Per-batter K% / BB% so the Pitcher Ks/Walks tools can drill into a lineup and
+// rank the individual bats most likely to whiff or walk. One leaderboard call;
+// kept to hitters with enough PA to mean something (drops pitchers-batting and
+// one-off callups). Keyed by pid → { k, bb, pa }.
+async function fetchBatterDiscipline() {
+  try {
+    const res = await fetch(`${MLB}/stats?stats=season&group=hitting&season=${SEASON_YEAR}&sportId=1&gameType=R&limit=2000&playerPool=All`).then(r => r.json());
+    const splits = res.stats?.[0]?.splits ?? [];
+    const out = {};
+    for (const s of splits) {
+      const pid = s.player?.id, st = s.stat;
+      if (!pid || !st?.plateAppearances || st.plateAppearances < 30) continue;
+      out[String(pid)] = { k: st.strikeOuts ?? 0, bb: st.baseOnBalls ?? 0, pa: st.plateAppearances };
+    }
+    return out;
+  } catch (e) { return {}; }
+}
+
 // ── Opener / bulk-arm detection ─────────────────────────────────────────
 // Some teams run "the opener": a reliever starts the 1st, then a rotation
 // arm throws the bulk innings (WSH 7/4: Palmquist 1 IP, then Littell 6 IP).
@@ -2887,6 +2905,7 @@ async function main() {
 
   console.log('Fetching team plate discipline (K% / BB%) for the Pitcher Ks/Walks tools...');
   const teamOffense = await fetchTeamOffense(teamIdToAbbr);
+  const batterDiscipline = await fetchBatterDiscipline();
 
   console.log('Checking for opener situations...');
   const openerBulk = await detectOpenerBulk(todaySchedule, pitcherStats);
@@ -3254,7 +3273,7 @@ async function main() {
     totalHRCount,
     dailyHRs, hrTypes, hrDetails, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR, playerLastGame,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus, dtdStatus,
-    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, teamOffense, bullpens, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, birthdays, birthdayHistory,
+    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, teamOffense, batterDiscipline, bullpens, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, birthdays, birthdayHistory,
     dueStreaks, dueHistory, returningInjured, justBack, returningHistory, milestones, steals, stealsHistory,
   };
 

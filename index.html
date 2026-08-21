@@ -2178,6 +2178,7 @@ let ptView = 'pitch';    // 'pitch' (per-pitch board) | 'grid' (teams × pitches
 let ptGridMetric = 'slg'; // metric the pivot ranks by
 let ptGridPin = null;    // pinned team in the grid — highlighted so the eye can follow it as rows re-sort
 let pvOpenPid = null;    // Pitcher Vuln: which starter card is expanded to show the bats that punish him
+let ppOpenPid = null;    // Pitcher Ks/Walks: which starter card is expanded to show the lineup he faces
 let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if currently on the IL
 let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questionable (NOT on the IL), from ESPN
 let returningInjured = []; // injured hitters (IL + DTD) with ESPN's estimated return dates — Returning Boppers tool
@@ -2191,6 +2192,7 @@ let todayStarterPids       = new Set(); // pids confirmed in a posted starting l
 let teamIds = {}; // team abbr -> MLB team id, for team-logos/{id}.svg
 let pitcherStats = {}; // pid -> { hr, hr9, ip, era } for today's probable pitchers
 let teamOffense = { teams: {}, lg: { kPct: 0.22, bbPct: 0.083 } }; // team K%/BB% for the Pitcher Ks/Walks tools
+let batterDiscipline = {}; // pid -> { k, bb, pa } for the Ks/Walks drill-down (bats most likely to whiff/walk)
 let bullpens = {}; // team abbr -> [{ pid, name, hand, era, saves, holds, gamesPitched, lastOuting, pitchMix }]
 let picks    = []; // today's HR pick candidates, pre-scored server-side (Chalk)
 let value    = []; // the Value board — same pool re-ranked by Blast% × matchup
@@ -2625,6 +2627,7 @@ function applyData(data) {
   teamIds = data.teamIds ?? {};
   pitcherStats = data.pitcherStats ?? {};
   teamOffense  = data.teamOffense  ?? teamOffense;
+  batterDiscipline = data.batterDiscipline ?? {};
   bullpens = data.bullpens ?? {};
   picks        = data.picks        ?? [];
   value        = data.value        ?? [];
@@ -7466,6 +7469,7 @@ function renderPitcherVuln() {
 // of the pitcher's season rate and the opponent lineup's rate vs league. K% and
 // BB% stabilize fast, so season-long is the base (recency mostly adds noise);
 // small samples are lightly regressed toward league. Shares Pitcher Vuln's card CSS.
+function ppToggle(pid) { ppOpenPid = (ppOpenPid === pid) ? null : pid; if (activeNav === 'pitcherks') renderPitcherKs(); else renderPitcherWalks(); }
 function renderPitcherKs() { renderPitcherProp('k'); }
 function renderPitcherWalks() { renderPitcherProp('bb'); }
 function renderPitcherProp(kind) {
@@ -7491,7 +7495,8 @@ function renderPitcherProp(kind) {
       const exp = log5(pRate, t, lg);
       const projBF = ps.avgStartIP ? ps.avgStartIP * 4.3 : null; // ~batters faced per start
       rows.push({ pid, name: playerNames[pid] || pid, team: me.teamAbbr, oppTeam: opp.teamAbbr, venue: g.venue,
-                  status: g.status, throws: me.probablePitcherThrows, raw, tRate: t, exp, proj: projBF != null ? exp * projBF : null });
+                  status: g.status, throws: me.probablePitcherThrows, raw, tRate: t, exp, proj: projBF != null ? exp * projBF : null,
+                  lineupPids: opp.lineup?.length ? opp.lineup.map(b => String(b.pid)) : null });
     }
   }
   if (!rows.length) { el.innerHTML = '<div class="empty">No probable starters with data posted yet — check back closer to game time.</div>'; return; }
@@ -7499,11 +7504,30 @@ function renderPitcherProp(kind) {
   const lbl = isK ? 'K' : 'BB', word = isK ? 'strikeout' : 'walk';
   const meta = `<div class="pt-meta">Today's starters by <b>Exp ${lbl}%</b> — a log5 blend of the pitcher's ${lbl}% and the opponent lineup's ${word} rate vs league. Higher = a ${isK ? 'better strikeout spot' : 'wilder, walk-prone spot'}. <b>~Proj ${lbl}</b> is the projected count for his start.</div>`;
   const cards = rows.map(r => {
+    const open = ppOpenPid === r.pid;
     const cls = pvClass(r.exp / lg);
     const hand = r.throws ? `<span class="pk-hand ${r.throws.toLowerCase()}">${r.throws}</span>` : '';
     const statusChip = (r.status && r.status !== 'Pre-Game') ? `<span class="pv-status">${r.status === 'Final' ? 'Final' : 'Live'}</span>` : '';
     const mtr = (l, v) => `<span class="pv-mtr"><span class="pv-mtr-lbl">${l}</span><span class="pv-mtr-val">${v}</span></span>`;
-    return `<div class="pv-card pv-static">
+    let drill = '';
+    if (open) {
+      const pids = (r.lineupPids || projectedLineupFor(r.oppTeam) || []).map(String);
+      const bats = pids.map(pid => {
+        const bd = batterDiscipline[pid];
+        return { pid, name: playerNames[pid] || pid, rate: (bd && bd.pa) ? (isK ? bd.k / bd.pa : bd.bb / bd.pa) : null, pa: bd?.pa };
+      }).sort((a, b) => (b.rate ?? -1) - (a.rate ?? -1));
+      drill = `<div class="pv-drill">
+        <div class="pv-drill-head">${r.oppTeam} lineup vs ${compactPlayerName(r.name)} — most likely to ${word}${r.lineupPids ? '' : ' · projected'}</div>
+        ${bats.length ? bats.map((b, i) => `<div class="pv-bat">
+          <span class="pv-bat-rank">${i + 1}</span>
+          <img class="pv-bat-photo" src="${playerPhotoUrl(b.pid)}" alt="" loading="lazy">
+          <span class="pv-bat-name">${compactPlayerName(b.name)}</span>
+          <span class="pv-bat-hr">${b.pa ? b.pa + ' PA' : ''}</span>
+          <span class="pv-bat-score ${b.rate != null ? pvClass(b.rate / lg) : ''}">${b.rate != null ? (b.rate * 100).toFixed(1) + '%' : '—'}</span>
+        </div>`).join('') : `<div class="pv-bat-empty">No lineup posted yet — check back closer to game time.</div>`}
+      </div>`;
+    }
+    return `<div class="pv-card${open ? ' open' : ''}" onclick="ppToggle('${r.pid}')">
       <div class="pv-main">
         ${muPhotoTag(r.pid, r.team)}
         <div class="pv-id">
@@ -7514,6 +7538,7 @@ function renderPitcherProp(kind) {
           <span class="pv-juice hrg-val ${cls}">${(r.exp * 100).toFixed(1)}%</span>
           <span class="pv-juice-lbl">Exp ${lbl}%</span>
         </div>
+        <span class="pv-caret">▶</span>
       </div>
       <div class="pv-metrics">
         ${mtr(`~Proj ${lbl}`, r.proj != null ? r.proj.toFixed(1) : '—')}
@@ -7521,6 +7546,7 @@ function renderPitcherProp(kind) {
         ${mtr(`${r.oppTeam} ${lbl}%`, `${(r.tRate * 100).toFixed(1)}%`)}
         ${mtr('Lg', `${(lg * 100).toFixed(1)}%`)}
       </div>
+      ${drill}
     </div>`;
   }).join('');
   el.innerHTML = meta + `<div class="pv-list">${cards}</div>`;
