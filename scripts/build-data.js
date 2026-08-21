@@ -2070,6 +2070,10 @@ async function fetchPitcherHRStats(pids) {
         stats[pid] = {
           hr: stat.homeRuns ?? 0, hr9: stat.homeRunsPer9 ?? null,
           k9: stat.strikeoutsPer9Inn ?? (ipToFloat(stat.inningsPitched) ? Math.round((stat.strikeOuts ?? 0) / ipToFloat(stat.inningsPitched) * 90) / 10 : null),
+          // Strikeouts + walks per batter faced, for the Pitcher Ks / Pitcher Walks
+          // tools. K% and BB% stabilize fast, so season rate is a solid base.
+          k: stat.strikeOuts ?? 0, bb: stat.baseOnBalls ?? 0, bf: stat.battersFaced ?? null,
+          bb9: stat.walksPer9Inn ?? (ipToFloat(stat.inningsPitched) ? Math.round((stat.baseOnBalls ?? 0) / ipToFloat(stat.inningsPitched) * 90) / 10 : null),
           ip: stat.inningsPitched ?? '0.0', era: stat.era ?? null,
           gamesStarted: stat.gamesStarted ?? 0,
           gamesPlayed: stat.gamesPlayed ?? 0,
@@ -2097,6 +2101,27 @@ async function fetchPitcherHRStats(pids) {
     } catch (e) { st.avgStartIP = naive; }
   }));
   return stats;
+}
+
+// Team plate discipline (K% and BB% drawn) for the Pitcher Ks / Walks tools —
+// "does this offense strike out / walk a lot?" One call for all 30 clubs. Keyed
+// by team abbreviation; also returns league rates for the log5 blend.
+async function fetchTeamOffense() {
+  try {
+    const res = await fetch(`${MLB}/teams/stats?stats=season&group=hitting&season=${SEASON_YEAR}&sportId=1&gameType=R`).then(r => r.json());
+    const splits = res.stats?.[0]?.splits ?? [];
+    const teams = {};
+    let totK = 0, totBB = 0, totPA = 0;
+    for (const s of splits) {
+      const abbr = s.team?.abbreviation, st = s.stat;
+      if (!abbr || !st?.plateAppearances) continue;
+      const pa = st.plateAppearances, k = st.strikeOuts ?? 0, bb = st.baseOnBalls ?? 0;
+      teams[abbr] = { pa, kPct: Math.round(k / pa * 1000) / 1000, bbPct: Math.round(bb / pa * 1000) / 1000 };
+      totK += k; totBB += bb; totPA += pa;
+    }
+    const lg = totPA ? { kPct: Math.round(totK / totPA * 1000) / 1000, bbPct: Math.round(totBB / totPA * 1000) / 1000 } : { kPct: 0.22, bbPct: 0.083 };
+    return { teams, lg };
+  } catch (e) { return { teams: {}, lg: { kPct: 0.22, bbPct: 0.083 } }; }
 }
 
 // ── Opener / bulk-arm detection ─────────────────────────────────────────
@@ -2858,6 +2883,9 @@ async function main() {
   const probablePitcherIds = todaySchedule.flatMap(g => [g.home.probablePitcherId, g.away.probablePitcherId]).filter(Boolean);
   const pitcherStats = await fetchPitcherHRStats(probablePitcherIds);
 
+  console.log('Fetching team plate discipline (K% / BB%) for the Pitcher Ks/Walks tools...');
+  const teamOffense = await fetchTeamOffense();
+
   console.log('Checking for opener situations...');
   const openerBulk = await detectOpenerBulk(todaySchedule, pitcherStats);
   const bulkPids = Object.values(openerBulk).map(o => o.bulk?.pid).filter(Boolean);
@@ -3224,7 +3252,7 @@ async function main() {
     totalHRCount,
     dailyHRs, hrTypes, hrDetails, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR, playerLastGame,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus, dtdStatus,
-    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, bullpens, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, birthdays, birthdayHistory,
+    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, teamOffense, bullpens, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, birthdays, birthdayHistory,
     dueStreaks, dueHistory, returningInjured, justBack, returningHistory, milestones, steals, stealsHistory,
   };
 

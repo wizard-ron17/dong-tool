@@ -1191,6 +1191,8 @@
   .pv-card { background: var(--surface1); border: 1px solid var(--border); border-radius: 12px; padding: 0.6rem 0.7rem; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
   .pv-card:hover { border-color: var(--muted); }
   .pv-card.open { border-color: var(--accent); background: var(--surface2); }
+  .pv-card.pv-static { cursor: default; }
+  .pv-card.pv-static:hover { border-color: var(--border); }
   .pv-main { display: flex; align-items: center; gap: 0.6rem; }
   .pv-main .mu-photo { width: 42px; height: 42px; border-width: 2px; border-style: solid; object-fit: cover; object-position: center 30%; border-radius: 50%; flex-shrink: 0; }
   .pv-id { flex: 1; min-width: 0; }
@@ -1536,6 +1538,14 @@
       <button class="nav-menu-item nav-menu-new" data-nav="pitchervuln" onclick="switchNav('pitchervuln')" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/></svg>
         <span><span class="nm-name">Pitcher Vuln <span class="nm-new">NEW</span></span><span class="nm-desc">Tonight's most HR-prone arms to target</span></span>
+      </button>
+      <button class="nav-menu-item nav-menu-new" data-nav="pitcherks" onclick="switchNav('pitcherks')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v16M6 12l7-8M6 12l7 8"/></svg>
+        <span><span class="nm-name">Pitcher Ks <span class="nm-new">NEW</span></span><span class="nm-desc">Best strikeout spots on today's slate</span></span>
+      </button>
+      <button class="nav-menu-item nav-menu-new" data-nav="pitcherwalks" onclick="switchNav('pitcherwalks')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M7 8h7l-2 3 2 3H7"/></svg>
+        <span><span class="nm-name">Pitcher Walks <span class="nm-new">NEW</span></span><span class="nm-desc">Wildest arms vs patient lineups</span></span>
       </button>
       <div class="nav-menu-group">Watch Lists</div>
       <button class="nav-menu-item nav-menu-new" data-nav="milestones" onclick="switchNav('milestones')" disabled>
@@ -2052,6 +2062,46 @@
     <div id="pitchervuln-content"><div class="empty">Loading data…</div></div>
   </div>
 
+  <div id="panel-pitcherks" class="panel">
+    <div class="due-explainer" id="pitcherks-explainer-toggle" onclick="toggleExplainer('pitcherks')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Pitcher Ks Works</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="pitcherks-explainer-chevron">▶</span>
+      </div>
+      <div class="due-explainer-teaser">Today's starters ranked by strikeout upside — high-K arms facing whiff-prone lineups.</div>
+      <div class="due-explainer-body" id="pitcherks-explainer-body" style="display:none">
+        <ul>
+          <li><b>Exp K%</b> is the headline — the strikeout rate we'd expect in this specific matchup, via a log5 blend of the <b>pitcher's K%</b> and the <b>opponent's team K%</b> against the league baseline. Higher = a better strikeout spot.</li>
+          <li><b>~Proj Ks</b> estimates the raw strikeout count for his start: Exp K% × the batters he projects to face (from how deep he typically goes). Handy for over/under K props.</li>
+          <li><b>Why season-long, not hot/cold?</b> K% is one of the fastest-stabilizing stats in baseball (reliable by ~70 batters faced), so a season rate is already trustworthy and recency mostly adds noise. Rates are lightly regressed toward league for small samples.</li>
+          <li>Today's probable <b>starters</b> only (openers show their listed arm). Data is 2026 regular season, via MLB Stats.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="pitcherks-content"><div class="empty">Loading data…</div></div>
+  </div>
+
+  <div id="panel-pitcherwalks" class="panel">
+    <div class="due-explainer" id="pitcherwalks-explainer-toggle" onclick="toggleExplainer('pitcherwalks')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Pitcher Walks Works</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="pitcherwalks-explainer-chevron">▶</span>
+      </div>
+      <div class="due-explainer-teaser">Today's starters ranked by walk risk — wild arms facing patient, walk-drawing lineups.</div>
+      <div class="due-explainer-body" id="pitcherwalks-explainer-body" style="display:none">
+        <ul>
+          <li><b>Exp BB%</b> is the headline — the walk rate we'd expect in this matchup, via a log5 blend of the <b>pitcher's BB%</b> and the <b>opponent's team BB%</b> (walks drawn) against the league baseline. Higher = a wilder spot.</li>
+          <li><b>~Proj BB</b> estimates the walks for his start: Exp BB% × the batters he projects to face. Handy for walk props / traffic.</li>
+          <li><b>Why season-long?</b> Like K%, walk rate stabilizes fast (~120 batters faced), so a season rate is reliable and recency mostly adds noise. Rates are lightly regressed toward league for small samples.</li>
+          <li>Today's probable <b>starters</b> only (openers show their listed arm). Data is 2026 regular season, via MLB Stats.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="pitcherwalks-content"><div class="empty">Loading data…</div></div>
+  </div>
+
   <div id="panel-milestones" class="panel">
     <div class="due-explainer" id="milestones-explainer-toggle" onclick="toggleExplainer('milestones')" aria-expanded="false">
       <div class="due-explainer-head">
@@ -2140,6 +2190,7 @@ let todayLineupsPostedTeams = new Set(); // team abbrs whose lineup has actually
 let todayStarterPids       = new Set(); // pids confirmed in a posted starting lineup today
 let teamIds = {}; // team abbr -> MLB team id, for team-logos/{id}.svg
 let pitcherStats = {}; // pid -> { hr, hr9, ip, era } for today's probable pitchers
+let teamOffense = { teams: {}, lg: { kPct: 0.22, bbPct: 0.083 } }; // team K%/BB% for the Pitcher Ks/Walks tools
 let bullpens = {}; // team abbr -> [{ pid, name, hand, era, saves, holds, gamesPitched, lastOuting, pitchMix }]
 let picks    = []; // today's HR pick candidates, pre-scored server-side (Chalk)
 let value    = []; // the Value board — same pool re-ranked by Blast% × matchup
@@ -2573,6 +2624,7 @@ function applyData(data) {
   todaySchedule = data.todaySchedule ?? [];
   teamIds = data.teamIds ?? {};
   pitcherStats = data.pitcherStats ?? {};
+  teamOffense  = data.teamOffense  ?? teamOffense;
   bullpens = data.bullpens ?? {};
   picks        = data.picks        ?? [];
   value        = data.value        ?? [];
@@ -2640,7 +2692,7 @@ function toggleTheme() {
 }
 
 // ── Nav ────────────────────────────────────────────────────────────────
-const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'matchups', 'prospects', 'daylate', 'returning', 'birthdays', 'milestones', 'steals', 'pitchtypes', 'pitchervuln'];
+const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'matchups', 'prospects', 'daylate', 'returning', 'birthdays', 'milestones', 'steals', 'pitchtypes', 'pitchervuln', 'pitcherks', 'pitcherwalks'];
 const PAIR_SIZE_TO_SLUG = { 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' };
 const PAIR_SLUG_TO_SIZE = { pairs: 2, trios: 3, quads: 4, quints: 5 };
 
@@ -2731,7 +2783,7 @@ function migrateLegacyHash() {
 }
 // The four pages that live in the Tools menu rather than the main bar; the
 // Tools pill lights up when any of them is active.
-const TOOLS_NAVS = ['matchups', 'milestones', 'steals', 'pitchtypes', 'pitchervuln', 'picks', 'due', 'pairs', 'prospects', 'daylate', 'returning', 'birthdays'];
+const TOOLS_NAVS = ['matchups', 'milestones', 'steals', 'pitchtypes', 'pitchervuln', 'pitcherks', 'pitcherwalks', 'picks', 'due', 'pairs', 'prospects', 'daylate', 'returning', 'birthdays'];
 let navToolsOpen = false;
 function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
 function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
@@ -2749,6 +2801,8 @@ const PAGE_TITLES = {
   steals: "Steal Board · Ron's Dong Tool",
   pitchtypes: "Pitch Types · Ron's Dong Tool",
   pitchervuln: "Pitcher Vuln · Ron's Dong Tool",
+  pitcherks: "Pitcher Ks · Ron's Dong Tool",
+  pitcherwalks: "Pitcher Walks · Ron's Dong Tool",
 };
 function switchNav(nav) {
   activeNav = nav;
@@ -2779,6 +2833,8 @@ function renderCurrentPanel() {
   if (activeNav === 'steals') applyStealsSub(stealsSubTab);
   if (activeNav === 'pitchtypes') renderPitchTypes();
   if (activeNav === 'pitchervuln') renderPitcherVuln();
+  if (activeNav === 'pitcherks') renderPitcherKs();
+  if (activeNav === 'pitcherwalks') renderPitcherWalks();
 }
 window.addEventListener('popstate', applyRouteState);
 let activeStatsView = 'league';
@@ -7226,6 +7282,8 @@ async function ensurePitchArsenal() {
   finally { pitchArsenalLoading = false; }
   if (activeNav === 'pitchtypes') renderPitchTypes();
   if (activeNav === 'pitchervuln') renderPitcherVuln();
+  if (activeNav === 'pitcherks') renderPitcherKs();
+  if (activeNav === 'pitcherwalks') renderPitcherWalks();
 }
 const PT_COLS = [
   { k:'ba',        lbl:'BA',      hi:true,  fmt:v=>v!=null?v.toFixed(3).replace(/^0/,''):'—' },
@@ -7399,6 +7457,70 @@ function renderPitcherVuln() {
         ${mtr('Park', `${r.park.toFixed(2)}×`)}
       </div>
       ${drill}
+    </div>`;
+  }).join('');
+  el.innerHTML = meta + `<div class="pv-list">${cards}</div>`;
+}
+// ── PITCHER Ks / WALKS ──────────────────────────────────────────────────
+// Today's starters ranked by expected K% (or BB%) in the matchup — a log5 blend
+// of the pitcher's season rate and the opponent lineup's rate vs league. K% and
+// BB% stabilize fast, so season-long is the base (recency mostly adds noise);
+// small samples are lightly regressed toward league. Shares Pitcher Vuln's card CSS.
+function renderPitcherKs() { renderPitcherProp('k'); }
+function renderPitcherWalks() { renderPitcherProp('bb'); }
+function renderPitcherProp(kind) {
+  const isK = kind === 'k';
+  const el = document.getElementById((isK ? 'pitcherks' : 'pitcherwalks') + '-content');
+  if (!el) return;
+  const rateKey = isK ? 'kPct' : 'bbPct';
+  const lg = teamOffense.lg?.[rateKey] ?? (isK ? 0.22 : 0.083);
+  const K0 = isK ? 70 : 120; // regression pseudo-batters (K% stabilizes faster than BB%)
+  const log5 = (p, t, l) => { const num = (p * t) / l, den = num + ((1 - p) * (1 - t)) / (1 - l); return den ? num / den : p; };
+  const rows = [];
+  for (const g of (todaySchedule || [])) {
+    for (const [me, opp] of [[g.home, g.away], [g.away, g.home]]) {
+      const pid = me.probablePitcherId ? String(me.probablePitcherId) : null;
+      if (!pid) continue;
+      const ps = pitcherStats[pid];
+      if (!ps || !ps.bf) continue;
+      const t = teamOffense.teams?.[opp.teamAbbr]?.[rateKey];
+      if (t == null) continue;
+      const cnt = isK ? (ps.k ?? 0) : (ps.bb ?? 0);
+      const raw = cnt / ps.bf;
+      const pRate = (cnt + K0 * lg) / (ps.bf + K0);       // shrunk toward league
+      const exp = log5(pRate, t, lg);
+      const projBF = ps.avgStartIP ? ps.avgStartIP * 4.3 : null; // ~batters faced per start
+      rows.push({ pid, name: playerNames[pid] || pid, team: me.teamAbbr, oppTeam: opp.teamAbbr, venue: g.venue,
+                  status: g.status, throws: me.probablePitcherThrows, raw, tRate: t, exp, proj: projBF != null ? exp * projBF : null });
+    }
+  }
+  if (!rows.length) { el.innerHTML = '<div class="empty">No probable starters with data posted yet — check back closer to game time.</div>'; return; }
+  rows.sort((a, b) => b.exp - a.exp);
+  const lbl = isK ? 'K' : 'BB', word = isK ? 'strikeout' : 'walk';
+  const meta = `<div class="pt-meta">Today's starters by <b>Exp ${lbl}%</b> — a log5 blend of the pitcher's ${lbl}% and the opponent lineup's ${word} rate vs league. Higher = a ${isK ? 'better strikeout spot' : 'wilder, walk-prone spot'}. <b>~Proj ${lbl}</b> is the projected count for his start.</div>`;
+  const cards = rows.map(r => {
+    const cls = pvClass(r.exp / lg);
+    const hand = r.throws ? `<span class="pk-hand ${r.throws.toLowerCase()}">${r.throws}</span>` : '';
+    const statusChip = (r.status && r.status !== 'Pre-Game') ? `<span class="pv-status">${r.status === 'Final' ? 'Final' : 'Live'}</span>` : '';
+    const mtr = (l, v) => `<span class="pv-mtr"><span class="pv-mtr-lbl">${l}</span><span class="pv-mtr-val">${v}</span></span>`;
+    return `<div class="pv-card pv-static">
+      <div class="pv-main">
+        ${muPhotoTag(r.pid, r.team)}
+        <div class="pv-id">
+          <div class="pv-name">${compactPlayerName(r.name)} ${hand}${statusChip}</div>
+          <div class="pv-sub">${teamLogoImg(r.team, 'team-logo')}${r.team} vs ${r.oppTeam}${r.venue ? ` · ${r.venue}` : ''}</div>
+        </div>
+        <div class="pv-score">
+          <span class="pv-juice hrg-val ${cls}">${(r.exp * 100).toFixed(1)}%</span>
+          <span class="pv-juice-lbl">Exp ${lbl}%</span>
+        </div>
+      </div>
+      <div class="pv-metrics">
+        ${mtr(`~Proj ${lbl}`, r.proj != null ? r.proj.toFixed(1) : '—')}
+        ${mtr(`Pitcher ${lbl}%`, `${(r.raw * 100).toFixed(1)}%`)}
+        ${mtr(`${r.oppTeam} ${lbl}%`, `${(r.tRate * 100).toFixed(1)}%`)}
+        ${mtr('Lg', `${(lg * 100).toFixed(1)}%`)}
+      </div>
     </div>`;
   }).join('');
   el.innerHTML = meta + `<div class="pv-list">${cards}</div>`;
