@@ -27,8 +27,8 @@ const ROUTES = {
   steals:     { title: "Steal Board · Ron's Dong Tool", desc: "Today's base-stealers ranked against the battery they'll face — runner speed & tendency vs pitcher hand and catcher arm 🏃." },
   pitchtypes: { title: "Pitch Types · Ron's Dong Tool", desc: "How every MLB team and hitter performs against each pitch type this season — BA, SLG, barrel%, and more, by pitch." },
   pitchervuln: { title: "Pitcher Vuln · Ron's Dong Tool", desc: "Tonight's starters ranked by how homer-prone they are — arm stuff (velo + barrel%-allowed) × park — plus the bats that punish each one ⚾." },
-  pitcherks:  { title: "Pitcher Ks · Ron's Dong Tool", desc: "Today's best strikeout spots — high-K starters facing whiff-prone lineups, with projected Ks for the start." },
-  pitcherwalks: { title: "Pitcher Walks · Ron's Dong Tool", desc: "Today's wildest walk spots — high-walk starters facing patient, walk-drawing lineups, with projected walks." },
+  pitcherks:  { title: "Strikeouts · Ron's Dong Tool", desc: "Today's best strikeout matchups — by pitcher or by batter: high-K arms vs whiff-prone lineups, and the hitters likeliest to strike out." },
+  pitcherwalks: { title: "Walks · Ron's Dong Tool", desc: "Today's best walk matchups — by pitcher or by batter: wild arms vs patient lineups, and the hitters likeliest to draw a walk." },
 };
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
