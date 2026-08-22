@@ -1455,6 +1455,33 @@
   .st-btn:hover { background:#1e3050; color:#c8f0d5; }
   .st-foot { color:#4a5f78; font-size:10px; margin-top:10px; text-align:center; }
   .st-foot code { background:#16243a; padding:1px 5px; border-radius:4px; color:#8aaac0; }
+  /* Tud Tool — recap / stats / schedule */
+  .rc-head { font-family: var(--font-d); font-size: 1.35rem; font-weight: 800; color: var(--text-strong); margin: 0.1rem 0 0.7rem; }
+  .rc-weeks { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.5rem; }
+  .rc-wk { min-width: 2rem; padding: 0.3rem 0.5rem; font-family: var(--font-d); font-weight: 700; font-size: 0.85rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 7px; color: var(--muted); cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s; }
+  .rc-wk:hover { border-color: var(--muted); color: var(--text); }
+  .rc-wk.active { background: var(--accent); border-color: var(--accent); color: #06210f; }
+  .rc-meta { font-size: 0.74rem; color: var(--muted); margin-bottom: 0.6rem; }
+  .rc-meta b { color: var(--text); font-family: var(--font-d); }
+  .rc-list { display: flex; flex-direction: column; gap: 0.4rem; }
+  .rc-card { display: flex; align-items: center; gap: 0.7rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.7rem; }
+  .rc-photo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; object-position: center 18%; background: var(--surface2); flex-shrink: 0; }
+  .rc-noface { display: flex; align-items: center; justify-content: center; font-family: var(--font-d); font-weight: 800; color: var(--muted); }
+  .rc-info { flex: 1; min-width: 0; }
+  .rc-name { font-family: var(--font-d); font-size: 1rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rc-sub { font-size: 0.62rem; color: var(--muted); margin-top: 0.1rem; }
+  .rc-detail { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+  .rc-badge { font-size: 0.5rem; font-weight: 800; letter-spacing: 0.05em; padding: 0.12rem 0.35rem; border-radius: 4px; }
+  .rc-rush { color: #7fd861; background: rgba(76,212,106,0.16); }
+  .rc-rec  { color: #6fb2ff; background: rgba(90,150,240,0.16); }
+  .rc-ret  { color: var(--gold); background: rgba(242,201,76,0.16); }
+  .rc-other { color: var(--muted); background: var(--surface2); }
+  .rc-yd { font-family: var(--font-d); font-weight: 700; font-size: 0.85rem; color: var(--text); }
+  .rc-from { font-size: 0.6rem; color: var(--muted); white-space: nowrap; }
+  .st-rank { font-family: var(--font-d); font-weight: 800; font-size: 0.9rem; color: var(--muted); width: 1.4rem; text-align: center; flex-shrink: 0; }
+  .st-td { font-family: var(--font-d); font-weight: 800; font-size: 1.2rem; color: var(--accent); }
+  .sc-wk { font-family: var(--font-d); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0.85rem 0 0.35rem; }
+  .sc-game .rc-name { font-size: 0.92rem; }
 </style>
 <script>
   // Set the theme before first paint to avoid a flash: saved choice wins,
@@ -1517,12 +1544,12 @@
   <div id="panel-home" class="panel visible">
     <div class="empty" style="padding:3.5rem 1rem;text-align:center">
       <div style="font-family:var(--font-d);font-size:1.6rem;font-weight:800;color:var(--text)">Ron's Tud Tool</div>
-      <div style="color:var(--muted);margin-top:0.5rem">NFL touchdown tools — coming soon. We're wiring up the data next.</div>
+      <div style="color:var(--muted);margin-top:0.5rem">NFL touchdown tools are coming together. Start with <a href="javascript:void(0)" onclick="switchNav('recap')" style="color:var(--accent)">Recap</a> — every touchdown of the 2025 season.</div>
     </div>
   </div>
-  <div id="panel-stats" class="panel"><div class="empty" style="padding:3.5rem 1rem;text-align:center;color:var(--muted)">Stats — coming soon.</div></div>
-  <div id="panel-recap" class="panel"><div class="empty" style="padding:3.5rem 1rem;text-align:center;color:var(--muted)">Recap — coming soon.</div></div>
-  <div id="panel-schedule" class="panel"><div class="empty" style="padding:3.5rem 1rem;text-align:center;color:var(--muted)">Schedule — coming soon.</div></div>
+  <div id="panel-stats" class="panel"><div id="stats-content"><div class="empty">Loading…</div></div></div>
+  <div id="panel-recap" class="panel"><div id="recap-content"><div class="empty">Loading…</div></div></div>
+  <div id="panel-schedule" class="panel"><div id="schedule-content"><div class="empty">Loading…</div></div></div>
 
 </div>
 <script>
@@ -1548,8 +1575,66 @@
     document.getElementById('panel-' + nav)?.classList.add('visible');
     document.querySelectorAll('.nav-btn[data-nav]').forEach(b => b.classList.toggle('active', b.dataset.nav === nav));
     document.title = PAGE_TITLES[nav] || "Ron's Tud Tool";
+    renderPanel(nav);
     closeNavTools();
     if (!applyingRoute) commitRoute();
+  }
+
+  // ── Data + renders ─────────────────────────────────────────────────────
+  let nflData = null, recapWeek = null;
+  async function loadNfl() {
+    try { const r = await fetch(APP_BASE + '/data.json', { cache: 'no-store' }); nflData = await r.json(); }
+    catch (e) { nflData = 'error'; }
+    renderPanel(activeNav);
+  }
+  const WK_LABEL = (w) => w <= 18 ? 'Week ' + w : ({ 19: 'Wild Card', 20: 'Divisional', 21: 'Conf Championship', 22: 'Super Bowl' }[w] || 'Week ' + w);
+  const WK_SHORT = (w) => w <= 18 ? String(w) : ({ 19: 'WC', 20: 'DIV', 21: 'CC', 22: 'SB' }[w] || String(w));
+  function renderPanel(nav) { if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); }
+  function dataGate(id) {
+    const el = document.getElementById(id); if (!el) return null;
+    if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return null; }
+    if (nflData === 'error') { el.innerHTML = '<div class="empty">Couldn\'t load NFL data. <a href="javascript:void(0)" onclick="loadNfl()">Retry</a></div>'; return null; }
+    return el;
+  }
+  const TD_LABEL = { rush: 'RUSH', rec: 'REC', ret: 'RET', other: 'TD' };
+  function faceHtml(pid, name) {
+    const s = nflData.headshots[pid];
+    return s ? `<img class="rc-photo" src="${s}" alt="" loading="lazy">` : `<div class="rc-photo rc-noface">${(name || '?').replace(/^[A-Z]\.\s*/, '')[0] || '?'}</div>`;
+  }
+  function tdCard(t) {
+    return `<div class="rc-card">${faceHtml(t.pid, t.player)}
+      <div class="rc-info"><div class="rc-name">${t.player}</div><div class="rc-sub">${t.team} vs ${t.opp} · Q${t.qtr || '?'}</div></div>
+      <div class="rc-detail"><span class="rc-badge rc-${t.type}">${TD_LABEL[t.type] || 'TD'}</span><span class="rc-yd">${t.yards != null ? t.yards + ' yd' : ''}</span>${t.passer ? `<span class="rc-from">from ${t.passer}</span>` : ''}</div></div>`;
+  }
+  function setRecapWeek(w) { recapWeek = w; renderRecap(); }
+  function renderRecap() {
+    const el = dataGate('recap-content'); if (!el) return;
+    const weeks = nflData.tdRecapWeeks || [];
+    if (recapWeek == null || !weeks.includes(recapWeek)) recapWeek = weeks[0];
+    const sel = weeks.map(w => `<button class="rc-wk${w === recapWeek ? ' active' : ''}" onclick="setRecapWeek(${w})" title="${WK_LABEL(w)}">${WK_SHORT(w)}</button>`).join('');
+    const tds = nflData.tdRecap[recapWeek] || [];
+    el.innerHTML = `<div class="rc-head">${nflData.historySeason} Touchdown Recap</div>
+      <div class="rc-weeks">${sel}</div>
+      <div class="rc-meta"><b>${WK_LABEL(recapWeek)}</b> · ${tds.length} touchdowns</div>
+      <div class="rc-list">${tds.map(tdCard).join('')}</div>`;
+  }
+  function renderStats() {
+    const el = dataGate('stats-content'); if (!el) return;
+    const L = nflData.tdLeaders || [];
+    el.innerHTML = `<div class="rc-head">${nflData.historySeason} Touchdown Leaders</div>
+      <div class="rc-list">${L.map((l, i) => `<div class="rc-card"><span class="st-rank">${i + 1}</span>${faceHtml(l.pid, l.name)}
+        <div class="rc-info"><div class="rc-name">${l.name}</div><div class="rc-sub">${l.pos} · ${l.team} · ${l.games} G</div></div>
+        <div class="rc-detail"><span class="st-td">${l.tds}</span><span class="rc-yd">TD</span><span class="rc-from">${l.rushTd}ru · ${l.recTd}rec</span></div></div>`).join('')}</div>`;
+  }
+  function renderSchedule() {
+    const el = dataGate('schedule-content'); if (!el) return;
+    const games = (nflData.schedule || []).filter(g => g.type === 'REG');
+    const byWeek = {}; for (const g of games) (byWeek[g.week] ??= []).push(g);
+    const wks = Object.keys(byWeek).map(Number).sort((a, b) => a - b);
+    el.innerHTML = `<div class="rc-head">${nflData.upcomingSeason} Schedule</div>` + wks.map(w => `
+      <div class="sc-wk">Week ${w}</div>${byWeek[w].map(g => `<div class="rc-card sc-game">
+        <div class="rc-info"><div class="rc-name">${g.away} @ ${g.home}</div><div class="rc-sub">${g.gameday || ''}${g.gametime ? ' · ' + g.gametime.slice(0, 5) : ''}</div></div>
+        <div class="rc-detail">${g.total != null ? `<span class="rc-yd">O/U ${g.total}</span>` : ''}${g.spread != null ? `<span class="rc-from">${g.home} ${g.spread > 0 ? '+' : ''}${g.spread}</span>` : ''}</div></div>`).join('')}`).join('');
   }
   function currentPath() { return activeNav === 'home' ? APP_BASE + '/' : APP_BASE + '/' + activeNav; }
   function commitRoute() { const p = currentPath(); if (location.pathname !== p) history.pushState(null, '', p); }
@@ -1558,7 +1643,7 @@
   window.addEventListener('popstate', applyRouteState);
   document.addEventListener('click', (e) => { if (navToolsOpen && !e.target.closest('#nav-tools-menu') && !e.target.closest('#nav-tools-btn')) closeNavTools(); });
 
-  document.addEventListener('DOMContentLoaded', () => { updateThemeToggleIcon(); applyRouteState(); });
+  document.addEventListener('DOMContentLoaded', () => { updateThemeToggleIcon(); applyRouteState(); loadNfl(); });
 </script>
 </body>
 </html>
