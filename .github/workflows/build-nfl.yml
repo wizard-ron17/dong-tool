@@ -1,0 +1,49 @@
+name: Build nfl/data.json
+
+on:
+  schedule:
+    # NFL is weekly (Thu/Sun/Mon), so a daily rebuild is plenty — it picks up
+    # each slate's final scores and the growing TD recap the morning after.
+    # 11:07 UTC ≈ 6-7am ET, after Sunday/Monday night games have posted.
+    - cron: '7 11 * * *'
+  workflow_dispatch: {}      # manual trigger from the Actions tab
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-nfl
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Build nfl/data.json
+        run: node scripts/build-nfl.js
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add nfl/data.json
+          git diff --staged --quiet && { echo "No changes to commit"; exit 0; }
+          git commit -m "Update nfl/data.json"
+          # nfl/data.json is a whole-file regenerate — same replay-onto-main
+          # strategy as build-data.yml so a racing push can't wedge a rebase.
+          for attempt in 1 2 3 4 5; do
+            if git push; then echo "Pushed on attempt $attempt"; exit 0; fi
+            echo "Push rejected (attempt $attempt) — replaying onto latest main"
+            git fetch origin main
+            git reset FETCH_HEAD
+            git add nfl/data.json
+            git diff --staged --quiet && { echo "Already current with main"; exit 0; }
+            git commit -m "Update nfl/data.json"
+          done
+          echo "Failed to push after 5 attempts"; exit 1
