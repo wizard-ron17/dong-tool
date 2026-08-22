@@ -40,7 +40,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data.json matchup-cards.json pitch-arsenal.json sw.js
+          git add mlb/data.json mlb/matchup-cards.json mlb/pitch-arsenal.json mlb/sw.js
           git diff --staged --quiet && { echo "No changes to commit"; exit 0; }
           git commit -m "Update data.json"
           # main can move under us if a cron tick or a code push lands during the
@@ -64,7 +64,7 @@ jobs:
             # build, main already has the correct sw.js — replaying our stale copy
             # would revert it and desync sw.js from index.html. Keep main's.
             git reset FETCH_HEAD
-            git add data.json matchup-cards.json pitch-arsenal.json
+            git add mlb/data.json mlb/matchup-cards.json mlb/pitch-arsenal.json
             git diff --staged --quiet && { echo "Already current with main"; exit 0; }
             git commit -m "Update data.json"
           done

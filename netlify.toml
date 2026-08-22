@@ -1,19 +1,27 @@
-# SPA fallback: serve index.html (with a 200, not a redirect) for any path that
-# isn't a real static file, so client-side routes like /due and /picks/results
-# work on hard refresh and when shared as deep links.
+# Ron's multi-sport hierarchy:
+#   /            -> the sport picker (root index.html)
+#   /mlb/*       -> Ron's Dong Tool (mlb/index.html, a client-routed SPA)
+#   /football/*  -> Ron's Tud Tool (coming next)
 #
-# Existing files — data.json, sw.js, manifest.webmanifest, icons/*, etc. — are
-# served directly and take precedence over this rewrite, so this only catches
-# virtual routes.
-# data.json is updated every 30 min by GitHub Actions. Tell Netlify's CDN not
-# to cache it at the edge — without this the CDN serves a stale copy for hours
-# regardless of the browser-side `cache: 'no-store'` fetch option, which only
-# controls the browser's local cache, not the CDN layer between it and origin.
+# Netlify serves real static files (mlb/data.json, mlb/sw.js, icons/*, …) before
+# applying these rewrites, so they only catch virtual client-side routes.
+#
+# mlb/data.json is refreshed every 30 min by GitHub Actions. Tell the CDN not to
+# cache it at the edge, or it serves a stale copy for hours regardless of the
+# browser-side no-store fetch (which only controls the local cache).
 [[headers]]
-  for = "/data.json"
+  for = "/mlb/data.json"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
+# MLB SPA fallback: any /mlb/<route> that isn't a real file resolves to the app.
+[[redirects]]
+  from = "/mlb/*"
+  to = "/mlb/index.html"
+  status = 200
+
+# Everything else falls to the landing page (which also client-redirects any
+# legacy top-level MLB link like /picks -> /mlb/picks).
 [[redirects]]
   from = "/*"
   to = "/index.html"

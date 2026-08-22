@@ -2838,7 +2838,7 @@ async function main() {
   let prevSteals = [], stealsHistory = [];
   try {
     const fs = await import('node:fs');
-    const raw = fs.readFileSync(new URL('../data.json', import.meta.url), 'utf8');
+    const raw = fs.readFileSync(new URL('../mlb/data.json', import.meta.url), 'utf8');
     const old = JSON.parse(raw);
     prevPicks    = old.picks       ?? [];
     prevValue    = old.value       ?? [];
@@ -3278,7 +3278,7 @@ async function main() {
   };
 
   const fs = await import('node:fs');
-  fs.writeFileSync(new URL('../data.json', import.meta.url), JSON.stringify(output));
+  fs.writeFileSync(new URL('../mlb/data.json', import.meta.url), JSON.stringify(output));
   console.log(`Wrote data.json — ${allDates.length} game days, ${totalHRCount} HRs, ${dueRows.length} due rows, ${prospects.history.length} callup graduations, ${prospects.justCalledUp.length} on watch, ${todaySchedule.length} games today, ${picks.length} picks`);
 
   // Matchup Lab cards ship as a SEPARATE file, lazy-loaded only when the tool is
@@ -3286,14 +3286,14 @@ async function main() {
   // load. Only overwrite on a good build (cards present) — a skipped card build
   // keeps the last good file instead of blanking the tool.
   if (matchupCards) {
-    fs.writeFileSync(new URL('../matchup-cards.json', import.meta.url), JSON.stringify(matchupCards));
+    fs.writeFileSync(new URL('../mlb/matchup-cards.json', import.meta.url), JSON.stringify(matchupCards));
     console.log(`Wrote matchup-cards.json — ${matchupCards.batters.length} batters, ${matchupCards.pitchers.length} pitchers`);
   }
 
   // Pitch-type hitting also ships as a separate lazy-loaded file (only fetched
   // when the Pitch Types tool opens). Keep the last good file on a failed build.
   if (pitchArsenal) {
-    fs.writeFileSync(new URL('../pitch-arsenal.json', import.meta.url), JSON.stringify(pitchArsenal));
+    fs.writeFileSync(new URL('../mlb/pitch-arsenal.json', import.meta.url), JSON.stringify(pitchArsenal));
     console.log(`Wrote pitch-arsenal.json — ${pitchArsenal.rows.length} rows`);
   }
 
@@ -3302,8 +3302,8 @@ async function main() {
   // exactly what makes the browser detect a new PWA version. Idempotent: if
   // index.html is unchanged, the version line is unchanged and this is a no-op.
   const crypto = await import('node:crypto');
-  const idxPath = new URL('../index.html', import.meta.url);
-  const swPath = new URL('../sw.js', import.meta.url);
+  const idxPath = new URL('../mlb/index.html', import.meta.url);
+  const swPath = new URL('../mlb/sw.js', import.meta.url);
   const appVersion = crypto.createHash('sha1').update(fs.readFileSync(idxPath)).digest('hex').slice(0, 10);
   const sw = fs.readFileSync(swPath, 'utf8');
   const stamped = sw.replace(/const APP_VERSION = '[^']*';/, `const APP_VERSION = '${appVersion}';`);
