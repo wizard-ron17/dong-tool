@@ -1481,6 +1481,30 @@
   .st-rank { font-family: var(--font-d); font-weight: 800; font-size: 0.9rem; color: var(--muted); width: 1.4rem; text-align: center; flex-shrink: 0; }
   .st-td { font-family: var(--font-d); font-weight: 800; font-size: 1.2rem; color: var(--accent); }
   .sc-wk { font-family: var(--font-d); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0.85rem 0 0.35rem; }
+  /* team logos + schedule game rows */
+  .tm-logo { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
+  .sc-list { display: flex; flex-direction: column; gap: 0.4rem; }
+  .sc-game { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.55rem 0.7rem; }
+  .sc-teams { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
+  .sc-team { display: flex; align-items: center; gap: 0.35rem; }
+  .sc-abbr { font-family: var(--font-d); font-weight: 700; font-size: 0.92rem; color: var(--text); }
+  .sc-at { color: var(--muted); font-size: 0.75rem; font-weight: 700; }
+  .sc-meta { text-align: right; flex-shrink: 0; }
+  .sc-line { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+  .sc-when { font-size: 0.6rem; color: var(--muted); margin-top: 0.12rem; }
+  .sc-score { font-family: var(--font-d); font-weight: 800; font-size: 1rem; color: var(--text); }
+  /* home dashboard */
+  .hm-hero { padding: 0.4rem 0 1rem; }
+  .hm-title { font-family: var(--font-d); font-size: 1.75rem; font-weight: 800; color: var(--text-strong); }
+  .hm-tag { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+  .hm-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 1.2rem; }
+  .hm-stat { background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.7rem 0.5rem; text-align: center; }
+  .hm-big { font-family: var(--font-d); font-size: 1.5rem; font-weight: 800; color: var(--accent); line-height: 1; }
+  .hm-lbl { font-size: 0.62rem; color: var(--muted); margin-top: 0.3rem; }
+  .hm-sec { margin-bottom: 1.3rem; }
+  .hm-sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 0.5rem; }
+  .hm-sec-head span { font-family: var(--font-d); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .hm-sec-head a { font-size: 0.72rem; color: var(--accent); text-decoration: none; }
   .sc-game .rc-name { font-size: 0.92rem; }
 </style>
 <script>
@@ -1541,12 +1565,7 @@
   </div>
   <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
 
-  <div id="panel-home" class="panel visible">
-    <div class="empty" style="padding:3.5rem 1rem;text-align:center">
-      <div style="font-family:var(--font-d);font-size:1.6rem;font-weight:800;color:var(--text)">Ron's Tud Tool</div>
-      <div style="color:var(--muted);margin-top:0.5rem">NFL touchdown tools are coming together. Start with <a href="javascript:void(0)" onclick="switchNav('recap')" style="color:var(--accent)">Recap</a> — every touchdown of the 2025 season.</div>
-    </div>
-  </div>
+  <div id="panel-home" class="panel visible"><div id="home-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-stats" class="panel"><div id="stats-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-recap" class="panel"><div id="recap-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-schedule" class="panel"><div id="schedule-content"><div class="empty">Loading…</div></div></div>
@@ -1581,7 +1600,7 @@
   }
 
   // ── Data + renders ─────────────────────────────────────────────────────
-  let nflData = null, recapWeek = null;
+  let nflData = null, recapWeek = null, scheduleWeek = null;
   async function loadNfl() {
     try { const r = await fetch(APP_BASE + '/data.json', { cache: 'no-store' }); nflData = await r.json(); }
     catch (e) { nflData = 'error'; }
@@ -1589,7 +1608,30 @@
   }
   const WK_LABEL = (w) => w <= 18 ? 'Week ' + w : ({ 19: 'Wild Card', 20: 'Divisional', 21: 'Conf Championship', 22: 'Super Bowl' }[w] || 'Week ' + w);
   const WK_SHORT = (w) => w <= 18 ? String(w) : ({ 19: 'WC', 20: 'DIV', 21: 'CC', 22: 'SB' }[w] || String(w));
-  function renderPanel(nav) { if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); }
+  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); }
+  // ESPN team-logo CDN (transparent PNGs). nflverse abbrs are ESPN slugs
+  // lowercased, save two: LA(Rams)->lar, WAS->wsh.
+  const LOGO_SLUG = { LA: 'lar', WAS: 'wsh' };
+  const teamLogo = (abbr) => `https://a.espncdn.com/i/teamlogos/nfl/500/${(LOGO_SLUG[abbr] || (abbr || '').toLowerCase())}.png`;
+  const logoImg = (abbr) => abbr ? `<img class="tm-logo" src="${teamLogo(abbr)}" alt="${abbr}" loading="lazy">` : '';
+  // nflverse spread_line: positive => HOME favored. Show it as a betting line
+  // (favorite carries the minus). e.g. spread 3.5 => "SEA -3.5".
+  const spreadLabel = (g) => g.spread === 0 ? 'PK' : `${g.home} ${g.spread > 0 ? '-' : '+'}${Math.abs(g.spread)}`;
+  function gameRow(g) {
+    const played = g.homeScore != null && g.awayScore != null;
+    const time = g.gametime ? g.gametime.slice(0, 5) : '';
+    const when = `${g.weekday || ''}${g.gameday ? ' ' + g.gameday.slice(5) : ''}${time ? ' · ' + time : ''}`.trim();
+    const meta = played
+      ? `<div class="sc-score">${g.awayScore}–${g.homeScore}</div><div class="sc-when">Final</div>`
+      : `<div class="sc-line">${g.total != null ? 'O/U ' + g.total : ''}${g.total != null && g.spread != null ? ' · ' : ''}${g.spread != null ? spreadLabel(g) : ''}</div><div class="sc-when">${when}</div>`;
+    return `<div class="sc-game">
+      <div class="sc-teams">
+        <div class="sc-team">${logoImg(g.away)}<span class="sc-abbr">${g.away}</span></div>
+        <span class="sc-at">@</span>
+        <div class="sc-team">${logoImg(g.home)}<span class="sc-abbr">${g.home}</span></div>
+      </div>
+      <div class="sc-meta">${meta}</div></div>`;
+  }
   function dataGate(id) {
     const el = document.getElementById(id); if (!el) return null;
     if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return null; }
@@ -1626,15 +1668,55 @@
         <div class="rc-info"><div class="rc-name">${l.name}</div><div class="rc-sub">${l.pos} · ${l.team} · ${l.games} G</div></div>
         <div class="rc-detail"><span class="st-td">${l.tds}</span><span class="rc-yd">TD</span><span class="rc-from">${l.rushTd}ru · ${l.recTd}rec</span></div></div>`).join('')}</div>`;
   }
+  // Weeks that have at least one REG game; and the earliest week still to play.
+  function scheduleWeeks() {
+    const byWeek = {}; for (const g of (nflData.schedule || [])) if (g.type === 'REG') (byWeek[g.week] ??= []).push(g);
+    return { byWeek, wks: Object.keys(byWeek).map(Number).sort((a, b) => a - b) };
+  }
+  function firstUpcomingWeek() {
+    const { byWeek, wks } = scheduleWeeks();
+    for (const w of wks) if (byWeek[w].some(g => g.homeScore == null)) return w;
+    return wks[wks.length - 1] ?? 1;
+  }
+  function setScheduleWeek(w) { scheduleWeek = w; renderSchedule(); }
   function renderSchedule() {
     const el = dataGate('schedule-content'); if (!el) return;
-    const games = (nflData.schedule || []).filter(g => g.type === 'REG');
-    const byWeek = {}; for (const g of games) (byWeek[g.week] ??= []).push(g);
-    const wks = Object.keys(byWeek).map(Number).sort((a, b) => a - b);
-    el.innerHTML = `<div class="rc-head">${nflData.upcomingSeason} Schedule</div>` + wks.map(w => `
-      <div class="sc-wk">Week ${w}</div>${byWeek[w].map(g => `<div class="rc-card sc-game">
-        <div class="rc-info"><div class="rc-name">${g.away} @ ${g.home}</div><div class="rc-sub">${g.gameday || ''}${g.gametime ? ' · ' + g.gametime.slice(0, 5) : ''}</div></div>
-        <div class="rc-detail">${g.total != null ? `<span class="rc-yd">O/U ${g.total}</span>` : ''}${g.spread != null ? `<span class="rc-from">${g.home} ${g.spread > 0 ? '+' : ''}${g.spread}</span>` : ''}</div></div>`).join('')}`).join('');
+    const { byWeek, wks } = scheduleWeeks();
+    if (scheduleWeek == null || !wks.includes(scheduleWeek)) scheduleWeek = firstUpcomingWeek();
+    const sel = wks.map(w => `<button class="rc-wk${w === scheduleWeek ? ' active' : ''}" onclick="setScheduleWeek(${w})">${w}</button>`).join('');
+    const games = (byWeek[scheduleWeek] || []).slice().sort((a, b) => (a.gameday || '').localeCompare(b.gameday || '') || (a.gametime || '').localeCompare(b.gametime || ''));
+    el.innerHTML = `<div class="rc-head">${nflData.upcomingSeason} Schedule</div>
+      <div class="rc-weeks">${sel}</div>
+      <div class="rc-meta"><b>Week ${scheduleWeek}</b> · ${games.length} games</div>
+      <div class="sc-list">${games.map(gameRow).join('')}</div>`;
+  }
+  function renderHome() {
+    const el = dataGate('home-content'); if (!el) return;
+    const w = firstUpcomingWeek();
+    const { byWeek } = scheduleWeeks();
+    const upcoming = (byWeek[w] || []).slice().sort((a, b) => (a.gameday || '').localeCompare(b.gameday || '') || (a.gametime || '').localeCompare(b.gametime || '')).slice(0, 4);
+    const leaders = (nflData.tdLeaders || []).slice(0, 5);
+    const totalTds = (nflData.tdRecapWeeks || []).reduce((s, wk) => s + (nflData.tdRecap[wk] || []).length, 0);
+    el.innerHTML = `
+      <div class="hm-hero">
+        <div class="hm-title">Ron's Tud Tool</div>
+        <div class="hm-tag">NFL touchdowns — every score, every week.</div>
+      </div>
+      <div class="hm-stats">
+        <div class="hm-stat"><div class="hm-big">${totalTds}</div><div class="hm-lbl">${nflData.historySeason} TDs</div></div>
+        <div class="hm-stat"><div class="hm-big">${(nflData.tdRecapWeeks || []).length}</div><div class="hm-lbl">weeks recapped</div></div>
+        <div class="hm-stat"><div class="hm-big">${(byWeek[w] || []).length}</div><div class="hm-lbl">Week ${w} games</div></div>
+      </div>
+      <div class="hm-sec">
+        <div class="hm-sec-head"><span>Week ${w} kickoff</span><a href="javascript:void(0)" onclick="switchNav('schedule')">Full schedule →</a></div>
+        <div class="sc-list">${upcoming.map(gameRow).join('')}</div>
+      </div>
+      <div class="hm-sec">
+        <div class="hm-sec-head"><span>${nflData.historySeason} TD leaders</span><a href="javascript:void(0)" onclick="switchNav('stats')">All leaders →</a></div>
+        <div class="rc-list">${leaders.map((l, i) => `<div class="rc-card"><span class="st-rank">${i + 1}</span>${faceHtml(l.pid, l.name)}
+          <div class="rc-info"><div class="rc-name">${l.name}</div><div class="rc-sub">${l.pos} · ${l.team}</div></div>
+          <div class="rc-detail"><span class="st-td">${l.tds}</span><span class="rc-yd">TD</span></div></div>`).join('')}</div>
+      </div>`;
   }
   function currentPath() { return activeNav === 'home' ? APP_BASE + '/' : APP_BASE + '/' + activeNav; }
   function commitRoute() { const p = currentPath(); if (location.pathname !== p) history.pushState(null, '', p); }
