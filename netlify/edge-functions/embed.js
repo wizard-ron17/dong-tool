@@ -33,9 +33,15 @@ const ROUTES = {
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+// The multi-sport landing + Tud Tool live outside the MLB (/mlb) route tree.
+const LANDING = { title: "Ron's Tools", desc: "Ron's sports tools — MLB home run picks (Dong Tool), football touchdowns (Tud Tool), and more. Inspired by Green Means Go." };
+const FOOTBALL = { title: "Ron's Tud Tool", desc: "Daily NFL touchdown picks and matchup breakdowns — coming soon." };
+
 function metaFor(pathname) {
-  const seg = (pathname || '/').split('/').filter(Boolean)[0] || '';
-  return ROUTES[seg] || ROUTES[''];
+  const segs = (pathname || '/').split('/').filter(Boolean);
+  if (segs[0] === 'mlb') return ROUTES[segs[1] || ''] || ROUTES['']; // /mlb, /mlb/picks, /mlb/due/results
+  if (segs[0] === 'football') return FOOTBALL;
+  return LANDING; // "/" and anything else -> the sport picker
 }
 
 function inject(html, title, desc, url) {
