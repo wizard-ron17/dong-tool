@@ -95,6 +95,11 @@
   h1 { font-family: var(--font-d); font-size: clamp(1.6rem, 5vw, 2.8rem); font-weight: 900; line-height: 1; color: var(--text-strong); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.5rem; }
   h1 em { color: var(--accent); font-style: normal; }
   .brand-logo { width: 1.5em; height: 1.5em; border-radius: 50%; flex-shrink: 0; }
+  /* NFL football mark — white body, green laces. Light-mode gets a grey outline
+     baked onto the body path (like the baseball's border) so it stays visible. */
+  .brand-football { width: auto; height: 1.35em; flex-shrink: 0; }
+  .brand-football .fb-body { fill: #fff; stroke: none; }
+  :root[data-theme="light"] .brand-football .fb-body { stroke: rgba(5,8,15,0.55); stroke-width: 1.6; }
   /* Logo has a transparent background now; on light mode a thin dark circular
      outline delineates it from the page (dark mode needs none — it floats). */
   :root[data-theme="light"] .brand-logo { border: 1.5px solid rgba(5,8,15,0.5); }
@@ -1468,7 +1473,7 @@
   <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light or dark mode" title="Toggle light/dark"></button>
   <header>
     <p class="eyebrow">NFL · 2026 · <span class="status-badge ready">Building</span></p>
-    <h1><img src="/icons/logo.svg" alt="" class="brand-logo">Ron's <em>Tud</em> Tool</h1>
+    <h1><svg class="brand-football" viewBox="0 0 48 30" aria-hidden="true"><path class="fb-body" d="M4 15 C4 8.5 13 4.5 24 4.5 C35 4.5 44 8.5 44 15 C44 21.5 35 25.5 24 25.5 C13 25.5 4 21.5 4 15 Z"/><g stroke="#4cd46a" stroke-width="2.1" stroke-linecap="round" fill="none"><path d="M17 15 h14"/><path d="M19 12 v6"/><path d="M22.3 12 v6"/><path d="M25.6 12 v6"/><path d="M28.9 12 v6"/></g></svg>Ron's <em>Tud</em> Tool</h1>
     <div class="meta-row">
       <span>A touchdown tool inspired by Green Means Go
         <span class="social-links">
