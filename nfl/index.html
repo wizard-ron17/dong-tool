@@ -1512,6 +1512,21 @@
   .fl-toggle.active { background: rgba(76,212,106,0.16); border-color: var(--accent); color: var(--accent); }
   .fl-sel { font-family: var(--font-d); font-weight: 700; font-size: 0.75rem; padding: 0.3rem 1.5rem 0.3rem 0.55rem; background: var(--surface1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a94a6' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 0.55rem center; border: 1px solid var(--border); color: var(--text); border-radius: 8px; cursor: pointer; -webkit-appearance: none; appearance: none; }
   .st-rank { font-family: var(--font-d); font-weight: 800; font-size: 0.9rem; color: var(--muted); width: 1.4rem; text-align: center; flex-shrink: 0; }
+  /* Pairs */
+  .pr-lede { font-size: 0.76rem; line-height: 1.5; color: var(--muted); margin: 0.1rem 0 0.8rem; }
+  .pr-lede b { color: var(--text); font-weight: 700; }
+  .pr-card { display: flex; align-items: center; gap: 0.7rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.7rem; }
+  .pr-faces { display: flex; flex-shrink: 0; }
+  .pr-faces .rc-photo { width: 38px; height: 38px; box-shadow: 0 0 0 2px var(--surface1); }
+  .pr-faces .rc-photo:nth-child(2) { margin-left: -13px; }
+  .pr-info { flex: 1; min-width: 0; }
+  .pr-names { font-family: var(--font-d); font-weight: 700; font-size: 0.92rem; color: var(--text); line-height: 1.2; }
+  .pr-amp { color: var(--muted); font-weight: 600; margin: 0 0.3rem; }
+  .pr-sub { font-size: 0.62rem; color: var(--muted); margin-top: 0.18rem; }
+  .pr-stack { color: var(--accent); font-weight: 700; }
+  .pr-detail { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+  .pr-together { font-family: var(--font-d); font-weight: 800; font-size: 1.35rem; color: var(--accent); line-height: 1; }
+  .pr-together-lbl { font-size: 0.52rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.2rem; white-space: nowrap; }
   .st-td { font-family: var(--font-d); font-weight: 800; font-size: 1.2rem; color: var(--accent); }
   .sc-wk { font-family: var(--font-d); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0.85rem 0 0.35rem; }
   /* team logos + schedule game rows */
@@ -1608,7 +1623,10 @@
     </button>
   </nav>
     <div class="nav-tools-menu" id="nav-tools-menu">
-      <div class="empty" style="padding:1.4rem 1rem;text-align:center">No tools yet — building them next. 🏈</div>
+      <button class="nav-menu-item" data-nav="pairs" onclick="switchNav('pairs')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8"/></svg>
+        <span><span class="nm-name">Pairs</span><span class="nm-desc">Players who score the same week</span></span>
+      </button>
     </div>
   </div>
   <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
@@ -1617,6 +1635,7 @@
   <div id="panel-stats" class="panel"><div id="stats-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-recap" class="panel"><div id="recap-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-schedule" class="panel"><div id="schedule-content"><div class="empty">Loading…</div></div></div>
+  <div id="panel-pairs" class="panel"><div id="pairs-content"><div class="empty">Loading…</div></div></div>
 
 </div>
 <script>
@@ -1643,8 +1662,8 @@
   function closeSportMenu() { document.getElementById('sport-menu')?.classList.remove('open'); document.getElementById('sport-switch-btn')?.classList.remove('open'); }
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch')) closeSportMenu(); });
 
-  const NFL_NAVS = ['home', 'stats', 'recap', 'schedule']; // tools added here as they ship
-  const PAGE_TITLES = { home: "Ron's Tud Tool", stats: "Stats · Ron's Tud Tool", recap: "Recap · Ron's Tud Tool", schedule: "Schedule · Ron's Tud Tool" };
+  const NFL_NAVS = ['home', 'stats', 'recap', 'schedule', 'pairs']; // tools added here as they ship
+  const PAGE_TITLES = { home: "Ron's Tud Tool", stats: "Stats · Ron's Tud Tool", recap: "Recap · Ron's Tud Tool", schedule: "Schedule · Ron's Tud Tool", pairs: "Pairs · Ron's Tud Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
     activeNav = nav;
@@ -1666,7 +1685,7 @@
   }
   const WK_LABEL = (w) => w <= 18 ? 'Week ' + w : ({ 19: 'Wild Card', 20: 'Divisional', 21: 'Conf Championship', 22: 'Super Bowl' }[w] || 'Week ' + w);
   const WK_SHORT = (w) => w <= 18 ? String(w) : ({ 19: 'WC', 20: 'DIV', 21: 'CC', 22: 'SB' }[w] || String(w));
-  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); }
+  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); }
   // ESPN team-logo CDN (transparent PNGs). nflverse abbrs are ESPN slugs
   // lowercased, save two: LA(Rams)->lar, WAS->wsh.
   const LOGO_SLUG = { LA: 'lar', WAS: 'wsh' };
@@ -1791,6 +1810,42 @@
       <div class="rc-list">${rows.length ? rows.map((l, i) => `<div class="rc-card"><span class="st-rank">${i + 1}</span>${faceHtml(l.pid, l.name)}
         <div class="rc-info"><div class="rc-name">${l.name}</div><div class="rc-sub">${l.pos} · ${l.team} · ${l.games} G</div></div>
         <div class="rc-detail"><span class="st-td">${val(l)}</span><span class="rc-yd">${ST_SORT_LBL[stFilt.sort]}</span><span class="rc-from">${[`${l.rushTd}ru`, `${l.recTd}rec`, l.stTd ? `${l.stTd}st` : '', l.defTd ? `${l.defTd}def` : '', l.firstTd ? `${l.firstTd} 1st` : ''].filter(Boolean).join(' · ')}</span></div></div>`).join('') : '<div class="empty">No players match these filters.</div>'}</div>`;
+  }
+  // ── Pairs — players who score a TD in the same week (correlated parlay lens) ──
+  const pairFilt = { side: 'all', team: 'all', sort: 'together' };
+  function setPairFilt(k, v) { pairFilt[k] = v; renderPairs(); }
+  const pairRate = (p) => p.together / Math.min(p.aWeeks, p.bWeeks);
+  function pairCard(p) {
+    const rel = p.sameTeam ? `<span class="pr-stack">${p.aTeam} stack</span>` : `${p.aTeam} vs ${p.bTeam}`;
+    return `<div class="pr-card">
+      <div class="pr-faces">${faceHtml(p.aPid, p.aName)}${faceHtml(p.bPid, p.bName)}</div>
+      <div class="pr-info"><div class="pr-names">${p.aName}<span class="pr-amp">+</span>${p.bName}</div>
+        <div class="pr-sub">${rel} · scored ${p.aWeeks}w &amp; ${p.bWeeks}w</div></div>
+      <div class="pr-detail"><span class="pr-together">${p.together}</span><span class="pr-together-lbl">wks together</span></div></div>`;
+  }
+  function renderPairs() {
+    const el = dataGate('pairs-content'); if (!el) return;
+    const all = nflData.tdPairs || [];
+    const teams = [...new Set(all.flatMap(p => [p.aTeam, p.bTeam]).filter(Boolean))].sort();
+    if (pairFilt.team !== 'all' && !teams.includes(pairFilt.team)) pairFilt.team = 'all';
+    let rows = all.filter(p =>
+      (pairFilt.side === 'all' || (pairFilt.side === 'same' && p.sameTeam) || (pairFilt.side === 'diff' && !p.sameTeam)) &&
+      (pairFilt.team === 'all' || p.aTeam === pairFilt.team || p.bTeam === pairFilt.team));
+    if (pairFilt.sort === 'rate') rows = rows.slice().sort((a, b) => pairRate(b) - pairRate(a) || b.together - a.together);
+    const sidePill = (v, lbl) => `<button class="fl-pill${pairFilt.side === v ? ' active' : ''}" onclick="setPairFilt('side','${v}')">${lbl}</button>`;
+    const teamOpts = ['all', ...teams].map(t => `<option value="${t}"${pairFilt.team === t ? ' selected' : ''}>${t === 'all' ? 'All teams' : t}</option>`).join('');
+    el.innerHTML = `<div class="rc-head">${nflData.historySeason} TD Pairs</div>
+      <div class="pr-lede">How often two players scored a TD in the <b>same week</b> — the correlated lens for weekly TD parlays. Stacks (same team) tend to move together; different-team pairs are two independent hot hands.</div>
+      <div class="fl-bar">
+        <div class="fl-pills">${sidePill('all', 'All')}${sidePill('same', 'Same team')}${sidePill('diff', 'Diff team')}</div>
+        <select class="fl-sel" onchange="setPairFilt('sort',this.value)">
+          <option value="together"${pairFilt.sort === 'together' ? ' selected' : ''}>Most weeks together</option>
+          <option value="rate"${pairFilt.sort === 'rate' ? ' selected' : ''}>Tightest cluster</option>
+        </select>
+        <select class="fl-sel" onchange="setPairFilt('team',this.value)">${teamOpts}</select>
+      </div>
+      <div class="rc-meta">${rows.length} pairs</div>
+      <div class="rc-list">${rows.length ? rows.map(pairCard).join('') : '<div class="empty">No pairs match these filters.</div>'}</div>`;
   }
   // Weeks that have at least one REG game; and the earliest week still to play.
   function scheduleWeeks() {

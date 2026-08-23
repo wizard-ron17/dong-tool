@@ -35,12 +35,18 @@ const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g
 
 // The multi-sport landing + Tud Tool live outside the MLB (/mlb) route tree.
 const LANDING = { title: "Ron's Tools", desc: "Ron's sports tools — MLB home run picks (Dong Tool), football touchdowns (Tud Tool), and more. Inspired by Green Means Go." };
-const NFL = { title: "Ron's Tud Tool", desc: "Daily NFL touchdown picks and matchup breakdowns." };
+const NFL_ROUTES = {
+  '':      { title: "Ron's Tud Tool", desc: "NFL touchdowns — every score by week, TD leaders, schedule, and the correlated-parlay Pairs tool." },
+  pairs:   { title: "TD Pairs · Ron's Tud Tool", desc: "Which players score touchdowns in the same week — the correlated lens for building weekly TD parlays." },
+  recap:   { title: "TD Recap · Ron's Tud Tool", desc: "Every touchdown of the season by week — rushing, receiving, and defensive/ST scores with distances." },
+  stats:   { title: "TD Leaders · Ron's Tud Tool", desc: "Season touchdown leaders — total, rushing, receiving, defensive, special-teams, and first-TD counts." },
+  schedule:{ title: "Schedule · Ron's Tud Tool", desc: "The full NFL slate by week with spreads and over/unders." },
+};
 
 function metaFor(pathname) {
   const segs = (pathname || '/').split('/').filter(Boolean);
   if (segs[0] === 'mlb') return ROUTES[segs[1] || ''] || ROUTES['']; // /mlb, /mlb/picks, /mlb/due/results
-  if (segs[0] === 'nfl') return NFL; // Ron's Tud Tool
+  if (segs[0] === 'nfl') return NFL_ROUTES[segs[1] || ''] || NFL_ROUTES['']; // /nfl, /nfl/pairs …
   return LANDING; // "/" and anything else -> the sport picker
 }
 

@@ -154,17 +154,56 @@ async function main() {
     allScorers.filter(l => l[key] > 0).sort((x, y) => y[key] - x[key]).slice(0, 50).forEach(l => pool.add(l.pid));
   const tdLeaders = allScorers.filter(l => pool.has(l.pid)).sort((a, b) => b.tds - a.tds);
 
+  // ── 4) TD pairs — players who score in the same league WEEK ────────────
+  // The correlated-parlay lens (like the MLB "same day" pairing): across the
+  // season, how often each two players both found the end zone in the same
+  // week. High counts = their TDs cluster, which is what a weekly parlay wants.
+  const scorerInfo = {}; // pid -> {name, team, pos}
+  const weekScorers = {}; // week -> Map(pid -> team) : unique scorers that week
+  for (const wk of weeks) for (const t of tdRecap[wk]) {
+    if (!t.pid) continue;
+    (weekScorers[wk] ??= new Map()).set(t.pid, t.team);
+    const info = scorerInfo[t.pid] ??= { name: agg[t.pid]?.name || t.player, team: t.team, pos: agg[t.pid]?.pos || '—' };
+    info.team = t.team; // last team seen
+  }
+  const weeksScored = {}; // pid -> # weeks with a TD
+  for (const wk in weekScorers) for (const pid of weekScorers[wk].keys()) weeksScored[pid] = (weeksScored[pid] || 0) + 1;
+  const pairMap = {}; // "pidA|pidB" -> together count
+  for (const wk in weekScorers) {
+    const ent = [...weekScorers[wk].keys()];
+    for (let i = 0; i < ent.length; i++) for (let j = i + 1; j < ent.length; j++) {
+      const a = ent[i], b = ent[j], key = a < b ? a + '|' + b : b + '|' + a;
+      pairMap[key] = (pairMap[key] || 0) + 1;
+    }
+  }
+  const MIN_TOGETHER = 4;
+  const tdPairs = Object.entries(pairMap).filter(([, n]) => n >= MIN_TOGETHER)
+    .map(([key, together]) => {
+      const [a, b] = key.split('|'), A = scorerInfo[a], B = scorerInfo[b];
+      return {
+        aPid: a, bPid: b, aName: A.name, bName: B.name, aTeam: A.team, bTeam: B.team,
+        aPos: A.pos, bPos: B.pos, together, aWeeks: weeksScored[a], bWeeks: weeksScored[b],
+        sameTeam: A.team === B.team,
+      };
+    })
+    // rank by raw co-occurrence, then by how tightly they cluster (rate vs the
+    // rarer scorer's own weeks) so two mid-volume guys who always go together
+    // edge out a compiler paired with everyone.
+    .sort((x, y) => y.together - x.together || (y.together / Math.min(y.aWeeks, y.bWeeks)) - (x.together / Math.min(x.aWeeks, x.bWeeks)))
+    .slice(0, 300);
+
   // Only ship headshots we actually reference (recap scorers + leaders) to stay lean.
   const referenced = new Set(tdLeaders.map(l => l.pid));
   for (const wk of weeks) for (const t of tdRecap[wk]) if (t.pid) referenced.add(t.pid);
+  for (const p of tdPairs) { referenced.add(p.aPid); referenced.add(p.bPid); }
   const shots = {}; for (const pid of referenced) if (headshots[pid]) shots[pid] = headshots[pid];
 
   const output = {
     generatedAt: new Date().toISOString(),
     historySeason: HISTORY_SEASON, upcomingSeason: UPCOMING_SEASON,
-    schedule, results, tdRecap, tdRecapWeeks: weeks, tdLeaders, headshots: shots,
+    schedule, results, tdRecap, tdRecapWeeks: weeks, tdLeaders, tdPairs, headshots: shots,
   };
   fs.writeFileSync(new URL('../nfl/data.json', import.meta.url), JSON.stringify(output));
-  console.log(`Wrote nfl/data.json — ${schedule.length} ${UPCOMING_SEASON} games, ${tdTotal} TDs across ${weeks.length} weeks, ${tdLeaders.length} TD leaders.`);
+  console.log(`Wrote nfl/data.json — ${schedule.length} ${UPCOMING_SEASON} games, ${tdTotal} TDs across ${weeks.length} weeks, ${tdLeaders.length} TD leaders, ${tdPairs.length} pairs.`);
 }
 main().catch(e => { console.error(e); process.exit(1); });
