@@ -1619,9 +1619,59 @@
   <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
 
   <div id="panel-home" class="panel visible"><div id="home-content"><div class="empty">Loading…</div></div></div>
-  <div id="panel-stats" class="panel"><div id="stats-content"><div class="empty">Loading…</div></div></div>
-  <div id="panel-recap" class="panel"><div id="recap-content"><div class="empty">Loading…</div></div></div>
-  <div id="panel-schedule" class="panel"><div id="schedule-content"><div class="empty">Loading…</div></div></div>
+  <div id="panel-stats" class="panel">
+    <div class="due-explainer" id="stats-explainer-toggle" onclick="toggleExplainer('stats')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Leaders Work</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="stats-explainer-chevron">▶</span>
+      </div>
+      <div class="due-explainer-teaser">Season touchdown leaders — sort by total, rushing, receiving, defensive, special-teams, first-TD, or opportunity.</div>
+      <div class="due-explainer-body" id="stats-explainer-body" style="display:none">
+        <ul>
+          <li><b>What it counts.</b> Every touchdown of the season, tallied from play-by-play — so it captures defensive and special-teams scores the offensive box score misses.</li>
+          <li><b>Sorts.</b> Total, rushing, receiving, defensive (INT/fumble/blocked-kick), special-teams (kick/punt return), first-TD-of-game, or <em>opportunities</em> (rush attempts + targets).</li>
+          <li><b>Filters.</b> Narrow by position or team; each card breaks a player's scores down by type.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="stats-content"><div class="empty">Loading…</div></div>
+  </div>
+  <div id="panel-recap" class="panel">
+    <div class="due-explainer" id="recap-explainer-toggle" onclick="toggleExplainer('recap')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Recap Works</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="recap-explainer-chevron">▶</span>
+      </div>
+      <div class="due-explainer-teaser">Every touchdown of the season, by week — scorer, type, distance, and quarter.</div>
+      <div class="due-explainer-body" id="recap-explainer-body" style="display:none">
+        <ul>
+          <li><b>What's here.</b> Every touchdown from the chosen week, grouped by game day (Thu / Sun / Mon), with the scorer, the type badge, yardage, and the QB on receiving scores.</li>
+          <li><b>Types.</b> RUSH / REC for offense; ST (kick, punt return) and DEF (PICK-6, FUM RET, BLK) for the non-offensive scores — filter to any of them.</li>
+          <li><b>First TD.</b> A gold <span class="rc-first">1st</span> tags each game's opening touchdown; toggle to show only those. Jump weeks with the arrows.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="recap-content"><div class="empty">Loading…</div></div>
+  </div>
+  <div id="panel-schedule" class="panel">
+    <div class="due-explainer" id="schedule-explainer-toggle" onclick="toggleExplainer('schedule')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How the Schedule Works</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="schedule-explainer-chevron">▶</span>
+      </div>
+      <div class="due-explainer-teaser">The full slate by week, with kickoff, over/under, and the closing spread.</div>
+      <div class="due-explainer-body" id="schedule-explainer-body" style="display:none">
+        <ul>
+          <li><b>Lines.</b> Each game shows the total (O/U) and the spread as a betting line — the favorite carries the minus (e.g. <em>SEA -3.5</em>).</li>
+          <li><b>Live scores.</b> Once a game is played the card flips to its final score. Step through the season with the week buttons.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="schedule-content"><div class="empty">Loading…</div></div>
+  </div>
   <div id="panel-pairs" class="panel">
     <div class="due-explainer" id="pairs-explainer-toggle" onclick="toggleExplainer('pairs')" aria-expanded="false">
       <div class="due-explainer-head">
@@ -1780,9 +1830,9 @@
       : (dayKeys.length > 1 || (dayKeys[0] && dayKeys[0] !== '—'))
         ? dayKeys.map(d => `<div class="rc-daygroup"><div class="rc-dayhdr">${d === '—' ? 'Other' : d}<span class="rc-daycount">${groups[d].length}</span></div><div class="rc-list">${groups[d].map(tdCard).join('')}</div></div>`).join('')
         : `<div class="rc-list">${tds.map(tdCard).join('')}</div>`;
-    const typePill = (v, lbl) => `<button class="fl-pill${rcFilt.type === v ? ' active' : ''}" onclick="setRcFilt('type','${v}')">${lbl}</button>`;
-    el.innerHTML = `<div class="rc-head">${nflData.historySeason} Touchdown Recap</div>
-      <div class="rc-wknav">
+    const typeChip = (v, lbl) => `<button class="due-filter-chip${rcFilt.type === v ? ' active' : ''}" onclick="setRcFilt('type','${v}')">${lbl}</button>`;
+    const sortChip = (v, lbl) => `<button class="due-filter-chip${rcFilt.sort === v ? ' active' : ''}" onclick="setRcFilt('sort','${v}')">${lbl}</button>`;
+    el.innerHTML = `<div class="rc-wknav">
         <button class="rc-jump" onclick="recapToFirst()" ${atFirst ? 'disabled' : ''} title="Jump to Week 1">Week 1</button>
         <div class="rc-wknav-center">
           <button class="rc-arrow" onclick="shiftRecapWeek(-1)" ${atFirst ? 'disabled' : ''} aria-label="Previous week">‹</button>
@@ -1791,16 +1841,16 @@
         </div>
         <button class="rc-jump" onclick="recapToLatest()" ${atLast ? 'disabled' : ''} title="Jump to the latest week">Latest</button>
       </div>
-      <div class="fl-bar">
-        <div class="fl-pills">${typePill('all', 'All')}${typePill('rush', 'Rush')}${typePill('rec', 'Rec')}${typePill('def', 'Def')}${typePill('st', 'ST')}</div>
-        <select class="fl-sel" onchange="setRcFilt('sort',this.value)">
-          <option value="order"${rcFilt.sort === 'order' ? ' selected' : ''}>Game order</option>
-          <option value="long"${rcFilt.sort === 'long' ? ' selected' : ''}>Longest</option>
-          <option value="short"${rcFilt.sort === 'short' ? ' selected' : ''}>Shortest</option>
-        </select>
-        <button class="fl-toggle${rcFilt.firstOnly ? ' active' : ''}" onclick="toggleRcFirst()">1st TD</button>
+      <div class="pairs-filter-row">
+        <span class="due-filter-label">Type</span>
+        ${typeChip('all', 'All')}${typeChip('rush', 'Rush')}${typeChip('rec', 'Rec')}${typeChip('def', 'Def')}${typeChip('st', 'ST')}
       </div>
-      <div class="rc-meta"><b>${WK_LABEL(recapWeek)}</b> · ${tds.length} of ${all.length} touchdowns</div>
+      <div class="pairs-filter-row">
+        <span class="due-filter-label">Sort</span>
+        ${sortChip('order', 'Game order')}${sortChip('long', 'Longest')}${sortChip('short', 'Shortest')}
+        <button class="due-filter-toggle${rcFilt.firstOnly ? ' active' : ''}" onclick="toggleRcFirst()">⭐ 1st TD only</button>
+      </div>
+      <div class="result-meta"><b>${WK_LABEL(recapWeek)}</b> · ${tds.length} of ${all.length} touchdowns</div>
       ${body}`;
   }
   const stFilt = { pos: 'all', team: 'all', sort: 'tds' };
@@ -1817,11 +1867,14 @@
       (stFilt.team === 'all' || l.team === stFilt.team))
       .slice().sort((a, b) => ST_SORT[stFilt.sort](b) - ST_SORT[stFilt.sort](a));
     const val = ST_SORT[stFilt.sort];
-    const posPill = (v, lbl) => `<button class="fl-pill${stFilt.pos === v ? ' active' : ''}" onclick="setStFilt('pos','${v}')">${lbl}</button>`;
+    const posChip = (v, lbl) => `<button class="due-filter-chip${stFilt.pos === v ? ' active' : ''}" onclick="setStFilt('pos','${v}')">${lbl}</button>`;
     const teamOpts = ['all', ...teams].map(t => `<option value="${t}"${stFilt.team === t ? ' selected' : ''}>${t === 'all' ? 'All teams' : t}</option>`).join('');
-    el.innerHTML = `<div class="rc-head">${nflData.historySeason} Touchdown Leaders</div>
-      <div class="fl-bar">
-        <div class="fl-pills">${posPill('all', 'All')}${posPill('RB', 'RB')}${posPill('WR', 'WR')}${posPill('TE', 'TE')}${posPill('QB', 'QB')}</div>
+    el.innerHTML = `<div class="pairs-filter-row">
+        <span class="due-filter-label">Pos</span>
+        ${posChip('all', 'All')}${posChip('RB', 'RB')}${posChip('WR', 'WR')}${posChip('TE', 'TE')}${posChip('QB', 'QB')}
+      </div>
+      <div class="pairs-filter-row">
+        <span class="due-filter-label">Sort</span>
         <select class="fl-sel" onchange="setStFilt('sort',this.value)">
           <option value="tds"${stFilt.sort === 'tds' ? ' selected' : ''}>Total TDs</option>
           <option value="rushTd"${stFilt.sort === 'rushTd' ? ' selected' : ''}>Rushing TDs</option>
@@ -1833,7 +1886,7 @@
         </select>
         <select class="fl-sel" onchange="setStFilt('team',this.value)">${teamOpts}</select>
       </div>
-      <div class="rc-meta">${rows.length} players · sorted by <b>${ST_SORT_LBL[stFilt.sort]}</b></div>
+      <div class="result-meta">${rows.length} players · sorted by <b>${ST_SORT_LBL[stFilt.sort]}</b></div>
       <div class="rc-list">${rows.length ? rows.map((l, i) => `<div class="rc-card"><span class="st-rank">${i + 1}</span>${faceHtml(l.pid, l.name)}
         <div class="rc-info"><div class="rc-name">${l.name}</div><div class="rc-sub">${l.pos} · ${l.team} · ${l.games} G</div></div>
         <div class="rc-detail"><span class="st-td">${val(l)}</span><span class="rc-yd">${ST_SORT_LBL[stFilt.sort]}</span><span class="rc-from">${[`${l.rushTd}ru`, `${l.recTd}rec`, l.stTd ? `${l.stTd}st` : '', l.defTd ? `${l.defTd}def` : '', l.firstTd ? `${l.firstTd} 1st` : ''].filter(Boolean).join(' · ')}</span></div></div>`).join('') : '<div class="empty">No players match these filters.</div>'}</div>`;
@@ -1964,9 +2017,8 @@
     if (scheduleWeek == null || !wks.includes(scheduleWeek)) scheduleWeek = firstUpcomingWeek();
     const sel = wks.map(w => `<button class="rc-wk${w === scheduleWeek ? ' active' : ''}" onclick="setScheduleWeek(${w})">${w}</button>`).join('');
     const games = (byWeek[scheduleWeek] || []).slice().sort((a, b) => (a.gameday || '').localeCompare(b.gameday || '') || (a.gametime || '').localeCompare(b.gametime || ''));
-    el.innerHTML = `<div class="rc-head">${nflData.upcomingSeason} Schedule</div>
-      <div class="rc-weeks">${sel}</div>
-      <div class="rc-meta"><b>Week ${scheduleWeek}</b> · ${games.length} games</div>
+    el.innerHTML = `<div class="rc-weeks">${sel}</div>
+      <div class="result-meta"><b>Week ${scheduleWeek}</b> · ${games.length} games</div>
       <div class="sc-list">${games.map(gameRow).join('')}</div>`;
   }
   function renderHome() {
