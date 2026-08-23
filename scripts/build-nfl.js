@@ -73,14 +73,21 @@ async function main() {
     if (P(r, 'touchdown') !== '1') continue;
     const scorer = cleanName(P(r, 'td_player_name'));
     if (!scorer) continue; // skip odd rows with no credited scorer
-    // Classify: offensive pass/rush, else special-teams (kickoff/punt return),
-    // else defensive (INT / fumble / blocked-kick returned by the defense — a
-    // "team defense TD", how it's bet).
+    // Classify each TD to a top-level type (rush/rec/st/def) plus a specific
+    // subtype so the recap can say exactly what it was:
+    //   ST  -> kick (kickoff ret), punt (punt ret)
+    //   DEF -> pick6 (INT ret), fumble (fumble ret by D), blk (blocked-kick ret)
     const pt = P(r, 'play_type');
-    const type = P(r, 'pass_touchdown') === '1' ? 'rec'
-      : P(r, 'rush_touchdown') === '1' ? 'rush'
-        : (pt === 'kickoff' || pt === 'punt') ? 'st'
-          : 'def';
+    const defScored = P(r, 'td_team') && P(r, 'td_team') === P(r, 'defteam');
+    let type, subtype;
+    if (P(r, 'pass_touchdown') === '1') { type = 'rec'; subtype = 'rec'; }
+    else if (P(r, 'rush_touchdown') === '1') { type = 'rush'; subtype = 'rush'; }
+    else if (pt === 'kickoff') { type = 'st'; subtype = 'kick'; }
+    else if (pt === 'punt') { type = 'st'; subtype = 'punt'; }
+    else if (P(r, 'interception') === '1') { type = 'def'; subtype = 'pick6'; }
+    else if (P(r, 'fumble') === '1' && defScored) { type = 'def'; subtype = 'fumble'; }
+    else if (pt === 'field_goal') { type = 'def'; subtype = 'blk'; }
+    else { type = 'def'; subtype = 'def'; } // rare leftovers (e.g. own-fumble recovery)
     const offensive = type === 'rush' || type === 'rec';
     // Distance: scrimmage yards for offensive TDs; the RETURN distance for
     // ST/DEF (yards_gained is wrong there — often 0 or negative). return_yards
@@ -96,7 +103,7 @@ async function main() {
     (tdRecap[wk] ??= []).push({
       player: scorer, pid,
       team, opp: P(r, 'defteam'),
-      type, yards, qtr: num(P(r, 'qtr')),
+      type, subtype, yards, qtr: num(P(r, 'qtr')),
       passer: type === 'rec' ? cleanName(P(r, 'passer_player_name')) : null,
       gameId, firstTd, weekday: results[gameId]?.weekday || null,
     });
