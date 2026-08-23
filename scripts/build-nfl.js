@@ -73,7 +73,19 @@ async function main() {
     if (P(r, 'touchdown') !== '1') continue;
     const scorer = cleanName(P(r, 'td_player_name'));
     if (!scorer) continue; // skip odd rows with no credited scorer
-    const type = P(r, 'pass_touchdown') === '1' ? 'rec' : P(r, 'rush_touchdown') === '1' ? 'rush' : P(r, 'return_touchdown') === '1' ? 'ret' : 'other';
+    // Classify: offensive pass/rush, else special-teams (kickoff/punt return),
+    // else defensive (INT / fumble / blocked-kick returned by the defense — a
+    // "team defense TD", how it's bet).
+    const pt = P(r, 'play_type');
+    const type = P(r, 'pass_touchdown') === '1' ? 'rec'
+      : P(r, 'rush_touchdown') === '1' ? 'rush'
+        : (pt === 'kickoff' || pt === 'punt') ? 'st'
+          : 'def';
+    const offensive = type === 'rush' || type === 'rec';
+    // Distance: scrimmage yards for offensive TDs; the RETURN distance for
+    // ST/DEF (yards_gained is wrong there — often 0 or negative). return_yards
+    // is blank/0 for fumble recoveries, so leave those without a yardage.
+    const yards = offensive ? num(P(r, 'yards_gained')) : (num(P(r, 'return_yards')) || null);
     const wk = P(r, 'week');
     const gameId = P(r, 'game_id');
     const pid = P(r, 'td_player_id') || null;
@@ -84,13 +96,13 @@ async function main() {
     (tdRecap[wk] ??= []).push({
       player: scorer, pid,
       team, opp: P(r, 'defteam'),
-      type, yards: num(P(r, 'yards_gained')), qtr: num(P(r, 'qtr')),
+      type, yards, qtr: num(P(r, 'qtr')),
       passer: type === 'rec' ? cleanName(P(r, 'passer_player_name')) : null,
       gameId, firstTd, weekday: results[gameId]?.weekday || null,
     });
     if (pid) {
-      const a = tdAgg[pid] ??= { rush: 0, rec: 0, ret: 0, first: 0, tds: 0, team, games: new Set(), name: scorer };
-      if (type === 'rush') a.rush++; else if (type === 'rec') a.rec++; else if (type === 'ret') a.ret++;
+      const a = tdAgg[pid] ??= { rush: 0, rec: 0, st: 0, def: 0, first: 0, tds: 0, team, games: new Set(), name: scorer };
+      if (type === 'rush') a.rush++; else if (type === 'rec') a.rec++; else if (type === 'st') a.st++; else a.def++;
       a.tds++; a.team = team; a.games.add(gameId);
       if (firstTd) a.first++;
     }
@@ -122,16 +134,16 @@ async function main() {
     const a = agg[pid];
     return {
       pid, name: a?.name || t.name, pos: a?.pos || '—', team: a?.team || t.team,
-      tds: t.tds, rushTd: t.rush, recTd: t.rec, retTd: t.ret, firstTd: t.first,
+      tds: t.tds, rushTd: t.rush, recTd: t.rec, stTd: t.st, defTd: t.def, firstTd: t.first,
       opp: a ? Math.round(a.targets + a.carries) : 0, // rushing attempts + targets
       games: a?.games || t.games.size,
     };
   });
   // Ship the union of the top 50 in every sortable metric, so sorting the board
-  // by (say) return TDs surfaces the real leaders — not just high-total scorers
-  // who happen to have one. Return specialists with few total TDs get in via ret.
+  // by (say) defensive TDs surfaces the real leaders — not just high-total
+  // scorers who happen to have one. Return/defense specialists get in via st/def.
   const pool = new Set();
-  for (const key of ['tds', 'rushTd', 'recTd', 'retTd', 'firstTd', 'opp'])
+  for (const key of ['tds', 'rushTd', 'recTd', 'stTd', 'defTd', 'firstTd', 'opp'])
     allScorers.filter(l => l[key] > 0).sort((x, y) => y[key] - x[key]).slice(0, 50).forEach(l => pool.add(l.pid));
   const tdLeaders = allScorers.filter(l => pool.has(l.pid)).sort((a, b) => b.tds - a.tds);
 
