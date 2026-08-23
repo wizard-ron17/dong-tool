@@ -53,29 +53,34 @@ async function main() {
     spread: num(game(r, 'spread_line')), total: num(game(r, 'total_line')),
     awayScore: num(game(r, 'away_score')), homeScore: num(game(r, 'home_score')),
   }));
-  // results map for the historical season (to caption recap games)
+  // results map for the historical season (to caption recap games + day-of-week filtering)
   const results = {};
   for (const r of grows) if (+game(r, 'season') === HISTORY_SEASON)
-    results[game(r, 'game_id')] = { away: game(r, 'away_team'), home: game(r, 'home_team'), aScore: num(game(r, 'away_score')), hScore: num(game(r, 'home_score')), week: +game(r, 'week') };
+    results[game(r, 'game_id')] = { away: game(r, 'away_team'), home: game(r, 'home_team'), aScore: num(game(r, 'away_score')), hScore: num(game(r, 'home_score')), week: +game(r, 'week'), gameday: game(r, 'gameday'), weekday: game(r, 'weekday') };
 
   // ── 2) Every TD -> weekly recap (from play-by-play) ────────────────────
   console.log(`Fetching ${HISTORY_SEASON} play-by-play for TD recaps (large file)…`);
   const { idx: pi, rows: prows } = parseCsv(await fetchText(`https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_${HISTORY_SEASON}.csv`));
   const P = (r, k) => r[pi[k]];
-  const tdRecap = {}; // week -> [ {player, team, opp, type, yards, qtr, passer, gameId} ]
+  const tdRecap = {}; // week -> [ {player, team, opp, type, yards, qtr, passer, gameId, firstTd, weekday} ]
   let tdTotal = 0;
+  const gameHasTd = new Set(); // gameIds that have already scored a TD -> flags the first one
   for (const r of prows) {
     if (P(r, 'touchdown') !== '1') continue;
     const scorer = cleanName(P(r, 'td_player_name'));
     if (!scorer) continue; // skip odd rows with no credited scorer
     const type = P(r, 'pass_touchdown') === '1' ? 'rec' : P(r, 'rush_touchdown') === '1' ? 'rush' : P(r, 'return_touchdown') === '1' ? 'ret' : 'other';
     const wk = P(r, 'week');
+    const gameId = P(r, 'game_id');
+    // pbp rows are in play order within a game, so the first TD row we see for a
+    // gameId is the game's opening touchdown.
+    const firstTd = !gameHasTd.has(gameId); gameHasTd.add(gameId);
     (tdRecap[wk] ??= []).push({
       player: scorer, pid: P(r, 'td_player_id') || null,
       team: P(r, 'td_team') || P(r, 'posteam'), opp: P(r, 'defteam'),
       type, yards: num(P(r, 'yards_gained')), qtr: num(P(r, 'qtr')),
       passer: type === 'rec' ? cleanName(P(r, 'passer_player_name')) : null,
-      gameId: P(r, 'game_id'),
+      gameId, firstTd, weekday: results[gameId]?.weekday || null,
     });
     tdTotal++;
   }
