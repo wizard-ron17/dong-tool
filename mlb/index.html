@@ -1449,6 +1449,24 @@
   .st-btn:hover { background:#1e3050; color:#c8f0d5; }
   .st-foot { color:#4a5f78; font-size:10px; margin-top:10px; text-align:center; }
   .st-foot code { background:#16243a; padding:1px 5px; border-radius:4px; color:#8aaac0; }
+  /* sport switcher — shared multi-sport chrome */
+  .brand-home { text-decoration: none; color: inherit; cursor: pointer; border-radius: 8px; transition: opacity 0.12s; }
+  .brand-home:hover { opacity: 0.7; }
+  .sport-switch { position: relative; display: inline-flex; vertical-align: middle; }
+  .sport-switch-btn { margin-left: 0.5rem; width: 1.55rem; height: 1.55rem; display: inline-flex; align-items: center; justify-content: center; padding: 0; background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); cursor: pointer; font-size: 0.72rem; line-height: 1; transition: color 0.12s, border-color 0.12s, background 0.12s; }
+  .sport-switch-btn:hover { color: var(--text); border-color: var(--border2); background: var(--surface2); }
+  .sport-switch-btn.open { color: var(--accent); border-color: var(--accent); }
+  .sport-menu { position: absolute; top: calc(100% + 8px); left: 0; z-index: 200; min-width: 230px; background: var(--surface0); border: 1px solid var(--border2); border-radius: 14px; padding: 0.4rem; box-shadow: 0 18px 48px rgba(0,0,0,0.55); display: none; }
+  .sport-menu.open { display: block; animation: sportMenuIn 0.14s ease; }
+  @keyframes sportMenuIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  .sport-item { display: flex; align-items: center; gap: 0.65rem; padding: 0.55rem 0.6rem; border-radius: 10px; text-decoration: none; color: var(--text); }
+  a.sport-item:hover { background: var(--surface2); }
+  .sport-item.current { background: rgba(51,208,124,0.12); }
+  .sport-item.soon { opacity: 0.4; cursor: default; }
+  .sport-ico { font-size: 1.25rem; line-height: 1; width: 1.5rem; text-align: center; }
+  .sport-name { font-family: var(--font-d); font-weight: 700; font-size: 0.92rem; }
+  .sport-sub { margin-left: auto; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .sport-item.current .sport-sub { color: var(--accent); }
 </style>
 <script>
   // Set the theme before first paint to avoid a flash: saved choice wins,
@@ -1468,7 +1486,7 @@
   <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light or dark mode" title="Toggle light/dark"></button>
   <header>
     <p class="eyebrow">MLB · 2026 · Stats API <span id="status-badge" class="status-badge fetching">Loading</span></p>
-    <h1><img src="/icons/logo.svg" alt="" class="brand-logo">Ron's <em>Dong</em> Tool</h1>
+    <h1><a href="/" class="brand-home" aria-label="Back to all sports"><img src="/icons/logo.svg" alt="" class="brand-logo"></a>Ron's <em>Dong</em> Tool<span class="sport-switch"><button class="sport-switch-btn" id="sport-switch-btn" onclick="toggleSportMenu(event)" aria-label="Switch sport" title="Switch sport">▾</button><div class="sport-menu" id="sport-menu"><a class="sport-item current" href="/mlb/"><span class="sport-ico">⚾</span><span class="sport-name">Ron's Dong Tool</span><span class="sport-sub">MLB</span></a><a class="sport-item" href="/nfl/"><span class="sport-ico">🏈</span><span class="sport-name">Ron's Tud Tool</span><span class="sport-sub">NFL</span></a><span class="sport-item soon"><span class="sport-ico">🏀</span><span class="sport-name">Ron's Hoop Tool</span><span class="sport-sub">Soon</span></span><span class="sport-item soon"><span class="sport-ico">🏒</span><span class="sport-name">Ron's Goal Tool</span><span class="sport-sub">Soon</span></span></div></span></h1>
     <div class="meta-row">
       <span>A home run tool inspired by Green Means Go
         <span class="social-links">
@@ -2801,6 +2819,16 @@ let navToolsOpen = false;
 function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
 function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
 function toggleNavTools(e) { e.stopPropagation(); navToolsOpen ? closeNavTools() : openNavTools(); }
+
+// Sport switcher: jump straight to another live app, or click the logo for
+// the full landing/picker (incl. coming-soon sports).
+function toggleSportMenu(e) {
+  e.stopPropagation();
+  const open = document.getElementById('sport-menu').classList.toggle('open');
+  document.getElementById('sport-switch-btn').classList.toggle('open', open);
+}
+function closeSportMenu() { document.getElementById('sport-menu')?.classList.remove('open'); document.getElementById('sport-switch-btn')?.classList.remove('open'); }
+document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch')) closeSportMenu(); });
 
 // Browser-tab titles per page (the edge function sets the same for shared/deep
 // links + crawlers; this keeps the tab in sync during client-side navigation).
