@@ -1512,21 +1512,8 @@
   .fl-toggle.active { background: rgba(76,212,106,0.16); border-color: var(--accent); color: var(--accent); }
   .fl-sel { font-family: var(--font-d); font-weight: 700; font-size: 0.75rem; padding: 0.3rem 1.5rem 0.3rem 0.55rem; background: var(--surface1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a94a6' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 0.55rem center; border: 1px solid var(--border); color: var(--text); border-radius: 8px; cursor: pointer; -webkit-appearance: none; appearance: none; }
   .st-rank { font-family: var(--font-d); font-weight: 800; font-size: 0.9rem; color: var(--muted); width: 1.4rem; text-align: center; flex-shrink: 0; }
-  /* Pairs */
-  .pr-lede { font-size: 0.76rem; line-height: 1.5; color: var(--muted); margin: 0.1rem 0 0.8rem; }
-  .pr-lede b { color: var(--text); font-weight: 700; }
-  .pr-card { display: flex; align-items: center; gap: 0.7rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.7rem; }
-  .pr-faces { display: flex; flex-shrink: 0; }
-  .pr-faces .rc-photo { width: 38px; height: 38px; box-shadow: 0 0 0 2px var(--surface1); }
-  .pr-faces .rc-photo:nth-child(2) { margin-left: -13px; }
-  .pr-info { flex: 1; min-width: 0; }
-  .pr-names { font-family: var(--font-d); font-weight: 700; font-size: 0.92rem; color: var(--text); line-height: 1.2; }
-  .pr-amp { color: var(--muted); font-weight: 600; margin: 0 0.3rem; }
-  .pr-sub { font-size: 0.62rem; color: var(--muted); margin-top: 0.18rem; }
-  .pr-stack { color: var(--accent); font-weight: 700; }
-  .pr-detail { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
-  .pr-together { font-family: var(--font-d); font-weight: 800; font-size: 1.35rem; color: var(--accent); line-height: 1; }
-  .pr-together-lbl { font-size: 0.52rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.2rem; white-space: nowrap; }
+  /* Pairs count-block label sizing (reuses the cloned .card/.player-chip styles) */
+  .count-label { align-self: center; }
   .st-td { font-family: var(--font-d); font-weight: 800; font-size: 1.2rem; color: var(--accent); }
   .sc-wk { font-family: var(--font-d); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0.85rem 0 0.35rem; }
   /* team logos + schedule game rows */
@@ -1635,7 +1622,47 @@
   <div id="panel-stats" class="panel"><div id="stats-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-recap" class="panel"><div id="recap-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-schedule" class="panel"><div id="schedule-content"><div class="empty">Loading…</div></div></div>
-  <div id="panel-pairs" class="panel"><div id="pairs-content"><div class="empty">Loading…</div></div></div>
+  <div id="panel-pairs" class="panel">
+    <div class="due-explainer" id="pairs-explainer-toggle" onclick="toggleExplainer('pairs')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Pairings Work</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="pairs-explainer-chevron">▶</span>
+      </div>
+      <div class="due-explainer-teaser">Which players tend to find the end zone in the same window — the correlated-TD lens for building parlays.</div>
+      <div class="due-explainer-body" id="pairs-explainer-body" style="display:none">
+        <ul>
+          <li><b>What it counts.</b> Across the season, how often each group of players scored a TD in the same window. Ranked by how many times they've gone together.</li>
+          <li><b>Window.</b> Same <em>week</em> (anyone on the slate) or same <em>day</em> (Thu / Sun / Mon) — day is the tighter correlation.</li>
+          <li><b>Group size.</b> Pairs, Trios, Quads, or Quints — the bigger the group, the rarer (and longer-odds) the combo.</li>
+          <li><b>SGP.</b> When 2+ members share a team they play the <em>same game</em> — a true same-game-parlay stack, flagged <span class="sgp-badge">SGP·TEAM</span>.</li>
+          <li><b>First TD.</b> Flip the basis to count only each game's <em>opening</em> touchdown — the first-TD-scorer angle.</li>
+          <li><b>Search.</b> Type names (comma-separated) to require specific players in every group.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="sub-tabs">
+      <button class="sub-btn active" data-size="2" onclick="switchPairSize(2)"><span class="num">2</span>Pairs</button>
+      <button class="sub-btn" data-size="3" onclick="switchPairSize(3)"><span class="num">3</span>Trios</button>
+      <button class="sub-btn" data-size="4" onclick="switchPairSize(4)"><span class="num">4</span>Quads</button>
+      <button class="sub-btn" data-size="5" onclick="switchPairSize(5)"><span class="num">5</span>Quints</button>
+    </div>
+    <div class="search-wrap visible">
+      <input type="text" id="player-search" placeholder="Search players… commas for multiple (Kelce, Mahomes)" oninput="onPairSearch()">
+      <div class="search-hint">Comma-separate names to require ALL of them in a group</div>
+    </div>
+    <div class="pairs-filter-row">
+      <span class="due-filter-label">Window</span>
+      <button class="due-filter-chip mode-chip active" data-gran="week" onclick="setPairGran('week')">Same week</button>
+      <button class="due-filter-chip mode-chip" data-gran="day" onclick="setPairGran('day')">Same day</button>
+      <span class="due-filter-label" style="margin-left:0.3rem">Basis</span>
+      <button class="due-filter-chip mode-chip active" data-basis="all" onclick="setPairBasis('all')">All TDs</button>
+      <button class="due-filter-chip mode-chip" data-basis="first" onclick="setPairBasis('first')">First TD</button>
+      <button class="due-filter-chip" id="pairs-sgp-chip" onclick="togglePairSgp()" title="Only groups with a same-team stack (they share a game)">🏈 SGP only</button>
+    </div>
+    <div class="result-meta" id="pairs-meta"></div>
+    <div id="cards"><div class="empty">Loading…</div></div>
+  </div>
 
 </div>
 <script>
@@ -1811,41 +1838,114 @@
         <div class="rc-info"><div class="rc-name">${l.name}</div><div class="rc-sub">${l.pos} · ${l.team} · ${l.games} G</div></div>
         <div class="rc-detail"><span class="st-td">${val(l)}</span><span class="rc-yd">${ST_SORT_LBL[stFilt.sort]}</span><span class="rc-from">${[`${l.rushTd}ru`, `${l.recTd}rec`, l.stTd ? `${l.stTd}st` : '', l.defTd ? `${l.defTd}def` : '', l.firstTd ? `${l.firstTd} 1st` : ''].filter(Boolean).join(' · ')}</span></div></div>`).join('') : '<div class="empty">No players match these filters.</div>'}</div>`;
   }
-  // ── Pairs — players who score a TD in the same week (correlated parlay lens) ──
-  const pairFilt = { side: 'all', team: 'all', sort: 'together' };
-  function setPairFilt(k, v) { pairFilt[k] = v; renderPairs(); }
-  const pairRate = (p) => p.together / Math.min(p.aWeeks, p.bWeeks);
-  function pairCard(p) {
-    const rel = p.sameTeam ? `<span class="pr-stack">${p.aTeam} stack</span>` : `${p.aTeam} vs ${p.bTeam}`;
-    return `<div class="pr-card">
-      <div class="pr-faces">${faceHtml(p.aPid, p.aName)}${faceHtml(p.bPid, p.bName)}</div>
-      <div class="pr-info"><div class="pr-names">${p.aName}<span class="pr-amp">+</span>${p.bName}</div>
-        <div class="pr-sub">${rel} · scored ${p.aWeeks}w &amp; ${p.bWeeks}w</div></div>
-      <div class="pr-detail"><span class="pr-together">${p.together}</span><span class="pr-together-lbl">wks together</span></div></div>`;
+  // ── Pairs — correlated-TD lens. Which players score in the same window ──
+  // (week or day). Groups of 2–5 are found by apriori: grow only groups that
+  // still clear the minimum co-occurrence, so quints stay cheap. Computed
+  // client-side from tdRecap (small dataset) and memoized per window+basis.
+  let activePairSize = 2, pairGran = 'week', pairBasis = 'all', pairSgpOnly = false, pairTerms = [];
+  let scorerIdx = null;          // pid -> {name, team, pos, tds}
+  const pairGroupCache = {};     // "gran|basis" -> {2:[],3:[],4:[],5:[]}
+  function buildScorerIdx() {
+    scorerIdx = {};
+    const lead = {}; (nflData.tdLeaders || []).forEach(l => lead[l.pid] = l);
+    for (const wk of nflData.tdRecapWeeks || []) for (const t of nflData.tdRecap[wk] || []) {
+      if (!t.pid) continue;
+      const s = scorerIdx[t.pid] ??= { pid: t.pid, name: lead[t.pid]?.name || t.player, team: lead[t.pid]?.team || t.team, pos: lead[t.pid]?.pos || '—', tds: 0 };
+      s.tds++; s.team = lead[t.pid]?.team || t.team;
+    }
   }
+  // A single co-occurrence floor per window keeps apriori bounded: same-week
+  // slates are dense (top scorers share many weeks), so quints would explode at
+  // min-2. Uniform MIN means every member of a shown group co-scored ≥MIN times.
+  function pairMinOcc(gran, basis) { return basis === 'first' ? 2 : (gran === 'week' ? 4 : 3); }
+  function computeAllGroups(gran, basis) {
+    const ck = gran + '|' + basis;
+    if (pairGroupCache[ck]) return pairGroupCache[ck];
+    const MIN = pairMinOcc(gran, basis);
+    const slates = {}; // pid -> Set(key)
+    for (const wk of nflData.tdRecapWeeks || []) for (const t of nflData.tdRecap[wk] || []) {
+      if (!t.pid || (basis === 'first' && !t.firstTd)) continue;
+      const key = gran === 'week' ? ('W' + wk) : (nflData.results[t.gameId]?.gameday || (wk + '-' + (t.weekday || '')));
+      (slates[t.pid] ??= new Set()).add(key);
+    }
+    const pids = Object.keys(slates).filter(p => slates[p].size >= MIN).sort();
+    const inter = (a, b) => { const [s, l] = a.size <= b.size ? [a, b] : [b, a]; const r = new Set(); for (const x of s) if (l.has(x)) r.add(x); return r; };
+    const kcmp = gran === 'week' ? (a, b) => (+a.slice(1)) - (+b.slice(1)) : (a, b) => a < b ? -1 : a > b ? 1 : 0;
+    const result = { 2: [], 3: [], 4: [], 5: [] };
+    let level = pids.map(p => ({ pids: [p], set: slates[p] }));
+    for (let k = 2; k <= 5; k++) {
+      const next = [];
+      for (const g of level) {
+        const last = g.pids[g.pids.length - 1];
+        for (const p of pids) {
+          if (p <= last) continue;
+          const s = inter(g.set, slates[p]);
+          if (s.size >= MIN) next.push({ pids: [...g.pids, p], set: s });
+        }
+      }
+      result[k] = next.map(g => ({ pids: g.pids, keys: [...g.set].sort(kcmp), count: g.set.size }))
+        .sort((a, b) => b.count - a.count);
+      level = next;
+      if (!level.length) break;
+    }
+    return (pairGroupCache[ck] = result);
+  }
+  function pairPillLabel(key) {
+    if (key[0] === 'W' && /^\d+$/.test(key.slice(1))) { const n = +key.slice(1); return n <= 18 ? 'Wk ' + n : WK_SHORT(n); }
+    const d = new Date(key + 'T00:00:00'); return isNaN(d) ? key : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+  function chipFace(pid, name) {
+    const s = nflData.headshots[pid];
+    return s ? `<img class="player-photo" src="${s}" alt="" loading="lazy">`
+      : `<span class="player-photo" style="display:flex;align-items:center;justify-content:center;font-size:0.62rem;color:var(--muted)">${(name || '?').replace(/^[A-Z]\.\s*/, '')[0] || '?'}</span>`;
+  }
+  const sharedTeamsOf = (grp) => { const b = {}; grp.forEach(p => { const t = scorerIdx[p]?.team; if (t) (b[t] ??= []).push(p); }); return Object.entries(b).filter(([, ps]) => ps.length >= 2).map(([t]) => t); };
+  function switchPairSize(size) { activePairSize = size; document.querySelectorAll('#panel-pairs .sub-btn').forEach(b => b.classList.toggle('active', +b.dataset.size === size)); renderPairs(); }
+  function setPairGran(g) { pairGran = g; document.querySelectorAll('#panel-pairs [data-gran]').forEach(b => b.classList.toggle('active', b.dataset.gran === g)); renderPairs(); }
+  function setPairBasis(b) { pairBasis = b; document.querySelectorAll('#panel-pairs [data-basis]').forEach(x => x.classList.toggle('active', x.dataset.basis === b)); renderPairs(); }
+  function togglePairSgp() { pairSgpOnly = !pairSgpOnly; document.getElementById('pairs-sgp-chip').classList.toggle('active', pairSgpOnly); renderPairs(); }
+  function onPairSearch() { pairTerms = (document.getElementById('player-search').value || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean); renderPairs(); }
+  function toggleExplainer(key) {
+    const body = document.getElementById(key + '-explainer-body'); if (!body) return;
+    const open = body.style.display === 'none';
+    body.style.display = open ? 'block' : 'none';
+    document.getElementById(key + '-explainer-chevron').classList.toggle('open', open);
+    document.getElementById(key + '-explainer-toggle').setAttribute('aria-expanded', String(open));
+  }
+  const PAIR_SIZE_NAMES = { 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' };
+  const PAIR_RENDER_LIMIT = 200;
   function renderPairs() {
-    const el = dataGate('pairs-content'); if (!el) return;
-    const all = nflData.tdPairs || [];
-    const teams = [...new Set(all.flatMap(p => [p.aTeam, p.bTeam]).filter(Boolean))].sort();
-    if (pairFilt.team !== 'all' && !teams.includes(pairFilt.team)) pairFilt.team = 'all';
-    let rows = all.filter(p =>
-      (pairFilt.side === 'all' || (pairFilt.side === 'same' && p.sameTeam) || (pairFilt.side === 'diff' && !p.sameTeam)) &&
-      (pairFilt.team === 'all' || p.aTeam === pairFilt.team || p.bTeam === pairFilt.team));
-    if (pairFilt.sort === 'rate') rows = rows.slice().sort((a, b) => pairRate(b) - pairRate(a) || b.together - a.together);
-    const sidePill = (v, lbl) => `<button class="fl-pill${pairFilt.side === v ? ' active' : ''}" onclick="setPairFilt('side','${v}')">${lbl}</button>`;
-    const teamOpts = ['all', ...teams].map(t => `<option value="${t}"${pairFilt.team === t ? ' selected' : ''}>${t === 'all' ? 'All teams' : t}</option>`).join('');
-    el.innerHTML = `<div class="rc-head">${nflData.historySeason} TD Pairs</div>
-      <div class="pr-lede">How often two players scored a TD in the <b>same week</b> — the correlated lens for weekly TD parlays. Stacks (same team) tend to move together; different-team pairs are two independent hot hands.</div>
-      <div class="fl-bar">
-        <div class="fl-pills">${sidePill('all', 'All')}${sidePill('same', 'Same team')}${sidePill('diff', 'Diff team')}</div>
-        <select class="fl-sel" onchange="setPairFilt('sort',this.value)">
-          <option value="together"${pairFilt.sort === 'together' ? ' selected' : ''}>Most weeks together</option>
-          <option value="rate"${pairFilt.sort === 'rate' ? ' selected' : ''}>Tightest cluster</option>
-        </select>
-        <select class="fl-sel" onchange="setPairFilt('team',this.value)">${teamOpts}</select>
-      </div>
-      <div class="rc-meta">${rows.length} pairs</div>
-      <div class="rc-list">${rows.length ? rows.map(pairCard).join('') : '<div class="empty">No pairs match these filters.</div>'}</div>`;
+    const cards = document.getElementById('cards'); if (!cards) return;
+    if (!nflData) { cards.innerHTML = '<div class="empty">Loading…</div>'; return; }
+    if (nflData === 'error') { cards.innerHTML = '<div class="empty">Couldn\'t load NFL data. <a href="javascript:void(0)" onclick="loadNfl()">Retry</a></div>'; return; }
+    if (!scorerIdx) buildScorerIdx();
+    const groups = computeAllGroups(pairGran, pairBasis);
+    let list = groups[activePairSize] || [];
+    if (pairSgpOnly) list = list.filter(g => sharedTeamsOf(g.pids).length);
+    if (pairTerms.length) list = list.filter(g => { const ns = g.pids.map(p => (scorerIdx[p]?.name || '').toLowerCase()); return pairTerms.every(term => ns.some(n => n.includes(term))); });
+    const minOcc = pairMinOcc(pairGran, pairBasis);
+    const meta = document.getElementById('pairs-meta');
+    meta.textContent = `${list.length.toLocaleString()} unique ${PAIR_SIZE_NAMES[activePairSize]} · ${pairGran === 'week' ? 'same week' : 'same day'} · ${pairBasis === 'first' ? 'first TD only' : 'all TDs'} · min ${minOcc}`
+      + (pairSgpOnly ? ' · SGP only' : '') + (pairTerms.length ? ' · ' + pairTerms.join(' + ') : '')
+      + (list.length > PAIR_RENDER_LIMIT ? ` · showing top ${PAIR_RENDER_LIMIT}` : '');
+    if (!list.length) { cards.innerHTML = `<div class="empty">${pairTerms.length ? 'No groups contain: ' + pairTerms.join(' + ') : 'No co-occurrences found'}</div>`; return; }
+    const winWord = pairGran === 'week' ? 'WEEKS' : 'DAYS';
+    const maxCount = list[0].count;
+    cards.innerHTML = list.slice(0, PAIR_RENDER_LIMIT).map((g, i) => {
+      const isTop = g.count === maxCount, cls = isTop ? ' top' : i < 4 ? ' high' : '';
+      const shared = sharedTeamsOf(g.pids);
+      const chips = g.pids.map(p => { const s = scorerIdx[p] || {}; const m = pairTerms.length && pairTerms.some(t => (s.name || '').toLowerCase().includes(t));
+        return `<div class="player-chip${m ? ' matched' : ''}">${chipFace(p, s.name)}<span class="player-name">${s.name || p}</span><span class="player-hr">${s.tds ?? '—'}</span><span class="player-hr-lbl">TD</span></div>`; }).join('');
+      const pills = g.keys.map((k, di) => `<span class="date-pill${di === g.keys.length - 1 ? ' latest' : ''}">${pairPillLabel(k)}</span>`).join('');
+      return `<div class="card${cls}">
+        <div class="card-top-row"><div class="card-left">
+          <div class="rank-badge">${i + 1}</div>
+          <div class="count-block"><span class="count-num">${g.count}</span><span class="count-label">${winWord}</span></div>
+          ${shared.map(t => `<span class="sgp-badge">SGP·${t}</span>`).join('')}
+        </div><div class="fresh-badge">${pairPillLabel(g.keys[g.keys.length - 1])}</div></div>
+        <div class="players">${chips}</div>
+        <div class="dates">${pills}</div></div>`;
+    }).join('');
   }
   // Weeks that have at least one REG game; and the earliest week still to play.
   function scheduleWeeks() {
