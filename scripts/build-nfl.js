@@ -65,6 +65,10 @@ async function main() {
   const tdRecap = {}; // week -> [ {player, team, opp, type, yards, qtr, passer, gameId, firstTd, weekday} ]
   let tdTotal = 0;
   const gameHasTd = new Set(); // gameIds that have already scored a TD -> flags the first one
+  // Per-player TD tallies from pbp — the authoritative source since it also
+  // captures return TDs (kick/punt/INT/fumble), which the offensive weekly
+  // stats don't. pid -> {rush, rec, ret, first, tds, team, games:Set, name}.
+  const tdAgg = {};
   for (const r of prows) {
     if (P(r, 'touchdown') !== '1') continue;
     const scorer = cleanName(P(r, 'td_player_name'));
@@ -72,16 +76,24 @@ async function main() {
     const type = P(r, 'pass_touchdown') === '1' ? 'rec' : P(r, 'rush_touchdown') === '1' ? 'rush' : P(r, 'return_touchdown') === '1' ? 'ret' : 'other';
     const wk = P(r, 'week');
     const gameId = P(r, 'game_id');
+    const pid = P(r, 'td_player_id') || null;
+    const team = P(r, 'td_team') || P(r, 'posteam');
     // pbp rows are in play order within a game, so the first TD row we see for a
     // gameId is the game's opening touchdown.
     const firstTd = !gameHasTd.has(gameId); gameHasTd.add(gameId);
     (tdRecap[wk] ??= []).push({
-      player: scorer, pid: P(r, 'td_player_id') || null,
-      team: P(r, 'td_team') || P(r, 'posteam'), opp: P(r, 'defteam'),
+      player: scorer, pid,
+      team, opp: P(r, 'defteam'),
       type, yards: num(P(r, 'yards_gained')), qtr: num(P(r, 'qtr')),
       passer: type === 'rec' ? cleanName(P(r, 'passer_player_name')) : null,
       gameId, firstTd, weekday: results[gameId]?.weekday || null,
     });
+    if (pid) {
+      const a = tdAgg[pid] ??= { rush: 0, rec: 0, ret: 0, first: 0, tds: 0, team, games: new Set(), name: scorer };
+      if (type === 'rush') a.rush++; else if (type === 'rec') a.rec++; else if (type === 'ret') a.ret++;
+      a.tds++; a.team = team; a.games.add(gameId);
+      if (firstTd) a.first++;
+    }
     tdTotal++;
   }
   const weeks = Object.keys(tdRecap).map(Number).sort((a, b) => a - b);
@@ -103,8 +115,25 @@ async function main() {
     a.targets += num(S(r, 'targets')) || 0; a.carries += num(S(r, 'carries')) || 0;
     a.games++;
   }
-  const tdLeaders = Object.entries(agg).filter(([, a]) => a.tds > 0).sort((x, y) => y[1].tds - x[1].tds).slice(0, 50)
-    .map(([pid, a]) => ({ pid, name: a.name, pos: a.pos, team: a.team, tds: a.tds, rushTd: a.rushTd, recTd: a.recTd, opp: Math.round(a.targets + a.carries), games: a.games }));
+  // Leaders come from the pbp TD tallies (includes return TDs + first-TD counts),
+  // enriched with position / opportunities / games / full name from the weekly
+  // offensive stats when the scorer appears there (nearly all do).
+  const allScorers = Object.entries(tdAgg).map(([pid, t]) => {
+    const a = agg[pid];
+    return {
+      pid, name: a?.name || t.name, pos: a?.pos || '—', team: a?.team || t.team,
+      tds: t.tds, rushTd: t.rush, recTd: t.rec, retTd: t.ret, firstTd: t.first,
+      opp: a ? Math.round(a.targets + a.carries) : 0, // rushing attempts + targets
+      games: a?.games || t.games.size,
+    };
+  });
+  // Ship the union of the top 50 in every sortable metric, so sorting the board
+  // by (say) return TDs surfaces the real leaders — not just high-total scorers
+  // who happen to have one. Return specialists with few total TDs get in via ret.
+  const pool = new Set();
+  for (const key of ['tds', 'rushTd', 'recTd', 'retTd', 'firstTd', 'opp'])
+    allScorers.filter(l => l[key] > 0).sort((x, y) => y[key] - x[key]).slice(0, 50).forEach(l => pool.add(l.pid));
+  const tdLeaders = allScorers.filter(l => pool.has(l.pid)).sort((a, b) => b.tds - a.tds);
 
   // Only ship headshots we actually reference (recap scorers + leaders) to stay lean.
   const referenced = new Set(tdLeaders.map(l => l.pid));

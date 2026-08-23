@@ -1723,8 +1723,8 @@
   }
   const stFilt = { pos: 'all', team: 'all', sort: 'tds' };
   function setStFilt(k, v) { stFilt[k] = v; renderStats(); }
-  const ST_SORT = { tds: l => l.tds, rushTd: l => l.rushTd, recTd: l => l.recTd, opp: l => l.opp };
-  const ST_SORT_LBL = { tds: 'TD', rushTd: 'Rush TD', recTd: 'Rec TD', opp: 'Opp' };
+  const ST_SORT = { tds: l => l.tds, rushTd: l => l.rushTd, recTd: l => l.recTd, retTd: l => l.retTd || 0, firstTd: l => l.firstTd || 0, opp: l => l.opp };
+  const ST_SORT_LBL = { tds: 'TD', rushTd: 'Rush TD', recTd: 'Rec TD', retTd: 'Ret TD', firstTd: '1st TD', opp: 'Opp' };
   function renderStats() {
     const el = dataGate('stats-content'); if (!el) return;
     const L = nflData.tdLeaders || [];
@@ -1744,6 +1744,8 @@
           <option value="tds"${stFilt.sort === 'tds' ? ' selected' : ''}>Total TDs</option>
           <option value="rushTd"${stFilt.sort === 'rushTd' ? ' selected' : ''}>Rushing TDs</option>
           <option value="recTd"${stFilt.sort === 'recTd' ? ' selected' : ''}>Receiving TDs</option>
+          <option value="retTd"${stFilt.sort === 'retTd' ? ' selected' : ''}>Return TDs</option>
+          <option value="firstTd"${stFilt.sort === 'firstTd' ? ' selected' : ''}>1st TDs of game</option>
           <option value="opp"${stFilt.sort === 'opp' ? ' selected' : ''}>Opportunities</option>
         </select>
         <select class="fl-sel" onchange="setStFilt('team',this.value)">${teamOpts}</select>
@@ -1751,7 +1753,7 @@
       <div class="rc-meta">${rows.length} players · sorted by <b>${ST_SORT_LBL[stFilt.sort]}</b></div>
       <div class="rc-list">${rows.length ? rows.map((l, i) => `<div class="rc-card"><span class="st-rank">${i + 1}</span>${faceHtml(l.pid, l.name)}
         <div class="rc-info"><div class="rc-name">${l.name}</div><div class="rc-sub">${l.pos} · ${l.team} · ${l.games} G</div></div>
-        <div class="rc-detail"><span class="st-td">${val(l)}</span><span class="rc-yd">${ST_SORT_LBL[stFilt.sort]}</span><span class="rc-from">${l.rushTd}ru · ${l.recTd}rec</span></div></div>`).join('') : '<div class="empty">No players match these filters.</div>'}</div>`;
+        <div class="rc-detail"><span class="st-td">${val(l)}</span><span class="rc-yd">${ST_SORT_LBL[stFilt.sort]}</span><span class="rc-from">${[`${l.rushTd}ru`, `${l.recTd}rec`, l.retTd ? `${l.retTd}ret` : '', l.firstTd ? `${l.firstTd} 1st` : ''].filter(Boolean).join(' · ')}</span></div></div>`).join('') : '<div class="empty">No players match these filters.</div>'}</div>`;
   }
   // Weeks that have at least one REG game; and the earliest week still to play.
   function scheduleWeeks() {
