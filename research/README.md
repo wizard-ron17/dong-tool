@@ -70,8 +70,32 @@ season. In the fitted coefficients it displaces the season-to-date version
 (+0.57 vs +0.15) — a season average is a stale measure of a role that changes
 week to week.
 
-**Bucket 6 (context) is a null in aggregate, with one real exception.** Home/away,
-weather (temp, wind, dome), blowout risk and game total each move log loss by
+**Weather shifts the TD mix but still does not predict individual scoring.**
+Worth spelling out, because the first test of this was too blunt — a single
+weather main effect pooled across positions, which would cancel any RB-up /
+WR-down effect by construction. Tested properly, on outdoor games 2016–2025:
+
+| condition | games | rush rate | rush TD share | TDs/game |
+|---|---|---|---|---|
+| clear/mild | 1,547 | 42.1% | 37.1% | 4.82 |
+| rain or snow | 158 | 45.3% | 43.0% | 4.22 |
+| snow only | 25 | 47.5% | 56.4% | 4.80 |
+
+The mix shift is real and large — snow nearly flips the run/pass TD split. It
+still does not help, for two compounding reasons. Total TDs *fall* in bad
+weather, so a running back gets a bigger slice of a smaller pie and his TD rate
+drops anyway (25.2% clear → 22.9% wet); receivers just drop more (17.7% →
+14.6%). The surviving RB-vs-WR differential is ~0.8pp on 5.7% of rows. And the
+volume half is already priced: closing totals are 1.63 points lower in rain or
+snow, 1.30 in cold, 1.07 in wind. Explicit position × weather interactions all
+land within 0.04% of M7, most of them worse.
+
+Caveat with teeth: this is the null for an **anytime-TD** target. If the tool
+ever prices *rushing*-TD props specifically, or compares an RB against a WR
+within the same game, the mix shift is real and this conclusion does not carry.
+
+**The rest of bucket 6 is a null, with one real exception.** Home/away,
+blowout risk and game total each move log loss by
 under 0.01% — they are already priced into implied team total. But same-position
 teammates being ruled out is different: in the FIRST week an absence appears, M6
 under-predicted by +1.94% (+1.92% for backups), because last-3 snap share has not
