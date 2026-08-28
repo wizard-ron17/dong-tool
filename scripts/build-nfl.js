@@ -4,41 +4,12 @@
 //   - nflverse play_by_play    -> every TD, for weekly recaps (like MLB HR recaps)
 //   - nflverse stats_player    -> weekly player stats -> TD + opportunity leaders
 import fs from 'node:fs';
+import { fetchText, parseCsv, num } from './nflverse.js';
+import { buildPicks, loadTdSet, updateHistory } from './picks.js';
 
-const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
 const HISTORY_SEASON = 2025;   // last completed season — our historical base until 2026 games play
 const UPCOMING_SEASON = 2026;  // full schedule already published
 
-async function fetchText(url) {
-  for (let a = 0; a < 4; a++) {
-    try {
-      const r = await fetch(url, { headers: { 'User-Agent': UA } });
-      if (r.ok) return await r.text();
-    } catch (e) {}
-    await new Promise(r => setTimeout(r, 1500));
-  }
-  throw new Error('fetch failed: ' + url);
-}
-// Quote-aware CSV -> {header:[], rows:[[...]]} with a name->index map.
-function parseCsv(text) {
-  const lines = text.replace(/^﻿/, '').split('\n');
-  const parseLine = (s) => {
-    const out = []; let cur = '', q = false;
-    for (let i = 0; i < s.length; i++) {
-      const c = s[i];
-      if (c === '"') { if (q && s[i + 1] === '"') { cur += '"'; i++; } else q = !q; }
-      else if (c === ',' && !q) { out.push(cur); cur = ''; }
-      else cur += c;
-    }
-    out.push(cur); return out;
-  };
-  const header = parseLine(lines[0]);
-  const idx = {}; header.forEach((h, i) => idx[h] = i);
-  const rows = [];
-  for (let i = 1; i < lines.length; i++) { if (lines[i].trim()) rows.push(parseLine(lines[i])); }
-  return { idx, rows };
-}
-const num = (v) => { const n = parseFloat(v); return isNaN(n) ? null : n; };
 const cleanName = (n) => (n || '').trim();
 
 async function main() {
@@ -161,12 +132,39 @@ async function main() {
   for (const wk of weeks) for (const t of tdRecap[wk]) if (t.pid) referenced.add(t.pid);
   const shots = {}; for (const pid of referenced) if (headshots[pid]) shots[pid] = headshots[pid];
 
+  // ── 4) Picks — score the upcoming slate ───────────────────────────────
+  // Model + methodology live in research/; this only computes features and
+  // applies exported coefficients. research/validate_port.py checks the two
+  // agree to machine precision on real historical weeks.
+  let picks = null, picksHistory = [];
+  try {
+    picks = await buildPicks({ schedule, historySeason: HISTORY_SEASON,
+                               upcomingSeason: UPCOMING_SEASON });
+    // Carry the pick log forward across rebuilds and grade what has played.
+    // data.json is regenerated from scratch every run, so the log has to be
+    // read back off the previous build or it resets daily.
+    let prev = [];
+    try {
+      const old = JSON.parse(fs.readFileSync(new URL('../nfl/data.json', import.meta.url), 'utf8'));
+      prev = old.picksHistory ?? [];
+    } catch (e) {}
+    const tdSet = await loadTdSet(UPCOMING_SEASON);
+    picksHistory = updateHistory(prev, picks, tdSet);
+    const graded = picksHistory.filter(w => w.graded).length;
+    console.log(`  pick log: ${picksHistory.length} weeks (${graded} graded)`);
+  } catch (e) {
+    // A picks failure must not take the whole build down — recap/stats/schedule
+    // are independent of it and are what the site mostly shows.
+    console.error('  picks failed (continuing without them):', e.message);
+  }
+
   const output = {
     generatedAt: new Date().toISOString(),
     historySeason: HISTORY_SEASON, upcomingSeason: UPCOMING_SEASON,
     schedule, results, tdRecap, tdRecapWeeks: weeks, tdLeaders, headshots: shots,
+    picks, picksHistory,
   };
   fs.writeFileSync(new URL('../nfl/data.json', import.meta.url), JSON.stringify(output));
-  console.log(`Wrote nfl/data.json — ${schedule.length} ${UPCOMING_SEASON} games, ${tdTotal} TDs across ${weeks.length} weeks, ${tdLeaders.length} TD leaders.`);
+  console.log(`Wrote nfl/data.json — ${schedule.length} ${UPCOMING_SEASON} games, ${tdTotal} TDs across ${weeks.length} weeks, ${tdLeaders.length} TD leaders, ${picks?.picks.length ?? 0} picks.`);
 }
 main().catch(e => { console.error(e); process.exit(1); });

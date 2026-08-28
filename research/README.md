@@ -1,9 +1,9 @@
 # Picks research harness
 
 Backtesting ground for the NFL **Picks** tool (anytime-TD model). This is
-research, not production: nothing here runs in CI, and `nfl/data.json` is not
-touched. If a model graduates, its feature computation gets ported into
-`scripts/build-nfl.js` so it can run in the daily workflow.
+research, not production — but the model it produced now ships: `export_model.py`
+writes `model.json`, which `scripts/picks.js` reads inside the daily
+`build-nfl.js` run. See **Shipping it** below.
 
 Python (pandas + numpy) rather than the repo's Node, because iteration speed on
 a backtest matters more than language consistency, and most of what gets tried
@@ -21,7 +21,7 @@ python3 research/backtest.py        # walk-forward model ladder
 
 `build_dataset.py` makes one row per (season, week, player, game) for RB/WR/TE/FB
 with at least one offensive snap, 2016–2025. Target `scored` = at least one
-offensive (rush or rec) TD. 58,858 player-games, 17.3% base rate.
+offensive (rush or rec) TD. 58,938 player-games, 17.3% base rate.
 
 Every feature uses games **strictly before** the row's week, shrunk toward a
 backward-looking prior so early weeks aren't noise. The negative control in
@@ -40,13 +40,13 @@ Pooled out-of-sample, 2017–2025:
 | M1 position | 0.4492 | −2.37% | 0.599 |
 | M2 + snap share | 0.4176 | −9.23% | 0.716 |
 | M3 + implied total | 0.4141 | −9.99% | 0.723 |
-| M4 + RZ touches | 0.4130 | −10.24% | 0.726 |
-| M5 + defense/team env | 0.4130 | −10.23% | 0.726 |
-| M6 + last-3 snap share | 0.4057 | −11.82% | 0.743 |
-| **M7 + injury (teammates out)** | **0.4055** | **−11.86%** | **0.743** |
+| M4 + RZ touches | 0.4117 | −10.54% | 0.730 |
+| M5 + defense/team env | 0.4117 | −10.54% | 0.730 |
+| M6 + last-3 snap share | 0.4055 | −11.88% | 0.743 |
+| **M7 + injury (teammates out)** | **0.4053** | **−11.92%** | **0.744** |
 
-M6 calibration ECE 0.0062; top decile scores 43.8% against a 17.3% base
-(2.54x), bottom decile 3.1% (0.18x). Negative control returns AUC 0.498.
+M7 calibration ECE 0.0067; top decile scores 44.3% against a 17.3% base
+(2.57x), bottom decile 3.0% (0.17x). Negative control returns AUC 0.498.
 
 ### Four findings that should drive scope
 
@@ -109,6 +109,24 @@ share** and its **own split-half reliability**, not by standalone strength — a
 check subset calibration, not just the pooled metric, before calling something a
 null.
 
+## Shipping it
+
+`scripts/picks.js` scores the upcoming slate inside the normal `build-nfl.js`
+run. Training stays here: `export_model.py` writes `model.json` (coefficients,
+feature scaling, and the position priors `build_dataset.py` actually used), and
+Node only computes features and applies a logistic.
+
+The contract is checked, not assumed:
+
+```sh
+node scripts/dump-features.js 2025 10 > /tmp/nf.json
+python3 research/validate_port.py /tmp/nf.json
+```
+
+That diffs every Node feature against `build_dataset.py` on a real week and
+fails if the predicted probability drifts by more than 1e-4. Both 2025 week 1
+and week 10 currently match to ~2e-16. Re-run it after touching either side.
+
 ## Two traps worth remembering
 
 **The id crosswalk.** `snap_counts` keys on `pfr_player_id`, pbp on GSIS ids.
@@ -119,4 +137,16 @@ rows. Using it silently dropped 13% of the pool and inflated the base rate from
 
 **Closing lines.** `spread_line` / `total_line` off pbp are closing numbers. A
 Thursday pick wouldn't have Sunday's close, so `implied_total` carries a mild
-lookahead. Not fixed in stage 1.
+lookahead. Not fixed — and it matters more now that implied total is the
+second-strongest feature in the shipped model.
+
+**Position labels drift.** PFR labels some running backs `HB` rather than `RB`
+in some seasons (39 rows in 2025, 41 in 2020). Unmapped, that silently deleted
+Chase Brown's entire 2025 season from the training data — and in the live build
+it was worse than a missing player: he kept his red-zone history from
+play-by-play while losing the snap games that denominate it, so his red-zone
+rate came out at 26 per game and the model gave him a 0.9992 chance to score.
+Both sides now normalise `HB` to `RB`, and `playerFeatures` refuses to divide a
+red-zone sum by a window with no games in it. The general lesson: when a rate is
+built from two different feeds, guard the case where they disagree about which
+games exist.

@@ -16,6 +16,7 @@ LEAKAGE RULES, which the whole exercise depends on:
 Vegas lines (spread_line/total_line) come off pbp and are CLOSING lines, which
 is a mild lookahead vs. picking on Thursday. Flagged, not fixed, in stage 1.
 """
+import json
 import os
 import numpy as np
 import pandas as pd
@@ -26,6 +27,9 @@ CACHE = os.environ.get(
     "5857f821-b559-469c-a8ee-a9ffc542c6c6/scratchpad/nflcache",
 )
 OUT = os.path.join(os.path.dirname(__file__), "dataset.parquet")
+# The shrinkage targets add_form() actually used, saved so export_model.py ships
+# the same numbers rather than recomputing them on the filtered dataset.
+PRIORS_OUT = os.path.join(os.path.dirname(__file__), "position_priors.json")
 SEASONS = list(range(2016, 2026))
 POS = ["RB", "WR", "TE", "FB"]
 SHRINK_K = 2.0          # pseudo-games of prior mixed into each form estimate
@@ -166,6 +170,10 @@ def load_pool(year, xwalk):
                  "position", "team", "offense_snaps", "offense_pct"],
         low_memory=False,
     )
+    # PFR labels some running backs "HB" in some seasons (39 rows in 2025, 41 in
+    # 2020). Left unmapped it silently deletes whole seasons for real starters —
+    # Chase Brown's entire 2025 vanished this way. Normalise before filtering.
+    snaps["position"] = snaps["position"].replace({"HB": "RB"})
     snaps = snaps[snaps["position"].isin(POS) & (snaps["offense_snaps"] > 0)]
     out = snaps.merge(xwalk, left_on="pfr_player_id", right_on="pfr_id",
                       how="left")
@@ -207,16 +215,44 @@ def position_prior(df, value_col):
     return g[["position", "season", "pos_prior"]]
 
 
-def add_form(df, value_col, out_col):
-    """Expanding pre-week mean of value_col, shrunk toward a backward prior.
+def add_form(df, value_col, out_col, window_seasons=None):
+    """Prior mean of value_col over the player's earlier games, shrunk.
 
+    window_seasons bounds how far back it reaches. `None` means the whole
+    career, which is what the research build used. rz_touches is bounded to 2
+    seasons so the Node build can reproduce it from 2 seasons of play-by-play
+    (90MB each) instead of ten — snap-count features stay unbounded because
+    snap_counts is only ~2.4MB a season and Node just loads them all.
     Sorting by (pid, season, week) then shifting guarantees the row's own game
     never enters its own feature.
     """
-    df = df.sort_values(["pid", "season", "week"]).copy()
+    df = df.sort_values(["pid", "season", "week"]).reset_index(drop=True)
     g = df.groupby("pid", sort=False)[value_col]
     prior_sum = g.cumsum() - df[value_col]          # sum of strictly-earlier
     prior_n = g.cumcount()                          # count of strictly-earlier
+
+    if window_seasons is not None:
+        # Subtract everything from before the window: for a row in season S with
+        # a 2-season window, drop the player's totals through season S-2.
+        #
+        # This has to be an as-of lookup (latest season <= S-window), not an
+        # equality join on S-window. A player who missed that exact season has
+        # no row to join to, and an equality join would then subtract nothing
+        # and silently hand back his whole career.
+        per = (df.groupby(["pid", "season"])[value_col]
+                 .agg(s="sum", n="size").reset_index()
+                 .sort_values(["pid", "season"]))
+        pg = per.groupby("pid", sort=False)
+        per["cs"] = pg["s"].cumsum()
+        per["cn"] = pg["n"].cumsum()
+        cut = per[["pid", "season", "cs", "cn"]].sort_values("season")
+        left = pd.DataFrame({"pid": df["pid"].values,
+                             "key": df["season"].values - window_seasons,
+                             "_i": np.arange(len(df))}).sort_values("key")
+        asof = pd.merge_asof(left, cut, left_on="key", right_on="season",
+                             by="pid", direction="backward").sort_values("_i")
+        prior_sum = np.asarray(prior_sum, float) - asof["cs"].fillna(0).to_numpy()
+        prior_n = np.asarray(prior_n, float) - asof["cn"].fillna(0).to_numpy()
 
     # previous-season mean for this player, as the week-1 prior
     season_mean = (df.groupby(["pid", "season"])[value_col].mean()
@@ -232,8 +268,10 @@ def add_form(df, value_col, out_col):
                   how="left")
     prior_mean = df["season_mean"].fillna(df["pos_prior"])
 
-    df[out_col] = ((prior_sum.values + SHRINK_K * prior_mean.values)
-                   / (prior_n.values + SHRINK_K))
+    prior_sum = np.asarray(prior_sum, dtype=float)
+    prior_n = np.asarray(prior_n, dtype=float)
+    df[out_col] = ((prior_sum + SHRINK_K * prior_mean.values)
+                   / (prior_n + SHRINK_K))
     return df.drop(columns=["season_mean", "pos_prior"])
 
 
@@ -276,8 +314,24 @@ def main():
     df["snap_pct"] = df["offense_pct"].astype(float)
 
     df = add_form(df, "snap_pct", "snap_share_prior")
-    df = add_form(df, "rz_touches", "rz_touches_prior")
+    df = add_form(df, "rz_touches", "rz_touches_prior", window_seasons=2)
     df = add_form(df, "touches", "touches_prior")
+
+    # Snapshot the position priors as add_form saw them (pre-filter frame), so
+    # the Node build reproduces the rookie fallback exactly.
+    snap = {}
+    for col, label in (("snap_pct", "snap_share"), ("rz_touches", "rz_touches")):
+        t = position_prior(df, col)
+        by = {}
+        for _, r in t.iterrows():
+            by.setdefault(str(int(r["season"])), {})[r["position"]] = float(r["pos_prior"])
+        nxt = int(df["season"].max()) + 1
+        overall = {p: float(df[df["position"] == p][col].mean()) for p in POS}
+        by[str(nxt)] = overall
+        by["default"] = overall
+        snap[label] = by
+    with open(PRIORS_OUT, "w") as fh:
+        json.dump(snap, fh, indent=2)
 
     # ── stage 3: recency. Snap share is ~87% of the model's signal, so a better
     # estimate of it beats any new feature. Last-3 games alone is worth more

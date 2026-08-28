@@ -25,8 +25,21 @@ def main():
     y = df["scored"].to_numpy(float)
     w = bt.fit_logistic(X, y)
 
+    # Shrinkage targets, exported as constants so the Node build reproduces
+    # add_form() exactly without needing all 10 seasons loaded. These are the
+    # rookie/no-history fallbacks; with k=2 they are a weak pull, but they have
+    # to match or the coefficients are being applied to a different feature.
+    # position_prior() is per-season (mean over strictly earlier seasons), so
+    # export the whole table plus an entry for the next season, which is what a
+    # live build scores. `default` covers anything beyond that.
+    import build_dataset as bd
+    # written by build_dataset.py from the frame add_form actually saw
+    priors = json.load(open(bd.PRIORS_OUT))
+
     names = ["intercept"] + [f"pos_{p}" for p in bt.POS[:-1]] + FEATS
     model = {
+        "shrink_k": 2.0,
+        "position_priors": priors,
         "trained_on": f"{int(df.season.min())}-{int(df.season.max())}",
         "n_rows": int(len(df)),
         "base_rate": float(y.mean()),
