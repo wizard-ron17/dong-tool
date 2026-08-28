@@ -39,9 +39,15 @@ http.createServer((req, res) => {
     fs.createReadStream(filePath).pipe(res);
     return;
   }
-  // SPA fallback → index.html (same as netlify.toml's /* → /index.html 200)
+  // SPA fallback, mirroring netlify.toml: each app catches its own subtree
+  // before the root landing page does. Without the per-app rules a deep link
+  // like /nfl/picks renders the sport picker, so client routes cannot be
+  // tested locally at all.
+  const app = ['/mlb/', '/nfl/'].find(p => urlPath === p.slice(0, -1) || urlPath.startsWith(p));
+  const fallback = app ? path.join(ROOT, app.slice(1, -1), 'index.html')
+                       : path.join(ROOT, 'index.html');
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-  fs.createReadStream(path.join(ROOT, 'index.html')).pipe(res);
+  fs.createReadStream(fallback).pipe(res);
 }).listen(PORT, () => {
   console.log(`Dong Tool dev server → http://localhost:${PORT}  (SPA fallback on, like Netlify)`);
 });

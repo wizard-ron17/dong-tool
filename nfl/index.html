@@ -1486,6 +1486,46 @@
   .rc-meta { font-size: 0.74rem; color: var(--muted); margin-bottom: 0.6rem; }
   .rc-meta b { color: var(--text); font-family: var(--font-d); }
   .rc-list { display: flex; flex-direction: column; gap: 0.4rem; }
+  /* ── Picks ────────────────────────────────────────────────────────────── */
+  .pb-head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+  .pb-week { font-family: var(--font-d); font-size: 1.5rem; font-weight: 900; color: var(--text-strong); letter-spacing: 0.01em; }
+  .pb-meta { font-size: 0.68rem; color: var(--muted); }
+  .pb-tier { display: flex; align-items: baseline; gap: 0.5rem; margin: 1.1rem 0 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+  .pb-tier:first-child { margin-top: 0.2rem; }
+  .pb-tier-name { font-family: var(--font-d); font-size: 1.02rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+  .pb-tier.prime  .pb-tier-name { color: var(--good); }
+  .pb-tier.strong .pb-tier-name { color: var(--good-2); }
+  .pb-tier.live   .pb-tier-name { color: var(--ok); }
+  .pb-tier.deep   .pb-tier-name { color: var(--muted); }
+  .pb-tier-hit { font-size: 0.63rem; color: var(--dim); font-family: var(--font-m); }
+  .pb-tier-n { margin-left: auto; font-size: 0.63rem; color: var(--muted); font-family: var(--font-m); }
+
+  .pb-list { display: flex; flex-direction: column; gap: 0.4rem; }
+  .pb-card { display: flex; align-items: center; gap: 0.65rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.7rem; }
+  .pb-rank { font-family: var(--font-m); font-size: 0.7rem; color: var(--dim); min-width: 1.5rem; text-align: right; flex-shrink: 0; }
+  .pb-info { min-width: 0; flex: 1; }
+  .pb-name { font-weight: 700; font-size: 0.85rem; color: var(--text-strong); display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+  .pb-pos { font-family: var(--font-m); font-size: 0.56rem; font-weight: 700; padding: 0.06rem 0.3rem; border-radius: 4px; background: var(--surface2); color: var(--silver); border: 1px solid var(--border2); }
+  .pb-sub { font-size: 0.66rem; color: var(--muted); margin-top: 0.12rem; }
+  .pb-flag { font-family: var(--font-m); font-size: 0.55rem; font-weight: 700; padding: 0.06rem 0.32rem; border-radius: 4px; background: rgba(242,201,76,0.14); color: var(--gold); border: 1px solid rgba(242,201,76,0.4); }
+
+  .pb-factors { display: flex; gap: 0.3rem; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
+  .pb-f { font-family: var(--font-m); font-size: 0.6rem; color: var(--silver); background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 0.1rem 0.34rem; white-space: nowrap; }
+  .pb-f b { color: var(--text-strong); font-weight: 700; }
+
+  .pb-prob { text-align: right; flex-shrink: 0; min-width: 3.4rem; }
+  .pb-pct { display: block; font-family: var(--font-d); font-size: 1.5rem; font-weight: 900; line-height: 1; color: var(--good); }
+  .pb-card.t-strong .pb-pct { color: var(--good-2); }
+  .pb-card.t-live   .pb-pct { color: var(--ok); }
+  .pb-card.t-deep   .pb-pct { color: var(--silver); }
+  .pb-lbl { display: block; font-size: 0.53rem; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; margin-top: 0.1rem; }
+
+  @media (max-width: 620px) {
+    .pb-factors { display: none; }
+    .pb-rank { min-width: 1.1rem; font-size: 0.62rem; }
+    .pb-pct { font-size: 1.28rem; }
+  }
+
   .rc-card { display: flex; align-items: center; gap: 0.7rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.7rem; }
   .rc-photo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; object-position: center 18%; background: var(--surface2); flex-shrink: 0; }
   .rc-noface { display: flex; align-items: center; justify-content: center; font-family: var(--font-d); font-weight: 800; color: var(--muted); }
@@ -1610,6 +1650,10 @@
     </button>
   </nav>
     <div class="nav-tools-menu" id="nav-tools-menu">
+      <button class="nav-menu-item" data-nav="picks" onclick="switchNav('picks')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.4l6.1-.8z"/></svg>
+        <span><span class="nm-name">Picks</span><span class="nm-desc">Who scores a TD this week</span></span>
+      </button>
       <button class="nav-menu-item" data-nav="pairs" onclick="switchNav('pairs')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8"/></svg>
         <span><span class="nm-name">Pairs</span><span class="nm-desc">Players who score the same week</span></span>
@@ -1619,6 +1663,26 @@
   <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
 
   <div id="panel-home" class="panel visible"><div id="home-content"><div class="empty">Loading…</div></div></div>
+  <div id="panel-picks" class="panel">
+    <div class="due-explainer" id="picks-explainer-toggle" onclick="toggleExplainer('picks')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Picks Work</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="picks-explainer-chevron">▶</span>
+      </div>
+      <div class="due-explainer-teaser">Every skill player on the slate, ranked by his chance to score a touchdown.</div>
+      <div class="due-explainer-body" id="picks-explainer-body" style="display:none">
+        <ul>
+          <li><b>What the number is.</b> The modelled chance the player scores at least one <em>offensive</em> touchdown (rushing or receiving) in this game. It is a probability, not a rating out of 100 — and it is calibrated, so a board full of 30% picks should hit about 30% of the time.</li>
+          <li><b>What drives it.</b> Overwhelmingly, <em>recent snap share</em> — the share of his offense's plays he has been on the field for over his last three games. That single input is about 87% of the model's signal. After that: the game's implied team total (Vegas), his recent red-zone touches, and whether a same-position teammate has just been ruled out.</li>
+          <li><b>What is deliberately absent.</b> Opponent defence, red-zone defence, pace, weather, home/away and blowout risk were all tested against ten seasons and none of them improved the forecast. Defensive touchdowns-allowed is close to pure noise year to year, and the implied total already prices the rest.</li>
+          <li><b>Tiers.</b> Cut points come from the backtest, and the hit rate on each tier is what actually happened out-of-sample across 2017–2025.</li>
+          <li><b>Honest limits.</b> Built and tested on 2016–2025. It has never been graded against a live week, and it is not measured against sportsbook odds — a well-calibrated number is not the same thing as an edge.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="picks-content"><div class="empty">Loading…</div></div>
+  </div>
   <div id="panel-stats" class="panel">
     <div class="due-explainer" id="stats-explainer-toggle" onclick="toggleExplainer('stats')" aria-expanded="false">
       <div class="due-explainer-head">
@@ -1739,7 +1803,7 @@
   function closeSportMenu() { document.getElementById('sport-menu')?.classList.remove('open'); document.getElementById('sport-switch-btn')?.classList.remove('open'); }
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch')) closeSportMenu(); });
 
-  const NFL_NAVS = ['home', 'stats', 'recap', 'schedule', 'pairs']; // tools added here as they ship
+  const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs']; // tools added here as they ship
   const PAGE_TITLES = { home: "Ron's Tud Tool", stats: "Stats · Ron's Tud Tool", recap: "Recap · Ron's Tud Tool", schedule: "Schedule · Ron's Tud Tool", pairs: "Pairs · Ron's Tud Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
@@ -1790,7 +1854,98 @@
   }
   const WK_LABEL = (w) => w <= 18 ? 'Week ' + w : ({ 19: 'Wild Card', 20: 'Divisional', 21: 'Conf Championship', 22: 'Super Bowl' }[w] || 'Week ' + w);
   const WK_SHORT = (w) => w <= 18 ? String(w) : ({ 19: 'WC', 20: 'DIV', 21: 'CC', 22: 'SB' }[w] || String(w));
-  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); }
+
+  // ── Picks ───────────────────────────────────────────────────────────────
+  // Tier cut points and their hit rates come straight from the walk-forward
+  // backtest (research/, pooled out-of-sample 2017-2025, base rate 17.3%).
+  // They are what actually happened at each cut, not a guess.
+  const PK_TIERS = [
+    { key: 'prime',  min: 0.40, name: 'Prime',  hit: '48% hit · 2.75x base', cls: 't-prime'  },
+    { key: 'strong', min: 0.30, name: 'Strong', hit: '41% hit · 2.36x base', cls: 't-strong' },
+    { key: 'live',   min: 0.25, name: 'Live',   hit: '36% hit · 2.10x base', cls: 't-live'   },
+    { key: 'deep',   min: 0.00, name: 'Deep',   hit: 'below the 25% board cut', cls: 't-deep' },
+  ];
+  // Default board is the 25% cut: ~65 players a slate, 36% hit rate, and it
+  // still contains about half of every touchdown scored.
+  let pkFilt = { pos: 'all', cut: 0.25, team: 'all' };
+  function setPkFilt(k, v) { pkFilt[k] = (k === 'cut') ? parseFloat(v) : v; renderPicks(); }
+
+  function pkTierFor(p) { return PK_TIERS.find(t => p >= t.min) || PK_TIERS[PK_TIERS.length - 1]; }
+
+  function pickCard(p, rank) {
+    const t = pkTierFor(p.p);
+    const f = p.f || {};
+    const facts = [
+      `<span class="pb-f" title="Share of his offense's snaps over his last three games — the model's dominant input"><b>${Math.round((f.snap3 ?? 0) * 100)}%</b> snaps</span>`,
+      `<span class="pb-f" title="Red-zone touches per game (rushes + targets inside the 20)"><b>${(f.rz ?? 0).toFixed(1)}</b> rz/g</span>`,
+      `<span class="pb-f" title="Vegas implied points for his team in this game"><b>${(f.implied ?? 0).toFixed(1)}</b> imp</span>`,
+    ].join('');
+    const flag = f.newAbsence
+      ? `<span class="pb-flag" title="A same-position teammate has just been ruled out — his role may be larger than his recent snaps show">ROLE OPEN</span>` : '';
+    return `<div class="pb-card ${t.cls}">
+      <div class="pb-rank">${rank}</div>
+      ${faceHtml(p.pid, p.name)}
+      <div class="pb-info">
+        <div class="pb-name">${p.name}<span class="pb-pos">${p.pos}</span>${flag}</div>
+        <div class="pb-sub">${p.home ? `${p.team} vs ${p.opp}` : `${p.team} @ ${p.opp}`}</div>
+      </div>
+      <div class="pb-factors">${facts}</div>
+      <div class="pb-prob"><span class="pb-pct">${Math.round(p.p * 100)}%</span><span class="pb-lbl">to score</span></div>
+    </div>`;
+  }
+
+  function renderPicks() {
+    const el = document.getElementById('picks-content');
+    if (nflData === 'error') { el.innerHTML = '<div class="empty">Couldn\'t load NFL data. <a href="javascript:void(0)" onclick="loadNfl()">Retry</a></div>'; return; }
+    if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
+    const P = nflData.picks;
+    if (!P || !P.picks || !P.picks.length) {
+      el.innerHTML = `<div class="empty">No picks yet — they are generated once the upcoming slate has betting lines.
+        Check back after the next data build.</div>`;
+      return;
+    }
+
+    const teams = [...new Set(P.picks.map(p => p.team))].sort();
+    const posChip = (v, lab) => `<button class="due-filter-chip${pkFilt.pos === v ? ' active' : ''}" onclick="setPkFilt('pos','${v}')">${lab}</button>`;
+    const cutChip = (v, lab) => `<button class="due-filter-chip${pkFilt.cut === v ? ' active' : ''}" onclick="setPkFilt('cut','${v}')">${lab}</button>`;
+
+    let rows = P.picks.filter(p => p.p >= pkFilt.cut);
+    if (pkFilt.pos !== 'all') rows = rows.filter(p => p.pos === pkFilt.pos);
+    if (pkFilt.team !== 'all') rows = rows.filter(p => p.team === pkFilt.team);
+
+    const groups = PK_TIERS.map(t => ({ t, rows: rows.filter(p => pkTierFor(p.p).key === t.key) }))
+                           .filter(g => g.rows.length);
+    let rank = 0;
+    const body = groups.map(g => `
+      <div class="pb-tier ${g.t.key}">
+        <span class="pb-tier-name">${g.t.name}</span>
+        <span class="pb-tier-hit">${g.t.hit}</span>
+        <span class="pb-tier-n">${g.rows.length}</span>
+      </div>
+      <div class="pb-list">${g.rows.map(p => pickCard(p, ++rank)).join('')}</div>`).join('');
+
+    el.innerHTML = `
+      <div class="pb-head">
+        <span class="pb-week">${WK_LABEL(P.week)}</span>
+        <span class="pb-meta">${P.season} · ${rows.length} shown · model trained ${P.model?.trained_on || ''} · base rate ${Math.round((P.model?.base_rate ?? 0.173) * 100)}%</span>
+      </div>
+      <div class="pairs-filter-row">
+        <span class="due-filter-label">Board</span>
+        ${cutChip(0.40, 'Prime 40%+')}${cutChip(0.30, 'Strong 30%+')}${cutChip(0.25, 'Board 25%+')}${cutChip(0, 'Everyone')}
+      </div>
+      <div class="pairs-filter-row">
+        <span class="due-filter-label">Pos</span>
+        ${posChip('all', 'All')}${posChip('RB', 'RB')}${posChip('WR', 'WR')}${posChip('TE', 'TE')}
+        <span class="due-filter-label" style="margin-left:0.5rem">Team</span>
+        <select class="fl-sel" onchange="setPkFilt('team',this.value)">
+          <option value="all">All teams</option>
+          ${teams.map(t => `<option value="${t}"${pkFilt.team === t ? ' selected' : ''}>${t}</option>`).join('')}
+        </select>
+      </div>
+      ${rows.length ? body : '<div class="empty">Nothing at this cut — try a wider board.</div>'}`;
+  }
+
+  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); }
   // ESPN team-logo CDN (transparent PNGs). nflverse abbrs are ESPN slugs
   // lowercased, save two: LA(Rams)->lar, WAS->wsh.
   const LOGO_SLUG = { LA: 'lar', WAS: 'wsh' };
