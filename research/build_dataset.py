@@ -35,6 +35,7 @@ PBP_COLS = [
     "play_type", "touchdown", "pass_touchdown", "rush_touchdown",
     "td_player_id", "yardline_100", "rush_attempt", "pass_attempt",
     "rusher_player_id", "receiver_player_id", "spread_line", "total_line",
+    "drive",
 ]
 
 
@@ -81,6 +82,53 @@ def player_game_events(pbp):
     )
 
 
+def team_game_stats(pbp):
+    """Per (game_id, posteam): pace and red-zone trip generation.
+
+    Stage-2 environment features. Team RZ trips is Ron's "we want teams that get
+    in the red zone" — note it is a TEAM property, unlike the player-level RZ
+    touches in stage 1, so it has a real shot at being orthogonal to snap share.
+    """
+    plays = pbp[pbp["play_type"].isin(["pass", "run"])]
+    pace = plays.groupby(["game_id", "posteam"], as_index=False).size()
+    pace.columns = ["game_id", "team", "plays"]
+
+    d = pbp[pbp["drive"].notna() & pbp["posteam"].notna()]
+    drv = d.groupby(["game_id", "posteam", "drive"], as_index=False).agg(
+        closest=("yardline_100", "min"), td=("touchdown", "max"))
+    drv["rz"] = (drv["closest"] <= 20).astype(int)
+    drv["rz_td"] = ((drv["rz"] == 1) & (drv["td"] == 1)).astype(int)
+    rz = drv.groupby(["game_id", "posteam"], as_index=False).agg(
+        rz_trips=("rz", "sum"), rz_tds=("rz_td", "sum"))
+    rz.columns = ["game_id", "team", "rz_trips", "rz_tds"]
+    return pace.merge(rz, on=["game_id", "team"], how="outer").fillna(0)
+
+
+def add_entity_form(game_tbl, entity, value_cols, prefix, k=SHRINK_K):
+    """Expanding pre-game mean per entity (team or defense), strictly backward.
+
+    Computed on a one-row-per-(game, entity) table — never on the player-level
+    frame, where one game appears once per player and would be counted many
+    times over.
+    """
+    t = game_tbl.sort_values([entity, "season", "week"]).reset_index(drop=True)
+    g = t.groupby(entity, sort=False)
+    prior_n = g.cumcount().to_numpy()
+    out = t[[entity, "game_id", "season", "week"]].copy()
+    for c in value_cols:
+        prior_s = (g[c].cumsum() - t[c]).to_numpy()
+        # league mean over strictly earlier seasons as the shrink target
+        per = (t.groupby("season")[c].agg(s="sum", n="size")
+                .reset_index().sort_values("season"))
+        ps = (per["s"].cumsum() - per["s"]).to_numpy()
+        pn = (per["n"].cumsum() - per["n"]).to_numpy()
+        own = (per["s"] / per["n"]).to_numpy()
+        lg = np.where(pn > 0, ps / np.where(pn == 0, 1, pn), own)
+        lgv = t["season"].map(dict(zip(per["season"], lg))).to_numpy(float)
+        out[f"{prefix}{c}"] = (prior_s + k * lgv) / (prior_n + k)
+    return out
+
+
 def load_xwalk():
     """pfr_id -> gsis_id. See fetch_data.players() for why not weekly_rosters."""
     pl = pd.read_csv(f"{CACHE}/players.csv", usecols=["gsis_id", "pfr_id"],
@@ -105,6 +153,39 @@ def load_pool(year, xwalk):
     return out
 
 
+def add_recency(df, value_col, n, out_col):
+    """Mean of value_col over the player's last n games, strictly before this one.
+
+    shift(1) before rolling is what makes it strictly-before; min_periods=1 means
+    only a player's very first game is undefined. Stage 3 found this matters more
+    than every other feature combined — a season-to-date average is a stale
+    measure of a role that changes week to week.
+    """
+    df = df.sort_values(["pid", "season", "week"]).reset_index(drop=True)
+    df[out_col] = (df.groupby("pid", sort=False)[value_col]
+                     .transform(lambda s: s.shift(1).rolling(n, min_periods=1).mean()))
+    return df
+
+
+def position_prior(df, value_col):
+    """Per (position, season): the mean over strictly earlier seasons.
+
+    The earliest season has nothing before it and falls back to its own mean.
+    That only ever touches 2016 rows, which are training-only — the walk-forward
+    never scores 2016.
+    """
+    g = (df.groupby(["position", "season"])[value_col]
+           .agg(s="sum", n="size").reset_index()
+           .sort_values(["position", "season"]))
+    grp = g.groupby("position", sort=False)
+    prior_s = grp["s"].cumsum() - g["s"]
+    prior_n = grp["n"].cumsum() - g["n"]
+    own = g["s"] / g["n"]
+    g["pos_prior"] = np.where(prior_n > 0, prior_s / prior_n.replace(0, np.nan),
+                              own)
+    return g[["position", "season", "pos_prior"]]
+
+
 def add_form(df, value_col, out_col):
     """Expanding pre-week mean of value_col, shrunk toward a backward prior.
 
@@ -122,17 +203,22 @@ def add_form(df, value_col, out_col):
     season_mean["season"] += 1                      # shift forward one season
     df = df.merge(season_mean, on=["pid", "season"], how="left")
 
-    pos_mean = df.groupby("position")[value_col].transform("mean")
-    prior_mean = df["season_mean"].fillna(pos_mean)
+    # Rookie/no-history fallback: the position's mean over STRICTLY EARLIER
+    # seasons. Using a whole-dataset position mean here would leak future
+    # seasons into an early-season row — weak, since it is one constant per
+    # position, but it is still a leak.
+    df = df.merge(position_prior(df, value_col), on=["position", "season"],
+                  how="left")
+    prior_mean = df["season_mean"].fillna(df["pos_prior"])
 
     df[out_col] = ((prior_sum.values + SHRINK_K * prior_mean.values)
                    / (prior_n.values + SHRINK_K))
-    return df.drop(columns=["season_mean"])
+    return df.drop(columns=["season_mean", "pos_prior"])
 
 
 def main():
     xwalk = load_xwalk()
-    pools, events, games = [], [], []
+    pools, events, games, teams = [], [], [], []
     for y in SEASONS:
         print(f"  season {y}", flush=True)
         pbp = load_pbp(y)
@@ -141,10 +227,14 @@ def main():
         ev["season"] = y
         events.append(ev)
         pools.append(load_pool(y, xwalk))
+        tg = team_game_stats(pbp)
+        tg["season"] = y
+        teams.append(tg)
 
     pool = pd.concat(pools, ignore_index=True)
     ev = pd.concat(events, ignore_index=True)
     gm = pd.concat(games, ignore_index=True)
+    tg = pd.concat(teams, ignore_index=True)
 
     unmatched = pool["pid"].isna().mean()
     print(f"  pool rows {len(pool)}  unmatched gsis id: {unmatched:.2%}")
@@ -168,6 +258,73 @@ def main():
     df = add_form(df, "rz_touches", "rz_touches_prior")
     df = add_form(df, "touches", "touches_prior")
 
+    # ── stage 3: recency. Snap share is ~87% of the model's signal, so a better
+    # estimate of it beats any new feature. Last-3 games alone is worth more
+    # than implied total, RZ touches and all of stage 2 put together.
+    df = add_recency(df, "snap_pct", 3, "snap_last3")
+    df = add_recency(df, "snap_pct", 5, "snap_last5")
+    # A player's first career game has no window; fall back to the shrunk prior,
+    # which for a debut is the position's backward-looking mean.
+    for c in ("snap_last3", "snap_last5"):
+        df[c] = df[c].fillna(df["snap_share_prior"])
+    df["snap_trend"] = df["snap_last3"] - df["snap_share_prior"]
+
+    # bucket 2 ("player TD ability") — kept so the null result stays reproducible
+    df = df.sort_values(["pid", "season", "week"]).reset_index(drop=True)
+    gp = df.groupby("pid", sort=False)
+    df["td_per_touch_prior"] = (
+        gp["tds"].transform(lambda s: s.shift(1).cumsum())
+        / gp["touches"].transform(lambda s: s.shift(1).cumsum()).replace(0, np.nan)
+    )
+    df["td_per_touch_prior"] = df["td_per_touch_prior"].fillna(
+        df["td_per_touch_prior"].median())
+
+    # ── stage 2: defense allowed, and team environment ────────────────────
+    # TDs each defense allowed to each position, per game. Built off the player
+    # frame so it is consistent with the target by construction.
+    dpos = (df.groupby(["game_id", "defteam", "season", "week", "position"],
+                       as_index=False)["scored"].sum()
+              .pivot_table(index=["game_id", "defteam", "season", "week"],
+                           columns="position", values="scored", fill_value=0)
+              .reset_index())
+    dpos.columns.name = None
+    for p in POS:
+        if p not in dpos:
+            dpos[p] = 0
+    dpos = dpos.rename(columns={p: f"td_{p}" for p in POS})
+
+    # defensive pace + red zone allowed: the same team-game table, keyed as the
+    # defense rather than the offense
+    dgen = tg.merge(gm[["game_id", "posteam", "defteam"]],
+                    left_on=["game_id", "team"], right_on=["game_id", "posteam"],
+                    how="left")[["game_id", "defteam", "season",
+                                 "plays", "rz_trips", "rz_tds"]]
+    dgen = dgen.merge(dpos[["game_id", "defteam", "week"]],
+                      on=["game_id", "defteam"], how="left")
+    dgen = dgen.rename(columns={"plays": "plays_all", "rz_trips": "rz_trips_all",
+                                "rz_tds": "rz_tds_all"})
+    dtbl = dpos.merge(dgen, on=["game_id", "defteam", "season", "week"],
+                      how="left").fillna(0)
+
+    dfeat = add_entity_form(
+        dtbl, "defteam",
+        [f"td_{p}" for p in POS] + ["plays_all", "rz_trips_all", "rz_tds_all"],
+        "d_")
+    df = df.merge(dfeat.drop(columns=["season", "week"]),
+                  on=["game_id", "defteam"], how="left")
+
+    # the defense feature that matters is the one for THIS player's position
+    df["d_td_vs_pos"] = np.select(
+        [df["position"] == p for p in POS],
+        [df[f"d_td_{p}"] for p in POS], default=np.nan)
+    df["d_rz_td_rate"] = df["d_rz_tds_all"] / df["d_rz_trips_all"].replace(0, np.nan)
+
+    tg2 = tg.merge(dpos[["game_id", "week"]].drop_duplicates(), on="game_id",
+                   how="left")
+    tfeat = add_entity_form(tg2, "team", ["plays", "rz_trips", "rz_tds"], "t_")
+    df = df.merge(tfeat.drop(columns=["season", "week"]),
+                  on=["game_id", "team"], how="left")
+
     keep = df["implied_total"].notna() & df["snap_share_prior"].notna()
     print(f"  dropping {(~keep).sum()} rows with no line or no prior")
     df = df[keep]
@@ -175,7 +332,10 @@ def main():
     cols = ["season", "week", "game_id", "pid", "player", "position", "team",
             "defteam", "scored", "tds", "snap_pct", "touches", "rz_touches",
             "snap_share_prior", "rz_touches_prior", "touches_prior",
-            "implied_total", "total_line", "spread_line"]
+            "implied_total", "total_line", "spread_line",
+            "snap_last3", "snap_last5", "snap_trend", "td_per_touch_prior",
+            "d_td_vs_pos", "d_rz_td_rate", "d_plays_all", "d_rz_trips_all",
+            "t_plays", "t_rz_trips", "t_rz_tds"]
     df[cols].to_parquet(OUT, index=False)
     print(f"\nwrote {OUT}: {len(df)} player-games, "
           f"base rate {df['scored'].mean():.1%}")

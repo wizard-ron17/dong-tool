@@ -1,17 +1,32 @@
-"""Walk-forward backtest of the stage-1 Picks models.
+"""Walk-forward backtest of the Picks models.
 
 For each season S, fit on every season before it and predict S cold. Nothing
-in-season is ever fit on. Reports a model ladder so each added feature has to
-earn its place against the simpler thing:
+in-season is ever fit on. The ladder makes each feature earn its place against
+the simpler thing below it:
 
     M0 base        intercept only (the base rate)
     M1 pos         position only
     M2 +snaps      position + prior snap share
     M3 +total      position + snap share + implied team total
-    M4 +rz         M3 + prior red-zone touches      <- the stage-1 model
+    M4 +rz         M3 + prior red-zone touches           <- stage 1
+    M5 +defense    M4 + defense-allowed + team red zone  <- stage 2, a null
+    M6 +last3      M4 + last-3-game snap share           <- stage 3, the win
 
-The bar M4 has to clear is M3, and the bar the whole exercise has to clear is
-M2. If a 40-feature model can't beat these, the extra features are decoration.
+What the ladder has shown so far:
+
+  * Snap share is ~87% of everything. M2 alone captures most of the model.
+  * Stage 2 is a clean null. Defense-allowed-by-position, red-zone defense,
+    pace and team red-zone trips all land within 0.03% of M4. Defensive
+    TDs-allowed has ~zero split-half reliability (WR -0.06, TE -0.03), so
+    there is no stable quantity there to predict with. Even a reliable,
+    orthogonal defensive metric (EPA/play allowed, split-half +0.37) adds
+    nothing, because implied team total already prices the environment.
+  * Stage 3 beat all of it by measuring the dominant feature better rather
+    than adding new ones: last-3-game snap share is worth ~1.8%, more than
+    implied total, red-zone touches and all of stage 2 combined.
+
+The rule this implies for any future feature: judge it by orthogonality to
+snap share and by its own split-half reliability, not by standalone strength.
 
 Logistic regression is IRLS with a small ridge; no sklearn in this env.
 """
@@ -89,12 +104,20 @@ def design(df, feats, mu=None, sd=None):
 
 
 MODELS = {
-    "M0 base":   None,                    # intercept only, no position
-    "M1 pos":    [],
-    "M2 +snaps": ["snap_share_prior"],
-    "M3 +total": ["snap_share_prior", "implied_total"],
-    "M4 +rz":    ["snap_share_prior", "implied_total", "rz_touches_prior"],
+    "M0 base":     None,                  # intercept only, no position
+    "M1 pos":      [],
+    "M2 +snaps":   ["snap_share_prior"],
+    "M3 +total":   ["snap_share_prior", "implied_total"],
+    "M4 +rz":      ["snap_share_prior", "implied_total", "rz_touches_prior"],
+    # stage 2 (defense + team environment) is included to keep its null result
+    # visible: every one of those features lands within 0.03% of M4.
+    "M5 +defense": ["snap_share_prior", "implied_total", "rz_touches_prior",
+                    "d_td_vs_pos", "d_rz_td_rate", "t_rz_trips"],
+    # stage 3: recency on the one feature that carries the model
+    "M6 +last3":   ["snap_share_prior", "implied_total", "rz_touches_prior",
+                    "snap_last3"],
 }
+FINAL = "M6 +last3"
 
 
 def run():
@@ -141,9 +164,9 @@ def run():
             base_ll = ll
         print(f"{name:<11} {ll:>9.4f} {(ll-base_ll)/base_ll*100:>7.2f}% {a:>7.4f}")
 
-    # calibration of the stage-1 model
-    best = pd.concat(preds["M4 +rz"])
-    print("\nCALIBRATION, M4 (pooled OOS, decile bins)")
+    # calibration of the final model
+    best = pd.concat(preds[FINAL])
+    print(f"\nCALIBRATION, {FINAL} (pooled OOS, decile bins)")
     best = best.copy()
     best["bin"] = pd.qcut(best["p"], 10, labels=False, duplicates="drop")
     cal = best.groupby("bin").agg(n=("y", "size"), pred=("p", "mean"),
@@ -153,7 +176,7 @@ def run():
     ece = (cal["n"] / cal["n"].sum() * cal["gap"].abs()).sum()
     print(f"\nexpected calibration error: {ece:.4f}")
 
-    print("\nTOP-DECILE LIFT, M4")
+    print(f"\nTOP-DECILE LIFT, {FINAL}")
     top = best[best["bin"] == best["bin"].max()]
     print(f"  top 10% by model: {top['y'].mean():.1%} score rate "
           f"({top['y'].mean()/best['y'].mean():.2f}x base of {best['y'].mean():.1%})")
