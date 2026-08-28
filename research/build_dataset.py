@@ -129,6 +129,27 @@ def add_entity_form(game_tbl, entity, value_cols, prefix, k=SHRINK_K):
     return out
 
 
+def load_injuries():
+    """Same-position teammates ruled out, per (season, week, team, position).
+
+    Bucket 6 is a null in aggregate, but this piece is not: in the FIRST week a
+    same-position teammate is ruled out, the model under-predicts by ~1.9pp
+    (16.1% predicted vs 18.1% actual; for backups 10.2% vs 12.1%). The cause is
+    staleness — last-3 snap share has not yet caught up to the vacated role. The
+    effect is real but narrow, hitting ~11% of rows, which is why it barely
+    moves a pooled metric while mattering a lot for exactly the breakout-backup
+    picks a picks tool exists to surface.
+    """
+    frames = []
+    for y in SEASONS:
+        d = pd.read_csv(f"{CACHE}/injuries_{y}.csv", low_memory=False)
+        frames.append(d[d["gsis_id"].notna()])
+    inj = pd.concat(frames, ignore_index=True)
+    inj["out"] = inj["report_status"].isin(["Out", "Doubtful"]).astype(int)
+    return (inj.groupby(["season", "week", "team", "position"], as_index=False)
+               ["out"].sum().rename(columns={"out": "mates_out"}))
+
+
 def load_xwalk():
     """pfr_id -> gsis_id. See fetch_data.players() for why not weekly_rosters."""
     pl = pd.read_csv(f"{CACHE}/players.csv", usecols=["gsis_id", "pfr_id"],
@@ -279,6 +300,15 @@ def main():
     df["td_per_touch_prior"] = df["td_per_touch_prior"].fillna(
         df["td_per_touch_prior"].median())
 
+    # bucket 6: same-position teammates ruled out, and whether that is NEW this
+    # week — the case where last-3 snap share is stalest. See load_injuries().
+    df = df.merge(load_injuries(), on=["season", "week", "team", "position"],
+                  how="left")
+    df["mates_out"] = df["mates_out"].fillna(0)
+    df = df.sort_values(["pid", "season", "week"])
+    prev = df.groupby(["pid", "season"], sort=False)["mates_out"].shift(1).fillna(0)
+    df["new_absence"] = ((df["mates_out"] > prev) & (df["mates_out"] > 0)).astype(int)
+
     # ── stage 2: defense allowed, and team environment ────────────────────
     # TDs each defense allowed to each position, per game. Built off the player
     # frame so it is consistent with the target by construction.
@@ -334,6 +364,7 @@ def main():
             "snap_share_prior", "rz_touches_prior", "touches_prior",
             "implied_total", "total_line", "spread_line",
             "snap_last3", "snap_last5", "snap_trend", "td_per_touch_prior",
+            "mates_out", "new_absence",
             "d_td_vs_pos", "d_rz_td_rate", "d_plays_all", "d_rz_trips_all",
             "t_plays", "t_rz_trips", "t_rz_tds"]
     df[cols].to_parquet(OUT, index=False)

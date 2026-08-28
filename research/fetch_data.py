@@ -62,6 +62,13 @@ def rosters(year):
                  f"{CACHE}/roster_{year}.csv")
 
 
+def injuries(year):
+    """Weekly injury report. Keys on gsis_id directly — no crosswalk needed —
+    and is published Wed-Fri, so it is genuinely available before kickoff."""
+    return fetch(f"{REL}/injuries/injuries_{year}.csv",
+                 f"{CACHE}/injuries_{year}.csv")
+
+
 def players():
     """Season-agnostic id crosswalk. weekly_rosters looks like it would do this
     job but its pfr_id is null ~36% of the time, and the players it misses skew
@@ -74,7 +81,7 @@ def main():
     players()
     for y in SEASONS:
         print(f"season {y}", flush=True)
-        pbp(y); snaps(y); rosters(y)
+        pbp(y); snaps(y); rosters(y); injuries(y)
     print("cache ready:", CACHE)
 
 

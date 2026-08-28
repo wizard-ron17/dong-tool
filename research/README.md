@@ -42,12 +42,13 @@ Pooled out-of-sample, 2017–2025:
 | M3 + implied total | 0.4141 | −9.99% | 0.723 |
 | M4 + RZ touches | 0.4130 | −10.24% | 0.726 |
 | M5 + defense/team env | 0.4130 | −10.23% | 0.726 |
-| **M6 + last-3 snap share** | **0.4057** | **−11.82%** | **0.743** |
+| M6 + last-3 snap share | 0.4057 | −11.82% | 0.743 |
+| **M7 + injury (teammates out)** | **0.4055** | **−11.86%** | **0.743** |
 
 M6 calibration ECE 0.0062; top decile scores 43.8% against a 17.3% base
 (2.54x), bottom decile 3.1% (0.18x). Negative control returns AUC 0.498.
 
-### Three findings that should drive scope
+### Four findings that should drive scope
 
 **Snap share is ~87% of the signal.** Everything else in M4 combined is worth
 about one percentage point of log loss.
@@ -69,8 +70,20 @@ season. In the fitted coefficients it displaces the season-to-date version
 (+0.57 vs +0.15) — a season average is a stale measure of a role that changes
 week to week.
 
+**Bucket 6 (context) is a null in aggregate, with one real exception.** Home/away,
+weather (temp, wind, dome), blowout risk and game total each move log loss by
+under 0.01% — they are already priced into implied team total. But same-position
+teammates being ruled out is different: in the FIRST week an absence appears, M6
+under-predicted by +1.94% (+1.92% for backups), because last-3 snap share has not
+yet caught up to the vacated role. Adding it removes that bias (+1.94% → −0.13%).
+It barely moves a pooled metric because it touches only ~11% of rows, and it does
+not improve ranking (top decile 44.6% → 44.2%) — it improves *pricing*, on exactly
+the breakout-backup picks the tool exists to surface.
+
 The rule this implies: judge a candidate feature by its **orthogonality to snap
-share** and its **own split-half reliability**, not by standalone strength.
+share** and its **own split-half reliability**, not by standalone strength — and
+check subset calibration, not just the pooled metric, before calling something a
+null.
 
 ## Two traps worth remembering
 

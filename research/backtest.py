@@ -116,8 +116,12 @@ MODELS = {
     # stage 3: recency on the one feature that carries the model
     "M6 +last3":   ["snap_share_prior", "implied_total", "rz_touches_prior",
                     "snap_last3"],
+    # stage 4: bucket 6. Only the injury piece survives, and only because it
+    # corrects a stale-role bias on ~11% of rows — see load_injuries().
+    "M7 +injury":  ["snap_share_prior", "implied_total", "rz_touches_prior",
+                    "snap_last3", "mates_out", "new_absence"],
 }
-FINAL = "M6 +last3"
+FINAL = "M7 +injury"
 
 
 def run():
