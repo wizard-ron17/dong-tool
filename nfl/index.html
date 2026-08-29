@@ -1560,12 +1560,18 @@
      a 1.00x baseline — same language as the MLB pick modal, and far friendlier
      than log-odds. */
   .pm-back { position: fixed; inset: 0; background: rgba(0,0,0,0.66); backdrop-filter: blur(3px); z-index: 300; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 0.9rem; overflow-y: auto; }
-  .pm { background: var(--surface0); border: 1px solid var(--border2); border-radius: 14px; width: 100%; max-width: 520px; box-shadow: 0 18px 50px rgba(0,0,0,0.6); }
+  /* position:relative is load-bearing — without it the absolutely-positioned
+     close button resolves against .pm-back (position:fixed) and lands in the
+     top-right corner of the viewport instead of the card. */
+  .pm { position: relative; background: var(--surface0); border: 1px solid var(--border2); border-radius: 14px; width: 100%; max-width: 520px; box-shadow: 0 18px 50px rgba(0,0,0,0.6); }
+  /* the inherited .pk-side-nav sits at z-index 210, under this modal's backdrop */
+  .pm-back .pk-side-nav { z-index: 320; }
+  @media (max-width: 700px) { .pm-back .pk-side-nav { width: 34px; height: 48px; font-size: 1.5rem; } }
   .pm-x { position: absolute; top: 0.55rem; right: 0.7rem; background: none; border: none; color: var(--dim); font-size: 1.45rem; line-height: 1; cursor: pointer; z-index: 2; }
   .pm-x:hover { color: var(--text); }
 
   /* hero: face, identity, price */
-  .pm-hero { position: relative; display: flex; align-items: center; gap: 0.75rem; padding: 1rem 1rem 0.85rem; }
+  .pm-hero { position: relative; display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 1rem 0.85rem; }
   .pm-hero .rc-photo { width: 58px; height: 58px; flex-shrink: 0; }
   .pm-id { flex: 1; min-width: 0; }
   .pm-nm { font-family: var(--font-d); font-size: 1.5rem; font-weight: 900; color: var(--text-strong); line-height: 1.05; }
@@ -1753,6 +1759,7 @@
           <li><b>What drives it.</b> Overwhelmingly <em>recent snap share</em> — the share of his offense's plays he was on the field for over his last three games. That single input is about 87% of the signal. Then the game's implied team total (from the spread and total), his recent red-zone touches, and whether a same-position teammate has just been ruled out.</li>
           <li><b>What is deliberately absent.</b> Opponent defence, red-zone defence, pace, weather, home/away and blowout risk were each tested over ten seasons and none improved the forecast. Defensive touchdowns-allowed is close to pure noise year to year, and the implied total already prices the scoring environment.</li>
           <li><b>Two markets.</b> <em>1+ TD</em> is the anytime price. <em>2+ TD</em> is built as the anytime price multiplied by the chance a scorer scores again — so it can never come out shorter than the anytime price, which two separately fitted models could easily get wrong. That second step is its own model and is nowhere near a constant: it runs from 8% to 28% across red-zone workload, and 23% for running backs against 11% for tight ends. Every card shows both prices.</li>
+          <li><b>It is recalibrated.</b> The raw model runs hot on favourites — out of sample it said 75% where 60% actually happened, and 82% where 61% did, because a logistic extrapolates in a straight line while scoring saturates. A monotone recalibration, fitted on walk-forward out-of-sample results, trims the top end: the 70%-plus band's error drops from 15.5 points to under 3. It is why a back who looks like a lock is priced near -150 rather than -350, and each pick's breakdown shows the trim as its own step rather than hiding it.</li>
           <li><b>Cut lines.</b> Each minimum-odds filter shows the hit rate that cut actually produced in the backtest for that market — so tightening the board is a measured trade, not a guess.</li>
           <li><b>Honest limits.</b> Fitted on 2016–2025 and never yet graded against a live week. It is also not measured against sportsbook prices, so a fair number is not the same thing as an edge.</li>
         </ul>
@@ -2089,8 +2096,6 @@
     const sortChips = PB_SORTS.map(sm =>
       chip(pbF.sort === sm.v, sm.lab + (pbF.sort === sm.v ? (pbF.dir === 'desc' ? ' ↓' : ' ↑') : ''),
            `setPbSort('${sm.v}')`)).join('');
-    const viewChips = [['cards', 'Cards'], ['table', 'Table'], ['compact', 'Compact']].map(([v, l]) =>
-      chip(pbF.view === v, l, `setPbF('view','${v}')`)).join('');
     const dirty = JSON.stringify(pbF) !== JSON.stringify(PB_DEFAULTS);
     row.innerHTML = `
       <div class="due-filter-group"><span class="due-filter-label" title="Which touchdown market to price.">Market</span><div class="due-filter-chips">${mktChips}</div></div>
@@ -2101,12 +2106,12 @@
         ${teams.map(t => `<option value="${t}"${pbF.team === t ? ' selected' : ''}>${t}</option>`).join('')}
       </select></div></div>
       <div class="due-filter-group"><span class="due-filter-label">Sort</span><div class="due-filter-chips">${sortChips}</div></div>
-      <div class="due-filter-group"><span class="due-filter-label">View</span><div class="due-filter-chips">${viewChips}</div></div>
       ${dirty ? `<button class="due-filter-clear" onclick="clearPbF()">Reset ×</button>` : ''}`;
     row.style.display = pbFiltersOpen ? '' : 'none';
     document.getElementById('picks-filters-chevron').classList.toggle('open', pbFiltersOpen);
     document.getElementById('picks-filters-toggle').setAttribute('aria-expanded', String(pbFiltersOpen));
-    const n = ['mkt', 'pos', 'team', 'cut', 'sort', 'view'].filter(k => pbF[k] !== PB_DEFAULTS[k]).length;
+    // view is a display preference, not a filter — it lives in its own toolbar
+    const n = ['mkt', 'pos', 'team', 'cut', 'sort'].filter(k => pbF[k] !== PB_DEFAULTS[k]).length;
     const badge = document.getElementById('picks-filters-badge');
     badge.style.display = n ? 'inline-flex' : 'none';
     badge.textContent = n;
@@ -2194,11 +2199,22 @@
     return { base, parts: out, z };
   }
 
+  function pmStep(delta) {
+    const list = pbRows();
+    const i = list.findIndex(x => x.pid === pmOpen);
+    const j = i + delta;
+    if (i < 0 || j < 0 || j >= list.length) return;
+    closePick(); openPick(list[j].pid);
+  }
   function openPick(pid) {
     const P = nflData?.picks; if (!P) return;
     const raw = P.picks.find(x => x.pid === pid);
     if (!raw || !P.model?.coef) return;
     pmOpen = pid;
+    // deck position within the current board, so the arrows walk the same
+    // ordering the user is looking at rather than some hidden master list
+    const deck = pbRows();
+    const at = deck.findIndex(x => x.pid === pid);
     const M = P.model;
     const r = pbEnrich(raw, pbGameMap());
     const { base, parts } = pmContribs(r, M);
@@ -2249,8 +2265,11 @@
     const mkt = pbF.mkt;
     document.body.insertAdjacentHTML('beforeend', `
       <div class="pm-back" id="pm-back" onclick="if(event.target===this)closePick()">
+        ${at > 0 ? `<button class="pk-side-nav pk-side-prev" onclick="pmStep(-1)" aria-label="Previous pick">‹</button>` : ''}
+        ${at >= 0 && at < deck.length - 1 ? `<button class="pk-side-nav pk-side-next" onclick="pmStep(1)" aria-label="Next pick">›</button>` : ''}
         <div class="pm" role="dialog" aria-modal="true">
           <button class="pm-x" onclick="closePick()" aria-label="Close">×</button>
+          ${at >= 0 ? `<div class="pk-deck-count" style="padding-top:0.6rem">${at + 1} / ${deck.length}</div>` : ''}
           <div class="pm-hero">
             ${faceHtml(r.pid, r.name)}
             <div class="pm-id">
@@ -2289,7 +2308,11 @@
     document.removeEventListener('keydown', pmKey);
     pmOpen = null;
   }
-  function pmKey(e) { if (e.key === 'Escape') closePick(); }
+  function pmKey(e) {
+    if (e.key === 'Escape') closePick();
+    else if (e.key === 'ArrowLeft') pmStep(-1);
+    else if (e.key === 'ArrowRight') pmStep(1);
+  }
 
   function renderPicks() {
     renderPicksFilters();
@@ -2328,6 +2351,10 @@
       <div class="pb-head">
         <span class="pb-week">${WK_LABEL(P.week)}</span>
         <span class="pb-meta">${P.season} · ${pbMkt().lab} · ${rows.length} shown · fair odds, no vig</span>
+      </div>
+      <div class="lb-toolbar">
+        <div class="view-switch">${[['table', 'Table'], ['cards', 'Cards'], ['compact', 'Compact']]
+          .map(([v, l]) => `<button class="view-btn${pbF.view === v ? ' active' : ''}" onclick="setPbF('view','${v}')">${l}</button>`).join('')}</div>
       </div>
       ${cut && cut.v ? `<div class="pb-cutnote">At <b>${cut.lab}</b> or shorter, ${pbMkt().lab} historically hit <b>${cut.hit}%</b> — against a <b>${pbMkt().base}%</b> base rate.</div>`
                      : `<div class="pb-cutnote">Full board. ${pbMkt().lab} base rate is <b>${pbMkt().base}%</b>.</div>`}
