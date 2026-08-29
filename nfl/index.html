@@ -1518,6 +1518,11 @@
   .pb-table th:hover { color: var(--text); }
   .pb-table th.on { color: var(--accent); }
   .pb-table th .ar { font-size: 0.6rem; margin-left: 0.15rem; }
+  /* numeric headers sit over right-aligned numbers, so they right-align too —
+     a left header above a right column reads as a different column entirely */
+  .pb-table th.num { text-align: right; }
+  .pb-table th.static { cursor: default; color: var(--dim); }
+  .pb-table th.static:hover { color: var(--dim); }
   .pb-table td { padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); color: var(--silver); white-space: nowrap; }
   .pb-table tr:last-child td { border-bottom: none; }
   .pb-table tr:hover td { background: var(--surface0); }
@@ -1988,13 +1993,18 @@
   const pbMkt = () => PB_MARKETS[pbF.mkt] || PB_MARKETS['1'];
   const pbP = (r) => r[pbMkt().key] ?? 0;
   const PB_SORTS = [
-    { v: 'p',      lab: 'Price'     }, { v: 'snap3', lab: 'Snap %'    },
-    { v: 'rz',     lab: 'RZ/g'      }, { v: 'imp',   lab: 'Team total' },
-    { v: 'time',   lab: 'Game time' }, { v: 'name',  lab: 'Name'      },
+    { v: 'p',      lab: 'Price'     }, { v: 'alt',   lab: 'Other market' },
+    { v: 'snap3',  lab: 'Snap %'    }, { v: 'rz',    lab: 'RZ/g'      },
+    { v: 'imp',    lab: 'Team total' }, { v: 'time', lab: 'Game time' },
+    { v: 'name',   lab: 'Name'      },
   ];
-  const PB_DEFAULTS = { mkt: '1', pos: 'all', team: 'all', cut: 0.25, sort: 'p', dir: 'desc', view: 'cards' };
+  // pos is a SET of positions; [] means every position. Kept as an array rather
+  // than an 'all' sentinel so "QB + RB" is expressible at all.
+  const PB_DEFAULTS = { mkt: '1', pos: [], team: 'all', cut: 0.25, sort: 'p', dir: 'desc', view: 'cards' };
   let pbF = { ...PB_DEFAULTS };
   try { pbF = { ...pbF, ...JSON.parse(localStorage.getItem('nflPicksFilters') || '{}') }; } catch (e) {}
+  // a stored value from before positions were multi-select is a bare string
+  if (!Array.isArray(pbF.pos)) pbF.pos = (pbF.pos && pbF.pos !== 'all') ? [pbF.pos] : [];
   const pbSave = () => { try { localStorage.setItem('nflPicksFilters', JSON.stringify(pbF)); } catch (e) {} };
   let pbSub = 'board', pbFiltersOpen = false;
 
@@ -2009,10 +2019,16 @@
   function setPbSort(v) {
     // clicking the active column flips direction; a new column starts sensibly
     if (pbF.sort === v) pbF.dir = pbF.dir === 'desc' ? 'asc' : 'desc';
-    else { pbF.sort = v; pbF.dir = (v === 'name' || v === 'time') ? 'asc' : 'desc'; }
+    else { pbF.sort = v; pbF.dir = ['name', 'time', 'pos'].includes(v) ? 'asc' : 'desc'; }
     pbSave(); renderPicksFilters(); renderPicks();
   }
-  function clearPbF() { pbF = { ...PB_DEFAULTS }; pbSave(); renderPicksFilters(); renderPicks(); }
+  function clearPbF() { pbF = { ...PB_DEFAULTS, pos: [] }; pbSave(); renderPicksFilters(); renderPicks(); }
+  /** Toggle one position; the All chip clears the set. */
+  function togglePbPos(v) {
+    if (v === 'all') pbF.pos = [];
+    else pbF.pos = pbF.pos.includes(v) ? pbF.pos.filter(x => x !== v) : [...pbF.pos, v];
+    pbSave(); renderPicksFilters(); renderPicks();
+  }
   function togglePicksFilters() { pbFiltersOpen = !pbFiltersOpen; renderPicksFilters(); }
   function switchPicksSub(sub) {
     pbSub = sub;
@@ -2055,12 +2071,20 @@
     const gm = pbGameMap();
     let rows = P.picks.map(p => pbEnrich(p, gm));
     rows = rows.filter(r => pbP(r) >= pbF.cut);
-    if (pbF.pos !== 'all') rows = rows.filter(r => r.pos === pbF.pos);
+    if (pbF.pos.length) rows = rows.filter(r => pbF.pos.includes(r.pos));
     if (pbF.team !== 'all') rows = rows.filter(r => r.team === pbF.team);
     const key = {
-      p: r => pbP(r), snap3: r => r.f?.snap3 ?? 0, rz: r => r.f?.rz ?? 0,
+      p: r => pbP(r),
+      // Chance is the same quantity as Price, just as a percentage rather than
+      // American odds — it gets its own key purely so the arrow lands on the
+      // column you actually clicked.
+      pct: r => pbP(r),
+      // the other market's price, so the 2+ column sorts from the 1+ board
+      alt: r => (pbF.mkt === '1' ? (r.p2 ?? 0) : (r.p ?? 0)),
+      pos: r => r.pos,
+      snap3: r => r.f?.snap3 ?? 0, rz: r => r.f?.rz ?? 0,
       imp: r => r.f?.implied ?? 0, time: r => r.ts, name: r => r.name.toLowerCase(),
-    }[pbF.sort] || (r => r.p);
+    }[pbF.sort] || (r => pbP(r));
     const dir = pbF.dir === 'asc' ? 1 : -1;
     rows.sort((a, b) => {
       const x = key(a), y = key(b);
@@ -2091,12 +2115,15 @@
     // went missing here after quarterbacks were added to the model.
     const ORDER = ['QB', 'RB', 'WR', 'TE', 'FB'];
     const onBoard = new Set((P?.picks || []).map(p => p.pos));
-    const posChips = ['all', ...ORDER.filter(v => onBoard.has(v))].map(v =>
-      chip(pbF.pos === v, v === 'all' ? 'All' : v, `setPbF('pos','${v}')`)).join('');
+    const posChips = [
+      chip(!pbF.pos.length, 'All', `togglePbPos('all')`, 'Every position'),
+      ...ORDER.filter(v => onBoard.has(v)).map(v =>
+        chip(pbF.pos.includes(v), v, `togglePbPos('${v}')`, 'Toggle — combine as many as you like')),
+    ].join('');
     const sortChips = PB_SORTS.map(sm =>
       chip(pbF.sort === sm.v, sm.lab + (pbF.sort === sm.v ? (pbF.dir === 'desc' ? ' ↓' : ' ↑') : ''),
            `setPbSort('${sm.v}')`)).join('');
-    const dirty = JSON.stringify(pbF) !== JSON.stringify(PB_DEFAULTS);
+    const dirty = JSON.stringify({ ...pbF, pos: [...pbF.pos].sort() }) !== JSON.stringify({ ...PB_DEFAULTS, pos: [] });
     row.innerHTML = `
       <div class="due-filter-group"><span class="due-filter-label" title="Which touchdown market to price.">Market</span><div class="due-filter-chips">${mktChips}</div></div>
       <div class="due-filter-group"><span class="due-filter-label" title="Shortest price shown. Each cut lists the hit rate it produced in the backtest for this market.">Max price</span><div class="due-filter-chips">${cutChips}</div></div>
@@ -2111,7 +2138,8 @@
     document.getElementById('picks-filters-chevron').classList.toggle('open', pbFiltersOpen);
     document.getElementById('picks-filters-toggle').setAttribute('aria-expanded', String(pbFiltersOpen));
     // view is a display preference, not a filter — it lives in its own toolbar
-    const n = ['mkt', 'pos', 'team', 'cut', 'sort'].filter(k => pbF[k] !== PB_DEFAULTS[k]).length;
+    const n = ['mkt', 'team', 'cut', 'sort'].filter(k => pbF[k] !== PB_DEFAULTS[k]).length
+            + (pbF.pos.length ? 1 : 0);
     const badge = document.getElementById('picks-filters-badge');
     badge.style.display = n ? 'inline-flex' : 'none';
     badge.textContent = n;
@@ -2140,7 +2168,7 @@
   function pbTable(rows) {
     const th = (v, lab, cls = '') => `<th class="${cls}${pbF.sort === v ? ' on' : ''}" onclick="setPbSort('${v}')">${lab}${pbF.sort === v ? `<span class="ar">${pbF.dir === 'desc' ? '▼' : '▲'}</span>` : ''}</th>`;
     return `<div class="pb-tablewrap"><table class="pb-table">
-      <thead><tr><th>#</th>${th('name', 'Player')}<th>Pos</th>${th('time', 'Game')}${th('p', 'Price')}<th>Win%</th><th>${pbF.mkt === '1' ? '2+' : '1+'}</th>${th('snap3', 'Snap%')}${th('rz', 'RZ/g')}${th('imp', 'Total')}</tr></thead>
+      <thead><tr><th class="static">#</th>${th('name', 'Player')}${th('pos', 'Pos')}${th('time', 'Game')}${th('p', 'Price', 'num')}${th('pct', 'Chance', 'num')}${th('alt', pbF.mkt === '1' ? '2+ TD' : '1+ TD', 'num')}${th('snap3', 'Snap%', 'num')}${th('rz', 'RZ/g', 'num')}${th('imp', 'Total', 'num')}</tr></thead>
       <tbody>${rows.map((r, i) => `<tr onclick="openPick('${r.pid}')">
         <td class="num">${i + 1}</td>
         <td class="nm">${r.name}${r.f?.newAbsence ? ' <span class="pb-flag">ROLE OPEN</span>' : ''}</td>
@@ -2334,7 +2362,7 @@
     const body = !rows.length ? (() => {
       const gm = pbGameMap();
       let pool = P.picks.map(x => pbEnrich(x, gm));
-      if (pbF.pos !== 'all') pool = pool.filter(x => x.pos === pbF.pos);
+      if (pbF.pos.length) pool = pool.filter(x => pbF.pos.includes(x.pos));
       if (pbF.team !== 'all') pool = pool.filter(x => x.team === pbF.team);
       if (!pool.length) return '<div class="empty">Nobody on the board matches that filter.</div>';
       const best = pool.reduce((a, b) => (b.p > a.p ? b : a));
@@ -2350,7 +2378,7 @@
     el.innerHTML = `
       <div class="pb-head">
         <span class="pb-week">${WK_LABEL(P.week)}</span>
-        <span class="pb-meta">${P.season} · ${pbMkt().lab} · ${rows.length} shown · fair odds, no vig</span>
+        <span class="pb-meta">${P.season} · ${pbMkt().lab}${pbF.pos.length ? ' · ' + pbF.pos.join('/') : ''} · ${rows.length} shown · fair odds, no vig</span>
       </div>
       <div class="lb-toolbar">
         <div class="view-switch">${[['table', 'Table'], ['cards', 'Cards'], ['compact', 'Compact']]
