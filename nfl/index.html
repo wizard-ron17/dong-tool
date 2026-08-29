@@ -2053,7 +2053,11 @@
       c.lab, `setPbF('cut',${c.v})`,
       c.v ? `${c.lab} or shorter — historically ${c.hit}% hit, about ${c.per} players a slate`
           : `Everyone on the board — 17.3% base rate`)).join('');
-    const posChips = ['all', 'RB', 'WR', 'TE'].map(v =>
+    // Derived from the board rather than hardcoded — a fixed list is how QB
+    // went missing here after quarterbacks were added to the model.
+    const ORDER = ['QB', 'RB', 'WR', 'TE', 'FB'];
+    const onBoard = new Set((P?.picks || []).map(p => p.pos));
+    const posChips = ['all', ...ORDER.filter(v => onBoard.has(v))].map(v =>
       chip(pbF.pos === v, v === 'all' ? 'All' : v, `setPbF('pos','${v}')`)).join('');
     const sortChips = PB_SORTS.map(sm =>
       chip(pbF.sort === sm.v, sm.lab + (pbF.sort === sm.v ? (pbF.dir === 'desc' ? ' ↓' : ' ↑') : ''),
@@ -2276,7 +2280,22 @@
     }
     const rows = pbRows();
     const cut = PB_CUTS.find(c => c.v === pbF.cut);
-    const body = !rows.length ? '<div class="empty">Nothing at this price — widen the board.</div>'
+    // An empty board is usually the price cut, not an empty pool — quarterbacks
+    // in particular are all longer than the default +300. Say what would bring
+    // them back instead of leaving a dead end.
+    const body = !rows.length ? (() => {
+      const gm = pbGameMap();
+      let pool = P.picks.map(x => pbEnrich(x, gm));
+      if (pbF.pos !== 'all') pool = pool.filter(x => x.pos === pbF.pos);
+      if (pbF.team !== 'all') pool = pool.filter(x => x.team === pbF.team);
+      if (!pool.length) return '<div class="empty">Nobody on the board matches that filter.</div>';
+      const best = pool.reduce((a, b) => (b.p > a.p ? b : a));
+      const cut = PB_CUTS.find(c => c.v === pbF.cut);
+      const wider = PB_CUTS.filter(c => c.v <= best.p).sort((a, b) => b.v - a.v)[0];
+      return `<div class="empty">Nothing here is shorter than <b>${cut ? cut.lab : ''}</b>.
+        The shortest is <b>${best.odds}</b> (${best.name}).
+        ${wider ? `<a href="javascript:void(0)" onclick="setPbF('cut',${wider.v})">Widen to ${wider.v ? wider.lab : 'the full board'} →</a>` : ''}</div>`;
+    })()
       : pbF.view === 'table' ? pbTable(rows)
       : pbF.view === 'compact' ? pbCompact(rows)
       : `<div class="pb-list">${rows.map((r, i) => pbCard(r, i + 1)).join('')}</div>`;
