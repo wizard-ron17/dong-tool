@@ -1571,7 +1571,18 @@
   .pm { position: relative; background: var(--surface0); border: 1px solid var(--border2); border-radius: 14px; width: 100%; max-width: 520px; box-shadow: 0 18px 50px rgba(0,0,0,0.6); }
   /* the inherited .pk-side-nav sits at z-index 210, under this modal's backdrop */
   .pm-back .pk-side-nav { z-index: 320; }
-  @media (max-width: 700px) { .pm-back .pk-side-nav { width: 34px; height: 48px; font-size: 1.5rem; } }
+  /* The inherited rule pins these to the viewport edge; .pm-back's
+     backdrop-filter also makes it the containing block, so they ended up
+     crowding the card. Position them off the modal's own 520px width —
+     260 half-width + 28 gap + 42 button = 330 — floored so a narrow viewport
+     keeps them on screen. */
+  .pm-back .pk-side-prev { left: max(0.5rem, calc(50% - 330px)); }
+  .pm-back .pk-side-next { right: max(0.5rem, calc(50% - 330px)); }
+  @media (max-width: 700px) {
+    .pm-back .pk-side-nav { width: 34px; height: 48px; font-size: 1.5rem; }
+    .pm-back .pk-side-prev { left: 0.35rem; }
+    .pm-back .pk-side-next { right: 0.35rem; }
+  }
   .pm-x { position: absolute; top: 0.55rem; right: 0.7rem; background: none; border: none; color: var(--dim); font-size: 1.45rem; line-height: 1; cursor: pointer; z-index: 2; }
   .pm-x:hover { color: var(--text); }
 
@@ -2392,8 +2403,8 @@
     const mkt = pbF.mkt;
     document.body.insertAdjacentHTML('beforeend', `
       <div class="pm-back" id="pm-back" onclick="if(event.target===this)closePick()">
-        ${at > 0 ? `<button class="pk-side-nav pk-side-prev" onclick="pmStep(-1)" aria-label="Previous pick">‹</button>` : ''}
-        ${at >= 0 && at < deck.length - 1 ? `<button class="pk-side-nav pk-side-next" onclick="pmStep(1)" aria-label="Next pick">›</button>` : ''}
+        <button class="pk-side-nav pk-side-prev" onclick="pmStep(-1)" aria-label="Previous pick"${at <= 0 ? ' disabled' : ''}>‹</button>
+        <button class="pk-side-nav pk-side-next" onclick="pmStep(1)" aria-label="Next pick"${at < 0 || at >= deck.length - 1 ? ' disabled' : ''}>›</button>
         <div class="pm" role="dialog" aria-modal="true">
           <button class="pm-x" onclick="closePick()" aria-label="Close">×</button>
           ${at >= 0 ? `<div class="pk-deck-count" style="padding-top:0.6rem">${at + 1} / ${deck.length}</div>` : ''}
