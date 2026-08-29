@@ -1618,7 +1618,7 @@
      dark ground and to stay distinguishable in the light theme. */
   :root {
     --pos-qb: #f2c94c; --pos-rb: #33d07c; --pos-wr: #58a6ff;
-    --pos-te: #ff9a4d; --pos-fb: #9db8cd;
+    --pos-te: #ff5d6c; --pos-fb: #9db8cd;
   }
   .posb { font-family: var(--font-m); font-size: 0.55rem; font-weight: 700; letter-spacing: 0.04em;
           padding: 0.08rem 0.34rem; border-radius: 4px; flex-shrink: 0;
@@ -1626,12 +1626,12 @@
           border: 1px solid color-mix(in srgb, var(--pc) 42%, transparent); }
   :root[data-theme="light"] {
     --pos-qb: #a8790a; --pos-rb: #10893f; --pos-wr: #1663c7;
-    --pos-te: #c25a08; --pos-fb: #5f7183;
+    --pos-te: #c62839; --pos-fb: #5f7183;
   }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
       --pos-qb: #a8790a; --pos-rb: #10893f; --pos-wr: #1663c7;
-      --pos-te: #c25a08; --pos-fb: #5f7183;
+      --pos-te: #c62839; --pos-fb: #5f7183;
     }
   }
   .posb.QB { --pc: var(--pos-qb); } .posb.RB { --pc: var(--pos-rb); }
@@ -1663,6 +1663,37 @@
   .pbc-od.dog { color: var(--gold); }
   .pbc-ft { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.45rem 0.85rem; background: var(--surface1); border-top: 1px solid var(--border); font-size: 0.57rem; color: var(--dim); letter-spacing: 0.03em; }
   @media (max-width: 520px) { .pbc-opp { display: none; } }
+
+  /* The inherited .due-filter-row is a wrapping flex container, which turns
+     each labelled row below into a flex ITEM and pairs them up two-per-line.
+     The panel owns its own layout. */
+  #picks-filter-row { display: block; }
+  /* ── Picks filter panel ───────────────────────────────────────────────────
+     One labelled row per control with hairline dividers, instead of every
+     group wrapping into a single undifferentiated field of pills. */
+  .pbf-row { display: grid; grid-template-columns: 5.6rem 1fr; align-items: start; gap: 0.75rem; padding: 0.55rem 0; border-top: 1px solid var(--border); }
+  .pbf-row:first-child { border-top: none; padding-top: 0.1rem; }
+  .pbf-lbl { font-family: var(--font-d); font-size: 0.8rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); text-align: right; padding-top: 0.22rem; }
+  .pbf-chips { display: flex; gap: 0.32rem; flex-wrap: wrap; align-items: center; }
+  .pbf-chip { background: var(--surface1); border: 1px solid var(--border2); color: var(--silver); font-family: var(--font-b); font-size: 0.66rem; font-weight: 700; padding: 0.26rem 0.66rem; border-radius: 7px; cursor: pointer; line-height: 1.25; transition: background 0.14s, color 0.14s, border-color 0.14s; }
+  .pbf-chip:hover { background: var(--surface2); color: var(--text-strong); }
+  .pbf-chip.on { background: var(--accent); border-color: var(--accent); color: #04120a; }
+  /* position chips wear their own hue, matching the badges on the board */
+  .pbf-chip.pos { color: var(--pc); border-color: color-mix(in srgb, var(--pc) 38%, transparent); background: color-mix(in srgb, var(--pc) 8%, var(--surface1)); }
+  .pbf-chip.pos:hover { background: color-mix(in srgb, var(--pc) 18%, var(--surface1)); }
+  .pbf-chip.pos.on { background: var(--pc); border-color: var(--pc); color: #08101a; }
+  .pbf-chip.pos.QB { --pc: var(--pos-qb); } .pbf-chip.pos.RB { --pc: var(--pos-rb); }
+  .pbf-chip.pos.WR { --pc: var(--pos-wr); } .pbf-chip.pos.TE { --pc: var(--pos-te); }
+  .pbf-chip.pos.FB { --pc: var(--pos-fb); }
+  .pbf-sel { background: var(--surface1); border: 1px solid var(--border2); color: var(--silver); font-family: var(--font-b); font-size: 0.66rem; font-weight: 700; padding: 0.26rem 0.5rem; border-radius: 7px; cursor: pointer; }
+  .pbf-hint { font-size: 0.58rem; color: var(--dim); margin-left: 0.15rem; align-self: center; }
+  .pbf-foot { display: flex; justify-content: flex-end; padding-top: 0.55rem; margin-top: 0.1rem; border-top: 1px solid var(--border); }
+  .pbf-reset { background: transparent; border: 1px solid var(--border2); color: var(--muted); font-family: var(--font-b); font-size: 0.62rem; font-weight: 700; padding: 0.22rem 0.7rem; border-radius: 7px; cursor: pointer; }
+  .pbf-reset:hover { color: var(--bad); border-color: var(--bad); }
+  @media (max-width: 560px) {
+    .pbf-row { grid-template-columns: 1fr; gap: 0.3rem; }
+    .pbf-lbl { text-align: left; font-size: 0.7rem; padding-top: 0; }
+  }
 
   .rc-card { display: flex; align-items: center; gap: 0.7rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.7rem; }
   .rc-photo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; object-position: center 18%; background: var(--surface2); flex-shrink: 0; }
@@ -2152,44 +2183,45 @@
     if (!row) return;
     const P = nflData?.picks;
     const teams = P?.picks ? [...new Set(P.picks.map(p => p.team))].sort() : [];
-    const chip = (on, label, fn, title = '') =>
-      `<button class="due-filter-chip${on ? ' active' : ''}" onclick="${fn}"${title ? ` title="${title}"` : ''}>${label}</button>`;
+    const chip = (on, label, fn, title = '', extra = '') =>
+      `<button class="pbf-chip${extra ? ' ' + extra : ''}${on ? ' on' : ''}" onclick="${fn}"${title ? ` title="${title}"` : ''}>${label}</button>`;
+
     const M = pbMkt();
     const mktChips = Object.entries(PB_MARKETS).map(([k, m]) =>
       chip(pbF.mkt === k, m.lab, `setPbF('mkt','${k}')`,
-           k === '2' ? 'Two or more touchdowns. Modelled as P(1+) x P(2+ given 1+), so it can never be shorter than the anytime price.'
+           k === '2' ? 'Two or more touchdowns. Built as P(1+) x P(2+ given 1+), so it can never be shorter than the anytime price.'
                      : 'At least one touchdown — rushing or receiving. For a quarterback that means a rushing score.')).join('');
-    const cutChips = M.cuts.map(c => chip(pbF.cut === c.v,
-      c.lab, `setPbF('cut',${c.v})`,
+    const cutChips = M.cuts.map(c => chip(pbF.cut === c.v, c.lab, `setPbF('cut',${c.v})`,
       c.v ? `${c.lab} or shorter — historically ${c.hit}% hit, about ${c.per} players a slate`
           : `Everyone on the board — ${M.base}% base rate`)).join('');
-    // Derived from the board rather than hardcoded — a fixed list is how QB
-    // went missing here after quarterbacks were added to the model.
     const ORDER = ['QB', 'RB', 'WR', 'TE', 'FB'];
     const onBoard = new Set((P?.picks || []).map(p => p.pos));
     const posChips = [
       chip(!pbF.pos.length, 'All', `togglePbPos('all')`, 'Every position'),
       ...ORDER.filter(v => onBoard.has(v)).map(v =>
-        chip(pbF.pos.includes(v), v, `togglePbPos('${v}')`, 'Toggle — combine as many as you like')),
+        chip(pbF.pos.includes(v), v, `togglePbPos('${v}')`, 'Toggle — combine as many as you like', 'pos ' + v)),
     ].join('');
     const sortChips = PB_SORTS.map(sm =>
       chip(pbF.sort === sm.v, sm.lab + (pbF.sort === sm.v ? (pbF.dir === 'desc' ? ' ↓' : ' ↑') : ''),
-           `setPbSort('${sm.v}')`)).join('');
+           `setPbSort('${sm.v}')`, pbF.sort === sm.v ? 'Click again to reverse' : '')).join('');
+
     const dirty = JSON.stringify({ ...pbF, pos: [...pbF.pos].sort() }) !== JSON.stringify({ ...PB_DEFAULTS, pos: [] });
     row.innerHTML = `
-      <div class="due-filter-group"><span class="due-filter-label" title="Which touchdown market to price.">Market</span><div class="due-filter-chips">${mktChips}</div></div>
-      <div class="due-filter-group"><span class="due-filter-label" title="Shortest price shown. Each cut lists the hit rate it produced in the backtest for this market.">Max price</span><div class="due-filter-chips">${cutChips}</div></div>
-      <div class="due-filter-group"><span class="due-filter-label">Position</span><div class="due-filter-chips">${posChips}</div></div>
-      <div class="due-filter-group"><span class="due-filter-label">Team</span><div class="due-filter-chips"><select class="fl-sel" onchange="setPbF('team',this.value)">
-        <option value="all">All teams</option>
-        ${teams.map(t => `<option value="${t}"${pbF.team === t ? ' selected' : ''}>${t}</option>`).join('')}
-      </select></div></div>
-      <div class="due-filter-group"><span class="due-filter-label">Sort</span><div class="due-filter-chips">${sortChips}</div></div>
-      ${dirty ? `<button class="due-filter-clear" onclick="clearPbF()">Reset ×</button>` : ''}`;
+      <div class="pbf-row"><span class="pbf-lbl">Market</span><div class="pbf-chips">${mktChips}</div></div>
+      <div class="pbf-row"><span class="pbf-lbl">Max price</span><div class="pbf-chips">${cutChips}
+        <span class="pbf-hint">${M.cuts.find(c => c.v === pbF.cut)?.v ? `≈${M.cuts.find(c => c.v === pbF.cut).hit}% hit` : `${M.base}% base`}</span></div></div>
+      <div class="pbf-row"><span class="pbf-lbl">Position</span><div class="pbf-chips">${posChips}
+        ${pbF.pos.length > 1 ? `<span class="pbf-hint">${pbF.pos.length} selected</span>` : ''}</div></div>
+      <div class="pbf-row"><span class="pbf-lbl">Team</span><div class="pbf-chips">
+        <select class="pbf-sel" onchange="setPbF('team',this.value)">
+          <option value="all">All teams</option>
+          ${teams.map(t => `<option value="${t}"${pbF.team === t ? ' selected' : ''}>${t}</option>`).join('')}
+        </select></div></div>
+      <div class="pbf-row"><span class="pbf-lbl">Sort</span><div class="pbf-chips">${sortChips}</div></div>
+      ${dirty ? `<div class="pbf-foot"><button class="pbf-reset" onclick="clearPbF()">Reset filters</button></div>` : ''}`;
     row.style.display = pbFiltersOpen ? '' : 'none';
     document.getElementById('picks-filters-chevron').classList.toggle('open', pbFiltersOpen);
     document.getElementById('picks-filters-toggle').setAttribute('aria-expanded', String(pbFiltersOpen));
-    // view is a display preference, not a filter — it lives in its own toolbar
     const n = ['mkt', 'team', 'cut', 'sort'].filter(k => pbF[k] !== PB_DEFAULTS[k]).length
             + (pbF.pos.length ? 1 : 0);
     const badge = document.getElementById('picks-filters-badge');
