@@ -1742,14 +1742,15 @@
         <span class="due-explainer-cta"></span>
         <span class="due-explainer-chevron" id="picks-explainer-chevron">▶</span>
       </div>
-      <div class="due-explainer-teaser">Every skill player on the slate, priced by his chance to score a touchdown.</div>
+      <div class="due-explainer-teaser">Every skill player on the slate, priced to score a touchdown — and to score two.</div>
       <div class="due-explainer-body" id="picks-explainer-body" style="display:none">
         <ul>
           <li><b>What the price is.</b> The modelled chance the player scores at least one <em>offensive</em> touchdown (rushing or receiving), shown as American odds with the raw probability beneath. These are <em>fair</em> odds with no vig — a real sportsbook will always price worse, and the gap is their margin.</li>
           <li><b>It is calibrated, not a rating.</b> Out-of-sample across 2017–2025 the number means what it says: players priced around 30% scored about 30% of the time. That is the whole point of showing a probability rather than a 0–100 grade.</li>
           <li><b>What drives it.</b> Overwhelmingly <em>recent snap share</em> — the share of his offense's plays he was on the field for over his last three games. That single input is about 87% of the signal. Then the game's implied team total (from the spread and total), his recent red-zone touches, and whether a same-position teammate has just been ruled out.</li>
           <li><b>What is deliberately absent.</b> Opponent defence, red-zone defence, pace, weather, home/away and blowout risk were each tested over ten seasons and none improved the forecast. Defensive touchdowns-allowed is close to pure noise year to year, and the implied total already prices the scoring environment.</li>
-          <li><b>Cut lines.</b> Each minimum-odds filter shows the hit rate that cut actually produced in the backtest — so tightening the board is a measured trade, not a guess.</li>
+          <li><b>Two markets.</b> <em>1+ TD</em> is the anytime price. <em>2+ TD</em> is built as the anytime price multiplied by the chance a scorer scores again — so it can never come out shorter than the anytime price, which two separately fitted models could easily get wrong. That second step is its own model and is nowhere near a constant: it runs from 8% to 28% across red-zone workload, and 23% for running backs against 11% for tight ends. Every card shows both prices.</li>
+          <li><b>Cut lines.</b> Each minimum-odds filter shows the hit rate that cut actually produced in the backtest for that market — so tightening the board is a measured trade, not a guess.</li>
           <li><b>Honest limits.</b> Fitted on 2016–2025 and never yet graded against a live week. It is also not measured against sportsbook prices, so a fair number is not the same thing as an edge.</li>
         </ul>
       </div>
@@ -1954,20 +1955,34 @@
   // Cut lines carry the hit rate that cut actually produced in the walk-forward
   // backtest (pooled out-of-sample 2017-2025, base rate 17.3%) — so tightening
   // the board is a measured trade rather than a guess.
-  const PB_CUTS = [
-    { v: 0,    lab: 'All',   hit: 17.3, per: 276 },
-    { v: 0.15, lab: '+567',  hit: 28.1, per: 130 },
-    { v: 0.20, lab: '+400',  hit: 32.1, per: 94 },
-    { v: 0.25, lab: '+300',  hit: 36.3, per: 65 },
-    { v: 0.30, lab: '+233',  hit: 40.7, per: 43 },
-    { v: 0.40, lab: '+150',  hit: 47.5, per: 17 },
-  ];
+  // Two markets. Anytime (1+) is the headline; 2+ is the natural follow-on —
+  // seeing a back at -150 to score immediately raises "what about two?".
+  // 2+ is modelled as P(1+) x P(2+|1+), so it can never exceed the 1+ price.
+  const PB_MARKETS = {
+    '1': { key: 'p', lab: '1+ TD', base: 17.3, cuts: [
+      { v: 0,    lab: 'All',   hit: 17.3, per: 276 },
+      { v: 0.15, lab: '+567',  hit: 28.1, per: 130 },
+      { v: 0.20, lab: '+400',  hit: 32.1, per: 94 },
+      { v: 0.25, lab: '+300',  hit: 36.3, per: 65 },
+      { v: 0.30, lab: '+233',  hit: 40.7, per: 43 },
+      { v: 0.40, lab: '+150',  hit: 47.5, per: 17 },
+    ] },
+    '2': { key: 'p2', lab: '2+ TD', base: 2.8, cuts: [
+      { v: 0,    lab: 'All',   hit: 2.8,  per: 308 },
+      { v: 0.05, lab: '+1900', hit: 9.2,  per: 55 },
+      { v: 0.08, lab: '+1150', hit: 14.1, per: 19 },
+      { v: 0.10, lab: '+900',  hit: 14.6, per: 17 },
+      { v: 0.15, lab: '+567',  hit: 19.7, per: 5 },
+    ] },
+  };
+  const pbMkt = () => PB_MARKETS[pbF.mkt] || PB_MARKETS['1'];
+  const pbP = (r) => r[pbMkt().key] ?? 0;
   const PB_SORTS = [
     { v: 'p',      lab: 'Price'     }, { v: 'snap3', lab: 'Snap %'    },
     { v: 'rz',     lab: 'RZ/g'      }, { v: 'imp',   lab: 'Team total' },
     { v: 'time',   lab: 'Game time' }, { v: 'name',  lab: 'Name'      },
   ];
-  const PB_DEFAULTS = { pos: 'all', team: 'all', cut: 0.25, sort: 'p', dir: 'desc', view: 'cards' };
+  const PB_DEFAULTS = { mkt: '1', pos: 'all', team: 'all', cut: 0.25, sort: 'p', dir: 'desc', view: 'cards' };
   let pbF = { ...PB_DEFAULTS };
   try { pbF = { ...pbF, ...JSON.parse(localStorage.getItem('nflPicksFilters') || '{}') }; } catch (e) {}
   const pbSave = () => { try { localStorage.setItem('nflPicksFilters', JSON.stringify(pbF)); } catch (e) {} };
@@ -1975,6 +1990,10 @@
 
   function setPbF(k, v) {
     pbF[k] = (k === 'cut') ? parseFloat(v) : v;
+    // 2+ prices live on a completely different scale — a 25% cut that shows 65
+    // players in the 1+ market shows none at all in 2+. Reset to that market's
+    // own default rather than stranding the user on an empty board.
+    if (k === 'mkt') pbF.cut = v === '2' ? 0.05 : 0.25;
     pbSave(); renderPicksFilters(); renderPicks();
   }
   function setPbSort(v) {
@@ -2018,18 +2037,18 @@
   // used to hand back a bare row with an undefined price and kickoff.
   function pbEnrich(p, gm) {
     const k = pbKick(gm[p.gameId]);
-    return { ...p, odds: pbOdds(p.p), kick: k.txt, ts: k.ts };
+    return { ...p, odds: pbOdds(p.p), odds2: pbOdds(p.p2), kick: k.txt, ts: k.ts };
   }
   function pbRows() {
     const P = nflData?.picks;
     if (!P || !P.picks) return [];
     const gm = pbGameMap();
     let rows = P.picks.map(p => pbEnrich(p, gm));
-    rows = rows.filter(r => r.p >= pbF.cut);
+    rows = rows.filter(r => pbP(r) >= pbF.cut);
     if (pbF.pos !== 'all') rows = rows.filter(r => r.pos === pbF.pos);
     if (pbF.team !== 'all') rows = rows.filter(r => r.team === pbF.team);
     const key = {
-      p: r => r.p, snap3: r => r.f?.snap3 ?? 0, rz: r => r.f?.rz ?? 0,
+      p: r => pbP(r), snap3: r => r.f?.snap3 ?? 0, rz: r => r.f?.rz ?? 0,
       imp: r => r.f?.implied ?? 0, time: r => r.ts, name: r => r.name.toLowerCase(),
     }[pbF.sort] || (r => r.p);
     const dir = pbF.dir === 'asc' ? 1 : -1;
@@ -2037,7 +2056,7 @@
       const x = key(a), y = key(b);
       if (x < y) return -1 * dir;
       if (x > y) return 1 * dir;
-      return b.p - a.p;                       // price is the stable tiebreak
+      return pbP(b) - pbP(a);                 // price is the stable tiebreak
     });
     return rows;
   }
@@ -2049,10 +2068,15 @@
     const teams = P?.picks ? [...new Set(P.picks.map(p => p.team))].sort() : [];
     const chip = (on, label, fn, title = '') =>
       `<button class="due-filter-chip${on ? ' active' : ''}" onclick="${fn}"${title ? ` title="${title}"` : ''}>${label}</button>`;
-    const cutChips = PB_CUTS.map(c => chip(pbF.cut === c.v,
+    const M = pbMkt();
+    const mktChips = Object.entries(PB_MARKETS).map(([k, m]) =>
+      chip(pbF.mkt === k, m.lab, `setPbF('mkt','${k}')`,
+           k === '2' ? 'Two or more touchdowns. Modelled as P(1+) x P(2+ given 1+), so it can never be shorter than the anytime price.'
+                     : 'At least one touchdown — rushing or receiving. For a quarterback that means a rushing score.')).join('');
+    const cutChips = M.cuts.map(c => chip(pbF.cut === c.v,
       c.lab, `setPbF('cut',${c.v})`,
       c.v ? `${c.lab} or shorter — historically ${c.hit}% hit, about ${c.per} players a slate`
-          : `Everyone on the board — 17.3% base rate`)).join('');
+          : `Everyone on the board — ${M.base}% base rate`)).join('');
     // Derived from the board rather than hardcoded — a fixed list is how QB
     // went missing here after quarterbacks were added to the model.
     const ORDER = ['QB', 'RB', 'WR', 'TE', 'FB'];
@@ -2066,7 +2090,8 @@
       chip(pbF.view === v, l, `setPbF('view','${v}')`)).join('');
     const dirty = JSON.stringify(pbF) !== JSON.stringify(PB_DEFAULTS);
     row.innerHTML = `
-      <div class="due-filter-group"><span class="due-filter-label" title="Shortest price shown. Each cut lists the hit rate it produced in the backtest.">Max price</span><div class="due-filter-chips">${cutChips}</div></div>
+      <div class="due-filter-group"><span class="due-filter-label" title="Which touchdown market to price.">Market</span><div class="due-filter-chips">${mktChips}</div></div>
+      <div class="due-filter-group"><span class="due-filter-label" title="Shortest price shown. Each cut lists the hit rate it produced in the backtest for this market.">Max price</span><div class="due-filter-chips">${cutChips}</div></div>
       <div class="due-filter-group"><span class="due-filter-label">Position</span><div class="due-filter-chips">${posChips}</div></div>
       <div class="due-filter-group"><span class="due-filter-label">Team</span><div class="due-filter-chips"><select class="fl-sel" onchange="setPbF('team',this.value)">
         <option value="all">All teams</option>
@@ -2078,14 +2103,16 @@
     row.style.display = pbFiltersOpen ? '' : 'none';
     document.getElementById('picks-filters-chevron').classList.toggle('open', pbFiltersOpen);
     document.getElementById('picks-filters-toggle').setAttribute('aria-expanded', String(pbFiltersOpen));
-    const n = ['pos', 'team', 'cut', 'sort', 'view'].filter(k => pbF[k] !== PB_DEFAULTS[k]).length;
+    const n = ['mkt', 'pos', 'team', 'cut', 'sort', 'view'].filter(k => pbF[k] !== PB_DEFAULTS[k]).length;
     const badge = document.getElementById('picks-filters-badge');
     badge.style.display = n ? 'inline-flex' : 'none';
     badge.textContent = n;
   }
 
   function pbCard(r, i) {
-    const dog = r.p < 0.5;
+    const M = pbMkt(); const shown = pbP(r);
+    const dog = shown < 0.5;
+    const other = pbF.mkt === '1' ? `2+ ${r.odds2}` : `1+ ${r.odds}`;
     const f = r.f || {};
     const facts = `<span class="pb-f" title="Share of his offense's snaps over his last three games — the model's dominant input"><b>${Math.round((f.snap3 ?? 0) * 100)}%</b> snaps</span>
       <span class="pb-f" title="Red-zone touches per game (rushes + targets inside the 20)"><b>${(f.rz ?? 0).toFixed(1)}</b> rz/g</span>
@@ -2098,21 +2125,22 @@
         <div class="pb-line">${r.home ? `${r.team} vs ${r.opp}` : `${r.team} @ ${r.opp}`}${r.kick ? ' · ' + r.kick : ''}</div>
       </div>
       <div class="pb-facts">${facts}</div>
-      <div class="pb-price"><span class="pb-odds${dog ? ' dog' : ''}">${r.odds}</span><span class="pb-pct">${Math.round(r.p * 100)}%</span></div>
+      <div class="pb-price"><span class="pb-odds${dog ? ' dog' : ''}">${pbOdds(shown)}</span><span class="pb-pct">${(shown * 100).toFixed(shown < 0.1 ? 1 : 0)}% · ${other}</span></div>
     </div>`;
   }
 
   function pbTable(rows) {
     const th = (v, lab, cls = '') => `<th class="${cls}${pbF.sort === v ? ' on' : ''}" onclick="setPbSort('${v}')">${lab}${pbF.sort === v ? `<span class="ar">${pbF.dir === 'desc' ? '▼' : '▲'}</span>` : ''}</th>`;
     return `<div class="pb-tablewrap"><table class="pb-table">
-      <thead><tr><th>#</th>${th('name', 'Player')}<th>Pos</th>${th('time', 'Game')}${th('p', 'Price')}<th>Win%</th>${th('snap3', 'Snap%')}${th('rz', 'RZ/g')}${th('imp', 'Total')}</tr></thead>
+      <thead><tr><th>#</th>${th('name', 'Player')}<th>Pos</th>${th('time', 'Game')}${th('p', 'Price')}<th>Win%</th><th>${pbF.mkt === '1' ? '2+' : '1+'}</th>${th('snap3', 'Snap%')}${th('rz', 'RZ/g')}${th('imp', 'Total')}</tr></thead>
       <tbody>${rows.map((r, i) => `<tr onclick="openPick('${r.pid}')">
         <td class="num">${i + 1}</td>
         <td class="nm">${r.name}${r.f?.newAbsence ? ' <span class="pb-flag">ROLE OPEN</span>' : ''}</td>
         <td>${r.pos}</td>
         <td>${r.home ? `${r.team} vs ${r.opp}` : `${r.team} @ ${r.opp}`}${r.kick ? ` <span style="color:var(--dim)">${r.kick}</span>` : ''}</td>
-        <td class="od${r.p < 0.5 ? ' dog' : ''}">${r.odds}</td>
-        <td class="num">${Math.round(r.p * 100)}%</td>
+        <td class="od${pbP(r) < 0.5 ? ' dog' : ''}">${pbOdds(pbP(r))}</td>
+        <td class="num">${(pbP(r) * 100).toFixed(pbP(r) < 0.1 ? 1 : 0)}%</td>
+        <td class="num" style="color:var(--dim)">${pbF.mkt === '1' ? r.odds2 : r.odds}</td>
         <td class="num">${Math.round((r.f?.snap3 ?? 0) * 100)}%</td>
         <td class="num">${(r.f?.rz ?? 0).toFixed(1)}</td>
         <td class="num">${(r.f?.implied ?? 0).toFixed(1)}</td>
@@ -2124,7 +2152,7 @@
       <span class="pb-crank">${i + 1}</span>
       <span class="pb-cnm">${r.name}</span>
       <span class="pb-cmeta">${r.pos} · ${r.team}${r.home ? ' vs ' : ' @ '}${r.opp}</span>
-      <span class="pb-cod${r.p < 0.5 ? ' dog' : ''}">${r.odds}</span>
+      <span class="pb-cod${pbP(r) < 0.5 ? ' dog' : ''}">${pbOdds(pbP(r))}</span>
     </div>`).join('')}</div>`;
   }
 
@@ -2247,6 +2275,14 @@
             </div>
             <div class="pm-tot"><span>A league-average ${r.pos} in a neutral spot starts at ${(basePct * 100).toFixed(0)}%. These factors take him to</span><b>${(r.p * 100).toFixed(1)}%</b></div>
             ${r.pRaw != null && Math.abs(r.p - r.pRaw) >= 0.005 ? `<p class="pm-note" style="margin-top:0.5rem">The model itself said <b>${(r.pRaw * 100).toFixed(1)}%</b>. It is known to run hot on favourites, so a recalibration fit on out-of-sample results trims it to <b>${(r.p * 100).toFixed(1)}%</b> — which is the price shown.</p>` : ''}
+            <div class="pm-h">Both markets</div>
+            <p class="pm-note">The 2+ price is the anytime price multiplied by the chance a scorer scores again. That second step is its own model — it is nowhere near a constant, running from 8% to 28% across red-zone workload, and 23% for backs against 11% for tight ends.</p>
+            <table class="pm-tbl">
+              <tr><td class="k">1+ TD (anytime)</td><td class="v">${r.odds} · ${(r.p * 100).toFixed(1)}%</td></tr>
+              <tr><td class="k">If he scores, a second</td><td class="v">${((r.pCond2 ?? 0) * 100).toFixed(0)}%</td></tr>
+              <tr><td class="k">2+ TD</td><td class="v">${r.odds2} · ${((r.p2 ?? 0) * 100).toFixed(1)}%</td></tr>
+              <tr><td class="d" colspan="2">Because the 2+ price is built from the 1+ price it can never be the shorter of the two, which a pair of independently fitted models could easily get wrong.</td></tr>
+            </table>
             <div class="pm-h">The inputs</div>
             <table class="pm-tbl">${inputRows}</table>
             <div class="pm-h">Worth knowing</div>
@@ -2279,7 +2315,7 @@
       return;
     }
     const rows = pbRows();
-    const cut = PB_CUTS.find(c => c.v === pbF.cut);
+    const cut = pbMkt().cuts.find(c => c.v === pbF.cut);
     // An empty board is usually the price cut, not an empty pool — quarterbacks
     // in particular are all longer than the default +300. Say what would bring
     // them back instead of leaving a dead end.
@@ -2290,10 +2326,10 @@
       if (pbF.team !== 'all') pool = pool.filter(x => x.team === pbF.team);
       if (!pool.length) return '<div class="empty">Nobody on the board matches that filter.</div>';
       const best = pool.reduce((a, b) => (b.p > a.p ? b : a));
-      const cut = PB_CUTS.find(c => c.v === pbF.cut);
-      const wider = PB_CUTS.filter(c => c.v <= best.p).sort((a, b) => b.v - a.v)[0];
+      const cut = pbMkt().cuts.find(c => c.v === pbF.cut);
+      const wider = pbMkt().cuts.filter(c => c.v <= pbP(best)).sort((a, b) => b.v - a.v)[0];
       return `<div class="empty">Nothing here is shorter than <b>${cut ? cut.lab : ''}</b>.
-        The shortest is <b>${best.odds}</b> (${best.name}).
+        The shortest is <b>${pbOdds(pbP(best))}</b> (${best.name}).
         ${wider ? `<a href="javascript:void(0)" onclick="setPbF('cut',${wider.v})">Widen to ${wider.v ? wider.lab : 'the full board'} →</a>` : ''}</div>`;
     })()
       : pbF.view === 'table' ? pbTable(rows)
@@ -2302,10 +2338,10 @@
     el.innerHTML = `
       <div class="pb-head">
         <span class="pb-week">${WK_LABEL(P.week)}</span>
-        <span class="pb-meta">${P.season} · ${rows.length} shown · fair odds, no vig</span>
+        <span class="pb-meta">${P.season} · ${pbMkt().lab} · ${rows.length} shown · fair odds, no vig</span>
       </div>
-      ${cut && cut.v ? `<div class="pb-cutnote">At <b>${cut.lab}</b> or shorter, this model historically hit <b>${cut.hit}%</b> — against a <b>17.3%</b> base rate.</div>`
-                     : `<div class="pb-cutnote">Full board. Base rate is <b>17.3%</b>.</div>`}
+      ${cut && cut.v ? `<div class="pb-cutnote">At <b>${cut.lab}</b> or shorter, ${pbMkt().lab} historically hit <b>${cut.hit}%</b> — against a <b>${pbMkt().base}%</b> base rate.</div>`
+                     : `<div class="pb-cutnote">Full board. ${pbMkt().lab} base rate is <b>${pbMkt().base}%</b>.</div>`}
       ${body}`;
   }
 

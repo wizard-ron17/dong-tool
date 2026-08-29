@@ -133,15 +133,32 @@ export function playerFeatures({ pid, position, season, week, snapLog, rzLog,
   };
 }
 
-/** Linear interpolation along the isotonic step function. */
-export function calibrate(p) {
-  const { x, y } = CALIB;
+/** Linear interpolation along an isotonic step function. */
+function interpMap(p, x, y) {
   if (p <= x[0]) return y[0];
   if (p >= x[x.length - 1]) return y[y.length - 1];
   let i = 1;
   while (i < x.length && x[i] < p) i++;
   const t = (p - x[i - 1]) / (x[i] - x[i - 1]);
   return y[i - 1] + t * (y[i] - y[i - 1]);
+}
+export const calibrate  = (p) => interpMap(p, CALIB.x, CALIB.y);
+export const calibrate2 = (p) => interpMap(p, CALIB.x2, CALIB.y2);
+
+/**
+ * P(>=2 TD | >=1 TD). Modelled as a conditional so P(2+) = P(1+) * this can
+ * never exceed P(1+). It is emphatically not a constant — it runs from 8% to
+ * 28% across red-zone quintiles, and RB 22.7% vs TE 10.9%.
+ */
+export function scoreCond2(row) {
+  const C = MODEL.cond2;
+  let z = C.coef.intercept;
+  if (row.position !== MODEL.reference_position) z += C.coef[`pos_${row.position}`] ?? 0;
+  for (const f of MODEL.features) {
+    const s = C.scale[f];
+    z += C.coef[f] * ((row[f] - s.mean) / s.sd);
+  }
+  return 1 / (1 + Math.exp(-Math.max(-30, Math.min(30, z))));
 }
 
 export function score(row) {
@@ -352,6 +369,9 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
       // arithmetic and then the calibration step as a separate, visible move.
       p: +calibrate(score(row)).toFixed(6),
       pRaw: +score(row).toFixed(6),
+      // the 2+ market, coherent with the 1+ price by construction
+      p2: +calibrate2(calibrate(score(row)) * scoreCond2(row)).toFixed(6),
+      pCond2: +scoreCond2(row).toFixed(6),
       // Factors, for the UI. Kept at enough precision that the modal's
       // log-odds waterfall reconstructs the shipped price exactly — it claims
       // the bars sum with nothing left over, so they have to.
@@ -392,6 +412,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
       trained_on: MODEL.trained_on, base_rate: MODEL.base_rate,
       features: MODEL.features, coef: MODEL.coef, scale: MODEL.scale,
       reference_position: MODEL.reference_position, calibrated: true,
+      cond2: MODEL.cond2, markets: ['1+', '2+'],
     },
     picks,
   };

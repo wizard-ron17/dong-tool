@@ -62,13 +62,39 @@ def isotonic(x, y, w=None):
     return x, out
 
 
+def fit_map(p, y, bins=200, knots=KNOTS):
+    """Monotone p -> calibrated p, robust in a thin tail.
+
+    Two details matter, both learned the hard way on the 2+ market, whose
+    predictions are wildly skewed (median 0.013, max 0.43):
+
+    * Bin to equal-count bins BEFORE the isotonic fit. Fitting on raw points
+      lets a single lucky observation at the extreme set the top of the curve.
+    * Place the exported knots uniformly in p, not at quantiles. Quantile knots
+      crowd into the dense low end and leave the tail spanned by one segment,
+      so everything from 0.14 up got interpolated toward a 0.75 endpoint —
+      turning a -4pp bias into a +21pp one.
+    """
+    p = np.asarray(p, float); y = np.asarray(y, float)
+    o = np.argsort(p, kind="mergesort")
+    p, y = p[o], y[o]
+    edges = np.linspace(0, len(p), min(bins, max(2, len(p) // 50)) + 1).astype(int)
+    bp, by, bw = [], [], []
+    for a, b in zip(edges[:-1], edges[1:]):
+        if b <= a:
+            continue
+        bp.append(p[a:b].mean()); by.append(y[a:b].mean()); bw.append(b - a)
+    bx, bf = isotonic(np.array(bp), np.array(by), np.array(bw, float))
+    xs = np.linspace(bx[0], bx[-1], knots)
+    ys = np.maximum.accumulate(np.interp(xs, bx, bf))
+    keep = np.concatenate([[True], np.diff(xs) > 1e-9])
+    return xs[keep].tolist(), ys[keep].tolist()
+
+
 def to_steps(x, fitted, knots=KNOTS):
-    """Compress the step function to `knots` breakpoints for shipping."""
-    qs = np.linspace(0, 1, knots)
-    xs = np.quantile(x, qs)
-    ys = np.interp(xs, x, fitted)
-    ys = np.maximum.accumulate(ys)                 # keep it monotone after interp
-    # dedupe on x
+    """Kept for callers that already have an isotonic fit."""
+    xs = np.linspace(x[0], x[-1], knots)
+    ys = np.maximum.accumulate(np.interp(xs, x, fitted))
     keep = np.concatenate([[True], np.diff(xs) > 1e-9])
     return xs[keep].tolist(), ys[keep].tolist()
 
@@ -96,7 +122,7 @@ def main():
     ev = []
     for S in seasons[2:]:
         prior = pd.concat([oos[s] for s in seasons[1:] if s < S])
-        xs, ys = to_steps(*isotonic(prior["p"].to_numpy(), prior["scored"].to_numpy(float)))
+        xs, ys = fit_map(prior["p"].to_numpy(), prior["scored"].to_numpy(float))
         t = oos[S].copy()
         t["pc"] = apply_steps(t["p"].to_numpy(), xs, ys)
         ev.append(t)
@@ -123,14 +149,48 @@ def main():
 
     # deployment map: fit on every out-of-sample prediction we have
     allp = pd.concat([oos[s] for s in seasons[1:]])
-    xs, ys = to_steps(*isotonic(allp["p"].to_numpy(), allp["scored"].to_numpy(float)))
-    json.dump({"x": xs, "y": ys,
+    xs, ys = fit_map(allp["p"].to_numpy(), allp["scored"].to_numpy(float))
+
+    # ── the 2+ market ────────────────────────────────────────────────────
+    # P(2+) = calibrated P(1+) * P(2+|1+), then its own isotonic. Its drift is
+    # far milder than the 1+ model's (-4.3pp at the top vs -21.6pp) but it is
+    # the same kind of top-end over-confidence, so correct it the same way.
+    oos2 = {}
+    for S in seasons[1:]:
+        tr, te = df[df.season < S], df[df.season == S]
+        X1, mu, sd = design(tr, F)
+        Xt1, _, _ = design(te, F, mu, sd)
+        w1 = fit_logistic(X1, tr["scored"].to_numpy(float))
+        p1 = apply_steps(predict(Xt1, w1), xs, ys)
+        sc = tr[tr.scored == 1]
+        Xc, mc, sc_ = design(sc, F)
+        Xtc, _, _ = design(te, F, mc, sc_)
+        wc = fit_logistic(Xc, (sc["tds"] >= 2).to_numpy(float))
+        t = te.copy()
+        t["p2"] = p1 * predict(Xtc, wc)
+        t["m2"] = (te["tds"] >= 2).astype(int)
+        oos2[S] = t
+    all2 = pd.concat(oos2.values())
+    x2, y2 = fit_map(all2["p2"].to_numpy(), all2["m2"].to_numpy(float))
+
+    json.dump({"x": xs, "y": ys, "x2": x2, "y2": y2,
                "note": "isotonic recalibration fit on walk-forward out-of-sample "
-                       "predictions; corrects top-end over-confidence"},
+                       "predictions; x/y for P(>=1 TD), x2/y2 for P(>=2 TD). "
+                       "Corrects top-end over-confidence in both."},
               open(OUT, "w"), indent=1)
-    print(f"\nwrote {OUT} ({len(xs)} knots)")
+    print(f"\nwrote {OUT} ({len(xs)} + {len(x2)} knots)")
     for q in (0.3, 0.5, 0.6, 0.7, 0.78):
-        print(f"  {q:.0%} raw -> {apply_steps(np.array([q]), xs, ys)[0]:.1%} calibrated")
+        print(f"  1+ : {q:.0%} raw -> {apply_steps(np.array([q]), xs, ys)[0]:.1%} calibrated")
+    print(f"\n2+ market, out of sample:")
+    yy = all2["m2"].to_numpy(float)
+    pc2 = apply_steps(all2["p2"].to_numpy(), x2, y2)
+    print(f"  log loss {log_loss(yy, all2.p2.to_numpy()):.5f} -> {log_loss(yy, pc2):.5f}")
+    for lo, hi in [(0.10, 0.15), (0.15, 0.25), (0.25, 1.01)]:
+        g = all2[(all2.p2 >= lo) & (all2.p2 < hi)]
+        if not len(g):
+            continue
+        c = apply_steps(g.p2.to_numpy(), x2, y2)
+        print(f"  {lo:.0%}-{hi:.0%}: n={len(g):>5} raw {g.p2.mean():.1%} -> cal {c.mean():.1%}  actual {g.m2.mean():.1%}")
 
 
 if __name__ == "__main__":
