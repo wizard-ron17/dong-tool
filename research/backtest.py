@@ -36,7 +36,7 @@ import pandas as pd
 
 DATA = os.path.join(os.path.dirname(__file__), "dataset.parquet")
 RIDGE = 1e-4
-POS = ["RB", "WR", "TE", "FB"]
+POS = ["RB", "WR", "TE", "QB", "FB"]
 
 
 def fit_logistic(X, y, ridge=RIDGE, iters=50, tol=1e-9):

@@ -1554,6 +1554,50 @@
     .pb-odds { font-size: 1.28rem; }
   }
 
+  /* ── Pick modal ───────────────────────────────────────────────────────── */
+  .pm-back { position: fixed; inset: 0; background: rgba(0,0,0,0.62); backdrop-filter: blur(3px); z-index: 300; display: flex; align-items: flex-start; justify-content: center; padding: 2.5rem 1rem; overflow-y: auto; }
+  .pm { background: var(--surface0); border: 1px solid var(--border2); border-radius: 14px; width: 100%; max-width: 560px; box-shadow: 0 18px 50px rgba(0,0,0,0.55); }
+  .pm-hd { display: flex; align-items: center; gap: 0.7rem; padding: 0.85rem 1rem; border-bottom: 1px solid var(--border); }
+  .pm-hd-info { flex: 1; min-width: 0; }
+  .pm-nm { font-family: var(--font-d); font-size: 1.35rem; font-weight: 900; color: var(--text-strong); line-height: 1.1; }
+  .pm-sub { font-size: 0.68rem; color: var(--muted); margin-top: 0.15rem; }
+  .pm-price { text-align: right; }
+  .pm-od { font-family: var(--font-d); font-size: 1.9rem; font-weight: 900; line-height: 1; color: var(--good); }
+  .pm-od.dog { color: var(--silver); }
+  .pm-pct { font-family: var(--font-m); font-size: 0.64rem; color: var(--dim); }
+  .pm-x { background: none; border: none; color: var(--dim); font-size: 1.5rem; line-height: 1; cursor: pointer; padding: 0 0.2rem; }
+  .pm-x:hover { color: var(--text); }
+  .pm-body { padding: 0.9rem 1rem 1.1rem; }
+  .pm-h { font-family: var(--font-d); font-size: 0.98rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin: 1rem 0 0.4rem; }
+  .pm-h:first-child { margin-top: 0; }
+  .pm-note { font-size: 0.68rem; color: var(--muted); line-height: 1.5; margin: 0 0 0.6rem; }
+
+  /* waterfall: every bar is an exact log-odds contribution */
+  .pm-wf { display: flex; flex-direction: column; gap: 0.3rem; }
+  .pm-row { display: grid; grid-template-columns: 5.6rem 1fr 3.2rem; align-items: center; gap: 0.5rem; font-size: 0.7rem; }
+  .pm-lab { color: var(--silver); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pm-lab.base { color: var(--muted); }
+  .pm-bar { position: relative; height: 17px; background: var(--surface1); border-radius: 4px; overflow: hidden; }
+  .pm-bar .mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--border2); }
+  .pm-fill { position: absolute; top: 2px; bottom: 2px; border-radius: 3px; }
+  .pm-fill.pos { background: var(--good); }
+  .pm-fill.neg { background: var(--bad); }
+  .pm-fill.neut { background: var(--border2); }
+  .pm-val { font-family: var(--font-m); font-size: 0.64rem; text-align: right; }
+  .pm-val.pos { color: var(--good); } .pm-val.neg { color: var(--bad); } .pm-val.neut { color: var(--dim); }
+  .pm-tot { display: flex; justify-content: space-between; align-items: baseline; margin-top: 0.55rem; padding-top: 0.5rem; border-top: 1px solid var(--border); font-size: 0.72rem; color: var(--muted); }
+  .pm-tot b { font-family: var(--font-d); font-size: 1.15rem; color: var(--text-strong); }
+
+  .pm-tbl { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+  .pm-tbl td { padding: 0.32rem 0.4rem; border-bottom: 1px solid var(--border); color: var(--silver); }
+  .pm-tbl tr:last-child td { border-bottom: none; }
+  .pm-tbl td.k { color: var(--text-strong); font-weight: 700; white-space: nowrap; }
+  .pm-tbl td.v { font-family: var(--font-m); text-align: right; white-space: nowrap; }
+  .pm-tbl td.d { color: var(--muted); font-size: 0.65rem; line-height: 1.4; }
+  /* rank-in-pool pip */
+  .pm-pip { display: inline-block; height: 5px; border-radius: 3px; background: var(--accent); vertical-align: middle; margin-left: 0.35rem; }
+  .pb-card, .pb-crow, .pb-table tbody tr { cursor: pointer; }
+
   .rc-card { display: flex; align-items: center; gap: 0.7rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.7rem; }
   .rc-photo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; object-position: center 18%; background: var(--surface2); flex-shrink: 0; }
   .rc-noface { display: flex; align-items: center; justify-content: center; font-family: var(--font-d); font-weight: 800; color: var(--muted); }
@@ -1969,14 +2013,18 @@
     return { txt: `${(g.weekday || '').slice(0, 3)} ${t}`.trim(), ts };
   }
 
+  // Odds and kickoff are display fields, added in one place so the modal cannot
+  // disagree with the board — opening a pick filtered out of the current view
+  // used to hand back a bare row with an undefined price and kickoff.
+  function pbEnrich(p, gm) {
+    const k = pbKick(gm[p.gameId]);
+    return { ...p, odds: pbOdds(p.p), kick: k.txt, ts: k.ts };
+  }
   function pbRows() {
     const P = nflData?.picks;
     if (!P || !P.picks) return [];
     const gm = pbGameMap();
-    let rows = P.picks.map(p => {
-      const k = pbKick(gm[p.gameId]);
-      return { ...p, odds: pbOdds(p.p), kick: k.txt, ts: k.ts };
-    });
+    let rows = P.picks.map(p => pbEnrich(p, gm));
     rows = rows.filter(r => r.p >= pbF.cut);
     if (pbF.pos !== 'all') rows = rows.filter(r => r.pos === pbF.pos);
     if (pbF.team !== 'all') rows = rows.filter(r => r.team === pbF.team);
@@ -2039,7 +2087,7 @@
       <span class="pb-f" title="Red-zone touches per game (rushes + targets inside the 20)"><b>${(f.rz ?? 0).toFixed(1)}</b> rz/g</span>
       <span class="pb-f" title="Vegas implied points for his team"><b>${(f.implied ?? 0).toFixed(1)}</b> imp</span>`;
     const flag = f.newAbsence ? `<span class="pb-flag" title="A same-position teammate has just been ruled out — his role may be bigger than his recent snaps show">ROLE OPEN</span>` : '';
-    return `<div class="pb-card">
+    return `<div class="pb-card" onclick="openPick('${r.pid}')">
       <div class="pb-rank">${i}</div>${faceHtml(r.pid, r.name)}
       <div class="pb-info">
         <div class="pb-nm">${r.name}<span class="pb-pos">${r.pos}</span>${flag}</div>
@@ -2054,7 +2102,7 @@
     const th = (v, lab, cls = '') => `<th class="${cls}${pbF.sort === v ? ' on' : ''}" onclick="setPbSort('${v}')">${lab}${pbF.sort === v ? `<span class="ar">${pbF.dir === 'desc' ? '▼' : '▲'}</span>` : ''}</th>`;
     return `<div class="pb-tablewrap"><table class="pb-table">
       <thead><tr><th>#</th>${th('name', 'Player')}<th>Pos</th>${th('time', 'Game')}${th('p', 'Price')}<th>Win%</th>${th('snap3', 'Snap%')}${th('rz', 'RZ/g')}${th('imp', 'Total')}</tr></thead>
-      <tbody>${rows.map((r, i) => `<tr>
+      <tbody>${rows.map((r, i) => `<tr onclick="openPick('${r.pid}')">
         <td class="num">${i + 1}</td>
         <td class="nm">${r.name}${r.f?.newAbsence ? ' <span class="pb-flag">ROLE OPEN</span>' : ''}</td>
         <td>${r.pos}</td>
@@ -2068,13 +2116,151 @@
   }
 
   function pbCompact(rows) {
-    return `<div class="pb-compact">${rows.map((r, i) => `<div class="pb-crow">
+    return `<div class="pb-compact">${rows.map((r, i) => `<div class="pb-crow" onclick="openPick('${r.pid}')">
       <span class="pb-crank">${i + 1}</span>
       <span class="pb-cnm">${r.name}</span>
       <span class="pb-cmeta">${r.pos} · ${r.team}${r.home ? ' vs ' : ' @ '}${r.opp}</span>
       <span class="pb-cod${r.p < 0.5 ? ' dog' : ''}">${r.odds}</span>
     </div>`).join('')}</div>`;
   }
+
+  // ── Pick modal ──────────────────────────────────────────────────────────
+  // A logistic model is additive in log-odds, so each feature's push is exactly
+  // coef * (x - mean) / sd. Nothing here is a heuristic or a re-fit — it is the
+  // same arithmetic that produced the price, shown one term at a time.
+  const PM_LABELS = {
+    snap_last3:       ['Recent snaps',  r => Math.round((r.f?.snap3 ?? 0) * 100) + '% of plays', 'Share of his offense\'s snaps over the last three games. About 87% of the model\'s signal lives here.'],
+    snap_share_prior: ['Career snaps',  r => Math.round((r.f?.snapPrior ?? 0) * 100) + '%',      'His longer-run snap share, shrunk toward his position when the sample is thin. A correction on the recent window.'],
+    rz_touches_prior: ['Red zone',      r => (r.f?.rz ?? 0).toFixed(2) + ' touches/g',           'Rushes plus targets inside the 20, per game. For a quarterback this is the whole story — it is what separates a runner from a pocket passer.'],
+    implied_total:    ['Team total',    r => (r.f?.implied ?? 0).toFixed(1) + ' pts',            'Points his team is implied to score, from the game total and spread. The only market input, and it prices the matchup better than any defensive stat tested.'],
+    mates_out:        ['Mates out',     r => String(r.f?.matesOut ?? 0),                          'Same-position teammates ruled out or doubtful this week.'],
+    new_absence:      ['Role opened',   r => (r.f?.newAbsence ? 'yes' : 'no'),                    'Whether that absence is new this week — the case where recent snaps have not yet caught up to a vacated role.'],
+  };
+  const pmLogit = (p) => Math.log(Math.min(Math.max(p, 1e-9), 1 - 1e-9) / (1 - Math.min(Math.max(p, 1e-9), 1 - 1e-9)));
+  let pmOpen = null;
+
+  function pmContribs(r, M) {
+    const c = M.coef, out = [];
+    let z = c.intercept;
+    const posC = r.pos === M.reference_position ? 0 : (c['pos_' + r.pos] ?? 0);
+    z += posC;
+    const base = z;                                     // intercept + position
+    const raw = {
+      snap_last3: r.f?.snap3, snap_share_prior: r.f?.snapPrior,
+      rz_touches_prior: r.f?.rz, implied_total: r.f?.implied,
+      mates_out: r.f?.matesOut, new_absence: r.f?.newAbsence,
+    };
+    for (const f of M.features) {
+      const sc = M.scale[f];
+      const d = (c[f] ?? 0) * (((raw[f] ?? 0) - sc.mean) / sc.sd);
+      out.push({ f, d });
+      z += d;
+    }
+    return { base, parts: out, z };
+  }
+
+  function openPick(pid) {
+    const P = nflData?.picks; if (!P) return;
+    const raw = P.picks.find(x => x.pid === pid);
+    if (!raw || !P.model?.coef) return;
+    const r = pbEnrich(raw, pbGameMap());   // never trust the filtered view here
+    if (!r) return;
+    pmOpen = pid;
+    const M = P.model;
+    const { base, parts, z } = pmContribs(r, M);
+    const sig = (x) => 1 / (1 + Math.exp(-x));
+    const basePct = sig(base);
+
+    // scale bars against the largest absolute push so the biggest one fills
+    const maxAbs = Math.max(0.35, ...parts.map(p => Math.abs(p.d)));
+    const bar = (d) => {
+      const w = Math.min(50, Math.abs(d) / maxAbs * 50);
+      const cls = Math.abs(d) < 0.02 ? 'neut' : d > 0 ? 'pos' : 'neg';
+      const style = d >= 0 ? `left:50%;width:${w}%` : `right:50%;width:${w}%`;
+      return `<div class="pm-bar"><div class="mid"></div><div class="pm-fill ${cls}" style="${style}"></div></div>`;
+    };
+    // The raw model runs hot on favourites — out of sample it said 75% where
+    // 60% happened — so a monotone recalibration sits on the end. Show it as its
+    // own step rather than folding it in silently.
+    if (r.pRaw != null && Math.abs(r.p - r.pRaw) >= 0.005)
+      parts.push({ f: '__calib', d: pmLogit(r.p) - pmLogit(r.pRaw) });
+    const rowsHtml = parts.map(p => {
+      const isCal = p.f === '__calib';
+      const [lab] = isCal ? ['Calibration'] : (PM_LABELS[p.f] || [p.f]);
+      const cls = Math.abs(p.d) < 0.02 ? 'neut' : p.d > 0 ? 'pos' : 'neg';
+      const tip = isCal ? 'The raw model runs hot on favourites — out of sample it predicted 75% where 60% actually happened. A monotone recalibration, fit on out-of-sample results, pulls the top end back.' : lab;
+      return `<div class="pm-row"><span class="pm-lab" title="${tip}">${lab}</span>${bar(p.d)}
+        <span class="pm-val ${cls}">${p.d >= 0 ? '+' : ''}${p.d.toFixed(2)}</span></div>`;
+    }).join('');
+
+    // where he sits in this week's board, per input
+    const pool = P.picks;
+    const pctlOf = (get, v) => {
+      const arr = pool.map(get).filter(x => typeof x === 'number');
+      if (!arr.length) return null;
+      return Math.round(arr.filter(x => x <= v).length / arr.length * 100);
+    };
+    const inputRows = M.features.map(f => {
+      const [lab, fmt, desc] = PM_LABELS[f] || [f, () => '', ''];
+      const getters = {
+        snap_last3: x => x.f?.snap3, snap_share_prior: x => x.f?.snapPrior,
+        rz_touches_prior: x => x.f?.rz, implied_total: x => x.f?.implied,
+        mates_out: x => x.f?.matesOut, new_absence: x => x.f?.newAbsence,
+      };
+      const raws = { snap_last3: r.f?.snap3, snap_share_prior: r.f?.snapPrior, rz_touches_prior: r.f?.rz,
+                     implied_total: r.f?.implied, mates_out: r.f?.matesOut, new_absence: r.f?.newAbsence };
+      // A percentile is only meaningful for the continuous inputs. On a count
+      // that is zero for most of the board, "90th percentile" for a zero is
+      // just noise dressed as information.
+      const ranked = !['mates_out', 'new_absence'].includes(f);
+      const pc = ranked ? pctlOf(getters[f], raws[f] ?? 0) : null;
+      const pip = pc == null ? '' : `<span class="pm-pip" style="width:${Math.max(4, pc * 0.42)}px" title="${pc}th percentile on this week's board"></span>`;
+      return `<tr><td class="k">${lab}</td><td class="v">${fmt(r)}${pip}</td></tr>
+              <tr><td class="d" colspan="2">${desc}</td></tr>`;
+    }).join('');
+
+    const dog = r.p < 0.5;
+    document.body.insertAdjacentHTML('beforeend', `
+      <div class="pm-back" id="pm-back" onclick="if(event.target===this)closePick()">
+        <div class="pm" role="dialog" aria-modal="true">
+          <div class="pm-hd">
+            ${faceHtml(r.pid, r.name)}
+            <div class="pm-hd-info">
+              <div class="pm-nm">${r.name}</div>
+              <div class="pm-sub">${r.pos} · ${r.home ? `${r.team} vs ${r.opp}` : `${r.team} @ ${r.opp}`}${r.kick ? ' · ' + r.kick : ''}</div>
+            </div>
+            <div class="pm-price"><div class="pm-od${dog ? ' dog' : ''}">${r.odds}</div><div class="pm-pct">${(r.p * 100).toFixed(1)}% to score</div></div>
+            <button class="pm-x" onclick="closePick()" aria-label="Close">×</button>
+          </div>
+          <div class="pm-body">
+            <div class="pm-h">How this price is built</div>
+            <p class="pm-note">Every bar is an exact term in the model, in log-odds. Right of the line lengthens his odds of scoring, left shortens them. They sum — nothing is left over.</p>
+            <div class="pm-wf">
+              <div class="pm-row"><span class="pm-lab base">Starting point</span>
+                <div class="pm-bar"><div class="mid"></div></div>
+                <span class="pm-val neut">${(basePct * 100).toFixed(0)}%</span></div>
+              ${rowsHtml}
+            </div>
+            <div class="pm-tot"><span>A league-average ${r.pos} in a neutral spot starts at ${(basePct * 100).toFixed(0)}%. These factors take him to</span><b>${(r.p * 100).toFixed(1)}%</b></div>
+            ${r.pRaw != null && Math.abs(r.p - r.pRaw) >= 0.005 ? `<p class="pm-note" style="margin-top:0.5rem">The model itself said <b>${(r.pRaw * 100).toFixed(1)}%</b>. It is known to run hot on favourites, so a recalibration fit on out-of-sample results trims it to <b>${(r.p * 100).toFixed(1)}%</b> — which is the price shown.</p>` : ''}
+            <div class="pm-h">The inputs</div>
+            <table class="pm-tbl">${inputRows}</table>
+            <div class="pm-h">Worth knowing</div>
+            <p class="pm-note">${r.pos === 'QB'
+              ? 'For a quarterback this is a <b>rushing</b> touchdown price — play-by-play credits a passing score to the receiver, so his throws never count here.'
+              : 'This counts rushing and receiving touchdowns, not passing.'}
+              The price is fair odds with no vig; a sportsbook will always post worse. The model has never been graded against a live week, and it is not measured against book prices — a fair number is not the same as an edge.</p>
+          </div>
+        </div>
+      </div>`);
+    document.addEventListener('keydown', pmKey);
+  }
+  function closePick() {
+    document.getElementById('pm-back')?.remove();
+    document.removeEventListener('keydown', pmKey);
+    pmOpen = null;
+  }
+  function pmKey(e) { if (e.key === 'Escape') closePick(); }
 
   function renderPicks() {
     renderPicksFilters();

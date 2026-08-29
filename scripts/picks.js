@@ -21,7 +21,7 @@
 import fs from 'node:fs';
 import { REL, fetchText, fetchOptional, parseCsv, num } from './nflverse.js';
 
-const POS = ['RB', 'WR', 'TE', 'FB'];
+const POS = ['RB', 'WR', 'TE', 'QB', 'FB'];
 // PFR labels some running backs "HB" in some seasons (39 rows in 2025, 41 in
 // 2020). Unmapped it silently drops whole seasons for real starters, which is
 // worse than it sounds: the player keeps his red-zone history from play-by-play
@@ -35,12 +35,22 @@ const SNAP_FROM = 2016;
 // window on BOTH sides (build_dataset.py passes window_seasons=2). Bounding it
 // also happened to improve the model — recent red-zone usage beats career.
 const RZ_SEASONS = 2;
-// Players kept per team. Teams give offensive snaps to ~11 skill players a game
-// (median 11, p90 12 across 2016-2025), so 14 keeps the real rotation plus room
-// for a surprise without carrying the inactive tail.
-const PER_TEAM = 14;
+// Players kept per team, BY POSITION. A flat per-team cap looked reasonable and
+// was not: it ranks purely on probability, so a team's fringe receivers can fill
+// the board while its starting quarterback falls off the bottom — Lamar Jackson
+// vanished from Baltimore behind six WRs priced at 16%. A quarterback is a real
+// anytime-TD market whatever his number, so coverage is guaranteed per position
+// rather than left to the ranking. Counts track how many of each a team actually
+// gives offensive snaps to.
+const PER_TEAM_POS = { RB: 4, WR: 6, TE: 3, QB: 2, FB: 1 };
 const MODEL = JSON.parse(
   fs.readFileSync(new URL('../research/model.json', import.meta.url), 'utf8'));
+// Monotone recalibration of the top end. The raw logistic extrapolates linearly
+// in log-odds, but scoring saturates: out of sample it predicted 75% where 60%
+// actually happened. Fit on walk-forward out-of-sample predictions in
+// research/calibrate.py — see that file for why Platt scaling cannot do this.
+const CALIB = JSON.parse(
+  fs.readFileSync(new URL('../research/calibration.json', import.meta.url), 'utf8'));
 
 // ── feature helpers, mirroring research/build_dataset.py ──────────────────
 
@@ -121,6 +131,17 @@ export function playerFeatures({ pid, position, season, week, snapLog, rzLog,
     mates_out: matesOut,
     new_absence: newAbsence,
   };
+}
+
+/** Linear interpolation along the isotonic step function. */
+export function calibrate(p) {
+  const { x, y } = CALIB;
+  if (p <= x[0]) return y[0];
+  if (p >= x[x.length - 1]) return y[y.length - 1];
+  let i = 1;
+  while (i < x.length && x[i] < p) i++;
+  const t = (p - x[i - 1]) / (x[i] - x[i - 1]);
+  return y[i - 1] + t * (y[i] - y[i - 1]);
 }
 
 export function score(row) {
@@ -326,12 +347,19 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     picks.push({
       pid, name: info.name, team: info.team, opp: ctx.opp, pos,
       gameId: ctx.gameId, home: ctx.home,
-      p: +score(row).toFixed(4),
-      f: {                                              // factors, for the UI
-        snap3: +row.snap_last3.toFixed(3),
-        snapPrior: +row.snap_share_prior.toFixed(3),
-        rz: +row.rz_touches_prior.toFixed(2),
-        implied: +row.implied_total.toFixed(1),
+      // p is the price we show — model output passed through the calibration.
+      // pRaw is kept so the modal's waterfall can show the model's own
+      // arithmetic and then the calibration step as a separate, visible move.
+      p: +calibrate(score(row)).toFixed(6),
+      pRaw: +score(row).toFixed(6),
+      // Factors, for the UI. Kept at enough precision that the modal's
+      // log-odds waterfall reconstructs the shipped price exactly — it claims
+      // the bars sum with nothing left over, so they have to.
+      f: {
+        snap3: +row.snap_last3.toFixed(6),
+        snapPrior: +row.snap_share_prior.toFixed(6),
+        rz: +row.rz_touches_prior.toFixed(6),
+        implied: +row.implied_total.toFixed(4),
         matesOut: row.mates_out, newAbsence: row.new_absence,
       },
     });
@@ -341,23 +369,30 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   // scoring everyone on it yields ~800 rows for a 16-game slate against the ~11
   // players a team actually gives offensive snaps to. The tail is all players
   // who will not dress; keeping it would bloat data.json and bury the board.
-  const perTeam = new Map();
+  const buckets = new Map();
   for (const p of picks) {
-    const arr = perTeam.get(p.team) ?? perTeam.set(p.team, []).get(p.team);
-    arr.push(p);
+    const k = `${p.team}|${p.pos}`;
+    (buckets.get(k) ?? buckets.set(k, []).get(k)).push(p);
   }
   const kept = [];
-  for (const arr of perTeam.values()) {
+  for (const [k, arr] of buckets) {
     arr.sort((a, b) => b.p - a.p);
-    kept.push(...arr.slice(0, PER_TEAM));
+    kept.push(...arr.slice(0, PER_TEAM_POS[k.split('|')[1]] ?? 3));
   }
   picks.length = 0;
   picks.push(...kept);
   picks.sort((a, b) => b.p - a.p);
-  console.log(`  scored ${picks.length} players; top ${picks[0]?.name} ${picks[0]?.p}`);
+  console.log(`  scored ${picks.length} players; top ${picks[0]?.name} ${picks[0]?.p} (raw ${picks[0]?.pRaw})`);
   return {
     season, week, generatedAt: new Date().toISOString(),
-    model: { trained_on: MODEL.trained_on, base_rate: MODEL.base_rate },
+    // Ship the fitted model with the board so the UI can decompose each price
+    // into its parts. A logistic is additive in log-odds, so contribution =
+    // coef * (x - mean) / sd — an exact attribution, not a heuristic.
+    model: {
+      trained_on: MODEL.trained_on, base_rate: MODEL.base_rate,
+      features: MODEL.features, coef: MODEL.coef, scale: MODEL.scale,
+      reference_position: MODEL.reference_position, calibrated: true,
+    },
     picks,
   };
 }

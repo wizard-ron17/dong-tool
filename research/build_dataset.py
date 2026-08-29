@@ -1,7 +1,13 @@
 """Build the player-game table the Picks backtest trains on.
 
-One row per (season, week, player, game) for RB/WR/TE/FB who took >=1 offensive
-snap. Target is `scored` — did the player score >=1 offensive (rush or rec) TD.
+One row per (season, week, player, game) for RB/WR/TE/QB/FB who took >=1
+offensive snap. Target is `scored` — did the player score >=1 offensive TD.
+
+Quarterbacks are in because they score anytime touchdowns too, almost always
+rushing. This needs no special-casing: play-by-play credits a passing TD to the
+RECEIVER in `td_player_id`, never the passer, so a QB's passing touchdowns
+cannot enter the target. Only his rushing scores do — which is exactly the
+anytime-TD market. Passing-TD props are a separate tool.
 
 LEAKAGE RULES, which the whole exercise depends on:
   * every feature is computed from games STRICTLY BEFORE the row's week. At pick
@@ -31,7 +37,7 @@ OUT = os.path.join(os.path.dirname(__file__), "dataset.parquet")
 # the same numbers rather than recomputing them on the filtered dataset.
 PRIORS_OUT = os.path.join(os.path.dirname(__file__), "position_priors.json")
 SEASONS = list(range(2016, 2026))
-POS = ["RB", "WR", "TE", "FB"]
+POS = ["RB", "WR", "TE", "QB", "FB"]
 SHRINK_K = 2.0          # pseudo-games of prior mixed into each form estimate
 
 PBP_COLS = [
