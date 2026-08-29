@@ -1529,7 +1529,7 @@
   .pb-table td.nm { color: var(--text-strong); font-weight: 700; white-space: normal; }
   .pb-table td.num { font-family: var(--font-m); text-align: right; }
   .pb-table td.od { font-family: var(--font-m); font-weight: 700; text-align: right; color: var(--good); }
-  .pb-table td.od.dog { color: var(--silver); }
+  .pb-table td.od.dog { color: var(--gold); }
 
   /* Compact view — one dense line per pick */
   .pb-compact { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
@@ -1611,6 +1611,58 @@
   .pm-foot { font-size: 0.6rem; color: var(--dim); line-height: 1.5; margin: 0.9rem 0 0; text-align: center; }
   @media (max-width: 460px) { .pm-stats { grid-template-columns: repeat(2, 1fr); } .pm-nm { font-size: 1.25rem; } .pm-hero-od { font-size: 1.7rem; } }
   .pb-card, .pb-crow, .pb-table tbody tr { cursor: pointer; }
+
+  /* ── Position colour system ───────────────────────────────────────────────
+     One hue per position, used everywhere a position appears so the board is
+     scannable by colour before you read a word. Chosen for separation on the
+     dark ground and to stay distinguishable in the light theme. */
+  :root {
+    --pos-qb: #f2c94c; --pos-rb: #33d07c; --pos-wr: #58a6ff;
+    --pos-te: #ff9a4d; --pos-fb: #9db8cd;
+  }
+  .posb { font-family: var(--font-m); font-size: 0.55rem; font-weight: 700; letter-spacing: 0.04em;
+          padding: 0.08rem 0.34rem; border-radius: 4px; flex-shrink: 0;
+          color: var(--pc); background: color-mix(in srgb, var(--pc) 14%, transparent);
+          border: 1px solid color-mix(in srgb, var(--pc) 42%, transparent); }
+  :root[data-theme="light"] {
+    --pos-qb: #a8790a; --pos-rb: #10893f; --pos-wr: #1663c7;
+    --pos-te: #c25a08; --pos-fb: #5f7183;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --pos-qb: #a8790a; --pos-rb: #10893f; --pos-wr: #1663c7;
+      --pos-te: #c25a08; --pos-fb: #5f7183;
+    }
+  }
+  .posb.QB { --pc: var(--pos-qb); } .posb.RB { --pc: var(--pos-rb); }
+  .posb.WR { --pc: var(--pos-wr); } .posb.TE { --pc: var(--pos-te); }
+  .posb.FB { --pc: var(--pos-fb); }
+  /* a colour-coded rail on each card, readable at a glance while scrolling */
+  .pb-card.p-QB { border-left: 3px solid var(--pos-qb); }
+  .pb-card.p-RB { border-left: 3px solid var(--pos-rb); }
+  .pb-card.p-WR { border-left: 3px solid var(--pos-wr); }
+  .pb-card.p-TE { border-left: 3px solid var(--pos-te); }
+  .pb-card.p-FB { border-left: 3px solid var(--pos-fb); }
+  .pb-logo { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; vertical-align: -0.25em; }
+
+  /* ── Compact view — built to be screenshotted ─────────────────────────────
+     Self-contained: a titled header and a footer so a cropped screenshot still
+     says what it is, which week, and which market. */
+  .pbc { border: 1px solid var(--border2); border-radius: 12px; overflow: hidden; background: var(--surface0); }
+  .pbc-hd { display: flex; align-items: baseline; gap: 0.5rem; padding: 0.6rem 0.85rem; background: var(--surface2); border-bottom: 1px solid var(--border); }
+  .pbc-brand { font-family: var(--font-d); font-size: 1rem; font-weight: 900; color: var(--text-strong); letter-spacing: 0.01em; }
+  .pbc-brand em { color: var(--accent); font-style: normal; }
+  .pbc-sub { font-size: 0.62rem; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; margin-left: auto; }
+  .pbc-row { display: flex; align-items: center; gap: 0.55rem; padding: 0.42rem 0.85rem; border-bottom: 1px solid var(--border); }
+  .pbc-row:last-of-type { border-bottom: none; }
+  .pbc-rank { font-family: var(--font-m); font-size: 0.64rem; color: var(--dim); min-width: 1.4rem; text-align: right; }
+  .pbc-logo { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
+  .pbc-nm { font-weight: 700; font-size: 0.84rem; color: var(--text-strong); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pbc-opp { font-family: var(--font-m); font-size: 0.6rem; color: var(--dim); white-space: nowrap; }
+  .pbc-od { font-family: var(--font-d); font-size: 1.1rem; font-weight: 900; min-width: 3.6rem; text-align: right; color: var(--good); }
+  .pbc-od.dog { color: var(--gold); }
+  .pbc-ft { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.45rem 0.85rem; background: var(--surface1); border-top: 1px solid var(--border); font-size: 0.57rem; color: var(--dim); letter-spacing: 0.03em; }
+  @media (max-width: 520px) { .pbc-opp { display: none; } }
 
   .rc-card { display: flex; align-items: center; gap: 0.7rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.7rem; }
   .rc-photo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; object-position: center 18%; background: var(--surface2); flex-shrink: 0; }
@@ -2145,6 +2197,8 @@
     badge.textContent = n;
   }
 
+  const posBadge = (pos) => `<span class="posb ${pos}">${pos}</span>`;
+
   function pbCard(r, i) {
     const M = pbMkt(); const shown = pbP(r);
     const dog = shown < 0.5;
@@ -2154,11 +2208,11 @@
       <span class="pb-f" title="Red-zone touches per game (rushes + targets inside the 20)"><b>${(f.rz ?? 0).toFixed(1)}</b> rz/g</span>
       <span class="pb-f" title="Vegas implied points for his team"><b>${(f.implied ?? 0).toFixed(1)}</b> imp</span>`;
     const flag = f.newAbsence ? `<span class="pb-flag" title="A same-position teammate has just been ruled out — his role may be bigger than his recent snaps show">ROLE OPEN</span>` : '';
-    return `<div class="pb-card" onclick="openPick('${r.pid}')">
+    return `<div class="pb-card p-${r.pos}" onclick="openPick('${r.pid}')">
       <div class="pb-rank">${i}</div>${faceHtml(r.pid, r.name)}
       <div class="pb-info">
-        <div class="pb-nm">${r.name}<span class="pb-pos">${r.pos}</span>${flag}</div>
-        <div class="pb-line">${r.home ? `${r.team} vs ${r.opp}` : `${r.team} @ ${r.opp}`}${r.kick ? ' · ' + r.kick : ''}</div>
+        <div class="pb-nm">${r.name}${posBadge(r.pos)}${flag}</div>
+        <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp} <img class="pb-logo" src="${teamLogo(r.opp)}" alt="" loading="lazy">${r.kick ? ' · ' + r.kick : ''}</div>
       </div>
       <div class="pb-facts">${facts}</div>
       <div class="pb-price"><span class="pb-odds${dog ? ' dog' : ''}">${pbOdds(shown)}</span><span class="pb-pct">${(shown * 100).toFixed(shown < 0.1 ? 1 : 0)}% · ${other}</span></div>
@@ -2172,8 +2226,8 @@
       <tbody>${rows.map((r, i) => `<tr onclick="openPick('${r.pid}')">
         <td class="num">${i + 1}</td>
         <td class="nm">${r.name}${r.f?.newAbsence ? ' <span class="pb-flag">ROLE OPEN</span>' : ''}</td>
-        <td>${r.pos}</td>
-        <td>${r.home ? `${r.team} vs ${r.opp}` : `${r.team} @ ${r.opp}`}${r.kick ? ` <span style="color:var(--dim)">${r.kick}</span>` : ''}</td>
+        <td>${posBadge(r.pos)}</td>
+        <td><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}${r.kick ? ` <span style="color:var(--dim)">${r.kick}</span>` : ''}</td>
         <td class="od${pbP(r) < 0.5 ? ' dog' : ''}">${pbOdds(pbP(r))}</td>
         <td class="num">${(pbP(r) * 100).toFixed(pbP(r) < 0.1 ? 1 : 0)}%</td>
         <td class="num" style="color:var(--dim)">${pbF.mkt === '1' ? r.odds2 : r.odds}</td>
@@ -2183,13 +2237,26 @@
       </tr>`).join('')}</tbody></table></div>`;
   }
 
-  function pbCompact(rows) {
-    return `<div class="pb-compact">${rows.map((r, i) => `<div class="pb-crow" onclick="openPick('${r.pid}')">
-      <span class="pb-crank">${i + 1}</span>
-      <span class="pb-cnm">${r.name}</span>
-      <span class="pb-cmeta">${r.pos} · ${r.team}${r.home ? ' vs ' : ' @ '}${r.opp}</span>
-      <span class="pb-cod${pbP(r) < 0.5 ? ' dog' : ''}">${pbOdds(pbP(r))}</span>
-    </div>`).join('')}</div>`;
+  // Compact is the share/screenshot view, so it carries its own header and
+  // footer: a crop of it still says what it is, which week, which market, and
+  // that the prices are fair odds rather than a book's.
+  function pbCompact(rows, P) {
+    const posLbl = pbF.pos.length ? ' · ' + pbF.pos.join('/') : '';
+    return `<div class="pbc">
+      <div class="pbc-hd">
+        <span class="pbc-brand">Ron's <em>Tud</em> Tool</span>
+        <span class="pbc-sub">${WK_LABEL(P.week)} · ${pbMkt().lab}${posLbl}</span>
+      </div>
+      ${rows.map((r, i) => `<div class="pbc-row" onclick="openPick('${r.pid}')">
+        <span class="pbc-rank">${i + 1}</span>
+        <img class="pbc-logo" src="${teamLogo(r.team)}" alt="${r.team}" loading="lazy">
+        <span class="pbc-nm">${r.name}</span>
+        ${posBadge(r.pos)}
+        <span class="pbc-opp">${r.home ? 'vs' : '@'} ${r.opp}</span>
+        <span class="pbc-od${pbP(r) < 0.5 ? ' dog' : ''}">${pbOdds(pbP(r))}</span>
+      </div>`).join('')}
+      <div class="pbc-ft"><span>${rows.length} picks · fair odds, no vig</span><span>dong-tool.netlify.app/nfl</span></div>
+    </div>`;
   }
 
   // ── Pick modal ──────────────────────────────────────────────────────────
@@ -2373,7 +2440,7 @@
         ${wider ? `<a href="javascript:void(0)" onclick="setPbF('cut',${wider.v})">Widen to ${wider.v ? wider.lab : 'the full board'} →</a>` : ''}</div>`;
     })()
       : pbF.view === 'table' ? pbTable(rows)
-      : pbF.view === 'compact' ? pbCompact(rows)
+      : pbF.view === 'compact' ? pbCompact(rows, P)
       : `<div class="pb-list">${rows.map((r, i) => pbCard(r, i + 1)).join('')}</div>`;
     el.innerHTML = `
       <div class="pb-head">
