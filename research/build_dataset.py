@@ -88,15 +88,19 @@ def player_game_events(pbp):
     tds = td.groupby(["game_id", "td_player_id"], as_index=False).size()
     tds.columns = ["game_id", "pid", "tds"]
 
-    # The game's FIRST offensive touchdown, in play order — the first-TD market.
-    first = (td.sort_values(["game_id", "play_id"])
-               .groupby("game_id", as_index=False).first()[["game_id", "td_player_id"]])
-    first.columns = ["game_id", "pid"]
-    first["first_td"] = 1
+    # The game's FIRST and LAST offensive touchdowns, in play order — both are
+    # one-winner-per-game markets.
+    o = td.sort_values(["game_id", "play_id"])
+    first = o.groupby("game_id", as_index=False).first()[["game_id", "td_player_id"]]
+    first.columns = ["game_id", "pid"]; first["first_td"] = 1
+    last = o.groupby("game_id", as_index=False).last()[["game_id", "td_player_id"]]
+    last.columns = ["game_id", "pid"]; last["last_td"] = 1
 
     out = agg.merge(tds, on=["game_id", "pid"], how="outer")
     out = out.merge(first, on=["game_id", "pid"], how="left")
-    return out.fillna({"touches": 0, "rz_touches": 0, "tds": 0, "first_td": 0})
+    out = out.merge(last, on=["game_id", "pid"], how="left")
+    return out.fillna({"touches": 0, "rz_touches": 0, "tds": 0,
+                       "first_td": 0, "last_td": 0})
 
 
 def team_game_stats(pbp):
@@ -314,8 +318,8 @@ def main():
 
     df = pool.merge(ev.drop(columns=["season"]), on=["game_id", "pid"],
                     how="left")
-    df[["touches", "rz_touches", "tds", "first_td"]] = df[
-        ["touches", "rz_touches", "tds", "first_td"]].fillna(0)
+    df[["touches", "rz_touches", "tds", "first_td", "last_td"]] = df[
+        ["touches", "rz_touches", "tds", "first_td", "last_td"]].fillna(0)
     df = df.merge(
         gm[["game_id", "posteam", "implied_total", "total_line", "spread_line",
             "defteam"]],
@@ -428,7 +432,7 @@ def main():
 
     cols = ["season", "week", "game_id", "pid", "player", "position", "team",
             "defteam", "scored", "tds", "snap_pct", "touches", "rz_touches",
-            "first_td",
+            "first_td", "last_td",
             "snap_share_prior", "rz_touches_prior", "touches_prior",
             "implied_total", "total_line", "spread_line",
             "snap_last3", "snap_last5", "snap_trend", "td_per_touch_prior",

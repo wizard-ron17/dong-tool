@@ -196,6 +196,22 @@ def main():
     x3, y3 = fit_map(all3["pf"].to_numpy(), all3["first_td"].to_numpy(float))
     share_all = float(df.groupby("game_id")["first_td"].max().mean())
 
+    # ── the last-TD market ───────────────────────────────────────────────
+    # Structurally the same race as first TD, and the same plain normalisation
+    # wins — a fitted conditional, an underdog flag and a blowout term were all
+    # tested and all made it worse. It is simply a harder target: the closing
+    # score lands in the fourth quarter (77% of them), when the field holds
+    # whoever is playing at that point rather than the season-long starters our
+    # features describe. AUC 0.702 against 0.733 for first TD.
+    x4, y4 = fit_map(all3["pf"].to_numpy(), all3["last_td"].to_numpy(float))
+    share_last = float(df.groupby("game_id")["last_td"].max().mean())
+    yy4 = all3["last_td"].to_numpy(float)
+    pc4 = apply_steps(all3["pf"].to_numpy(), x4, y4)
+    print(f"\nlast-TD market, out of sample:")
+    print(f"  log loss {log_loss(yy4, all3.pf.to_numpy()):.5f} -> {log_loss(yy4, pc4):.5f}"
+          f"   AUC {auc(yy4, all3.pf.to_numpy()):.4f}")
+    print(f"  in-pool share of last scorers: {share_last:.3f}")
+
     yy3 = all3["first_td"].to_numpy(float)
     pc3 = apply_steps(all3["pf"].to_numpy(), x3, y3)
     print(f"\n1st-TD market, out of sample:")
@@ -211,7 +227,8 @@ def main():
               f"  actual {g.first_td.mean():.1%}")
 
     json.dump({"x": xs, "y": ys, "x2": x2, "y2": y2, "x3": x3, "y3": y3,
-               "first_share": share_all,
+               "x4": x4, "y4": y4,
+               "first_share": share_all, "last_share": share_last,
                "note": "isotonic recalibration fit on walk-forward out-of-sample "
                        "predictions. x/y: P(>=1 TD). x2/y2: P(>=2 TD). x3/y3: "
                        "P(first TD), applied after dividing the calibrated "

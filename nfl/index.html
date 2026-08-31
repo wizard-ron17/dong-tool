@@ -1599,7 +1599,8 @@
   .pm-hero-lbl { font-size: 0.55rem; color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 0.2rem; }
 
   /* the two markets, squared up like the MLB fight card */
-  .pm-mkts { display: flex; gap: 0.45rem; padding: 0 1rem; }
+  .pm-mkts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; padding: 0 1rem; }
+  @media (max-width: 460px) { .pm-mkts { grid-template-columns: repeat(2, 1fr); } }
   .pm-mkt { flex: 1; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.4rem; text-align: center; }
   .pm-mkt.on { border-color: rgba(53,201,110,0.45); background: rgba(53,201,110,0.07); }
   .pm-mkt-lbl { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
@@ -1721,6 +1722,8 @@
   .rc-other { color: var(--muted); background: var(--surface2); }
   .rc-yd { font-family: var(--font-d); font-weight: 700; font-size: 0.85rem; color: var(--text); min-width: 3.4rem; text-align: right; white-space: nowrap; }
   .rc-from { font-size: 0.6rem; color: var(--muted); white-space: nowrap; }
+  .rc-last { font-size: 0.5rem; font-weight: 800; letter-spacing: 0.04em; color: var(--pos-wr); background: color-mix(in srgb, var(--pos-wr) 16%, transparent); padding: 0.1rem 0.28rem; border-radius: 4px; margin-left: 0.35rem; vertical-align: middle; }
+  .rc-multi { font-size: 0.5rem; font-weight: 800; letter-spacing: 0.04em; color: var(--pos-te); background: color-mix(in srgb, var(--pos-te) 16%, transparent); padding: 0.1rem 0.28rem; border-radius: 4px; margin-left: 0.35rem; vertical-align: middle; }
   .rc-first { font-size: 0.5rem; font-weight: 800; letter-spacing: 0.04em; color: var(--gold); background: rgba(242,201,76,0.16); padding: 0.1rem 0.28rem; border-radius: 4px; margin-left: 0.4rem; vertical-align: middle; }
   /* filter / sort bar */
   .fl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; margin: 0.2rem 0 0.7rem; }
@@ -1949,7 +1952,7 @@
           <li><b>Window.</b> Same <em>week</em> (anyone on the slate) or same <em>day</em> (Thu / Sun / Mon) — day is the tighter correlation.</li>
           <li><b>Group size.</b> Pairs, Trios, Quads, or Quints — the bigger the group, the rarer (and longer-odds) the combo.</li>
           <li><b>SGP.</b> When 2+ members share a team they play the <em>same game</em> — a true same-game-parlay stack, flagged <span class="sgp-badge">SGP·TEAM</span>.</li>
-          <li><b>First TD.</b> Flip the basis to count only each game's <em>opening</em> touchdown — the first-TD-scorer angle.</li>
+          <li><b>Basis.</b> Count every touchdown, or narrow to one of the markets the Picks board prices: each game's <em>opening</em> score, its <em>closing</em> score, or only <em>multi-TD</em> games. The narrower bases are far rarer, so the co-occurrence floor drops to 2.</li>
           <li><b>Search.</b> Type names (comma-separated) to require specific players in every group.</li>
         </ul>
       </div>
@@ -1971,6 +1974,8 @@
       <span class="due-filter-label" style="margin-left:0.3rem">Basis</span>
       <button class="due-filter-chip mode-chip active" data-basis="all" onclick="setPairBasis('all')">All TDs</button>
       <button class="due-filter-chip mode-chip" data-basis="first" onclick="setPairBasis('first')">First TD</button>
+      <button class="due-filter-chip mode-chip" data-basis="last" onclick="setPairBasis('last')">Last TD</button>
+      <button class="due-filter-chip mode-chip" data-basis="multi" onclick="setPairBasis('multi')">2+ TD</button>
       <button class="due-filter-chip" id="pairs-sgp-chip" onclick="togglePairSgp()" title="Only groups with a same-team stack (they share a game)">🏈 SGP only</button>
     </div>
     <div class="result-meta" id="pairs-meta"></div>
@@ -2096,12 +2101,23 @@
       { v: 0.10, lab: '+900',  hit: 13.1, per: 25 },
       { v: 0.12, lab: '+733',  hit: 15.4, per: 11 },
     ] },
+    // Same race as 1st TD, and the honest numbers say it is harder: the closing
+    // score lands in Q4 (77% of them), when the field holds whoever is playing
+    // by then rather than the season-long starters the features describe.
+    // AUC .702 against .733, and the top of the board separates far less.
+    '4': { key: 'pLast', lab: 'Last TD', base: 4.1, cuts: [
+      { v: 0,    lab: 'All',   hit: 4.1,  per: 308 },
+      { v: 0.04, lab: '+2400', hit: 7.1,  per: 120 },
+      { v: 0.06, lab: '+1567', hit: 9.1,  per: 63 },
+      { v: 0.08, lab: '+1150', hit: 10.8, per: 28 },
+      { v: 0.10, lab: '+900',  hit: 12.6, per: 13 },
+    ] },
   };
   const pbMkt = () => PB_MARKETS[pbF.mkt] || PB_MARKETS['1'];
   const pbP = (r) => r[pbMkt().key] ?? 0;
   const PB_SORTS = [
     { v: 'p',      lab: 'Price'     }, { v: 'alt',   lab: 'Other market' },
-    { v: 'first',  lab: '1st TD'    },
+    { v: 'first',  lab: '1st TD'    }, { v: 'last', lab: 'Last TD' },
     { v: 'snap3',  lab: 'Snap %'    }, { v: 'rz',    lab: 'RZ/g'      },
     { v: 'imp',    lab: 'Team total' }, { v: 'time', lab: 'Game time' },
     { v: 'name',   lab: 'Name'      },
@@ -2121,7 +2137,7 @@
     // 2+ prices live on a completely different scale — a 25% cut that shows 65
     // players in the 1+ market shows none at all in 2+. Reset to that market's
     // own default rather than stranding the user on an empty board.
-    if (k === 'mkt') pbF.cut = { '1': 0.25, '2': 0.05, '3': 0.06 }[v] ?? 0.25;
+    if (k === 'mkt') pbF.cut = { '1': 0.25, '2': 0.05, '3': 0.06, '4': 0.06 }[v] ?? 0.25;
     pbSave(); renderPicksFilters(); renderPicks();
   }
   function setPbSort(v) {
@@ -2171,8 +2187,8 @@
   // used to hand back a bare row with an undefined price and kickoff.
   function pbEnrich(p, gm) {
     const k = pbKick(gm[p.gameId]);
-    return { ...p, odds: pbOdds(p.p), odds2: pbOdds(p.p2), oddsF: pbOdds(p.pFirst),
-             kick: k.txt, ts: k.ts };
+    return { ...p, odds: pbOdds(p.p), odds2: pbOdds(p.p2),
+             oddsF: pbOdds(p.pFirst), oddsL: pbOdds(p.pLast), kick: k.txt, ts: k.ts };
   }
   function pbRows() {
     const P = nflData?.picks;
@@ -2190,7 +2206,7 @@
       pct: r => pbP(r),
       // the other market's price, so the 2+ column sorts from the 1+ board
       alt: r => (pbF.mkt === '1' ? (r.p2 ?? 0) : (r.p ?? 0)),
-      first: r => r.pFirst ?? 0,
+      first: r => r.pFirst ?? 0, last: r => r.pLast ?? 0,
       pos: r => r.pos,
       snap3: r => r.f?.snap3 ?? 0, rz: r => r.f?.rz ?? 0,
       imp: r => r.f?.implied ?? 0, time: r => r.ts, name: r => r.name.toLowerCase(),
@@ -2281,7 +2297,7 @@
   function pbTable(rows) {
     const th = (v, lab, cls = '') => `<th class="${cls}${pbF.sort === v ? ' on' : ''}" onclick="setPbSort('${v}')">${lab}${pbF.sort === v ? `<span class="ar">${pbF.dir === 'desc' ? '▼' : '▲'}</span>` : ''}</th>`;
     return `<div class="pb-tablewrap"><table class="pb-table">
-      <thead><tr><th class="static">#</th>${th('name', 'Player')}${th('pos', 'Pos')}${th('time', 'Game')}${th('p', 'Price', 'num')}${th('pct', 'Chance', 'num')}${th('alt', pbF.mkt === '1' ? '2+ TD' : '1+ TD', 'num')}${th('first', '1st TD', 'num')}${th('snap3', 'Snap%', 'num')}${th('rz', 'RZ/g', 'num')}${th('imp', 'Total', 'num')}</tr></thead>
+      <thead><tr><th class="static">#</th>${th('name', 'Player')}${th('pos', 'Pos')}${th('time', 'Game')}${th('p', 'Price', 'num')}${th('pct', 'Chance', 'num')}${th('alt', pbF.mkt === '1' ? '2+ TD' : '1+ TD', 'num')}${th('first', '1st TD', 'num')}${th('last', 'Last TD', 'num')}${th('snap3', 'Snap%', 'num')}${th('rz', 'RZ/g', 'num')}${th('imp', 'Total', 'num')}</tr></thead>
       <tbody>${rows.map((r, i) => `<tr onclick="openPick('${r.pid}')">
         <td class="num">${i + 1}</td>
         <td class="nm">${r.name}${r.f?.newAbsence ? ' <span class="pb-flag">ROLE OPEN</span>' : ''}</td>
@@ -2291,6 +2307,7 @@
         <td class="num">${(pbP(r) * 100).toFixed(pbP(r) < 0.1 ? 1 : 0)}%</td>
         <td class="num" style="color:var(--dim)">${pbF.mkt === '1' ? r.odds2 : r.odds}</td>
         <td class="num" style="color:var(--dim)">${r.oddsF}</td>
+        <td class="num" style="color:var(--dim)">${r.oddsL}</td>
         <td class="num">${Math.round((r.f?.snap3 ?? 0) * 100)}%</td>
         <td class="num">${(r.f?.rz ?? 0).toFixed(1)}</td>
         <td class="num">${(r.f?.implied ?? 0).toFixed(1)}</td>
@@ -2445,9 +2462,11 @@
               <div class="pm-mkt-od">${r.odds2}</div><div class="pm-mkt-pct">${((r.p2 ?? 0) * 100).toFixed(1)}%</div></div>
             <div class="pm-mkt${mkt === '3' ? ' on' : ''}"><div class="pm-mkt-lbl">1st TD</div>
               <div class="pm-mkt-od">${r.oddsF}</div><div class="pm-mkt-pct">${((r.pFirst ?? 0) * 100).toFixed(1)}%</div></div>
+            <div class="pm-mkt${mkt === '4' ? ' on' : ''}"><div class="pm-mkt-lbl">Last TD</div>
+              <div class="pm-mkt-od">${r.oddsL}</div><div class="pm-mkt-pct">${((r.pLast ?? 0) * 100).toFixed(1)}%</div></div>
           </div>
-          <div class="pm-link">${mkt === '3'
-            ? `his share of <b>${(rivals).toFixed(1)}</b> units of scoring threat in this game — first TD is a race, so who else is likely to score matters as much as he does`
+          <div class="pm-link">${mkt === '3' || mkt === '4'
+            ? `his share of <b>${(rivals).toFixed(1)}</b> units of scoring threat in this game — ${mkt === '3' ? 'first' : 'last'} TD is a race, so who else is likely to score matters as much as he does`
             : `if he scores, <b>${((r.pCond2 ?? 0) * 100).toFixed(0)}%</b> chance of a second — which is what turns the first price into the second`}</div>
           <div class="pm-sec">What moves the price</div>
           <div class="pm-body">
@@ -2456,7 +2475,7 @@
             <div class="fbar-note">Each bar multiplies his odds of scoring. A league-average ${r.pos} in a neutral spot sits at <b>${(sig(base) * 100).toFixed(0)}%</b>; these take him to <b>${(r.p * 100).toFixed(1)}%</b>.</div>
             <div class="pm-sec">The numbers</div>
             <div class="pm-stats">${stats}</div>
-            ${mkt === '3' ? `<p class="pm-note" style="margin-top:0.7rem">The factors above build his <b>anytime</b> price. The 1st-TD price is that number divided by the whole game's scoring threat, so it moves when his rivals do — not only when he does.</p>` : ''}
+            ${mkt === '3' || mkt === '4' ? `<p class="pm-note" style="margin-top:0.7rem">The factors above build his <b>anytime</b> price. The ${mkt === '3' ? '1st' : 'last'}-TD price is that number divided by the whole game's scoring threat, so it moves when his rivals do — not only when he does.${mkt === '4' ? ' Last TD is the weakest of the four: the closing score lands in the fourth quarter, when the field holds whoever is playing by then.' : ''}</p>` : ''}
             <p class="pm-foot">Bars show percentile on this week's board. Fair odds, no vig — a book prices worse.
               ${r.pos === 'QB' ? 'For a quarterback this is a <b>rushing</b> touchdown; passing scores credit the receiver.' : ''}</p>
           </div>
@@ -2612,13 +2631,16 @@
   }
   function tdCard(t) {
     return `<div class="rc-card">${faceHtml(t.pid, t.player)}
-      <div class="rc-info"><div class="rc-name">${t.player}${t.firstTd ? '<span class="rc-first" title="First TD of the game">1st</span>' : ''}</div><div class="rc-sub">${t.team} vs ${t.opp} · Q${t.qtr || '?'}${t.weekday ? ' · ' + t.weekday.slice(0, 3) : ''}</div></div>
+      <div class="rc-info"><div class="rc-name">${t.player}${t.firstTd ? '<span class="rc-first" title="First TD of the game">1st</span>' : ''}${t.lastTd ? '<span class="rc-last" title="Last TD of the game">LAST</span>' : ''}${t.multi ? '<span class="rc-multi" title="He scored 2+ in this game">2+</span>' : ''}</div><div class="rc-sub">${t.team} vs ${t.opp} · Q${t.qtr || '?'}${t.weekday ? ' · ' + t.weekday.slice(0, 3) : ''}</div></div>
       <div class="rc-detail">${t.passer ? `<span class="rc-from">from ${t.passer}</span>` : ''}<span class="rc-badge ${TD_BCLASS[t.subtype] || ('rc-' + t.type)}">${TD_BADGE[t.subtype] || TD_LABEL[t.type] || 'TD'}</span><span class="rc-yd">${t.yards != null ? t.yards + ' yd' : ''}</span></div></div>`;
   }
   // Recap filter/sort state.
-  const rcFilt = { type: 'all', firstOnly: false, sort: 'order' };
+  // 'mark' replaces the old firstOnly boolean now that a touchdown can be the
+  // game's first, its last, or part of a multi-TD day — the three markets the
+  // Picks board prices.
+  const rcFilt = { type: 'all', mark: 'all', sort: 'order' };
   function setRcFilt(k, v) { rcFilt[k] = v; renderRecap(); }
-  function toggleRcFirst() { rcFilt.firstOnly = !rcFilt.firstOnly; renderRecap(); }
+  const RC_MARK = { first: t => t.firstTd, last: t => t.lastTd, multi: t => t.multi };
   const DAY_ORDER = { Thursday: 1, Friday: 2, Saturday: 3, Sunday: 4, Monday: 5 };
   // Weekly nav — step one week at a time (arrows), or jump to the first/latest.
   function shiftRecapWeek(dir) { const w = nflData.tdRecapWeeks || []; const i = w.indexOf(recapWeek); const ni = i + dir; if (ni >= 0 && ni < w.length) { recapWeek = w[ni]; renderRecap(); } }
@@ -2630,7 +2652,8 @@
     if (recapWeek == null || !weeks.includes(recapWeek)) recapWeek = weeks[0];
     const i = weeks.indexOf(recapWeek), atFirst = i <= 0, atLast = i >= weeks.length - 1;
     const all = nflData.tdRecap[recapWeek] || [];
-    let tds = all.filter(t => (rcFilt.type === 'all' || t.type === rcFilt.type) && (!rcFilt.firstOnly || t.firstTd));
+    const markFn = RC_MARK[rcFilt.mark];
+    let tds = all.filter(t => (rcFilt.type === 'all' || t.type === rcFilt.type) && (!markFn || markFn(t)));
     if (rcFilt.sort === 'long') tds = tds.slice().sort((a, b) => (b.yards ?? -1) - (a.yards ?? -1));
     else if (rcFilt.sort === 'short') tds = tds.slice().sort((a, b) => (a.yards ?? 1e9) - (b.yards ?? 1e9));
     // Group the week's TDs by day so Thu/Sun/Mon each live under their own header.
@@ -2658,15 +2681,17 @@
       <div class="pairs-filter-row">
         <span class="due-filter-label">Sort</span>
         ${sortChip('order', 'Game order')}${sortChip('long', 'Longest')}${sortChip('short', 'Shortest')}
-        <button class="due-filter-toggle${rcFilt.firstOnly ? ' active' : ''}" onclick="toggleRcFirst()">⭐ 1st TD only</button>
+        <span class="due-filter-label">Market</span>
+        ${[['all', 'All'], ['first', '1st TD'], ['last', 'Last TD'], ['multi', '2+ TD']]
+          .map(([v, l]) => `<button class="due-filter-chip${rcFilt.mark === v ? ' active' : ''}" onclick="setRcFilt('mark','${v}')">${l}</button>`).join('')}
       </div>
       <div class="result-meta"><b>${WK_LABEL(recapWeek)}</b> · ${tds.length} of ${all.length} touchdowns</div>
       ${body}`;
   }
   const stFilt = { pos: 'all', team: 'all', sort: 'tds' };
   function setStFilt(k, v) { stFilt[k] = v; renderStats(); }
-  const ST_SORT = { tds: l => l.tds, rushTd: l => l.rushTd, recTd: l => l.recTd, defTd: l => l.defTd || 0, stTd: l => l.stTd || 0, firstTd: l => l.firstTd || 0, opp: l => l.opp };
-  const ST_SORT_LBL = { tds: 'TD', rushTd: 'Rush TD', recTd: 'Rec TD', defTd: 'Def TD', stTd: 'ST TD', firstTd: '1st TD', opp: 'Opp' };
+  const ST_SORT = { tds: l => l.tds, rushTd: l => l.rushTd, recTd: l => l.recTd, defTd: l => l.defTd || 0, stTd: l => l.stTd || 0, firstTd: l => l.firstTd || 0, lastTd: l => l.lastTd || 0, multiTd: l => l.multiTd || 0, opp: l => l.opp };
+  const ST_SORT_LBL = { tds: 'TD', rushTd: 'Rush TD', recTd: 'Rec TD', defTd: 'Def TD', stTd: 'ST TD', firstTd: '1st TD', lastTd: 'Last TD', multiTd: '2+ games', opp: 'Opp' };
   function renderStats() {
     const el = dataGate('stats-content'); if (!el) return;
     const L = nflData.tdLeaders || [];
@@ -2692,6 +2717,8 @@
           <option value="defTd"${stFilt.sort === 'defTd' ? ' selected' : ''}>Defensive TDs</option>
           <option value="stTd"${stFilt.sort === 'stTd' ? ' selected' : ''}>Special-teams TDs</option>
           <option value="firstTd"${stFilt.sort === 'firstTd' ? ' selected' : ''}>1st TDs of game</option>
+          <option value="lastTd"${stFilt.sort === 'lastTd' ? ' selected' : ''}>Last TDs of game</option>
+          <option value="multiTd"${stFilt.sort === 'multiTd' ? ' selected' : ''}>Multi-TD games (2+)</option>
           <option value="opp"${stFilt.sort === 'opp' ? ' selected' : ''}>Opportunities</option>
         </select>
         <select class="fl-sel" onchange="setStFilt('team',this.value)">${teamOpts}</select>
@@ -2699,7 +2726,7 @@
       <div class="result-meta">${rows.length} players · sorted by <b>${ST_SORT_LBL[stFilt.sort]}</b></div>
       <div class="rc-list">${rows.length ? rows.map((l, i) => `<div class="rc-card"><span class="st-rank">${i + 1}</span>${faceHtml(l.pid, l.name)}
         <div class="rc-info"><div class="rc-name">${l.name}</div><div class="rc-sub">${l.pos} · ${l.team} · ${l.games} G</div></div>
-        <div class="rc-detail"><span class="st-td">${val(l)}</span><span class="rc-yd">${ST_SORT_LBL[stFilt.sort]}</span><span class="rc-from">${[`${l.rushTd}ru`, `${l.recTd}rec`, l.stTd ? `${l.stTd}st` : '', l.defTd ? `${l.defTd}def` : '', l.firstTd ? `${l.firstTd} 1st` : ''].filter(Boolean).join(' · ')}</span></div></div>`).join('') : '<div class="empty">No players match these filters.</div>'}</div>`;
+        <div class="rc-detail"><span class="st-td">${val(l)}</span><span class="rc-yd">${ST_SORT_LBL[stFilt.sort]}</span><span class="rc-from">${[`${l.rushTd}ru`, `${l.recTd}rec`, l.stTd ? `${l.stTd}st` : '', l.defTd ? `${l.defTd}def` : '', l.firstTd ? `${l.firstTd} 1st` : '', l.lastTd ? `${l.lastTd} last` : '', l.multiTd ? `${l.multiTd}x 2+` : ''].filter(Boolean).join(' · ')}</span></div></div>`).join('') : '<div class="empty">No players match these filters.</div>'}</div>`;
   }
   // ── Pairs — correlated-TD lens. Which players score in the same window ──
   // (week or day). Groups of 2–5 are found by apriori: grow only groups that
@@ -2720,14 +2747,19 @@
   // A single co-occurrence floor per window keeps apriori bounded: same-week
   // slates are dense (top scorers share many weeks), so quints would explode at
   // min-2. Uniform MIN means every member of a shown group co-scored ≥MIN times.
-  function pairMinOcc(gran, basis) { return basis === 'first' ? 2 : (gran === 'week' ? 4 : 3); }
+  // First/last/2+ are far rarer than all TDs, so the co-occurrence floor drops
+  // or nothing clears it.
+  function pairMinOcc(gran, basis) { return basis === 'all' ? (gran === 'week' ? 4 : 3) : 2; }
   function computeAllGroups(gran, basis) {
     const ck = gran + '|' + basis;
     if (pairGroupCache[ck]) return pairGroupCache[ck];
     const MIN = pairMinOcc(gran, basis);
     const slates = {}; // pid -> Set(key)
     for (const wk of nflData.tdRecapWeeks || []) for (const t of nflData.tdRecap[wk] || []) {
-      if (!t.pid || (basis === 'first' && !t.firstTd)) continue;
+      if (!t.pid) continue;
+      if (basis === 'first' && !t.firstTd) continue;
+      if (basis === 'last' && !t.lastTd) continue;
+      if (basis === 'multi' && !t.multi) continue;
       const key = gran === 'week' ? ('W' + wk) : (nflData.results[t.gameId]?.gameday || (wk + '-' + (t.weekday || '')));
       (slates[t.pid] ??= new Set()).add(key);
     }
@@ -2788,7 +2820,7 @@
     if (pairTerms.length) list = list.filter(g => { const ns = g.pids.map(p => (scorerIdx[p]?.name || '').toLowerCase()); return pairTerms.every(term => ns.some(n => n.includes(term))); });
     const minOcc = pairMinOcc(pairGran, pairBasis);
     const meta = document.getElementById('pairs-meta');
-    meta.textContent = `${list.length.toLocaleString()} unique ${PAIR_SIZE_NAMES[activePairSize]} · ${pairGran === 'week' ? 'same week' : 'same day'} · ${pairBasis === 'first' ? 'first TD only' : 'all TDs'} · min ${minOcc}`
+    meta.textContent = `${list.length.toLocaleString()} unique ${PAIR_SIZE_NAMES[activePairSize]} · ${pairGran === 'week' ? 'same week' : 'same day'} · ${{ first: 'first TD only', last: 'last TD only', multi: '2+ TD games only' }[pairBasis] || 'all TDs'} · min ${minOcc}`
       + (pairSgpOnly ? ' · SGP only' : '') + (pairTerms.length ? ' · ' + pairTerms.join(' + ') : '')
       + (list.length > PAIR_RENDER_LIMIT ? ` · showing top ${PAIR_RENDER_LIMIT}` : '');
     if (!list.length) { cards.innerHTML = `<div class="empty">${pairTerms.length ? 'No groups contain: ' + pairTerms.join(' + ') : 'No co-occurrences found'}</div>`; return; }

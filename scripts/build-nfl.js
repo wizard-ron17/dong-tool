@@ -33,7 +33,7 @@ async function main() {
   console.log(`Fetching ${HISTORY_SEASON} play-by-play for TD recaps (large file)…`);
   const { idx: pi, rows: prows } = parseCsv(await fetchText(`https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_${HISTORY_SEASON}.csv`));
   const P = (r, k) => r[pi[k]];
-  const tdRecap = {}; // week -> [ {player, team, opp, type, yards, qtr, passer, gameId, firstTd, weekday} ]
+  const tdRecap = {}; // week -> [ {player, team, opp, type, yards, qtr, passer, gameId, firstTd, lastTd, multi, weekday} ]
   let tdTotal = 0;
   const gameHasTd = new Set(); // gameIds that have already scored a TD -> flags the first one
   // Per-player TD tallies from pbp — the authoritative source since it also
@@ -79,13 +79,36 @@ async function main() {
       gameId, firstTd, weekday: results[gameId]?.weekday || null,
     });
     if (pid) {
-      const a = tdAgg[pid] ??= { rush: 0, rec: 0, st: 0, def: 0, first: 0, tds: 0, team, games: new Set(), name: scorer };
+      const a = tdAgg[pid] ??= { rush: 0, rec: 0, st: 0, def: 0, first: 0, last: 0, multi: 0, tds: 0, team, games: new Set(), name: scorer };
       if (type === 'rush') a.rush++; else if (type === 'rec') a.rec++; else if (type === 'st') a.st++; else a.def++;
       a.tds++; a.team = team; a.games.add(gameId);
       if (firstTd) a.first++;
     }
     tdTotal++;
   }
+  // Second pass for the markets that need the whole game in view.
+  //   lastTd — the game's closing touchdown. pbp rows arrive in play order, so
+  //            the last row we pushed for a gameId is it.
+  //   multi  — the scorer had 2+ in that game, which is the 2+ market's outcome.
+  // firstTd is set inline above because it only needs "have we seen one yet".
+  const lastByGame = {}, perGame = {};
+  for (const wk of Object.keys(tdRecap)) for (const t of tdRecap[wk]) {
+    lastByGame[t.gameId] = t;
+    if (t.pid) perGame[`${t.gameId}|${t.pid}`] = (perGame[`${t.gameId}|${t.pid}`] ?? 0) + 1;
+  }
+  for (const t of Object.values(lastByGame)) t.lastTd = true;
+  const countedMulti = new Set();
+  for (const wk of Object.keys(tdRecap)) for (const t of tdRecap[wk]) {
+    t.lastTd = !!t.lastTd;
+    t.multi = t.pid ? (perGame[`${t.gameId}|${t.pid}`] ?? 0) >= 2 : false;
+    if (t.pid && tdAgg[t.pid]) {
+      if (t.lastTd) tdAgg[t.pid].last++;
+      // count a multi-TD GAME once, not once per touchdown in it
+      const k = `${t.gameId}|${t.pid}`;
+      if (t.multi && !countedMulti.has(k)) { countedMulti.add(k); tdAgg[t.pid].multi++; }
+    }
+  }
+
   const weeks = Object.keys(tdRecap).map(Number).sort((a, b) => a - b);
 
   // ── 3) Season TD + opportunity leaders (weekly player stats) ───────────
@@ -112,7 +135,8 @@ async function main() {
     const a = agg[pid];
     return {
       pid, name: a?.name || t.name, pos: a?.pos || '—', team: a?.team || t.team,
-      tds: t.tds, rushTd: t.rush, recTd: t.rec, stTd: t.st, defTd: t.def, firstTd: t.first,
+      tds: t.tds, rushTd: t.rush, recTd: t.rec, stTd: t.st, defTd: t.def,
+      firstTd: t.first, lastTd: t.last, multiTd: t.multi,
       opp: a ? Math.round(a.targets + a.carries) : 0, // rushing attempts + targets
       games: a?.games || t.games.size,
     };
@@ -121,7 +145,7 @@ async function main() {
   // by (say) defensive TDs surfaces the real leaders — not just high-total
   // scorers who happen to have one. Return/defense specialists get in via st/def.
   const pool = new Set();
-  for (const key of ['tds', 'rushTd', 'recTd', 'stTd', 'defTd', 'firstTd', 'opp'])
+  for (const key of ['tds', 'rushTd', 'recTd', 'stTd', 'defTd', 'firstTd', 'lastTd', 'multiTd', 'opp'])
     allScorers.filter(l => l[key] > 0).sort((x, y) => y[key] - x[key]).slice(0, 50).forEach(l => pool.add(l.pid));
   const tdLeaders = allScorers.filter(l => pool.has(l.pid)).sort((a, b) => b.tds - a.tds);
 
