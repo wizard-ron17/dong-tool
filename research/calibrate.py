@@ -173,10 +173,51 @@ def main():
     all2 = pd.concat(oos2.values())
     x2, y2 = fit_map(all2["p2"].to_numpy(), all2["m2"].to_numpy(float))
 
-    json.dump({"x": xs, "y": ys, "x2": x2, "y2": y2,
+    # ── the first-TD market ──────────────────────────────────────────────
+    # P(first) is the anytime price divided by the total scoring threat in that
+    # game, times the share of games whose first scorer we actually carry.
+    # Dividing by the in-game sum is the whole point: a back in a quiet game has
+    # a far better claim on the opening score than one boxed in with three other
+    # likely scorers, even at identical anytime prices. Ignoring competition
+    # costs real accuracy (AUC .7357 -> .7412 on 2025 held out).
+    oos3 = {}
+    for S in seasons[1:]:
+        tr, te = df[df.season < S], df[df.season == S]
+        X1, mu, sd = design(tr, F)
+        Xt1, _, _ = design(te, F, mu, sd)
+        w1 = fit_logistic(X1, tr["scored"].to_numpy(float))
+        p1 = apply_steps(predict(Xt1, w1), xs, ys)
+        share = tr.groupby("game_id")["first_td"].max().mean()
+        t = te.copy()
+        t["p1c"] = p1
+        t["pf"] = p1 / t.groupby("game_id")["p1c"].transform("sum") * share
+        oos3[S] = t
+    all3 = pd.concat(oos3.values())
+    x3, y3 = fit_map(all3["pf"].to_numpy(), all3["first_td"].to_numpy(float))
+    share_all = float(df.groupby("game_id")["first_td"].max().mean())
+
+    yy3 = all3["first_td"].to_numpy(float)
+    pc3 = apply_steps(all3["pf"].to_numpy(), x3, y3)
+    print(f"\n1st-TD market, out of sample:")
+    print(f"  log loss {log_loss(yy3, all3.pf.to_numpy()):.5f} -> {log_loss(yy3, pc3):.5f}"
+          f"   AUC {auc(yy3, all3.pf.to_numpy()):.4f}")
+    print(f"  in-pool share of first scorers: {share_all:.3f}")
+    for lo, hi in [(0.05, 0.10), (0.10, 0.15), (0.15, 1.01)]:
+        g = all3[(all3.pf >= lo) & (all3.pf < hi)]
+        if not len(g):
+            continue
+        c = apply_steps(g.pf.to_numpy(), x3, y3)
+        print(f"  {lo:.0%}-{hi:.0%}: n={len(g):>5} raw {g.pf.mean():.1%} -> cal {c.mean():.1%}"
+              f"  actual {g.first_td.mean():.1%}")
+
+    json.dump({"x": xs, "y": ys, "x2": x2, "y2": y2, "x3": x3, "y3": y3,
+               "first_share": share_all,
                "note": "isotonic recalibration fit on walk-forward out-of-sample "
-                       "predictions; x/y for P(>=1 TD), x2/y2 for P(>=2 TD). "
-                       "Corrects top-end over-confidence in both."},
+                       "predictions. x/y: P(>=1 TD). x2/y2: P(>=2 TD). x3/y3: "
+                       "P(first TD), applied after dividing the calibrated "
+                       "anytime price by the game's total scoring threat and "
+                       "scaling by first_share (the fraction of games whose "
+                       "first scorer is in the pool)."},
               open(OUT, "w"), indent=1)
     print(f"\nwrote {OUT} ({len(xs)} + {len(x2)} knots)")
     for q in (0.3, 0.5, 0.6, 0.7, 0.78):

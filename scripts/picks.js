@@ -144,6 +144,7 @@ function interpMap(p, x, y) {
 }
 export const calibrate  = (p) => interpMap(p, CALIB.x, CALIB.y);
 export const calibrate2 = (p) => interpMap(p, CALIB.x2, CALIB.y2);
+export const calibrate3 = (p) => interpMap(p, CALIB.x3, CALIB.y3);
 
 /**
  * P(>=2 TD | >=1 TD). Modelled as a conditional so P(2+) = P(1+) * this can
@@ -401,6 +402,40 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   }
   picks.length = 0;
   picks.push(...kept);
+  // ── first-TD market ───────────────────────────────────────────────────
+  // Exactly one player scores the game's opening touchdown, so this is a
+  // competition, not an independent event: a player's chance is his share of
+  // the scoring threat in HIS game. Two backs with identical anytime prices can
+  // sit 2x apart here purely because one of them is boxed in with three other
+  // likely scorers. Computed AFTER the per-position cap so the denominator is
+  // the board being shown, which is also closest in size to the pool the
+  // calibration was fitted on.
+  const gameSum = new Map();
+  for (const p of picks) gameSum.set(p.gameId, (gameSum.get(p.gameId) ?? 0) + p.p);
+  const raw = new Map();
+  for (const p of picks) {
+    const sh = p.p / (gameSum.get(p.gameId) || 1) * CALIB.first_share;
+    raw.set(p, calibrate3(sh));
+    p.pFirstRaw = +sh.toFixed(6);
+  }
+  // Re-normalise AFTER calibrating so each game's first-TD probabilities sum
+  // back to first_share. Exactly one player scores first, so that sum is a real
+  // constraint, not a nicety — and enforcing it makes the market robust to how
+  // many players the board happens to carry. Without it the prices ride on pool
+  // composition: this board holds ~30 players a game against the ~24 who
+  // actually take a snap in the backtest, which alone would have made every
+  // first-TD price roughly a quarter too long.
+  const calSum = new Map();
+  for (const p of picks) calSum.set(p.gameId, (calSum.get(p.gameId) ?? 0) + raw.get(p));
+  for (const p of picks) {
+    const k = CALIB.first_share / (calSum.get(p.gameId) || 1);
+    p.pFirst = +(raw.get(p) * k).toFixed(6);
+  }
+  const chk = [...new Set(picks.map(p => p.gameId))]
+    .map(g => picks.filter(p => p.gameId === g).reduce((a, b) => a + b.pFirst, 0));
+  console.log(`  first-TD per-game sums: ${Math.min(...chk).toFixed(3)}-${Math.max(...chk).toFixed(3)}`
+            + ` (must equal ${CALIB.first_share.toFixed(3)})`);
+
   picks.sort((a, b) => b.p - a.p);
   console.log(`  scored ${picks.length} players; top ${picks[0]?.name} ${picks[0]?.p} (raw ${picks[0]?.pRaw})`);
   return {
@@ -412,7 +447,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
       trained_on: MODEL.trained_on, base_rate: MODEL.base_rate,
       features: MODEL.features, coef: MODEL.coef, scale: MODEL.scale,
       reference_position: MODEL.reference_position, calibrated: true,
-      cond2: MODEL.cond2, markets: ['1+', '2+'],
+      cond2: MODEL.cond2, markets: ['1+', '2+', '1st'],
     },
     picks,
   };
