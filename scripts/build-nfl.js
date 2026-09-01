@@ -116,6 +116,7 @@ async function main() {
   const { idx: si, rows: srows } = parseCsv(await fetchText(`https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_${HISTORY_SEASON}.csv`));
   const S = (r, k) => r[si[k]];
   const agg = {}; // pid -> {name, pos, team, rushTd, recTd, tds, targets, carries, games}
+  const qbAgg = {}; // pid -> passing line, for the Schedule matchup card
   const headshots = {}; // gsis pid -> headshot url (shared by recap + leaders)
   for (const r of srows) {
     if (S(r, 'season_type') !== 'REG') continue;
@@ -127,6 +128,20 @@ async function main() {
     a.rushTd += rt; a.recTd += ct; a.tds += rt + ct;
     a.targets += num(S(r, 'targets')) || 0; a.carries += num(S(r, 'carries')) || 0;
     a.games++;
+    // QB passing line, for the Schedule matchup card
+    const att = num(S(r, 'attempts')) || 0;
+    if (att > 0) {
+      const q = qbAgg[pid] ??= { name: a.name, team: S(r, 'team'), g: 0, att: 0, cmp: 0,
+                                 yds: 0, td: 0, int: 0, sacks: 0, rushYds: 0, rushTd: 0 };
+      q.team = S(r, 'team'); q.g++; q.att += att;
+      q.cmp += num(S(r, 'completions')) || 0;
+      q.yds += num(S(r, 'passing_yards')) || 0;
+      q.td  += num(S(r, 'passing_tds')) || 0;
+      q.int += num(S(r, 'passing_interceptions')) || 0;
+      q.sacks += num(S(r, 'sacks_suffered')) || 0;
+      q.rushYds += num(S(r, 'rushing_yards')) || 0;
+      q.rushTd += num(S(r, 'rushing_tds')) || 0;
+    }
   }
   // Leaders come from the pbp TD tallies (includes return TDs + first-TD counts),
   // enriched with position / opportunities / games / full name from the weekly
@@ -196,12 +211,22 @@ async function main() {
   const posOf = {};
   for (const [pid, a] of Object.entries(agg)) if (a.pos) posOf[pid] = a.pos;
   for (const l of tdLeaders) if (l.pos && l.pos !== '—') posOf[l.pid] = l.pos;
-  const blank = () => ({ games: 0, off: 0, def: 0, offPos: {}, defPos: {},
+  const blank = () => ({ games: 0, scored: 0, pf: 0, pa: 0, off: 0, def: 0, offPos: {}, defPos: {},
                          offType: { rush: 0, rec: 0 }, defType: { rush: 0, rec: 0 },
                          firstFor: 0, firstAgainst: 0, lastFor: 0, lastAgainst: 0 });
   const teamStats = {};
   const T = (t) => (teamStats[t] ??= blank());
-  for (const r of Object.values(results)) { T(r.home).games++; T(r.away).games++; }
+  // Points for and against — the thing a schedule card should lead with, and
+  // the one team number here with real season-to-season signal.
+  for (const r of Object.values(results)) {
+    const h = T(r.home), a = T(r.away);
+    h.games++; a.games++;
+    if (r.hScore != null && r.aScore != null) {
+      h.pf += r.hScore; h.pa += r.aScore;
+      a.pf += r.aScore; a.pa += r.hScore;
+      h.scored++; a.scored++;
+    }
+  }
   for (const wk of weeks) for (const t of tdRecap[wk]) {
     if (t.type !== 'rush' && t.type !== 'rec') continue;   // offensive TDs only
     const p = posOf[t.pid] || '—';
@@ -222,13 +247,22 @@ async function main() {
   }
   for (const t of Object.keys(teamScorers))
     teamScorers[t] = teamScorers[t].sort((a, b) => b.tds - a.tds).slice(0, 8);
-  console.log(`  team profiles: ${Object.keys(teamStats).length} teams`);
+  // Each team's QB1 = most pass attempts last season, with his full line.
+  const teamQB = {};
+  for (const [pid, q] of Object.entries(qbAgg)) {
+    if (!q.team) continue;
+    if (!teamQB[q.team] || q.att > teamQB[q.team].att) {
+      teamQB[q.team] = { pid, name: q.name, g: q.g, att: q.att, cmp: q.cmp, yds: q.yds,
+                         td: q.td, int: q.int, sacks: q.sacks, rushYds: q.rushYds, rushTd: q.rushTd };
+    }
+  }
+  console.log(`  team profiles: ${Object.keys(teamStats).length} teams, ${Object.keys(teamQB).length} QBs`);
 
   const output = {
     generatedAt: new Date().toISOString(),
     historySeason: HISTORY_SEASON, upcomingSeason: UPCOMING_SEASON,
     schedule, results, tdRecap, tdRecapWeeks: weeks, tdLeaders, headshots: shots,
-    teamStats, teamScorers,
+    teamStats, teamScorers, teamQB,
     picks, picksHistory,
   };
   fs.writeFileSync(new URL('../nfl/data.json', import.meta.url), JSON.stringify(output));
