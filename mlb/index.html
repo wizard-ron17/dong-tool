@@ -1456,10 +1456,16 @@
   .sport-switch-btn { margin-left: 0.5rem; width: 1.55rem; height: 1.55rem; display: inline-flex; align-items: center; justify-content: center; padding: 0; background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); cursor: pointer; font-size: 0.72rem; line-height: 1; transition: color 0.12s, border-color 0.12s, background 0.12s; }
   .sport-switch-btn:hover { color: var(--text); border-color: var(--border2); background: var(--surface2); }
   .sport-switch-btn.open { color: var(--accent); border-color: var(--accent); }
-  .sport-menu { position: absolute; top: calc(100% + 8px); left: 0; z-index: 260; min-width: 230px; background: var(--surface0); border: 1px solid var(--border2); border-radius: 14px; padding: 0.4rem; box-shadow: 0 18px 48px rgba(0,0,0,0.55); display: none; }
+  /* Right-anchored, not left. The switch button sits after the title, so on a
+     phone it is close to the right edge — opening a 230px menu rightward pushed
+     it past the viewport, which widens the document and lets the page pan and
+     zoom. Anchoring the menu's right edge to the button's makes it open inward,
+     and the max-width keeps it inside the screen even on the narrowest phone. */
+  .sport-menu { position: absolute; top: calc(100% + 8px); right: 0; left: auto; z-index: 260; min-width: 230px; max-width: calc(100vw - 1.5rem); background: var(--surface0); border: 1px solid var(--border2); border-radius: 14px; padding: 0.4rem; box-shadow: 0 18px 48px rgba(0,0,0,0.55); display: none; }
   .sport-menu.open { display: block; animation: sportMenuIn 0.14s ease; }
   @keyframes sportMenuIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
-  .sport-item { display: flex; align-items: center; gap: 0.65rem; padding: 0.55rem 0.6rem; border-radius: 10px; text-decoration: none; color: var(--text); }
+  .sport-item { display: flex; align-items: center; gap: 0.65rem; padding: 0.55rem 0.6rem; border-radius: 10px; text-decoration: none; color: var(--text); min-width: 0; }
+  .sport-item .sport-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   a.sport-item:hover { background: var(--surface2); }
   .sport-item.current { background: rgba(51,208,124,0.12); }
   .sport-item.soon { opacity: 0.4; cursor: default; }
