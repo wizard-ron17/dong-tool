@@ -51,6 +51,11 @@ const MODEL = JSON.parse(
 // research/calibrate.py — see that file for why Platt scaling cannot do this.
 const CALIB = JSON.parse(
   fs.readFileSync(new URL('../research/calibration.json', import.meta.url), 'utf8'));
+// Per-player birthday scoring record, 2016-2025 — see research/birthday_history.py.
+// Precomputed because it needs ten seasons of play-by-play to know who scored,
+// which the daily build has no reason to carry.
+const BDAY = JSON.parse(
+  fs.readFileSync(new URL('../research/birthday_history.json', import.meta.url), 'utf8'));
 
 // ── feature helpers, mirroring research/build_dataset.py ──────────────────
 
@@ -176,18 +181,24 @@ export function score(row) {
 
 // ── data loading ──────────────────────────────────────────────────────────
 
-export async function loadCrosswalk() {
+/**
+ * One pass over players.csv for everything it holds: the pfr -> gsis crosswalk
+ * and birth dates. weekly_rosters looks like it would do the crosswalk but its
+ * pfr_id is null ~36% of the time, and the players it misses skew to low snap
+ * share — exactly the low-probability rows, so dropping them silently inflates
+ * the base rate.
+ */
+export async function loadPlayers() {
   const { idx, rows } = parseCsv(await fetchText(`${REL}/players/players.csv`));
-  // weekly_rosters looks like it would do this job but its pfr_id is null ~36%
-  // of the time, and the players it misses skew to low snap share — exactly the
-  // low-probability rows. Dropping them silently inflates the base rate.
-  const m = new Map();
+  const xwalk = new Map(), birth = new Map();
   for (const r of rows) {
     const g = r[idx.gsis_id], p = r[idx.pfr_id];
-    if (g && p && !m.has(p)) m.set(p, g);
+    if (g && p && !xwalk.has(p)) xwalk.set(p, g);
+    if (g && r[idx.birth_date]) birth.set(g, r[idx.birth_date]);
   }
-  return m;
+  return { xwalk, birth };
 }
+export async function loadCrosswalk() { return (await loadPlayers()).xwalk; }
 
 /** Per-player game log of offensive snap share, oldest first, across seasons. */
 export async function loadSnapLog(seasons, xwalk) {
@@ -334,7 +345,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   const games = schedule.filter(g => g.week === week && g.total != null);
   console.log(`Picks: scoring ${season} week ${week} (${games.length} games)…`);
 
-  const xwalk = await loadCrosswalk();
+  const { xwalk, birth } = await loadPlayers();
   const snapLog = await loadSnapLog(snapSeasons, xwalk);
   const rzLog = await loadRzLog(rzSeasons);
   const roster = await loadRoster(upcomingSeason);
@@ -445,8 +456,38 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
 
   picks.sort((a, b) => b.p - a.p);
   console.log(`  scored ${picks.length} players; top ${picks[0]?.name} ${picks[0]?.p} (raw ${picks[0]?.pRaw})`);
+  // ── birthdays ─────────────────────────────────────────────────────────
+  // Who is playing on or near his birthday this week. Carries each player's
+  // pick probability so the tool ties back to the board.
+  const gameday = new Map(games.map(g => [g.gameId, g.gameday]));
+  const bdays = [];
+  for (const p of picks) {
+    const b = birth.get(p.pid);
+    const gd = gameday.get(p.gameId);
+    if (!b || !gd) continue;
+    const [by, bm, bd] = b.split('-').map(Number);
+    const g = new Date(gd + 'T12:00:00Z');
+    // distance in days between the birthday and kickoff, wrapping the year
+    const thisYear = Date.UTC(g.getUTCFullYear(), bm - 1, bd, 12);
+    const raw = Math.round((thisYear - g.getTime()) / 86400000);
+    const off = Math.abs(raw) > 182 ? raw - Math.sign(raw) * 365 : raw;
+    if (Math.abs(off) > 6) continue;
+    const rec = BDAY.players[p.pid];
+    bdays.push({
+      pid: p.pid, name: p.name, team: p.team, opp: p.opp, pos: p.pos, home: p.home,
+      gameday: gd, birth: b, turning: g.getUTCFullYear() - by, off, p: p.p,
+      // [games, TDs] on his birthday and within a few days of it, since 2016
+      on: rec?.on || null, near: rec?.near || null,
+    });
+  }
+  bdays.sort((a, b) => Math.abs(a.off) - Math.abs(b.off) || b.p - a.p);
+  console.log(`  birthdays within a week of kickoff: ${bdays.length}`
+            + ` (${bdays.filter(x => x.off === 0).length} on the day)`);
+
   return {
     season, week, generatedAt: new Date().toISOString(),
+    birthdays: bdays, birthdayStats: BDAY.league, birthdaySeasons: BDAY.seasons,
+    birthdayBase: BDAY.base_rate,
     // Ship the fitted model with the board so the UI can decompose each price
     // into its parts. A logistic is additive in log-odds, so contribution =
     // coef * (x - mean) / sd — an exact attribution, not a heuristic.

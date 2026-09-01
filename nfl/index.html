@@ -180,19 +180,19 @@
     .nav-tools-backdrop { background: rgba(0,0,0,0.45); bottom: calc(var(--nav-bottom) + var(--nav-h)); }
     /* visibility flips AFTER the slide-out finishes (0s delay trick) so the
        closed sheet can never peek — translateY(135%) clears the bottom gap. */
-    /* Mobile: a 2-column tile grid so all ~12 tools fit above the nav bar
-       instead of a tall list that runs off the top of the screen. Group
-       headers span both columns; descriptions are dropped for density; a
-       max-height scroll is the safety net if the tool count keeps growing. */
+    /* Mobile: a single-column list. The MLB tool needs a 2-column tile grid to
+       fit ~12 tools above the nav bar; this one has a handful, and a list reads
+       better until that changes. Group headers span the row; a max-height
+       scroll is the safety net if the tool count grows. */
     .nav-tools-menu { position: fixed; top: auto; left: var(--nav-side); right: var(--nav-side); bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.5rem); min-width: 0; border: 1px solid var(--border2); border-radius: 20px; padding: 0.55rem 0.6rem 0.65rem; opacity: 1; transform: translateY(135%); visibility: hidden; transition: transform 0.24s ease, visibility 0s linear 0.24s; box-shadow: 0 10px 34px rgba(0,0,0,0.5);
-      display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 0.45rem; max-height: calc(100dvh - var(--nav-bottom) - var(--nav-h) - 2rem); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+      display: grid; grid-template-columns: 1fr; gap: 0.4rem; max-height: calc(100dvh - var(--nav-bottom) - var(--nav-h) - 2rem); overflow-y: auto; -webkit-overflow-scrolling: touch; }
     .nav-tools-menu.open { transform: none; visibility: visible; transition: transform 0.24s ease; }
     .nav-menu-group { grid-column: 1 / -1; padding: 0.4rem 0.25rem 0.05rem; }
     .nav-menu-group:first-child { padding-top: 0.1rem; }
-    .nav-menu-item { flex-direction: column; align-items: center; text-align: center; gap: 0.3rem; padding: 0.65rem 0.35rem; border-radius: 12px; background: var(--surface0); }
+    .nav-menu-item { flex-direction: row; align-items: center; text-align: left; gap: 0.6rem; padding: 0.6rem 0.7rem; border-radius: 12px; background: var(--surface0); }
     .nav-menu-item:hover:not(:disabled), .nav-menu-item.active { background: var(--surface2); }
     .nav-menu-item .nm-name { font-size: 0.82rem; line-height: 1.15; }
-    .nav-menu-item .nm-desc { display: none; }
+    .nav-menu-item .nm-desc { display: block; font-size: 0.6rem; color: var(--dim); }
     .nav-menu-item svg { width: 23px; height: 23px; }
   }
 
@@ -1707,6 +1707,32 @@
     .pbf-lbl { text-align: left; font-size: 0.7rem; padding-top: 0; }
   }
 
+  /* ── Birthdays ────────────────────────────────────────────────────────── */
+  .bd-hero { display: flex; align-items: baseline; gap: 0.55rem; flex-wrap: wrap; margin-bottom: 0.2rem; }
+  .bd-week { font-family: var(--font-d); font-size: 1.5rem; font-weight: 900; color: var(--text-strong); }
+  .bd-meta { font-size: 0.66rem; color: var(--muted); }
+  .bd-sec { font-family: var(--font-d); font-size: 0.98rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 1.1rem 0 0.45rem; display: flex; align-items: baseline; gap: 0.5rem; }
+  .bd-sec span { font-family: var(--font-b); font-size: 0.6rem; letter-spacing: 0; text-transform: none; color: var(--dim); }
+  .bd-list { display: flex; flex-direction: column; gap: 0.4rem; }
+  .bd-card { display: flex; align-items: center; gap: 0.6rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.7rem; }
+  .bd-card.today { border-color: rgba(242,201,76,0.5); background: rgba(242,201,76,0.06); }
+  .bd-cake { font-size: 1.1rem; flex-shrink: 0; width: 1.5rem; text-align: center; }
+  .bd-logo { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
+  .bd-info { flex: 1; min-width: 0; }
+  .bd-nm { font-weight: 700; font-size: 0.85rem; color: var(--text-strong); display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+  .bd-sub { font-size: 0.65rem; color: var(--muted); margin-top: 0.12rem; }
+  .bd-age { font-family: var(--font-d); font-size: 1.25rem; font-weight: 900; color: var(--gold); line-height: 1; }
+  .bd-age small { display: block; font-family: var(--font-b); font-size: 0.5rem; font-weight: 700; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; margin-top: 0.12rem; }
+  .bd-rec { font-family: var(--font-m); font-size: 0.6rem; color: var(--silver); background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 0.1rem 0.34rem; white-space: nowrap; }
+  .bd-rec b { color: var(--good); }
+  .bd-price { font-family: var(--font-d); font-size: 1.05rem; font-weight: 900; min-width: 3.4rem; text-align: right; color: var(--good); }
+  .bd-price.dog { color: var(--gold); }
+  .bd-stat { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 0.45rem; margin: 0.5rem 0 0.2rem; }
+  .bd-tile { background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.5rem; text-align: center; }
+  .bd-tile-v { font-family: var(--font-d); font-size: 1.4rem; font-weight: 900; color: var(--text-strong); line-height: 1; }
+  .bd-tile-l { font-size: 0.55rem; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 0.22rem; }
+  @media (max-width: 560px) { .bd-rec { display: none; } }
+
   .rc-card { display: flex; align-items: center; gap: 0.7rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.7rem; }
   .rc-photo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; object-position: center 18%; background: var(--surface2); flex-shrink: 0; }
   .rc-noface { display: flex; align-items: center; justify-content: center; font-family: var(--font-d); font-weight: 800; color: var(--muted); }
@@ -1837,6 +1863,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.4l6.1-.8z"/></svg>
         <span><span class="nm-name">Picks</span><span class="nm-desc">Who scores a TD this week</span></span>
       </button>
+      <button class="nav-menu-item" data-nav="birthdays" onclick="switchNav('birthdays')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16v-6H4zM6 14v-3h12v3M12 8V5M9.5 6.5 12 4l2.5 2.5"/></svg>
+        <span><span class="nm-name">Birthdays</span><span class="nm-desc">Who is celebrating on the slate</span></span>
+      </button>
       <button class="nav-menu-item" data-nav="pairs" onclick="switchNav('pairs')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8"/></svg>
         <span><span class="nm-name">Pairs</span><span class="nm-desc">Players who score the same week</span></span>
@@ -1938,6 +1968,24 @@
     </div>
     <div id="schedule-content"><div class="empty">Loading…</div></div>
   </div>
+  <div id="panel-birthdays" class="panel">
+    <div class="due-explainer" id="birthdays-explainer-toggle" onclick="toggleExplainer('birthdays')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Birthdays Work</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="birthdays-explainer-chevron">▶</span>
+      </div>
+      <div class="due-explainer-teaser">Who is playing on or near his birthday — and whether birthday boys actually find the end zone.</div>
+      <div class="due-explainer-body" id="birthdays-explainer-body" style="display:none">
+        <ul>
+          <li><b>The slate.</b> Every skill player on the upcoming week whose birthday falls within six days of kickoff, nearest first, with the age he is turning and his anytime price from the Picks board.</li>
+          <li><b>His own record.</b> Since 2016, how many games he has played on his birthday and how many he scored in — plus the same for the days either side of it.</li>
+          <li><b>Does it mean anything? Probably not.</b> League-wide, players score in 21.5% of games played on their birthday against a 16.9% base — which sounds like something until you notice it rests on 186 games. That is a z of 1.67 and a p of 0.095, and the confidence interval comfortably contains the base rate. Fun, not an edge. It is here because it is fun.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="birthdays-content"><div class="empty">Loading…</div></div>
+  </div>
   <div id="panel-pairs" class="panel">
     <div class="due-explainer" id="pairs-explainer-toggle" onclick="toggleExplainer('pairs')" aria-expanded="false">
       <div class="due-explainer-head">
@@ -2007,7 +2055,7 @@
   function closeSportMenu() { document.getElementById('sport-menu')?.classList.remove('open'); document.getElementById('sport-switch-btn')?.classList.remove('open'); }
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch')) closeSportMenu(); });
 
-  const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs']; // tools added here as they ship
+  const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs', 'birthdays']; // tools added here as they ship
   const PAGE_TITLES = { home: "Ron's Tud Tool", stats: "Stats · Ron's Tud Tool", recap: "Recap · Ron's Tud Tool", schedule: "Schedule · Ron's Tud Tool", pairs: "Pairs · Ron's Tud Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
@@ -2591,7 +2639,63 @@
       <table class="pb-cal"><thead><tr><th>Slice</th><th>Hit / total</th><th>Rate</th></tr></thead><tbody>${tierRows}</tbody></table>`;
   }
 
-  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); }
+  // ── Birthdays ───────────────────────────────────────────────────────────
+  function renderBirthdays() {
+    const el = document.getElementById('birthdays-content');
+    if (!el) return;
+    if (nflData === 'error') { el.innerHTML = '<div class="empty">Couldn\'t load NFL data. <a href="javascript:void(0)" onclick="loadNfl()">Retry</a></div>'; return; }
+    if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
+    const P = nflData.picks;
+    const list = P?.birthdays || [];
+    if (!list.length) {
+      el.innerHTML = `<div class="empty">Nobody on this week's slate has a birthday within six days of kickoff.</div>`;
+      return;
+    }
+    const st = P.birthdayStats || {};
+    const offLbl = (o) => o === 0 ? 'on game day'
+      : o > 0 ? `${o} day${o > 1 ? 's' : ''} after` : `${-o} day${-o > 1 ? 's' : ''} before`;
+    const rec = (r) => {
+      if (!r?.on && !r?.near) return '';
+      const bits = [];
+      if (r.on) bits.push(`<b>${r.on[1]}</b>/${r.on[0]} on his day`);
+      if (r.near) bits.push(`${r.near[1]}/${r.near[0]} near it`);
+      return `<span class="bd-rec" title="Games played on his birthday (and within ${P.birthdaySeasons ? 'a few days' : ''}) since 2016, and touchdowns in them">${bits.join(' · ')}</span>`;
+    };
+    const card = (b) => `<div class="bd-card${b.off === 0 ? ' today' : ''}" onclick="openPick('${b.pid}')">
+      <span class="bd-cake">${b.off === 0 ? '🎂' : '🎈'}</span>
+      <img class="bd-logo" src="${teamLogo(b.team)}" alt="" loading="lazy">
+      <div class="bd-info">
+        <div class="bd-nm">${b.name}<span class="posb ${b.pos}">${b.pos}</span></div>
+        <div class="bd-sub">${b.team} ${b.home ? 'vs' : '@'} ${b.opp} · ${offLbl(b.off)}</div>
+      </div>
+      ${rec(b)}
+      <div class="bd-age">${b.turning}<small>turning</small></div>
+      <div class="bd-price${b.p < 0.5 ? ' dog' : ''}">${pbOdds(b.p)}</div>
+    </div>`;
+
+    const onDay = list.filter(b => b.off === 0);
+    const near = list.filter(b => b.off !== 0);
+    el.innerHTML = `
+      <div class="bd-hero"><span class="bd-week">${WK_LABEL(P.week)}</span>
+        <span class="bd-meta">${P.season} · ${list.length} birthday${list.length > 1 ? 's' : ''} within six days of kickoff</span></div>
+      ${onDay.length ? `<div class="bd-sec">🎂 On game day<span>${onDay.length}</span></div>
+        <div class="bd-list">${onDay.map(card).join('')}</div>` : ''}
+      ${near.length ? `<div class="bd-sec">Around the slate<span>${near.length}</span></div>
+        <div class="bd-list">${near.map(card).join('')}</div>` : ''}
+      <div class="bd-sec">Do birthday boys score?<span>${P.birthdaySeasons || ''}</span></div>
+      <div class="bd-stat">
+        <div class="bd-tile"><div class="bd-tile-v">${((st.on?.rate ?? 0) * 100).toFixed(1)}%</div><div class="bd-tile-l">on his birthday</div></div>
+        <div class="bd-tile"><div class="bd-tile-v">${((P.birthdayBase ?? 0) * 100).toFixed(1)}%</div><div class="bd-tile-l">any other game</div></div>
+        <div class="bd-tile"><div class="bd-tile-v">${st.on?.tds ?? 0}/${st.on?.games ?? 0}</div><div class="bd-tile-l">birthday games</div></div>
+        <div class="bd-tile"><div class="bd-tile-v">${(((st.on?.rate ?? 0) / (P.birthdayBase || 1))).toFixed(2)}x</div><div class="bd-tile-l">lift</div></div>
+      </div>
+      <p style="font-size:0.66rem;color:var(--muted);line-height:1.55;margin:0.6rem 0 0">
+        Tempting, but no. That 1.27x rests on <b>${st.on?.games ?? 0}</b> games — a z of 1.67 and a p of 0.095, with a
+        confidence interval that comfortably contains the ordinary rate. If birthdays mattered we could not tell from
+        this, and we would need roughly ten times the sample to find out. Enjoy it as trivia.</p>`;
+  }
+
+  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); else if (nav === 'birthdays') renderBirthdays(); }
   // ESPN team-logo CDN (transparent PNGs). nflverse abbrs are ESPN slugs
   // lowercased, save two: LA(Rams)->lar, WAS->wsh.
   const LOGO_SLUG = { LA: 'lar', WAS: 'wsh' };
