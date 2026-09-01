@@ -1740,39 +1740,49 @@
   .sc-game:hover { border-color: var(--border2); }
   .sc-chev { flex-shrink: 0; color: var(--dim); font-size: 0.7rem; margin-left: 0.6rem; transition: transform 0.18s; display: inline-block; }
   .sc-game.open .sc-chev { transform: rotate(90deg); color: var(--accent); }
-  /* points per game, right on the collapsed row — the number that matters most */
   .sc-ppg { font-family: var(--font-m); font-size: 0.58rem; color: var(--dim); white-space: nowrap; }
-  .sc-ppg b { color: var(--silver); font-weight: 700; }
 
   .mx { background: var(--surface0); border: 1px solid var(--border2); border-top: none;
         border-radius: 0 0 10px 10px; padding: 0.8rem 0.85rem 0.9rem; margin: -0.35rem 0 0.45rem; }
-  .mx-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; }
-  .mx-side { background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.65rem; min-width: 0; }
-  .mx-team { display: flex; align-items: center; gap: 0.4rem; font-family: var(--font-d); font-size: 1.05rem; font-weight: 900; color: var(--text-strong); margin-bottom: 0.5rem; }
-  .mx-team img { width: 22px; height: 22px; object-fit: contain; }
-  .mx-team small { margin-left: auto; font-family: var(--font-b); font-size: 0.55rem; font-weight: 700; color: var(--dim); letter-spacing: 0.05em; text-transform: uppercase; }
+  .mx-h { font-size: 0.53rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--dim); margin: 0 0 0.45rem; }
+  .mx-h.sp { margin-top: 0.9rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
 
-  .mx-pts { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; margin-bottom: 0.55rem; }
-  .mx-pt { background: var(--surface2); border-radius: 7px; padding: 0.4rem 0.35rem; text-align: center; }
-  .mx-pt-v { font-family: var(--font-d); font-size: 1.2rem; font-weight: 900; line-height: 1; }
-  .mx-pt-v.good { color: var(--good); } .mx-pt-v.bad { color: var(--bad); } .mx-pt-v.mid { color: var(--silver); }
-  .mx-pt-l { font-size: 0.5rem; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 0.2rem; }
-  .mx-rank { font-family: var(--font-m); font-size: 0.48rem; color: var(--dim); }
+  /* Scoring matchup — each offence squared against the defence it faces, which
+     is the pairing that actually interacts. Bars place both on the league
+     range so a number reads without needing to know the scale. */
+  .mxs { display: flex; flex-direction: column; gap: 0.5rem; }
+  .mxs-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 0.5rem; }
+  .mxs-cell { min-width: 0; }
+  .mxs-cell.r { text-align: right; }
+  .mxs-lbl { font-size: 0.56rem; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+  .mxs-v { font-family: var(--font-d); font-size: 1.35rem; font-weight: 900; line-height: 1.05; }
+  .mxs-rk { font-family: var(--font-m); font-size: 0.52rem; color: var(--dim); }
+  .mxs-vs { font-family: var(--font-d); font-size: 0.62rem; font-weight: 800; letter-spacing: 0.08em; color: var(--dim); }
+  .mxs-bar { position: relative; height: 5px; border-radius: 3px; margin-top: 0.28rem;
+             background: linear-gradient(90deg, var(--bad), var(--warn), var(--gold), var(--good-2), var(--accent)); opacity: 0.32; }
+  .mxs-bar i { position: absolute; top: -3px; width: 3px; height: 11px; border-radius: 2px; background: var(--text-strong); box-shadow: 0 0 0 1px var(--surface0); }
 
-  .mx-qb { border-top: 1px solid var(--border); padding-top: 0.5rem; margin-bottom: 0.5rem; }
-  .mx-qb-hd { display: flex; align-items: baseline; gap: 0.35rem; margin-bottom: 0.3rem; }
-  .mx-qb-nm { font-weight: 700; font-size: 0.8rem; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .mx-qb-line { font-family: var(--font-m); font-size: 0.6rem; color: var(--silver); line-height: 1.6; }
-  .mx-qb-line b { color: var(--text-strong); }
-  .mx-qb-line .dim { color: var(--dim); }
+  /* QB line as labelled, colour-ramped rows instead of a dim monospace blob */
+  .mxq { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; }
+  .mxq-side { background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.55rem 0.6rem; min-width: 0; }
+  .mxq-hd { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.45rem; }
+  .mxq-nm { font-weight: 700; font-size: 0.82rem; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mxq-gm { margin-left: auto; font-family: var(--font-m); font-size: 0.53rem; color: var(--dim); white-space: nowrap; }
+  .mxq-row { display: flex; align-items: baseline; gap: 0.4rem; font-size: 0.64rem; padding: 0.13rem 0; }
+  .mxq-k { color: var(--muted); flex: 1; min-width: 0; }
+  .mxq-v { font-family: var(--font-m); font-weight: 700; white-space: nowrap; }
+  .mxq-sub { font-family: var(--font-m); font-size: 0.55rem; color: var(--dim); white-space: nowrap; }
 
-  .mx-hd2 { font-size: 0.52rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); border-top: 1px solid var(--border); padding-top: 0.5rem; margin-bottom: 0.25rem; }
-  .mx-sc-row { display: flex; align-items: center; gap: 0.35rem; font-size: 0.65rem; padding: 0.15rem 0; }
+  .mxt { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; }
+  .mxt-col { min-width: 0; }
+  .mx-sc-row { display: flex; align-items: center; gap: 0.35rem; font-size: 0.66rem; padding: 0.16rem 0.25rem; border-radius: 5px; cursor: pointer; }
+  .mx-sc-row:hover { background: var(--surface1); }
   .mx-sc-nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-strong); font-weight: 600; }
   .mx-sc-td { font-family: var(--font-m); color: var(--silver); white-space: nowrap; font-size: 0.6rem; }
-  .mx-sc-row:hover .mx-sc-nm { color: var(--accent); }
-  .mx-foot { font-size: 0.58rem; color: var(--dim); line-height: 1.5; margin-top: 0.7rem; padding-top: 0.55rem; border-top: 1px solid var(--border); }
-  @media (max-width: 560px) { .mx-cols { grid-template-columns: 1fr; } }
+  .mx-legend { display: flex; align-items: center; gap: 0.3rem; font-size: 0.52rem; color: var(--dim); margin-top: 0.7rem; padding-top: 0.55rem; border-top: 1px solid var(--border); }
+  .mx-legend i { display: inline-block; width: 42px; height: 4px; border-radius: 2px;
+                 background: linear-gradient(90deg, var(--bad), var(--warn), var(--gold), var(--good-2), var(--accent)); }
+  @media (max-width: 560px) { .mxq, .mxt { grid-template-columns: 1fr; } .mxs-v { font-size: 1.15rem; } }
 
   .rc-card { display: flex; align-items: center; gap: 0.7rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.7rem; }
   .rc-photo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; object-position: center 18%; background: var(--surface2); flex-shrink: 0; }
@@ -2743,62 +2753,101 @@
   }
 
   // ── Schedule matchup panel ──────────────────────────────────────────────
-  // Points for and against, and the quarterback — the two things you actually
-  // want when sizing up a game. The by-position "scored vs allowed" grid that
-  // used to live here is gone: it was measured at a split-half correlation of
-  // -0.06 for receivers and -0.03 for tight ends, i.e. noise, and showing noise
-  // in a decision tool is worse than showing nothing.
+  // Points and quarterbacks, every number placed against its league
+  // distribution. The by-position "scored vs allowed" grid that used to live
+  // here is gone — it measured at a split-half correlation of -0.06 for
+  // receivers and -0.03 for tight ends, and showing noise in a decision tool is
+  // worse than showing nothing.
   let mxOpen = null;
   function toggleMatchup(gid) { mxOpen = mxOpen === gid ? null : gid; renderSchedule(); }
 
-  const mxRank = (val, arr, lowerBetter) => {
-    const s = [...arr].sort((x, y) => lowerBetter ? x - y : y - x);
-    return s.findIndex(v => Math.abs(v - val) < 1e-9) + 1;
+  // Quintile ramp against the league, reusing the palette's semantic classes:
+  // great → accent, good → good-2, avg → gold, below → warn, bad → bad.
+  // Red through green, and the CLASS carries the meaning, so a stat where lower
+  // is better (interceptions, points allowed) still reads green when it is good.
+  function mxRamp(v, arr, higherBetter = true) {
+    const s = [...arr].sort((x, y) => x - y);
+    let pct = s.filter(x => x < v).length / s.length;
+    if (!higherBetter) pct = 1 - pct;
+    return pct >= 0.8 ? 'great' : pct >= 0.6 ? 'good' : pct >= 0.4 ? 'avg' : pct >= 0.2 ? 'below' : 'bad';
+  }
+  const mxRank = (v, arr, higherBetter = true) =>
+    [...arr].sort((x, y) => higherBetter ? y - x : x - y).findIndex(x => Math.abs(x - v) < 1e-9) + 1;
+  // Marker position across the league's observed range. The gradient always
+  // runs worst → best, so a lower-is-better stat (points allowed, INTs) has to
+  // be flipped — otherwise the league's best defence lands on the red end while
+  // its number is coloured green.
+  const mxPos = (v, arr, higherBetter = true) => {
+    const lo = Math.min(...arr), hi = Math.max(...arr);
+    const p = hi > lo ? ((v - lo) / (hi - lo)) * 100 : 50;
+    return Math.max(2, Math.min(98, higherBetter ? p : 100 - p));
   };
-  const mxCls = (rank, n) => rank <= n / 3 ? 'good' : rank > (2 * n) / 3 ? 'bad' : 'mid';
 
   function matchupPanel(g) {
     const S = nflData?.teamStats || {}, SC = nflData?.teamScorers || {}, QB = nflData?.teamQB || {};
     const yr = nflData.historySeason;
     if (!S[g.away]?.scored || !S[g.home]?.scored)
-      return `<div class="mx"><div class="mx-foot">No ${yr} profile for these teams yet.</div></div>`;
+      return `<div class="mx"><div class="mx-legend">No ${yr} profile for these teams yet.</div></div>`;
     const teams = Object.values(S).filter(t => t.scored);
     const pfArr = teams.map(t => t.pf / t.scored), paArr = teams.map(t => t.pa / t.scored);
-    const n = teams.length;
+    const pf = (t) => S[t].pf / S[t].scored, pa = (t) => S[t].pa / S[t].scored;
 
-    const side = (abbr, homeAway) => {
-      const t = S[abbr], q = QB[abbr];
-      const pf = t.pf / t.scored, pa = t.pa / t.scored;
-      const pfR = mxRank(pf, pfArr, false), paR = mxRank(pa, paArr, true);
-      const cmpPct = q && q.att ? (100 * q.cmp / q.att).toFixed(1) : null;
-      const ypg = q && q.g ? (q.yds / q.g).toFixed(0) : null;
-      return `<div class="mx-side">
-        <div class="mx-team">${logoImg(abbr)}${abbr}<small>${homeAway}</small></div>
-        <div class="mx-pts">
-          <div class="mx-pt"><div class="mx-pt-v ${mxCls(pfR, n)}">${pf.toFixed(1)}</div>
-            <div class="mx-pt-l">pts scored</div><div class="mx-rank">#${pfR} of ${n}</div></div>
-          <div class="mx-pt"><div class="mx-pt-v ${mxCls(paR, n)}">${pa.toFixed(1)}</div>
-            <div class="mx-pt-l">pts allowed</div><div class="mx-rank">#${paR} of ${n}</div></div>
+    // one row per direction of the game: this offence against that defence
+    const scoreRow = (offT, defT) => {
+      const o = pf(offT), d = pa(defT);
+      return `<div class="mxs-row">
+        <div class="mxs-cell">
+          <div class="mxs-lbl">${offT} scoring</div>
+          <div class="mxs-v hrg-val ${mxRamp(o, pfArr, true)}">${o.toFixed(1)}
+            <span class="mxs-rk">#${mxRank(o, pfArr, true)}</span></div>
+          <div class="mxs-bar"><i style="left:${mxPos(o, pfArr, true)}%"></i></div>
         </div>
-        ${q ? `<div class="mx-qb">
-          <div class="mx-qb-hd"><span class="posb QB">QB</span><span class="mx-qb-nm">${q.name}</span></div>
-          <div class="mx-qb-line"><b>${q.yds.toLocaleString()}</b> yd <span class="dim">(${ypg}/g)</span> · <b>${q.td}</b> TD · <b>${q.int}</b> INT</div>
-          <div class="mx-qb-line">${cmpPct}% comp <span class="dim">(${q.cmp}/${q.att})</span> · ${q.sacks} sacked · ${q.g} gm</div>
-          ${q.rushTd || q.rushYds > 100 ? `<div class="mx-qb-line"><b>${q.rushYds}</b> rush yd · <b>${q.rushTd}</b> rush TD</div>` : ''}
-        </div>` : ''}
-        <div class="mx-hd2">Top scorers · ${yr}</div>
-        ${(SC[abbr] || []).slice(0, 5).map(p => `<div class="mx-sc-row" onclick="event.stopPropagation();openPick('${p.pid}')">
-            <span class="posb ${p.pos}">${p.pos}</span>
-            <span class="mx-sc-nm">${p.name}</span>
-            <span class="mx-sc-td">${p.tds} TD${p.firstTd ? ` · ${p.firstTd} 1st` : ''}</span></div>`).join('')
-          || '<div class="mx-sc-row" style="color:var(--dim)">no scorers</div>'}
+        <span class="mxs-vs">VS</span>
+        <div class="mxs-cell r">
+          <div class="mxs-lbl">${defT} defence allows</div>
+          <div class="mxs-v hrg-val ${mxRamp(d, paArr, false)}">${d.toFixed(1)}
+            <span class="mxs-rk">#${mxRank(d, paArr, false)}</span></div>
+          <div class="mxs-bar"><i style="left:${mxPos(d, paArr, false)}%"></i></div>
+        </div></div>`;
+    };
+
+    // QB stats ranked across the 32 starters
+    const qbs = Object.values(QB).filter(q => q.g >= 4);
+    const A = (fn) => qbs.map(fn);
+    const qbSide = (abbr) => {
+      const q = QB[abbr];
+      if (!q) return `<div class="mxq-side"><div class="mxq-nm">No ${yr} starter</div></div>`;
+      const ypg = q.yds / q.g, cmp = q.att ? 100 * q.cmp / q.att : 0;
+      const stat = (k, v, cls, sub = '') =>
+        `<div class="mxq-row"><span class="mxq-k">${k}</span>
+          <span class="mxq-v hrg-val ${cls}">${v}</span>${sub ? `<span class="mxq-sub">${sub}</span>` : ''}</div>`;
+      return `<div class="mxq-side">
+        <div class="mxq-hd"><span class="posb QB">QB</span><span class="mxq-nm">${q.name}</span>
+          <span class="mxq-gm">${q.g} gm</span></div>
+        ${stat('Pass yds/g', ypg.toFixed(0), mxRamp(ypg, A(x => x.yds / x.g), true), `${q.yds.toLocaleString()} tot`)}
+        ${stat('Pass TD', q.td, mxRamp(q.td, A(x => x.td), true))}
+        ${stat('INT', q.int, mxRamp(q.int, A(x => x.int), false))}
+        ${stat('Completion', cmp.toFixed(1) + '%', mxRamp(cmp, A(x => x.att ? 100 * x.cmp / x.att : 0), true), `${q.cmp}/${q.att}`)}
+        ${stat('Sacked', q.sacks, mxRamp(q.sacks, A(x => x.sacks), false))}
+        ${stat('Rush TD', q.rushTd, mxRamp(q.rushTd, A(x => x.rushTd), true), `${q.rushYds} yd`)}
       </div>`;
     };
 
+    const scorers = (abbr) => `<div class="mxt-col">
+      <div class="mx-h" style="margin:0 0 0.3rem">${abbr} top scorers</div>
+      ${(SC[abbr] || []).slice(0, 5).map(p => `<div class="mx-sc-row" onclick="event.stopPropagation();openPick('${p.pid}')">
+          <span class="posb ${p.pos}">${p.pos}</span><span class="mx-sc-nm">${p.name}</span>
+          <span class="mx-sc-td">${p.tds} TD${p.firstTd ? ` · ${p.firstTd} 1st` : ''}</span></div>`).join('')
+        || '<div class="mx-sc-row" style="color:var(--dim)">no scorers</div>'}</div>`;
+
     return `<div class="mx" onclick="event.stopPropagation()">
-      <div class="mx-cols">${side(g.away, 'away')}${side(g.home, 'home')}</div>
-      <div class="mx-foot">Points and ranks are ${yr} regular season. Scoring rate is the one team
-        number here that carries real season-to-season signal — tap any scorer for his current price.</div>
+      <div class="mx-h">Scoring matchup · ${yr} points per game</div>
+      <div class="mxs">${scoreRow(g.away, g.home)}${scoreRow(g.home, g.away)}</div>
+      <div class="mx-h sp">Quarterbacks</div>
+      <div class="mxq">${qbSide(g.away)}${qbSide(g.home)}</div>
+      <div class="mx-h sp">Who scores</div>
+      <div class="mxt">${scorers(g.away)}${scorers(g.home)}</div>
+      <div class="mx-legend"><i></i> worst → best in the league, ${yr}. Tap a scorer for his current price.</div>
     </div>`;
   }
 
@@ -2819,14 +2868,14 @@
       ? `<div class="sc-score">${g.awayScore}–${g.homeScore}</div><div class="sc-when">Final</div>`
       : `<div class="sc-line">${g.total != null ? 'O/U ' + g.total : ''}${g.total != null && g.spread != null ? ' · ' : ''}${g.spread != null ? spreadLabel(g) : ''}</div><div class="sc-when">${when}</div>`;
     const S = nflData?.teamStats || {};
-    const ppg = (t) => S[t]?.scored ? `<b>${(S[t].pf / S[t].scored).toFixed(1)}</b>/<b>${(S[t].pa / S[t].scored).toFixed(1)}</b>` : '';
+    const ppg = (t) => S[t]?.scored ? `${(S[t].pf / S[t].scored).toFixed(1)}<span style="opacity:.5">↑</span>${(S[t].pa / S[t].scored).toFixed(1)}<span style="opacity:.5">↓</span>` : '';
     const open = mxOpen === g.gameId;
     return `<div class="sc-game${open ? ' open' : ''}" onclick="toggleMatchup('${g.gameId}')">
       <div class="sc-teams">
         <div class="sc-team">${logoImg(g.away)}<span class="sc-abbr">${g.away}</span></div>
         <span class="sc-at">@</span>
         <div class="sc-team">${logoImg(g.home)}<span class="sc-abbr">${g.home}</span></div>
-        <span class="sc-ppg" title="Points scored / allowed per game, ${nflData?.historySeason ?? ''}">${ppg(g.away)} · ${ppg(g.home)}</span>
+        <span class="sc-ppg" title="Points scored ↑ and allowed ↓ per game, ${nflData?.historySeason ?? ''}">${ppg(g.away)} · ${ppg(g.home)}</span>
       </div>
       <div class="sc-meta">${meta}</div><span class="sc-chev">▶</span></div>${open ? matchupPanel(g) : ''}`;
   }
