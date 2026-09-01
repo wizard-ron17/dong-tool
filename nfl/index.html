@@ -1738,7 +1738,22 @@
   /* ── Schedule matchup panel ───────────────────────────────────────────── */
   .sc-game { cursor: pointer; }
   .sc-game:hover { border-color: var(--border2); }
-  .sc-chev { flex-shrink: 0; color: var(--dim); font-size: 0.7rem; margin-left: 0.6rem; transition: transform 0.18s; display: inline-block; }
+  .sc-chev { flex-shrink: 0; color: var(--dim); font-size: 0.7rem; transition: transform 0.18s; display: inline-block; }
+  /* scoring band: each team's points for and against, heat-ramped */
+  .sc-scores { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+  .sc-tm { display: flex; align-items: baseline; gap: 0.4rem; background: var(--surface0); border-radius: 7px; padding: 0.32rem 0.5rem; min-width: 0; }
+  .sc-tm-ab { font-family: var(--font-d); font-size: 0.72rem; font-weight: 800; color: var(--muted); width: 2.1rem; flex-shrink: 0; }
+  .sc-tm-pair { display: flex; align-items: baseline; gap: 0.5rem; margin-left: auto; }
+  .sc-tm-v { font-family: var(--font-d); font-size: 0.95rem; font-weight: 900; line-height: 1; }
+  .sc-tm-k { font-size: 0.5rem; color: var(--dim); letter-spacing: 0.05em; text-transform: uppercase; margin-left: 0.15rem; }
+  /* the board's favourite in this game */
+  .sc-pick { display: flex; align-items: center; gap: 0.4rem; font-size: 0.66rem; border-top: 1px solid var(--border); padding-top: 0.45rem; }
+  .sc-pick-star { color: var(--gold); font-size: 0.7rem; }
+  .sc-pick-nm { color: var(--text-strong); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sc-pick-lbl { color: var(--dim); font-size: 0.55rem; letter-spacing: 0.05em; text-transform: uppercase; }
+  .sc-pick-od { margin-left: auto; font-family: var(--font-d); font-size: 0.88rem; font-weight: 900; color: var(--good); }
+  .sc-pick-od.dog { color: var(--gold); }
+  @media (max-width: 430px) { .sc-scores { grid-template-columns: 1fr; } }
   .sc-game.open .sc-chev { transform: rotate(90deg); color: var(--accent); }
   .sc-ppg { font-family: var(--font-m); font-size: 0.58rem; color: var(--dim); white-space: nowrap; }
 
@@ -1819,7 +1834,10 @@
   /* team logos + schedule game rows */
   .tm-logo { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
   .sc-list { display: flex; flex-direction: column; gap: 0.4rem; }
-  .sc-game { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.55rem 0.7rem; }
+  /* Stacked, not squeezed. Cramming teams, points and the line onto one row
+     collided on a phone; the card is taller now and each band gets its own. */
+  .sc-game { display: flex; flex-direction: column; gap: 0.5rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.7rem; }
+  .sc-top { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
   .sc-teams { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
   .sc-team { display: flex; align-items: center; gap: 0.35rem; }
   .sc-abbr { font-family: var(--font-d); font-weight: 700; font-size: 0.92rem; color: var(--text); }
@@ -2867,18 +2885,55 @@
     const meta = played
       ? `<div class="sc-score">${g.awayScore}–${g.homeScore}</div><div class="sc-when">Final</div>`
       : `<div class="sc-line">${g.total != null ? 'O/U ' + g.total : ''}${g.total != null && g.spread != null ? ' · ' : ''}${g.spread != null ? spreadLabel(g) : ''}</div><div class="sc-when">${when}</div>`;
+
+    // scoring band — points for and against, ramped against the league
     const S = nflData?.teamStats || {};
-    const ppg = (t) => S[t]?.scored ? `${(S[t].pf / S[t].scored).toFixed(1)}<span style="opacity:.5">↑</span>${(S[t].pa / S[t].scored).toFixed(1)}<span style="opacity:.5">↓</span>` : '';
+    const teams = Object.values(S).filter(t => t.scored);
+    const pfArr = teams.map(t => t.pf / t.scored), paArr = teams.map(t => t.pa / t.scored);
+    const tmRow = (abbr) => {
+      const t = S[abbr];
+      if (!t?.scored) return `<div class="sc-tm"><span class="sc-tm-ab">${abbr}</span></div>`;
+      const f = t.pf / t.scored, a = t.pa / t.scored;
+      return `<div class="sc-tm"><span class="sc-tm-ab">${abbr}</span><span class="sc-tm-pair">
+        <span><span class="sc-tm-v hrg-val ${mxRamp(f, pfArr, true)}">${f.toFixed(1)}</span><span class="sc-tm-k">for</span></span>
+        <span><span class="sc-tm-v hrg-val ${mxRamp(a, paArr, false)}">${a.toFixed(1)}</span><span class="sc-tm-k">agst</span></span>
+      </span></div>`;
+    };
+    const scores = teams.length
+      ? `<div class="sc-scores">${tmRow(g.away)}${tmRow(g.home)}</div>` : '';
+
+    // the board's shortest price in this game, so the slate is scannable for
+    // who to bet without opening anything
+    const P = nflData?.picks;
+    let pick = '';
+    // schedule rows carry no season field — the slate IS the upcoming season,
+    // so matching the week is the right (and only) check
+    if (P?.picks && P.week === g.week) {
+      const inGame = P.picks.filter(p => p.gameId === g.gameId);
+      if (inGame.length) {
+        const best = inGame.reduce((x, y) => (y.p > x.p ? y : x));
+        pick = `<div class="sc-pick" onclick="event.stopPropagation();openPick('${best.pid}')">
+          <span class="sc-pick-star">★</span><span class="sc-pick-lbl">top pick</span>
+          <span class="posb ${best.pos}">${best.pos}</span>
+          <span class="sc-pick-nm">${best.name}</span>
+          <span class="sc-pick-od${best.p < 0.5 ? ' dog' : ''}">${pbOdds(best.p)}</span></div>`;
+      }
+    }
+
     const open = mxOpen === g.gameId;
     return `<div class="sc-game${open ? ' open' : ''}" onclick="toggleMatchup('${g.gameId}')">
-      <div class="sc-teams">
-        <div class="sc-team">${logoImg(g.away)}<span class="sc-abbr">${g.away}</span></div>
-        <span class="sc-at">@</span>
-        <div class="sc-team">${logoImg(g.home)}<span class="sc-abbr">${g.home}</span></div>
-        <span class="sc-ppg" title="Points scored ↑ and allowed ↓ per game, ${nflData?.historySeason ?? ''}">${ppg(g.away)} · ${ppg(g.home)}</span>
+      <div class="sc-top">
+        <div class="sc-teams">
+          <div class="sc-team">${logoImg(g.away)}<span class="sc-abbr">${g.away}</span></div>
+          <span class="sc-at">@</span>
+          <div class="sc-team">${logoImg(g.home)}<span class="sc-abbr">${g.home}</span></div>
+        </div>
+        <div class="sc-meta">${meta}</div><span class="sc-chev">▶</span>
       </div>
-      <div class="sc-meta">${meta}</div><span class="sc-chev">▶</span></div>${open ? matchupPanel(g) : ''}`;
+      ${scores}${pick}
+    </div>${open ? matchupPanel(g) : ''}`;
   }
+
   function dataGate(id) {
     const el = document.getElementById(id); if (!el) return null;
     if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return null; }
