@@ -182,10 +182,53 @@ async function main() {
     console.error('  picks failed (continuing without them):', e.message);
   }
 
+  // ── 5) Team matchup profiles ──────────────────────────────────────────
+  // What each team scored and allowed last season, by position — the
+  // team-vs-team view. Built from the recap we already have rather than a new
+  // fetch. Reliability varies enormously across these numbers and the UI says
+  // so: what a team SCORES carries real season-to-season signal, what a defence
+  // ALLOWS by position is close to noise (split-half r of -0.06 for WRs and
+  // -0.03 for TEs, against +0.83 for a player's own snap share). That is why
+  // the Picks model has no opponent input at all.
+  // Position for EVERY scorer, not just the leaderboard. tdLeaders is a
+  // top-50-per-metric union, so keying off it left ~40% of a team's touchdowns
+  // filed under "no position".
+  const posOf = {};
+  for (const [pid, a] of Object.entries(agg)) if (a.pos) posOf[pid] = a.pos;
+  for (const l of tdLeaders) if (l.pos && l.pos !== '—') posOf[l.pid] = l.pos;
+  const blank = () => ({ games: 0, off: 0, def: 0, offPos: {}, defPos: {},
+                         offType: { rush: 0, rec: 0 }, defType: { rush: 0, rec: 0 },
+                         firstFor: 0, firstAgainst: 0, lastFor: 0, lastAgainst: 0 });
+  const teamStats = {};
+  const T = (t) => (teamStats[t] ??= blank());
+  for (const r of Object.values(results)) { T(r.home).games++; T(r.away).games++; }
+  for (const wk of weeks) for (const t of tdRecap[wk]) {
+    if (t.type !== 'rush' && t.type !== 'rec') continue;   // offensive TDs only
+    const p = posOf[t.pid] || '—';
+    const o = T(t.team), d = T(t.opp);
+    o.off++; d.def++;
+    o.offPos[p] = (o.offPos[p] || 0) + 1;
+    d.defPos[p] = (d.defPos[p] || 0) + 1;
+    o.offType[t.type]++; d.defType[t.type]++;
+    if (t.firstTd) { o.firstFor++; d.firstAgainst++; }
+    if (t.lastTd) { o.lastFor++; d.lastAgainst++; }
+  }
+  // each team's own scorers, for the matchup card's roster columns
+  const teamScorers = {};
+  for (const l of tdLeaders) {
+    if (!l.team || (l.rushTd + l.recTd) === 0) continue;
+    (teamScorers[l.team] ??= []).push({ pid: l.pid, name: l.name, pos: l.pos,
+      tds: l.rushTd + l.recTd, firstTd: l.firstTd || 0, lastTd: l.lastTd || 0 });
+  }
+  for (const t of Object.keys(teamScorers))
+    teamScorers[t] = teamScorers[t].sort((a, b) => b.tds - a.tds).slice(0, 8);
+  console.log(`  team profiles: ${Object.keys(teamStats).length} teams`);
+
   const output = {
     generatedAt: new Date().toISOString(),
     historySeason: HISTORY_SEASON, upcomingSeason: UPCOMING_SEASON,
     schedule, results, tdRecap, tdRecapWeeks: weeks, tdLeaders, headshots: shots,
+    teamStats, teamScorers,
     picks, picksHistory,
   };
   fs.writeFileSync(new URL('../nfl/data.json', import.meta.url), JSON.stringify(output));

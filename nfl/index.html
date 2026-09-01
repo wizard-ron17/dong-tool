@@ -1735,6 +1735,34 @@
   .bd-tile-l { font-size: 0.55rem; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 0.22rem; }
   @media (max-width: 560px) { .bd-rec { display: none; } }
 
+  /* ── Schedule matchup panel ───────────────────────────────────────────── */
+  .sc-game { cursor: pointer; }
+  .sc-game:hover { border-color: var(--border2); }
+  .mx { background: var(--surface0); border: 1px solid var(--border2); border-top: none;
+        border-radius: 0 0 10px 10px; padding: 0.75rem 0.8rem 0.9rem; margin: -0.35rem 0 0.45rem; }
+  .mx-hd { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.6rem; font-family: var(--font-d); font-size: 0.95rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+  .mx-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 0 0.6rem; align-items: center; }
+  .mx-row { display: contents; }
+  .mx-lbl { font-size: 0.6rem; color: var(--muted); text-align: center; letter-spacing: 0.03em; white-space: nowrap; padding: 0.22rem 0; }
+  .mx-v { font-family: var(--font-m); font-size: 0.72rem; padding: 0.22rem 0.4rem; border-radius: 5px; text-align: center; }
+  .mx-v.l { text-align: right; } .mx-v.r { text-align: left; }
+  .mx-v.good { color: var(--good); background: rgba(51,208,124,0.10); }
+  .mx-v.mid  { color: var(--silver); }
+  .mx-v.bad  { color: var(--bad); background: rgba(239,77,100,0.10); }
+  .mx-sec { grid-column: 1 / -1; font-size: 0.55rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--dim); text-align: center; margin: 0.6rem 0 0.25rem; padding-top: 0.5rem; border-top: 1px solid var(--border); }
+  /* how much a metric is actually worth — split-half reliability, not decoration */
+  .mx-rel { display: inline-block; width: 5px; height: 5px; border-radius: 50%; margin-left: 0.3rem; vertical-align: middle; }
+  .mx-rel.hi { background: var(--good); } .mx-rel.md { background: var(--ok); } .mx-rel.lo { background: var(--bad); }
+  .mx-note { font-size: 0.58rem; color: var(--dim); line-height: 1.5; margin-top: 0.7rem; padding-top: 0.55rem; border-top: 1px solid var(--border); }
+  .mx-note b { color: var(--silver); }
+  .mx-sc { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.4rem; }
+  .mx-sc-col { min-width: 0; }
+  .mx-sc-row { display: flex; align-items: center; gap: 0.35rem; font-size: 0.63rem; padding: 0.16rem 0.3rem; border-radius: 5px; }
+  .mx-sc-row:hover { background: var(--surface1); }
+  .mx-sc-nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-strong); font-weight: 600; }
+  .mx-sc-td { font-family: var(--font-m); color: var(--silver); white-space: nowrap; }
+  @media (max-width: 520px) { .mx-sc { grid-template-columns: 1fr; } .mx-lbl { font-size: 0.55rem; } }
+
   .rc-card { display: flex; align-items: center; gap: 0.7rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.7rem; }
   .rc-photo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; object-position: center 18%; background: var(--surface2); flex-shrink: 0; }
   .rc-noface { display: flex; align-items: center; justify-content: center; font-family: var(--font-d); font-weight: 800; color: var(--muted); }
@@ -2703,6 +2731,80 @@
         this, and we would need roughly ten times the sample to find out. Enjoy it as trivia.</p>`;
   }
 
+  // ── Schedule matchup panel ──────────────────────────────────────────────
+  // The team-vs-team view: what each side scored and allowed last season, by
+  // position. Every number is DESCRIPTIVE. Reliability differs wildly between
+  // them, so each carries a dot saying how much it is worth — measured as
+  // split-half correlation within a season, not guessed. What a team scores
+  // repeats; what a defence allows by position essentially does not, which is
+  // why the Picks model has no opponent input.
+  let mxOpen = null;
+  function toggleMatchup(gid) { mxOpen = mxOpen === gid ? null : gid; renderSchedule(); }
+
+  // split-half r, from research/: offense EPA +0.54, def yds/play +0.39,
+  // def TDs +0.18, def TDs to WR -0.06, to TE -0.03.
+  const MX_REL = {
+    off:      ['hi', 'What a team scores repeats well season to season (r ≈ 0.54)'],
+    def:      ['md', 'What a defence allows in total is moderately stable (r ≈ 0.39 on yards, 0.18 on touchdowns)'],
+    defPos:   ['lo', 'Touchdowns allowed to a POSITION is close to noise — split-half r of -0.06 for receivers, -0.03 for tight ends. Read it as what happened, not what will.'],
+    first:    ['lo', 'First-TD rate over 17 games is a small sample; treat it as trivia'],
+  };
+  const mxDot = (k) => `<span class="mx-rel ${MX_REL[k][0]}" title="${MX_REL[k][1]}"></span>`;
+
+  function matchupPanel(g) {
+    const S = nflData?.teamStats || {}, SC = nflData?.teamScorers || {};
+    const a = S[g.away], h = S[g.home];
+    if (!a || !h || !a.games || !h.games) return `<div class="mx"><div class="mx-note">No ${nflData.historySeason} profile for these teams yet.</div></div>`;
+    // rank each rate across the league so the colour means something
+    const rates = (k, fn) => Object.values(S).filter(t => t.games).map(fn);
+    const cls = (v, arr, higherBetter = true) => {
+      const sorted = [...arr].sort((x, y) => x - y);
+      const pct = sorted.filter(x => x <= v).length / sorted.length;
+      const p = higherBetter ? pct : 1 - pct;
+      return p >= 0.7 ? 'good' : p <= 0.3 ? 'bad' : 'mid';
+    };
+    const offR = rates('off', t => t.off / t.games), defR = rates('def', t => t.def / t.games);
+    const row = (label, av, hv, arr, hb, relKey) => `<div class="mx-row">
+      <div class="mx-v l ${cls(av, arr, hb)}">${typeof av === 'number' ? av.toFixed(2) : av}</div>
+      <div class="mx-lbl">${label}${relKey ? mxDot(relKey) : ''}</div>
+      <div class="mx-v r ${cls(hv, arr, hb)}">${typeof hv === 'number' ? hv.toFixed(2) : hv}</div></div>`;
+    const posRow = (p) => {
+      // his side's scoring vs the OTHER side's allowing — the actual matchup
+      const aScore = (a.offPos[p] || 0) / a.games, hAllow = (h.defPos[p] || 0) / h.games;
+      const hScore = (h.offPos[p] || 0) / h.games, aAllow = (a.defPos[p] || 0) / a.games;
+      return `<div class="mx-row">
+        <div class="mx-v l mid">${aScore.toFixed(2)} <span style="color:var(--dim)">vs ${hAllow.toFixed(2)}</span></div>
+        <div class="mx-lbl">${p}</div>
+        <div class="mx-v r mid">${hScore.toFixed(2)} <span style="color:var(--dim)">vs ${aAllow.toFixed(2)}</span></div></div>`;
+    };
+    const scorers = (t) => (SC[t] || []).map(s => `<div class="mx-sc-row" onclick="event.stopPropagation();openPick('${s.pid}')">
+        <span class="posb ${s.pos}">${s.pos}</span>
+        <span class="mx-sc-nm">${s.name}</span>
+        <span class="mx-sc-td">${s.tds}${s.firstTd ? ` · ${s.firstTd}st` : ''}</span></div>`).join('') || '<div class="mx-sc-row" style="color:var(--dim)">no scorers</div>';
+
+    return `<div class="mx" onclick="event.stopPropagation()">
+      <div class="mx-hd">${logoImg(g.away)} ${g.away} <span style="color:var(--dim)">at</span> ${g.home} ${logoImg(g.home)}</div>
+      <div class="mx-grid">
+        <div class="mx-sec">Touchdowns per game · ${nflData.historySeason}</div>
+        ${row('scored', a.off / a.games, h.off / h.games, offR, true, 'off')}
+        ${row('allowed', a.def / a.games, h.def / h.games, defR, false, 'def')}
+        ${row('1st TD rate', a.firstFor / a.games, h.firstFor / h.games, rates('f', t => t.firstFor / t.games), true, 'first')}
+        <div class="mx-sec">By position — scored vs what the opponent allows${mxDot('defPos')}</div>
+        ${['QB', 'RB', 'WR', 'TE'].map(posRow).join('')}
+      </div>
+      <div class="mx-sec" style="border-top:none">Last season's scorers</div>
+      <div class="mx-sc">
+        <div class="mx-sc-col">${scorers(g.away)}</div>
+        <div class="mx-sc-col">${scorers(g.home)}</div>
+      </div>
+      <div class="mx-note">Dots rate how much each number is actually worth, measured as split-half
+        correlation within a season. <b>What a team scores</b> repeats. <b>What a defence allows by
+        position</b> barely does — receivers come out at −0.06, tight ends −0.03, against +0.83 for a
+        player's own snap share. That is why the Picks model has no opponent input at all: it was
+        tested over ten seasons and added nothing. Read this as what happened, not what is coming.</div>
+    </div>`;
+  }
+
   function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); else if (nav === 'birthdays') renderBirthdays(); }
   // ESPN team-logo CDN (transparent PNGs). nflverse abbrs are ESPN slugs
   // lowercased, save two: LA(Rams)->lar, WAS->wsh.
@@ -2719,13 +2821,13 @@
     const meta = played
       ? `<div class="sc-score">${g.awayScore}–${g.homeScore}</div><div class="sc-when">Final</div>`
       : `<div class="sc-line">${g.total != null ? 'O/U ' + g.total : ''}${g.total != null && g.spread != null ? ' · ' : ''}${g.spread != null ? spreadLabel(g) : ''}</div><div class="sc-when">${when}</div>`;
-    return `<div class="sc-game">
+    return `<div class="sc-game" onclick="toggleMatchup('${g.gameId}')">
       <div class="sc-teams">
         <div class="sc-team">${logoImg(g.away)}<span class="sc-abbr">${g.away}</span></div>
         <span class="sc-at">@</span>
         <div class="sc-team">${logoImg(g.home)}<span class="sc-abbr">${g.home}</span></div>
       </div>
-      <div class="sc-meta">${meta}</div></div>`;
+      <div class="sc-meta">${meta}</div></div>${mxOpen === g.gameId ? matchupPanel(g) : ''}`;
   }
   function dataGate(id) {
     const el = document.getElementById(id); if (!el) return null;
