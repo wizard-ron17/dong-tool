@@ -7555,12 +7555,16 @@ function ppSetView(v) { ppView = v; ppOpenPid = null; if (activeNav === 'pitcher
 function renderPitcherKs() { renderPitcherProp('k'); }
 function renderPitcherWalks() { renderPitcherProp('bb'); }
 
-// ── Prop line + price ───────────────────────────────────────────────────
-// Books only ever hang half numbers, so a projection turns into a line by
-// rounding to the nearest whole number N and posting N-0.5. Project 2.1 and the
-// line is Over 1.5, which 2 walks clears — there is no push to worry about.
-const kbbLineFor = proj => Math.max(0, Math.round(proj)) - 0.5;
-const kbbHit     = (act, proj) => act > kbbLineFor(proj);
+// ── Prop lines + prices ─────────────────────────────────────────────────
+// The two lines books actually hang per market, as the whole number he needs.
+// Both are priced for every arm so the column is comparable down the board —
+// quoting each pitcher his own rounded line looked tidier but meant no two rows
+// were showing the same bet, so nothing could be read against anything else.
+const KBB_LINES = { k: [6, 7], bb: [2, 3] };   // Over 5.5 / 6.5 and Over 1.5 / 2.5
+// Books only post half numbers, so a push cannot happen: "Over 1.5" is cleared
+// by 2. (An earlier version graded act > proj, which made a 2.1 projection need
+// 3 and called an exact 2.0 a push — both wrong.)
+const kbbHit = (act, need) => act >= need;
 // P(X >= n) for a Poisson with mean mu. This is what separates a 1.6 projection
 // from a 1.9 one: both round to "Over 1.5", but the 1.9 arm is likelier to get
 // there, and the price says so (-176 vs -125). Parameter-free on purpose — a
@@ -7573,7 +7577,7 @@ function poissonAtLeast(mu, n) {
   for (let i = 1; i <= n - 1; i++) { term = term * mu / i; cdf += term; }
   return Math.min(1, Math.max(0, 1 - cdf));
 }
-const kbbWinProb = proj => proj == null ? null : poissonAtLeast(proj, Math.round(proj));
+const kbbWinProb = (proj, need) => proj == null ? null : poissonAtLeast(proj, need);
 // Fair American odds — no vig, so a book will always price worse than this.
 const kbbOdds = p => (!(p > 0) || p >= 1) ? '—'
   : p >= 0.5 ? '-' + Math.round(100 * p / (1 - p)) : '+' + Math.round(100 * (1 - p) / p);
@@ -7615,8 +7619,14 @@ function renderKbbResults(nav) {
   // chips underneath it and can't be broken by a build that hasn't run yet.
   const rows = h.days.flatMap(d => d.board);
   const graded = rows.filter(r => r.proj != null);
-  const hitRate  = graded.length ? 100 * graded.filter(r => kbbHit(r.act, r.proj)).length / graded.length : null;
-  const modelled = graded.length ? 100 * graded.reduce((a, r) => a + kbbWinProb(r.proj), 0) / graded.length : null;
+  // Each line the board quotes gets its own record, against the price we quoted
+  // for it — so the tab reports whether those specific overs actually landed.
+  const lines = KBB_LINES[isK ? 'k' : 'bb'];
+  const lineRec = lines.map(need => ({
+    need,
+    hit: graded.length ? 100 * graded.filter(r => kbbHit(r.act, need)).length / graded.length : null,
+    priced: graded.length ? 100 * graded.reduce((a, r) => a + kbbWinProb(r.proj, need), 0) / graded.length : null,
+  }));
   const bAct = rows.reduce((a, r) => a + r.act, 0), bBF = rows.reduce((a, r) => a + r.bf, 0);
   const sAct = h.days.reduce((a, d) => a + d.slateK, 0), sBF = h.days.reduce((a, d) => a + d.slateBF, 0);
   const boardRate = bBF ? bAct / bBF : 0, slateRate = sBF ? sAct / sBF : 0;
@@ -7625,7 +7635,6 @@ function renderKbbResults(nav) {
   // Lift is the honest headline: the board's arms vs the arms it picked FROM,
   // not vs the league (which includes starters the tool never would have shown).
   const liftCls = lift >= 1.15 ? 'great' : lift >= 1.06 ? 'good' : lift >= 0.98 ? 'avg' : 'bad';
-  const lineRate = rows.length ? 100 * rows.filter(r => r.act >= h.line).length / rows.length : 0;
   meta.textContent = `⚾ ${h.days.length} slates replayed · top ${Math.round(rows.length / h.days.length)} arms each`;
 
   // Expected-vs-actual is a real miss worth showing rather than burying: ranking
@@ -7646,30 +7655,32 @@ function renderKbbResults(nav) {
     <b>How to read this.</b> Each past slate's board is rebuilt from only what was known that morning, then graded.
     The board's arms combined for a <b>${pct(boardRate)} ${lbl}%</b> against <b>${pct(slateRate)}</b> for every
     rankable starter on those same slates — a <b>${lift.toFixed(2)}×</b> edge, so the ranking is finding real ${word} spots.
-    <b>Hit Rate</b> grades every arm against his own line, hung the way a book would: round <b>~Proj ${lbl}</b> to a whole
-    number and post the half below it, so a ${isK ? '5.6' : '2.1'} projection is Over ${isK ? '4.5' : '1.5'} and ${isK ? '5' : '2'} clears it.
-    Half numbers mean there are no pushes.
-    ${hitRate != null && modelled != null ? `The board hit <b>${hitRate.toFixed(1)}%</b> against a modelled <b>${modelled.toFixed(1)}%</b> —
-      ${Math.abs(hitRate - modelled) < 2 ? `the price is landing where it should.`
-        : `so the posted price is running <b>${hitRate < modelled ? 'rich' : 'cheap'}</b> and these overs are ${hitRate < modelled ? 'worse' : 'better'} than they look.`}` : ''}
+    Every arm is priced at <b>both</b> lines a book hangs for this market, so the numbers compare straight down the
+    board. ~Proj ${lbl} sets the price, not the line: a ${isK ? '6.0' : '1.6'} and a ${isK ? '6.8' : '1.9'} projection are
+    both Over ${lines[0] - 0.5}, but the bigger one gets there more often and is priced accordingly. Half numbers mean no pushes.
+    ${lineRec.every(l => l.hit != null) ? lineRec.map(l => `<b>Over ${l.need - 0.5}</b> hit <b>${l.hit.toFixed(1)}%</b>
+      against <b>${l.priced.toFixed(1)}%</b> priced${Math.abs(l.hit - l.priced) < 2 ? ' (landing right)'
+        : ` (${l.hit < l.priced ? 'rich — worse than it looks' : 'cheap'})`}`).join('; ') + '.' : ''}
     Its <b>Exp ${lbl}%</b> ran ${pct(expMean)}, about <b>${Math.abs(bias).toFixed(0)}% ${bias < 0 ? 'above' : 'below'}</b> what actually landed —
     picking the top of a slate selects for arms whose estimate is running hot.${spread}
   </div>`;
 
+  // Chips are coloured on the primary (lower) line — the one most people bet —
+  // and the tooltip carries both lines with the price we quoted for each.
+  const primary = lines[0];
   const dayRows = h.days.map(d => {
-    const graded = d.board.filter(r => r.proj != null);
-    const wins = graded.filter(r => kbbHit(r.act, r.proj)).length;
+    const wins = d.board.filter(r => kbbHit(r.act, primary)).length;
     const names = d.board.map(r => {
-      const hit = r.proj != null && kbbHit(r.act, r.proj);
-      const price = r.proj != null ? kbbOdds(kbbWinProb(r.proj)) : null;
+      const hit = kbbHit(r.act, primary);
+      const prices = r.proj == null ? '' : ' · ' + lines.map(need =>
+        `O${need - 0.5} ${kbbOdds(kbbWinProb(r.proj, need))} ${kbbHit(r.act, need) ? '✓' : '✗'}`).join('  ');
       const title = `${r.name} — ${r.act} ${lbl} in ${r.ip} IP vs ${r.opp}`
-        + (r.proj != null ? ` · ${hit ? 'cleared' : 'missed'} Over ${kbbLineFor(r.proj)} (proj ${r.proj}, ${price})` : '')
-        + ` · Exp ${pct(r.exp)}`;
+        + (r.proj != null ? ` (proj ${r.proj})` : '') + prices + ` · Exp ${pct(r.exp)}`;
       return `<span class="ph-hit-name${hit ? '' : ' kbb-miss'}" title="${title}">${compactPlayerName(r.name)} <span class="kbb-ct">${r.act}</span></span>`;
     }).join(' ');
     return `<div class="ph-day-row">
       <span class="ph-day-date">${fmtDateLong(d.date)}</span>
-      <span class="ph-day-fraction">${wins}/${graded.length || d.board.length}</span>
+      <span class="ph-day-fraction">${wins}/${d.board.length}</span>
       <span class="ph-day-hits">${names}</span>
     </div>`;
   }).join('');
@@ -7678,10 +7689,12 @@ function renderKbbResults(nav) {
     <div class="ph-summary">
       <div class="ph-stat"><span class="ph-stat-val hrg-val ${liftCls}">${lift.toFixed(2)}×</span><span class="ph-stat-lbl">Edge vs Slate</span></div>
       <div class="ph-stat"><span class="ph-stat-val">${pct(boardRate)}</span><span class="ph-stat-lbl">Board ${lbl}%</span></div>
-      <div class="ph-stat"><span class="ph-stat-val hrg-val ${hitRate == null ? '' : hitRate >= 55 ? 'good' : hitRate >= 48 ? 'avg' : 'below'}">${hitRate == null ? '—' : hitRate.toFixed(0) + '%'}</span><span class="ph-stat-lbl">Hit Rate${modelled != null ? ` · ${modelled.toFixed(0)}% priced` : ''}</span></div>
-      <div class="ph-stat"><span class="ph-stat-val">${lineRate.toFixed(0)}%</span><span class="ph-stat-lbl">${h.line}+ ${lbl}</span></div>
+      ${lineRec.map(l => `<div class="ph-stat">
+        <span class="ph-stat-val hrg-val ${l.hit == null ? '' : l.hit - l.priced >= 1 ? 'good' : l.hit - l.priced >= -2 ? 'avg' : 'below'}">${l.hit == null ? '—' : l.hit.toFixed(0) + '%'}</span>
+        <span class="ph-stat-lbl">Over ${l.need - 0.5}${l.priced != null ? ` · ${l.priced.toFixed(0)}% priced` : ''}</span>
+      </div>`).join('')}
     </div>
-    <div class="ph-buckets-head">Board Box Score <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· number = ${lbl} recorded · green = cleared his own line</span></div>
+    <div class="ph-buckets-head">Board Box Score <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· number = ${lbl} recorded · green = cleared Over ${primary - 0.5} · hover for both lines</span></div>
     <div class="ph-days">${dayRows}</div>`;
 }
 function renderPitcherProp(kind) {
@@ -7759,8 +7772,11 @@ function renderPitcherProp(kind) {
       </div>
       <div class="pv-metrics">
         ${mtr(`~Proj ${lbl}`, r.proj != null ? r.proj.toFixed(1) : '—')}
-        ${r.proj != null ? mtr(`Over ${kbbLineFor(r.proj)}`,
-            `<span class="pv-price" title="Fair odds, no vig — a book will price worse. ${(kbbWinProb(r.proj) * 100).toFixed(0)}% to clear ${kbbLineFor(r.proj)}.">${kbbOdds(kbbWinProb(r.proj))}</span>`) : ''}
+        ${r.proj == null ? '' : KBB_LINES[kind].map(need => {
+          const p = kbbWinProb(r.proj, need);
+          return mtr(`Over ${need - 0.5}`,
+            `<span class="pv-price" title="Fair odds, no vig — a book will price worse. ${(p * 100).toFixed(0)}% to reach ${need}+ ${lbl} on a ${r.proj.toFixed(1)} projection.">${kbbOdds(p)}</span>`);
+        }).join('')}
         ${mtr(`Pitcher ${lbl}%`, `${(r.raw * 100).toFixed(1)}%`)}
         ${mtr(`${r.oppTeam} ${lbl}%`, `${(r.tRate * 100).toFixed(1)}%`)}
         ${mtr('Lg', `${(lg * 100).toFixed(1)}%`)}

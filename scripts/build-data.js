@@ -1598,14 +1598,19 @@ const KBB_MIN_BF    = 40;   // ~2 starts of prior work before a pitcher is ranka
 const KBB_MIN_TM_PA = 200;  // opponent needs a real offensive sample too
 const KBB_WARMUP_PA = 3000; // ~2 weeks — before this, league rates are noise
 const KBB_DAYS      = 120;  // day-level detail retained (season totals span all of it)
-const KBB_LINE      = { k: 6, bb: 2 }; // the common alt-line each board is graded against
-// A projection is graded the way a book would hang it. Books only post half
-// numbers, so there is no such thing as a push: project 2.1 and the line is
-// Over 1.5, which 2 clears. Round to the nearest whole number N, the line is
-// N-0.5, and he needs N. (An earlier version graded `act > proj`, which made a
-// 2.1 projection need 3 and called an exact 2.0 a push — both wrong.)
-const kbbLineFor = proj => Math.max(0, Math.round(proj)) - 0.5;
-const kbbHit     = (act, proj) => act > kbbLineFor(proj);
+// The two lines books actually hang for each market, as the whole number he
+// needs — Over 5.5 / Over 6.5 for strikeouts, Over 1.5 / Over 2.5 for walks.
+// Both are shown for every arm so the prices are comparable down the board; a
+// single line derived per-pitcher looked tidier but meant no two rows were
+// quoting the same bet. Chosen from where the projections actually land:
+// rounded K projections are 6 (375) or 7 (284) far more than anything else, and
+// rounded walk projections are 2 (666) or 3 (285).
+const KBB_LINES     = { k: [6, 7], bb: [2, 3] };
+const kbbHit        = (act, need) => act >= need;   // "Over need-0.5"
+// Books only post half numbers, so a push is impossible by construction. An
+// earlier version graded `act > proj`, which made a 2.1 projection need 3 — an
+// arm we expected to walk 2 was scored a miss for walking 2 — and called an
+// exact 2.0 a push. Both were wrong.
 // P(X >= n) for a Poisson with mean mu — the chance he clears his own line.
 // Deliberately parameter-free: a fitted shrink beat plain Poisson on strikeouts
 // out of sample but lost on walks, and picking per-market after seeing which is
@@ -1691,26 +1696,28 @@ function computeKbbHistory(scorable = () => true) {
   const wrap = {};
   for (const kind of ['k', 'bb']) {
     const days = out[kind], all = days.flatMap(d => d.board);
-    const line = KBB_LINE[kind];
+    const lines = KBB_LINES[kind];
     const bAct = all.reduce((a, r) => a + r.act, 0), bBF = all.reduce((a, r) => a + r.bf, 0);
     const sAct = days.reduce((a, d) => a + d.slateK, 0), sBF = days.reduce((a, d) => a + d.slateBF, 0);
     const withProj = all.filter(r => r.proj != null);
     wrap[kind] = {
-      line,
+      lines,
       slates: days.length,
       starts: all.length,
       expMean: all.length ? Math.round(all.reduce((a, r) => a + r.exp, 0) / all.length * 10000) / 10000 : null,
       actRate: bBF ? Math.round(bAct / bBF * 10000) / 10000 : null,
       slateRate: sBF ? Math.round(sAct / sBF * 10000) / 10000 : null,
-      lineHits: all.filter(r => r.act >= line).length,
-      // Graded against each arm's OWN line (see kbbLineFor) rather than one
-      // league-wide alt-line, and against the modelled price for that line — so
-      // the odds report their own calibration instead of being taken on faith.
-      overProj: withProj.filter(r => kbbHit(r.act, r.proj)).length,
-      projStarts: withProj.length,
-      modelWin: withProj.length
-        ? Math.round(withProj.reduce((a, r) => a + poissonAtLeast(r.proj, Math.round(r.proj)), 0) / withProj.length * 10000) / 10000
-        : null,
+      // Both lines are graded the same way and against the price we quoted for
+      // them, so the odds report their own calibration rather than being taken
+      // on faith. { need, hits, n, modelWin } per line.
+      lineStats: lines.map(need => ({
+        need,
+        n: withProj.length,
+        hits: withProj.filter(r => kbbHit(r.act, need)).length,
+        modelWin: withProj.length
+          ? Math.round(withProj.reduce((a, r) => a + poissonAtLeast(r.proj, need), 0) / withProj.length * 10000) / 10000
+          : null,
+      })),
       // The projection isn't just high, it's too WIDE — the arms we project
       // biggest miss by the most. Split at the mean so the tab can say which
       // half to fade instead of telling everyone to shade down equally.
@@ -3345,8 +3352,7 @@ async function main() {
     console.log(`${lbl} history: ${h.slates} slates, ${h.starts} board starts — `
       + `actual ${(h.actRate * 100).toFixed(1)}% vs slate ${(h.slateRate * 100).toFixed(1)}% `
       + `(${(h.actRate / h.slateRate).toFixed(2)}x), exp ${(h.expMean * 100).toFixed(1)}%, `
-      + `${h.line}+ ${lbl} ${(100 * h.lineHits / h.starts).toFixed(0)}%, `
-      + `hit own line ${(100 * h.overProj / h.projStarts).toFixed(1)}% vs modelled ${(100 * h.modelWin).toFixed(1)}%`);
+      + h.lineStats.map(s => `O${s.need - 0.5} ${(100 * s.hits / s.n).toFixed(1)}% vs ${(100 * s.modelWin).toFixed(1)}% priced`).join(', '));
   }
 
   // ── Due tracking ──────────────────────────────────────────────────────
