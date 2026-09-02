@@ -1286,7 +1286,14 @@
   .pv-ou { display: inline-flex; align-items: baseline; gap: 0.18rem; white-space: nowrap; }
   .pv-ou-sep { color: var(--dim); font-weight: 400; }
   /* Results ledger: every bet the board quotes, with what it actually did. */
-  .kbb-ledger { width: 100%; border-collapse: collapse; font-size: 0.68rem; margin-bottom: 1rem; }
+  /* Seven columns don't fit a phone; scroll the table, never the page. */
+  .kbb-ledger-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 1rem; }
+  .kbb-ledger { width: 100%; min-width: 30rem; border-collapse: collapse; font-size: 0.68rem; }
+  .kbb-row-sel td { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+  .kbb-dim { color: var(--muted); }
+  /* Stat strip for whichever bet the box score is currently grading. */
+  .kbb-selstat { display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem; font-size: 0.62rem; color: var(--muted); margin-bottom: 0.6rem; }
+  .kbb-selstat b { font-family: var(--font-d); font-weight: 800; color: var(--text); margin-right: 0.15rem; }
   .kbb-ledger th { font-size: 0.55rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; text-align: right; padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--border); }
   .kbb-ledger th:first-child { text-align: left; }
   .kbb-ledger td { padding: 0.42rem 0.5rem; border-bottom: 1px solid var(--border); text-align: right; font-family: var(--font-d); }
@@ -7671,12 +7678,44 @@ function renderKbbResults(nav) {
     const p = b.hit / 100;
     const se = graded.length ? 100 * Math.sqrt(p * (1 - p) / graded.length) : Infinity;
     const edge = b.hit - b.priced;
-    return { ...b, edge, se, sig: se > 0 && Math.abs(edge) / se >= 2 };
+    // ROI staking one unit on this bet every time, paid at our own fair price.
+    // Computed per pick rather than from the aggregate, because each start is
+    // quoted at its own number and a longshot win pays far more than a chalk one.
+    // That reordering is the point: a 1.5-point edge on a +147 dog returns more
+    // than the same edge on a -180 favourite.
+    //
+    // ROI carries its own standard error, and it's much wider on longshots
+    // because the payouts are. Without that, Over 6.5 K reads +7.6% — the best
+    // number on the strikeout board — when it's 1.6 SE from zero, i.e. nothing.
+    const wins = [], pays = [];
+    for (const r of graded) {
+      const over = kbbHit(r.act, b.need);
+      const won = b.side === 'over' ? over : !over;
+      const q = b.side === 'over' ? kbbWinProb(r.proj, b.need) : 1 - kbbWinProb(r.proj, b.need);
+      wins.push(won ? 1 : 0);
+      pays.push(won && q > 0 ? (1 - q) / q : -1);
+    }
+    const n = pays.length || 1;
+    const roi = pays.reduce((a, x) => a + x, 0) / n;
+    const sd = n > 1 ? Math.sqrt(pays.reduce((a, x) => a + (x - roi) ** 2, 0) / (n - 1)) : 0;
+    const roiSe = sd / Math.sqrt(n);
+    return {
+      ...b, edge, se, sig: se > 0 && Math.abs(edge) / se >= 2,
+      w: wins.reduce((a, x) => a + x, 0), l: n - wins.reduce((a, x) => a + x, 0),
+      roi: 100 * roi, roiSe: 100 * roiSe, roiSig: roiSe > 0 && Math.abs(roi / roiSe) >= 2,
+      // The actionable number: any book price better than this is +EV at the
+      // rate this bet has actually hit.
+      breakeven: kbbOdds(p),
+    };
   });
   // The default bet is the one there's actually evidence for. With no significant
   // edge anywhere it falls back to the primary over rather than inventing a lean.
-  const real = ledger.filter(b => b.sig && b.edge > 0);
-  const best = real.length ? real.reduce((a, b) => b.edge > a.edge ? b : a) : null;
+  // A bet has to clear 2 SE on BOTH the hit rate and the ROI to count. They
+  // measure nearly the same thing but disagree at the margins, and requiring
+  // both keeps a longshot whose return is inflated by a couple of lucky payouts
+  // from being promoted to "the play".
+  const real = ledger.filter(b => b.sig && b.roiSig && b.roi > 0);
+  const best = real.length ? real.reduce((a, b) => b.roi > a.roi ? b : a) : null;
   const defBet = best ? best.bet : `Over ${lines[0] - 0.5}`;
   const sel = ledger.find(b => b.bet === ppBet[nav]) || ledger.find(b => b.bet === defBet) || ledger[0];
   const bAct = rows.reduce((a, r) => a + r.act, 0), bBF = rows.reduce((a, r) => a + r.bf, 0);
@@ -7717,12 +7756,16 @@ function renderKbbResults(nav) {
     straight down the board. ~Proj ${lbl} sets the price, not the line: a ${isK ? '6.0' : '1.6'} and a ${isK ? '6.8' : '1.9'}
     projection are both Over ${lines[0] - 0.5}, but the bigger one gets there more often and is priced accordingly.
     Half numbers mean no pushes, and with no vig the under is just the over's price with the sign flipped.
-    ${best ? `<b>Which way to lean:</b> ${best.bet}. It has landed <b>${best.hit.toFixed(1)}%</b> against
-      <b>${best.priced.toFixed(1)}%</b> priced — <b>${best.edge.toFixed(1)}</b> points of edge, ${(best.edge / best.se).toFixed(1)}×
-      its standard error, so it's a real gap rather than a hot streak. When one side is quoted rich the other is cheap by
-      exactly as much, so a soft ~Proj ${lbl} shows up as value on the opposite side.`
-      : `<b>Which way to lean: neither.</b> Every edge here is inside two standard errors of zero — on this sample
-      that's a coin flip dressed up as a signal, and the ledger marks them "noise" rather than pretending otherwise.`}
+    ${best ? `<b>Which way to lean:</b> ${best.bet}, at <b>${best.roi > 0 ? '+' : ''}${best.roi.toFixed(1)}%</b> ROI
+      (${best.w}–${best.l}, ${best.hit.toFixed(1)}% against ${best.priced.toFixed(1)}% priced). Read the
+      <b>break-even</b> column before betting it: that's the worst price still profitable at the rate it has actually hit —
+      <b>${best.breakeven}</b> here — so a book offering better than that is value, and worse is not.
+      ROI reorders these: the same edge on a longshot returns more than on a favourite, which is why a small edge on a
+      plus-money line can outrank a bigger one on chalk.`
+      : `<b>Which way to lean: neither.</b> Every edge and every ROI here is inside two standard errors of zero — on
+      this sample that's a coin flip dressed up as a signal. Note some ROIs still look big: a longshot's payouts swing
+      hard, so its return needs a much wider error bar before it means anything, and the ledger marks those "noise"
+      rather than letting the number sell itself.`}
     Its <b>Exp ${lbl}%</b> ran ${pct(expMean)}, about <b>${Math.abs(bias).toFixed(0)}% ${bias < 0 ? 'above' : 'below'}</b> what actually landed —
     picking the top of a slate selects for arms whose estimate is running hot.${spread}
   </div>`;
@@ -7754,21 +7797,31 @@ function renderKbbResults(nav) {
     <div class="ph-summary">
       <div class="ph-stat"><span class="ph-stat-val hrg-val ${liftCls}">${lift.toFixed(2)}×</span><span class="ph-stat-lbl">Edge vs Slate</span></div>
       <div class="ph-stat"><span class="ph-stat-val">${pct(boardRate)}</span><span class="ph-stat-lbl">Board ${lbl}%</span></div>
-      <div class="ph-stat"><span class="ph-stat-val hrg-val ${best ? 'good' : 'avg'}">${best ? '+' + best.edge.toFixed(1) : 'none'}</span><span class="ph-stat-lbl">${best ? `Real Edge · ${best.bet}` : 'No Side Worth It'}</span></div>
+      <div class="ph-stat"><span class="ph-stat-val hrg-val ${best ? 'good' : 'avg'}">${best ? '+' + best.roi.toFixed(1) + '%' : 'none'}</span><span class="ph-stat-lbl">${best ? `ROI · ${best.bet}` : 'No Side Worth It'}</span></div>
       <div class="ph-stat"><span class="ph-stat-val">${h.days.length}</span><span class="ph-stat-lbl">Slates Tracked</span></div>
     </div>
-    <div class="ph-buckets-head">Line Ledger <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· every bet the board quotes · edge = hit − priced · noise = inside 2 standard errors</span></div>
-    <table class="kbb-ledger">
-      <thead><tr><th>Bet</th><th>Hit</th><th>Priced</th><th>Edge</th></tr></thead>
-      <tbody>${ledger.map(b => `<tr>
+    <div class="ph-buckets-head">Line Ledger <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· 1u on every board arm at our own fair price · noise = inside 2 standard errors</span></div>
+    <div class="kbb-ledger-wrap"><table class="kbb-ledger">
+      <thead><tr><th>Bet</th><th>Record</th><th>Hit</th><th>Priced</th><th>Edge</th><th>ROI</th><th>Break-even</th></tr></thead>
+      <tbody>${ledger.map(b => `<tr${b.bet === sel.bet ? ' class="kbb-row-sel"' : ''}>
         <td>${b.bet} ${lbl}</td>
+        <td class="kbb-dim">${b.w}–${b.l}</td>
         <td>${b.hit.toFixed(1)}%</td>
-        <td>${b.priced.toFixed(1)}%</td>
-        <td class="${!b.sig ? 'kbb-edge-flat' : b.edge > 0 ? 'kbb-edge-pos' : 'kbb-edge-neg'}" title="${Math.abs(b.edge / b.se).toFixed(1)} standard errors from zero">${b.edge > 0 ? '+' : ''}${b.edge.toFixed(1)}${b.sig ? '' : ' <span class="kbb-noise">noise</span>'}</td>
+        <td class="kbb-dim">${b.priced.toFixed(1)}%</td>
+        <td class="${!b.sig ? 'kbb-edge-flat' : b.edge > 0 ? 'kbb-edge-pos' : 'kbb-edge-neg'}" title="${Math.abs(b.edge / b.se).toFixed(1)} standard errors from zero">${b.edge > 0 ? '+' : ''}${b.edge.toFixed(1)}</td>
+        <td class="${!b.roiSig ? 'kbb-edge-flat' : b.roi > 0 ? 'kbb-edge-pos' : 'kbb-edge-neg'}" title="±${b.roiSe.toFixed(1)}% standard error · ${Math.abs(b.roi / b.roiSe).toFixed(1)} SE from zero">${b.roi > 0 ? '+' : ''}${b.roi.toFixed(1)}%${b.roiSig ? '' : ' <span class="kbb-noise">noise</span>'}</td>
+        <td class="kbb-dim" title="Any book price better than this is +EV at the rate this bet has actually hit">${b.breakeven}</td>
       </tr>`).join('')}</tbody>
-    </table>
+    </table></div>
     <div class="ph-buckets-head">Board Box Score <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· grading <b style="color:var(--text)">${sel.bet} ${lbl}</b> · number = ${lbl} recorded · green = that bet won</span></div>
     <div class="kbb-betsel">${ledger.map(b => `<button class="kbb-bet-btn${b.bet === sel.bet ? ' active' : ''}" onclick="setKbbBet('${nav}','${b.bet}')">${b.bet}</button>`).join('')}</div>
+    <div class="kbb-selstat">
+      <span><b class="kbb-dim">${sel.w}–${sel.l}</b> record</span>
+      <span><b>${sel.hit.toFixed(1)}%</b> hit</span>
+      <span><b class="${!sel.roiSig ? 'kbb-edge-flat' : sel.roi > 0 ? 'kbb-edge-pos' : 'kbb-edge-neg'}">${sel.roi > 0 ? '+' : ''}${sel.roi.toFixed(1)}%</b> ROI ${sel.roiSig ? '' : '<span class="kbb-noise">noise</span>'}</span>
+      <span><b class="kbb-dim">${sel.roi > 0 ? '+' : ''}${(sel.roi * (sel.w + sel.l) / 100).toFixed(1)}u</b> at 1u a start</span>
+      <span title="Any book price better than this is +EV at the rate this bet has actually hit"><b>${sel.breakeven}</b> break-even</span>
+    </div>
     <div class="ph-days">${dayRows}</div>`;
 }
 function renderPitcherProp(kind) {
