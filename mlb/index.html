@@ -1295,6 +1295,14 @@
   .kbb-edge-pos { color: var(--accent); font-weight: 700; }
   .kbb-edge-neg { color: var(--bad); }
   .kbb-edge-flat { color: var(--muted); }
+  .kbb-noise { font-family: var(--font-b, inherit); font-size: 0.52rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); }
+  /* Pick the bet the box score grades — the board is only "green = win" relative
+     to a side you've actually chosen. */
+  .kbb-betsel { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.5rem; }
+  .kbb-bet-btn { font-size: 0.6rem; font-weight: 600; padding: 0.25rem 0.55rem; border-radius: 5px; cursor: pointer;
+                 background: var(--surface0); color: var(--muted); border: 1px solid var(--border); }
+  .kbb-bet-btn:hover { color: var(--text); border-color: var(--border2); }
+  .kbb-bet-btn.active { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); border-color: var(--accent); }
   .kbb-note { font-size: 0.63rem; color: var(--muted); line-height: 1.5; background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.7rem; margin-bottom: 1rem; }
   .kbb-note b { color: var(--text); }
   .ph-hit-rank { font-weight: 700; color: var(--muted); font-size: 0.54rem; }
@@ -2255,6 +2263,10 @@ let ppView = 'pitcher';  // Pitcher Ks/Walks scope: 'pitcher' (rank arms) | 'bat
 // Ks / Walks Results: the two tools each keep their own sub-tab, so switching
 // between them doesn't drag the other one onto its history view.
 let ppSub = { pitcherks: 'board', pitcherwalks: 'board' };
+// Which bet the Results box score grades. null = use the tab's evidence-based
+// default. Kept per tool because the answer genuinely differs: walks have a real
+// under edge, strikeouts have no side worth leaning on.
+let ppBet = { pitcherks: null, pitcherwalks: null };
 let kbbHistory = null;   // { k: {...}, bb: {...} } — replayed + graded past boards, backfilled to opening day
 let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if currently on the IL
 let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questionable (NOT on the IL), from ESPN
@@ -7613,6 +7625,8 @@ function applyKbbSub(nav, sub) {
   else renderPitcherWalks();
 }
 function switchKbbSub(nav, sub) { applyKbbSub(nav, sub); commitRoute(); }
+// Grade the box score as whichever bet you'd actually be placing.
+function setKbbBet(nav, bet) { ppBet[nav] = bet; renderKbbResults(nav); }
 
 function renderKbbResults(nav) {
   const isK = nav === 'pitcherks';
@@ -7645,11 +7659,26 @@ function renderKbbResults(nav) {
   // Both sides of every line. The under is the exact complement — same price with
   // the sign flipped, and an edge that mirrors the over's — but it's a different
   // bet, and when the over is priced rich the under is where the value sits.
+  //
+  // Every edge carries its standard error, because most of them are noise. On
+  // this sample a 1.5-point edge is about one SE — indistinguishable from zero —
+  // and showing it in green next to a genuine 4.6 would invite betting on
+  // nothing. Only edges clearing 2 SE are presented as real.
   const ledger = lineRec.flatMap(l => l.hit == null ? [] : [
-    { bet: `Over ${l.need - 0.5}`,  hit: l.hit,       priced: l.priced },
-    { bet: `Under ${l.need - 0.5}`, hit: 100 - l.hit, priced: 100 - l.priced },
-  ]).map(b => ({ ...b, edge: b.hit - b.priced }));
-  const best = ledger.length ? ledger.reduce((a, b) => b.edge > a.edge ? b : a) : null;
+    { bet: `Over ${l.need - 0.5}`,  need: l.need, side: 'over',  hit: l.hit,       priced: l.priced },
+    { bet: `Under ${l.need - 0.5}`, need: l.need, side: 'under', hit: 100 - l.hit, priced: 100 - l.priced },
+  ]).map(b => {
+    const p = b.hit / 100;
+    const se = graded.length ? 100 * Math.sqrt(p * (1 - p) / graded.length) : Infinity;
+    const edge = b.hit - b.priced;
+    return { ...b, edge, se, sig: se > 0 && Math.abs(edge) / se >= 2 };
+  });
+  // The default bet is the one there's actually evidence for. With no significant
+  // edge anywhere it falls back to the primary over rather than inventing a lean.
+  const real = ledger.filter(b => b.sig && b.edge > 0);
+  const best = real.length ? real.reduce((a, b) => b.edge > a.edge ? b : a) : null;
+  const defBet = best ? best.bet : `Over ${lines[0] - 0.5}`;
+  const sel = ledger.find(b => b.bet === ppBet[nav]) || ledger.find(b => b.bet === defBet) || ledger[0];
   const bAct = rows.reduce((a, r) => a + r.act, 0), bBF = rows.reduce((a, r) => a + r.bf, 0);
   const sAct = h.days.reduce((a, d) => a + d.slateK, 0), sBF = h.days.reduce((a, d) => a + d.slateBF, 0);
   const boardRate = bBF ? bAct / bBF : 0, slateRate = sBF ? sAct / sBF : 0;
@@ -7688,21 +7717,24 @@ function renderKbbResults(nav) {
     straight down the board. ~Proj ${lbl} sets the price, not the line: a ${isK ? '6.0' : '1.6'} and a ${isK ? '6.8' : '1.9'}
     projection are both Over ${lines[0] - 0.5}, but the bigger one gets there more often and is priced accordingly.
     Half numbers mean no pushes, and with no vig the under is just the over's price with the sign flipped.
-    ${best && best.edge >= 2 ? `The ledger below is the part worth reading: <b>${best.bet}</b> has been the
-      strongest bet on this board, landing <b>${best.hit.toFixed(1)}%</b> against <b>${best.priced.toFixed(1)}%</b> priced.
-      When one side is quoted rich the other is cheap by exactly as much, so a soft ~Proj shows up as value on the opposite side.`
-      : `Every line here is priced within a couple of points of what it delivers, so neither side is a standing edge.`}
+    ${best ? `<b>Which way to lean:</b> ${best.bet}. It has landed <b>${best.hit.toFixed(1)}%</b> against
+      <b>${best.priced.toFixed(1)}%</b> priced — <b>${best.edge.toFixed(1)}</b> points of edge, ${(best.edge / best.se).toFixed(1)}×
+      its standard error, so it's a real gap rather than a hot streak. When one side is quoted rich the other is cheap by
+      exactly as much, so a soft ~Proj ${lbl} shows up as value on the opposite side.`
+      : `<b>Which way to lean: neither.</b> Every edge here is inside two standard errors of zero — on this sample
+      that's a coin flip dressed up as a signal, and the ledger marks them "noise" rather than pretending otherwise.`}
     Its <b>Exp ${lbl}%</b> ran ${pct(expMean)}, about <b>${Math.abs(bias).toFixed(0)}% ${bias < 0 ? 'above' : 'below'}</b> what actually landed —
     picking the top of a slate selects for arms whose estimate is running hot.${spread}
   </div>`;
 
-  // Chips are coloured on the primary (lower) line — the one most people bet —
-  // and the tooltip carries both lines with the price we quoted for each.
-  const primary = lines[0];
+  // Chips are graded on whichever bet is selected, not always the over. Colouring
+  // by the over while the ledger says to bet the under was a straight
+  // contradiction — a green board next to advice to fade it.
+  const won = r => sel.side === 'over' ? kbbHit(r.act, sel.need) : !kbbHit(r.act, sel.need);
   const dayRows = h.days.map(d => {
-    const wins = d.board.filter(r => kbbHit(r.act, primary)).length;
+    const wins = d.board.filter(won).length;
     const names = d.board.map(r => {
-      const hit = kbbHit(r.act, primary);
+      const hit = won(r);
       const prices = r.proj == null ? '' : ' · ' + lines.map(need => {
         const p = kbbWinProb(r.proj, need), over = kbbHit(r.act, need);
         return `${need - 0.5}: O ${kbbOdds(p)} ${over ? '✓' : '✗'} / U ${kbbOdds(1 - p)} ${over ? '✗' : '✓'}`;
@@ -7722,20 +7754,21 @@ function renderKbbResults(nav) {
     <div class="ph-summary">
       <div class="ph-stat"><span class="ph-stat-val hrg-val ${liftCls}">${lift.toFixed(2)}×</span><span class="ph-stat-lbl">Edge vs Slate</span></div>
       <div class="ph-stat"><span class="ph-stat-val">${pct(boardRate)}</span><span class="ph-stat-lbl">Board ${lbl}%</span></div>
-      <div class="ph-stat"><span class="ph-stat-val hrg-val ${best && best.edge >= 2 ? 'good' : 'avg'}">${best ? (best.edge > 0 ? '+' : '') + best.edge.toFixed(1) : '—'}</span><span class="ph-stat-lbl">Best Edge${best ? ` · ${best.bet}` : ''}</span></div>
+      <div class="ph-stat"><span class="ph-stat-val hrg-val ${best ? 'good' : 'avg'}">${best ? '+' + best.edge.toFixed(1) : 'none'}</span><span class="ph-stat-lbl">${best ? `Real Edge · ${best.bet}` : 'No Side Worth It'}</span></div>
       <div class="ph-stat"><span class="ph-stat-val">${h.days.length}</span><span class="ph-stat-lbl">Slates Tracked</span></div>
     </div>
-    <div class="ph-buckets-head">Line Ledger <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· every bet the board quotes · edge = hit − priced</span></div>
+    <div class="ph-buckets-head">Line Ledger <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· every bet the board quotes · edge = hit − priced · noise = inside 2 standard errors</span></div>
     <table class="kbb-ledger">
       <thead><tr><th>Bet</th><th>Hit</th><th>Priced</th><th>Edge</th></tr></thead>
       <tbody>${ledger.map(b => `<tr>
         <td>${b.bet} ${lbl}</td>
         <td>${b.hit.toFixed(1)}%</td>
         <td>${b.priced.toFixed(1)}%</td>
-        <td class="${b.edge >= 2 ? 'kbb-edge-pos' : b.edge <= -2 ? 'kbb-edge-neg' : 'kbb-edge-flat'}">${b.edge > 0 ? '+' : ''}${b.edge.toFixed(1)}</td>
+        <td class="${!b.sig ? 'kbb-edge-flat' : b.edge > 0 ? 'kbb-edge-pos' : 'kbb-edge-neg'}" title="${Math.abs(b.edge / b.se).toFixed(1)} standard errors from zero">${b.edge > 0 ? '+' : ''}${b.edge.toFixed(1)}${b.sig ? '' : ' <span class="kbb-noise">noise</span>'}</td>
       </tr>`).join('')}</tbody>
     </table>
-    <div class="ph-buckets-head">Board Box Score <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· number = ${lbl} recorded · green = cleared Over ${primary - 0.5} · hover for both lines, both sides</span></div>
+    <div class="ph-buckets-head">Board Box Score <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· grading <b style="color:var(--text)">${sel.bet} ${lbl}</b> · number = ${lbl} recorded · green = that bet won</span></div>
+    <div class="kbb-betsel">${ledger.map(b => `<button class="kbb-bet-btn${b.bet === sel.bet ? ' active' : ''}" onclick="setKbbBet('${nav}','${b.bet}')">${b.bet}</button>`).join('')}</div>
     <div class="ph-days">${dayRows}</div>`;
 }
 function renderPitcherProp(kind) {
