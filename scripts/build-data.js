@@ -20,6 +20,11 @@ const playerLastGame  = {};  // pid -> latest date they appeared in a boxscore a
 const playerAbsByDate = {};  // pid -> { date -> abs that day } (dropped from output, only used to compute "Due")
 const dailySB         = {};  // date -> { pid -> stolen bases that day } (build-only, resolves the steal board's Results)
 const dailyCS         = {};  // date -> { pid -> caught stealing that day } (build-only)
+// Starting-pitcher lines and team batting lines, per date — the raw material for
+// the Ks / Walks Results tracker. Both are scraped off boxscores the build already
+// fetches, so backfilling the whole season costs zero extra requests. Build-only.
+const dailyStarts     = {};  // date -> [ { pid, name, team, opp, k, bb, bf, ip } ] (starters only)
+const dailyTeamBat    = {};  // date -> { teamAbbr -> { k, bb, pa } }
 const fetchedGameIds  = new Set();
 // Strip sponsorship renames the MLB feed carries so a park reads by its common
 // name everywhere (schedule, picks, digest, matchup cards). Applied wherever a
@@ -81,6 +86,24 @@ async function fetchDay(date) {
         if (teamAbbr) {
           if (!teamGameDays[teamAbbr]) teamGameDays[teamAbbr] = {};
           teamGameDays[teamAbbr][date] = (teamGameDays[teamAbbr][date] || 0) + 1;
+        }
+        // Ks / Walks tracker: this side's batting line and its starting pitcher.
+        // Captured here because the boxscore is already in hand — grading those
+        // boards from scratch later would re-fetch every game of the season.
+        const oppAbbr = box.teams?.[side === 'home' ? 'away' : 'home']?.team?.abbreviation ?? '';
+        const tb = t.teamStats?.batting;
+        if (teamAbbr && tb?.plateAppearances) {
+          const e = ((dailyTeamBat[date] ??= {})[teamAbbr] ??= { k: 0, bb: 0, pa: 0 });
+          e.k += tb.strikeOuts ?? 0; e.bb += tb.baseOnBalls ?? 0; e.pa += tb.plateAppearances;
+        }
+        for (const ppid of (t.pitchers ?? [])) {
+          const pp = players[`ID${ppid}`], st = pp?.stats?.pitching;
+          if (!st || (st.gamesStarted ?? 0) < 1) continue; // the board only ever ranks starters
+          (dailyStarts[date] ??= []).push({
+            pid: String(ppid), name: pp.person?.fullName ?? `ID${ppid}`, team: teamAbbr, opp: oppAbbr,
+            k: st.strikeOuts ?? 0, bb: st.baseOnBalls ?? 0,
+            bf: st.battersFaced ?? 0, ip: ipToFloat(st.inningsPitched),
+          });
         }
         for (const pid of batters) {
           const p = players[`ID${pid}`];
@@ -1554,6 +1577,118 @@ const STEAL_LIMIT     = 25;
 function log5(a, b, base) {
   const num = (a * b) / base, den = num + ((1 - a) * (1 - b)) / (1 - base);
   return den ? num / den : a;
+}
+
+// ── Ks / Walks history ──────────────────────────────────────────────────
+// Reconstructs what each tool's board WOULD have said on every past slate, then
+// grades it against what those starters actually did. Unlike the other Results
+// tabs (which can only log forward from the day they shipped), this one is
+// backfilled to opening day — the board is a pure function of season-to-date
+// rates, so it can be replayed. Strictly walk-forward: every rate feeding a
+// given date is accumulated from games BEFORE it, so a start never helps rank
+// itself.
+//
+// The formula is a deliberate mirror of renderPitcherProp() in mlb/index.html —
+// same log5 blend, same K0 regression, same avgStartIP × 4.3 projected BF. If
+// that changes, change this too or the tracker stops grading the live board.
+const KBB_K0        = { k: 70, bb: 120 }; // regression pseudo-batters (K% stabilizes faster than BB%)
+const KBB_BF_PER_IP = 4.3;
+const KBB_TOP       = 8;    // board depth graded per slate — the actionable slice
+const KBB_MIN_BF    = 40;   // ~2 starts of prior work before a pitcher is rankable
+const KBB_MIN_TM_PA = 200;  // opponent needs a real offensive sample too
+const KBB_WARMUP_PA = 3000; // ~2 weeks — before this, league rates are noise
+const KBB_DAYS      = 120;  // day-level detail retained (season totals span all of it)
+const KBB_LINE      = { k: 6, bb: 2 }; // the common alt-line each board is graded against
+// `scorable` is main()'s slate-complete predicate. Without it the current date
+// gets graded off whichever games happen to be Final mid-slate, so the newest row
+// shows a half board of four arms. The replay is rebuilt from scratch each build,
+// so the day appears in full the moment its last game ends.
+function computeKbbHistory(scorable = () => true) {
+  const dates = Object.keys(dailyStarts).sort();
+  const pit = {};                 // pid -> { k, bb, bf, ip, gs } through yesterday
+  const tm  = {};                 // teamAbbr -> { k, bb, pa } through yesterday
+  let lgK = 0, lgBB = 0, lgPA = 0;
+  const out = { k: [], bb: [] };
+
+  for (const date of dates) {
+    const starts = dailyStarts[date] ?? [];
+    if (lgPA >= KBB_WARMUP_PA && scorable(date)) {
+      for (const kind of ['k', 'bb']) {
+        const isK = kind === 'k', K0 = KBB_K0[kind];
+        const lg = (isK ? lgK : lgBB) / lgPA;
+        const rows = [];
+        for (const s of starts) {
+          const ps = pit[s.pid], to = tm[s.opp];
+          if (!ps || ps.bf < KBB_MIN_BF || !to || to.pa < KBB_MIN_TM_PA) continue;
+          const cnt = isK ? ps.k : ps.bb;
+          const pRate = (cnt + K0 * lg) / (ps.bf + K0);        // shrunk toward league
+          const tRate = (isK ? to.k : to.bb) / to.pa;
+          const exp = log5(pRate, tRate, lg);
+          const projBF = ps.gs ? (ps.ip / ps.gs) * KBB_BF_PER_IP : null;
+          rows.push({ s, raw: cnt / ps.bf, tRate, exp, proj: projBF != null ? exp * projBF : null });
+        }
+        // A slate too thin to rank (early season, a two-game Monday) is skipped
+        // rather than graded on three arms.
+        if (rows.length >= KBB_TOP) {
+          rows.sort((a, b) => b.exp - a.exp);
+          const act = r => isK ? r.s.k : r.s.bb;
+          const r3 = v => v == null ? null : Math.round(v * 1000) / 1000;
+          out[kind].push({
+            date,
+            lg: r3(lg),
+            // Slate baseline: every rankable starter that day, so the board's
+            // hit rate is read against the field it was picked from — not
+            // against the league, which includes arms we never would have shown.
+            slateN: rows.length,
+            slateK: rows.reduce((a, r) => a + act(r), 0),
+            slateBF: rows.reduce((a, r) => a + r.s.bf, 0),
+            board: rows.slice(0, KBB_TOP).map(r => ({
+              pid: r.s.pid, name: r.s.name, team: r.s.team, opp: r.s.opp,
+              exp: r3(r.exp), raw: r3(r.raw), tRate: r3(r.tRate),
+              proj: r.proj == null ? null : Math.round(r.proj * 10) / 10,
+              act: act(r), bf: r.s.bf, ip: Math.round(r.s.ip * 10) / 10,
+            })),
+          });
+        }
+      }
+    }
+    // Fold the slate in only after it has been graded — this is what keeps the
+    // replay honest.
+    for (const s of starts) {
+      const e = (pit[s.pid] ??= { k: 0, bb: 0, bf: 0, ip: 0, gs: 0 });
+      e.k += s.k; e.bb += s.bb; e.bf += s.bf; e.ip += s.ip; e.gs += 1;
+    }
+    for (const [abbr, v] of Object.entries(dailyTeamBat[date] ?? {})) {
+      const e = (tm[abbr] ??= { k: 0, bb: 0, pa: 0 });
+      e.k += v.k; e.bb += v.bb; e.pa += v.pa;
+      lgK += v.k; lgBB += v.bb; lgPA += v.pa;
+    }
+  }
+
+  // Season totals are computed over every graded slate, then the day-level detail
+  // is trimmed — so the headline rates keep their full sample even once the day
+  // list is capped.
+  const wrap = {};
+  for (const kind of ['k', 'bb']) {
+    const days = out[kind], all = days.flatMap(d => d.board);
+    const line = KBB_LINE[kind];
+    const bAct = all.reduce((a, r) => a + r.act, 0), bBF = all.reduce((a, r) => a + r.bf, 0);
+    const sAct = days.reduce((a, d) => a + d.slateK, 0), sBF = days.reduce((a, d) => a + d.slateBF, 0);
+    const withProj = all.filter(r => r.proj != null);
+    wrap[kind] = {
+      line,
+      slates: days.length,
+      starts: all.length,
+      expMean: all.length ? Math.round(all.reduce((a, r) => a + r.exp, 0) / all.length * 10000) / 10000 : null,
+      actRate: bBF ? Math.round(bAct / bBF * 10000) / 10000 : null,
+      slateRate: sBF ? Math.round(sAct / sBF * 10000) / 10000 : null,
+      lineHits: all.filter(r => r.act >= line).length,
+      overProj: withProj.filter(r => r.act > r.proj).length,
+      projStarts: withProj.length,
+      days: days.slice(-KBB_DAYS).reverse(), // newest first, the order the tab reads
+    };
+  }
+  return wrap;
 }
 
 async function fetchStealData() {
@@ -3162,6 +3297,18 @@ async function main() {
     console.log(`Steal history: scored ${prevDate} — ${stole}/${entry.players.length} ranked runners stole a bag 🏃`);
   }
 
+  // Ks / Walks history — replayed from scratch every build rather than appended
+  // to, so it self-heals and needs no carry-forward state.
+  const kbbHistory = computeKbbHistory(scorable);
+  for (const kind of ['k', 'bb']) {
+    const h = kbbHistory[kind], lbl = kind === 'k' ? 'K' : 'BB';
+    if (!h.slates) { console.log(`${lbl} history: no gradable slates yet`); continue; }
+    console.log(`${lbl} history: ${h.slates} slates, ${h.starts} board starts — `
+      + `actual ${(h.actRate * 100).toFixed(1)}% vs slate ${(h.slateRate * 100).toFixed(1)}% `
+      + `(${(h.actRate / h.slateRate).toFixed(2)}x), exp ${(h.expMean * 100).toFixed(1)}%, `
+      + `${h.line}+ ${lbl} ${(100 * h.lineHits / h.starts).toFixed(0)}%`);
+  }
+
   // ── Due tracking ──────────────────────────────────────────────────────
   // Same shape as picks history: when a player who was on the Due list homers,
   // he "graduates" — record how long he sat on the list, his due score, and his
@@ -3274,7 +3421,7 @@ async function main() {
     dailyHRs, hrTypes, hrDetails, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR, playerLastGame,
     teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus, dtdStatus,
     todayDate: todayET(), todaySchedule, teamIds, pitcherStats, teamOffense, batterDiscipline, bullpens, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, birthdays, birthdayHistory,
-    dueStreaks, dueHistory, returningInjured, justBack, returningHistory, milestones, steals, stealsHistory,
+    dueStreaks, dueHistory, returningInjured, justBack, returningHistory, milestones, steals, stealsHistory, kbbHistory,
   };
 
   const fs = await import('node:fs');

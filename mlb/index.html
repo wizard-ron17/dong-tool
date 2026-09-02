@@ -1274,6 +1274,12 @@
   .ph-day-hrg-unit { font-family: var(--font-b); font-size: 0.5rem; color: var(--muted); font-weight: 400; }
   .ph-day-hits { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 0.25rem; }
   .ph-hit-name { font-size: 0.6rem; font-weight: 500; background: rgba(51,208,124,0.1); color: var(--good); border: 1px solid rgba(51,208,124,0.25); border-radius: 4px; padding: 0.06rem 0.35rem; display: inline-flex; align-items: center; gap: 0.22rem; }
+  /* Ks / Walks results: the board lists every ranked arm, hit or miss, so a miss
+     needs a neutral chip rather than the green one .ph-hit-name assumes. */
+  .ph-hit-name.kbb-miss { background: var(--surface1); color: var(--muted); border-color: var(--border); }
+  .kbb-ct { font-family: var(--font-d); font-weight: 700; opacity: 0.85; }
+  .kbb-note { font-size: 0.63rem; color: var(--muted); line-height: 1.5; background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.7rem; margin-bottom: 1rem; }
+  .kbb-note b { color: var(--text); }
   .ph-hit-rank { font-weight: 700; color: var(--muted); font-size: 0.54rem; }
   .dr-chip-sub { font-size: 0.54rem; color: var(--muted); font-weight: 400; }
   .dr-wait-days { font-family: var(--font-d); font-size: 1rem; font-weight: 700; color: var(--gold); width: 2.4rem; flex-shrink: 0; }
@@ -2101,11 +2107,22 @@
           <li><b>~Proj Ks</b> estimates the raw strikeout count for his start: Exp K% × the batters he projects to face (from how deep he typically goes). Handy for over/under K props.</li>
           <li><b>Why season-long, not hot/cold?</b> K% is one of the fastest-stabilizing stats in baseball (reliable by ~70 batters faced), so a season rate is already trustworthy and recency mostly adds noise. Rates are lightly regressed toward league for small samples.</li>
           <li><b>Flip the scope</b> with the By Pitcher / By Batter toggle: By Batter ranks today's <b>hitters</b> by their expected K% vs the starter they face — the likeliest bats to whiff today.</li>
+          <li><b>Results.</b> Every past slate is replayed and graded — the board is rebuilt from the rates that were known that morning, then checked against what those arms actually did. See the <b>Results</b> tab for the running hit rate.</li>
           <li>Today's probable <b>starters</b> only (openers show their listed arm). Data is 2026 regular season, via MLB Stats.</li>
         </ul>
       </div>
     </div>
-    <div id="pitcherks-content"><div class="empty">Loading data…</div></div>
+    <div class="sub-tabs" id="pitcherks-sub-tabs">
+      <button class="sub-btn active" id="pitcherks-sub-board" onclick="switchKbbSub('pitcherks','board')">⚾ Board</button>
+      <button class="sub-btn" id="pitcherks-sub-results" onclick="switchKbbSub('pitcherks','results')">Results</button>
+    </div>
+    <div id="pitcherks-board-wrap">
+      <div id="pitcherks-content"><div class="empty">Loading data…</div></div>
+    </div>
+    <div id="pitcherks-results-wrap" style="display:none">
+      <div class="result-meta" id="pitcherks-results-meta"></div>
+      <div id="pitcherks-results-content"><div class="empty">Loading data…</div></div>
+    </div>
   </div>
 
   <div id="panel-pitcherwalks" class="panel">
@@ -2122,11 +2139,22 @@
           <li><b>~Proj BB</b> estimates the walks for his start: Exp BB% × the batters he projects to face. Handy for walk props / traffic.</li>
           <li><b>Why season-long?</b> Like K%, walk rate stabilizes fast (~120 batters faced), so a season rate is reliable and recency mostly adds noise. Rates are lightly regressed toward league for small samples.</li>
           <li><b>Flip the scope</b> with the By Pitcher / By Batter toggle: By Batter ranks today's <b>hitters</b> by their expected BB% vs the starter they face — the likeliest bats to draw a walk today.</li>
+          <li><b>Results.</b> Every past slate is replayed and graded — the board is rebuilt from the rates that were known that morning, then checked against what those arms actually did. See the <b>Results</b> tab for the running hit rate.</li>
           <li>Today's probable <b>starters</b> only (openers show their listed arm). Data is 2026 regular season, via MLB Stats.</li>
         </ul>
       </div>
     </div>
-    <div id="pitcherwalks-content"><div class="empty">Loading data…</div></div>
+    <div class="sub-tabs" id="pitcherwalks-sub-tabs">
+      <button class="sub-btn active" id="pitcherwalks-sub-board" onclick="switchKbbSub('pitcherwalks','board')">⚾ Board</button>
+      <button class="sub-btn" id="pitcherwalks-sub-results" onclick="switchKbbSub('pitcherwalks','results')">Results</button>
+    </div>
+    <div id="pitcherwalks-board-wrap">
+      <div id="pitcherwalks-content"><div class="empty">Loading data…</div></div>
+    </div>
+    <div id="pitcherwalks-results-wrap" style="display:none">
+      <div class="result-meta" id="pitcherwalks-results-meta"></div>
+      <div id="pitcherwalks-results-content"><div class="empty">Loading data…</div></div>
+    </div>
   </div>
 
   <div id="panel-milestones" class="panel">
@@ -2207,6 +2235,10 @@ let ptGridPin = null;    // pinned team in the grid — highlighted so the eye c
 let pvOpenPid = null;    // Pitcher Vuln: which starter card is expanded to show the bats that punish him
 let ppOpenPid = null;    // Pitcher Ks/Walks: which starter card is expanded to show the lineup he faces
 let ppView = 'pitcher';  // Pitcher Ks/Walks scope: 'pitcher' (rank arms) | 'batter' (rank hitters likeliest to K/walk)
+// Ks / Walks Results: the two tools each keep their own sub-tab, so switching
+// between them doesn't drag the other one onto its history view.
+let ppSub = { pitcherks: 'board', pitcherwalks: 'board' };
+let kbbHistory = null;   // { k: {...}, bb: {...} } — replayed + graded past boards, backfilled to opening day
 let injuryStatus = {};  // pid -> { date, ilDays, reason } — only present if currently on the IL
 let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questionable (NOT on the IL), from ESPN
 let returningInjured = []; // injured hitters (IL + DTD) with ESPN's estimated return dates — Returning Boppers tool
@@ -2648,6 +2680,7 @@ function applyData(data) {
   milestones = data.milestones ?? [];
   steals = data.steals ?? [];
   stealsHistory = data.stealsHistory ?? [];
+  kbbHistory = data.kbbHistory ?? null;
   dueStreaks = data.dueStreaks ?? {}; dueHistory = data.dueHistory ?? [];
   injuryStatus = data.injuryStatus ?? {};
   dtdStatus = data.dtdStatus ?? {};
@@ -2749,6 +2782,7 @@ function currentPath() {
   else if (activeNav === 'birthdays' && birthdaySubTab === 'results')        p += '/results';
   else if (activeNav === 'milestones' && milestoneSubTab === 'reached')      p += '/reached';
   else if (activeNav === 'steals'    && stealsSubTab === 'results')          p += '/results';
+  else if (ppSub[activeNav] === 'results')                                   p += '/results';
   else if (activeNav === 'recap'     && recapDate)                           p += '/' + recapDate;
   return p;
 }
@@ -2795,6 +2829,8 @@ function applyRouteState() {
     milestoneSubTab = sub === 'reached' ? 'reached' : 'hunt';
   } else if (validNav === 'steals') {
     stealsSubTab = sub === 'results' ? 'results' : 'board';
+  } else if (validNav === 'pitcherks' || validNav === 'pitcherwalks') {
+    ppSub[validNav] = sub === 'results' ? 'results' : 'board';
   } else if (validNav === 'recap') {
     recapDate = /^\d{4}-\d{2}-\d{2}$/.test(sub) ? sub : null; // /recap/2026-07-10 deep-links a day
   }
@@ -2880,8 +2916,7 @@ function renderCurrentPanel() {
   if (activeNav === 'steals') applyStealsSub(stealsSubTab);
   if (activeNav === 'pitchtypes') renderPitchTypes();
   if (activeNav === 'pitchervuln') renderPitcherVuln();
-  if (activeNav === 'pitcherks') renderPitcherKs();
-  if (activeNav === 'pitcherwalks') renderPitcherWalks();
+  if (activeNav === 'pitcherks' || activeNav === 'pitcherwalks') applyKbbSub(activeNav, ppSub[activeNav]);
 }
 window.addEventListener('popstate', applyRouteState);
 let activeStatsView = 'league';
@@ -7517,6 +7552,82 @@ function ppToggle(pid) { ppOpenPid = (ppOpenPid === pid) ? null : pid; if (activ
 function ppSetView(v) { ppView = v; ppOpenPid = null; if (activeNav === 'pitcherks') renderPitcherKs(); else renderPitcherWalks(); }
 function renderPitcherKs() { renderPitcherProp('k'); }
 function renderPitcherWalks() { renderPitcherProp('bb'); }
+
+// ── Ks / Walks results ──────────────────────────────────────────────────
+// Unlike the other Results tabs, this one isn't logged forward from the day it
+// shipped — the build replays every past slate from the rates known that morning
+// and grades the board it would have produced. So it opens with a full season of
+// history instead of an empty shell.
+function applyKbbSub(nav, sub) {
+  ppSub[nav] = sub;
+  document.getElementById(nav + '-board-wrap').style.display   = sub === 'board'   ? '' : 'none';
+  document.getElementById(nav + '-results-wrap').style.display = sub === 'results' ? '' : 'none';
+  document.getElementById(nav + '-sub-board').classList.toggle('active',   sub === 'board');
+  document.getElementById(nav + '-sub-results').classList.toggle('active', sub === 'results');
+  if (sub === 'results') renderKbbResults(nav);
+  else if (nav === 'pitcherks') renderPitcherKs();
+  else renderPitcherWalks();
+}
+function switchKbbSub(nav, sub) { applyKbbSub(nav, sub); commitRoute(); }
+
+function renderKbbResults(nav) {
+  const isK = nav === 'pitcherks';
+  const meta = document.getElementById(nav + '-results-meta');
+  const el   = document.getElementById(nav + '-results-content');
+  const h    = kbbHistory?.[isK ? 'k' : 'bb'];
+  if (!h || !h.slates) {
+    meta.textContent = '';
+    el.innerHTML = `<div class="empty">No graded slates yet — the tracker fills in once the season has enough games to rank a board. ⚾</div>`;
+    return;
+  }
+  const lbl = isK ? 'K' : 'BB', word = isK ? 'strikeout' : 'walk';
+  const pct = v => (v * 100).toFixed(1) + '%';
+  const lift = h.slateRate ? h.actRate / h.slateRate : 1;
+  // Lift is the honest headline: the board's arms vs the arms it picked FROM,
+  // not vs the league (which includes starters the tool never would have shown).
+  const liftCls = lift >= 1.15 ? 'great' : lift >= 1.06 ? 'good' : lift >= 0.98 ? 'avg' : 'bad';
+  const lineRate = 100 * h.lineHits / h.starts;
+  meta.textContent = `⚾ ${h.slates} slates replayed · top ${Math.round(h.starts / h.slates)} arms each`;
+
+  // Expected-vs-actual is a real miss worth showing rather than burying: ranking
+  // the top of a slate selects for arms whose estimate is running high, so Exp%
+  // sits a touch above what the board delivers.
+  const bias = h.expMean && h.actRate ? (h.actRate / h.expMean - 1) * 100 : 0;
+  const note = `<div class="kbb-note">
+    <b>How to read this.</b> Each past slate's board is rebuilt from only what was known that morning, then graded.
+    The board's arms combined for a <b>${pct(h.actRate)} ${lbl}%</b> against <b>${pct(h.slateRate)}</b> for every
+    rankable starter on those same slates — a <b>${lift.toFixed(2)}×</b> edge, so the ranking is finding real ${word} spots.
+    Its <b>Exp ${lbl}%</b> ran ${pct(h.expMean)}, about <b>${Math.abs(bias).toFixed(0)}% ${bias < 0 ? 'above' : 'below'}</b> what actually landed —
+    picking the top of a slate selects for arms whose estimate is running hot, so treat Exp ${lbl}% as a ranking tool
+    and shade the raw number ${bias < 0 ? 'down' : 'up'} slightly.
+    <b>~Proj ${lbl}</b> cleared in ${(100 * h.overProj / h.projStarts).toFixed(0)}% of starts (a perfectly centered
+    projection lands near 45% here, since ${word} counts are right-skewed).
+  </div>`;
+
+  const dayRows = h.days.map(d => {
+    const hits = d.board.filter(r => r.act >= h.line).length;
+    const names = d.board.map(r => {
+      const hit = r.act >= h.line;
+      const title = `${r.name} — ${r.act} ${lbl} in ${r.ip} IP vs ${r.opp} · Exp ${pct(r.exp)}${r.proj != null ? ` · proj ${r.proj}` : ''}`;
+      return `<span class="ph-hit-name${hit ? '' : ' kbb-miss'}" title="${title}">${compactPlayerName(r.name)} <span class="kbb-ct">${r.act}</span></span>`;
+    }).join(' ');
+    return `<div class="ph-day-row">
+      <span class="ph-day-date">${fmtDateLong(d.date)}</span>
+      <span class="ph-day-fraction">${hits}/${d.board.length}</span>
+      <span class="ph-day-hits">${names}</span>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = note + `
+    <div class="ph-summary">
+      <div class="ph-stat"><span class="ph-stat-val hrg-val ${liftCls}">${lift.toFixed(2)}×</span><span class="ph-stat-lbl">Edge vs Slate</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${pct(h.actRate)}</span><span class="ph-stat-lbl">Board ${lbl}%</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${lineRate.toFixed(0)}%</span><span class="ph-stat-lbl">${h.line}+ ${lbl}</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${h.slates}</span><span class="ph-stat-lbl">Slates Tracked</span></div>
+    </div>
+    <div class="ph-buckets-head">Board Box Score <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· number = ${lbl} recorded · green = ${h.line}+ ${lbl}</span></div>
+    <div class="ph-days">${dayRows}</div>`;
+}
 function renderPitcherProp(kind) {
   const isK = kind === 'k';
   const el = document.getElementById((isK ? 'pitcherks' : 'pitcherwalks') + '-content');
