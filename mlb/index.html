@@ -2106,7 +2106,7 @@
       <div class="due-explainer-body" id="pitcherks-explainer-body" style="display:none">
         <ul>
           <li><b>Exp K%</b> is the headline — the strikeout rate we'd expect in this specific matchup, via a log5 blend of the <b>pitcher's K%</b> and the <b>opponent's team K%</b> against the league baseline. Higher = a better strikeout spot.</li>
-          <li><b>~Proj Ks</b> estimates the raw strikeout count for his start: Exp K% × the batters he projects to face (from how deep he typically goes). Handy for over/under K props.</li>
+          <li><b>~Proj Ks</b> estimates the raw strikeout count for his start: Exp K% × the batters he actually averages per start. That second number is measured, not derived from innings × a constant — the old shortcut overstated batters faced by about half a batter and mispriced the overs by 4–5 points.</li>
           <li><b>Why season-long, not hot/cold?</b> K% is one of the fastest-stabilizing stats in baseball (reliable by ~70 batters faced), so a season rate is already trustworthy and recency mostly adds noise. Rates are lightly regressed toward league for small samples.</li>
           <li><b>Flip the scope</b> with the By Pitcher / By Batter toggle: By Batter ranks today's <b>hitters</b> by their expected K% vs the starter they face — the likeliest bats to whiff today.</li>
           <li><b>Results.</b> Every past slate is replayed and graded — the board is rebuilt from the rates that were known that morning, then checked against what those arms actually did. See the <b>Results</b> tab for the running hit rate.</li>
@@ -2138,7 +2138,7 @@
       <div class="due-explainer-body" id="pitcherwalks-explainer-body" style="display:none">
         <ul>
           <li><b>Exp BB%</b> is the headline — the walk rate we'd expect in this matchup, via a log5 blend of the <b>pitcher's BB%</b> and the <b>opponent's team BB%</b> (walks drawn) against the league baseline. Higher = a wilder spot.</li>
-          <li><b>~Proj BB</b> estimates the walks for his start: Exp BB% × the batters he projects to face. Handy for walk props / traffic.</li>
+          <li><b>~Proj BB</b> estimates the walks for his start: Exp BB% × the batters he actually averages per start (measured, not innings × a constant).</li>
           <li><b>Why season-long?</b> Like K%, walk rate stabilizes fast (~120 batters faced), so a season rate is reliable and recency mostly adds noise. Rates are lightly regressed toward league for small samples.</li>
           <li><b>Flip the scope</b> with the By Pitcher / By Batter toggle: By Batter ranks today's <b>hitters</b> by their expected BB% vs the starter they face — the likeliest bats to draw a walk today.</li>
           <li><b>Results.</b> Every past slate is replayed and graded — the board is rebuilt from the rates that were known that morning, then checked against what those arms actually did. See the <b>Results</b> tab for the running hit rate.</li>
@@ -7647,7 +7647,13 @@ function renderKbbResults(nav) {
   const pMean = graded.length ? graded.reduce((a, r) => a + r.proj, 0) / graded.length : 0;
   const side = g => g.length ? { proj: g.reduce((a, r) => a + r.proj, 0) / g.length, act: g.reduce((a, r) => a + r.act, 0) / g.length } : null;
   const pbLo = side(graded.filter(r => r.proj <  pMean)), pbHi = side(graded.filter(r => r.proj >= pMean));
-  const spread = pbLo && pbHi ? `
+  // Only claim the projection is too wide when it measurably is. Fixing the
+  // batters-faced estimate flattened this out for strikeouts (6.64 → 6.58 is not
+  // "falling short"), and a sentence that fires regardless of the numbers is
+  // just decoration that will eventually be wrong.
+  const relMiss = s => s.act / s.proj - 1;
+  const wide = pbLo && pbHi && relMiss(pbHi) < -0.02 && (relMiss(pbLo) - relMiss(pbHi)) >= 0.04;
+  const spread = wide ? `
     That miss isn't spread evenly: arms we project <b>below</b> the board average land about where we say
     (${pbLo.proj.toFixed(2)} → ${pbLo.act.toFixed(2)}), while the <b>biggest</b> projections fall furthest short
     (${pbHi.proj.toFixed(2)} → ${pbHi.act.toFixed(2)}). The fade belongs on the top of the board, not on all of it.` : '';
@@ -7724,7 +7730,11 @@ function renderPitcherProp(kind) {
       const raw = cnt / ps.bf;
       const pRate = (cnt + K0 * lg) / (ps.bf + K0);       // shrunk toward league
       const exp = log5(pRate, t, lg);
-      const projBF = ps.avgStartIP ? ps.avgStartIP * 4.3 : null; // ~batters faced per start
+      // Batters he actually faces in a start. avgStartBF is measured directly;
+      // the avgStartIP x 4.242 fallback only fires if data.json predates that
+      // field (the page ships before the next build runs) or the feed omits BF.
+      const projBF = ps.avgStartBF != null ? ps.avgStartBF
+                   : ps.avgStartIP ? ps.avgStartIP * 4.242 : null;
       rows.push({ pid, name: playerNames[pid] || pid, team: me.teamAbbr, oppTeam: opp.teamAbbr, venue: g.venue,
                   status: g.status, throws: me.probablePitcherThrows, raw, tRate: t, exp, proj: projBF != null ? exp * projBF : null,
                   lineupPids: opp.lineup?.length ? opp.lineup.map(b => String(b.pid)) : null });
