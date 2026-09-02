@@ -1683,8 +1683,28 @@ function computeKbbHistory(scorable = () => true) {
       actRate: bBF ? Math.round(bAct / bBF * 10000) / 10000 : null,
       slateRate: sBF ? Math.round(sAct / sBF * 10000) / 10000 : null,
       lineHits: all.filter(r => r.act >= line).length,
+      // Graded against each arm's OWN projected line rather than one league-wide
+      // alt-line. Treating the projection as the line makes a fractional proj
+      // exactly equivalent to the half-point number a book would hang (project
+      // 2.3, need 3 = Over 2.5). An integer projection is the one case that can
+      // land dead on it, and that is a PUSH — scoring "projected 2, got 2" as a
+      // loss understated the hit rate by about a point.
       overProj: withProj.filter(r => r.act > r.proj).length,
+      pushProj: withProj.filter(r => r.act === r.proj).length,
       projStarts: withProj.length,
+      // The projection isn't just high, it's too WIDE — the arms we project
+      // biggest miss by the most. Split at the mean so the tab can say which
+      // half to fade instead of telling everyone to shade down equally.
+      projBias: (() => {
+        if (!withProj.length) return null;
+        const mean = withProj.reduce((a, r) => a + r.proj, 0) / withProj.length;
+        const side = g => g.length ? {
+          n: g.length,
+          proj: Math.round(g.reduce((a, r) => a + r.proj, 0) / g.length * 100) / 100,
+          act:  Math.round(g.reduce((a, r) => a + r.act,  0) / g.length * 100) / 100,
+        } : null;
+        return { lo: side(withProj.filter(r => r.proj < mean)), hi: side(withProj.filter(r => r.proj >= mean)) };
+      })(),
       days: days.slice(-KBB_DAYS).reverse(), // newest first, the order the tab reads
     };
   }
@@ -3306,7 +3326,8 @@ async function main() {
     console.log(`${lbl} history: ${h.slates} slates, ${h.starts} board starts — `
       + `actual ${(h.actRate * 100).toFixed(1)}% vs slate ${(h.slateRate * 100).toFixed(1)}% `
       + `(${(h.actRate / h.slateRate).toFixed(2)}x), exp ${(h.expMean * 100).toFixed(1)}%, `
-      + `${h.line}+ ${lbl} ${(100 * h.lineHits / h.starts).toFixed(0)}%`);
+      + `${h.line}+ ${lbl} ${(100 * h.lineHits / h.starts).toFixed(0)}%, `
+      + `beat proj ${(100 * h.overProj / (h.projStarts - h.pushProj)).toFixed(0)}% (${h.pushProj} push)`);
   }
 
   // ── Due tracking ──────────────────────────────────────────────────────

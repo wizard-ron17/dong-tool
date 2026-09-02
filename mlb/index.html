@@ -1277,6 +1277,8 @@
   /* Ks / Walks results: the board lists every ranked arm, hit or miss, so a miss
      needs a neutral chip rather than the green one .ph-hit-name assumes. */
   .ph-hit-name.kbb-miss { background: var(--surface1); color: var(--muted); border-color: var(--border); }
+  /* Landed exactly on his projection — a push, so neither green nor a miss. */
+  .ph-hit-name.kbb-push { background: rgba(240,180,41,0.1); color: var(--gold); border-color: rgba(240,180,41,0.3); }
   .kbb-ct { font-family: var(--font-d); font-weight: 700; opacity: 0.85; }
   .kbb-note { font-size: 0.63rem; color: var(--muted); line-height: 1.5; background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.7rem; margin-bottom: 1rem; }
   .kbb-note b { color: var(--text); }
@@ -7582,6 +7584,13 @@ function renderKbbResults(nav) {
   }
   const lbl = isK ? 'K' : 'BB', word = isK ? 'strikeout' : 'walk';
   const pct = v => (v * 100).toFixed(1) + '%';
+  // Each arm is graded against his OWN projected line, which for a fractional
+  // projection is exactly the half-point number a book would hang (proj 2.3 →
+  // need 3 → Over 2.5). An integer projection can land dead on it: that's a
+  // push, and it comes out of the denominator rather than counting as a loss.
+  const grade = r => r.proj == null ? null : r.act > r.proj ? 'win' : r.act === r.proj ? 'push' : 'loss';
+  const decided = h.projStarts - h.pushProj;
+  const beatRate = decided ? 100 * h.overProj / decided : 0;
   const lift = h.slateRate ? h.actRate / h.slateRate : 1;
   // Lift is the honest headline: the board's arms vs the arms it picked FROM,
   // not vs the league (which includes starters the tool never would have shown).
@@ -7593,27 +7602,38 @@ function renderKbbResults(nav) {
   // the top of a slate selects for arms whose estimate is running high, so Exp%
   // sits a touch above what the board delivers.
   const bias = h.expMean && h.actRate ? (h.actRate / h.expMean - 1) * 100 : 0;
+  // The projection is also too WIDE, not merely high — the biggest projections
+  // miss by the most. Saying "shade everything down" would be wrong; the fade is
+  // specifically on the top of the board.
+  const pb = h.projBias;
+  const spread = pb?.hi && pb?.lo ? `
+    That miss isn't spread evenly: arms we project <b>below</b> the board average land about where we say
+    (${pb.lo.proj} → ${pb.lo.act}), while the <b>biggest</b> projections fall furthest short
+    (${pb.hi.proj} → ${pb.hi.act}). The fade belongs on the top of the board, not on all of it.` : '';
   const note = `<div class="kbb-note">
     <b>How to read this.</b> Each past slate's board is rebuilt from only what was known that morning, then graded.
     The board's arms combined for a <b>${pct(h.actRate)} ${lbl}%</b> against <b>${pct(h.slateRate)}</b> for every
     rankable starter on those same slates — a <b>${lift.toFixed(2)}×</b> edge, so the ranking is finding real ${word} spots.
+    <b>Beat Proj</b> grades every arm against his own <b>~Proj ${lbl}</b> as if it were the line — project 2.3 and he
+    needs 3, the same as Over 2.5 — with a projection he lands exactly on scored as a push, not a loss${h.pushProj ? ` (${h.pushProj} so far)` : ''}.
     Its <b>Exp ${lbl}%</b> ran ${pct(h.expMean)}, about <b>${Math.abs(bias).toFixed(0)}% ${bias < 0 ? 'above' : 'below'}</b> what actually landed —
-    picking the top of a slate selects for arms whose estimate is running hot, so treat Exp ${lbl}% as a ranking tool
-    and shade the raw number ${bias < 0 ? 'down' : 'up'} slightly.
-    <b>~Proj ${lbl}</b> cleared in ${(100 * h.overProj / h.projStarts).toFixed(0)}% of starts (a perfectly centered
-    projection lands near 45% here, since ${word} counts are right-skewed).
+    picking the top of a slate selects for arms whose estimate is running hot.${spread}
   </div>`;
 
   const dayRows = h.days.map(d => {
-    const hits = d.board.filter(r => r.act >= h.line).length;
-    const names = d.board.map(r => {
-      const hit = r.act >= h.line;
-      const title = `${r.name} — ${r.act} ${lbl} in ${r.ip} IP vs ${r.opp} · Exp ${pct(r.exp)}${r.proj != null ? ` · proj ${r.proj}` : ''}`;
-      return `<span class="ph-hit-name${hit ? '' : ' kbb-miss'}" title="${title}">${compactPlayerName(r.name)} <span class="kbb-ct">${r.act}</span></span>`;
+    const g = d.board.map(grade);
+    const wins = g.filter(x => x === 'win').length;
+    const dec  = g.filter(x => x === 'win' || x === 'loss').length;
+    const names = d.board.map((r, i) => {
+      const cls = g[i] === 'win' ? '' : g[i] === 'push' ? ' kbb-push' : ' kbb-miss';
+      const verdict = g[i] === 'win' ? 'beat' : g[i] === 'push' ? 'pushed' : g[i] === 'loss' ? 'missed' : 'no projection for';
+      const title = `${r.name} — ${r.act} ${lbl} in ${r.ip} IP vs ${r.opp}`
+        + `${r.proj != null ? ` · ${verdict} his ${r.proj} projection` : ''} · Exp ${pct(r.exp)}`;
+      return `<span class="ph-hit-name${cls}" title="${title}">${compactPlayerName(r.name)} <span class="kbb-ct">${r.act}</span></span>`;
     }).join(' ');
     return `<div class="ph-day-row">
       <span class="ph-day-date">${fmtDateLong(d.date)}</span>
-      <span class="ph-day-fraction">${hits}/${d.board.length}</span>
+      <span class="ph-day-fraction">${wins}/${dec}</span>
       <span class="ph-day-hits">${names}</span>
     </div>`;
   }).join('');
@@ -7622,10 +7642,10 @@ function renderKbbResults(nav) {
     <div class="ph-summary">
       <div class="ph-stat"><span class="ph-stat-val hrg-val ${liftCls}">${lift.toFixed(2)}×</span><span class="ph-stat-lbl">Edge vs Slate</span></div>
       <div class="ph-stat"><span class="ph-stat-val">${pct(h.actRate)}</span><span class="ph-stat-lbl">Board ${lbl}%</span></div>
+      <div class="ph-stat"><span class="ph-stat-val hrg-val ${beatRate >= 52 ? 'good' : beatRate >= 47 ? 'avg' : 'below'}">${beatRate.toFixed(0)}%</span><span class="ph-stat-lbl">Beat Proj</span></div>
       <div class="ph-stat"><span class="ph-stat-val">${lineRate.toFixed(0)}%</span><span class="ph-stat-lbl">${h.line}+ ${lbl}</span></div>
-      <div class="ph-stat"><span class="ph-stat-val">${h.slates}</span><span class="ph-stat-lbl">Slates Tracked</span></div>
     </div>
-    <div class="ph-buckets-head">Board Box Score <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· number = ${lbl} recorded · green = ${h.line}+ ${lbl}</span></div>
+    <div class="ph-buckets-head">Board Box Score <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· number = ${lbl} recorded · green = beat his ~Proj ${lbl} · amber = push</span></div>
     <div class="ph-days">${dayRows}</div>`;
 }
 function renderPitcherProp(kind) {
