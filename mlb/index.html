@@ -1278,8 +1278,23 @@
      needs a neutral chip rather than the green one .ph-hit-name assumes. */
   .ph-hit-name.kbb-miss { background: var(--surface1); color: var(--muted); border-color: var(--border); }
   .kbb-ct { font-family: var(--font-d); font-weight: 700; opacity: 0.85; }
-  /* Fair price on the board's projected line — the number people actually bet. */
+  /* Fair price on the board's projected line — the number people actually bet.
+     Over and under are shown together: with no vig they're the same number with
+     the sign flipped, but you bet one side or the other, so both are spelled out. */
   .pv-price { font-family: var(--font-d); font-weight: 800; color: var(--accent); }
+  .pv-price.under { color: var(--gold); }
+  .pv-ou { display: inline-flex; align-items: baseline; gap: 0.18rem; white-space: nowrap; }
+  .pv-ou-sep { color: var(--dim); font-weight: 400; }
+  /* Results ledger: every bet the board quotes, with what it actually did. */
+  .kbb-ledger { width: 100%; border-collapse: collapse; font-size: 0.68rem; margin-bottom: 1rem; }
+  .kbb-ledger th { font-size: 0.55rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; text-align: right; padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--border); }
+  .kbb-ledger th:first-child { text-align: left; }
+  .kbb-ledger td { padding: 0.42rem 0.5rem; border-bottom: 1px solid var(--border); text-align: right; font-family: var(--font-d); }
+  .kbb-ledger td:first-child { text-align: left; font-family: inherit; color: var(--text); }
+  .kbb-ledger tr:last-child td { border-bottom: none; }
+  .kbb-edge-pos { color: var(--accent); font-weight: 700; }
+  .kbb-edge-neg { color: var(--bad); }
+  .kbb-edge-flat { color: var(--muted); }
   .kbb-note { font-size: 0.63rem; color: var(--muted); line-height: 1.5; background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.7rem; margin-bottom: 1rem; }
   .kbb-note b { color: var(--text); }
   .ph-hit-rank { font-weight: 700; color: var(--muted); font-size: 0.54rem; }
@@ -7627,6 +7642,14 @@ function renderKbbResults(nav) {
     hit: graded.length ? 100 * graded.filter(r => kbbHit(r.act, need)).length / graded.length : null,
     priced: graded.length ? 100 * graded.reduce((a, r) => a + kbbWinProb(r.proj, need), 0) / graded.length : null,
   }));
+  // Both sides of every line. The under is the exact complement — same price with
+  // the sign flipped, and an edge that mirrors the over's — but it's a different
+  // bet, and when the over is priced rich the under is where the value sits.
+  const ledger = lineRec.flatMap(l => l.hit == null ? [] : [
+    { bet: `Over ${l.need - 0.5}`,  hit: l.hit,       priced: l.priced },
+    { bet: `Under ${l.need - 0.5}`, hit: 100 - l.hit, priced: 100 - l.priced },
+  ]).map(b => ({ ...b, edge: b.hit - b.priced }));
+  const best = ledger.length ? ledger.reduce((a, b) => b.edge > a.edge ? b : a) : null;
   const bAct = rows.reduce((a, r) => a + r.act, 0), bBF = rows.reduce((a, r) => a + r.bf, 0);
   const sAct = h.days.reduce((a, d) => a + d.slateK, 0), sBF = h.days.reduce((a, d) => a + d.slateBF, 0);
   const boardRate = bBF ? bAct / bBF : 0, slateRate = sBF ? sAct / sBF : 0;
@@ -7661,12 +7684,14 @@ function renderKbbResults(nav) {
     <b>How to read this.</b> Each past slate's board is rebuilt from only what was known that morning, then graded.
     The board's arms combined for a <b>${pct(boardRate)} ${lbl}%</b> against <b>${pct(slateRate)}</b> for every
     rankable starter on those same slates — a <b>${lift.toFixed(2)}×</b> edge, so the ranking is finding real ${word} spots.
-    Every arm is priced at <b>both</b> lines a book hangs for this market, so the numbers compare straight down the
-    board. ~Proj ${lbl} sets the price, not the line: a ${isK ? '6.0' : '1.6'} and a ${isK ? '6.8' : '1.9'} projection are
-    both Over ${lines[0] - 0.5}, but the bigger one gets there more often and is priced accordingly. Half numbers mean no pushes.
-    ${lineRec.every(l => l.hit != null) ? lineRec.map(l => `<b>Over ${l.need - 0.5}</b> hit <b>${l.hit.toFixed(1)}%</b>
-      against <b>${l.priced.toFixed(1)}%</b> priced${Math.abs(l.hit - l.priced) < 2 ? ' (landing right)'
-        : ` (${l.hit < l.priced ? 'rich — worse than it looks' : 'cheap'})`}`).join('; ') + '.' : ''}
+    Every arm is priced at <b>both</b> lines a book hangs for this market, over and under, so the numbers compare
+    straight down the board. ~Proj ${lbl} sets the price, not the line: a ${isK ? '6.0' : '1.6'} and a ${isK ? '6.8' : '1.9'}
+    projection are both Over ${lines[0] - 0.5}, but the bigger one gets there more often and is priced accordingly.
+    Half numbers mean no pushes, and with no vig the under is just the over's price with the sign flipped.
+    ${best && best.edge >= 2 ? `The ledger below is the part worth reading: <b>${best.bet}</b> has been the
+      strongest bet on this board, landing <b>${best.hit.toFixed(1)}%</b> against <b>${best.priced.toFixed(1)}%</b> priced.
+      When one side is quoted rich the other is cheap by exactly as much, so a soft ~Proj shows up as value on the opposite side.`
+      : `Every line here is priced within a couple of points of what it delivers, so neither side is a standing edge.`}
     Its <b>Exp ${lbl}%</b> ran ${pct(expMean)}, about <b>${Math.abs(bias).toFixed(0)}% ${bias < 0 ? 'above' : 'below'}</b> what actually landed —
     picking the top of a slate selects for arms whose estimate is running hot.${spread}
   </div>`;
@@ -7678,8 +7703,10 @@ function renderKbbResults(nav) {
     const wins = d.board.filter(r => kbbHit(r.act, primary)).length;
     const names = d.board.map(r => {
       const hit = kbbHit(r.act, primary);
-      const prices = r.proj == null ? '' : ' · ' + lines.map(need =>
-        `O${need - 0.5} ${kbbOdds(kbbWinProb(r.proj, need))} ${kbbHit(r.act, need) ? '✓' : '✗'}`).join('  ');
+      const prices = r.proj == null ? '' : ' · ' + lines.map(need => {
+        const p = kbbWinProb(r.proj, need), over = kbbHit(r.act, need);
+        return `${need - 0.5}: O ${kbbOdds(p)} ${over ? '✓' : '✗'} / U ${kbbOdds(1 - p)} ${over ? '✗' : '✓'}`;
+      }).join('  ·  ');
       const title = `${r.name} — ${r.act} ${lbl} in ${r.ip} IP vs ${r.opp}`
         + (r.proj != null ? ` (proj ${r.proj})` : '') + prices + ` · Exp ${pct(r.exp)}`;
       return `<span class="ph-hit-name${hit ? '' : ' kbb-miss'}" title="${title}">${compactPlayerName(r.name)} <span class="kbb-ct">${r.act}</span></span>`;
@@ -7695,12 +7722,20 @@ function renderKbbResults(nav) {
     <div class="ph-summary">
       <div class="ph-stat"><span class="ph-stat-val hrg-val ${liftCls}">${lift.toFixed(2)}×</span><span class="ph-stat-lbl">Edge vs Slate</span></div>
       <div class="ph-stat"><span class="ph-stat-val">${pct(boardRate)}</span><span class="ph-stat-lbl">Board ${lbl}%</span></div>
-      ${lineRec.map(l => `<div class="ph-stat">
-        <span class="ph-stat-val hrg-val ${l.hit == null ? '' : l.hit - l.priced >= 1 ? 'good' : l.hit - l.priced >= -2 ? 'avg' : 'below'}">${l.hit == null ? '—' : l.hit.toFixed(0) + '%'}</span>
-        <span class="ph-stat-lbl">Over ${l.need - 0.5}${l.priced != null ? ` · ${l.priced.toFixed(0)}% priced` : ''}</span>
-      </div>`).join('')}
+      <div class="ph-stat"><span class="ph-stat-val hrg-val ${best && best.edge >= 2 ? 'good' : 'avg'}">${best ? (best.edge > 0 ? '+' : '') + best.edge.toFixed(1) : '—'}</span><span class="ph-stat-lbl">Best Edge${best ? ` · ${best.bet}` : ''}</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${h.days.length}</span><span class="ph-stat-lbl">Slates Tracked</span></div>
     </div>
-    <div class="ph-buckets-head">Board Box Score <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· number = ${lbl} recorded · green = cleared Over ${primary - 0.5} · hover for both lines</span></div>
+    <div class="ph-buckets-head">Line Ledger <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· every bet the board quotes · edge = hit − priced</span></div>
+    <table class="kbb-ledger">
+      <thead><tr><th>Bet</th><th>Hit</th><th>Priced</th><th>Edge</th></tr></thead>
+      <tbody>${ledger.map(b => `<tr>
+        <td>${b.bet} ${lbl}</td>
+        <td>${b.hit.toFixed(1)}%</td>
+        <td>${b.priced.toFixed(1)}%</td>
+        <td class="${b.edge >= 2 ? 'kbb-edge-pos' : b.edge <= -2 ? 'kbb-edge-neg' : 'kbb-edge-flat'}">${b.edge > 0 ? '+' : ''}${b.edge.toFixed(1)}</td>
+      </tr>`).join('')}</tbody>
+    </table>
+    <div class="ph-buckets-head">Board Box Score <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· number = ${lbl} recorded · green = cleared Over ${primary - 0.5} · hover for both lines, both sides</span></div>
     <div class="ph-days">${dayRows}</div>`;
 }
 function renderPitcherProp(kind) {
@@ -7784,8 +7819,10 @@ function renderPitcherProp(kind) {
         ${mtr(`~Proj ${lbl}`, r.proj != null ? r.proj.toFixed(1) : '—')}
         ${r.proj == null ? '' : KBB_LINES[kind].map(need => {
           const p = kbbWinProb(r.proj, need);
-          return mtr(`Over ${need - 0.5}`,
-            `<span class="pv-price" title="Fair odds, no vig — a book will price worse. ${(p * 100).toFixed(0)}% to reach ${need}+ ${lbl} on a ${r.proj.toFixed(1)} projection.">${kbbOdds(p)}</span>`);
+          const tip = `On a ${r.proj.toFixed(1)} projection: ${(p * 100).toFixed(0)}% to reach ${need}+ ${lbl}, `
+            + `${((1 - p) * 100).toFixed(0)}% to stay under. Fair odds, no vig — a book prices worse on both sides.`;
+          return mtr(`O/U ${need - 0.5}`,
+            `<span class="pv-ou" title="${tip}"><span class="pv-price">${kbbOdds(p)}</span><span class="pv-ou-sep">/</span><span class="pv-price under">${kbbOdds(1 - p)}</span></span>`);
         }).join('')}
         ${mtr(`Pitcher ${lbl}%`, `${(r.raw * 100).toFixed(1)}%`)}
         ${mtr(`${r.oppTeam} ${lbl}%`, `${(r.tRate * 100).toFixed(1)}%`)}
