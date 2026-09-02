@@ -1277,9 +1277,9 @@
   /* Ks / Walks results: the board lists every ranked arm, hit or miss, so a miss
      needs a neutral chip rather than the green one .ph-hit-name assumes. */
   .ph-hit-name.kbb-miss { background: var(--surface1); color: var(--muted); border-color: var(--border); }
-  /* Landed exactly on his projection — a push, so neither green nor a miss. */
-  .ph-hit-name.kbb-push { background: rgba(240,180,41,0.1); color: var(--gold); border-color: rgba(240,180,41,0.3); }
   .kbb-ct { font-family: var(--font-d); font-weight: 700; opacity: 0.85; }
+  /* Fair price on the board's projected line — the number people actually bet. */
+  .pv-price { font-family: var(--font-d); font-weight: 800; color: var(--accent); }
   .kbb-note { font-size: 0.63rem; color: var(--muted); line-height: 1.5; background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.7rem; margin-bottom: 1rem; }
   .kbb-note b { color: var(--text); }
   .ph-hit-rank { font-weight: 700; color: var(--muted); font-size: 0.54rem; }
@@ -7555,6 +7555,29 @@ function ppSetView(v) { ppView = v; ppOpenPid = null; if (activeNav === 'pitcher
 function renderPitcherKs() { renderPitcherProp('k'); }
 function renderPitcherWalks() { renderPitcherProp('bb'); }
 
+// ── Prop line + price ───────────────────────────────────────────────────
+// Books only ever hang half numbers, so a projection turns into a line by
+// rounding to the nearest whole number N and posting N-0.5. Project 2.1 and the
+// line is Over 1.5, which 2 walks clears — there is no push to worry about.
+const kbbLineFor = proj => Math.max(0, Math.round(proj)) - 0.5;
+const kbbHit     = (act, proj) => act > kbbLineFor(proj);
+// P(X >= n) for a Poisson with mean mu. This is what separates a 1.6 projection
+// from a 1.9 one: both round to "Over 1.5", but the 1.9 arm is likelier to get
+// there, and the price says so (-176 vs -125). Parameter-free on purpose — a
+// fitted correction helped strikeouts out of sample but hurt walks, so the tab
+// tracks the model's calibration instead of tuning a constant into it.
+function poissonAtLeast(mu, n) {
+  if (!(mu > 0)) return n <= 0 ? 1 : 0;
+  if (n <= 0) return 1;
+  let term = Math.exp(-mu), cdf = term;
+  for (let i = 1; i <= n - 1; i++) { term = term * mu / i; cdf += term; }
+  return Math.min(1, Math.max(0, 1 - cdf));
+}
+const kbbWinProb = proj => proj == null ? null : poissonAtLeast(proj, Math.round(proj));
+// Fair American odds — no vig, so a book will always price worse than this.
+const kbbOdds = p => (!(p > 0) || p >= 1) ? '—'
+  : p >= 0.5 ? '-' + Math.round(100 * p / (1 - p)) : '+' + Math.round(100 * (1 - p) / p);
+
 // ── Ks / Walks results ──────────────────────────────────────────────────
 // Unlike the other Results tabs, this one isn't logged forward from the day it
 // shipped — the build replays every past slate from the rates known that morning
@@ -7577,63 +7600,76 @@ function renderKbbResults(nav) {
   const meta = document.getElementById(nav + '-results-meta');
   const el   = document.getElementById(nav + '-results-content');
   const h    = kbbHistory?.[isK ? 'k' : 'bb'];
-  if (!h || !h.slates) {
+  if (!h || !h.days?.length) {
     meta.textContent = '';
     el.innerHTML = `<div class="empty">No graded slates yet — the tracker fills in once the season has enough games to rank a board. ⚾</div>`;
     return;
   }
   const lbl = isK ? 'K' : 'BB', word = isK ? 'strikeout' : 'walk';
   const pct = v => (v * 100).toFixed(1) + '%';
-  // Each arm is graded against his OWN projected line, which for a fractional
-  // projection is exactly the half-point number a book would hang (proj 2.3 →
-  // need 3 → Over 2.5). An integer projection can land dead on it: that's a
-  // push, and it comes out of the denominator rather than counting as a loss.
-  const grade = r => r.proj == null ? null : r.act > r.proj ? 'win' : r.act === r.proj ? 'push' : 'loss';
-  const decided = h.projStarts - h.pushProj;
-  const beatRate = decided ? 100 * h.overProj / decided : 0;
-  const lift = h.slateRate ? h.actRate / h.slateRate : 1;
+  // Everything shown is recomputed from the rows actually on screen rather than
+  // read off aggregate fields. The page deploys the instant it's pushed but
+  // data.json only refreshes on the next cron build, so a newly added aggregate
+  // reads `undefined` for up to half an hour — which is exactly how this tab
+  // once rendered a confident "0%". Deriving from h.days can't desync from the
+  // chips underneath it and can't be broken by a build that hasn't run yet.
+  const rows = h.days.flatMap(d => d.board);
+  const graded = rows.filter(r => r.proj != null);
+  const hitRate  = graded.length ? 100 * graded.filter(r => kbbHit(r.act, r.proj)).length / graded.length : null;
+  const modelled = graded.length ? 100 * graded.reduce((a, r) => a + kbbWinProb(r.proj), 0) / graded.length : null;
+  const bAct = rows.reduce((a, r) => a + r.act, 0), bBF = rows.reduce((a, r) => a + r.bf, 0);
+  const sAct = h.days.reduce((a, d) => a + d.slateK, 0), sBF = h.days.reduce((a, d) => a + d.slateBF, 0);
+  const boardRate = bBF ? bAct / bBF : 0, slateRate = sBF ? sAct / sBF : 0;
+  const expMean = rows.length ? rows.reduce((a, r) => a + r.exp, 0) / rows.length : 0;
+  const lift = slateRate ? boardRate / slateRate : 1;
   // Lift is the honest headline: the board's arms vs the arms it picked FROM,
   // not vs the league (which includes starters the tool never would have shown).
   const liftCls = lift >= 1.15 ? 'great' : lift >= 1.06 ? 'good' : lift >= 0.98 ? 'avg' : 'bad';
-  const lineRate = 100 * h.lineHits / h.starts;
-  meta.textContent = `⚾ ${h.slates} slates replayed · top ${Math.round(h.starts / h.slates)} arms each`;
+  const lineRate = rows.length ? 100 * rows.filter(r => r.act >= h.line).length / rows.length : 0;
+  meta.textContent = `⚾ ${h.days.length} slates replayed · top ${Math.round(rows.length / h.days.length)} arms each`;
 
   // Expected-vs-actual is a real miss worth showing rather than burying: ranking
   // the top of a slate selects for arms whose estimate is running high, so Exp%
   // sits a touch above what the board delivers.
-  const bias = h.expMean && h.actRate ? (h.actRate / h.expMean - 1) * 100 : 0;
+  const bias = expMean && boardRate ? (boardRate / expMean - 1) * 100 : 0;
   // The projection is also too WIDE, not merely high — the biggest projections
   // miss by the most. Saying "shade everything down" would be wrong; the fade is
   // specifically on the top of the board.
-  const pb = h.projBias;
-  const spread = pb?.hi && pb?.lo ? `
+  const pMean = graded.length ? graded.reduce((a, r) => a + r.proj, 0) / graded.length : 0;
+  const side = g => g.length ? { proj: g.reduce((a, r) => a + r.proj, 0) / g.length, act: g.reduce((a, r) => a + r.act, 0) / g.length } : null;
+  const pbLo = side(graded.filter(r => r.proj <  pMean)), pbHi = side(graded.filter(r => r.proj >= pMean));
+  const spread = pbLo && pbHi ? `
     That miss isn't spread evenly: arms we project <b>below</b> the board average land about where we say
-    (${pb.lo.proj} → ${pb.lo.act}), while the <b>biggest</b> projections fall furthest short
-    (${pb.hi.proj} → ${pb.hi.act}). The fade belongs on the top of the board, not on all of it.` : '';
+    (${pbLo.proj.toFixed(2)} → ${pbLo.act.toFixed(2)}), while the <b>biggest</b> projections fall furthest short
+    (${pbHi.proj.toFixed(2)} → ${pbHi.act.toFixed(2)}). The fade belongs on the top of the board, not on all of it.` : '';
   const note = `<div class="kbb-note">
     <b>How to read this.</b> Each past slate's board is rebuilt from only what was known that morning, then graded.
-    The board's arms combined for a <b>${pct(h.actRate)} ${lbl}%</b> against <b>${pct(h.slateRate)}</b> for every
+    The board's arms combined for a <b>${pct(boardRate)} ${lbl}%</b> against <b>${pct(slateRate)}</b> for every
     rankable starter on those same slates — a <b>${lift.toFixed(2)}×</b> edge, so the ranking is finding real ${word} spots.
-    <b>Beat Proj</b> grades every arm against his own <b>~Proj ${lbl}</b> as if it were the line — project 2.3 and he
-    needs 3, the same as Over 2.5 — with a projection he lands exactly on scored as a push, not a loss${h.pushProj ? ` (${h.pushProj} so far)` : ''}.
-    Its <b>Exp ${lbl}%</b> ran ${pct(h.expMean)}, about <b>${Math.abs(bias).toFixed(0)}% ${bias < 0 ? 'above' : 'below'}</b> what actually landed —
+    <b>Hit Rate</b> grades every arm against his own line, hung the way a book would: round <b>~Proj ${lbl}</b> to a whole
+    number and post the half below it, so a ${isK ? '5.6' : '2.1'} projection is Over ${isK ? '4.5' : '1.5'} and ${isK ? '5' : '2'} clears it.
+    Half numbers mean there are no pushes.
+    ${hitRate != null && modelled != null ? `The board hit <b>${hitRate.toFixed(1)}%</b> against a modelled <b>${modelled.toFixed(1)}%</b> —
+      ${Math.abs(hitRate - modelled) < 2 ? `the price is landing where it should.`
+        : `so the posted price is running <b>${hitRate < modelled ? 'rich' : 'cheap'}</b> and these overs are ${hitRate < modelled ? 'worse' : 'better'} than they look.`}` : ''}
+    Its <b>Exp ${lbl}%</b> ran ${pct(expMean)}, about <b>${Math.abs(bias).toFixed(0)}% ${bias < 0 ? 'above' : 'below'}</b> what actually landed —
     picking the top of a slate selects for arms whose estimate is running hot.${spread}
   </div>`;
 
   const dayRows = h.days.map(d => {
-    const g = d.board.map(grade);
-    const wins = g.filter(x => x === 'win').length;
-    const dec  = g.filter(x => x === 'win' || x === 'loss').length;
-    const names = d.board.map((r, i) => {
-      const cls = g[i] === 'win' ? '' : g[i] === 'push' ? ' kbb-push' : ' kbb-miss';
-      const verdict = g[i] === 'win' ? 'beat' : g[i] === 'push' ? 'pushed' : g[i] === 'loss' ? 'missed' : 'no projection for';
+    const graded = d.board.filter(r => r.proj != null);
+    const wins = graded.filter(r => kbbHit(r.act, r.proj)).length;
+    const names = d.board.map(r => {
+      const hit = r.proj != null && kbbHit(r.act, r.proj);
+      const price = r.proj != null ? kbbOdds(kbbWinProb(r.proj)) : null;
       const title = `${r.name} — ${r.act} ${lbl} in ${r.ip} IP vs ${r.opp}`
-        + `${r.proj != null ? ` · ${verdict} his ${r.proj} projection` : ''} · Exp ${pct(r.exp)}`;
-      return `<span class="ph-hit-name${cls}" title="${title}">${compactPlayerName(r.name)} <span class="kbb-ct">${r.act}</span></span>`;
+        + (r.proj != null ? ` · ${hit ? 'cleared' : 'missed'} Over ${kbbLineFor(r.proj)} (proj ${r.proj}, ${price})` : '')
+        + ` · Exp ${pct(r.exp)}`;
+      return `<span class="ph-hit-name${hit ? '' : ' kbb-miss'}" title="${title}">${compactPlayerName(r.name)} <span class="kbb-ct">${r.act}</span></span>`;
     }).join(' ');
     return `<div class="ph-day-row">
       <span class="ph-day-date">${fmtDateLong(d.date)}</span>
-      <span class="ph-day-fraction">${wins}/${dec}</span>
+      <span class="ph-day-fraction">${wins}/${graded.length || d.board.length}</span>
       <span class="ph-day-hits">${names}</span>
     </div>`;
   }).join('');
@@ -7641,11 +7677,11 @@ function renderKbbResults(nav) {
   el.innerHTML = note + `
     <div class="ph-summary">
       <div class="ph-stat"><span class="ph-stat-val hrg-val ${liftCls}">${lift.toFixed(2)}×</span><span class="ph-stat-lbl">Edge vs Slate</span></div>
-      <div class="ph-stat"><span class="ph-stat-val">${pct(h.actRate)}</span><span class="ph-stat-lbl">Board ${lbl}%</span></div>
-      <div class="ph-stat"><span class="ph-stat-val hrg-val ${beatRate >= 52 ? 'good' : beatRate >= 47 ? 'avg' : 'below'}">${beatRate.toFixed(0)}%</span><span class="ph-stat-lbl">Beat Proj</span></div>
+      <div class="ph-stat"><span class="ph-stat-val">${pct(boardRate)}</span><span class="ph-stat-lbl">Board ${lbl}%</span></div>
+      <div class="ph-stat"><span class="ph-stat-val hrg-val ${hitRate == null ? '' : hitRate >= 55 ? 'good' : hitRate >= 48 ? 'avg' : 'below'}">${hitRate == null ? '—' : hitRate.toFixed(0) + '%'}</span><span class="ph-stat-lbl">Hit Rate${modelled != null ? ` · ${modelled.toFixed(0)}% priced` : ''}</span></div>
       <div class="ph-stat"><span class="ph-stat-val">${lineRate.toFixed(0)}%</span><span class="ph-stat-lbl">${h.line}+ ${lbl}</span></div>
     </div>
-    <div class="ph-buckets-head">Board Box Score <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· number = ${lbl} recorded · green = beat his ~Proj ${lbl} · amber = push</span></div>
+    <div class="ph-buckets-head">Board Box Score <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· number = ${lbl} recorded · green = cleared his own line</span></div>
     <div class="ph-days">${dayRows}</div>`;
 }
 function renderPitcherProp(kind) {
@@ -7723,6 +7759,8 @@ function renderPitcherProp(kind) {
       </div>
       <div class="pv-metrics">
         ${mtr(`~Proj ${lbl}`, r.proj != null ? r.proj.toFixed(1) : '—')}
+        ${r.proj != null ? mtr(`Over ${kbbLineFor(r.proj)}`,
+            `<span class="pv-price" title="Fair odds, no vig — a book will price worse. ${(kbbWinProb(r.proj) * 100).toFixed(0)}% to clear ${kbbLineFor(r.proj)}.">${kbbOdds(kbbWinProb(r.proj))}</span>`) : ''}
         ${mtr(`Pitcher ${lbl}%`, `${(r.raw * 100).toFixed(1)}%`)}
         ${mtr(`${r.oppTeam} ${lbl}%`, `${(r.tRate * 100).toFixed(1)}%`)}
         ${mtr('Lg', `${(lg * 100).toFixed(1)}%`)}

@@ -1599,6 +1599,26 @@ const KBB_MIN_TM_PA = 200;  // opponent needs a real offensive sample too
 const KBB_WARMUP_PA = 3000; // ~2 weeks — before this, league rates are noise
 const KBB_DAYS      = 120;  // day-level detail retained (season totals span all of it)
 const KBB_LINE      = { k: 6, bb: 2 }; // the common alt-line each board is graded against
+// A projection is graded the way a book would hang it. Books only post half
+// numbers, so there is no such thing as a push: project 2.1 and the line is
+// Over 1.5, which 2 clears. Round to the nearest whole number N, the line is
+// N-0.5, and he needs N. (An earlier version graded `act > proj`, which made a
+// 2.1 projection need 3 and called an exact 2.0 a push — both wrong.)
+const kbbLineFor = proj => Math.max(0, Math.round(proj)) - 0.5;
+const kbbHit     = (act, proj) => act > kbbLineFor(proj);
+// P(X >= n) for a Poisson with mean mu — the chance he clears his own line.
+// Deliberately parameter-free: a fitted shrink beat plain Poisson on strikeouts
+// out of sample but lost on walks, and picking per-market after seeing which is
+// how you overfit 480 rows. Walks come out well calibrated raw (predicted 59.2%
+// vs 59.2% actual OOS); strikeouts run optimistic, and the Results tab reports
+// that rather than hiding it behind a tuned constant.
+function poissonAtLeast(mu, n) {
+  if (!(mu > 0)) return n <= 0 ? 1 : 0;
+  if (n <= 0) return 1;
+  let term = Math.exp(-mu), cdf = term;          // P(X = 0)
+  for (let i = 1; i <= n - 1; i++) { term = term * mu / i; cdf += term; }
+  return Math.min(1, Math.max(0, 1 - cdf));      // 1 - P(X <= n-1)
+}
 // `scorable` is main()'s slate-complete predicate. Without it the current date
 // gets graded off whichever games happen to be Final mid-slate, so the newest row
 // shows a half board of four arms. The replay is rebuilt from scratch each build,
@@ -1683,15 +1703,14 @@ function computeKbbHistory(scorable = () => true) {
       actRate: bBF ? Math.round(bAct / bBF * 10000) / 10000 : null,
       slateRate: sBF ? Math.round(sAct / sBF * 10000) / 10000 : null,
       lineHits: all.filter(r => r.act >= line).length,
-      // Graded against each arm's OWN projected line rather than one league-wide
-      // alt-line. Treating the projection as the line makes a fractional proj
-      // exactly equivalent to the half-point number a book would hang (project
-      // 2.3, need 3 = Over 2.5). An integer projection is the one case that can
-      // land dead on it, and that is a PUSH — scoring "projected 2, got 2" as a
-      // loss understated the hit rate by about a point.
-      overProj: withProj.filter(r => r.act > r.proj).length,
-      pushProj: withProj.filter(r => r.act === r.proj).length,
+      // Graded against each arm's OWN line (see kbbLineFor) rather than one
+      // league-wide alt-line, and against the modelled price for that line — so
+      // the odds report their own calibration instead of being taken on faith.
+      overProj: withProj.filter(r => kbbHit(r.act, r.proj)).length,
       projStarts: withProj.length,
+      modelWin: withProj.length
+        ? Math.round(withProj.reduce((a, r) => a + poissonAtLeast(r.proj, Math.round(r.proj)), 0) / withProj.length * 10000) / 10000
+        : null,
       // The projection isn't just high, it's too WIDE — the arms we project
       // biggest miss by the most. Split at the mean so the tab can say which
       // half to fade instead of telling everyone to shade down equally.
@@ -3327,7 +3346,7 @@ async function main() {
       + `actual ${(h.actRate * 100).toFixed(1)}% vs slate ${(h.slateRate * 100).toFixed(1)}% `
       + `(${(h.actRate / h.slateRate).toFixed(2)}x), exp ${(h.expMean * 100).toFixed(1)}%, `
       + `${h.line}+ ${lbl} ${(100 * h.lineHits / h.starts).toFixed(0)}%, `
-      + `beat proj ${(100 * h.overProj / (h.projStarts - h.pushProj)).toFixed(0)}% (${h.pushProj} push)`);
+      + `hit own line ${(100 * h.overProj / h.projStarts).toFixed(1)}% vs modelled ${(100 * h.modelWin).toFixed(1)}%`);
   }
 
   // ── Due tracking ──────────────────────────────────────────────────────
