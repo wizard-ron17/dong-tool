@@ -1597,14 +1597,19 @@ const KBB_MIN_BF    = 40;   // ~2 starts of prior work before a pitcher is ranka
 const KBB_MIN_TM_PA = 200;  // opponent needs a real offensive sample too
 const KBB_WARMUP_PA = 3000; // ~2 weeks — before this, league rates are noise
 const KBB_DAYS      = 120;  // day-level detail retained (season totals span all of it)
-// The two lines books actually hang for each market, as the whole number he
-// needs — Over 5.5 / Over 6.5 for strikeouts, Over 1.5 / Over 2.5 for walks.
-// Both are shown for every arm so the prices are comparable down the board; a
-// single line derived per-pitcher looked tidier but meant no two rows were
-// quoting the same bet. Chosen from where the projections actually land:
-// rounded K projections are 6 (375) or 7 (284) far more than anything else, and
-// rounded walk projections are 2 (666) or 3 (285).
-const KBB_LINES     = { k: [6, 7], bb: [2, 3] };
+// The two half-numbers straddling a pitcher's projection, as the whole number he
+// needs to clear each. A 9.2 projection gets Over 8.5 and Over 9.5; a 2.4 gets
+// Over 1.5 and Over 2.5.
+//
+// This replaced a fixed pair per market (5.5/6.5 for K, 1.5/2.5 for BB). Fixed
+// lines are fine where projections cluster, but strikeout projections run 2.2 to
+// 10.9, so an elite arm at 9.2 was quoted -886 on Over 5.5 and a soft one at 3.5
+// was +1388 on Over 6.5 — prices nobody can bet and no book would hang. Books
+// move the line to the pitcher; so do we. For the common cases this reproduces
+// the old fixed pairs exactly (6.4 -> 5.5/6.5, 2.4 -> 1.5/2.5), so nothing is
+// lost in the middle of the distribution.
+const kbbNeeds = proj => { const n = Math.max(1, Math.floor(proj)); return [n, n + 1]; };
+const KBB_TIERS = ['low', 'high'];
 const kbbHit        = (act, need) => act >= need;   // "Over need-0.5"
 // Books only post half numbers, so a push is impossible by construction. An
 // earlier version graded `act > proj`, which made a 2.1 projection need 3 — an
@@ -1695,7 +1700,7 @@ function computeKbbHistory(scorable = () => true) {
   const wrap = {};
   for (const kind of ['k', 'bb']) {
     const days = out[kind], all = days.flatMap(d => d.board);
-    const lines = KBB_LINES[kind];
+    const lines = KBB_TIERS;
     const bAct = all.reduce((a, r) => a + r.act, 0), bBF = all.reduce((a, r) => a + r.bf, 0);
     const sAct = days.reduce((a, d) => a + d.slateK, 0), sBF = days.reduce((a, d) => a + d.slateBF, 0);
     const withProj = all.filter(r => r.proj != null);
@@ -1709,12 +1714,12 @@ function computeKbbHistory(scorable = () => true) {
       // Both lines are graded the same way and against the price we quoted for
       // them, so the odds report their own calibration rather than being taken
       // on faith. { need, hits, n, modelWin } per line.
-      lineStats: lines.map(need => ({
-        need,
+      lineStats: lines.map((tier, i) => ({
+        tier,
         n: withProj.length,
-        hits: withProj.filter(r => kbbHit(r.act, need)).length,
+        hits: withProj.filter(r => kbbHit(r.act, kbbNeeds(r.proj)[i])).length,
         modelWin: withProj.length
-          ? Math.round(withProj.reduce((a, r) => a + poissonAtLeast(r.proj, need), 0) / withProj.length * 10000) / 10000
+          ? Math.round(withProj.reduce((a, r) => a + poissonAtLeast(r.proj, kbbNeeds(r.proj)[i]), 0) / withProj.length * 10000) / 10000
           : null,
       })),
       // The projection isn't just high, it's too WIDE — the arms we project
@@ -3368,7 +3373,7 @@ async function main() {
     console.log(`${lbl} history: ${h.slates} slates, ${h.starts} board starts — `
       + `actual ${(h.actRate * 100).toFixed(1)}% vs slate ${(h.slateRate * 100).toFixed(1)}% `
       + `(${(h.actRate / h.slateRate).toFixed(2)}x), exp ${(h.expMean * 100).toFixed(1)}%, `
-      + h.lineStats.map(s => `O${s.need - 0.5} ${(100 * s.hits / s.n).toFixed(1)}% vs ${(100 * s.modelWin).toFixed(1)}% priced`).join(', '));
+      + h.lineStats.map(s => `over ${s.tier} line ${(100 * s.hits / s.n).toFixed(1)}% vs ${(100 * s.modelWin).toFixed(1)}% priced`).join(', '));
   }
 
   // ── Due tracking ──────────────────────────────────────────────────────

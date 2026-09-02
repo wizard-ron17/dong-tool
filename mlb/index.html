@@ -7590,11 +7590,18 @@ function renderPitcherKs() { renderPitcherProp('k'); }
 function renderPitcherWalks() { renderPitcherProp('bb'); }
 
 // ── Prop lines + prices ─────────────────────────────────────────────────
-// The two lines books actually hang per market, as the whole number he needs.
-// Both are priced for every arm so the column is comparable down the board —
-// quoting each pitcher his own rounded line looked tidier but meant no two rows
-// were showing the same bet, so nothing could be read against anything else.
-const KBB_LINES = { k: [6, 7], bb: [2, 3] };   // Over 5.5 / 6.5 and Over 1.5 / 2.5
+// The two half-numbers straddling a pitcher's projection, as the whole number he
+// needs to clear each: a 9.2 projection is Over 8.5 and Over 9.5, a 2.4 is Over
+// 1.5 and Over 2.5.
+//
+// A fixed pair per market (5.5/6.5 for K, 1.5/2.5 for BB) worked in the middle
+// and fell apart at the ends — strikeout projections span 2.2 to 10.9, so an
+// elite arm at 9.2 was quoted -886 on Over 5.5 and a soft one at 3.5 was +1388
+// on Over 6.5. No book hangs those and nobody bets them. Books move the line to
+// the pitcher; so do we. In the common cases this reproduces the old pairs
+// exactly, so the middle of the board looks unchanged.
+const kbbNeeds = proj => { const n = Math.max(1, Math.floor(proj)); return [n, n + 1]; };
+const KBB_TIERS = ['low', 'high'];
 // Books only post half numbers, so a push cannot happen: "Over 1.5" is cleared
 // by 2. (An earlier version graded act > proj, which made a 2.1 projection need
 // 3 and called an exact 2.0 a push — both wrong.)
@@ -7655,13 +7662,24 @@ function renderKbbResults(nav) {
   // chips underneath it and can't be broken by a build that hasn't run yet.
   const rows = h.days.flatMap(d => d.board);
   const graded = rows.filter(r => r.proj != null);
-  // Each line the board quotes gets its own record, against the price we quoted
-  // for it — so the tab reports whether those specific overs actually landed.
-  const lines = KBB_LINES[isK ? 'k' : 'bb'];
-  const lineRec = lines.map(need => ({
-    need,
-    hit: graded.length ? 100 * graded.filter(r => kbbHit(r.act, need)).length / graded.length : null,
-    priced: graded.length ? 100 * graded.reduce((a, r) => a + kbbWinProb(r.proj, need), 0) / graded.length : null,
+  // Each arm is quoted at his own two lines, so the ledger aggregates by TIER
+  // rather than by a shared number — "the low line" is whatever half-number sits
+  // just under his projection. That's the only framing that works once the lines
+  // follow the pitcher, and it's the more useful question anyway: does the price
+  // hold up at the near number, and at the one above it?
+  const lines = KBB_TIERS;
+  const needAt = (r, i) => kbbNeeds(r.proj)[i];
+  // What line each tier usually turns out to be, so the labels stay concrete.
+  const modalLine = i => {
+    if (!graded.length) return null;
+    const tally = {};
+    for (const r of graded) { const n = needAt(r, i); tally[n] = (tally[n] || 0) + 1; }
+    return +Object.keys(tally).reduce((a, b) => tally[b] > tally[a] ? b : a) - 0.5;
+  };
+  const lineRec = lines.map((tier, i) => ({
+    tier, i, modal: modalLine(i),
+    hit: graded.length ? 100 * graded.filter(r => kbbHit(r.act, needAt(r, i))).length / graded.length : null,
+    priced: graded.length ? 100 * graded.reduce((a, r) => a + kbbWinProb(r.proj, needAt(r, i)), 0) / graded.length : null,
   }));
   // Both sides of every line. The under is the exact complement — same price with
   // the sign flipped, and an edge that mirrors the over's — but it's a different
@@ -7672,8 +7690,8 @@ function renderKbbResults(nav) {
   // and showing it in green next to a genuine 4.6 would invite betting on
   // nothing. Only edges clearing 2 SE are presented as real.
   const ledger = lineRec.flatMap(l => l.hit == null ? [] : [
-    { bet: `Over ${l.need - 0.5}`,  need: l.need, side: 'over',  hit: l.hit,       priced: l.priced },
-    { bet: `Under ${l.need - 0.5}`, need: l.need, side: 'under', hit: 100 - l.hit, priced: 100 - l.priced },
+    { bet: `Over ${l.tier}`,  tier: l.tier, i: l.i, modal: l.modal, side: 'over',  hit: l.hit,       priced: l.priced },
+    { bet: `Under ${l.tier}`, tier: l.tier, i: l.i, modal: l.modal, side: 'under', hit: 100 - l.hit, priced: 100 - l.priced },
   ]).map(b => {
     const p = b.hit / 100;
     const se = graded.length ? 100 * Math.sqrt(p * (1 - p) / graded.length) : Infinity;
@@ -7689,9 +7707,10 @@ function renderKbbResults(nav) {
     // number on the strikeout board — when it's 1.6 SE from zero, i.e. nothing.
     const wins = [], pays = [];
     for (const r of graded) {
-      const over = kbbHit(r.act, b.need);
+      const need = needAt(r, b.i);
+      const over = kbbHit(r.act, need);
       const won = b.side === 'over' ? over : !over;
-      const q = b.side === 'over' ? kbbWinProb(r.proj, b.need) : 1 - kbbWinProb(r.proj, b.need);
+      const q = b.side === 'over' ? kbbWinProb(r.proj, need) : 1 - kbbWinProb(r.proj, need);
       wins.push(won ? 1 : 0);
       pays.push(won && q > 0 ? (1 - q) / q : -1);
     }
@@ -7716,7 +7735,7 @@ function renderKbbResults(nav) {
   // from being promoted to "the play".
   const real = ledger.filter(b => b.sig && b.roiSig && b.roi > 0);
   const best = real.length ? real.reduce((a, b) => b.roi > a.roi ? b : a) : null;
-  const defBet = best ? best.bet : `Over ${lines[0] - 0.5}`;
+  const defBet = best ? best.bet : 'Over low';
   const sel = ledger.find(b => b.bet === ppBet[nav]) || ledger.find(b => b.bet === defBet) || ledger[0];
   const bAct = rows.reduce((a, r) => a + r.act, 0), bBF = rows.reduce((a, r) => a + r.bf, 0);
   const sAct = h.days.reduce((a, d) => a + d.slateK, 0), sBF = h.days.reduce((a, d) => a + d.slateBF, 0);
@@ -7752,9 +7771,12 @@ function renderKbbResults(nav) {
     <b>How to read this.</b> Each past slate's board is rebuilt from only what was known that morning, then graded.
     The board's arms combined for a <b>${pct(boardRate)} ${lbl}%</b> against <b>${pct(slateRate)}</b> for every
     rankable starter on those same slates — a <b>${lift.toFixed(2)}×</b> edge, so the ranking is finding real ${word} spots.
-    Every arm is priced at <b>both</b> lines a book hangs for this market, over and under, so the numbers compare
-    straight down the board. ~Proj ${lbl} sets the price, not the line: a ${isK ? '6.0' : '1.6'} and a ${isK ? '6.8' : '1.9'}
-    projection are both Over ${lines[0] - 0.5}, but the bigger one gets there more often and is priced accordingly.
+    Each arm is quoted at the two half-numbers straddling <b>his own</b> ~Proj ${lbl}, over and under — a
+    ${isK ? '9.2' : '2.4'} projection gets Over ${isK ? '8.5' : '1.5'} and Over ${isK ? '9.5' : '2.5'}. A fixed pair for
+    everyone put elite arms at ${isK ? '-886 on Over 5.5' : 'absurd chalk'} and soft ones at four figures, which is not a
+    bet anyone can place. So the ledger groups by <b>tier</b>, not by a shared number: the <b>low</b> line is whichever
+    half-number sits under his projection${lineRec[0]?.modal != null ? ` (usually ${lineRec[0].modal})` : ''}, the
+    <b>high</b> line is the one above${lineRec[1]?.modal != null ? ` (usually ${lineRec[1].modal})` : ''}.
     Half numbers mean no pushes, and with no vig the under is just the over's price with the sign flipped.
     ${best ? `<b>Which way to lean:</b> ${best.bet}, at <b>${best.roi > 0 ? '+' : ''}${best.roi.toFixed(1)}%</b> ROI
       (${best.w}–${best.l}, ${best.hit.toFixed(1)}% against ${best.priced.toFixed(1)}% priced). Read the
@@ -7773,12 +7795,12 @@ function renderKbbResults(nav) {
   // Chips are graded on whichever bet is selected, not always the over. Colouring
   // by the over while the ledger says to bet the under was a straight
   // contradiction — a green board next to advice to fade it.
-  const won = r => sel.side === 'over' ? kbbHit(r.act, sel.need) : !kbbHit(r.act, sel.need);
+  const won = r => { const o = kbbHit(r.act, needAt(r, sel.i)); return sel.side === 'over' ? o : !o; };
   const dayRows = h.days.map(d => {
     const wins = d.board.filter(won).length;
     const names = d.board.map(r => {
       const hit = won(r);
-      const prices = r.proj == null ? '' : ' · ' + lines.map(need => {
+      const prices = r.proj == null ? '' : ' · ' + kbbNeeds(r.proj).map(need => {
         const p = kbbWinProb(r.proj, need), over = kbbHit(r.act, need);
         return `${need - 0.5}: O ${kbbOdds(p)} ${over ? '✓' : '✗'} / U ${kbbOdds(1 - p)} ${over ? '✗' : '✓'}`;
       }).join('  ·  ');
@@ -7797,14 +7819,14 @@ function renderKbbResults(nav) {
     <div class="ph-summary">
       <div class="ph-stat"><span class="ph-stat-val hrg-val ${liftCls}">${lift.toFixed(2)}×</span><span class="ph-stat-lbl">Edge vs Slate</span></div>
       <div class="ph-stat"><span class="ph-stat-val">${pct(boardRate)}</span><span class="ph-stat-lbl">Board ${lbl}%</span></div>
-      <div class="ph-stat"><span class="ph-stat-val hrg-val ${best ? 'good' : 'avg'}">${best ? '+' + best.roi.toFixed(1) + '%' : 'none'}</span><span class="ph-stat-lbl">${best ? `ROI · ${best.bet}` : 'No Side Worth It'}</span></div>
+      <div class="ph-stat"><span class="ph-stat-val hrg-val ${best ? 'good' : 'avg'}">${best ? '+' + best.roi.toFixed(1) + '%' : 'none'}</span><span class="ph-stat-lbl">${best ? `ROI · ${best.bet} line` : 'No Side Worth It'}</span></div>
       <div class="ph-stat"><span class="ph-stat-val">${h.days.length}</span><span class="ph-stat-lbl">Slates Tracked</span></div>
     </div>
     <div class="ph-buckets-head">Line Ledger <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· 1u on every board arm at our own fair price · noise = inside 2 standard errors</span></div>
     <div class="kbb-ledger-wrap"><table class="kbb-ledger">
       <thead><tr><th>Bet</th><th>Record</th><th>Hit</th><th>Priced</th><th>Edge</th><th>ROI</th><th>Break-even</th></tr></thead>
       <tbody>${ledger.map(b => `<tr${b.bet === sel.bet ? ' class="kbb-row-sel"' : ''}>
-        <td>${b.bet} ${lbl}</td>
+        <td>${b.bet} line${b.modal != null ? ` <span class="kbb-dim">(${b.side === 'over' ? 'O' : 'U'}${b.modal})</span>` : ''}</td>
         <td class="kbb-dim">${b.w}–${b.l}</td>
         <td>${b.hit.toFixed(1)}%</td>
         <td class="kbb-dim">${b.priced.toFixed(1)}%</td>
@@ -7813,7 +7835,7 @@ function renderKbbResults(nav) {
         <td class="kbb-dim" title="Any book price better than this is +EV at the rate this bet has actually hit">${b.breakeven}</td>
       </tr>`).join('')}</tbody>
     </table></div>
-    <div class="ph-buckets-head">Board Box Score <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· grading <b style="color:var(--text)">${sel.bet} ${lbl}</b> · number = ${lbl} recorded · green = that bet won</span></div>
+    <div class="ph-buckets-head">Board Box Score <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· grading <b style="color:var(--text)">${sel.bet} line</b>${sel.modal != null ? ` (usually ${sel.side === 'over' ? 'O' : 'U'}${sel.modal})` : ''} · number = ${lbl} recorded · green = that bet won</span></div>
     <div class="kbb-betsel">${ledger.map(b => `<button class="kbb-bet-btn${b.bet === sel.bet ? ' active' : ''}" onclick="setKbbBet('${nav}','${b.bet}')">${b.bet}</button>`).join('')}</div>
     <div class="kbb-selstat">
       <span><b class="kbb-dim">${sel.w}–${sel.l}</b> record</span>
@@ -7903,7 +7925,7 @@ function renderPitcherProp(kind) {
       </div>
       <div class="pv-metrics">
         ${mtr(`~Proj ${lbl}`, r.proj != null ? r.proj.toFixed(1) : '—')}
-        ${r.proj == null ? '' : KBB_LINES[kind].map(need => {
+        ${r.proj == null ? '' : kbbNeeds(r.proj).map(need => {
           const p = kbbWinProb(r.proj, need);
           const tip = `On a ${r.proj.toFixed(1)} projection: ${(p * 100).toFixed(0)}% to reach ${need}+ ${lbl}, `
             + `${((1 - p) * 100).toFixed(0)}% to stay under. Fair odds, no vig — a book prices worse on both sides.`;
