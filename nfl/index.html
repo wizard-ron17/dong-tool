@@ -227,6 +227,31 @@
   #player-search:focus { border-color: var(--accent); }
   #player-search::placeholder { color: var(--muted); }
   .search-hint { font-size: 0.58rem; color: var(--muted); margin-top: 0.3rem; letter-spacing: 0.08em; }
+  /* Picks board search. Styled to sit with the filters card directly above it —
+     same surface, border and radius — rather than inheriting the Pairs box,
+     whose rules are keyed to #player-search by id and so never reached this. */
+  .pb-search { position: relative; margin-bottom: 0.55rem; }
+  .pb-search input { width: 100%; box-sizing: border-box; background: var(--surface1);
+    border: 1px solid var(--border); border-radius: 8px; color: var(--text);
+    font-family: var(--font-b); font-size: 0.76rem; font-weight: 500;
+    padding: 0.55rem 2.1rem 0.55rem 2.2rem; outline: none;
+    transition: border-color 0.15s, background 0.15s; }
+  .pb-search input:hover { border-color: var(--border2); }
+  .pb-search input:focus { border-color: var(--accent); background: var(--surface2); }
+  .pb-search input::placeholder { color: var(--dim); font-weight: 400; }
+  .pb-search input::-webkit-search-cancel-button { display: none; }
+  .pb-search-ico { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%);
+    width: 13px; height: 13px; color: var(--muted); pointer-events: none; transition: color 0.15s; }
+  .pb-search:focus-within .pb-search-ico { color: var(--accent); }
+  .pb-search-x { position: absolute; right: 0.45rem; top: 50%; transform: translateY(-50%);
+    display: none; background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 1rem; line-height: 1; padding: 0.2rem 0.35rem; border-radius: 5px; }
+  .pb-search-x:hover { color: var(--text); background: var(--surface2); }
+  .pb-search.on .pb-search-x { display: block; }
+  .pb-search-hint { font-size: 0.6rem; color: var(--muted); margin: 0.35rem 0 0 0.15rem; letter-spacing: 0.02em; }
+  .pb-search-hint b { color: var(--text); font-weight: 600; }
+  .pb-search-hint a { color: var(--accent); text-decoration: none; }
+  .pb-search-hint a:hover { text-decoration: underline; }
   .search-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem; }
   .search-tag { display: flex; align-items: center; gap: 0.3rem; background: var(--surface2); border: 1px solid var(--border2); border-radius: 20px; padding: 0.15rem 0.5rem; font-size: 0.65rem; color: var(--accent); }
   .search-tag button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.75rem; line-height: 1; padding: 0; margin-left: 0.1rem; }
@@ -2005,10 +2030,16 @@
     <!-- Outside the collapsed filters card on purpose: looking up one player is
          the most common thing you do here, and burying it behind a toggle would
          make the quickest action the slowest one. -->
-    <div class="search-wrap visible" id="picks-search-wrap">
-      <input type="text" id="picks-search" placeholder="Search a player or team… commas for multiple (Mahomes, KC)"
-             oninput="onPicksSearch()" autocomplete="off" spellcheck="false">
-      <div class="search-hint" id="picks-search-hint">Filters the board below — commas match ANY of them</div>
+    <div id="picks-search-wrap">
+      <div class="pb-search" id="picks-search-box">
+        <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path>
+        </svg>
+        <input type="text" id="picks-search" placeholder="Search a player, team or position…"
+               oninput="onPicksSearch()" autocomplete="off" spellcheck="false" aria-label="Search the board">
+        <button class="pb-search-x" onclick="clearPicksSearch()" aria-label="Clear search">×</button>
+      </div>
+      <div class="pb-search-hint" id="picks-search-hint">Commas match any of them — narrows whatever the filters already show</div>
     </div>
 
     <div id="picks-board-wrap"><div id="picks-content"><div class="empty">Loading…</div></div></div>
@@ -2299,13 +2330,16 @@
   function onPicksSearch() {
     const raw = document.getElementById('picks-search')?.value || '';
     pbSearch = raw.split(',').map(s => pbNorm(s.trim())).filter(Boolean);
+    document.getElementById('picks-search-box')?.classList.toggle('on', !!raw.trim());
     renderPicks();
   }
   function clearPicksSearch() {
     const box = document.getElementById('picks-search');
     if (box) box.value = '';
+    document.getElementById('picks-search-box')?.classList.remove('on');
     pbSearch = [];
     renderPicks();
+    box?.focus();
   }
   try { pbF = { ...pbF, ...JSON.parse(localStorage.getItem('nflPicksFilters') || '{}') }; } catch (e) {}
   // a stored value from before positions were multi-select is a bare string
@@ -2763,7 +2797,7 @@
     // and silently showing fewer rows gives no way to work that out.
     const hint = document.getElementById('picks-search-hint');
     if (hint) {
-      let msg = 'Filters the board below — commas match ANY of them';
+      let msg = 'Commas match any of them — narrows whatever the filters already show';
       if (pbSearch.length) {
         const shown = new Set(rows.map(r => r.pid));
         const hidden = P.picks.filter(x => pbSearch.some(t => pbMatch(x, t)) && !shown.has(x.pid));
