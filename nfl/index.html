@@ -2002,6 +2002,15 @@
       <div class="due-filter-row" id="picks-filter-row" style="display:none"></div>
     </div>
 
+    <!-- Outside the collapsed filters card on purpose: looking up one player is
+         the most common thing you do here, and burying it behind a toggle would
+         make the quickest action the slowest one. -->
+    <div class="search-wrap visible" id="picks-search-wrap">
+      <input type="text" id="picks-search" placeholder="Search a player or team… commas for multiple (Mahomes, KC)"
+             oninput="onPicksSearch()" autocomplete="off" spellcheck="false">
+      <div class="search-hint" id="picks-search-hint">Filters the board below — commas match ANY of them</div>
+    </div>
+
     <div id="picks-board-wrap"><div id="picks-content"><div class="empty">Loading…</div></div></div>
     <div id="picks-results-wrap" style="display:none"></div>
   </div>
@@ -2275,6 +2284,29 @@
   // than an 'all' sentinel so "QB + RB" is expressible at all.
   const PB_DEFAULTS = { mkt: '1', pos: [], team: 'all', cut: 0.25, sort: 'p', dir: 'desc', view: 'cards' };
   let pbF = { ...PB_DEFAULTS };
+  // Search is deliberately NOT persisted with the other filters: coming back
+  // tomorrow to a board silently narrowed to one player you searched once is a
+  // bug report waiting to happen.
+  let pbSearch = [];
+  // Name, own team, or position. Deliberately NOT the opponent: matching that
+  // too meant "KC" also returned Denver's players, which is a defensible reading
+  // ("show me the game") but not what anyone expects from a team code.
+  // Accents are stripped so plain typing finds names like Ekeler.
+  const pbNorm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  function pbMatch(r, term) {
+    return pbNorm(r.name).includes(term) || pbNorm(r.team) === term || pbNorm(r.pos) === term;
+  }
+  function onPicksSearch() {
+    const raw = document.getElementById('picks-search')?.value || '';
+    pbSearch = raw.split(',').map(s => pbNorm(s.trim())).filter(Boolean);
+    renderPicks();
+  }
+  function clearPicksSearch() {
+    const box = document.getElementById('picks-search');
+    if (box) box.value = '';
+    pbSearch = [];
+    renderPicks();
+  }
   try { pbF = { ...pbF, ...JSON.parse(localStorage.getItem('nflPicksFilters') || '{}') }; } catch (e) {}
   // a stored value from before positions were multi-select is a bare string
   if (!Array.isArray(pbF.pos)) pbF.pos = (pbF.pos && pbF.pos !== 'all') ? [pbF.pos] : [];
@@ -2310,6 +2342,9 @@
     document.getElementById('picks-board-wrap').style.display = sub === 'board' ? '' : 'none';
     document.getElementById('picks-results-wrap').style.display = sub === 'results' ? '' : 'none';
     document.getElementById('picks-filters-card').style.display = sub === 'board' ? '' : 'none';
+    // Search filters the board, so it follows the board rather than sitting
+    // above a results table it does nothing to.
+    document.getElementById('picks-search-wrap').style.display = sub === 'board' ? '' : 'none';
     renderPicks();
   }
 
@@ -2356,6 +2391,11 @@
     // The position filter is meaningless on a QB-only market — leaving it on
     // would empty the board for anyone who had WR selected when they switched.
     if (pbF.pos.length && !pbMkt().qbOnly) rows = rows.filter(r => pbF.pos.includes(r.pos));
+    // Search narrows whatever the filters already produced rather than
+    // replacing them, so a term plus a market plus a cut all compose.
+    // Comma-separated terms are OR here, unlike Pairs where they're AND — a
+    // group has to contain every name, but a board should show any of them.
+    if (pbSearch.length) rows = rows.filter(r => pbSearch.some(t => pbMatch(r, t)));
     if (pbF.team !== 'all') rows = rows.filter(r => r.team === pbF.team);
     const key = {
       p: r => pbP(r),
@@ -2717,12 +2757,40 @@
     }
     const rows = pbRows();
     const cut = pbMkt().cuts.find(c => c.v === pbF.cut);
+    // Say when the search found someone the filters are hiding. Searching a
+    // name and getting a board without him on it is the confusing case — the
+    // player is usually there, just behind the price cut or the wrong market —
+    // and silently showing fewer rows gives no way to work that out.
+    const hint = document.getElementById('picks-search-hint');
+    if (hint) {
+      let msg = 'Filters the board below — commas match ANY of them';
+      if (pbSearch.length) {
+        const shown = new Set(rows.map(r => r.pid));
+        const hidden = P.picks.filter(x => pbSearch.some(t => pbMatch(x, t)) && !shown.has(x.pid));
+        msg = `${rows.length} match${rows.length === 1 ? '' : 'es'} within the current filters`
+          + (hidden.length ? ` · <b>${hidden.slice(0, 2).map(h => h.name).join(', ')}${hidden.length > 2 ? ` +${hidden.length - 2}` : ''}</b>
+             hidden by them — <a href="javascript:void(0)" onclick="clearPbF()">reset filters</a>` : '')
+          + ` · <a href="javascript:void(0)" onclick="clearPicksSearch()">clear</a>`;
+      }
+      hint.innerHTML = msg;
+    }
     // An empty board is usually the price cut, not an empty pool — quarterbacks
     // in particular are all longer than the default +300. Say what would bring
     // them back instead of leaving a dead end.
     const body = !rows.length ? (() => {
       const gm = pbGameMap();
       let pool = P.picks.map(x => pbEnrich(x, gm));
+      // A live search is checked first: "nothing is shorter than +300" would be
+      // the wrong advice when the real reason is that the name matched nobody,
+      // or matched someone the other filters then removed.
+      if (pbSearch.length) {
+        const hits = pool.filter(x => pbSearch.some(t => pbMatch(x, t)));
+        if (!hits.length) return `<div class="empty">No player or team matches
+          <b>${pbSearch.join(', ')}</b>. <a href="javascript:void(0)" onclick="clearPicksSearch()">Clear search →</a></div>`;
+        return `<div class="empty"><b>${hits.map(h => h.name).slice(0, 3).join(', ')}</b>${hits.length > 3 ? ` +${hits.length - 3} more` : ''}
+          ${hits.length === 1 ? 'is' : 'are'} on the board, but filtered out by the current market, price cut or position.
+          <a href="javascript:void(0)" onclick="clearPbF()">Reset filters →</a></div>`;
+      }
       if (pbF.pos.length) pool = pool.filter(x => pbF.pos.includes(x.pos));
       if (pbF.team !== 'all') pool = pool.filter(x => x.team === pbF.team);
       if (!pool.length) return '<div class="empty">Nobody on the board matches that filter.</div>';
@@ -2739,7 +2807,7 @@
     el.innerHTML = `
       <div class="pb-head">
         <span class="pb-week">${WK_LABEL(P.week)}</span>
-        <span class="pb-meta">${P.season} · ${pbMkt().lab}${pbF.pos.length ? ' · ' + pbF.pos.join('/') : ''} · ${rows.length} shown · fair odds, no vig</span>
+        <span class="pb-meta">${P.season} · ${pbMkt().lab}${pbF.pos.length && !pbMkt().qbOnly ? ' · ' + pbF.pos.join('/') : ''}${pbSearch.length ? ' · “' + pbSearch.join('”, “') + '”' : ''} · ${rows.length} shown · fair odds, no vig</span>
       </div>
       <div class="lb-toolbar">
         <div class="view-switch">${[['table', 'Table'], ['cards', 'Cards'], ['compact', 'Compact']]
