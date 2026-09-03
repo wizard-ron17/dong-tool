@@ -227,6 +227,18 @@
   #player-search:focus { border-color: var(--accent); }
   #player-search::placeholder { color: var(--muted); }
   .search-hint { font-size: 0.58rem; color: var(--muted); margin-top: 0.3rem; letter-spacing: 0.08em; }
+  /* Parlay price on a Pairs card: what the group is really worth, next to what
+     multiplying the legs would tell you, and the gap between them. */
+  .pl-row { display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap;
+    margin: 0.5rem 0 0.15rem; padding-top: 0.5rem; border-top: 1px solid var(--border); }
+  .pl-fair b { font-family: var(--font-d); font-size: 1.05rem; font-weight: 900; color: var(--good); }
+  .pl-naive { font-family: var(--font-d); font-size: 0.8rem; font-weight: 700; color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+  .pl-lbl { font-family: var(--font-b); font-size: 0.52rem; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--dim); margin-left: 0.3rem; text-decoration: none; display: inline-block; }
+  .pl-gap { margin-left: auto; font-family: var(--font-d); font-size: 0.72rem; font-weight: 800; padding: 0.1rem 0.4rem; border-radius: 5px; cursor: help; }
+  .pl-worse { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
+  .pl-better { color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); }
+  .pl-flat { color: var(--muted); background: var(--surface1); }
   /* Picks board search. Styled to sit with the filters card directly above it —
      same surface, border and radius — rather than inheriting the Pairs box,
      whose rules are keyed to #player-search by id and so never reached this. */
@@ -2123,7 +2135,7 @@
         <span class="due-explainer-cta"></span>
         <span class="due-explainer-chevron" id="pairs-explainer-chevron">▶</span>
       </div>
-      <div class="due-explainer-teaser">Which players tend to find the end zone in the same window — the correlated-TD lens for building parlays.</div>
+      <div class="due-explainer-teaser">Which players find the end zone together — now priced, with the correlation the naive parlay math misses.</div>
       <div class="due-explainer-body" id="pairs-explainer-body" style="display:none">
         <ul>
           <li><b>What it counts.</b> Across the season, how often each group of players scored a TD in the same window. Ranked by how many times they've gone together.</li>
@@ -2131,6 +2143,10 @@
           <li><b>Group size.</b> Pairs, Trios, Quads, or Quints — the bigger the group, the rarer (and longer-odds) the combo.</li>
           <li><b>SGP.</b> When 2+ members share a team they play the <em>same game</em> — a true same-game-parlay stack, flagged <span class="sgp-badge">SGP·TEAM</span>.</li>
           <li><b>Basis.</b> Count every touchdown, or narrow to one of the markets the Picks board prices: each game's <em>opening</em> score, its <em>closing</em> score, or only <em>multi-TD</em> games. The narrower bases are far rarer, so the co-occurrence floor drops to 2.</li>
+          <li><b>The price, and the correlation.</b> When every member is on this week's Picks board, the card carries a <b>fair</b> price — and next to it, struck through, what you'd get by simply multiplying the legs together. The gap is the whole point.</li>
+          <li><b>Teammates compete.</b> The gap runs the opposite way to what "correlation tax" implies. A team scores about 2.5 touchdowns a game; when the back takes one, that's one fewer for the tight end. A same-team double lands <b>11% below</b> the naive product, a trio 29% below, a four-man stack <b>53%</b> below. Legs split across the two teams are effectively independent (1.02×).</li>
+          <li><b>Where the numbers come from.</b> Every within-game combination from 2016-2021 was priced with our own model and compared to what actually happened, then checked on 2022-2025. At four legs the naive product overstates the parlay by <b>126%</b>; the correction leaves <b>7%</b>. Pure same-team groups use the multiplier measured for that exact size, because cannibalisation compounds faster than a per-pair rule implies; mixed groups apply it once per pair.</li>
+          <li><b>The one positive pair.</b> A quarterback and his own receiver run <em>above</em> independence — a receiving touchdown <em>is</em> the passing touchdown, the same event rather than a competing one. That stack isn't priced here yet; it needs the Pass TD market as a leg.</li>
           <li><b>Search.</b> Type names (comma-separated) to require specific players in every group.</li>
         </ul>
       </div>
@@ -3301,6 +3317,59 @@
       : `<span class="player-photo" style="display:flex;align-items:center;justify-content:center;font-size:0.62rem;color:var(--muted)">${(name || '?').replace(/^[A-Z]\.\s*/, '')[0] || '?'}</span>`;
   }
   const sharedTeamsOf = (grp) => { const b = {}; grp.forEach(p => { const t = scorerIdx[p]?.team; if (t) (b[t] ??= []).push(p); }); return Object.entries(b).filter(([, ps]) => ps.length >= 2).map(([t]) => t); };
+
+  // ── Parlay pricing ──────────────────────────────────────────────────
+  // Multiplying our prices together assumes the legs are independent. For
+  // touchdowns they are not, and not in the direction people expect:
+  // TEAMMATES COMPETE. A team scores ~2.5 TDs, so a back taking one is one
+  // fewer for the tight end, and a same-team double lands about 11% BELOW the
+  // naive product — 53% below at four legs. Opposing-team legs are effectively
+  // independent (1.02x).
+  //
+  // Multipliers are measured in research/pair_correlation.py, fitted 2016-2021
+  // and checked on 2022-2025, where they cut the error at four legs from +126%
+  // (naive) to +7%. They ship in data.json rather than living here, so the tool
+  // can never drift from what was measured.
+  function pbPriceMap() {
+    const m = {};
+    for (const p of (nflData?.picks?.picks || [])) m[p.pid] = p.p;
+    return m;
+  }
+  let _priceMap = null;
+  const parlayOdds = (p) => (!(p > 0) || p >= 1) ? '—'
+    : p >= 0.5 ? '-' + Math.round(100 * p / (1 - p)) : '+' + Math.round(100 * (1 - p) / p);
+  /**
+   * Correlation-aware price for a group, or null when any leg isn't on this
+   * week's board (most historical pairs aren't — those stay history-only).
+   */
+  function priceGroup(pids) {
+    const P = nflData?.parlay;
+    if (!P) return null;
+    _priceMap ??= pbPriceMap();
+    const legs = pids.map(pid => _priceMap[pid]);
+    if (legs.some(v => v == null)) return null;
+    const naive = legs.reduce((a, v) => a * v, 1);
+    // Split the group by team to know which pairs compete and which don't.
+    const byTeam = {};
+    for (const pid of pids) (byTeam[scorerIdx[pid]?.team ?? '?'] ??= []).push(pid);
+    const sizes = Object.values(byTeam).map(v => v.length);
+    let mult;
+    if (sizes.length === 1) {
+      // Pure same-team: use the multiplier measured for this exact size. The
+      // pairwise rule under-corrects as groups grow (cannibalisation compounds
+      // faster than independent pairs imply), and this is the common case.
+      mult = P.same_by_size?.[String(pids.length)]
+          ?? Math.pow(P.rho_same, pids.length * (pids.length - 1) / 2);
+    } else {
+      // Mixed: apply rho once per pair, same-team or cross as appropriate.
+      let samePairs = 0;
+      for (const n of sizes) samePairs += n * (n - 1) / 2;
+      const totalPairs = pids.length * (pids.length - 1) / 2;
+      mult = Math.pow(P.rho_same, samePairs) * Math.pow(P.rho_cross, totalPairs - samePairs);
+    }
+    const fair = Math.min(0.999, Math.max(1e-6, naive * mult));
+    return { naive, fair, mult, sameOnly: sizes.length === 1 };
+  }
   function switchPairSize(size) { activePairSize = size; document.querySelectorAll('#panel-pairs .sub-btn').forEach(b => b.classList.toggle('active', +b.dataset.size === size)); renderPairs(); }
   function setPairGran(g) { pairGran = g; document.querySelectorAll('#panel-pairs [data-gran]').forEach(b => b.classList.toggle('active', b.dataset.gran === g)); renderPairs(); }
   function setPairBasis(b) { pairBasis = b; document.querySelectorAll('#panel-pairs [data-basis]').forEach(x => x.classList.toggle('active', x.dataset.basis === b)); renderPairs(); }
@@ -3317,6 +3386,7 @@
   const PAIR_RENDER_LIMIT = 200;
   function renderPairs() {
     const cards = document.getElementById('cards'); if (!cards) return;
+    _priceMap = null;   // picks can change under us between renders
     if (!nflData) { cards.innerHTML = '<div class="empty">Loading…</div>'; return; }
     if (nflData === 'error') { cards.innerHTML = '<div class="empty">Couldn\'t load NFL data. <a href="javascript:void(0)" onclick="loadNfl()">Retry</a></div>'; return; }
     if (!scorerIdx) buildScorerIdx();
@@ -3338,6 +3408,20 @@
       const chips = g.pids.map(p => { const s = scorerIdx[p] || {}; const m = pairTerms.length && pairTerms.some(t => (s.name || '').toLowerCase().includes(t));
         return `<div class="player-chip${m ? ' matched' : ''}">${chipFace(p, s.name)}<span class="player-name">${s.name || p}</span><span class="player-hr">${s.tds ?? '—'}</span><span class="player-hr-lbl">TD</span></div>`; }).join('');
       const pills = g.keys.map((k, di) => `<span class="date-pill${di === g.keys.length - 1 ? ' latest' : ''}">${pairPillLabel(k)}</span>`).join('');
+      const pr = priceGroup(g.pids);
+      // The gap is the point of this row: for same-team groups the honest price
+      // is LONGER than the multiplication, because those legs compete.
+      const priceRow = !pr ? '' : (() => {
+        const gap = (pr.mult - 1) * 100;
+        const tone = pr.mult < 0.97 ? 'pl-worse' : pr.mult > 1.03 ? 'pl-better' : 'pl-flat';
+        return `<div class="pl-row">
+          <span class="pl-fair"><b>${parlayOdds(pr.fair)}</b><span class="pl-lbl">fair</span></span>
+          <span class="pl-naive">${parlayOdds(pr.naive)}<span class="pl-lbl">if independent</span></span>
+          <span class="pl-gap ${tone}" title="${pr.sameOnly
+            ? 'Same-team legs compete for a fixed pool of touchdowns, so this lands below the naive product.'
+            : 'Legs split across both teams price close to independent.'}">${gap > 0 ? '+' : ''}${gap.toFixed(0)}%</span>
+        </div>`;
+      })();
       return `<div class="card${cls}">
         <div class="card-top-row"><div class="card-left">
           <div class="rank-badge">${i + 1}</div>
@@ -3345,6 +3429,7 @@
           ${shared.map(t => `<span class="sgp-badge">SGP·${t}</span>`).join('')}
         </div><div class="fresh-badge">${pairPillLabel(g.keys[g.keys.length - 1])}</div></div>
         <div class="players">${chips}</div>
+        ${priceRow}
         <div class="dates">${pills}</div></div>`;
     }).join('');
   }

@@ -258,12 +258,18 @@ async function main() {
   }
   console.log(`  team profiles: ${Object.keys(teamStats).length} teams, ${Object.keys(teamQB).length} QBs`);
 
+  // Correlation multipliers for pricing multi-leg parlays in the Pairs tool.
+  // Measured in research/pair_correlation.py and shipped verbatim — the tool
+  // must not carry its own copy of these numbers.
+  const parlay = JSON.parse(
+    fs.readFileSync(new URL('../research/pair_correlation.json', import.meta.url), 'utf8'));
+
   const output = {
     generatedAt: new Date().toISOString(),
     historySeason: HISTORY_SEASON, upcomingSeason: UPCOMING_SEASON,
     schedule, results, tdRecap, tdRecapWeeks: weeks, tdLeaders, headshots: shots,
     teamStats, teamScorers, teamQB,
-    picks, picksHistory,
+    picks, picksHistory, parlay,
   };
   fs.writeFileSync(new URL('../nfl/data.json', import.meta.url), JSON.stringify(output));
   console.log(`Wrote nfl/data.json — ${schedule.length} ${UPCOMING_SEASON} games, ${tdTotal} TDs across ${weeks.length} weeks, ${tdLeaders.length} TD leaders, ${picks?.picks.length ?? 0} picks.`);
