@@ -8,7 +8,8 @@ import { fetchText, parseCsv, num } from './nflverse.js';
 import { buildPicks, loadTdSet, updateHistory } from './picks.js';
 
 const HISTORY_SEASON = 2025;   // last completed season — our historical base until 2026 games play
-const UPCOMING_SEASON = 2026;  // full schedule already published
+const UPCOMING_SEASON = 2026;
+const MILESTONE_MAX_AWAY = 50;  // how close a career has to be to count as a chase  // full schedule already published
 
 const cleanName = (n) => (n || '').trim();
 
@@ -285,9 +286,12 @@ async function main() {
     for (const [pid, v] of Object.entries(career.players)) {
       if (v.ls < career.through) continue;                 // retired / inactive
       const next = rungs.find(r => r > v.t);
-      if (next) out.push({ pid, name: v.n, team: v.tm, pos: v.p, career: v.t, next, away: next - v.t });
+      // 60-odd touchdowns short of a hundred is not a chase. Cap the board at a
+      // distance someone could actually cover, rather than listing everyone.
+      if (next && next - v.t <= MILESTONE_MAX_AWAY)
+        out.push({ pid, name: v.n, team: v.tm, pos: v.p, career: v.t, next, away: next - v.t });
     }
-    return out.sort((a, b) => a.away - b.away || b.career - a.career).slice(0, 60);
+    return out.sort((a, b) => a.away - b.away || b.career - a.career);
   })();
   console.log(`  milestones: ${milestones.length} active chases (closest: ${milestones[0]?.name} ${milestones[0]?.away} from ${milestones[0]?.next})`);
 

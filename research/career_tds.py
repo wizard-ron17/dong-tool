@@ -35,9 +35,10 @@ FIRST, LAST = 1999, 2025
 MIN_CAREER = 15          # below this nobody is chasing anything
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
-# The rungs a career gets measured against. Ron's MLB board uses 100/200/300;
-# touchdowns come slower, so the ladder is tighter at the bottom.
-RUNGS = [25, 50, 75, 100, 125, 150, 175, 200]
+# Hundreds only, matching the MLB board's 100/200/300. Quarter-rungs (25/50/75)
+# were tried and dropped: they filled the board with "1 from 25", which is a
+# number nobody is chasing. 100 career touchdowns is the achievement.
+RUNGS = [100, 200]
 COLS = ["player_id", "player_display_name", "player_name", "season", "season_type",
         "team", "position", "rushing_tds", "receiving_tds"]
 
