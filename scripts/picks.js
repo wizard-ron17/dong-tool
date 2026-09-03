@@ -428,9 +428,12 @@ export async function loadInjuries(season, week) {
   const byWeek = new Map();       // `${team}|${pos}|${week}` -> n
   const outIds = new Set();
   const txt = await fetchOptional(`${REL}/injuries/injuries_${season}.csv`);
-  if (!txt) { console.log(`  injuries ${season}: not published yet`); return { byWeek, outIds }; }
-  const { idx, rows } = parseCsv(txt);
+  // Every early return has to carry the same shape as the happy path: an
+  // omitted `questionable` here read as undefined at the call site and threw,
+  // which the build's try/catch turned into a silently empty board.
   const questionable = new Set();
+  if (!txt) { console.log(`  injuries ${season}: not published yet`); return { byWeek, outIds, questionable }; }
+  const { idx, rows } = parseCsv(txt);
   for (const r of rows) {
     const st = r[idx.report_status];
     const wk = +r[idx.week];
@@ -497,7 +500,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   const snapLog = await loadSnapLog(snapSeasons, xwalk);
   const { rzLog, passLog } = await loadPbpLogs(rzSeasons);
   const roster = await loadRoster(upcomingSeason);
-  const { byWeek, outIds, questionable } = await loadInjuries(season, week);
+  const { byWeek, outIds, questionable = new Set() } = await loadInjuries(season, week);
 
   // Position priors for the shrinkage fallback come from the trained model, so
   // this build does not need all ten seasons loaded to reproduce add_form().
