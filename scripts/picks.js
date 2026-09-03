@@ -43,6 +43,14 @@ const RZ_SEASONS = 2;
 // position prior and lands at 0.82, indistinguishable from a starter. Passing
 // attempts in the loaded window are the direct measure and can't be faked.
 const PASS_MIN_STARTS = 3;
+// A Questionable tag is real information the features can't see: snap history
+// describes a healthy player. Across 2016-2025 the board's price for a
+// Questionable player ran 12% above what he actually did (0.213 priced against
+// 0.187 scored) while unlisted players came in at 0.997 — so the model is fine
+// and the tag is the gap. Fitted on 2016-2021 at 0.889 and checked on
+// 2022-2025, where applying it leaves 0.973 of the way to perfect.
+// Out and Doubtful are dropped from the board entirely; this is the middle case.
+const QUESTIONABLE_MULT = 0.88;
 // Players kept per team, BY POSITION. A flat per-team cap looked reasonable and
 // was not: it ranks purely on probability, so a team's fringe receivers can fill
 // the board while its starting quarterback falls off the bottom — Lamar Jackson
@@ -422,15 +430,22 @@ export async function loadInjuries(season, week) {
   const txt = await fetchOptional(`${REL}/injuries/injuries_${season}.csv`);
   if (!txt) { console.log(`  injuries ${season}: not published yet`); return { byWeek, outIds }; }
   const { idx, rows } = parseCsv(txt);
+  const questionable = new Set();
   for (const r of rows) {
     const st = r[idx.report_status];
-    if (st !== 'Out' && st !== 'Doubtful') continue;
     const wk = +r[idx.week];
+    // Questionable players still play, so they stay on the board — but they
+    // don't play the same. See QUESTIONABLE_MULT.
+    if (st === 'Questionable') {
+      if (wk === week && r[idx.gsis_id]) questionable.add(r[idx.gsis_id]);
+      continue;
+    }
+    if (st !== 'Out' && st !== 'Doubtful') continue;
     const k = `${r[idx.team]}|${r[idx.position]}|${wk}`;
     byWeek.set(k, (byWeek.get(k) ?? 0) + 1);
     if (wk === week && r[idx.gsis_id]) outIds.add(r[idx.gsis_id]);
   }
-  return { byWeek, outIds };
+  return { byWeek, outIds, questionable };
 }
 
 /**
@@ -482,7 +497,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   const snapLog = await loadSnapLog(snapSeasons, xwalk);
   const { rzLog, passLog } = await loadPbpLogs(rzSeasons);
   const roster = await loadRoster(upcomingSeason);
-  const { byWeek, outIds } = await loadInjuries(season, week);
+  const { byWeek, outIds, questionable } = await loadInjuries(season, week);
 
   // Position priors for the shrinkage fallback come from the trained model, so
   // this build does not need all ten seasons loaded to reproduce add_form().
@@ -530,18 +545,22 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
       }
     }
 
+    const q = questionable.has(pid);
     picks.push({
       pid, name: info.name, team: info.team, opp: ctx.opp, pos,
       gameId: ctx.gameId, home: ctx.home,
       ...(pass ? { pass } : {}),
-      // p is the price we show — model output passed through the calibration.
-      // pRaw is kept so the modal's waterfall can show the model's own
-      // arithmetic and then the calibration step as a separate, visible move.
-      p: +calibrate(score(row)).toFixed(6),
+      // p is the price we show — model output passed through the calibration,
+      // then shaded if he's Questionable. Shading HERE rather than afterwards
+      // matters: the first/last-TD markets are shares of each game's scoring
+      // threat and read p.p, so doing it later would leave those markets
+      // pricing a healthy version of him.
+      p: +(calibrate(score(row)) * (q ? QUESTIONABLE_MULT : 1)).toFixed(6),
       pRaw: +score(row).toFixed(6),
       // the 2+ market, coherent with the 1+ price by construction
-      p2: +calibrate2(calibrate(score(row)) * scoreCond2(row)).toFixed(6),
+      p2: +(calibrate2(calibrate(score(row)) * scoreCond2(row)) * (q ? QUESTIONABLE_MULT : 1)).toFixed(6),
       pCond2: +scoreCond2(row).toFixed(6),
+      ...(q ? { q: 1 } : {}),
       // Factors, for the UI. Kept at enough precision that the modal's
       // log-odds waterfall reconstructs the shipped price exactly — it claims
       // the bars sum with nothing left over, so they have to.

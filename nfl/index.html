@@ -1680,10 +1680,14 @@
   /* ── Position colour system ───────────────────────────────────────────────
      One hue per position, used everywhere a position appears so the board is
      scannable by colour before you read a word. Chosen for separation on the
-     dark ground and to stay distinguishable in the light theme. */
+     dark ground and to stay distinguishable in the light theme.
+
+     TE is purple, not red: red sat next to a player's name and read as an
+     injury flag rather than a position, which is exactly the wrong thing for a
+     colour whose job is to be scanned without being read. */
   :root {
     --pos-qb: #f2c94c; --pos-rb: #33d07c; --pos-wr: #58a6ff;
-    --pos-te: #ff5d6c; --pos-fb: #9db8cd;
+    --pos-te: #c084fc; --pos-fb: #9db8cd;
   }
   .posb { font-family: var(--font-m); font-size: 0.55rem; font-weight: 700; letter-spacing: 0.04em;
           padding: 0.08rem 0.34rem; border-radius: 4px; flex-shrink: 0;
@@ -1691,23 +1695,21 @@
           border: 1px solid color-mix(in srgb, var(--pc) 42%, transparent); }
   :root[data-theme="light"] {
     --pos-qb: #a8790a; --pos-rb: #10893f; --pos-wr: #1663c7;
-    --pos-te: #c62839; --pos-fb: #5f7183;
+    --pos-te: #7e22ce; --pos-fb: #5f7183;
   }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
       --pos-qb: #a8790a; --pos-rb: #10893f; --pos-wr: #1663c7;
-      --pos-te: #c62839; --pos-fb: #5f7183;
+      --pos-te: #7e22ce; --pos-fb: #5f7183;
     }
   }
   .posb.QB { --pc: var(--pos-qb); } .posb.RB { --pc: var(--pos-rb); }
   .posb.WR { --pc: var(--pos-wr); } .posb.TE { --pc: var(--pos-te); }
   .posb.FB { --pc: var(--pos-fb); }
-  /* a colour-coded rail on each card, readable at a glance while scrolling */
-  .pb-card.p-QB { border-left: 3px solid var(--pos-qb); }
-  .pb-card.p-RB { border-left: 3px solid var(--pos-rb); }
-  .pb-card.p-WR { border-left: 3px solid var(--pos-wr); }
-  .pb-card.p-TE { border-left: 3px solid var(--pos-te); }
-  .pb-card.p-FB { border-left: 3px solid var(--pos-fb); }
+  .pb-q { font-family: var(--font-m); font-size: 0.52rem; font-weight: 800; letter-spacing: 0.04em;
+    padding: 0.06rem 0.3rem; border-radius: 4px; flex-shrink: 0; cursor: help;
+    color: var(--gold); background: color-mix(in srgb, var(--gold) 15%, transparent);
+    border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent); }
   .pb-logo { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; vertical-align: -0.25em; }
 
   /* ── Compact view — built to be screenshotted ─────────────────────────────
@@ -2029,6 +2031,7 @@
           <li><b>It is recalibrated.</b> The raw model runs hot on favourites — out of sample it said 75% where 60% actually happened, and 82% where 61% did, because a logistic extrapolates in a straight line while scoring saturates. A monotone recalibration, fitted on walk-forward out-of-sample results, trims the top end: the 70%-plus band's error drops from 15.5 points to under 3. It is why a back who looks like a lock is priced near -150 rather than -350, and each pick's breakdown shows the trim as its own step rather than hiding it.</li>
           <li><b>Pass TD is a separate model.</b> The anytime model scores a quarterback as a <em>rusher</em> — his arm never enters it — so passing touchdowns needed their own. It is a Poisson on three inputs: the implied team total, his pass volume, and his own passing-TD rate over his last two seasons of starts. The line is <em>Over 1.5</em>, the number books hang, and the base rate is 44% — a coin flip rather than a longshot like the other four. Starting quarterbacks only, chosen by who actually throws rather than by depth chart.</li>
           <li><b>What was tested and dropped there.</b> Red-zone efficiency, weapon quality and opposing pass defence are all genuinely stable traits — team receiving production split-halves at r=0.89 — and all three added <em>nothing</em> once the implied total was in. That is not a null result about football; it is the betting market having already priced them. Out of sample the passing model separates the top fifth of the board from the bottom fifth by 2.6× on Over 1.5, against 0.500 on a shuffled control.</li>
+          <li><b>Injury status is in the price.</b> Anyone ruled <b>Out</b> or <b>Doubtful</b> is off the board entirely. <b>Questionable</b> players stay — they usually play — but their price is shaded <b>12%</b> and badged <span class="pb-q">Q</span>. That number is measured, not assumed: across 2016-2025 the board priced Questionable players at 0.213 and they scored at 0.187, while unlisted players came in at 0.997 of their price. The model is calibrated; the tag is information its features can't see, since snap history describes a healthy player.</li>
           <li><b>Cut lines.</b> Each minimum-odds filter shows the hit rate that cut actually produced in the backtest for that market — so tightening the board is a measured trade, not a guess.</li>
           <li><b>Honest limits.</b> Fitted on 2016–2025 and never yet graded against a live week. It is also not measured against sportsbook prices, so a fair number is not the same thing as an edge.</li>
         </ul>
@@ -2591,10 +2594,13 @@
       <span class="pb-f" title="Red-zone touches per game (rushes + targets inside the 20)"><b>${(f.rz ?? 0).toFixed(1)}</b> rz/g</span>
       <span class="pb-f" title="Vegas implied points for his team"><b>${(f.implied ?? 0).toFixed(1)}</b> imp</span>`;
     const flag = f.newAbsence ? `<span class="pb-flag" title="A same-position teammate has just been ruled out — his role may be bigger than his recent snaps show">ROLE OPEN</span>` : '';
+    // Questionable is priced, not just flagged — the price shown is already
+    // shaded 12%. The badge says why it looks shorter than his usage implies.
+    const qflag = r.q ? `<span class="pb-q" title="Listed Questionable. His price is already shaded 12% — across 2016-2025 Questionable players scored 0.187 against a 0.213 model price, while unlisted players landed dead on.">Q</span>` : '';
     return `<div class="pb-card p-${r.pos}" onclick="openPick('${r.pid}')">
       <div class="pb-rank">${i}</div>${faceHtml(r.pid, r.name)}
       <div class="pb-info">
-        <div class="pb-nm">${r.name}${posBadge(r.pos)}${flag}</div>
+        <div class="pb-nm">${r.name}${posBadge(r.pos)}${qflag}${flag}</div>
         <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp} <img class="pb-logo" src="${teamLogo(r.opp)}" alt="" loading="lazy">${r.kick ? ' · ' + r.kick : ''}</div>
       </div>
       <div class="pb-facts">${facts}</div>
@@ -2788,7 +2794,7 @@
             ${faceHtml(r.pid, r.name)}
             <div class="pm-id">
               <div class="pm-nm">${r.name}</div>
-              <div class="pm-meta"><b>${r.pos}</b> · ${r.home ? `${r.team} vs ${r.opp}` : `${r.team} @ ${r.opp}`}${r.kick ? ' · ' + r.kick : ''}${f.newAbsence ? ' · <span class="pb-flag">ROLE OPEN</span>' : ''}</div>
+              <div class="pm-meta">${r.q ? '<span class="pb-q" title="Listed Questionable — price already shaded 12%">Q</span> ' : ''}<b>${r.pos}</b> · ${r.home ? `${r.team} vs ${r.opp}` : `${r.team} @ ${r.opp}`}${r.kick ? ' · ' + r.kick : ''}${f.newAbsence ? ' · <span class="pb-flag">ROLE OPEN</span>' : ''}</div>
             </div>
             <div class="pm-hero-price">
               <div class="pm-hero-od${dog ? ' dog' : ''}">${pbOdds(pbP(r))}</div>
