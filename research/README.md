@@ -127,6 +127,54 @@ That diffs every Node feature against `build_dataset.py` on a real week and
 fails if the predicted probability drifts by more than 1e-4. Both 2025 week 1
 and week 10 currently match to ~2e-16. Re-run it after touching either side.
 
+## Passing TDs
+
+The anytime model scores a quarterback as a **rusher** — his `scored` is a
+rushing touchdown — so passing TDs sat outside it entirely and needed their own
+model. `passing_td.py` builds the QB-game table and vets features;
+`passing_export.py` fits, calibrates and writes `passing_model.json`, which
+`scripts/picks.js` reads the same way it reads `model.json`.
+
+```sh
+python3 research/passing_td.py       # base rates, reliability, the ladder
+python3 research/passing_export.py   # -> passing_model.json
+```
+
+**5,734 QB starts, 2016-2025.** Mean 1.445 passing TDs a start; 1+ 76.9%,
+**2+ 43.9%**, 3+ 17.4%. Over 1.5 is the line books hang and is close to a coin
+flip, unlike the four longshot markets.
+
+The result worth remembering is what *didn't* work. Every feature Ron proposed
+is a genuinely stable trait — team receiving production split-halves at
+**r=0.89**, the QB's own TD rate at 0.74, even pass defence at 0.53 — and once
+the Vegas implied total is in the model, red-zone efficiency, weapon quality,
+defence and game script add **nothing**:
+
+```
+base rate only   AUC 0.500
++ implied total        0.644   <- the entire jump
++ pass volume          0.649
++ his own TD rate      0.652
++ everything else      0.647-0.650   (flat or worse)
+```
+
+Being a reliable trait is exactly why the market has already priced it. Same
+shape as the anytime model's defence null. Shipped model is three features.
+
+Two details that matter:
+
+* **Underdispersed counts.** Variance 1.33 against a mean 1.45, so raw Poisson
+  puts too much weight in both tails — it under-prices Over 1.5 and over-prices
+  Over 2.5. Each line carries its own isotonic map; ECE on Over 1.5 goes 0.028
+  -> 0.013.
+* **The priors are windowed to 2 seasons**, matching the play-by-play
+  `picks.js` actually loads, so the served feature *is* the trained feature.
+  Costs 0.002 AUC and removes a whole class of train/serve drift.
+
+Starters are chosen by who actually threw the most recently, not by snap share:
+every team carries two QBs on the board and a backup with thin history falls
+back to the position prior at 0.82, indistinguishable from a starter.
+
 ## Two traps worth remembering
 
 **The id crosswalk.** `snap_counts` keys on `pfr_player_id`, pbp on GSIS ids.

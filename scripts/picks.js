@@ -35,6 +35,14 @@ const SNAP_FROM = 2016;
 // window on BOTH sides (build_dataset.py passes window_seasons=2). Bounding it
 // also happened to improve the model — recent red-zone usage beats career.
 const RZ_SEASONS = 2;
+// A passing line is quoted for one QB per team — the guy who actually throws —
+// and only when he has enough starts for the shrunk rate to mean anything.
+//
+// Snap share can't make this call. Every team carries two QBs on the board, and
+// snap_last3 doesn't separate them: a backup with thin history falls back to the
+// position prior and lands at 0.82, indistinguishable from a starter. Passing
+// attempts in the loaded window are the direct measure and can't be faked.
+const PASS_MIN_STARTS = 3;
 // Players kept per team, BY POSITION. A flat per-team cap looked reasonable and
 // was not: it ranks purely on probability, so a team's fringe receivers can fill
 // the board while its starting quarterback falls off the bottom — Lamar Jackson
@@ -179,6 +187,99 @@ export function score(row) {
   return 1 / (1 + Math.exp(-Math.max(-30, Math.min(30, z))));
 }
 
+// ── passing TDs ───────────────────────────────────────────────────────────
+// A separate model, because the TD model treats a QB as a rusher — his `scored`
+// there is a rushing TD, so passing TDs sit outside it entirely.
+//
+// Three features (research/passing_td.py vetted nine). Vegas's implied team
+// total carries almost all of the signal; pass volume and the QB's own TD rate
+// add a little; red-zone efficiency, weapon quality, defense and game script add
+// NOTHING once the implied total is in. They are reliable traits — weapon
+// quality split-halves at r=0.89 — which is exactly why the market has already
+// priced them.
+const PASS_MODEL = JSON.parse(
+  fs.readFileSync(new URL('../research/passing_model.json', import.meta.url), 'utf8'));
+
+/**
+ * A QB's shrunk pass volume and pass-TD rate, from his own starts inside the
+ * loaded window. Mirrors prior_rate() in research/passing_td.py: k games of
+ * league prior mixed in, and the window bounded to what the build actually
+ * loads so the served feature IS the trained feature.
+ */
+/**
+ * One starting QB per team: whoever threw the most in the most recent season he
+ * appears in, preferring the later season when two QBs split a room. Returns
+ * team -> pid.
+ */
+export function passStarters(roster, passLog, season) {
+  const best = new Map();       // team -> { pid, season, att }
+  for (const [pid, info] of roster) {
+    if (info.position !== 'QB') continue;
+    const log = passLog.get(pid);
+    if (!log?.length) continue;
+    const last = log[log.length - 1].season;
+    if (last < season - 1) continue;               // hasn't thrown recently
+    const att = log.filter(g => g.season === last).reduce((a, g) => a + g.att, 0);
+    const cur = best.get(info.team);
+    if (!cur || last > cur.season || (last === cur.season && att > cur.att))
+      best.set(info.team, { pid, season: last, att });
+  }
+  return new Map([...best].map(([t, v]) => [t, v.pid]));
+}
+
+export function passFeatures({ pid, season, week, passLog, impliedTotal }) {
+  const P = PASS_MODEL.prior;
+  // Strictly before the week being scored. Live this is moot — the pbp for a
+  // future week doesn't exist — but updateHistory re-scores past weeks off a
+  // fully-populated log, and without the week bound a graded week would be
+  // priced with its own result already in the feature.
+  const log = (passLog.get(pid) ?? []).filter(
+    g => g.season < season || (g.season === season && g.week < week));
+  // Only real starts inform the rate — a mop-up drive would drag it down.
+  const starts = log.filter(g => g.att >= P.min_att && g.season > season - P.window);
+  const n = starts.length;
+  const att = starts.reduce((a, g) => a + g.att, 0);
+  const ptd = starts.reduce((a, g) => a + g.ptd, 0);
+  return {
+    implied_total: impliedTotal,
+    att_pg: (att + P.k * P.lg_att) / (n + P.k),
+    ptd_pg: (ptd + P.k * P.lg_ptd) / (n + P.k),
+    starts: n,
+  };
+}
+
+/** Projected passing TDs — the Poisson mean. */
+export function scorePass(row) {
+  let z = PASS_MODEL.coef[0];
+  PASS_MODEL.features.forEach((f, i) => {
+    const s = PASS_MODEL.scale[f];
+    z += PASS_MODEL.coef[i + 1] * ((row[f] - s.mean) / s.sd);
+  });
+  return Math.exp(Math.max(-20, Math.min(20, z)));
+}
+
+/** P(X >= need) for Poisson(mu). */
+export function poissonAtLeast(mu, need) {
+  if (!(mu > 0)) return need <= 0 ? 1 : 0;
+  if (need <= 0) return 1;
+  let term = Math.exp(-mu), cdf = term;
+  for (let i = 1; i <= need - 1; i++) { term = term * mu / i; cdf += term; }
+  return Math.min(1, Math.max(0, 1 - cdf));
+}
+
+/**
+ * Calibrated P(X >= need). Passing TDs are underdispersed (variance 1.33 on a
+ * mean 1.45), so raw Poisson puts too much weight in both tails — it
+ * under-prices Over 1.5 and over-prices Over 2.5. Each line carries its own
+ * isotonic map, which takes ECE on Over 1.5 from 0.028 to 0.013.
+ */
+export function passProb(mu, need) {
+  const c = PASS_MODEL.cal[String(need)];
+  const raw = poissonAtLeast(mu, need);
+  return c ? interpMap(raw, c.x, c.y) : raw;
+}
+export const PASS_LINES = PASS_MODEL.lines;
+
 // ── data loading ──────────────────────────────────────────────────────────
 
 /**
@@ -228,19 +329,40 @@ export async function loadSnapLog(seasons, xwalk) {
 }
 
 /** Per-player red-zone touches per game, from play-by-play. */
-export async function loadRzLog(seasons) {
-  const log = new Map();          // pid -> [{season, week, rz}]
+/**
+ * Both play-by-play-derived logs in ONE pass over each season's file:
+ *   rzLog   pid -> [{season, week, rz}]    red-zone touches (rush + target)
+ *   passLog pid -> [{season, week, att, ptd}]  a QB's own throwing line
+ *
+ * Combined deliberately: play_by_play_YYYY.csv is ~90 MB, and the passing-TD
+ * market needs the same file the red-zone feature already downloads. Two
+ * loaders would double the build's network cost for no reason.
+ */
+export async function loadPbpLogs(seasons) {
+  const rzLog = new Map(), passLog = new Map();
   for (const y of seasons) {
     const txt = await fetchOptional(`${REL}/pbp/play_by_play_${y}.csv`);
     if (!txt) { console.log(`  pbp ${y}: not published yet`); continue; }
     const { idx, rows } = parseCsv(txt);
     const per = new Map();        // `${pid}|${week}` -> rz touches
+    const qb  = new Map();        // `${pid}|${week}` -> { att, ptd }
     for (const r of rows) {
+      const isPass = r[idx.pass_attempt] === '1';
+      // Passing line: every attempt by the passer, and the TDs among them.
+      // Sacks carry pass_attempt 0 in nflverse, so they correctly don't count
+      // as attempts here — same as the Python that trained the model.
+      if (isPass && r[idx.passer_player_id]) {
+        const k = `${r[idx.passer_player_id]}|${r[idx.week]}`;
+        const e = qb.get(k) ?? { att: 0, ptd: 0 };
+        e.att += 1;
+        if (r[idx.pass_touchdown] === '1') e.ptd += 1;
+        qb.set(k, e);
+      }
       const yl = num(r[idx.yardline_100]);
       if (yl == null || yl > 20) continue;
       const ids = [];
       if (r[idx.rush_attempt] === '1' && r[idx.rusher_player_id]) ids.push(r[idx.rusher_player_id]);
-      if (r[idx.pass_attempt] === '1' && r[idx.receiver_player_id]) ids.push(r[idx.receiver_player_id]);
+      if (isPass && r[idx.receiver_player_id]) ids.push(r[idx.receiver_player_id]);
       for (const pid of ids) {
         const k = `${pid}|${r[idx.week]}`;
         per.set(k, (per.get(k) ?? 0) + 1);
@@ -248,12 +370,23 @@ export async function loadRzLog(seasons) {
     }
     for (const [k, rz] of per) {
       const [pid, wk] = k.split('|');
-      (log.get(pid) ?? log.set(pid, []).get(pid)).push({ season: y, week: +wk, rz });
+      (rzLog.get(pid) ?? rzLog.set(pid, []).get(pid)).push({ season: y, week: +wk, rz });
+    }
+    for (const [k, v] of qb) {
+      const [pid, wk] = k.split('|');
+      (passLog.get(pid) ?? passLog.set(pid, []).get(pid))
+        .push({ season: y, week: +wk, att: v.att, ptd: v.ptd });
     }
   }
-  for (const v of log.values())
-    v.sort((a, b) => a.season - b.season || a.week - b.week);
-  return log;
+  const bySeasonWeek = (a, b) => a.season - b.season || a.week - b.week;
+  for (const v of rzLog.values()) v.sort(bySeasonWeek);
+  for (const v of passLog.values()) v.sort(bySeasonWeek);
+  return { rzLog, passLog };
+}
+
+/** Back-compat wrapper — dump-features.js only wants the red-zone half. */
+export async function loadRzLog(seasons) {
+  return (await loadPbpLogs(seasons)).rzLog;
 }
 
 /** Current team + position for every rostered skill player. */
@@ -347,7 +480,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
 
   const { xwalk, birth } = await loadPlayers();
   const snapLog = await loadSnapLog(snapSeasons, xwalk);
-  const rzLog = await loadRzLog(rzSeasons);
+  const { rzLog, passLog } = await loadPbpLogs(rzSeasons);
   const roster = await loadRoster(upcomingSeason);
   const { byWeek, outIds } = await loadInjuries(season, week);
 
@@ -359,6 +492,9 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     teamsInPlay.set(g.home, { opp: g.away, implied: half + edge, gameId: g.gameId, home: 1 });
     teamsInPlay.set(g.away, { opp: g.home, implied: half - edge, gameId: g.gameId, home: 0 });
   }
+
+  const starterQb = passStarters(roster, passLog, season);
+  console.log(`  passing market: ${starterQb.size} starting QBs identified`);
 
   const picks = [];
   for (const [pid, info] of roster) {
@@ -374,9 +510,30 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     });
     if (!row) continue;                                 // no usage history at all
 
+    // Passing market, one starter per team. Quoting a backup a passing line
+    // would be inventing a bet nobody can place. `pass` stays undefined for
+    // everyone else, which is how the board knows the market doesn't apply.
+    let pass;
+    if (pos === 'QB' && starterQb.get(info.team) === pid) {
+      const pf = passFeatures({ pid, season, week, passLog, impliedTotal: ctx.implied });
+      if (pf.starts >= PASS_MIN_STARTS) {
+        const mu = scorePass(pf);
+        pass = {
+          proj: +mu.toFixed(4),
+          starts: pf.starts,
+          attPg: +pf.att_pg.toFixed(3),
+          ptdPg: +pf.ptd_pg.toFixed(4),
+          // One price per line the board quotes, calibrated.
+          p: Object.fromEntries(PASS_LINES.map(n => [n, +passProb(mu, n).toFixed(6)])),
+          pRaw: Object.fromEntries(PASS_LINES.map(n => [n, +poissonAtLeast(mu, n).toFixed(6)])),
+        };
+      }
+    }
+
     picks.push({
       pid, name: info.name, team: info.team, opp: ctx.opp, pos,
       gameId: ctx.gameId, home: ctx.home,
+      ...(pass ? { pass } : {}),
       // p is the price we show — model output passed through the calibration.
       // pRaw is kept so the modal's waterfall can show the model's own
       // arithmetic and then the calibration step as a separate, visible move.

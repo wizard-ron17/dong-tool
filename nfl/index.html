@@ -1601,14 +1601,27 @@
   .pm-hero-lbl { font-size: 0.55rem; color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 0.2rem; }
 
   /* the two markets, squared up like the MLB fight card */
-  .pm-mkts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; padding: 0 1rem; }
-  @media (max-width: 460px) { .pm-mkts { grid-template-columns: repeat(2, 1fr); } }
+  /* auto-fit rather than a fixed 4, so the QB-only Pass TD card can join the
+     row without breaking the layout for everyone who doesn't have one. */
+  .pm-mkts { display: grid; grid-template-columns: repeat(auto-fit, minmax(3.6rem, 1fr)); gap: 0.4rem; padding: 0 1rem; }
+  @media (max-width: 460px) { .pm-mkts { grid-template-columns: repeat(auto-fit, minmax(4.4rem, 1fr)); } }
   .pm-mkt { flex: 1; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.4rem; text-align: center; }
   .pm-mkt.on { border-color: rgba(53,201,110,0.45); background: rgba(53,201,110,0.07); }
   .pm-mkt-lbl { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
   .pm-mkt-od { font-family: var(--font-d); font-size: 1.4rem; font-weight: 900; line-height: 1.1; margin-top: 0.12rem; color: var(--text-strong); }
   .pm-mkt.on .pm-mkt-od { color: var(--good); }
   .pm-mkt-pct { font-family: var(--font-m); font-size: 0.58rem; color: var(--dim); }
+  /* Passing-TD price ladder in the modal. */
+  .ptl { width: 100%; border-collapse: collapse; font-size: 0.7rem; margin-bottom: 0.6rem; }
+  .ptl th { font-size: 0.52rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; text-align: right; padding: 0.25rem 0.4rem; border-bottom: 1px solid var(--border); }
+  .ptl th:first-child { text-align: left; }
+  .ptl td { padding: 0.4rem; border-bottom: 1px solid var(--border); text-align: right; font-family: var(--font-d); font-weight: 700; }
+  .ptl td:first-child { text-align: left; font-family: inherit; font-weight: 500; color: var(--muted); }
+  .ptl tr:last-child td { border-bottom: none; }
+  .ptl-on td { background: rgba(53,201,110,0.07); }
+  .ptl-on td:first-child { color: var(--text-strong); }
+  .ptl-od { color: var(--good); } .ptl-od.dog { color: var(--silver); }
+  .ptl-pc, .ptl-un { color: var(--muted); font-weight: 500; }
   .pm-link { text-align: center; font-size: 0.6rem; color: var(--muted); padding: 0.4rem 1rem 0; }
   .pm-link b { color: var(--gold); font-family: var(--font-d); font-size: 0.75rem; }
 
@@ -1958,16 +1971,18 @@
         <span class="due-explainer-cta"></span>
         <span class="due-explainer-chevron" id="picks-explainer-chevron">▶</span>
       </div>
-      <div class="due-explainer-teaser">Every skill player on the slate, priced to score a touchdown — and to score two.</div>
+      <div class="due-explainer-teaser">Every skill player on the slate, priced to score a touchdown — and every starting QB, priced to throw one.</div>
       <div class="due-explainer-body" id="picks-explainer-body" style="display:none">
         <ul>
           <li><b>What the price is.</b> The modelled chance the player scores at least one <em>offensive</em> touchdown (rushing or receiving), shown as American odds with the raw probability beneath. These are <em>fair</em> odds with no vig — a real sportsbook will always price worse, and the gap is their margin.</li>
           <li><b>It is calibrated, not a rating.</b> Out-of-sample across 2017–2025 the number means what it says: players priced around 30% scored about 30% of the time. That is the whole point of showing a probability rather than a 0–100 grade.</li>
           <li><b>What drives it.</b> Overwhelmingly <em>recent snap share</em> — the share of his offense's plays he was on the field for over his last three games. That single input is about 87% of the signal. Then the game's implied team total (from the spread and total), his recent red-zone touches, and whether a same-position teammate has just been ruled out.</li>
           <li><b>What is deliberately absent.</b> Opponent defence, red-zone defence, pace, weather, home/away and blowout risk were each tested over ten seasons and none improved the forecast. Defensive touchdowns-allowed is close to pure noise year to year, and the implied total already prices the scoring environment.</li>
-          <li><b>Three markets.</b> <em>1+ TD</em> is the anytime price. <em>2+ TD</em> is that multiplied by the chance a scorer scores again — so it can never come out shorter than the anytime price, which two separately fitted models would get wrong sooner or later. That second step is its own model and is nowhere near a constant: it runs 8% to 28% across red-zone workload, and 23% for backs against 11% for tight ends.</li>
+          <li><b>Five markets.</b> <em>1+ TD</em> is the anytime price. <em>2+ TD</em> is that multiplied by the chance a scorer scores again — so it can never come out shorter than the anytime price, which two separately fitted models would get wrong sooner or later. That second step is its own model and is nowhere near a constant: it runs 8% to 28% across red-zone workload, and 23% for backs against 11% for tight ends.</li>
           <li><b>1st TD is a race, not a coin flip.</b> Exactly one player scores the opening touchdown, so a price here is a <em>share</em> of his game rather than a standalone chance. It is the anytime price divided by the total scoring threat on the field, which is why two backs at the same anytime number can sit far apart: one may be boxed in with three other likely scorers while the other has the game to himself. Pricing that competition is worth real accuracy, and each game's prices sum to the 97% of games whose opening score goes to someone we carry.</li>
           <li><b>It is recalibrated.</b> The raw model runs hot on favourites — out of sample it said 75% where 60% actually happened, and 82% where 61% did, because a logistic extrapolates in a straight line while scoring saturates. A monotone recalibration, fitted on walk-forward out-of-sample results, trims the top end: the 70%-plus band's error drops from 15.5 points to under 3. It is why a back who looks like a lock is priced near -150 rather than -350, and each pick's breakdown shows the trim as its own step rather than hiding it.</li>
+          <li><b>Pass TD is a separate model.</b> The anytime model scores a quarterback as a <em>rusher</em> — his arm never enters it — so passing touchdowns needed their own. It is a Poisson on three inputs: the implied team total, his pass volume, and his own passing-TD rate over his last two seasons of starts. The line is <em>Over 1.5</em>, the number books hang, and the base rate is 44% — a coin flip rather than a longshot like the other four. Starting quarterbacks only, chosen by who actually throws rather than by depth chart.</li>
+          <li><b>What was tested and dropped there.</b> Red-zone efficiency, weapon quality and opposing pass defence are all genuinely stable traits — team receiving production split-halves at r=0.89 — and all three added <em>nothing</em> once the implied total was in. That is not a null result about football; it is the betting market having already priced them. Out of sample the passing model separates the top fifth of the board from the bottom fifth by 2.6× on Over 1.5, against 0.500 on a shuffled control.</li>
           <li><b>Cut lines.</b> Each minimum-odds filter shows the hit rate that cut actually produced in the backtest for that market — so tightening the board is a measured trade, not a guess.</li>
           <li><b>Honest limits.</b> Fitted on 2016–2025 and never yet graded against a live week. It is also not measured against sportsbook prices, so a fair number is not the same thing as an edge.</li>
         </ul>
@@ -2235,6 +2250,17 @@
       { v: 0.08, lab: '+1150', hit: 10.8, per: 28 },
       { v: 0.10, lab: '+900',  hit: 12.6, per: 13 },
     ] },
+    // Passing TDs are a different model entirely — the TD model scores a QB as
+    // a rusher, so his arm never entered it. Starting QBs only, and the line is
+    // Over 1.5, the number books actually hang. Base rate 44.1%, so unlike the
+    // other four markets this one is a coin flip rather than a longshot.
+    '5': { key: 'pPass', qbOnly: true, lab: 'Pass TD', line: 'Over 1.5', base: 44.1, cuts: [
+      { v: 0,    lab: 'All',  hit: 44.1, per: 27 },
+      { v: 0.35, lab: '+186', hit: 49.1, per: 21 },
+      { v: 0.45, lab: '+122', hit: 54.6, per: 14 },
+      { v: 0.50, lab: '-100', hit: 60.9, per: 7 },
+      { v: 0.60, lab: '-150', hit: 63.7, per: 5 },
+    ] },
   };
   const pbMkt = () => PB_MARKETS[pbF.mkt] || PB_MARKETS['1'];
   const pbP = (r) => r[pbMkt().key] ?? 0;
@@ -2310,16 +2336,26 @@
   // used to hand back a bare row with an undefined price and kickoff.
   function pbEnrich(p, gm) {
     const k = pbKick(gm[p.gameId]);
+    // pPass is the Over 1.5 price (2+ passing TDs) — the line books hang. The
+    // other two lines ride along in p.pass.p for the modal's ladder.
+    const pPass = p.pass?.p?.['2'];
     return { ...p, odds: pbOdds(p.p), odds2: pbOdds(p.p2),
-             oddsF: pbOdds(p.pFirst), oddsL: pbOdds(p.pLast), kick: k.txt, ts: k.ts };
+             oddsF: pbOdds(p.pFirst), oddsL: pbOdds(p.pLast),
+             pPass, oddsP: pPass != null ? pbOdds(pPass) : null,
+             kick: k.txt, ts: k.ts };
   }
   function pbRows() {
     const P = nflData?.picks;
     if (!P || !P.picks) return [];
     const gm = pbGameMap();
     let rows = P.picks.map(p => pbEnrich(p, gm));
+    // A market that only applies to some players drops everyone else outright,
+    // rather than showing them at a price of zero.
+    if (pbMkt().qbOnly) rows = rows.filter(r => r.pPass != null);
     rows = rows.filter(r => pbP(r) >= pbF.cut);
-    if (pbF.pos.length) rows = rows.filter(r => pbF.pos.includes(r.pos));
+    // The position filter is meaningless on a QB-only market — leaving it on
+    // would empty the board for anyone who had WR selected when they switched.
+    if (pbF.pos.length && !pbMkt().qbOnly) rows = rows.filter(r => pbF.pos.includes(r.pos));
     if (pbF.team !== 'all') rows = rows.filter(r => r.team === pbF.team);
     const key = {
       p: r => pbP(r),
@@ -2329,6 +2365,8 @@
       pct: r => pbP(r),
       // the other market's price, so the 2+ column sorts from the 1+ board
       alt: r => (pbF.mkt === '1' ? (r.p2 ?? 0) : (r.p ?? 0)),
+      pass: r => r.pPass ?? 0,
+      proj: r => r.pass?.proj ?? 0,
       first: r => r.pFirst ?? 0, last: r => r.pLast ?? 0,
       pos: r => r.pos,
       snap3: r => r.f?.snap3 ?? 0, rz: r => r.f?.rz ?? 0,
@@ -2400,9 +2438,16 @@
   function pbCard(r, i) {
     const M = pbMkt(); const shown = pbP(r);
     const dog = shown < 0.5;
-    const other = pbF.mkt === '1' ? `2+ ${r.odds2}` : pbF.mkt === '2' ? `1+ ${r.odds}` : `1+ ${r.odds}`;
+    // The companion price. On the passing board that has to be the neighbouring
+    // passing line — quoting his anytime RUSHING price next to a passing number
+    // reads as the same market and isn't.
+    const other = M.qbOnly ? `O2.5 ${pbOdds(r.pass.p['3'])}`
+                : pbF.mkt === '1' ? `2+ ${r.odds2}` : `1+ ${r.odds}`;
     const f = r.f || {};
-    const facts = `<span class="pb-f" title="Share of his offense's snaps over his last three games — the model's dominant input"><b>${Math.round((f.snap3 ?? 0) * 100)}%</b> snaps</span>
+    const facts = M.qbOnly ? `<span class="pb-f" title="Projected passing touchdowns — the number every line is priced off"><b>${r.pass.proj.toFixed(2)}</b> proj</span>
+      <span class="pb-f" title="Pass attempts per game over his starts in the loaded window"><b>${r.pass.attPg.toFixed(0)}</b> att/g</span>
+      <span class="pb-f" title="Vegas implied points for his team — the model's dominant input"><b>${(f.implied ?? 0).toFixed(1)}</b> imp</span>`
+      : `<span class="pb-f" title="Share of his offense's snaps over his last three games — the model's dominant input"><b>${Math.round((f.snap3 ?? 0) * 100)}%</b> snaps</span>
       <span class="pb-f" title="Red-zone touches per game (rushes + targets inside the 20)"><b>${(f.rz ?? 0).toFixed(1)}</b> rz/g</span>
       <span class="pb-f" title="Vegas implied points for his team"><b>${(f.implied ?? 0).toFixed(1)}</b> imp</span>`;
     const flag = f.newAbsence ? `<span class="pb-flag" title="A same-position teammate has just been ruled out — his role may be bigger than his recent snaps show">ROLE OPEN</span>` : '';
@@ -2501,6 +2546,38 @@
     if (i < 0 || j < 0 || j >= list.length) return;
     closePick(); openPick(list[j].pid);
   }
+  // Passing-TD modal body. The other four markets share one logistic, so they
+  // share the factor waterfall; this market is a Poisson on three features and
+  // has nothing to put in those bars. It gets the full price ladder instead,
+  // which is the more useful thing anyway — the projection is one number and
+  // every line hangs off it.
+  const PASS_LINE_LAB = { '1': 'Over 0.5', '2': 'Over 1.5', '3': 'Over 2.5' };
+  function pmPassBody(r) {
+    const q = r.pass;
+    const rows = Object.keys(q.p).map(n => {
+      const p = q.p[n], on = n === '2';
+      return `<tr class="${on ? 'ptl-on' : ''}">
+        <td>${PASS_LINE_LAB[n] || n}</td>
+        <td class="ptl-od${p < 0.5 ? ' dog' : ''}">${pbOdds(p)}</td>
+        <td class="ptl-pc">${(p * 100).toFixed(1)}%</td>
+        <td class="ptl-un">${pbOdds(1 - p)}</td>
+      </tr>`;
+    }).join('');
+    return `
+      <table class="ptl">
+        <thead><tr><th>Line</th><th>Over</th><th>Chance</th><th>Under</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="fbar-note">Priced off a projection of <b>${q.proj.toFixed(2)}</b> passing TDs, from his last
+        <b>${q.starts}</b> start${q.starts === 1 ? '' : 's'}: <b>${q.attPg.toFixed(1)}</b> attempts and
+        <b>${q.ptdPg.toFixed(2)}</b> passing TDs a game, against a
+        <b>${(r.f?.implied ?? 0).toFixed(1)}</b>-point implied team total. Over 1.5 is the line books hang;
+        with no vig the under is the same number with the sign flipped.</div>
+      <div class="fbar-note" style="margin-top:0.45rem">The implied total does most of the work here. Red-zone
+        efficiency, weapon quality and opposing defense were all tested and all added nothing once it was in —
+        they're real, stable traits, which is exactly why the market has already priced them.</div>`;
+  }
+
   function openPick(pid) {
     const P = nflData?.picks; if (!P) return;
     const raw = P.picks.find(x => x.pid === pid);
@@ -2587,20 +2664,28 @@
               <div class="pm-mkt-od">${r.oddsF}</div><div class="pm-mkt-pct">${((r.pFirst ?? 0) * 100).toFixed(1)}%</div></div>
             <div class="pm-mkt${mkt === '4' ? ' on' : ''}"><div class="pm-mkt-lbl">Last TD</div>
               <div class="pm-mkt-od">${r.oddsL}</div><div class="pm-mkt-pct">${((r.pLast ?? 0) * 100).toFixed(1)}%</div></div>
+            ${r.pPass == null ? '' : `<div class="pm-mkt${mkt === '5' ? ' on' : ''}"><div class="pm-mkt-lbl">Pass TD</div>
+              <div class="pm-mkt-od">${r.oddsP}</div><div class="pm-mkt-pct">${(r.pPass * 100).toFixed(1)}%</div></div>`}
           </div>
-          <div class="pm-link">${mkt === '3' || mkt === '4'
+          <div class="pm-link">${mkt === '5'
+            ? `we project <b>${(r.pass.proj).toFixed(2)}</b> passing TDs for him — the whole ladder below comes off that one number`
+            : mkt === '3' || mkt === '4'
             ? `his share of <b>${(rivals).toFixed(1)}</b> units of scoring threat in this game — ${mkt === '3' ? 'first' : 'last'} TD is a race, so who else is likely to score matters as much as he does`
             : `if he scores, <b>${((r.pCond2 ?? 0) * 100).toFixed(0)}%</b> chance of a second — which is what turns the first price into the second`}</div>
-          <div class="pm-sec">What moves the price</div>
+          <div class="pm-sec">${mkt === '5' ? 'The passing ladder' : 'What moves the price'}</div>
           <div class="pm-body">
+            ${mkt === '5' ? pmPassBody(r) : `
             <div class="fbar-legend">← tougher · 1.0× neutral · juicier →</div>
             <div class="fbars"><div class="fbar-baseline"></div>${bars}</div>
-            <div class="fbar-note">Each bar multiplies his odds of scoring. A league-average ${r.pos} in a neutral spot sits at <b>${(sig(base) * 100).toFixed(0)}%</b>; these take him to <b>${(r.p * 100).toFixed(1)}%</b>.</div>
+            <div class="fbar-note">Each bar multiplies his odds of scoring. A league-average ${r.pos} in a neutral spot sits at <b>${(sig(base) * 100).toFixed(0)}%</b>; these take him to <b>${(r.p * 100).toFixed(1)}%</b>.</div>`}
             <div class="pm-sec">The numbers</div>
             <div class="pm-stats">${stats}</div>
             ${mkt === '3' || mkt === '4' ? `<p class="pm-note" style="margin-top:0.7rem">The factors above build his <b>anytime</b> price. The ${mkt === '3' ? '1st' : 'last'}-TD price is that number divided by the whole game's scoring threat, so it moves when his rivals do — not only when he does.${mkt === '4' ? ' Last TD is the weakest of the four: the closing score lands in the fourth quarter, when the field holds whoever is playing by then.' : ''}</p>` : ''}
-            <p class="pm-foot">Bars show percentile on this week's board. Fair odds, no vig — a book prices worse.
-              ${r.pos === 'QB' ? 'For a quarterback this is a <b>rushing</b> touchdown; passing scores credit the receiver.' : ''}</p>
+            ${mkt === '5' ? `<p class="pm-note" style="margin-top:0.7rem">The stats above describe his <b>rushing</b> role and drive the other four markets — they are not inputs to the passing price, which runs on its own model.</p>` : ''}
+            <p class="pm-foot">${mkt === '5'
+              ? 'Fair odds, no vig — a book prices worse. Passing TDs are a separate model from the other four markets: the anytime model scores a QB as a <b>rusher</b>, so his arm never enters it.'
+              : `Bars show percentile on this week's board. Fair odds, no vig — a book prices worse.
+              ${r.pos === 'QB' ? 'For a quarterback this is a <b>rushing</b> touchdown; passing scores credit the receiver.' : ''}`}</p>
           </div>
         </div>
       </div>`);
