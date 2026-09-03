@@ -1679,14 +1679,20 @@
 
   /* ── Position colour system ───────────────────────────────────────────────
      One hue per position, used everywhere a position appears so the board is
-     scannable by colour before you read a word. Chosen for separation on the
-     dark ground and to stay distinguishable in the light theme.
+     scannable by colour before you read a word.
 
-     TE is purple, not red: red sat next to a player's name and read as an
-     injury flag rather than a position, which is exactly the wrong thing for a
-     colour whose job is to be scanned without being read. */
+     THE RULE: positions never borrow a hue from the semantic ramp. Green,
+     amber, orange and red mean GOOD / OK / WARN / BAD everywhere else on this
+     site, so a position wearing one of them gets read as a rating instead of a
+     label. The first pass got this wrong three times over — RB was
+     byte-identical to --good, QB to --ok, and TE a shade off --bad — which is
+     why a tight end looked injured and a back looked like a recommendation.
+
+     Positions therefore live on the cool half of the wheel plus pink, none of
+     which carries meaning anywhere else: cyan, pink, blue, violet, slate.
+     Light-theme values are darkened for contrast, same hues. */
   :root {
-    --pos-qb: #f2c94c; --pos-rb: #33d07c; --pos-wr: #58a6ff;
+    --pos-qb: #22d3ee; --pos-rb: #f472b6; --pos-wr: #58a6ff;
     --pos-te: #c084fc; --pos-fb: #9db8cd;
   }
   .posb { font-family: var(--font-m); font-size: 0.55rem; font-weight: 700; letter-spacing: 0.04em;
@@ -1694,12 +1700,12 @@
           color: var(--pc); background: color-mix(in srgb, var(--pc) 14%, transparent);
           border: 1px solid color-mix(in srgb, var(--pc) 42%, transparent); }
   :root[data-theme="light"] {
-    --pos-qb: #a8790a; --pos-rb: #10893f; --pos-wr: #1663c7;
+    --pos-qb: #0e7490; --pos-rb: #be185d; --pos-wr: #1663c7;
     --pos-te: #7e22ce; --pos-fb: #5f7183;
   }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
-      --pos-qb: #a8790a; --pos-rb: #10893f; --pos-wr: #1663c7;
+      --pos-qb: #0e7490; --pos-rb: #be185d; --pos-wr: #1663c7;
       --pos-te: #7e22ce; --pos-fb: #5f7183;
     }
   }
