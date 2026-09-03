@@ -1590,6 +1590,7 @@
   .pb-cal th { text-align: left; color: var(--muted); font-family: var(--font-d); font-size: 0.76rem; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--border); }
   .pb-cal td { padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--border); font-family: var(--font-m); color: var(--silver); }
   .pb-cal td.lbl { font-family: var(--font-b); color: var(--text-strong); font-weight: 700; }
+  .due-od { font-family: var(--font-d); font-weight: 800; color: var(--good); }
   .pb-sec { font-family: var(--font-d); font-size: 1.05rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin: 1.1rem 0 0.45rem; }
 
   @media (max-width: 620px) {
@@ -1992,6 +1993,14 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16v-6H4zM6 14v-3h12v3M12 8V5M9.5 6.5 12 4l2.5 2.5"/></svg>
         <span><span class="nm-name">Birthdays</span><span class="nm-desc">Who is celebrating on the slate</span></span>
       </button>
+      <button class="nav-menu-item" data-nav="due" onclick="switchNav('due')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12M6 21h12M7 3c0 4 5 5 5 9s-5 5-5 9M17 3c0 4-5 5-5 9s5 5 5 9"/></svg>
+        <span><span class="nm-name">Due <span class="nm-new">NEW</span></span><span class="nm-desc">Red-zone work with nothing to show</span></span>
+      </button>
+      <button class="nav-menu-item" data-nav="milestones" onclick="switchNav('milestones')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4M6 4h11l-2 3.5L17 11H6"/></svg>
+        <span><span class="nm-name">Milestones <span class="nm-new">NEW</span></span><span class="nm-desc">Chasing 25 · 50 · 100+ career TDs</span></span>
+      </button>
       <button class="nav-menu-item" data-nav="pairs" onclick="switchNav('pairs')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8"/></svg>
         <span><span class="nm-name">Pairs</span><span class="nm-desc">Players who score the same week</span></span>
@@ -2128,6 +2137,44 @@
     </div>
     <div id="birthdays-content"><div class="empty">Loading…</div></div>
   </div>
+  <div id="panel-due" class="panel">
+    <div class="due-explainer" id="due-explainer-toggle" onclick="toggleExplainer('due')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Due Works</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="due-explainer-chevron">▶</span>
+      </div>
+      <div class="due-explainer-teaser">Heavy red-zone workload, no touchdown to show for it — the guys whose usage has outrun their scoring.</div>
+      <div class="due-explainer-body" id="due-explainer-body" style="display:none">
+        <ul>
+          <li><b>Who's here.</b> Players on this week's board carrying real red-zone work — touches inside the 20 per game — who haven't scored in a while. Ranked by how long the drought has run against how much work he's getting, so a back seeing four red-zone touches a game outranks a receiver seeing one.</li>
+          <li><b>It is not an edge, and I checked.</b> The tempting story is that opportunity without output has to correct. It doesn't. Measured across 2016-2025, the gap between a player's red-zone volume and his actual touchdowns correlates with his rest-of-season scoring at <b>-0.03</b> — nothing. His red-zone volume alone correlates at <b>+0.38</b>. Once you know the workload, the drought tells you nothing extra.</li>
+          <li><b>So why show it?</b> Because the workload is the real signal and this is a clean way to see who has it. The drought is the hook; the red-zone column is the reason to look. If a name here also sits high on Picks, that is the model agreeing about the usage — not about him being owed anything.</li>
+          <li><b>Regression to the mean is not a memory.</b> The end zone doesn't know he's been waiting. A player with a big role scores more going forward than one without, whether he scored last week or not.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="due-content"><div class="empty">Loading…</div></div>
+  </div>
+  <div id="panel-milestones" class="panel">
+    <div class="due-explainer" id="milestones-explainer-toggle" onclick="toggleExplainer('milestones')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Milestones Works</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="milestones-explainer-chevron">▶</span>
+      </div>
+      <div class="due-explainer-teaser">Who is closing in on a career touchdown number — 25, 50, 100 and up.</div>
+      <div class="due-explainer-body" id="milestones-explainer-body" style="display:none">
+        <ul>
+          <li><b>What it counts.</b> Career <em>scoring</em> touchdowns — rushing plus receiving, regular season, back to 1999. Passing touchdowns are excluded: this board is about reaching the end zone, so a quarterback appears here for the ones he runs in himself.</li>
+          <li><b>The rungs.</b> 25, 50, 75, 100, 125, 150, 175, 200. Tighter at the bottom than the MLB board's 100/200/300 because touchdowns come slower than home runs.</li>
+          <li><b>Active players only.</b> Anyone who didn't play last season drops off, so the list is people who can actually get there.</li>
+          <li><b>It's a watch list.</b> Being one score from a round number doesn't make anyone likelier to find the end zone this week — it's a thing to notice, not a thing to bet. Where a chaser is also on this week's board, his anytime price is shown so you can see what the market thinks independently.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="milestones-content"><div class="empty">Loading…</div></div>
+  </div>
   <div id="panel-pairs" class="panel">
     <div class="due-explainer" id="pairs-explainer-toggle" onclick="toggleExplainer('pairs')" aria-expanded="false">
       <div class="due-explainer-head">
@@ -2204,8 +2251,8 @@
   function closeSportMenu() { document.getElementById('sport-menu')?.classList.remove('open'); document.getElementById('sport-switch-btn')?.classList.remove('open'); }
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch')) closeSportMenu(); });
 
-  const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs', 'birthdays']; // tools added here as they ship
-  const PAGE_TITLES = { home: "Ron's Tud Tool", stats: "Stats · Ron's Tud Tool", recap: "Recap · Ron's Tud Tool", schedule: "Schedule · Ron's Tud Tool", pairs: "Pairs · Ron's Tud Tool" };
+  const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs', 'birthdays', 'due', 'milestones']; // tools added here as they ship
+  const PAGE_TITLES = { home: "Ron's Tud Tool", stats: "Stats · Ron's Tud Tool", recap: "Recap · Ron's Tud Tool", schedule: "Schedule · Ron's Tud Tool", pairs: "Pairs · Ron's Tud Tool", due: "Due · Ron's Tud Tool", milestones: "Milestones · Ron's Tud Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
     activeNav = nav;
@@ -3075,7 +3122,7 @@
     </div>`;
   }
 
-  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); else if (nav === 'birthdays') renderBirthdays(); }
+  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); else if (nav === 'birthdays') renderBirthdays(); else if (nav === 'due') renderDue(); else if (nav === 'milestones') renderMilestones(); }
   // ESPN team-logo CDN (transparent PNGs). nflverse abbrs are ESPN slugs
   // lowercased, save two: LA(Rams)->lar, WAS->wsh.
   const LOGO_SLUG = { LA: 'lar', WAS: 'wsh' };
@@ -3387,6 +3434,95 @@
   }
   const PAIR_SIZE_NAMES = { 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' };
   const PAIR_RENDER_LIMIT = 200;
+  // ── MILESTONES ─────────────────────────────────────────────────────
+  // Career scoring touchdowns against the next round number. A watch list, not
+  // a signal — being one short doesn't make the end zone any closer this week.
+  function renderMilestones() {
+    const el = document.getElementById('milestones-content'); if (!el) return;
+    if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
+    if (nflData === 'error') { el.innerHTML = `<div class="empty">Couldn't load NFL data. <a href="javascript:void(0)" onclick="loadNfl()">Retry</a></div>`; return; }
+    const ms = nflData.milestones || [];
+    if (!ms.length) { el.innerHTML = '<div class="empty">No milestone chases tracked yet.</div>'; return; }
+    const priced = {};
+    for (const p of (nflData.picks?.picks || [])) priced[p.pid] = p;
+    const meta = `<div class="pt-meta">Career <b>rushing + receiving</b> touchdowns against the next round number, active players only. Passing TDs excluded — this board is about reaching the end zone. <b>A watch list, not a signal.</b></div>`;
+    const cards = ms.slice(0, 40).map((m, i) => {
+      const pk = priced[m.pid];
+      const close = m.away <= 2;
+      return `<div class="pb-card p-${m.pos}"${pk ? ` onclick="openPick('${m.pid}')"` : ''}>
+        <div class="pb-rank">${i + 1}</div>${faceHtml(m.pid, m.name)}
+        <div class="pb-info">
+          <div class="pb-nm">${m.name}${posBadge(m.pos)}</div>
+          <div class="pb-line"><img class="pb-logo" src="${teamLogo(m.team)}" alt="" loading="lazy"> ${m.team}
+            · <b>${m.career}</b> career${pk ? ` · <b class="due-od">${pbOdds(pk.p)}</b> this week` : ''}</div>
+        </div>
+        <div class="pb-price">
+          <span class="pb-odds${close ? '' : ' dog'}">${m.away}</span>
+          <span class="pb-pct">from ${m.next}</span>
+        </div>
+      </div>`;
+    }).join('');
+    el.innerHTML = meta + `<div class="pb-list">${cards}</div>`;
+  }
+
+  // ── DUE ────────────────────────────────────────────────────────────
+  // Red-zone workload that hasn't turned into touchdowns. The drought is the
+  // hook; the workload is the actual information, so the workload is what the
+  // card leads with and what the list is ordered by. Measured over 2016-2025
+  // the volume-minus-output gap correlates with rest-of-season scoring at
+  // -0.03 (nothing) while red-zone volume alone runs +0.38 — ordering by
+  // drought would be ordering by the part that doesn't predict.
+  const DUE_MIN_RZ = 1.0;   // red-zone touches per game to count as a real role
+  function renderDue() {
+    const el = document.getElementById('due-content'); if (!el) return;
+    if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
+    if (nflData === 'error') { el.innerHTML = `<div class="empty">Couldn't load NFL data. <a href="javascript:void(0)" onclick="loadNfl()">Retry</a></div>`; return; }
+    const picks = nflData.picks?.picks || [];
+    if (!picks.length) { el.innerHTML = '<div class="empty">No board yet — Due fills in once the upcoming slate has lines.</div>'; return; }
+
+    const weeks = nflData.tdRecapWeeks || [];
+    const lastTd = {};
+    weeks.forEach((wk, i) => { for (const t of nflData.tdRecap[wk] || []) if (t.pid) lastTd[t.pid] = i; });
+    const played = weeks.length;
+    // The recap season and the board's season are the same only once games are
+    // played. Before then every drought is "since last season ended", which is
+    // true but says nothing about this week — so the tool says which it is.
+    const recapSeason = nflData.historySeason;
+    const carried = nflData.upcomingSeason !== recapSeason;
+
+    const rows = picks
+      .filter(p => (p.f?.rz ?? 0) >= DUE_MIN_RZ)
+      .map(p => {
+        const idx = lastTd[p.pid];
+        const since = idx == null ? null : played - 1 - idx;
+        return { ...p, since, rz: p.f.rz };
+      })
+      .filter(r => r.since === null || r.since >= 2)
+      .sort((a, b) => b.rz - a.rz);   // workload first — it's the part that predicts
+    if (!rows.length) { el.innerHTML = '<div class="empty">Nobody with a real red-zone role is in a drought right now.</div>'; return; }
+
+    const meta = `<div class="pt-meta">Board players with <b>${DUE_MIN_RZ}+</b> red-zone touches a game who ${carried
+      ? `didn't score late in <b>${recapSeason}</b>` : `haven't scored in <b>2+</b> weeks`}.
+      Ordered by <b>red-zone workload</b>, not by drought length — <b>the drought predicts nothing</b> (it correlates with
+      future scoring at −0.03), the workload does (+0.38). Read this as a usage board with a hook.${carried
+      ? ` Droughts carry over from ${recapSeason}; they'll reset once ${nflData.upcomingSeason} games are played.` : ''}</div>`;
+    const cards = rows.slice(0, 40).map((r, i) => `
+      <div class="pb-card p-${r.pos}" onclick="openPick('${r.pid}')">
+        <div class="pb-rank">${i + 1}</div>${faceHtml(r.pid, r.name)}
+        <div class="pb-info">
+          <div class="pb-nm">${r.name}${posBadge(r.pos)}</div>
+          <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
+            · ${r.since === null ? `no TD in ${recapSeason}` : `${r.since} wk${r.since === 1 ? '' : 's'} since`}
+            · <b class="due-od">${pbOdds(r.p)}</b></div>
+        </div>
+        <div class="pb-price">
+          <span class="pb-odds">${r.rz.toFixed(1)}</span>
+          <span class="pb-pct">rz touches / g</span>
+        </div>
+      </div>`).join('');
+    el.innerHTML = meta + `<div class="pb-list">${cards}</div>`;
+  }
+
   function renderPairs() {
     const cards = document.getElementById('cards'); if (!cards) return;
     _priceMap = null;   // picks can change under us between renders

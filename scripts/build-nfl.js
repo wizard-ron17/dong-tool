@@ -264,12 +264,39 @@ async function main() {
   const parlay = JSON.parse(
     fs.readFileSync(new URL('../research/pair_correlation.json', import.meta.url), 'utf8'));
 
+  // Career touchdowns for the Milestones board. research/career_tds.py walks
+  // nflverse back to 1999 and is re-run when a season completes; anything since
+  // that file's `through` season is added here from the recap we already have,
+  // so a chase stays current mid-season without refetching 27 years.
+  const career = JSON.parse(
+    fs.readFileSync(new URL('../research/career_tds.json', import.meta.url), 'utf8'));
+  if (HISTORY_SEASON > career.through) {
+    const since = {};
+    for (const wk of weeks) for (const t of (tdRecap[wk] || [])) if (t.pid) since[t.pid] = (since[t.pid] || 0) + 1;
+    let bumped = 0;
+    for (const [pid, n] of Object.entries(since)) {
+      if (career.players[pid]) { career.players[pid].t += n; bumped++; }
+    }
+    career.through = HISTORY_SEASON;
+    console.log(`  career TDs: added ${HISTORY_SEASON} for ${bumped} players`);
+  }
+  const milestones = (() => {
+    const rungs = career.rungs, out = [];
+    for (const [pid, v] of Object.entries(career.players)) {
+      if (v.ls < career.through) continue;                 // retired / inactive
+      const next = rungs.find(r => r > v.t);
+      if (next) out.push({ pid, name: v.n, team: v.tm, pos: v.p, career: v.t, next, away: next - v.t });
+    }
+    return out.sort((a, b) => a.away - b.away || b.career - a.career).slice(0, 60);
+  })();
+  console.log(`  milestones: ${milestones.length} active chases (closest: ${milestones[0]?.name} ${milestones[0]?.away} from ${milestones[0]?.next})`);
+
   const output = {
     generatedAt: new Date().toISOString(),
     historySeason: HISTORY_SEASON, upcomingSeason: UPCOMING_SEASON,
     schedule, results, tdRecap, tdRecapWeeks: weeks, tdLeaders, headshots: shots,
     teamStats, teamScorers, teamQB,
-    picks, picksHistory, parlay,
+    picks, picksHistory, parlay, milestones,
   };
   fs.writeFileSync(new URL('../nfl/data.json', import.meta.url), JSON.stringify(output));
   console.log(`Wrote nfl/data.json — ${schedule.length} ${UPCOMING_SEASON} games, ${tdTotal} TDs across ${weeks.length} weeks, ${tdLeaders.length} TD leaders, ${picks?.picks.length ?? 0} picks.`);
