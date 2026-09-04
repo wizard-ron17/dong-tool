@@ -1279,6 +1279,12 @@
   .pv-ou-sep { color: var(--dim); font-weight: 400; }
   /* Results ledger: every bet the board quotes, with what it actually did. */
   /* Seven columns don't fit a phone; scroll the table, never the page. */
+  /* Where the Results tab stops grading. The board keeps going and keeps
+     working — this marks the line, it isn't a quality cliff. */
+  .pp-cut { display: flex; align-items: center; gap: 0.6rem; margin: 0.55rem 0 0.15rem; }
+  .pp-cut::before, .pp-cut::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .pp-cut span { font-size: 0.53rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+  .pv-brank.on { color: var(--accent); }
   .kbb-ledger-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 1rem; }
   .kbb-ledger { width: 100%; min-width: 30rem; border-collapse: collapse; font-size: 0.68rem; }
   .kbb-row-sel td { background: color-mix(in srgb, var(--accent) 7%, transparent); }
@@ -2131,6 +2137,10 @@
           <li><b>~Proj Ks</b> estimates the raw strikeout count for his start: Exp K% × the batters he actually averages per start. That second number is measured, not derived from innings × a constant — the old shortcut overstated batters faced by about half a batter and mispriced the overs by 4–5 points.</li>
           <li><b>Why season-long, not hot/cold?</b> K% is one of the fastest-stabilizing stats in baseball (reliable by ~70 batters faced), so a season rate is already trustworthy and recency mostly adds noise. Rates are lightly regressed toward league for small samples.</li>
           <li><b>Flip the scope</b> with the By Pitcher / By Batter toggle: By Batter ranks today's <b>hitters</b> by their expected K% vs the starter they face — the likeliest bats to whiff today.</li>
+          <li><b>Ranks and the tracked set.</b> The board numbers every startable arm and marks where the <b>Results</b> tab stops grading — the top 8. That line is a logging choice, not a quality cliff: ordering keeps working well past it. Over 143 replayed slates, ranks 1-4 walked 10.1% of batters, 5-8 walked 9.1%, 9-12 walked 8.4%, and only at 13+ does it fall away (7.4%, then 6.7%).</li>
+          <li><b>Odds or Rate.</b> Default order is <b>~Proj</b>, the projected count, because that is what the prices are built from — sorting by rate while showing a count price put something other than the best bet at the top. <b>Rate</b> orders by Exp% instead, which answers a different question: how wild is the spot, regardless of how deep he goes. On the market itself the two are a wash (Over 1.5 hits 66.5% by projection against 65.3% by rate, inside one standard error), so pick whichever question you're asking.</li>
+          <li><b>Ranks and the tracked set.</b> The board numbers every startable arm and marks where the <b>Results</b> tab stops grading — the top 8. That line is a logging choice, not a quality cliff: ordering keeps working well past it. Over 143 replayed slates, ranks 1-4 walked 10.1% of batters, 5-8 walked 9.1%, 9-12 walked 8.4%, and only at 13+ does it fall away (7.4%, then 6.7%).</li>
+          <li><b>Odds or Rate.</b> Default order is <b>~Proj</b>, the projected count, because that is what the prices are built from — sorting by rate while showing a count price put something other than the best bet at the top. <b>Rate</b> orders by Exp% instead, which answers a different question: how wild is the spot, regardless of how deep he goes. On the market itself the two are a wash (Over 1.5 hits 66.5% by projection against 65.3% by rate, inside one standard error), so pick whichever question you're asking.</li>
           <li><b>Results.</b> Every past slate is replayed and graded — the board is rebuilt from the rates that were known that morning, then checked against what those arms actually did. See the <b>Results</b> tab for the running hit rate.</li>
           <li>Today's probable <b>starters</b> only (openers show their listed arm). Data is 2026 regular season, via MLB Stats.</li>
         </ul>
@@ -2259,6 +2269,17 @@ let ptGridPin = null;    // pinned team in the grid — highlighted so the eye c
 let pvOpenPid = null;    // Pitcher Vuln: which starter card is expanded to show the bats that punish him
 let ppOpenPid = null;    // Pitcher Ks/Walks: which starter card is expanded to show the lineup he faces
 let ppView = 'pitcher';  // Pitcher Ks/Walks scope: 'pitcher' (rank arms) | 'batter' (rank hitters likeliest to K/walk)
+// Board ordering. Defaults to the projection because that is what the prices
+// shown are computed from — sorting by rate while displaying a count price
+// meant the top of the board wasn't the best bet on the board. Measured, the
+// two are a wash on the market itself (Over 1.5 hits 66.5% ordered by
+// projection against 65.3% by rate, inside one standard error), so this is a
+// coherence call rather than an accuracy one. Rate stays one tap away: it
+// answers a different question — how wild is the SPOT, regardless of workload.
+let ppSort = 'proj';     // 'proj' (odds) | 'exp' (rate)
+// How deep the Results tab grades. Mirrors KBB_TOP in scripts/build-data.js —
+// if that changes this has to, or the board's marker lies about what's logged.
+const PP_TRACKED = 8;
 // Ks / Walks Results: the two tools each keep their own sub-tab, so switching
 // between them doesn't drag the other one onto its history view.
 let ppSub = { pitcherks: 'board', pitcherwalks: 'board' };
@@ -3103,7 +3124,7 @@ function renderHome() {
   // Strikeouts / Walks — same ranking the tools themselves use, so the home
   // card and the board can never disagree.
   const ppHomeRows = (kind) => {
-    const { rows, lg } = ppRankStarters(kind);
+    const { rows, lg } = ppRankStarters(kind, 'proj');
     const lbl = kind === 'k' ? 'K' : 'BB';
     return rows.slice(0, 4).map(r => `
       <div class="hm-row">
@@ -7622,6 +7643,7 @@ function renderPitcherVuln() {
 // BB% stabilize fast, so season-long is the base (recency mostly adds noise);
 // small samples are lightly regressed toward league. Shares Pitcher Vuln's card CSS.
 function ppToggle(pid) { ppOpenPid = (ppOpenPid === pid) ? null : pid; if (activeNav === 'pitcherks') renderPitcherKs(); else renderPitcherWalks(); }
+function ppSetSort(v) { ppSort = v; ppOpenPid = null; if (activeNav === 'pitcherks') renderPitcherKs(); else renderPitcherWalks(); }
 function ppSetView(v) { ppView = v; ppOpenPid = null; if (activeNav === 'pitcherks') renderPitcherKs(); else renderPitcherWalks(); }
 function renderPitcherKs() { renderPitcherProp('k'); }
 function renderPitcherWalks() { renderPitcherProp('bb'); }
@@ -7886,7 +7908,7 @@ function renderKbbResults(nav) {
 // Today's starters ranked for one of the two markets. Extracted so the home
 // page and the tool itself cannot drift apart — a home card computing its own
 // version of this would eventually disagree with the board it links to.
-function ppRankStarters(kind) {
+function ppRankStarters(kind, sort = ppSort) {
   const isK = kind === 'k';
   const rateKey = isK ? 'kPct' : 'bbPct';
   const lg = teamOffense.lg?.[rateKey] ?? (isK ? 0.22 : 0.083);
@@ -7913,7 +7935,11 @@ function ppRankStarters(kind) {
                   lineupPids: opp.lineup?.length ? opp.lineup.map(b => String(b.pid)) : null });
     }
   }
-  rows.sort((a, b) => b.exp - a.exp);
+  // A null projection (no start history) can't be ordered by odds, so it falls
+  // to the bottom rather than to the top as a bare comparison would put it.
+  rows.sort(sort === 'proj'
+    ? (a, b) => (b.proj ?? -1) - (a.proj ?? -1) || b.exp - a.exp
+    : (a, b) => b.exp - a.exp);
   return { rows, lg, K0, log5 };
 }
 
@@ -7926,11 +7952,18 @@ function renderPitcherProp(kind) {
   const toggle = `<div class="lb-toolbar"><div class="view-switch">
     <button class="view-btn${ppView === 'pitcher' ? ' active' : ''}" onclick="ppSetView('pitcher')">By Pitcher</button>
     <button class="view-btn${ppView === 'batter' ? ' active' : ''}" onclick="ppSetView('batter')">By Batter</button>
-  </div></div>`;
+  </div>${ppView === 'pitcher' ? `<div class="view-switch">
+    <button class="view-btn${ppSort === 'proj' ? ' active' : ''}" onclick="ppSetSort('proj')" title="Order by projected ${lbl} — the number the prices are built from">Odds</button>
+    <button class="view-btn${ppSort === 'exp' ? ' active' : ''}" onclick="ppSetSort('exp')" title="Order by Exp ${lbl}% — how wild the spot is, regardless of how deep he goes">Rate</button>
+  </div>` : ''}</div>`;
   if (ppView === 'batter') { el.innerHTML = toggle + ppBatterBoard(isK, lg, K0, log5, lbl, word); return; }
   if (!rows.length) { el.innerHTML = toggle + '<div class="empty">No probable starters with data posted yet — check back closer to game time.</div>'; return; }
-  const meta = `<div class="pt-meta">Today's starters by <b>Exp ${lbl}%</b> — a log5 blend of the pitcher's ${lbl}% and the opponent lineup's ${word} rate vs league. Higher = a ${isK ? 'better strikeout spot' : 'wilder, walk-prone spot'}. <b>~Proj ${lbl}</b> is the projected count for his start.</div>`;
-  const cards = rows.map(r => {
+  const meta = `<div class="pt-meta">Today's starters by <b>${ppSort === 'proj' ? `~Proj ${lbl}` : `Exp ${lbl}%`}</b>${ppSort === 'proj'
+      ? ` — the projected count for his start, which is what the prices are built from.`
+      : ` — a log5 blend of the pitcher's ${lbl}% and the opponent lineup's ${word} rate vs league, ignoring how deep he goes.`}
+    Ranked <b>1-${rows.length}</b>; the <b>Results</b> tab grades the top <b>${PP_TRACKED}</b>, marked below. The ordering keeps
+    working past that line — ranks 9-12 still ${isK ? 'strike out' : 'walk'} more than 13+ — it just isn't what we log.</div>`;
+  const cards = rows.map((r, i) => {
     const open = ppOpenPid === r.pid;
     const cls = pvClass(r.exp / lg);
     const hand = r.throws ? `<span class="pk-hand ${r.throws.toLowerCase()}">${r.throws}</span>` : '';
@@ -7954,8 +7987,10 @@ function renderPitcherProp(kind) {
         </div>`).join('') : `<div class="pv-bat-empty">No lineup posted yet — check back closer to game time.</div>`}
       </div>`;
     }
-    return `<div class="pv-card${open ? ' open' : ''}" onclick="ppToggle('${r.pid}')">
+    return `${i === PP_TRACKED ? `<div class="pp-cut"><span>tracked set ends — ${PP_TRACKED} deep is what Results grades</span></div>` : ''}
+    <div class="pv-card${open ? ' open' : ''}" onclick="ppToggle('${r.pid}')">
       <div class="pv-main">
+        <span class="pv-brank${i < PP_TRACKED ? ' on' : ''}">${i + 1}</span>
         ${muPhotoTag(r.pid, r.team)}
         <div class="pv-id">
           <div class="pv-name">${compactPlayerName(r.name)} ${hand}${statusChip}</div>
