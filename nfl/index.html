@@ -511,12 +511,18 @@
   /* Pick modal deck navigation (swipe / arrows through the board) */
   /* Deck nav: a small counter at the modal top, arrows flanking it from outside. */
   .pk-deck-count { text-align: center; font-family: var(--font-d); font-size: 0.66rem; font-weight: 700; color: var(--muted); letter-spacing: 0.08em; margin: -0.15rem 0 0.5rem; }
-  .pk-side-nav { position: fixed; top: 50%; transform: translateY(-50%); z-index: 210; width: 42px; height: 60px; border: 1px solid var(--border2); border-radius: 10px; background: var(--surface1); color: var(--text); font-size: 2rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; box-shadow: 0 3px 14px rgba(0,0,0,0.45); transition: background 0.15s, color 0.15s, border-color 0.15s; }
+  .pk-side-nav { position: fixed; top: 46%; transform: translateY(-50%); z-index: 210; width: 30px; height: 52px; border: 1px solid var(--border2); border-radius: 8px; background: var(--surface1); color: var(--muted); font-size: 1.4rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; box-shadow: 0 3px 14px rgba(0,0,0,0.45); transition: background 0.15s, color 0.15s, border-color 0.15s; }
   .pk-side-nav:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pk-side-nav:not(:disabled) { color: var(--text); }
   .pk-side-nav:disabled { opacity: 0.22; cursor: default; }
   .pk-side-prev { left: 0.5rem; }
   .pk-side-next { right: 0.5rem; }
-  @media (min-width: 620px) { .pk-side-prev { left: calc(50% - 296px); } .pk-side-next { right: calc(50% - 296px); } }
+  @media (min-width: 620px) {
+    .pk-side-prev { left: calc(50% - 296px); }
+    .pk-side-next { right: calc(50% - 296px); }
+    /* room for a bigger target once there's room for one */
+    .pk-side-nav { width: 38px; height: 58px; font-size: 1.7rem; }
+  }
   @keyframes pkSlideNext { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
   @keyframes pkSlidePrev { from { opacity: 0; transform: translateX(-26px); } to { opacity: 1; transform: none; } }
   .due-modal.pk-slide-next { animation: pkSlideNext 0.17s ease; }
@@ -1604,11 +1610,16 @@
      an odds multiplier (e^0.55 = 1.73x), so the factors read as x-multipliers on
      a 1.00x baseline — same language as the MLB pick modal, and far friendlier
      than log-odds. */
-  .pm-back { position: fixed; inset: 0; background: rgba(0,0,0,0.66); backdrop-filter: blur(3px); z-index: 300; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 0.9rem; overflow-y: auto; }
+  /* align-items stays flex-start and .pm carries `margin: auto` instead. Auto
+     margins win over align-items and centre the card when it fits, but resolve
+     to zero when it doesn't — so a modal taller than the viewport stays
+     scrollable from its top edge rather than having its head clipped, which is
+     what a plain `align-items: center` does. */
+  .pm-back { position: fixed; inset: 0; background: rgba(0,0,0,0.66); backdrop-filter: blur(3px); z-index: 300; display: flex; align-items: flex-start; justify-content: center; padding: 1.5rem 0.9rem; overflow-y: auto; }
   /* position:relative is load-bearing — without it the absolutely-positioned
      close button resolves against .pm-back (position:fixed) and lands in the
      top-right corner of the viewport instead of the card. */
-  .pm { position: relative; background: var(--surface0); border: 1px solid var(--border2); border-radius: 14px; width: 100%; max-width: 520px; box-shadow: 0 18px 50px rgba(0,0,0,0.6); }
+  .pm { position: relative; margin: auto; background: var(--surface0); border: 1px solid var(--border2); border-radius: 14px; width: 100%; max-width: 520px; box-shadow: 0 18px 50px rgba(0,0,0,0.6); }
   /* the inherited .pk-side-nav sits at z-index 210, under this modal's backdrop */
   .pm-back .pk-side-nav { z-index: 320; }
   /* The inherited rule pins these to the viewport edge; .pm-back's
@@ -1616,12 +1627,23 @@
      crowding the card. Position them off the modal's own 520px width —
      260 half-width + 28 gap + 42 button = 330 — floored so a narrow viewport
      keeps them on screen. */
-  .pm-back .pk-side-prev { left: max(0.5rem, calc(50% - 330px)); }
-  .pm-back .pk-side-next { right: max(0.5rem, calc(50% - 330px)); }
-  @media (max-width: 700px) {
-    .pm-back .pk-side-nav { width: 34px; height: 48px; font-size: 1.5rem; }
-    .pm-back .pk-side-prev { left: 0.35rem; }
-    .pm-back .pk-side-next { right: 0.35rem; }
+  .pm-back .pk-side-prev { left: max(0.35rem, calc(50% - 322px)); }
+  .pm-back .pk-side-next { right: max(0.35rem, calc(50% - 322px)); }
+  /* On a phone there isn't room for the arrows to sit beside a full-width card,
+     and letting them overlap it is what made them feel cramped. Give them a
+     real gutter instead: the backdrop's side padding widens and the card
+     narrows to match, so nothing sits on top of anything. Runs to 619px so it
+     covers the whole range below the desktop rule rather than leaving a band
+     where the arrows sit on the card again. */
+  /* One block, not two. There was already a max-width:700px rule here scoping
+     .pm-back .pk-side-nav, which outranks a bare .pk-side-nav — so a second
+     query added above it silently lost and the arrows kept their old size.
+     Everything below the desktop breakpoint is set here, at one specificity. */
+  @media (max-width: 619px) {
+    .pm-back { padding: 1.1rem 2.6rem; }
+    .pm-back .pk-side-nav { width: 28px; height: 48px; font-size: 1.35rem; }
+    .pm-back .pk-side-prev { left: 0.3rem; }
+    .pm-back .pk-side-next { right: 0.3rem; }
   }
   .pm-x { position: absolute; top: 0.55rem; right: 0.7rem; background: none; border: none; color: var(--dim); font-size: 1.45rem; line-height: 1; cursor: pointer; z-index: 2; }
   .pm-x:hover { color: var(--text); }
@@ -3461,7 +3483,10 @@
     const cards = ms.slice(0, 40).map((m, i) => {
       const pk = priced[m.pid];
       const close = m.away <= 2;
-      return `<div class="pb-card p-${m.pos}"${pk ? ` onclick="openPick('${m.pid}')"` : ''}>
+      // Deliberately not clickable: the pick modal navigates the Picks deck,
+      // which is a different, filtered list — its arrows would walk players
+      // who aren't on this board and skip ones who are.
+      return `<div class="pb-card p-${m.pos}">
         <div class="pb-rank">${i + 1}</div>${faceHtml(m.pid, m.name)}
         <div class="pb-info">
           <div class="pb-nm">${m.name}${posBadge(m.pos)}</div>
