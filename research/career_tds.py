@@ -35,10 +35,11 @@ FIRST, LAST = 1999, 2025
 MIN_CAREER = 15          # below this nobody is chasing anything
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
-# Hundreds only, matching the MLB board's 100/200/300. Quarter-rungs (25/50/75)
-# were tried and dropped: they filled the board with "1 from 25", which is a
-# number nobody is chasing. 100 career touchdowns is the achievement.
-RUNGS = [100, 200]
+# Fifties. Hundreds alone were tried and left the board static — outside
+# McCaffrey nobody is within reach of 100, so week to week nothing moved.
+# Twenty-fives went the other way and filled it with "1 from 25", which nobody
+# is chasing. Fifty is the rung that is both an achievement and reachable.
+RUNGS = [50, 100, 150, 200]
 COLS = ["player_id", "player_display_name", "player_name", "season", "season_type",
         "team", "position", "rushing_tds", "receiving_tds"]
 
