@@ -2057,6 +2057,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12M6 21h12M7 3c0 4 5 5 5 9s-5 5-5 9M17 3c0 4-5 5-5 9s5 5 5 9"/></svg>
         <span><span class="nm-name">Due <span class="nm-new">NEW</span></span><span class="nm-desc">Red-zone work with nothing to show</span></span>
       </button>
+      <button class="nav-menu-item" data-nav="returners" onclick="switchNav('returners')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18c6-10 12-10 16 0M8 6l-3 3 3 3"/></svg>
+        <span><span class="nm-name">Returners <span class="nm-new">NEW</span></span><span class="nm-desc">Punt and kick return volume</span></span>
+      </button>
       <button class="nav-menu-item" data-nav="milestones" onclick="switchNav('milestones')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4M6 4h11l-2 3.5L17 11H6"/></svg>
         <span><span class="nm-name">Milestones <span class="nm-new">NEW</span></span><span class="nm-desc">Chasing 50 · 100 · 150 career TDs</span></span>
@@ -2236,6 +2240,27 @@
     </div>
     <div id="milestones-content"><div class="empty">Loading…</div></div>
   </div>
+  <div id="panel-returners" class="panel">
+    <div class="due-explainer" id="returners-explainer-toggle" onclick="toggleExplainer('returners')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Returners Works</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="returners-explainer-chevron">▶</span>
+      </div>
+      <div class="due-explainer-teaser">Who takes the punts and kickoffs — and whose matchup actually hands him more of them.</div>
+      <div class="due-explainer-body" id="returners-explainer-body" style="display:none">
+        <ul>
+          <li><b>Volume comes from the opponent.</b> They punt when their offence stalls and they kick off when they score, so a returner's workload is mostly a fact about the other team. Both mechanisms check out: punt returns track the opponent's actual punts at <b>r=+0.80</b>, kick returns track their points at <b>r=+0.38</b>.</li>
+          <li><b>But the two cancel.</b> This is the part worth knowing before betting a "high total means more returns" hunch. A weak opponent punts more and scores less; a strong one does the reverse. Across opponent-implied-total terciles a team sees <b>6.2 / 6.4 / 6.3</b> returns — flat. The matchup moves the <em>mix</em>, not the volume.</li>
+          <li><b>The mix is what matters.</b> Only because the two types don't pay the same: a punt return reaches the end zone about <b>1.5×</b> as often as a kick return. So a punt specialist facing a stalling offence is the one real angle here — and even then it's small, moving expected return-TD from roughly 2.5% to 2.6% a game.</li>
+          <li><b>Share is the bigger lever.</b> Once the opponent effects wash out, what separates returners is how much of his own team's work he takes. Usage is a genuinely stable role — split-half <b>r=0.56</b> on punts, <b>0.50</b> on kicks — so the share column is doing more than the matchup column.</li>
+          <li><b>Kick numbers are 2025 only.</b> The dynamic-kickoff change took the league return rate from 33% to <b>74.5%</b> in one off-season. Earlier seasons describe a game that no longer exists, so they're excluded rather than averaged in. Punt rates are stable and use five seasons.</li>
+          <li><b>Honest scale.</b> A return touchdown happens in about <b>6%</b> of games league-wide. This is a longshot board by nature — it ranks who is most likely to house one, not anyone who is likely to.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="returners-content"><div class="empty">Loading…</div></div>
+  </div>
   <div id="panel-pairs" class="panel">
     <div class="due-explainer" id="pairs-explainer-toggle" onclick="toggleExplainer('pairs')" aria-expanded="false">
       <div class="due-explainer-head">
@@ -2316,8 +2341,8 @@
   function closeSportMenu() { document.getElementById('sport-menu')?.classList.remove('open'); document.getElementById('sport-switch-btn')?.classList.remove('open'); }
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch')) closeSportMenu(); });
 
-  const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs', 'birthdays', 'due', 'milestones']; // tools added here as they ship
-  const PAGE_TITLES = { home: "Ron's Tud Tool", stats: "Stats · Ron's Tud Tool", recap: "Recap · Ron's Tud Tool", schedule: "Schedule · Ron's Tud Tool", pairs: "Pairs · Ron's Tud Tool", due: "Due · Ron's Tud Tool", milestones: "Milestones · Ron's Tud Tool" };
+  const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs', 'birthdays', 'due', 'milestones', 'returners']; // tools added here as they ship
+  const PAGE_TITLES = { home: "Ron's Tud Tool", stats: "Stats · Ron's Tud Tool", recap: "Recap · Ron's Tud Tool", schedule: "Schedule · Ron's Tud Tool", pairs: "Pairs · Ron's Tud Tool", due: "Due · Ron's Tud Tool", milestones: "Milestones · Ron's Tud Tool", returners: "Returners · Ron's Tud Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
     activeNav = nav;
@@ -3206,7 +3231,7 @@
     </div>`;
   }
 
-  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); else if (nav === 'birthdays') renderBirthdays(); else if (nav === 'due') renderDue(); else if (nav === 'milestones') renderMilestones(); }
+  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); else if (nav === 'birthdays') renderBirthdays(); else if (nav === 'due') renderDue(); else if (nav === 'milestones') renderMilestones(); else if (nav === 'returners') renderReturners(); }
   // ESPN team-logo CDN (transparent PNGs). nflverse abbrs are ESPN slugs
   // lowercased, save two: LA(Rams)->lar, WAS->wsh.
   const LOGO_SLUG = { LA: 'lar', WAS: 'wsh' };
@@ -3597,6 +3622,67 @@ let pairStacks = false;
   }
   const PAIR_SIZE_NAMES = { 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' };
   const PAIR_RENDER_LIMIT = 200;
+  // ── RETURNERS ──────────────────────────────────────────────────────
+  // Expected returns = his share of his team's work x what the matchup hands
+  // that team. The matchup part barely moves the total (a weak opponent punts
+  // more and scores less, a strong one the reverse, and the two cancel) — it
+  // moves the MIX, which matters only because a punt return houses it ~1.5x as
+  // often as a kick return.
+  function renderReturners() {
+    const el = document.getElementById('returners-content'); if (!el) return;
+    if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
+    if (nflData === 'error') { el.innerHTML = `<div class="empty">Couldn't load NFL data. <a href="javascript:void(0)" onclick="loadNfl()">Retry</a></div>`; return; }
+    const R = nflData.returners || [], M = nflData.returnModel;
+    if (!R.length || !M) { el.innerHTML = '<div class="empty">No return data yet.</div>'; return; }
+
+    // this week's slate, so each returner gets his actual opponent
+    const w = firstUpcomingWeek();
+    const { byWeek } = scheduleWeeks();
+    const ctx = {};
+    for (const g of (byWeek[w] || [])) {
+      if (g.total == null) continue;
+      const half = g.total / 2, edge = (g.spread ?? 0) / 2;
+      // opp implied = what the OTHER team is expected to score
+      ctx[g.home] = { opp: g.away, oppImp: half - edge, home: 1, kick: g.gametime };
+      ctx[g.away] = { opp: g.home, oppImp: half + edge, home: 0, kick: g.gametime };
+    }
+    const expK = (oi) => Math.max(0, M.kick_fit.a + M.kick_fit.b * oi);
+    const expP = (oi) => Math.max(0, M.punt_fit.a + M.punt_fit.b * oi);
+
+    const rows = R.filter(r => ctx[r.team]).map(r => {
+      const c = ctx[r.team];
+      const kr = expK(c.oppImp) * r.krShare;
+      const pr = expP(c.oppImp) * r.prShare;
+      return { ...r, ...c, expK: kr, expP: pr, exp: kr + pr,
+               tdp: kr * M.kick_td_rate + pr * M.punt_td_rate };
+    }).filter(r => r.exp >= 0.5).sort((a, b) => b.tdp - a.tdp);
+    if (!rows.length) { el.innerHTML = '<div class="empty">No returners on this week\'s slate yet — fills in once the games have lines.</div>'; return; }
+
+    const meta = `<div class="pt-meta">Week ${w} returners by <b>expected return touchdown</b> — his share of his team's work times what the matchup hands them.
+      A punt return houses it <b>${(M.punt_td_rate / M.kick_td_rate).toFixed(1)}×</b> as often as a kick return, which is the only reason the matchup matters:
+      a weak opponent punts more and scores less, so the <em>mix</em> shifts even though the <em>total</em> barely does.
+      Kick rates are ${M.kick_seasons.join('/')} only — the dynamic-kickoff change made earlier seasons a different game.</div>`;
+    const cards = rows.slice(0, 40).map((r, i) => `
+      <div class="pb-card">
+        <div class="pb-rank">${i + 1}</div>${faceHtml(r.pid, r.name)}
+        <div class="pb-info">
+          <div class="pb-nm">${r.name}${r.prTd + r.krTd ? `<span class="pb-flag" title="Return touchdowns last season">${r.prTd + r.krTd} RET TD</span>` : ''}</div>
+          <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
+            · <b>${Math.round(r.prShare * 100)}%</b> punts · <b>${Math.round(r.krShare * 100)}%</b> kicks</div>
+        </div>
+        <div class="pb-facts">
+          <span class="pb-f" title="Expected punt returns this week — driven by how much the opponent is likely to punt"><b>${r.expP.toFixed(1)}</b> punt</span>
+          <span class="pb-f" title="Expected kick returns this week — driven by how much the opponent is likely to score"><b>${r.expK.toFixed(1)}</b> kick</span>
+          <span class="pb-f" title="Opponent's implied team total"><b>${r.oppImp.toFixed(1)}</b> opp imp</span>
+        </div>
+        <div class="pb-price">
+          <span class="pb-odds${r.tdp < 0.5 ? ' dog' : ''}">${pbOdds(r.tdp)}</span>
+          <span class="pb-pct">${(r.tdp * 100).toFixed(1)}% ret TD</span>
+        </div>
+      </div>`).join('');
+    el.innerHTML = meta + `<div class="pb-list">${cards}</div>`;
+  }
+
   // ── MILESTONES ─────────────────────────────────────────────────────
   // Career scoring touchdowns against the next round number. A watch list, not
   // a signal — being one short doesn't make the end zone any closer this week.

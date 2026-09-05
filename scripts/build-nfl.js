@@ -133,6 +133,42 @@ async function main() {
     }
   }
 
+  // ── Returners: who takes punts and kickoffs, from the same pbp pass ────
+  // return_team is authoritative for both types and posteam is NOT — on a punt
+  // posteam is the punting side, on a kickoff nflverse assigns it to the
+  // RECEIVING side. Reading volume off posteam flips the punt/opponent-punts
+  // correlation from +0.80 to -0.63.
+  const retAgg = {};   // pid -> { name, team, pr, kr, prTd, krTd, games:Set }
+  const teamRet = {};  // team -> { pr, kr }
+  for (const r of prows) {
+    const isPunt = P(r, 'punt_attempt') === '1', isKick = P(r, 'kickoff_attempt') === '1';
+    if (!isPunt && !isKick) continue;
+    const pid = isPunt ? P(r, 'punt_returner_player_id') : P(r, 'kickoff_returner_player_id');
+    if (!pid) continue;                       // fair catch, touchback, out of bounds
+    const team = P(r, 'return_team');
+    const name = cleanName(isPunt ? P(r, 'punt_returner_player_name') : P(r, 'kickoff_returner_player_name'));
+    const a = retAgg[pid] ??= { name, team, pr: 0, kr: 0, prTd: 0, krTd: 0, games: new Set() };
+    a.team = team || a.team;
+    a.games.add(P(r, 'game_id'));
+    const td = P(r, 'return_touchdown') === '1';
+    if (isPunt) { a.pr++; if (td) a.prTd++; } else { a.kr++; if (td) a.krTd++; }
+    if (team) { const t = teamRet[team] ??= { pr: 0, kr: 0 }; if (isPunt) t.pr++; else t.kr++; }
+  }
+  const returners = Object.entries(retAgg)
+    .map(([pid, a]) => ({
+      pid, name: a.name, team: a.team,
+      pr: a.pr, kr: a.kr, prTd: a.prTd, krTd: a.krTd, games: a.games.size,
+      // Share of his team's returns — the part of expected volume that is HIS
+      // rather than the matchup's, and the thing that actually separates
+      // returners once the opponent effects cancel out.
+      prShare: teamRet[a.team]?.pr ? +(a.pr / teamRet[a.team].pr).toFixed(3) : 0,
+      krShare: teamRet[a.team]?.kr ? +(a.kr / teamRet[a.team].kr).toFixed(3) : 0,
+    }))
+    .filter(r => r.pr + r.kr >= 3)
+    .sort((a, b) => (b.pr + b.kr) - (a.pr + a.kr));
+  console.log(`  returners: ${returners.length} with 3+ returns `
+    + `(${returners.reduce((n, r) => n + r.prTd + r.krTd, 0)} return TDs)`);
+
   const weeks = Object.keys(tdRecap).map(Number).sort((a, b) => a - b);
 
   // ── 3) Season TD + opportunity leaders (weekly player stats) ───────────
@@ -289,6 +325,10 @@ async function main() {
   // must not carry its own copy of these numbers.
   const parlay = JSON.parse(
     fs.readFileSync(new URL('../research/pair_correlation.json', import.meta.url), 'utf8'));
+  // Return-game constants: TD rates by type and how volume moves with the
+  // opponent's implied total. Measured in research/returners.py.
+  const returnModel = JSON.parse(
+    fs.readFileSync(new URL('../research/returners_model.json', import.meta.url), 'utf8'));
 
   // Career touchdowns for the Milestones board. research/career_tds.py walks
   // nflverse back to 1999 and is re-run when a season completes; anything since
@@ -334,6 +374,7 @@ async function main() {
   for (const p of (picks?.picks ?? [])) referenced.add(p.pid);
   for (const b of (picks?.birthdays ?? [])) referenced.add(b.pid);
   for (const m of milestones) referenced.add(m.pid);
+  for (const r of returners) referenced.add(r.pid);
   // Passers who never scored themselves aren't in tdLeaders or the recap's
   // scorer rows, so the Stacks view has no name for them without this.
   const passerNames = {};
@@ -363,7 +404,7 @@ async function main() {
     historySeason: HISTORY_SEASON, upcomingSeason: UPCOMING_SEASON,
     schedule, results, tdRecap, tdRecapWeeks: weeks, tdLeaders, headshots: shots,
     teamStats, teamScorers, teamQB,
-    picks: picks ? { ...picks, shots: undefined } : picks, picksHistory, parlay, milestones, passerNames, connPos,
+    picks: picks ? { ...picks, shots: undefined } : picks, picksHistory, parlay, milestones, passerNames, connPos, returners, returnModel,
   };
   fs.writeFileSync(new URL('../nfl/data.json', import.meta.url), JSON.stringify(output));
   console.log(`Wrote nfl/data.json — ${schedule.length} ${UPCOMING_SEASON} games, ${tdTotal} TDs across ${weeks.length} weeks, ${tdLeaders.length} TD leaders, ${picks?.picks.length ?? 0} picks.`);
