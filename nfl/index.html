@@ -2257,9 +2257,8 @@
           <li><b>"But books charge me MORE for same-game legs."</b> They do — and that isn't a contradiction, because a worse <em>price</em> and a higher <em>probability</em> are different things. Three reasons a book shortens these that have nothing to do with TD scorers being positively correlated: same-game parlays carry the highest hold on the board; a book's correlation engine is generic across every market in the game, and most same-game legs (passing yards + receiving yards, team total + props) genuinely <em>are</em> positively correlated; and it has to defend against the one combination that really is — a quarterback and his own receiver. So a same-team TD double is bad twice over: <b>less likely</b> than multiplying suggests, and <b>priced shorter</b> than multiplying suggests. That gap is the reason to show it.</li>
           <li><b>Why we trust the number.</b> The comparison that matters doesn't depend on our model being perfectly calibrated: at the <em>same</em> naive price, same-team pairs hit about 13% less often than opposing-team pairs. And the opposing-team control lands at 1.02× — when legs genuinely are independent, our product is right, which is what says the same-team gap is real rather than a pricing error. It holds for every combination: two pass-catchers 0.89×, back plus pass-catcher 0.92×, two backs 0.83× — cannibalisation wins even where two receivers share a quarterback.</li>
           <li><b>What this is not.</b> A fair, no-vig number is not a claim you can beat the book. It tells you what the bet is worth, so you can see how far the offered price sits from it.</li>
-          <li><b>QB stacks.</b> The <span class="sgp-badge">🎯 QB stacks</span> chip switches to a different relation entirely: every quarterback-to-receiver touchdown connection, ranked by how many he actually threw him. It isn't a filter on the pairs above, and it can't be — only 11 quarterbacks scored at all last season, because a QB's own touchdown is a rushing one, while 67 threw 854 scoring passes. Filtering the co-occurrence groups for QB+receiver would have surfaced almost nothing and none of it would have been a stack.</li>
-          <li><b>They price the opposite way.</b> A stack's legs are the <em>same event</em> — the receiving touchdown IS the passing touchdown — so where two teammates who both score come in <b>11% below</b> the naive product, a quarterback and his receiver come in <b>33% above</b> it. Same tool, opposite sign, and the reason is structural rather than statistical: teammates compete for a fixed pool of touchdowns, a passer and his target share one.</li>
-          <li><b>The one positive pair.</b> A quarterback and his own receiver run <em>above</em> independence — a receiving touchdown <em>is</em> the passing touchdown, the same event rather than a competing one. That stack isn't priced here yet; it needs the Pass TD market as a leg.</li>
+          <li><b>QB → Receiver.</b> That chip switches to a different relation entirely: every quarterback-to-receiver touchdown connection, ranked by how many he actually threw him. <em>Receiver</em> means whoever caught it — WRs are 38% of these, tight ends 14% and running backs 11%, so calling it "QB→WR" would leave out a quarter of them. It isn't a filter on the pairs above, and it can't be — only 11 quarterbacks scored at all last season, because a QB's own touchdown is a rushing one, while 67 threw 854 scoring passes. Filtering the co-occurrence groups for QB+receiver would have surfaced almost nothing, and what it did surface would be "the QB ran one in and, separately, someone caught one" — not a connection at all.</li>
+          <li><b>They price the opposite way.</b> The two legs are the <em>same event</em> — the receiving touchdown IS the passing touchdown — so where two teammates who both score come in <b>11% below</b> the naive product, a quarterback and his receiver come in <b>33% above</b> it. Same tool, opposite sign, and the reason is structural rather than statistical: teammates compete for a fixed pool of touchdowns, a passer and his target share one.</li>
           <li><b>Search.</b> Type names (comma-separated) to require specific players in every group.</li>
         </ul>
       </div>
@@ -2284,7 +2283,7 @@
       <button class="due-filter-chip mode-chip" data-basis="last" onclick="setPairBasis('last')">Last TD</button>
       <button class="due-filter-chip mode-chip" data-basis="multi" onclick="setPairBasis('multi')">2+ TD</button>
       <button class="due-filter-chip" id="pairs-sgp-chip" onclick="togglePairSgp()" title="Only groups with a same-team stack (they share a game)">🏈 SGP only</button>
-      <button class="due-filter-chip" id="pairs-stack-chip" onclick="togglePairStacks()" title="Quarterback to receiver: who actually threw whom a touchdown">🎯 QB stacks</button>
+      <button class="due-filter-chip" id="pairs-stack-chip" onclick="togglePairStacks()" title="Every quarterback-to-receiver touchdown connection — WRs, tight ends and backs alike">🎯 QB → Receiver</button>
     </div>
     <div class="result-meta" id="pairs-meta"></div>
     <div id="cards"><div class="empty">Loading…</div></div>
@@ -3408,7 +3407,7 @@
   // still clear the minimum co-occurrence, so quints stay cheap. Computed
   // client-side from tdRecap (small dataset) and memoized per window+basis.
   let activePairSize = 2, pairGran = 'week', pairBasis = 'all', pairSgpOnly = false, pairTerms = [];
-// Stacks is its own relation, not a filter on the co-occurrence groups. Only 11
+// QB -> receiver is its own relation, not a filter on the co-occurrence groups. Only 11
 // quarterbacks appear as SCORERS all season (a QB's own touchdown is a rushing
 // one), while 67 threw 854 scoring passes — so filtering the existing pairs for
 // QB+receiver would surface almost nothing, and what it did surface wouldn't be
@@ -3678,7 +3677,7 @@ let pairStacks = false;
     let list = duos;
     if (pairTerms.length) list = list.filter(d =>
       pairTerms.some(t => (d.qbName || '').toLowerCase().includes(t) || (d.recName || '').toLowerCase().includes(t)));
-    meta.textContent = `${list.length.toLocaleString()} quarterback-receiver connections · ${nflData.historySeason} · by touchdowns thrown`
+    meta.textContent = `${list.length.toLocaleString()} QB → receiver connections · ${nflData.historySeason} · by touchdowns thrown · WR, TE and RB`
       + (pairTerms.length ? ' · ' + pairTerms.join(' + ') : '');
     if (!list.length) { cards.innerHTML = '<div class="empty">No connections match.</div>'; return; }
     const max = list[0].tds;
@@ -3696,15 +3695,19 @@ let pairStacks = false;
           <span class="pl-gap pl-better" title="A receiving TD is the passing TD — the same event, so these legs run above independence rather than competing.">+${((rho - 1) * 100).toFixed(0)}%</span>
         </div>`;
       }
+      // Show what he actually is. The point of not calling this "QB->WR" is
+      // that tight ends and backs catch a quarter of these.
+      const posOf = nflData?.connPos || {};
       const chip = (pid, name, tag) => `<div class="player-chip">${chipFace(pid, name)}
-        <span class="player-name">${compactName(name || pid)}</span><span class="player-hr">${tag}</span></div>`;
+        <span class="player-name">${compactName(name || pid)}</span>${
+          tag ? `<span class="posb ${tag}">${tag}</span>` : ''}</div>`;
       return `<div class="card${cls}">
         <div class="card-top-row"><div class="card-left">
           <div class="rank-badge">${i + 1}</div>
           <div class="count-block"><span class="count-num">${d.tds}</span><span class="count-label">TDS</span></div>
-          <span class="sgp-badge">STACK·${d.team}</span>
+          <span class="sgp-badge">${d.team}</span>
         </div><div class="fresh-badge">${d.count} wk${d.count === 1 ? '' : 's'}</div></div>
-        <div class="players">${chip(d.qb, d.qbName, 'QB')}${chip(d.rec, d.recName, 'REC')}</div>
+        <div class="players">${chip(d.qb, d.qbName, 'QB')}${chip(d.rec, d.recName, posOf[d.rec] || '')}</div>
         ${priceRow}
       </div>`;
     }).join('');

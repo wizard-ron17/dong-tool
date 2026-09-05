@@ -339,6 +339,14 @@ async function main() {
   const passerNames = {};
   for (const wk of weeks) for (const t of tdRecap[wk])
     if (t.passerPid && t.passer && !passerNames[t.passerPid]) passerNames[t.passerPid] = t.passer;
+  // Positions for everyone in a QB->receiver connection. tdLeaders only carries
+  // the top 50 per metric, so reading positions off it left 37% of receivers
+  // unlabelled — posOf comes from the full weekly stats and covers them.
+  const connPos = {};
+  for (const wk of weeks) for (const t of tdRecap[wk]) {
+    if (t.type !== 'rec' || !t.passerPid) continue;
+    if (posOf[t.pid]) connPos[t.pid] = posOf[t.pid];
+  }
 
   const shots = {}; for (const pid of referenced) if (headshots[pid]) shots[pid] = headshots[pid];
   // picks.js carries players.csv headshots for the board — better coverage than
@@ -355,7 +363,7 @@ async function main() {
     historySeason: HISTORY_SEASON, upcomingSeason: UPCOMING_SEASON,
     schedule, results, tdRecap, tdRecapWeeks: weeks, tdLeaders, headshots: shots,
     teamStats, teamScorers, teamQB,
-    picks: picks ? { ...picks, shots: undefined } : picks, picksHistory, parlay, milestones, passerNames,
+    picks: picks ? { ...picks, shots: undefined } : picks, picksHistory, parlay, milestones, passerNames, connPos,
   };
   fs.writeFileSync(new URL('../nfl/data.json', import.meta.url), JSON.stringify(output));
   console.log(`Wrote nfl/data.json — ${schedule.length} ${UPCOMING_SEASON} games, ${tdTotal} TDs across ${weeks.length} weeks, ${tdLeaders.length} TD leaders, ${picks?.picks.length ?? 0} picks.`);
