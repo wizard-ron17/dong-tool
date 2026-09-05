@@ -320,6 +320,16 @@ async function main() {
   }
   console.log(`  team profiles: ${Object.keys(teamStats).length} teams, ${Object.keys(teamQB).length} QBs`);
 
+  // Correlation multipliers for pricing multi-leg parlays in the Pairs tool.
+  // Measured in research/pair_correlation.py and shipped verbatim — the tool
+  // must not carry its own copy of these numbers.
+  const parlay = JSON.parse(
+    fs.readFileSync(new URL('../research/pair_correlation.json', import.meta.url), 'utf8'));
+  // Return-game constants: TD rates by type and how volume moves with the
+  // opponent's implied total. Measured in research/returners.py.
+  const returnModel = JSON.parse(
+    fs.readFileSync(new URL('../research/returners_model.json', import.meta.url), 'utf8'));
+
   // ── Fold the return game into the Picks prices ────────────────────────
   // A return touchdown pays as an ANYTIME touchdown, so a returner's real
   // anytime chance is his offense and his return chance combined. Without this
@@ -358,15 +368,6 @@ async function main() {
       + (biggest ? ` (largest: ${biggest.name} +${(biggest.pRet * 100).toFixed(1)}%)` : ''));
   }
 
-  // Correlation multipliers for pricing multi-leg parlays in the Pairs tool.
-  // Measured in research/pair_correlation.py and shipped verbatim — the tool
-  // must not carry its own copy of these numbers.
-  const parlay = JSON.parse(
-    fs.readFileSync(new URL('../research/pair_correlation.json', import.meta.url), 'utf8'));
-  // Return-game constants: TD rates by type and how volume moves with the
-  // opponent's implied total. Measured in research/returners.py.
-  const returnModel = JSON.parse(
-    fs.readFileSync(new URL('../research/returners_model.json', import.meta.url), 'utf8'));
 
   // Career touchdowns for the Milestones board. research/career_tds.py walks
   // nflverse back to 1999 and is re-run when a season completes; anything since
