@@ -1365,6 +1365,13 @@
   .hm-tile.heat-cool b { color: #4fb6d6; }
   :root[data-theme="light"] .hm-tile.heat-cool b { color: #1f8fbf; }
   .hm-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+  .hm-chip { font-size: 0.6rem; font-weight: 600; color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    border-radius: 4px; padding: 0.08rem 0.34rem; }
+  .hm-glogo { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
+  .hm-cols > .hm-col > .hm-card { animation: none; }
+  @media (max-width: 720px) { .hm-cols { flex-direction: column; } }
   .hm-row { display: flex; align-items: center; gap: 0.45rem; padding: 0.32rem 0; border-bottom: 1px solid var(--border); font-size: 0.72rem; min-width: 0; }
   .hm-row:last-of-type { border-bottom: none; }
   .hm-rank { color: var(--muted); font-weight: 700; width: 1rem; flex-shrink: 0; font-size: 0.62rem; text-align: center; }
@@ -3261,6 +3268,12 @@
   // Specific badge per TD subtype; color class follows the top-level type.
   const TD_BADGE = { rush: 'RUSH', rec: 'REC', kick: 'KICK RET', punt: 'PUNT RET', pick6: 'PICK-6', fumble: 'FUM RET', blk: 'BLK', def: 'DEF' };
   const TD_BCLASS = { rush: 'rc-rush', rec: 'rc-rec', kick: 'rc-st', punt: 'rc-st', pick6: 'rc-def', fumble: 'rc-def', blk: 'rc-def', def: 'rc-def' };
+  // "Christian McCaffrey" -> "C. McCaffrey". Home-page rows are narrow and a
+  // full name pushes the number off the end.
+  const compactName = (n) => {
+    const p = String(n || '').trim().split(/\s+/);
+    return p.length < 2 ? (n || '') : `${p[0][0]}. ${p.slice(1).join(' ')}`;
+  };
   function faceHtml(pid, name) {
     const s = nflData.headshots[pid];
     return s ? `<img class="rc-photo" src="${s}" alt="" loading="lazy">` : `<div class="rc-photo rc-noface">${(name || '?').replace(/^[A-Z]\.\s*/, '')[0] || '?'}</div>`;
@@ -3677,26 +3690,104 @@
     const el = dataGate('home-content'); if (!el) return;
     const w = firstUpcomingWeek();
     const { byWeek } = scheduleWeeks();
-    const upcoming = (byWeek[w] || []).slice().sort((a, b) => (a.gameday || '').localeCompare(b.gameday || '') || (a.gametime || '').localeCompare(b.gametime || '')).slice(0, 4);
-    const leaders = (nflData.tdLeaders || []).slice(0, 5);
-    const totalTds = (nflData.tdRecapWeeks || []).reduce((s, wk) => s + (nflData.tdRecap[wk] || []).length, 0);
+    const games = (byWeek[w] || []).slice().sort((a, b) =>
+      (a.gameday || '').localeCompare(b.gameday || '') || (a.gametime || '').localeCompare(b.gametime || ''));
+    const P = nflData.picks;
+    const priced = P?.week === w ? (P.picks || []) : [];
+
+    // ── Last completed week ───────────────────────────────────────────
+    const weeks = nflData.tdRecapWeeks || [];
+    const lastWk = weeks[weeks.length - 1];
+    const lastRows = lastWk != null ? (nflData.tdRecap[lastWk] || []) : [];
+    const lastGames = new Set(lastRows.map(t => t.gameId)).size;
+    const scorers = {};
+    for (const t of lastRows) if (t.pid) (scorers[t.pid] ??= { n: t.player, c: 0 }).c++;
+    const multi = Object.values(scorers).filter(x => x.c > 1).sort((a, b) => b.c - a.c).slice(0, 4);
+
+    // ── Picks ─────────────────────────────────────────────────────────
+    const topPicks = [...priced].sort((a, b) => b.p - a.p).slice(0, 4).map(r => `
+      <div class="hm-row">${faceHtml(r.pid, r.name)}
+        <span class="hm-name">${r.name}<span class="hm-subtle"> · ${r.pos} ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</span></span>
+        <span class="hm-score ${r.p >= 0.5 ? 'hot' : 'warm'}">${pbOdds(r.p)}</span></div>`).join('');
+    const topPass = [...priced].filter(r => r.pass).sort((a, b) => b.pass.p['2'] - a.pass.p['2']).slice(0, 2).map(r => `
+      <div class="hm-row">${faceHtml(r.pid, r.name)}
+        <span class="hm-name">${r.name}<span class="hm-subtle"> · ${r.team} · ${r.pass.proj.toFixed(1)} proj</span></span>
+        <span class="hm-score ${r.pass.p['2'] >= 0.5 ? 'hot' : 'warm'}">${pbOdds(r.pass.p['2'])}</span></div>`).join('');
+
+    // ── Due: red-zone role, no recent score ───────────────────────────
+    const lastTd = {};
+    weeks.forEach((wk, i) => { for (const t of nflData.tdRecap[wk] || []) if (t.pid) lastTd[t.pid] = i; });
+    const dueRows = priced.filter(r => (r.f?.rz ?? 0) >= 1)
+      .filter(r => { const i = lastTd[r.pid]; return i == null || (weeks.length - 1 - i) >= 2; })
+      .sort((a, b) => b.f.rz - a.f.rz).slice(0, 3).map(r => `
+      <div class="hm-row">${faceHtml(r.pid, r.name)}
+        <span class="hm-name">${r.name}<span class="hm-subtle"> · ${r.team}${lastTd[r.pid] == null ? '' : ` · ${weeks.length - 1 - lastTd[r.pid]} wks`}</span></span>
+        <span class="hm-score hot">${r.f.rz.toFixed(1)}<span class="hm-subtle" style="font-size:0.55rem"> rz/g</span></span></div>`).join('');
+
+    // ── Milestones ────────────────────────────────────────────────────
+    const msRows = (nflData.milestones || []).slice(0, 3).map(m => `
+      <div class="hm-row">${faceHtml(m.pid, m.name)}
+        <span class="hm-name">${m.name}<span class="hm-subtle"> · ${m.team} · ${m.career} career</span></span>
+        <span class="hm-score ${m.away <= 3 ? 'hot' : 'warm'}">${m.away}<span class="hm-subtle" style="font-size:0.55rem"> from ${m.next}</span></span></div>`).join('');
+
+    // ── Schedule: read-only rows. The full card carries a chevron and an
+    //    expand handler that only works inside the schedule panel, so using it
+    //    here produced controls that looked live and did nothing.
+    const gameRows = games.slice(0, 5).map(g => `
+      <div class="hm-row">
+        <img class="hm-glogo" src="${teamLogo(g.away)}" alt="" loading="lazy">
+        <span class="hm-name">${g.away} <span class="hm-subtle">@</span> ${g.home}</span>
+        <img class="hm-glogo" src="${teamLogo(g.home)}" alt="" loading="lazy">
+        <span class="hm-score" style="font-size:0.68rem;color:var(--muted)">${g.gametime ? g.gametime.slice(0, 5) : ''}</span></div>`).join('');
+
+    // ── Leaders, pairs, birthdays ─────────────────────────────────────
+    const leaders = (nflData.tdLeaders || []).slice(0, 4).map((l, i) => `
+      <div class="hm-row"><span class="hm-subtle" style="width:0.9rem">${i + 1}</span>${faceHtml(l.pid, l.name)}
+        <span class="hm-name">${l.name}<span class="hm-subtle"> · ${l.pos} ${l.team}</span></span>
+        <span class="hm-score hot">${l.tds}<span class="hm-subtle" style="font-size:0.55rem"> TD</span></span></div>`).join('');
+    if (!scorerIdx) buildScorerIdx();
+    const duos = (computeAllGroups('week', 'all')[2] || []).slice(0, 3).map(g => `
+      <div class="hm-row">
+        <span class="hm-name">${g.pids.map(p => compactName(scorerIdx[p]?.name || p)).join(' + ')}</span>
+        <span class="hm-score warm">${g.count}<span class="hm-subtle" style="font-size:0.55rem"> wks</span></span></div>`).join('');
+    // birthdays carry `turning` and `off` (days from kickoff), not age/days —
+    // guessing the field names is what put "undefinedd" on the page.
+    const bdays = (P?.birthdays || []).slice(0, 3).map(b => `
+      <div class="hm-row">${faceHtml(b.pid, b.name)}
+        <span class="hm-name">${b.name}<span class="hm-subtle"> · ${b.team}${b.turning != null ? ` · turns ${b.turning}` : ''}</span></span>
+        <span class="hm-score ${b.off === 0 ? 'hot' : 'warm'}">${b.off === 0 ? 'game day' : `${Math.abs(b.off)}d`}</span></div>`).join('');
+
+    const card = (nav, title, link, body, empty) =>
+      `<div class="hm-card" onclick="switchNav('${nav}')">
+        <div class="hm-head"><span class="hm-title">${title}</span><span class="hm-link">${link} →</span></div>
+        ${body || `<div class="hm-subtle">${empty}</div>`}
+      </div>`;
+
     el.innerHTML = `
-      <div class="hm-stats">
-        <div class="hm-stat"><div class="hm-big">${totalTds}</div><div class="hm-lbl">${nflData.historySeason} TDs</div></div>
-        <div class="hm-stat"><div class="hm-big">${(nflData.tdRecapWeeks || []).length}</div><div class="hm-lbl">weeks recapped</div></div>
-        <div class="hm-stat"><div class="hm-big">${(byWeek[w] || []).length}</div><div class="hm-lbl">Week ${w} games</div></div>
-      </div>
-      <div class="hm-sec">
-        <div class="hm-sec-head"><span>Week ${w} kickoff</span><a href="javascript:void(0)" onclick="switchNav('schedule')">Full schedule →</a></div>
-        <div class="sc-list">${upcoming.map(gameRow).join('')}</div>
-      </div>
-      <div class="hm-sec">
-        <div class="hm-sec-head"><span>${nflData.historySeason} TD leaders</span><a href="javascript:void(0)" onclick="switchNav('stats')">All leaders →</a></div>
-        <div class="rc-list">${leaders.map((l, i) => `<div class="rc-card"><span class="st-rank">${i + 1}</span>${faceHtml(l.pid, l.name)}
-          <div class="rc-info"><div class="rc-name">${l.name}</div><div class="rc-sub">${l.pos} · ${l.team}</div></div>
-          <div class="rc-detail"><span class="st-td">${l.tds}</span><span class="rc-yd">TD</span></div></div>`).join('')}</div>
+      <div class="hm-cols">
+        <div class="hm-col">
+          ${card('recap', `Week ${lastWk ?? ''} Recap`, 'Recap', lastRows.length ? `
+            <div class="hm-tiles">
+              <div class="hm-tile"><b>${lastRows.length}</b><span>Touchdowns</span></div>
+              <div class="hm-tile"><b>${lastGames}</b><span>Games</span></div>
+              <div class="hm-tile"><b>${lastGames ? (lastRows.length / lastGames).toFixed(1) : '—'}</b><span>TD / Game</span></div>
+            </div>
+            <div class="hm-chips">${multi.map(m => `<span class="hm-chip">${compactName(m.n)} ×${m.c}</span>`).join('') || '<span class="hm-subtle">No multi-TD games</span>'}</div>` : '',
+            'No weeks recapped yet.')}
+          ${card('picks', 'Picks', 'Picks', topPicks + (topPass ? `<div class="hm-subhead">Pass TD</div>${topPass}` : ''),
+            'The board fills in once the slate has lines.')}
+          ${card('due', 'Due', 'Due', dueRows, 'Nobody with a red-zone role is in a drought.')}
+          ${card('milestones', 'Milestone Watch 🏆', 'Milestones', msRows, 'No chases within reach.')}
+        </div>
+        <div class="hm-col">
+          ${card('schedule', `Week ${w} · ${games.length} Games`, 'Schedule', gameRows, 'No games scheduled.')}
+          ${card('stats', `${nflData.historySeason} TD Leaders`, 'Stats', leaders, 'No leaders yet.')}
+          ${card('pairs', 'Top Pairings', 'Pairs', duos, 'No co-occurrences yet.')}
+          ${card('birthdays', 'Birthdays 🎂', 'Birthdays', bdays, 'Nobody celebrating on this slate.')}
+        </div>
       </div>`;
   }
+
   function currentPath() { return activeNav === 'home' ? APP_BASE + '/' : APP_BASE + '/' + activeNav; }
   function commitRoute() { const p = currentPath(); if (location.pathname !== p) history.pushState(null, '', p); }
   function parsePath() { const rel = location.pathname.startsWith(APP_BASE) ? location.pathname.slice(APP_BASE.length) : location.pathname; return rel.replace(/^\/+|\/+$/g, '').split('/')[0] || 'home'; }
