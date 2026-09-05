@@ -255,7 +255,7 @@ async function main() {
   // What each team scored and allowed last season, by position — the
   // team-vs-team view. Built from the recap we already have rather than a new
   // fetch. Reliability varies enormously across these numbers and the UI says
-  // so: what a team SCORES carries real season-to-season signal, what a defence
+  // so: what a team SCORES carries real season-to-season signal, what a defense
   // ALLOWS by position is close to noise (split-half r of -0.06 for WRs and
   // -0.03 for TEs, against +0.83 for a player's own snap share). That is why
   // the Picks model has no opponent input at all.
@@ -319,6 +319,44 @@ async function main() {
     }
   }
   console.log(`  team profiles: ${Object.keys(teamStats).length} teams, ${Object.keys(teamQB).length} QBs`);
+
+  // ── Fold the return game into the Picks prices ────────────────────────
+  // A return touchdown pays as an ANYTIME touchdown, so a returner's real
+  // anytime chance is his offense and his return chance combined. Without this
+  // the board understates every return man — and Picks is where people look
+  // first, so it has to be the number that's right there rather than only on
+  // the Returners board.
+  if (picks?.picks && returners.length) {
+    const retIdx = {}; for (const r of returners) retIdx[r.pid] = r;
+    const teamCtx = {};
+    for (const g of schedule) {
+      if (g.week !== picks.week || g.total == null) continue;
+      const half = g.total / 2, edge = (g.spread ?? 0) / 2;
+      teamCtx[g.home] = half - edge;      // what the OPPONENT is expected to score
+      teamCtx[g.away] = half + edge;
+    }
+    const RM = returnModel;
+    let touched = 0, biggest = null;
+    for (const p of picks.picks) {
+      const r = retIdx[p.pid];
+      const oppImp = teamCtx[p.team];
+      if (!r || oppImp == null) continue;
+      const kr = Math.max(0, RM.kick_fit.a + RM.kick_fit.b * oppImp) * r.krShare;
+      const pr = Math.max(0, RM.punt_fit.a + RM.punt_fit.b * oppImp) * r.prShare;
+      const ret = kr * RM.kick_td_rate + pr * RM.punt_td_rate;
+      if (ret <= 0) continue;
+      const off = p.p;
+      p.pOff = +off.toFixed(6);          // offense-only, kept so the modal can show the split
+      p.pRet = +ret.toFixed(6);
+      p.p = +(1 - (1 - off) * (1 - ret)).toFixed(6);
+      // 2+ is offense-only on purpose: a second touchdown via a second return
+      // is rare enough that modelling it would be inventing a number.
+      touched++;
+      if (!biggest || ret > biggest.pRet) biggest = p;
+    }
+    console.log(`  return game folded into ${touched} picks`
+      + (biggest ? ` (largest: ${biggest.name} +${(biggest.pRet * 100).toFixed(1)}%)` : ''));
+  }
 
   // Correlation multipliers for pricing multi-leg parlays in the Pairs tool.
   // Measured in research/pair_correlation.py and shipped verbatim — the tool

@@ -12,7 +12,7 @@
 // What the model is, and what it is not (see research/README.md):
 //   * ~87% of the signal is snap share, and last-3-game snap share beats
 //     season-to-date by more than every other feature combined.
-//   * defence-allowed, red-zone defence, pace, weather, home/away and blowout
+//   * defense-allowed, red-zone defense, pace, weather, home/away and blowout
 //     risk were all tested and are nulls — implied team total already prices
 //     the environment. They are deliberately absent.
 //   * teammates newly ruled out is in, because it corrects a stale-role bias

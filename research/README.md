@@ -146,9 +146,9 @@ flip, unlike the four longshot markets.
 
 The result worth remembering is what *didn't* work. Every feature Ron proposed
 is a genuinely stable trait — team receiving production split-halves at
-**r=0.89**, the QB's own TD rate at 0.74, even pass defence at 0.53 — and once
+**r=0.89**, the QB's own TD rate at 0.74, even pass defense at 0.53 — and once
 the Vegas implied total is in the model, red-zone efficiency, weapon quality,
-defence and game script add **nothing**:
+defense and game script add **nothing**:
 
 ```
 base rate only   AUC 0.500
@@ -159,7 +159,7 @@ base rate only   AUC 0.500
 ```
 
 Being a reliable trait is exactly why the market has already priced it. Same
-shape as the anytime model's defence null. Shipped model is three features.
+shape as the anytime model's defense null. Shipped model is three features.
 
 Two details that matter:
 

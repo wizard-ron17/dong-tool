@@ -10,7 +10,7 @@ they cancel. Across opponent-implied-total terciles a returner sees 6.23 / 6.41
 / 6.33 returns — flat. A matchup moves the MIX, not the volume. That matters
 only because the two return types don't score at the same rate: a punt return
 houses it roughly 1.7x as often as a kick return, so a punt specialist facing a
-stalling offence is the one real angle in here.
+stalling offense is the one real angle in here.
 
 2025 ONLY for kickoffs. The dynamic-kickoff change took the return rate from
 33% in 2024 to 74.5% in 2025, so earlier seasons describe a game that no longer
