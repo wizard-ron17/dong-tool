@@ -9,6 +9,7 @@ import { buildPicks, loadTdSet, updateHistory } from './picks.js';
 
 const HISTORY_SEASON = 2025;   // last completed season — our historical base until 2026 games play
 const UPCOMING_SEASON = 2026;
+const REG_WEEKS = 18;           // weeks 19+ in results are the playoffs
 const MILESTONE_MAX_AWAY = 25;  // a chase you could finish inside a season  // full schedule already published
 
 const cleanName = (n) => (n || '').trim();
@@ -212,7 +213,7 @@ async function main() {
   const posOf = {};
   for (const [pid, a] of Object.entries(agg)) if (a.pos) posOf[pid] = a.pos;
   for (const l of tdLeaders) if (l.pos && l.pos !== '—') posOf[l.pid] = l.pos;
-  const blank = () => ({ games: 0, scored: 0, pf: 0, pa: 0, off: 0, def: 0, offPos: {}, defPos: {},
+  const blank = () => ({ games: 0, scored: 0, pf: 0, pa: 0, w: 0, l: 0, t: 0, off: 0, def: 0, offPos: {}, defPos: {},
                          offType: { rush: 0, rec: 0 }, defType: { rush: 0, rec: 0 },
                          firstFor: 0, firstAgainst: 0, lastFor: 0, lastAgainst: 0 });
   const teamStats = {};
@@ -226,6 +227,14 @@ async function main() {
       h.pf += r.hScore; h.pa += r.aScore;
       a.pf += r.aScore; a.pa += r.hScore;
       h.scored++; a.scored++;
+      // Last completed season's record, REGULAR SEASON ONLY. results carries
+      // weeks 1-22, so counting them all made New England 17-4 across 21 games
+      // — a real number, but not what anyone means by a record.
+      if (r.week <= REG_WEEKS) {
+        if (r.hScore > r.aScore) { h.w++; a.l++; }
+        else if (r.aScore > r.hScore) { a.w++; h.l++; }
+        else { h.t++; a.t++; }
+      }
     }
   }
   for (const wk of weeks) for (const t of tdRecap[wk]) {

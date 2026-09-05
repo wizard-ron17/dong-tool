@@ -1820,13 +1820,29 @@
   .sc-game { cursor: pointer; }
   .sc-game:hover { border-color: var(--border2); }
   .sc-chev { flex-shrink: 0; color: var(--dim); font-size: 0.7rem; transition: transform 0.18s; display: inline-block; }
-  /* scoring band: each team's points for and against, heat-ramped */
-  .sc-scores { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
-  .sc-tm { display: flex; align-items: baseline; gap: 0.4rem; background: var(--surface0); border-radius: 7px; padding: 0.32rem 0.5rem; min-width: 0; }
-  .sc-tm-ab { font-family: var(--font-d); font-size: 0.72rem; font-weight: 800; color: var(--muted); width: 2.1rem; flex-shrink: 0; }
-  .sc-tm-pair { display: flex; align-items: baseline; gap: 0.5rem; margin-left: auto; }
-  .sc-tm-v { font-family: var(--font-d); font-size: 0.95rem; font-weight: 900; line-height: 1; }
-  .sc-tm-k { font-size: 0.5rem; color: var(--dim); letter-spacing: 0.05em; text-transform: uppercase; margin-left: 0.15rem; }
+  /* Card header: logos face outward, records sit inboard beside them, the
+     lines and kickoff hold the middle. Points for/against used to live here as
+     a second band — it duplicated what the expanded matchup already says, so
+     it now only exists there. */
+  .sc-top { display: grid; grid-template-columns: 1fr auto 1fr auto; align-items: center; gap: 0.5rem; }
+  .sc-side { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+  .sc-side.end { justify-content: flex-end; }
+  .sc-logo { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
+  .sc-side-id { display: flex; flex-direction: column; min-width: 0; }
+  .sc-side.end .sc-side-id { align-items: flex-end; }
+  .sc-side-ab { font-family: var(--font-d); font-size: 1.05rem; font-weight: 800; color: var(--text-strong); line-height: 1.05; }
+  .sc-side-rec { font-family: var(--font-m); font-size: 0.58rem; color: var(--dim); }
+  .sc-side-rec.old::after { content: " '25"; opacity: 0.7; }
+  .sc-mid { text-align: center; flex-shrink: 0; }
+  .sc-lines { display: flex; gap: 0.3rem; justify-content: center; flex-wrap: wrap; }
+  .sc-ln { font-family: var(--font-m); font-size: 0.62rem; color: var(--text); background: var(--surface0);
+           border: 1px solid var(--border); border-radius: 5px; padding: 0.1rem 0.34rem; white-space: nowrap; }
+  @media (max-width: 430px) {
+    .sc-logo { width: 34px; height: 34px; }
+    .sc-side-ab { font-size: 0.92rem; }
+    .sc-top { gap: 0.35rem; }
+    .sc-ln { font-size: 0.58rem; padding: 0.08rem 0.28rem; }
+  }
   /* the board's favourite in this game */
   .sc-pick { display: flex; align-items: center; gap: 0.4rem; font-size: 0.66rem; border-top: 1px solid var(--border); padding-top: 0.45rem; }
   .sc-pick-star { color: var(--gold); font-size: 0.7rem; }
@@ -1834,7 +1850,6 @@
   .sc-pick-lbl { color: var(--dim); font-size: 0.55rem; letter-spacing: 0.05em; text-transform: uppercase; }
   .sc-pick-od { margin-left: auto; font-family: var(--font-d); font-size: 0.88rem; font-weight: 900; color: var(--good); }
   .sc-pick-od.dog { color: var(--gold); }
-  @media (max-width: 430px) { .sc-scores { grid-template-columns: 1fr; } }
   .sc-game.open .sc-chev { transform: rotate(90deg); color: var(--accent); }
   .sc-ppg { font-family: var(--font-m); font-size: 0.58rem; color: var(--dim); white-space: nowrap; }
 
@@ -1918,13 +1933,17 @@
   /* Stacked, not squeezed. Cramming teams, points and the line onto one row
      collided on a phone; the card is taller now and each band gets its own. */
   .sc-game { display: flex; flex-direction: column; gap: 0.5rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.7rem; }
-  .sc-top { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
-  .sc-teams { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
-  .sc-team { display: flex; align-items: center; gap: 0.35rem; }
-  .sc-abbr { font-family: var(--font-d); font-weight: 700; font-size: 0.92rem; color: var(--text); }
-  .sc-at { color: var(--muted); font-size: 0.75rem; font-weight: 700; }
-  .sc-meta { text-align: right; flex-shrink: 0; }
-  .sc-line { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+  /* AFTER the base rule on purpose. A media query adds no specificity, so this
+     block sitting earlier in the file lost to `.sc-game { flex-direction:
+     column }` below it and the row layout silently never applied. */
+  /* Wide screens read the card as a table row — matchup, lines, then the pick
+     as its own right-hand column instead of a band underneath. */
+  @media (min-width: 900px) {
+    .sc-game { flex-direction: row; align-items: stretch; gap: 0.9rem; }
+    .sc-game > .sc-top { flex: 1; min-width: 0; }
+    .sc-game > .sc-pick { border-top: none; border-left: 1px solid var(--border);
+      padding-top: 0; padding-left: 0.9rem; width: 20rem; flex-shrink: 0; }
+  }
   .sc-when { font-size: 0.6rem; color: var(--muted); margin-top: 0.12rem; }
   .sc-score { font-family: var(--font-d); font-weight: 800; font-size: 1rem; color: var(--text); }
   /* home dashboard */
@@ -3169,25 +3188,40 @@
     const played = g.homeScore != null && g.awayScore != null;
     const time = g.gametime ? g.gametime.slice(0, 5) : '';
     const when = `${g.weekday || ''}${g.gameday ? ' ' + g.gameday.slice(5) : ''}${time ? ' · ' + time : ''}`.trim();
-    const meta = played
-      ? `<div class="sc-score">${g.awayScore}–${g.homeScore}</div><div class="sc-when">Final</div>`
-      : `<div class="sc-line">${g.total != null ? 'O/U ' + g.total : ''}${g.total != null && g.spread != null ? ' · ' : ''}${g.spread != null ? spreadLabel(g) : ''}</div><div class="sc-when">${when}</div>`;
 
-    // scoring band — points for and against, ramped against the league
+    // Records. The current season's, once it has games; before that the last
+    // completed season's, marked, since "0-0" for all 32 teams says nothing.
     const S = nflData?.teamStats || {};
-    const teams = Object.values(S).filter(t => t.scored);
-    const pfArr = teams.map(t => t.pf / t.scored), paArr = teams.map(t => t.pa / t.scored);
-    const tmRow = (abbr) => {
+    const cur = {};
+    for (const x of (nflData?.schedule || [])) {
+      if (x.homeScore == null || x.awayScore == null) continue;
+      (cur[x.home] ??= [0, 0, 0]); (cur[x.away] ??= [0, 0, 0]);
+      if (x.homeScore > x.awayScore) { cur[x.home][0]++; cur[x.away][1]++; }
+      else if (x.awayScore > x.homeScore) { cur[x.away][0]++; cur[x.home][1]++; }
+      else { cur[x.home][2]++; cur[x.away][2]++; }
+    }
+    const seasonStarted = Object.keys(cur).length > 0;
+    const recOf = (abbr) => {
+      if (seasonStarted) { const r = cur[abbr] || [0, 0, 0]; return { txt: r[2] ? `${r[0]}-${r[1]}-${r[2]}` : `${r[0]}-${r[1]}`, old: false }; }
       const t = S[abbr];
-      if (!t?.scored) return `<div class="sc-tm"><span class="sc-tm-ab">${abbr}</span></div>`;
-      const f = t.pf / t.scored, a = t.pa / t.scored;
-      return `<div class="sc-tm"><span class="sc-tm-ab">${abbr}</span><span class="sc-tm-pair">
-        <span><span class="sc-tm-v hrg-val ${mxRamp(f, pfArr, true)}">${f.toFixed(1)}</span><span class="sc-tm-k">for</span></span>
-        <span><span class="sc-tm-v hrg-val ${mxRamp(a, paArr, false)}">${a.toFixed(1)}</span><span class="sc-tm-k">agst</span></span>
-      </span></div>`;
+      if (!t || (t.w == null)) return null;
+      return { txt: t.t ? `${t.w}-${t.l}-${t.t}` : `${t.w}-${t.l}`, old: true };
     };
-    const scores = teams.length
-      ? `<div class="sc-scores">${tmRow(g.away)}${tmRow(g.home)}</div>` : '';
+    const side = (abbr, alignEnd) => {
+      const r = recOf(abbr);
+      const logo = `<img class="sc-logo" src="${teamLogo(abbr)}" alt="" loading="lazy">`;
+      const id = `<span class="sc-side-id"><span class="sc-side-ab">${abbr}</span>${
+        r ? `<span class="sc-side-rec${r.old ? ' old' : ''}">${r.txt}</span>` : ''}</span>`;
+      // Logos face outward, records sit inboard against the middle column.
+      return `<div class="sc-side${alignEnd ? ' end' : ''}">${alignEnd ? id + logo : logo + id}</div>`;
+    };
+
+    const mid = played
+      ? `<div class="sc-mid"><div class="sc-score">${g.awayScore}–${g.homeScore}</div><div class="sc-when">Final</div></div>`
+      : `<div class="sc-mid">
+          <div class="sc-lines">${g.spread != null ? `<span class="sc-ln">${spreadLabel(g)}</span>` : ''}${g.total != null ? `<span class="sc-ln">O/U ${g.total}</span>` : ''}</div>
+          <div class="sc-when">${when}</div>
+        </div>`;
 
     // the board's shortest price in this game, so the slate is scannable for
     // who to bet without opening anything
@@ -3210,14 +3244,10 @@
     const open = mxOpen === g.gameId;
     return `<div class="sc-game${open ? ' open' : ''}" onclick="toggleMatchup('${g.gameId}')">
       <div class="sc-top">
-        <div class="sc-teams">
-          <div class="sc-team">${logoImg(g.away)}<span class="sc-abbr">${g.away}</span></div>
-          <span class="sc-at">@</span>
-          <div class="sc-team">${logoImg(g.home)}<span class="sc-abbr">${g.home}</span></div>
-        </div>
-        <div class="sc-meta">${meta}</div><span class="sc-chev">▶</span>
+        ${side(g.away, false)}${mid}${side(g.home, true)}
+        <span class="sc-chev">▶</span>
       </div>
-      ${scores}${pick}
+      ${pick}
     </div>${open ? matchupPanel(g) : ''}`;
   }
 
