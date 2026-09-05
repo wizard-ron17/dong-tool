@@ -262,26 +262,6 @@ async function main() {
   }
   console.log(`  team profiles: ${Object.keys(teamStats).length} teams, ${Object.keys(teamQB).length} QBs`);
 
-  // Only ship headshots we actually reference, but "referenced" now means every
-  // surface that shows a face — not just recap scorers. Picks, Due, Milestones
-  // and the home page all render players who never scored a touchdown last
-  // season, which is why every pocket quarterback was faceless: Goff and
-  // Stafford don't rush for TDs, so they never entered the recap. Built here
-  // rather than earlier because picks and milestones don't exist until now.
-  const referenced = new Set(tdLeaders.map(l => l.pid));
-  for (const wk of weeks) for (const t of tdRecap[wk]) if (t.pid) referenced.add(t.pid);
-  for (const p of (picks?.picks ?? [])) referenced.add(p.pid);
-  for (const b of (picks?.birthdays ?? [])) referenced.add(b.pid);
-  for (const m of milestones) referenced.add(m.pid);
-  const shots = {}; for (const pid of referenced) if (headshots[pid]) shots[pid] = headshots[pid];
-  // picks.js carries players.csv headshots for the board — better coverage than
-  // the season stats feed, which only has a player who took a snap last year.
-  for (const [pid, url] of Object.entries(picks?.shots ?? {})) shots[pid] ??= url;
-  // milestone chasers can be retired-adjacent; take whatever either source has
-  for (const m of milestones) if (!shots[m.pid] && headshots[m.pid]) shots[m.pid] = headshots[m.pid];
-  const wanted = referenced.size, got = Object.keys(shots).length;
-  console.log(`  headshots: ${got}/${wanted} referenced players have one`);
-
   // Correlation multipliers for pricing multi-leg parlays in the Pairs tool.
   // Measured in research/pair_correlation.py and shipped verbatim — the tool
   // must not carry its own copy of these numbers.
@@ -317,6 +297,27 @@ async function main() {
     return out.sort((a, b) => a.away - b.away || b.career - a.career);
   })();
   console.log(`  milestones: ${milestones.length} active chases (closest: ${milestones[0]?.name} ${milestones[0]?.away} from ${milestones[0]?.next})`);
+
+  // Only ship headshots we actually reference, but "referenced" now means every
+  // surface that shows a face — not just recap scorers. Picks, Due, Milestones
+  // and the home page all render players who never scored a touchdown last
+  // season, which is why every pocket quarterback was faceless: Goff and
+  // Stafford don't rush for TDs, so they never entered the recap. Built here
+  // rather than earlier because picks and milestones don't exist until now.
+  const referenced = new Set(tdLeaders.map(l => l.pid));
+  for (const wk of weeks) for (const t of tdRecap[wk]) if (t.pid) referenced.add(t.pid);
+  for (const p of (picks?.picks ?? [])) referenced.add(p.pid);
+  for (const b of (picks?.birthdays ?? [])) referenced.add(b.pid);
+  for (const m of milestones) referenced.add(m.pid);
+  const shots = {}; for (const pid of referenced) if (headshots[pid]) shots[pid] = headshots[pid];
+  // picks.js carries players.csv headshots for the board — better coverage than
+  // the season stats feed, which only has a player who took a snap last year.
+  for (const [pid, url] of Object.entries(picks?.shots ?? {})) shots[pid] ??= url;
+  // milestone chasers can be retired-adjacent; take whatever either source has
+  for (const m of milestones) if (!shots[m.pid] && headshots[m.pid]) shots[m.pid] = headshots[m.pid];
+  const wanted = referenced.size, got = Object.keys(shots).length;
+  console.log(`  headshots: ${got}/${wanted} referenced players have one`);
+
 
   const output = {
     generatedAt: new Date().toISOString(),
