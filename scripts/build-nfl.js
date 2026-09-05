@@ -7,8 +7,10 @@ import fs from 'node:fs';
 import { fetchText, parseCsv, num } from './nflverse.js';
 import { buildPicks, loadTdSet, updateHistory } from './picks.js';
 
-const HISTORY_SEASON = 2025;   // last completed season — our historical base until 2026 games play
-const UPCOMING_SEASON = 2026;
+// Neither season is a constant any more. Both are read off the schedule feed so
+// the app rolls forward on its own — opening Sunday and the turn of a season
+// both used to need someone to edit a year in here and remember why.
+const LEADER_SEASONS = 2;      // how many seasons of TD leaders the Stats picker gets
 const REG_WEEKS = 18;           // weeks 19+ in results are the playoffs
 const MILESTONE_MAX_AWAY = 25;  // a chase you could finish inside a season  // full schedule already published
 
@@ -19,6 +21,21 @@ async function main() {
   console.log('Fetching schedule + lines (nfldata games.csv)…');
   const { idx: gi, rows: grows } = parseCsv(await fetchText('https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv'));
   const game = (r, k) => r[gi[k]];
+  // The newest season that has actually been played. Everything historical —
+  // recaps, leaders, team profiles, career top-ups — reads from this rather
+  // than a hardcoded year, so the app rolls over to 2026 the moment its first
+  // game goes final instead of waiting for someone to edit a constant.
+  const HISTORY_SEASON = Math.max(...grows
+    .filter(r => num(game(r, 'home_score')) != null)
+    .map(r => +game(r, 'season')));
+  // The season we price is the newest one with a game still to play. Falls back
+  // to the newest on file in the gap after a Super Bowl, before next year's
+  // schedule is published.
+  const unplayed = grows.filter(r => num(game(r, 'home_score')) == null).map(r => +game(r, 'season'));
+  const UPCOMING_SEASON = unplayed.length ? Math.max(...unplayed)
+                                          : Math.max(...grows.map(r => +game(r, 'season')));
+  console.log(`Active season: ${HISTORY_SEASON} (schedule/picks: ${UPCOMING_SEASON})`);
+
   const schedule = grows.filter(r => +game(r, 'season') === UPCOMING_SEASON).map(r => ({
     gameId: game(r, 'game_id'), week: +game(r, 'week'), type: game(r, 'game_type'),
     gameday: game(r, 'gameday'), gametime: game(r, 'gametime') || null, weekday: game(r, 'weekday'),
@@ -26,6 +43,7 @@ async function main() {
     spread: num(game(r, 'spread_line')), total: num(game(r, 'total_line')),
     awayScore: num(game(r, 'away_score')), homeScore: num(game(r, 'home_score')),
   }));
+
   // results map for the historical season (to caption recap games + day-of-week filtering)
   const results = {};
   for (const r of grows) if (+game(r, 'season') === HISTORY_SEASON)
