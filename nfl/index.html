@@ -2258,6 +2258,8 @@
           <li><b>Why we trust the number.</b> The comparison that matters doesn't depend on our model being perfectly calibrated: at the <em>same</em> naive price, same-team pairs hit about 13% less often than opposing-team pairs. And the opposing-team control lands at 1.02× — when legs genuinely are independent, our product is right, which is what says the same-team gap is real rather than a pricing error. It holds for every combination: two pass-catchers 0.89×, back plus pass-catcher 0.92×, two backs 0.83× — cannibalisation wins even where two receivers share a quarterback.</li>
           <li><b>What this is not.</b> A fair, no-vig number is not a claim you can beat the book. It tells you what the bet is worth, so you can see how far the offered price sits from it.</li>
           <li><b>QB → Receiver.</b> That chip switches to a different relation entirely: every quarterback-to-receiver touchdown connection, ranked by how many he actually threw him. <em>Receiver</em> means whoever caught it — WRs are 38% of these, tight ends 14% and running backs 11%, so calling it "QB→WR" would leave out a quarter of them. It isn't a filter on the pairs above, and it can't be — only 11 quarterbacks scored at all last season, because a QB's own touchdown is a rushing one, while 67 threw 854 scoring passes. Filtering the co-occurrence groups for QB+receiver would have surfaced almost nothing, and what it did surface would be "the QB ran one in and, separately, someone caught one" — not a connection at all.</li>
+          <li><b>Trios and up.</b> The size tabs work here too: a trio is one quarterback and <em>two different receivers he threw touchdowns to in the same week</em>, which happens more than you'd think — 229 quarterback-weeks last season had two different targets score, 67 had three. Prescott to Pickens and Ferguson hit four separate weeks.</li>
+          <li><b>A trio isn't the pair squared.</b> It mixes a positive link with a negative one: each receiver runs above independence with the passer, but the two of them <em>compete with each other</em> for his throws. Multiplying the pair multiplier by itself would say 1.58×; measured, it's <b>1.44×</b>. Each group size carries its own number, fitted on 2016-2021 and checked on 2022-2025, where it lands within 5% against 15% for the naive composition. Quads are listed but not priced — that multiplier didn't hold out of sample, and an unreliable price is worse than none.</li>
           <li><b>They price the opposite way.</b> The two legs are the <em>same event</em> — the receiving touchdown IS the passing touchdown — so where two teammates who both score come in <b>11% below</b> the naive product, a quarterback and his receiver come in <b>33% above</b> it. Same tool, opposite sign, and the reason is structural rather than statistical: teammates compete for a fixed pool of touchdowns, a passer and his target share one.</li>
           <li><b>Search.</b> Type names (comma-separated) to require specific players in every group.</li>
         </ul>
@@ -3542,22 +3544,47 @@ let pairStacks = false;
    * which is why they price far above independence (rho 1.33) while two
    * TEAMMATES who both score price below it. Opposite ends of the same idea.
    */
-  function stackDuos() {
+  function stackGroups(size) {
     const names = nflData?.passerNames || {};
-    const by = new Map();   // `${qb}|${rec}` -> { qb, rec, weeks:Set, tds }
+    const need = size - 1;                       // receivers; the QB is the other leg
+    const by = new Map();
     for (const wk of (nflData.tdRecapWeeks || [])) {
+      // A quarterback plays one game a week, so grouping his scoring passes by
+      // week IS grouping them by game — no need to key on gameId separately.
+      const byQb = new Map();
       for (const t of (nflData.tdRecap[wk] || [])) {
         if (t.type !== 'rec' || !t.passerPid || !t.pid) continue;
-        const k = `${t.passerPid}|${t.pid}`;
-        const e = by.get(k) || { qb: t.passerPid, rec: t.pid, team: t.team,
-                                 qbName: names[t.passerPid] || t.passer, recName: t.player,
-                                 weeks: new Set(), tds: 0 };
-        e.weeks.add(wk); e.tds++;
-        by.set(k, e);
+        const e = byQb.get(t.passerPid) || { team: t.team, name: names[t.passerPid] || t.passer, recs: new Map() };
+        e.recs.set(t.pid, { name: t.player, n: (e.recs.get(t.pid)?.n || 0) + 1 });
+        byQb.set(t.passerPid, e);
+      }
+      for (const [qb, e] of byQb) {
+        const ids = [...e.recs.keys()];
+        if (ids.length < need) continue;
+        for (const combo of pairCombos(ids, need)) {
+          const k = qb + '|' + [...combo].sort().join('|');
+          const g = by.get(k) || { qb, qbName: e.name, team: e.team,
+                                   recs: combo.map(id => ({ pid: id, name: e.recs.get(id).name })),
+                                   weeks: new Set(), tds: 0 };
+          g.weeks.add(wk);
+          for (const id of combo) g.tds += e.recs.get(id).n;
+          by.set(k, g);
+        }
       }
     }
-    return [...by.values()].map(e => ({ ...e, count: e.weeks.size }))
-      .sort((a, b) => b.tds - a.tds || b.count - a.count);
+    return [...by.values()].map(g => ({ ...g, count: g.weeks.size }))
+      .sort((a, b) => b.count - a.count || b.tds - a.tds);
+  }
+  /** All k-subsets of arr. */
+  function pairCombos(arr, k) {
+    if (k === 1) return arr.map(x => [x]);
+    const out = [];
+    const walk = (start, cur) => {
+      if (cur.length === k) { out.push([...cur]); return; }
+      for (let i = start; i < arr.length; i++) { cur.push(arr[i]); walk(i + 1, cur); cur.pop(); }
+    };
+    walk(0, []);
+    return out;
   }
   function togglePairSgp() { pairSgpOnly = !pairSgpOnly; document.getElementById('pairs-sgp-chip').classList.toggle('active', pairSgpOnly); renderPairs(); }
   function onPairSearch() { pairTerms = (document.getElementById('player-search').value || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean); renderPairs(); }
@@ -3669,30 +3696,42 @@ let pairStacks = false;
    * competing the way two teammates do.
    */
   function renderStacks(cards) {
-    const duos = stackDuos();
+    const size = activePairSize;
+    const duos = stackGroups(size);
     const meta = document.getElementById('pairs-meta');
     const P = nflData?.picks;
     const priceOf = {}; for (const p of (P?.picks || [])) priceOf[p.pid] = p;
     const rho = nflData?.parlay?.rho_qb;
     let list = duos;
     if (pairTerms.length) list = list.filter(d =>
-      pairTerms.some(t => (d.qbName || '').toLowerCase().includes(t) || (d.recName || '').toLowerCase().includes(t)));
-    meta.textContent = `${list.length.toLocaleString()} QB → receiver connections · ${nflData.historySeason} · by touchdowns thrown · WR, TE and RB`
-      + (pairTerms.length ? ' · ' + pairTerms.join(' + ') : '');
-    if (!list.length) { cards.innerHTML = '<div class="empty">No connections match.</div>'; return; }
-    const max = list[0].tds;
+      pairTerms.some(t => (d.qbName || '').toLowerCase().includes(t)
+        || d.recs.some(r => (r.name || '').toLowerCase().includes(t))));
+    const lbl = size === 2 ? 'connections' : `QB + ${size - 1} receivers`;
+    meta.textContent = `${list.length.toLocaleString()} ${lbl} · ${nflData.historySeason} · `
+      + (size === 2 ? 'by weeks connected' : `same week, ${size - 1} different targets`)
+      + ' · WR, TE and RB' + (pairTerms.length ? ' · ' + pairTerms.join(' + ') : '');
+    if (!list.length) {
+      cards.innerHTML = `<div class="empty">No quarterback threw touchdowns to ${size - 1} different receivers in the same week${pairTerms.length ? ' matching that search' : ''}.</div>`;
+      return;
+    }
+    const max = list[0].count;
     cards.innerHTML = list.slice(0, PAIR_RENDER_LIMIT).map((d, i) => {
-      const isTop = d.tds === max, cls = isTop ? ' top' : i < 4 ? ' high' : '';
-      const qb = priceOf[d.qb], rec = priceOf[d.rec];
-      // Both legs on this week's board? Then the stack has a live price.
+      const isTop = d.count === max, cls = isTop ? ' top' : i < 4 ? ' high' : '';
+      const qb = priceOf[d.qb];
+      const legs = d.recs.map(r => priceOf[r.pid]);
+      // Every leg on this week's board? Then the group has a live price. The
+      // multiplier is measured per size — a QB plus two receivers mixes a
+      // positive link (each to the passer) with a negative one (the two of them
+      // competing for his throws), so it isn't rho_qb squared.
+      const rhoN = nflData?.parlay?.qb_by_size?.[String(size)];
       let priceRow = '';
-      if (qb?.pass && rec && rho) {
-        const naive = qb.pass.p['2'] * rec.p;
-        const fair = Math.min(0.999, naive * rho);
+      if (qb?.pass && legs.every(Boolean) && rhoN) {
+        const naive = legs.reduce((a, l) => a * l.p, qb.pass.p['2']);
+        const fair = Math.min(0.999, naive * rhoN);
         priceRow = `<div class="pl-row">
           <span class="pl-fair"><b>${parlayOdds(fair)}</b><span class="pl-lbl">fair</span></span>
           <span class="pl-naive">${parlayOdds(naive)}<span class="pl-lbl">if independent</span></span>
-          <span class="pl-gap pl-better" title="A receiving TD is the passing TD — the same event, so these legs run above independence rather than competing.">+${((rho - 1) * 100).toFixed(0)}%</span>
+          <span class="pl-gap pl-better" title="A receiving TD is the passing TD — the same event, so the passer's leg runs above independence rather than competing.${size > 2 ? ' Measured for this group size, not squared: his receivers also compete with each other.' : ''}">+${((rhoN - 1) * 100).toFixed(0)}%</span>
         </div>`;
       }
       // Show what he actually is. The point of not calling this "QB->WR" is
@@ -3704,10 +3743,10 @@ let pairStacks = false;
       return `<div class="card${cls}">
         <div class="card-top-row"><div class="card-left">
           <div class="rank-badge">${i + 1}</div>
-          <div class="count-block"><span class="count-num">${d.tds}</span><span class="count-label">TDS</span></div>
+          <div class="count-block"><span class="count-num">${d.count}</span><span class="count-label">${d.count === 1 ? 'WEEK' : 'WEEKS'}</span></div>
           <span class="sgp-badge">${d.team}</span>
-        </div><div class="fresh-badge">${d.count} wk${d.count === 1 ? '' : 's'}</div></div>
-        <div class="players">${chip(d.qb, d.qbName, 'QB')}${chip(d.rec, d.recName, posOf[d.rec] || '')}</div>
+        </div><div class="fresh-badge">${d.tds} TD${d.tds === 1 ? '' : 's'}</div></div>
+        <div class="players">${chip(d.qb, d.qbName, 'QB')}${d.recs.map(r => chip(r.pid, r.name, posOf[r.pid] || '')).join('')}</div>
         ${priceRow}
       </div>`;
     }).join('');

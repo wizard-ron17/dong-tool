@@ -143,7 +143,7 @@ def main():
     # ── QB + his own receiver, the one positively correlated pair ──────
     # A receiving TD IS the passing TD, so this is measured against the
     # passing model rather than the anytime one.
-    print("\nQB passing market x his own receiver (the definitional pair):")
+    print("\nQB passing market x his own receivers:")
     try:
         pt = pd.read_parquet(os.path.join(HERE, "passing_td.parquet"))
         pm = json.load(open(os.path.join(HERE, "passing_model.json")))
@@ -165,6 +165,38 @@ def main():
         rho_qb = None
         print(f"  skipped ({e})")
 
+    # ── QB + N of his receivers ────────────────────────────────────────
+    # A trio mixes a positive link (each receiver to the passer) with a negative
+    # one (the two receivers competing for his throws), so the pairwise rule
+    # can't be assumed to compose here. Measured per size, fitted on train and
+    # checked on test, the same way same-team groups are.
+    qb_by_size = {}
+    if rho_qb is not None:
+        j = d[d.position.isin(["WR", "TE", "RB"])].merge(
+            pt[["game_id", "team", "p_qb2", "qb_hit"]], on=["game_id", "team"])
+        for size in (2, 3, 4):           # size = legs INCLUDING the quarterback
+            need = size - 1
+            for label, frame in (("train", j[j.season < TEST_FROM]), ("test", j[j.season >= TEST_FROM])):
+                ind = act = n = 0
+                for _, grp in frame.groupby(["game_id", "team"]):
+                    r = grp[["p", "scored"]].values
+                    if len(r) < need:
+                        continue
+                    pq = grp.p_qb2.iloc[0]; qh = grp.qb_hit.iloc[0]
+                    for combo in itertools.combinations(range(len(r)), need):
+                        pr, hit = pq, int(qh)
+                        for i in combo:
+                            pr *= r[i][0]; hit &= int(r[i][1])
+                        ind += pr; act += hit; n += 1
+                if label == "train" and act >= 30:
+                    qb_by_size[size] = act / ind
+                elif label == "test" and size in qb_by_size and act >= 30:
+                    pred = ind * qb_by_size[size]
+                    pw = ind * (rho_qb ** need) * (rho_same ** (need * (need - 1) // 2))
+                    print(f"  QB + {need} receiver(s): fitted {qb_by_size[size]:.3f}x  "
+                          f"-> OOS naive {ind/act - 1:+.1%}, measured {pred/act - 1:+.1%}, "
+                          f"pairwise-rule {pw/act - 1:+.1%}")
+
     out = {
         "note": ("Pairwise correlation multipliers for touchdown parlays. Apply rho once "
                  "per PAIR of legs: true = naive * prod(rho[pair]). Teammates compete for "
@@ -175,6 +207,11 @@ def main():
         "same_by_size": {str(k): round(float(v), 4) for k, v in same_by_size.items()},
         "rho_cross": round(float(rho_cross), 4),
         "rho_qb": None if rho_qb is None else round(float(rho_qb), 4),
+        # Only sizes whose multiplier held out of sample ship. QB + 3 receivers
+        # fitted 1.290 and the test wanted ~1.09 — an unstable estimate on a
+        # thin sample, so that group is listed without a price rather than
+        # priced badly.
+        "qb_by_size": {str(k): round(float(v), 4) for k, v in qb_by_size.items() if k <= 3},
         "fit_seasons": f"{int(tr.season.min())}-{int(tr.season.max())}",
         "test_seasons": f"{int(te.season.min())}-{int(te.season.max())}",
         "min_leg_p": MIN_P,
