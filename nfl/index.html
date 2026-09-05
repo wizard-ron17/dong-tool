@@ -2243,7 +2243,7 @@
         <span class="due-explainer-cta"></span>
         <span class="due-explainer-chevron" id="pairs-explainer-chevron">▶</span>
       </div>
-      <div class="due-explainer-teaser">Which players find the end zone together — now priced, with the correlation the naive parlay math misses.</div>
+      <div class="due-explainer-teaser">Which players find the end zone together, and which quarterbacks throw it to whom — both priced, with the correlation naive parlay math misses.</div>
       <div class="due-explainer-body" id="pairs-explainer-body" style="display:none">
         <ul>
           <li><b>What it counts.</b> Across the season, how often each group of players scored a TD in the same window. Ranked by how many times they've gone together.</li>
@@ -2257,6 +2257,8 @@
           <li><b>"But books charge me MORE for same-game legs."</b> They do — and that isn't a contradiction, because a worse <em>price</em> and a higher <em>probability</em> are different things. Three reasons a book shortens these that have nothing to do with TD scorers being positively correlated: same-game parlays carry the highest hold on the board; a book's correlation engine is generic across every market in the game, and most same-game legs (passing yards + receiving yards, team total + props) genuinely <em>are</em> positively correlated; and it has to defend against the one combination that really is — a quarterback and his own receiver. So a same-team TD double is bad twice over: <b>less likely</b> than multiplying suggests, and <b>priced shorter</b> than multiplying suggests. That gap is the reason to show it.</li>
           <li><b>Why we trust the number.</b> The comparison that matters doesn't depend on our model being perfectly calibrated: at the <em>same</em> naive price, same-team pairs hit about 13% less often than opposing-team pairs. And the opposing-team control lands at 1.02× — when legs genuinely are independent, our product is right, which is what says the same-team gap is real rather than a pricing error. It holds for every combination: two pass-catchers 0.89×, back plus pass-catcher 0.92×, two backs 0.83× — cannibalisation wins even where two receivers share a quarterback.</li>
           <li><b>What this is not.</b> A fair, no-vig number is not a claim you can beat the book. It tells you what the bet is worth, so you can see how far the offered price sits from it.</li>
+          <li><b>QB stacks.</b> The <span class="sgp-badge">🎯 QB stacks</span> chip switches to a different relation entirely: every quarterback-to-receiver touchdown connection, ranked by how many he actually threw him. It isn't a filter on the pairs above, and it can't be — only 11 quarterbacks scored at all last season, because a QB's own touchdown is a rushing one, while 67 threw 854 scoring passes. Filtering the co-occurrence groups for QB+receiver would have surfaced almost nothing and none of it would have been a stack.</li>
+          <li><b>They price the opposite way.</b> A stack's legs are the <em>same event</em> — the receiving touchdown IS the passing touchdown — so where two teammates who both score come in <b>11% below</b> the naive product, a quarterback and his receiver come in <b>33% above</b> it. Same tool, opposite sign, and the reason is structural rather than statistical: teammates compete for a fixed pool of touchdowns, a passer and his target share one.</li>
           <li><b>The one positive pair.</b> A quarterback and his own receiver run <em>above</em> independence — a receiving touchdown <em>is</em> the passing touchdown, the same event rather than a competing one. That stack isn't priced here yet; it needs the Pass TD market as a leg.</li>
           <li><b>Search.</b> Type names (comma-separated) to require specific players in every group.</li>
         </ul>
@@ -2282,6 +2284,7 @@
       <button class="due-filter-chip mode-chip" data-basis="last" onclick="setPairBasis('last')">Last TD</button>
       <button class="due-filter-chip mode-chip" data-basis="multi" onclick="setPairBasis('multi')">2+ TD</button>
       <button class="due-filter-chip" id="pairs-sgp-chip" onclick="togglePairSgp()" title="Only groups with a same-team stack (they share a game)">🏈 SGP only</button>
+      <button class="due-filter-chip" id="pairs-stack-chip" onclick="togglePairStacks()" title="Quarterback to receiver: who actually threw whom a touchdown">🎯 QB stacks</button>
     </div>
     <div class="result-meta" id="pairs-meta"></div>
     <div id="cards"><div class="empty">Loading…</div></div>
@@ -3405,6 +3408,12 @@
   // still clear the minimum co-occurrence, so quints stay cheap. Computed
   // client-side from tdRecap (small dataset) and memoized per window+basis.
   let activePairSize = 2, pairGran = 'week', pairBasis = 'all', pairSgpOnly = false, pairTerms = [];
+// Stacks is its own relation, not a filter on the co-occurrence groups. Only 11
+// quarterbacks appear as SCORERS all season (a QB's own touchdown is a rushing
+// one), while 67 threw 854 scoring passes — so filtering the existing pairs for
+// QB+receiver would surface almost nothing, and what it did surface wouldn't be
+// a stack. This is built from who actually threw to whom.
+let pairStacks = false;
   let scorerIdx = null;          // pid -> {name, team, pos, tds}
   const pairGroupCache = {};     // "gran|basis" -> {2:[],3:[],4:[],5:[]}
   function buildScorerIdx() {
@@ -3523,6 +3532,34 @@
   function switchPairSize(size) { activePairSize = size; document.querySelectorAll('#panel-pairs .sub-btn').forEach(b => b.classList.toggle('active', +b.dataset.size === size)); renderPairs(); }
   function setPairGran(g) { pairGran = g; document.querySelectorAll('#panel-pairs [data-gran]').forEach(b => b.classList.toggle('active', b.dataset.gran === g)); renderPairs(); }
   function setPairBasis(b) { pairBasis = b; document.querySelectorAll('#panel-pairs [data-basis]').forEach(x => x.classList.toggle('active', x.dataset.basis === b)); renderPairs(); }
+  function togglePairStacks() {
+    pairStacks = !pairStacks;
+    document.getElementById('pairs-stack-chip').classList.toggle('active', pairStacks);
+    renderPairs();
+  }
+  /**
+   * Every QB -> receiver touchdown connection, by how many weeks they hooked up.
+   * A receiving TD IS the passing TD, so these two legs are the same event —
+   * which is why they price far above independence (rho 1.33) while two
+   * TEAMMATES who both score price below it. Opposite ends of the same idea.
+   */
+  function stackDuos() {
+    const names = nflData?.passerNames || {};
+    const by = new Map();   // `${qb}|${rec}` -> { qb, rec, weeks:Set, tds }
+    for (const wk of (nflData.tdRecapWeeks || [])) {
+      for (const t of (nflData.tdRecap[wk] || [])) {
+        if (t.type !== 'rec' || !t.passerPid || !t.pid) continue;
+        const k = `${t.passerPid}|${t.pid}`;
+        const e = by.get(k) || { qb: t.passerPid, rec: t.pid, team: t.team,
+                                 qbName: names[t.passerPid] || t.passer, recName: t.player,
+                                 weeks: new Set(), tds: 0 };
+        e.weeks.add(wk); e.tds++;
+        by.set(k, e);
+      }
+    }
+    return [...by.values()].map(e => ({ ...e, count: e.weeks.size }))
+      .sort((a, b) => b.tds - a.tds || b.count - a.count);
+  }
   function togglePairSgp() { pairSgpOnly = !pairSgpOnly; document.getElementById('pairs-sgp-chip').classList.toggle('active', pairSgpOnly); renderPairs(); }
   function onPairSearch() { pairTerms = (document.getElementById('player-search').value || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean); renderPairs(); }
   function toggleExplainer(key) {
@@ -3626,12 +3663,60 @@
     el.innerHTML = meta + `<div class="pb-list">${cards}</div>`;
   }
 
+  /**
+   * QB -> receiver stacks. Priced as the QB's Pass TD market times the
+   * receiver's anytime price, lifted by the measured correlation — a receiving
+   * touchdown IS the passing touchdown, so these legs move together instead of
+   * competing the way two teammates do.
+   */
+  function renderStacks(cards) {
+    const duos = stackDuos();
+    const meta = document.getElementById('pairs-meta');
+    const P = nflData?.picks;
+    const priceOf = {}; for (const p of (P?.picks || [])) priceOf[p.pid] = p;
+    const rho = nflData?.parlay?.rho_qb;
+    let list = duos;
+    if (pairTerms.length) list = list.filter(d =>
+      pairTerms.some(t => (d.qbName || '').toLowerCase().includes(t) || (d.recName || '').toLowerCase().includes(t)));
+    meta.textContent = `${list.length.toLocaleString()} quarterback-receiver connections · ${nflData.historySeason} · by touchdowns thrown`
+      + (pairTerms.length ? ' · ' + pairTerms.join(' + ') : '');
+    if (!list.length) { cards.innerHTML = '<div class="empty">No connections match.</div>'; return; }
+    const max = list[0].tds;
+    cards.innerHTML = list.slice(0, PAIR_RENDER_LIMIT).map((d, i) => {
+      const isTop = d.tds === max, cls = isTop ? ' top' : i < 4 ? ' high' : '';
+      const qb = priceOf[d.qb], rec = priceOf[d.rec];
+      // Both legs on this week's board? Then the stack has a live price.
+      let priceRow = '';
+      if (qb?.pass && rec && rho) {
+        const naive = qb.pass.p['2'] * rec.p;
+        const fair = Math.min(0.999, naive * rho);
+        priceRow = `<div class="pl-row">
+          <span class="pl-fair"><b>${parlayOdds(fair)}</b><span class="pl-lbl">fair</span></span>
+          <span class="pl-naive">${parlayOdds(naive)}<span class="pl-lbl">if independent</span></span>
+          <span class="pl-gap pl-better" title="A receiving TD is the passing TD — the same event, so these legs run above independence rather than competing.">+${((rho - 1) * 100).toFixed(0)}%</span>
+        </div>`;
+      }
+      const chip = (pid, name, tag) => `<div class="player-chip">${chipFace(pid, name)}
+        <span class="player-name">${compactName(name || pid)}</span><span class="player-hr">${tag}</span></div>`;
+      return `<div class="card${cls}">
+        <div class="card-top-row"><div class="card-left">
+          <div class="rank-badge">${i + 1}</div>
+          <div class="count-block"><span class="count-num">${d.tds}</span><span class="count-label">TDS</span></div>
+          <span class="sgp-badge">STACK·${d.team}</span>
+        </div><div class="fresh-badge">${d.count} wk${d.count === 1 ? '' : 's'}</div></div>
+        <div class="players">${chip(d.qb, d.qbName, 'QB')}${chip(d.rec, d.recName, 'REC')}</div>
+        ${priceRow}
+      </div>`;
+    }).join('');
+  }
+
   function renderPairs() {
     const cards = document.getElementById('cards'); if (!cards) return;
     _priceMap = null;   // picks can change under us between renders
     if (!nflData) { cards.innerHTML = '<div class="empty">Loading…</div>'; return; }
     if (nflData === 'error') { cards.innerHTML = '<div class="empty">Couldn\'t load NFL data. <a href="javascript:void(0)" onclick="loadNfl()">Retry</a></div>'; return; }
     if (!scorerIdx) buildScorerIdx();
+    if (pairStacks) return renderStacks(cards);
     const groups = computeAllGroups(pairGran, pairBasis);
     let list = groups[activePairSize] || [];
     if (pairSgpOnly) list = list.filter(g => sharedTeamsOf(g.pids).length);

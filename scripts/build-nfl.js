@@ -53,7 +53,7 @@ async function main() {
   console.log(`Fetching ${HISTORY_SEASON} play-by-play for TD recaps (large file)…`);
   const { idx: pi, rows: prows } = parseCsv(await fetchText(`https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_${HISTORY_SEASON}.csv`));
   const P = (r, k) => r[pi[k]];
-  const tdRecap = {}; // week -> [ {player, team, opp, type, yards, qtr, passer, gameId, firstTd, lastTd, multi, weekday} ]
+  const tdRecap = {}; // week -> [ {player, team, opp, type, yards, qtr, passer, passerPid, gameId, firstTd, lastTd, multi, weekday} ]
   let tdTotal = 0;
   const gameHasTd = new Set(); // gameIds that have already scored a TD -> flags the first one
   // Per-player TD tallies from pbp — the authoritative source since it also
@@ -96,6 +96,10 @@ async function main() {
       team, opp: P(r, 'defteam'),
       type, subtype, yards, qtr: num(P(r, 'qtr')),
       passer: type === 'rec' ? cleanName(P(r, 'passer_player_name')) : null,
+      // The thrower's id, not just his name. A receiving TD IS the passing TD,
+      // so this is the one place the QB->receiver connection actually exists —
+      // and Pairs needs an id, not a name, to make him a member of a group.
+      passerPid: type === 'rec' ? (P(r, 'passer_player_id') || null) : null,
       gameId, firstTd, weekday: results[gameId]?.weekday || null,
     });
     if (pid) {
@@ -323,10 +327,19 @@ async function main() {
   // Stafford don't rush for TDs, so they never entered the recap. Built here
   // rather than earlier because picks and milestones don't exist until now.
   const referenced = new Set(tdLeaders.map(l => l.pid));
-  for (const wk of weeks) for (const t of tdRecap[wk]) if (t.pid) referenced.add(t.pid);
+  for (const wk of weeks) for (const t of tdRecap[wk]) {
+    if (t.pid) referenced.add(t.pid);
+    if (t.passerPid) referenced.add(t.passerPid);   // QB stacks show his face too
+  }
   for (const p of (picks?.picks ?? [])) referenced.add(p.pid);
   for (const b of (picks?.birthdays ?? [])) referenced.add(b.pid);
   for (const m of milestones) referenced.add(m.pid);
+  // Passers who never scored themselves aren't in tdLeaders or the recap's
+  // scorer rows, so the Stacks view has no name for them without this.
+  const passerNames = {};
+  for (const wk of weeks) for (const t of tdRecap[wk])
+    if (t.passerPid && t.passer && !passerNames[t.passerPid]) passerNames[t.passerPid] = t.passer;
+
   const shots = {}; for (const pid of referenced) if (headshots[pid]) shots[pid] = headshots[pid];
   // picks.js carries players.csv headshots for the board — better coverage than
   // the season stats feed, which only has a player who took a snap last year.
@@ -342,7 +355,7 @@ async function main() {
     historySeason: HISTORY_SEASON, upcomingSeason: UPCOMING_SEASON,
     schedule, results, tdRecap, tdRecapWeeks: weeks, tdLeaders, headshots: shots,
     teamStats, teamScorers, teamQB,
-    picks: picks ? { ...picks, shots: undefined } : picks, picksHistory, parlay, milestones,
+    picks: picks ? { ...picks, shots: undefined } : picks, picksHistory, parlay, milestones, passerNames,
   };
   fs.writeFileSync(new URL('../nfl/data.json', import.meta.url), JSON.stringify(output));
   console.log(`Wrote nfl/data.json — ${schedule.length} ${UPCOMING_SEASON} games, ${tdTotal} TDs across ${weeks.length} weeks, ${tdLeaders.length} TD leaders, ${picks?.picks.length ?? 0} picks.`);
