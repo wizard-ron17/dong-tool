@@ -299,13 +299,17 @@ export const PASS_LINES = PASS_MODEL.lines;
  */
 export async function loadPlayers() {
   const { idx, rows } = parseCsv(await fetchText(`${REL}/players/players.csv`));
-  const xwalk = new Map(), birth = new Map();
+  const xwalk = new Map(), birth = new Map(), shot = new Map();
   for (const r of rows) {
     const g = r[idx.gsis_id], p = r[idx.pfr_id];
     if (g && p && !xwalk.has(p)) xwalk.set(p, g);
     if (g && r[idx.birth_date]) birth.set(g, r[idx.birth_date]);
+    // Headshots ride along on a file we already download. The season stats feed
+    // only has one for a player who took a snap last year, which left every
+    // rookie and every pocket QB faceless on the board; this covers 437 of 480.
+    if (g && r[idx.headshot]) shot.set(g, r[idx.headshot]);
   }
-  return { xwalk, birth };
+  return { xwalk, birth, shot };
 }
 export async function loadCrosswalk() { return (await loadPlayers()).xwalk; }
 
@@ -496,7 +500,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   const games = schedule.filter(g => g.week === week && g.total != null);
   console.log(`Picks: scoring ${season} week ${week} (${games.length} games)…`);
 
-  const { xwalk, birth } = await loadPlayers();
+  const { xwalk, birth, shot } = await loadPlayers();
   const snapLog = await loadSnapLog(snapSeasons, xwalk);
   const { rzLog, passLog } = await loadPbpLogs(rzSeasons);
   const roster = await loadRoster(upcomingSeason);
@@ -663,8 +667,16 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   console.log(`  birthdays within a week of kickoff: ${bdays.length}`
             + ` (${bdays.filter(x => x.off === 0).length} on the day)`);
 
+  // Headshots for everyone this board can surface, from players.csv — already
+  // downloaded above, so this costs nothing extra. The build merges them with
+  // the recap's own set.
+  const shots = {};
+  for (const p of picks) { const u = shot.get(p.pid); if (u) shots[p.pid] = u; }
+  for (const b of bdays) { const u = shot.get(b.pid); if (u) shots[b.pid] = u; }
+
   return {
     season, week, generatedAt: new Date().toISOString(),
+    shots,
     birthdays: bdays, birthdayStats: BDAY.league, birthdaySeasons: BDAY.seasons,
     birthdayBase: BDAY.base_rate,
     // Ship the fitted model with the board so the UI can decompose each price

@@ -1369,6 +1369,10 @@
     background: color-mix(in srgb, var(--accent) 12%, transparent);
     border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
     border-radius: 4px; padding: 0.08rem 0.34rem; }
+  .hm-sub { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem;
+    margin: 0.55rem 0 0.12rem; cursor: pointer; }
+  .hm-sub:hover .hm-link { text-decoration: underline; }
+  .hm-subhead { font-size: 0.58rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
   .hm-glogo { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
   .hm-cols > .hm-col > .hm-card { animation: none; }
   @media (max-width: 720px) { .hm-cols { flex-direction: column; } }
@@ -2470,13 +2474,23 @@
   const pbSave = () => { try { localStorage.setItem('nflPicksFilters', JSON.stringify(pbF)); } catch (e) {} };
   let pbSub = 'board', pbFiltersOpen = false;
 
+  // Each market's prices live on their own scale — a 25% cut that shows 65
+  // players in the 1+ market shows none at all in 2+ — so switching markets
+  // resets to that market's own default rather than stranding the user on an
+  // empty board. Pass TD sits at 0 because the whole market is one starting QB
+  // per team, and 0.25 isn't one of its offered cuts anyway.
+  const PB_MKT_CUT = { '1': 0.25, '2': 0.05, '3': 0.06, '4': 0.06, '5': 0 };
   function setPbF(k, v) {
     pbF[k] = (k === 'cut') ? parseFloat(v) : v;
-    // 2+ prices live on a completely different scale — a 25% cut that shows 65
-    // players in the 1+ market shows none at all in 2+. Reset to that market's
-    // own default rather than stranding the user on an empty board.
-    if (k === 'mkt') pbF.cut = { '1': 0.25, '2': 0.05, '3': 0.06, '4': 0.06 }[v] ?? 0.25;
+    if (k === 'mkt') pbF.cut = PB_MKT_CUT[v] ?? 0.25;
     pbSave(); renderPicksFilters(); renderPicks();
+  }
+  /** Open the Picks board already on a given market — used by home-page links. */
+  function goPicksMarket(mkt) {
+    pbF.mkt = mkt;
+    pbF.cut = PB_MKT_CUT[mkt] ?? 0.25;
+    pbSave();
+    switchNav('picks');
   }
   function setPbSort(v) {
     // clicking the active column flips direction; a new column starts sensibly
@@ -3710,7 +3724,7 @@
         <span class="hm-name">${r.name}<span class="hm-subtle"> · ${r.pos} ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</span></span>
         <span class="hm-score ${r.p >= 0.5 ? 'hot' : 'warm'}">${pbOdds(r.p)}</span></div>`).join('');
     const topPass = [...priced].filter(r => r.pass).sort((a, b) => b.pass.p['2'] - a.pass.p['2']).slice(0, 2).map(r => `
-      <div class="hm-row">${faceHtml(r.pid, r.name)}
+      <div class="hm-row" onclick="event.stopPropagation(); goPicksMarket('5')">${faceHtml(r.pid, r.name)}
         <span class="hm-name">${r.name}<span class="hm-subtle"> · ${r.team} · ${r.pass.proj.toFixed(1)} proj</span></span>
         <span class="hm-score ${r.pass.p['2'] >= 0.5 ? 'hot' : 'warm'}">${pbOdds(r.pass.p['2'])}</span></div>`).join('');
 
@@ -3774,7 +3788,10 @@
             </div>
             <div class="hm-chips">${multi.map(m => `<span class="hm-chip">${compactName(m.n)} ×${m.c}</span>`).join('') || '<span class="hm-subtle">No multi-TD games</span>'}</div>` : '',
             'No weeks recapped yet.')}
-          ${card('picks', 'Picks', 'Picks', topPicks + (topPass ? `<div class="hm-subhead">Pass TD</div>${topPass}` : ''),
+          ${card('picks', 'Picks', 'Picks', topPicks + (topPass ? `
+            <div class="hm-sub" onclick="event.stopPropagation(); goPicksMarket('5')">
+              <span class="hm-subhead">Pass TD</span><span class="hm-link">Pass TD →</span>
+            </div>${topPass}` : ''),
             'The board fills in once the slate has lines.')}
           ${card('due', 'Due', 'Due', dueRows, 'Nobody with a red-zone role is in a drought.')}
           ${card('milestones', 'Milestone Watch 🏆', 'Milestones', msRows, 'No chases within reach.')}
