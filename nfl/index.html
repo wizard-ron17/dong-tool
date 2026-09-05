@@ -2247,15 +2247,16 @@
         <span class="due-explainer-cta"></span>
         <span class="due-explainer-chevron" id="returners-explainer-chevron">▶</span>
       </div>
-      <div class="due-explainer-teaser">Who takes the punts and kickoffs — and whose matchup actually hands him more of them.</div>
+      <div class="due-explainer-teaser">Who takes the punts and kickoffs, and what that adds to his anytime touchdown price.</div>
       <div class="due-explainer-body" id="returners-explainer-body" style="display:none">
         <ul>
+          <li><b>There is no return-TD market.</b> A kick or punt return touchdown pays as an <b>anytime</b> touchdown, so that is what this board prices: his offensive chance and his return chance combined. The <b>+ret</b> column isolates what the return role adds — the piece a pure offence model like our Picks board can't see, and the reason a returner's anytime price should sit shorter than his target share alone suggests.</li>
           <li><b>Volume comes from the opponent.</b> They punt when their offence stalls and they kick off when they score, so a returner's workload is mostly a fact about the other team. Both mechanisms check out: punt returns track the opponent's actual punts at <b>r=+0.80</b>, kick returns track their points at <b>r=+0.38</b>.</li>
           <li><b>But the two cancel.</b> This is the part worth knowing before betting a "high total means more returns" hunch. A weak opponent punts more and scores less; a strong one does the reverse. Across opponent-implied-total terciles a team sees <b>6.2 / 6.4 / 6.3</b> returns — flat. The matchup moves the <em>mix</em>, not the volume.</li>
           <li><b>The mix is what matters.</b> Only because the two types don't pay the same: a punt return reaches the end zone about <b>1.5×</b> as often as a kick return. So a punt specialist facing a stalling offence is the one real angle here — and even then it's small, moving expected return-TD from roughly 2.5% to 2.6% a game.</li>
           <li><b>Share is the bigger lever.</b> Once the opponent effects wash out, what separates returners is how much of his own team's work he takes. Usage is a genuinely stable role — split-half <b>r=0.56</b> on punts, <b>0.50</b> on kicks — so the share column is doing more than the matchup column.</li>
           <li><b>Kick numbers are 2025 only.</b> The dynamic-kickoff change took the league return rate from 33% to <b>74.5%</b> in one off-season. Earlier seasons describe a game that no longer exists, so they're excluded rather than averaged in. Punt rates are stable and use five seasons.</li>
-          <li><b>Honest scale.</b> A return touchdown happens in about <b>6%</b> of games league-wide. This is a longshot board by nature — it ranks who is most likely to house one, not anyone who is likely to.</li>
+          <li><b>Honest scale.</b> A return touchdown happens in about <b>6%</b> of games league-wide, so for most returners the return role adds a point or two of anytime chance, not more. The board is sorted by that add rather than by the combined price, because the combined price is mostly his offence — which the Picks board already tells you.</li>
         </ul>
       </div>
     </div>
@@ -3623,11 +3624,15 @@ let pairStacks = false;
   const PAIR_SIZE_NAMES = { 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' };
   const PAIR_RENDER_LIMIT = 200;
   // ── RETURNERS ──────────────────────────────────────────────────────
-  // Expected returns = his share of his team's work x what the matchup hands
-  // that team. The matchup part barely moves the total (a weak opponent punts
-  // more and scores less, a strong one the reverse, and the two cancel) — it
-  // moves the MIX, which matters only because a punt return houses it ~1.5x as
-  // often as a kick return.
+  // There is no "return touchdown" market. A kick or punt return TD pays as an
+  // ANYTIME touchdown, so the number that matters is his anytime price WITH the
+  // return chance folded in:  1 - (1 - offence)(1 - return).
+  //
+  // The first version of this board priced the return leg alone and showed
+  // Chimere Dike at +3934 — a number nobody can bet, and one that looked absurd
+  // next to his real market. The board now ranks on what the return role ADDS,
+  // because that is the part the Picks model can't see; the price shown is the
+  // bettable combined one.
   function renderReturners() {
     const el = document.getElementById('returners-content'); if (!el) return;
     if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
@@ -3635,35 +3640,47 @@ let pairStacks = false;
     const R = nflData.returners || [], M = nflData.returnModel;
     if (!R.length || !M) { el.innerHTML = '<div class="empty">No return data yet.</div>'; return; }
 
-    // this week's slate, so each returner gets his actual opponent
     const w = firstUpcomingWeek();
     const { byWeek } = scheduleWeeks();
     const ctx = {};
     for (const g of (byWeek[w] || [])) {
       if (g.total == null) continue;
       const half = g.total / 2, edge = (g.spread ?? 0) / 2;
-      // opp implied = what the OTHER team is expected to score
-      ctx[g.home] = { opp: g.away, oppImp: half - edge, home: 1, kick: g.gametime };
-      ctx[g.away] = { opp: g.home, oppImp: half + edge, home: 0, kick: g.gametime };
+      ctx[g.home] = { opp: g.away, oppImp: half - edge, home: 1 };
+      ctx[g.away] = { opp: g.home, oppImp: half + edge, home: 0 };
     }
+    const off = {};
+    for (const p of (nflData.picks?.picks || [])) off[p.pid] = p;
     const expK = (oi) => Math.max(0, M.kick_fit.a + M.kick_fit.b * oi);
     const expP = (oi) => Math.max(0, M.punt_fit.a + M.punt_fit.b * oi);
 
     const rows = R.filter(r => ctx[r.team]).map(r => {
       const c = ctx[r.team];
-      const kr = expK(c.oppImp) * r.krShare;
-      const pr = expP(c.oppImp) * r.prShare;
-      return { ...r, ...c, expK: kr, expP: pr, exp: kr + pr,
-               tdp: kr * M.kick_td_rate + pr * M.punt_td_rate };
-    }).filter(r => r.exp >= 0.5).sort((a, b) => b.tdp - a.tdp);
+      const kr = expK(c.oppImp) * r.krShare, pr = expP(c.oppImp) * r.prShare;
+      const ret = kr * M.kick_td_rate + pr * M.punt_td_rate;
+      // Only 43 of 162 returners carry an offensive price — the rest sit below
+      // the Picks board's cut. Treating "not priced" as "zero offence" would
+      // publish a combined number that is too long, which is the same mistake
+      // as pricing the return alone. Those rows show the return leg on its own
+      // and say so.
+      const known = off[r.pid] != null;
+      const o = known ? off[r.pid].p : 0;
+      const both = 1 - (1 - o) * (1 - ret);
+      return { ...r, ...c, expK: kr, expP: pr, ret, off: o, known, both, add: ret };
+    }).filter(r => r.expK + r.expP >= 0.5)
+      // Rows we can price fully come first — a complete number is more use than
+      // a bigger incomplete one — then by how much return work he actually gets.
+      .sort((a, b) => (b.known - a.known) || (b.add - a.add));
     if (!rows.length) { el.innerHTML = '<div class="empty">No returners on this week\'s slate yet — fills in once the games have lines.</div>'; return; }
 
-    const meta = `<div class="pt-meta">Week ${w} returners by <b>expected return touchdown</b> — his share of his team's work times what the matchup hands them.
-      A punt return houses it <b>${(M.punt_td_rate / M.kick_td_rate).toFixed(1)}×</b> as often as a kick return, which is the only reason the matchup matters:
-      a weak opponent punts more and scores less, so the <em>mix</em> shifts even though the <em>total</em> barely does.
-      Kick rates are ${M.kick_seasons.join('/')} only — the dynamic-kickoff change made earlier seasons a different game.</div>`;
+    const meta = `<div class="pt-meta">Week ${w} returners by <b>what the return role adds</b> to their anytime price.
+      There is no separate return-TD market — a return touchdown pays as an <b>anytime</b> touchdown, so the price shown is
+      his offence and his return chance combined, which is what a book is pricing.
+      The <b>ret</b> column is the part the Picks board can't see. Returners below the Picks cut have no offensive price, so those rows show the return leg alone and say so — their real anytime price is shorter. A punt return houses it
+      <b>${(M.punt_td_rate / M.kick_td_rate).toFixed(1)}×</b> as often as a kick return, and a weak opponent punts more while
+      scoring less — so the matchup shifts the <em>mix</em> even though the total barely moves.</div>`;
     const cards = rows.slice(0, 40).map((r, i) => `
-      <div class="pb-card">
+      <div class="pb-card"${off[r.pid] ? ` onclick="openPick('${r.pid}')"` : ''}>
         <div class="pb-rank">${i + 1}</div>${faceHtml(r.pid, r.name)}
         <div class="pb-info">
           <div class="pb-nm">${r.name}${r.prTd + r.krTd ? `<span class="pb-flag" title="Return touchdowns last season">${r.prTd + r.krTd} RET TD</span>` : ''}</div>
@@ -3671,13 +3688,16 @@ let pairStacks = false;
             · <b>${Math.round(r.prShare * 100)}%</b> punts · <b>${Math.round(r.krShare * 100)}%</b> kicks</div>
         </div>
         <div class="pb-facts">
-          <span class="pb-f" title="Expected punt returns this week — driven by how much the opponent is likely to punt"><b>${r.expP.toFixed(1)}</b> punt</span>
-          <span class="pb-f" title="Expected kick returns this week — driven by how much the opponent is likely to score"><b>${r.expK.toFixed(1)}</b> kick</span>
-          <span class="pb-f" title="Opponent's implied team total"><b>${r.oppImp.toFixed(1)}</b> opp imp</span>
+          <span class="pb-f" title="${r.known ? 'His anytime price from the Picks board — offence only' : 'He is below the Picks board cut, so his offensive chance is not priced'}"><b>${r.known ? pbOdds(r.off) : 'n/a'}</b> offence</span>
+          <span class="pb-f" title="Expected punt / kick returns this week"><b>${r.expP.toFixed(1)}</b>p <b>${r.expK.toFixed(1)}</b>k</span>
+          <span class="pb-f" title="Chance he takes one back this week"><b>${(r.ret * 100).toFixed(1)}%</b> ret</span>
         </div>
         <div class="pb-price">
-          <span class="pb-odds${r.tdp < 0.5 ? ' dog' : ''}">${pbOdds(r.tdp)}</span>
-          <span class="pb-pct">${(r.tdp * 100).toFixed(1)}% ret TD</span>
+          ${r.known
+            ? `<span class="pb-odds${r.both < 0.5 ? ' dog' : ''}">${pbOdds(r.both)}</span>
+               <span class="pb-pct">${(r.both * 100).toFixed(1)}% anytime</span>`
+            : `<span class="pb-odds dog" style="font-size:1.1rem">+${(r.ret * 100).toFixed(1)}%</span>
+               <span class="pb-pct" title="His offensive chance isn't priced, so this is the return leg alone — his real anytime price is shorter than this">return only</span>`}
         </div>
       </div>`).join('');
     el.innerHTML = meta + `<div class="pb-list">${cards}</div>`;
