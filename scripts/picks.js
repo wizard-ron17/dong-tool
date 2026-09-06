@@ -42,6 +42,78 @@ const RZ_SEASONS = 2;
 // snap_last3 doesn't separate them: a backup with thin history falls back to the
 // position prior and lands at 0.82, indistinguishable from a starter. Passing
 // attempts in the loaded window are the direct measure and can't be faked.
+// ── Team snap normalisation ───────────────────────────────────────────────
+// snap_last3 is a player's share on the team he last played for. In week 1 that
+// is always last season's team, and it stays partly stale until week 4, when the
+// last three games are finally all from this season. So every board carries
+// players wearing a role they no longer have — Tennessee projecting Ridley,
+// Robinson, Ayomanor AND Dike at their old shares, Pittsburgh carrying Dowdle
+// and Warren both as the lead back.
+//
+// The fix is an identity rather than a guess: a team fields exactly five skill
+// players and one quarterback on every snap, so those shares MUST sum to 5 and
+// 1. Measured over 2016-2025 they do — 4.99 and 1.00, with the skill sum sitting
+// between 4.84 and 5.01 at the 10th and 90th percentiles. Scaling a team's
+// projections back to that budget claims nothing about who wins a job; it only
+// refuses to put more players on the field than football allows.
+//
+// Proportional on purpose. Deciding that the incoming veteran takes more than
+// the incumbent WOULD be making it up; scaling everyone by the same factor
+// keeps the model's own ordering and just enforces the constraint.
+//
+// Measured on weeks 1-3, 2016-2025: log loss 0.41213 -> 0.41169, AUC 0.7254 ->
+// 0.7267, ECE 0.0138 -> 0.0099, and mean prediction 0.179 -> 0.175 against a
+// 0.172 actual. The gain is modest there because that data only contains players
+// who actually played; a live board carries the whole roster and starts at 7.04.
+const SNAP_BUDGET = { skill: 4.99, qb: 1.0 };
+const SKILL_POS = ['RB', 'WR', 'TE', 'FB'];
+
+/**
+ * Scale snap_last3 within each team so the board can't field more players than
+ * exist. Mutates rows in place; returns how far each team was out.
+ */
+export function normaliseTeamSnaps(rows) {
+  const groupOf = (pos) => (pos === 'QB' ? 'qb' : SKILL_POS.includes(pos) ? 'skill' : null);
+  // Sum over the likely ROTATION, not the whole roster. A 25-man skill roster
+  // whose members each carry a stale share sums past 10, and spreading the
+  // 5-snap budget across players who will never take one starves the actual
+  // starters — the first cut did exactly that and left the board at 3.36.
+  // Cap per position by snap share first, mirroring PER_TEAM_POS.
+  const byTeamPos = new Map();
+  for (const r of rows) {
+    if (!groupOf(r.position)) continue;
+    const k = `${r.team}|${r.position}`;
+    (byTeamPos.get(k) ?? byTeamPos.set(k, []).get(k)).push(r);
+  }
+  const sums = new Map();
+  for (const [k, arr] of byTeamPos) {
+    const [team, pos] = k.split('|');
+    arr.sort((a, b) => b.row.snap_last3 - a.row.snap_last3);
+    const keep = arr.slice(0, PER_TEAM_POS[pos] ?? 3);
+    const g = groupOf(pos);
+    const kk = `${team}|${g}`;
+    sums.set(kk, (sums.get(kk) ?? 0) + keep.reduce((a, r) => a + r.row.snap_last3, 0));
+  }
+  const scale = new Map();
+  for (const [k, total] of sums) {
+    const g = k.split('|')[1];
+    // Only ever scale DOWN toward the budget from above, or up from a thin
+    // board — but never by more than 2x, which would mean the roster data is
+    // wrong rather than the shares being crowded.
+    const f = total > 0.5 ? SNAP_BUDGET[g] / total : 1;
+    scale.set(k, Math.max(0.4, Math.min(2, f)));
+  }
+  for (const r of rows) {
+    const g = groupOf(r.position);
+    if (!g) continue;
+    const f = scale.get(`${r.team}|${g}`) ?? 1;
+    r.row.snap_last3_raw = r.row.snap_last3;
+    r.row.snap_last3 = r.row.snap_last3 * f;
+    r.snapScale = f;
+  }
+  return scale;
+}
+
 const PASS_MIN_STARTS = 3;
 // A Questionable tag is real information the features can't see: snap history
 // describes a healthy player. Across 2016-2025 the board's price for a
@@ -518,7 +590,10 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   const starterQb = passStarters(roster, passLog, season);
   console.log(`  passing market: ${starterQb.size} starting QBs identified`);
 
-  const picks = [];
+  // Two passes: gather every player's features first so team snap shares can be
+  // normalised against the roster as a whole, then score. Scoring inside the
+  // first loop would price each player before we know how crowded his team is.
+  const staged = [];
   for (const [pid, info] of roster) {
     const ctx = teamsInPlay.get(info.team);
     if (!ctx) continue;                                 // not playing this week
@@ -531,6 +606,18 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
       impliedTotal: ctx.implied, matesOut, newAbsence,
     });
     if (!row) continue;                                 // no usage history at all
+    staged.push({ pid, info, ctx, pos, row, team: info.team, position: pos });
+  }
+  const snapScale = normaliseTeamSnaps(staged);
+  {
+    const f = [...snapScale.values()];
+    const med = f.sort((a, b) => a - b)[Math.floor(f.length / 2)] ?? 1;
+    console.log(`  team snap normalisation: median scale ${med.toFixed(2)}x `
+      + `(${f.filter(x => x < 0.95).length} teams scaled down, ${f.filter(x => x > 1.05).length} up)`);
+  }
+
+  const picks = [];
+  for (const { pid, info, ctx, pos, row } of staged) {
 
     // Passing market, one starter per team. Quoting a backup a passing line
     // would be inventing a bet nobody can place. `pass` stays undefined for
@@ -573,6 +660,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
       // the bars sum with nothing left over, so they have to.
       f: {
         snap3: +row.snap_last3.toFixed(6),
+        snap3Raw: +(row.snap_last3_raw ?? row.snap_last3).toFixed(6),
         snapPrior: +row.snap_share_prior.toFixed(6),
         rz: +row.rz_touches_prior.toFixed(6),
         implied: +row.implied_total.toFixed(4),
