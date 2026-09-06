@@ -57,28 +57,59 @@ const RZ_SEASONS = 2;
 // projections back to that budget claims nothing about who wins a job; it only
 // refuses to put more players on the field than football allows.
 //
-// Proportional on purpose. Deciding that the incoming veteran takes more than
-// the incumbent WOULD be making it up; scaling everyone by the same factor
-// keeps the model's own ordering and just enforces the constraint.
+// NOT proportional across the board. A uniform factor cut McCaffrey — the same
+// team's lead back for years, whose share is accurate — exactly as hard as three
+// imports whose shares belong to three different former teams, and took him from
+// 75% to 48%. That is not how a crowded room resolves.
 //
-// Measured on weeks 1-3, 2016-2025: log loss 0.41213 -> 0.41169, AUC 0.7254 ->
-// 0.7267, ECE 0.0138 -> 0.0099, and mean prediction 0.179 -> 0.175 against a
-// 0.172 actual. The gain is modest there because that data only contains players
-// who actually played; a live board carries the whole roster and starts at 7.04.
+// What actually happens is in the data. Rank a team's players within their
+// position by snap share and the historical distribution is steeply top-heavy:
+// the lead man holds and the tail collapses. So when a room is over-subscribed
+// the depth is what gives way, not the starter.
+//
+//   rank    RB      WR      TE
+//     1    0.589   0.818   0.701
+//     2    0.311   0.722   0.406
+//     3    0.169   0.553   0.222
+//     4    0.116   0.308   0.150
+//
+// RB1 is 3.5x RB3; a proportional cut preserves that ratio when reality does not.
+// Each player is therefore blended halfway toward the share his DEPTH RANK
+// historically earns, then the residual is scaled to the budget. Half, not all:
+// pure rank assignment (w=1.0) throws away his own history and tests worse than
+// the blend, so the player's measured share still carries half the weight.
+const DEPTH_PRIOR = {
+  RB: [0.5886, 0.3105, 0.1687, 0.1163],
+  WR: [0.8176, 0.7218, 0.5526, 0.3077, 0.1901, 0.1419],
+  TE: [0.7008, 0.4059, 0.2219, 0.1499],
+  FB: [0.2264],
+  QB: [0.9489, 0.2397],
+};
+const DEPTH_W = 0.5;
+//
+// Measured on weeks 1-3, 2016-2025, against the two alternatives:
+//
+//                      log loss    AUC      ECE
+//   raw snap_last3      0.41213   0.7254   0.0138
+//   proportional        0.41169   0.7267   0.0099
+//   rank-blend 50/50    0.41081   0.7288   0.0054
+//
+// Better on all three, and the calibration error more than halves. The gain
+// looks modest only because that data contains just players who actually
+// played; a live board carries the whole roster and starts at 7.04 per team.
 const SNAP_BUDGET = { skill: 4.99, qb: 1.0 };
 const SKILL_POS = ['RB', 'WR', 'TE', 'FB'];
 
 /**
- * Scale snap_last3 within each team so the board can't field more players than
- * exist. Mutates rows in place; returns how far each team was out.
+ * Resolve each team's snap shares against what a real depth chart looks like, so
+ * the board can't field more players than exist. Mutates rows in place; returns
+ * how far each team was out.
  */
 export function normaliseTeamSnaps(rows) {
   const groupOf = (pos) => (pos === 'QB' ? 'qb' : SKILL_POS.includes(pos) ? 'skill' : null);
-  // Sum over the likely ROTATION, not the whole roster. A 25-man skill roster
-  // whose members each carry a stale share sums past 10, and spreading the
-  // 5-snap budget across players who will never take one starves the actual
-  // starters — the first cut did exactly that and left the board at 3.36.
-  // Cap per position by snap share first, mirroring PER_TEAM_POS.
+  for (const r of rows) r.row.snap_last3_raw = r.row.snap_last3;
+
+  // Step 1: blend toward the share this player's depth rank historically earns.
   const byTeamPos = new Map();
   for (const r of rows) {
     if (!groupOf(r.position)) continue;
@@ -89,11 +120,27 @@ export function normaliseTeamSnaps(rows) {
   for (const [k, arr] of byTeamPos) {
     const [team, pos] = k.split('|');
     arr.sort((a, b) => b.row.snap_last3 - a.row.snap_last3);
+    const prior = DEPTH_PRIOR[pos] ?? [];
+    arr.forEach((r, i) => {
+      r.depthRank = i + 1;
+      // Past the listed depth the prior is whatever the last rung was, decayed —
+      // a team's seventh receiver is not a rank-6 receiver.
+      const p = prior.length
+        ? (prior[i] ?? prior[prior.length - 1] * 0.6 ** (i - prior.length + 1))
+        : r.row.snap_last3;
+      r.row.snap_last3 = (1 - DEPTH_W) * r.row.snap_last3 + DEPTH_W * p;
+    });
+    // Sum over the likely ROTATION, not the whole roster. A 25-man skill roster
+    // whose members each carry a stale share sums past 10, and spreading the
+    // 5-snap budget across players who will never take a snap starves the actual
+    // starters — the first cut did exactly that and left the board at 3.36.
     const keep = arr.slice(0, PER_TEAM_POS[pos] ?? 3);
-    const g = groupOf(pos);
-    const kk = `${team}|${g}`;
+    const kk = `${team}|${groupOf(pos)}`;
     sums.set(kk, (sums.get(kk) ?? 0) + keep.reduce((a, r) => a + r.row.snap_last3, 0));
   }
+
+  // Step 2: scale the residual to the budget. After step 1 this is small, and
+  // there is no evidence left about who specifically gives way.
   const scale = new Map();
   for (const [k, total] of sums) {
     const g = k.split('|')[1];
@@ -107,7 +154,6 @@ export function normaliseTeamSnaps(rows) {
     const g = groupOf(r.position);
     if (!g) continue;
     const f = scale.get(`${r.team}|${g}`) ?? 1;
-    r.row.snap_last3_raw = r.row.snap_last3;
     r.row.snap_last3 = r.row.snap_last3 * f;
     r.snapScale = f;
   }
@@ -617,7 +663,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   }
 
   const picks = [];
-  for (const { pid, info, ctx, pos, row } of staged) {
+  for (const { pid, info, ctx, pos, row, depthRank } of staged) {
 
     // Passing market, one starter per team. Quoting a backup a passing line
     // would be inventing a bet nobody can place. `pass` stays undefined for
@@ -661,6 +707,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
       f: {
         snap3: +row.snap_last3.toFixed(6),
         snap3Raw: +(row.snap_last3_raw ?? row.snap_last3).toFixed(6),
+        ...(depthRank ? { depthRank } : {}),
         snapPrior: +row.snap_share_prior.toFixed(6),
         rz: +row.rz_touches_prior.toFixed(6),
         implied: +row.implied_total.toFixed(4),
