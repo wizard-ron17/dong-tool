@@ -44,14 +44,26 @@
     background: linear-gradient(180deg, var(--card2), var(--card)); border: 1px solid var(--border); border-radius: 18px;
     padding: 1.15rem 1.2rem 1.2rem; text-decoration: none; color: inherit; transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s; }
   .tile.live:hover { transform: translateY(-3px); border-color: var(--green); box-shadow: 0 14px 34px rgba(0,0,0,0.45), 0 0 0 1px rgba(51,208,124,0.25); }
-  .tile.soon { opacity: 0.5; cursor: default; }
+  /* Upcoming sports are dimmed, but not so far that they read as broken — they
+     carry a real date, so they should look scheduled rather than disabled. */
+  .tile.soon { opacity: 0.78; cursor: default; }
   .tile-ico { font-size: 2rem; line-height: 1; margin-bottom: 0.5rem; }
   .tile-name { font-weight: 800; font-size: 1.18rem; }
   .tile-sub { color: var(--muted); font-size: 0.78rem; margin-top: 0.15rem; }
+  .tile-status { font-size: 0.7rem; margin-top: 0.5rem; color: var(--dim); letter-spacing: 0.01em; display: flex; align-items: center; gap: 0.34rem; }
+  .tile-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--dim); flex: none; }
+  .tile-status.on { color: var(--green); } .tile-status.on .dot { background: var(--green); }
+  .tile-status.up { color: var(--gold); } .tile-status.up .dot { background: var(--gold); }
   .badge { position: absolute; top: 0.9rem; right: 0.9rem; font-size: 0.55rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase;
-    padding: 0.22rem 0.5rem; border-radius: 999px; }
+    padding: 0.22rem 0.5rem; border-radius: 999px; white-space: nowrap; }
   .badge.go { color: #06210f; background: var(--green); }
   .badge.soon { color: var(--dim); background: rgba(138,148,166,0.12); border: 1px solid var(--border); }
+  .badge.count { color: var(--gold); background: rgba(240,192,64,0.10); border: 1px solid rgba(240,192,64,0.32); }
+  .badge.post { color: #2a1c00; background: var(--gold); }
+  /* A live season gets a quiet pulse so the eye lands on what's playable now. */
+  .badge.go.now { animation: pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(51,208,124,0.45); } 50% { box-shadow: 0 0 0 5px rgba(51,208,124,0); } }
+  @media (prefers-reduced-motion: reduce) { .badge.go.now { animation: none; } }
   .foot { margin-top: 2rem; color: var(--dim); font-size: 0.68rem; letter-spacing: 0.02em; }
 </style>
 </head>
@@ -60,32 +72,110 @@
     <div class="brand">Ron<span class="apos">'s</span> Tools</div>
     <div class="tag">Pick your sport.</div>
     <div class="grid">
-      <a class="tile live" href="/mlb/">
+      <a class="tile live" href="/nfl/" data-sport="nfl">
+        <span class="badge go">Live</span>
+        <span class="tile-ico">🏈</span>
+        <span class="tile-name">Ron's Tud Tool</span>
+        <span class="tile-sub">NFL · touchdown picks</span>
+        <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
+      </a>
+      <a class="tile live" href="/mlb/" data-sport="mlb">
         <span class="badge go">Live</span>
         <span class="tile-ico">⚾</span>
         <span class="tile-name">Ron's Dong Tool</span>
         <span class="tile-sub">MLB · home run picks, value bats, matchups</span>
+        <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
       </a>
-      <a class="tile live" href="/nfl/">
-        <span class="badge go">New</span>
-        <span class="tile-ico">🏈</span>
-        <span class="tile-name">Ron's Tud Tool</span>
-        <span class="tile-sub">NFL · touchdown picks</span>
-      </a>
-      <div class="tile soon">
+      <div class="tile soon" data-sport="nhl">
+        <span class="badge soon">Soon</span>
+        <span class="tile-ico">🏒</span>
+        <span class="tile-name">Ron's Goal Tool</span>
+        <span class="tile-sub">NHL · anytime goal scorer</span>
+        <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
+      </div>
+      <div class="tile soon" data-sport="nba">
         <span class="badge soon">Soon</span>
         <span class="tile-ico">🏀</span>
         <span class="tile-name">Ron's Hoop Tool</span>
         <span class="tile-sub">NBA · coming soon</span>
-      </div>
-      <div class="tile soon">
-        <span class="badge soon">Soon</span>
-        <span class="tile-ico">🏒</span>
-        <span class="tile-name">Ron's Goal Tool</span>
-        <span class="tile-sub">NHL · coming soon</span>
+        <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
       </div>
     </div>
     <div class="foot">Inspired by Green Means Go.</div>
   </div>
+<script>
+  // Season status per sport, computed in the browser so a tile never goes stale
+  // between deploys. Dates are the real ones, not estimates:
+  //   NFL  — our own schedule feed (nfl/data.json), opener and last REG game
+  //   MLB  — statsapi.mlb.com /api/v1/seasons/2026
+  //   NHL  — api.nhle.com /stats/rest/en/season, id 20262027
+  //   NBA  — ESPN scoreboard; preseason opens 10-03, REGULAR season 10-20
+  // These need refreshing once a year. If a date passes with no update the tile
+  // degrades to "in development" rather than showing something wrong.
+  var SPORTS = {
+    nfl: { start: '2026-09-09T20:20:00-04:00', regEnd: '2027-01-10T23:59:59-05:00', post: 'Playoffs' },
+    mlb: { start: '2026-03-25T00:00:00-04:00', regEnd: '2026-09-27T23:59:59-04:00',
+           postStart: '2026-09-28T00:00:00-04:00', postEnd: '2026-10-31T23:59:59-04:00', post: 'Postseason' },
+    nhl: { start: '2026-09-29T00:00:00-04:00', regEnd: '2027-04-10T23:59:59-04:00' },
+    nba: { start: '2026-10-20T00:00:00-04:00', regEnd: '2027-04-12T23:59:59-04:00' }
+  };
+  (function () {
+    var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    function fmt(d) { return MON[d.getMonth()] + ' ' + d.getDate(); }
+    function paint() {
+      var now = new Date();
+      Object.keys(SPORTS).forEach(function (k) {
+        var s = SPORTS[k];
+        var tile = document.querySelector('[data-sport="' + k + '"]');
+        if (!tile) return;
+        var badge = tile.querySelector('.badge');
+        var live = tile.classList.contains('live');
+        var start = new Date(s.start), regEnd = new Date(s.regEnd);
+        var postStart = s.postStart ? new Date(s.postStart) : null;
+        var postEnd = s.postEnd ? new Date(s.postEnd) : null;
+        var label, cls, note;
+
+        if (now < start) {
+          var ms = start - now, days = Math.ceil(ms / 86400000);
+          if (ms < 36e5) {                      // inside the hour — count minutes
+            label = Math.max(1, Math.round(ms / 6e4)) + ' MIN';
+          } else if (ms < 864e5) {
+            label = Math.round(ms / 36e5) + ' HR';
+          } else {
+            label = days + (days === 1 ? ' DAY' : ' DAYS');
+          }
+          cls = 'badge count';
+          note = (live ? 'Season opens ' : 'Season starts ') + fmt(start);
+        } else if (now <= regEnd) {
+          cls = 'badge go now'; label = 'Live';
+          if (postStart) {
+            var d2 = Math.ceil((postStart - now) / 86400000);
+            note = d2 <= 30 ? ('Regular season · ' + (s.post || 'Playoffs') + ' ' + fmt(postStart))
+                            : 'Regular season';
+          } else { note = 'Regular season'; }
+        } else if (postEnd && now <= postEnd) {
+          cls = 'badge post'; label = 'Post'; note = (s.post || 'Playoffs') + ' · through ' + fmt(postEnd);
+        } else if (!postEnd && now <= regEnd) {
+          cls = 'badge go now'; label = 'Live'; note = 'Regular season';
+        } else {
+          cls = 'badge soon'; label = 'Off'; note = 'Offseason';
+        }
+        // The badge tracks whether the TOOL is usable; the status line tracks the
+        // season. A green "Live" on a tile you cannot click would be a lie, so a
+        // sport with no tool yet keeps its countdown and then reads Soon.
+        if (!live) {
+          note += ' · in development';
+          if (cls.indexOf('count') === -1) { cls = 'badge soon'; label = 'Soon'; }
+        }
+        badge.className = cls; badge.textContent = label;
+        var st = tile.querySelector('.tile-status');
+        st.className = 'tile-status' + (cls.indexOf('go') > -1 ? ' on' : (cls.indexOf('count') > -1 || cls.indexOf('post') > -1 ? ' up' : ''));
+        st.querySelector('.txt').textContent = note;
+      });
+    }
+    paint();
+    setInterval(paint, 30000);
+  })();
+</script>
 </body>
 </html>
