@@ -78,12 +78,22 @@ const RZ_SEASONS = 2;
 // historically earns, then the residual is scaled to the budget. Half, not all:
 // pure rank assignment (w=1.0) throws away his own history and tests worse than
 // the blend, so the player's measured share still carries half the weight.
+//
+// UNCONDITIONAL. The first cut of this table averaged the k-th man's share over
+// the team-games where he took a snap, which is the wrong quantity: we apply it
+// to the k-th man on the DEPTH CHART, most of whom don't dress. A backup QB
+// plays in 22% of team-games, so his 0.240-when-he-plays is 0.053 in
+// expectation; the fourth running back's is 0.009, not 0.116. Conditional, the
+// table summed to 6.81 against a real budget of 5.99, which meant step 2 took a
+// mechanical 14% off every starter to pay for tail players who were never going
+// to be on the field. Unconditional it sums to 5.95 and reproduces the identity
+// on its own, so the residual scaling is close to a no-op.
 const DEPTH_PRIOR = {
-  RB: [0.5886, 0.3105, 0.1687, 0.1163],
-  WR: [0.8176, 0.7218, 0.5526, 0.3077, 0.1901, 0.1419],
-  TE: [0.7008, 0.4059, 0.2219, 0.1499],
-  FB: [0.2264],
-  QB: [0.9489, 0.2397],
+  RB: [0.589, 0.306, 0.105, 0.009],
+  WR: [0.818, 0.722, 0.552, 0.301, 0.132, 0.018],
+  TE: [0.701, 0.404, 0.176, 0.018],
+  FB: [0.093],
+  QB: [0.949, 0.053],
 };
 const DEPTH_W = 0.5;
 //
@@ -105,7 +115,7 @@ const SKILL_POS = ['RB', 'WR', 'TE', 'FB'];
  * the board can't field more players than exist. Mutates rows in place; returns
  * how far each team was out.
  */
-export function normaliseTeamSnaps(rows) {
+export function normaliseTeamSnaps(rows, depth = new Map()) {
   const groupOf = (pos) => (pos === 'QB' ? 'qb' : SKILL_POS.includes(pos) ? 'skill' : null);
   for (const r of rows) r.row.snap_last3_raw = r.row.snap_last3;
 
@@ -119,7 +129,18 @@ export function normaliseTeamSnaps(rows) {
   const sums = new Map();
   for (const [k, arr] of byTeamPos) {
     const [team, pos] = k.split('|');
-    arr.sort((a, b) => b.row.snap_last3 - a.row.snap_last3);
+    // Order by the PUBLISHED depth chart where there is one, falling back to
+    // snap share. Inferring depth from snap history is fine for established
+    // players and useless for the case that matters most — every player without
+    // NFL history carries the identical position prior, so a room of rookies is
+    // a pile of exact ties resolved by roster order. With Seattle's starter on
+    // IR that put the actual RB1 third in his own backfield.
+    arr.sort((a, b) => {
+      const ra = depth.get(a.pid)?.rank ?? Infinity;
+      const rb = depth.get(b.pid)?.rank ?? Infinity;
+      if (ra !== rb) return ra - rb;
+      return b.row.snap_last3 - a.row.snap_last3;
+    });
     const prior = DEPTH_PRIOR[pos] ?? [];
     arr.forEach((r, i) => {
       r.depthRank = i + 1;
@@ -527,15 +548,76 @@ async function loadRoster(season) {
   const m = new Map();
   let maxWeek = 0;
   for (const r of rows) maxWeek = Math.max(maxWeek, +r[idx.week] || 0);
+  // ACT only. The feed carries the whole transaction record for the week, and
+  // taking every row put 180 of 480 players on the board who could not play:
+  // 66 outright CUT, 31 on RES (Charbonnet was the top Seattle pick while on
+  // IR), 80 on the DEV practice squad, plus retired and exempt. They held 30%
+  // of the board's probability, and once snaps are normalised to a team budget
+  // they don't just sit there harmlessly — they take snap share off the players
+  // who are actually playing, which is what made every real price too long.
+  //
+  // ACT = active roster. DEV can be elevated on game day but is a coin flip on
+  // a 37% position prior, which costs more than it can add.
+  let kept = 0;
   for (const r of rows) {
     if (+r[idx.week] !== maxWeek) continue;          // latest published roster
     const rpos = POS_ALIAS[r[idx.position]] ?? r[idx.position];
     if (!POS.includes(rpos)) continue;
     const pid = r[idx.gsis_id];
     if (!pid) continue;
+    if (idx.status != null && r[idx.status] !== 'ACT') continue;
+    kept++;
     m.set(pid, { team: r[idx.team], position: rpos, name: r[idx.full_name] });
   }
+  // A feed without the column, or a season where it is unpopulated, must not
+  // silently empty the board — fall back to unfiltered rather than ship nothing.
+  if (!kept) {
+    console.log('  roster: no ACT rows, falling back to unfiltered');
+    for (const r of rows) {
+      if (+r[idx.week] !== maxWeek) continue;
+      const rpos = POS_ALIAS[r[idx.position]] ?? r[idx.position];
+      if (!POS.includes(rpos)) continue;
+      if (!r[idx.gsis_id]) continue;
+      m.set(r[idx.gsis_id], { team: r[idx.team], position: rpos, name: r[idx.full_name] });
+    }
+  }
+  console.log(`  roster ${season}: ${m.size} active skill players`);
   return m;
+}
+
+/**
+ * Published depth chart -> `pid -> rank within his team and position`.
+ *
+ * The rank-blend needs to know who the lead man in a room IS, and it was
+ * inferring that from snap history. That works for established players and
+ * fails completely for the ones it matters most for: every player without NFL
+ * history gets the same position prior, so a room of rookies is a pile of exact
+ * ties broken by roster order. Seattle's backfield behind an injured starter
+ * came out in arbitrary order, with the actual RB1 third.
+ *
+ * pos_rank is already per-position depth within a team, so it is used directly.
+ */
+async function loadDepthChart(season) {
+  const byId = new Map();
+  const txt = await fetchOptional(`${REL}/depth_charts/depth_charts_${season}.csv`);
+  if (!txt) { console.log('  depth chart: not published'); return byId; }
+  const { idx, rows } = parseCsv(txt);
+  if (idx.pos_rank == null || idx.dt == null) return byId;
+  let latest = '';
+  for (const r of rows) if (r[idx.dt] > latest) latest = r[idx.dt];
+  for (const r of rows) {
+    if (r[idx.dt] !== latest) continue;
+    const pid = r[idx.gsis_id];
+    const rank = +r[idx.pos_rank];
+    if (!pid || !rank) continue;
+    const pos = POS_ALIAS[r[idx.pos_abb]] ?? r[idx.pos_abb];
+    if (!POS.includes(pos)) continue;
+    // A player can appear in several personnel groupings; keep his best rank.
+    const cur = byId.get(pid);
+    if (!cur || rank < cur.rank) byId.set(pid, { rank, pos });
+  }
+  console.log(`  depth chart ${latest.slice(0, 10)}: ${byId.size} ranked players`);
+  return byId;
 }
 
 /**
@@ -622,6 +704,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   const snapLog = await loadSnapLog(snapSeasons, xwalk);
   const { rzLog, passLog } = await loadPbpLogs(rzSeasons);
   const roster = await loadRoster(upcomingSeason);
+  const depth = await loadDepthChart(upcomingSeason);
   const { byWeek, outIds, questionable = new Set() } = await loadInjuries(season, week);
 
   // Position priors for the shrinkage fallback come from the trained model, so
@@ -654,7 +737,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     if (!row) continue;                                 // no usage history at all
     staged.push({ pid, info, ctx, pos, row, team: info.team, position: pos });
   }
-  const snapScale = normaliseTeamSnaps(staged);
+  const snapScale = normaliseTeamSnaps(staged, depth);
   {
     const f = [...snapScale.values()];
     const med = f.sort((a, b) => a - b)[Math.floor(f.length / 2)] ?? 1;
