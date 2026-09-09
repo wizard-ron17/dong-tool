@@ -313,6 +313,18 @@ export function playerFeatures({ pid, position, season, week, snapLog, rzLog,
   };
 }
 
+/**
+ * The model's two skewed inputs on a log1p scale. Both are heavily right-tailed
+ * against a term that is linear in the standardised value, which handed a few
+ * extreme players enormous leverage over the fit. The raw columns stay for
+ * display — the modal shows touches per game, not a logarithm.
+ */
+function addLogScale(row) {
+  row.rz_touches_log = Math.log1p(row.rz_touches_prior);
+  row.td_share_log = Math.log1p(row.td_share_prior);
+  return row;
+}
+
 /** Linear interpolation along an isotonic step function. */
 function interpMap(p, x, y) {
   if (p <= x[0]) return y[0];
@@ -775,10 +787,10 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     const pos = info.position;
     const { matesOut, newAbsence } = absenceFeatures({
       byWeek, snapLog, pid, team: info.team, position: pos, season, week });
-    const row = playerFeatures({
+    const row = addLogScale(playerFeatures({
       pid, position: pos, season, week, snapLog, rzLog, tdLog,
       impliedTotal: ctx.implied, matesOut, newAbsence,
-    });
+    }));
     if (!row) continue;                                 // no usage history at all
     staged.push({ pid, info, ctx, pos, row, team: info.team, position: pos });
   }

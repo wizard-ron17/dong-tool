@@ -52,6 +52,8 @@ for (const [pid, games] of snapLog) {
     pid, position: g.position, season, week, snapLog, rzLog, tdLog,
     impliedTotal: imp, matesOut, newAbsence,
   });
+  if (row) { row.rz_touches_log = Math.log1p(row.rz_touches_prior);
+             row.td_share_log = Math.log1p(row.td_share_prior); }
   if (!row) continue;
   out.push({ pid, team: g.team, ...row, p: score(row) });
 }

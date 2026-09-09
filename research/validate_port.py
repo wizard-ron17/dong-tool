@@ -14,8 +14,12 @@ import sys
 import numpy as np
 import pandas as pd
 
-FEATS = ["snap_share_prior", "rz_touches_prior", "snap_last3",
-         "implied_total", "mates_out", "new_absence", "td_share_prior"]
+# The features the FINAL model actually uses, read from the model spec rather
+# than restated here. Hand-maintaining this list let it drift out of sync with
+# backtest.MODELS, and the probability check then compared a 9-feature fit
+# against a 7-feature model and reported a mismatch that did not exist.
+import backtest as _bt
+FEATS = list(_bt.MODELS[_bt.FINAL])
 # Features must agree to FEAT_TOL and the output probability to PROB_TOL.
 #
 # FEAT_TOL is not 0 because of one deliberate approximation: the shrinkage

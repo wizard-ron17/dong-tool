@@ -134,8 +134,17 @@ MODELS = {
     "M8 +td share": ["snap_share_prior", "implied_total", "rz_touches_prior",
                      "snap_last3", "mates_out", "new_absence",
                      "td_share_prior"],
+    # stage 6: no new information at all — the same two features on a log1p
+    # scale. Both are heavily right-skewed against a term that is linear in the
+    # standardised value, so a few extreme players dominated the fit. Better in
+    # 7 of 7 walk-forward seasons and it improves calibration most of all
+    # (ECE 0.01897 -> 0.01701), which is what a leverage problem looks like when
+    # you fix it. Free: no new data, no new feed.
+    "M9 log-scale":  ["snap_share_prior", "implied_total", "rz_touches_log",
+                      "snap_last3", "mates_out", "new_absence",
+                      "td_share_log"],
 }
-FINAL = "M8 +td share"
+FINAL = "M9 log-scale"
 
 
 def run():

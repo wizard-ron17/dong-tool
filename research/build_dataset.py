@@ -366,6 +366,19 @@ def main():
     df = add_form(df, "touches", "touches_prior")
     df = add_form(df, "td_share", "td_share_prior", window_seasons=2)
 
+    # Both of these are heavily right-skewed — rz_touches_prior has skew 2.05 and
+    # reaches z=+6.5, td_share_prior reaches z=+11.3 — while the logistic term is
+    # linear in the standardised value. That means a handful of extreme players
+    # (McCaffrey sits at z=+6.18 on red-zone touches) carry enormous leverage on
+    # the fit, and the linear term keeps extrapolating past where the empirical
+    # rate flattens. log1p compresses the tail without touching the ordering.
+    #
+    # Walk-forward 2019-2025, better in 7 of 7 seasons: log loss 0.40056 ->
+    # 0.39934, AUC 0.7417 -> 0.7436, ECE 0.01897 -> 0.01701. The raw columns stay
+    # for display — the UI shows touches per game, not a logarithm.
+    df["rz_touches_log"] = np.log1p(df["rz_touches_prior"])
+    df["td_share_log"] = np.log1p(df["td_share_prior"])
+
     # Snapshot the position priors as add_form saw them (pre-filter frame), so
     # the Node build reproduces the rookie fallback exactly.
     snap = {}
@@ -466,6 +479,7 @@ def main():
     cols = ["season", "week", "game_id", "pid", "player", "position", "team",
             "defteam", "scored", "tds", "snap_pct", "touches", "rz_touches",
             "team_tds", "td_share", "td_share_prior",
+            "rz_touches_log", "td_share_log",
             "first_td", "last_td",
             "snap_share_prior", "rz_touches_prior", "touches_prior",
             "implied_total", "total_line", "spread_line",
