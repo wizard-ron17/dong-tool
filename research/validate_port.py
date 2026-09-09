@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 
 FEATS = ["snap_share_prior", "rz_touches_prior", "snap_last3",
-         "implied_total", "mates_out", "new_absence"]
+         "implied_total", "mates_out", "new_absence", "td_share_prior"]
 # Features must agree to FEAT_TOL and the output probability to PROB_TOL.
 #
 # FEAT_TOL is not 0 because of one deliberate approximation: the shrinkage

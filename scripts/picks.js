@@ -17,6 +17,8 @@
 //     the environment. They are deliberately absent.
 //   * teammates newly ruled out is in, because it corrects a stale-role bias
 //     on the backups this tool most wants to surface.
+//   * td_share_prior is in because everything else measures OPPORTUNITY and
+//     nothing measured conversion. See the M8 note in research/backtest.py.
 
 import fs from 'node:fs';
 import { REL, fetchText, fetchOptional, parseCsv, num } from './nflverse.js';
@@ -243,10 +245,12 @@ function lastN(values, n) {
  * thing that proves the port applies the coefficients to the same quantities.
  */
 export function playerFeatures({ pid, position, season, week, snapLog, rzLog,
+                                 tdLog = new Map(),
                                  impliedTotal, matesOut = 0, newAbsence = 0 }) {
   const before = (s) => s.season < season || (s.season === season && s.week < week);
   const snaps = (snapLog.get(pid) ?? []).filter(before);
   const rz = (rzLog.get(pid) ?? []).filter(before);
+  const tdh = (tdLog.get(pid) ?? []).filter(before);
   // No history at all (a rookie in week 1) is not a reason to skip a player —
   // build_dataset.py keeps those rows, shrinking them to the position prior,
   // so the model was trained on them and can score them. A rookie RB1 is
@@ -267,6 +271,8 @@ export function playerFeatures({ pid, position, season, week, snapLog, rzLog,
   const rzSum = rzGames
     ? rz.filter(s => s.season >= rzFrom).reduce((a, b) => a + b.rz, 0)
     : 0;
+  // td_share is bounded to the same 2-season window as rz_touches
+  const tdGames = rzGames;
   const prevGames = snaps.filter(s => s.season === prevSeason).length;
   const prevRzSum = rz.filter(s => s.season === prevSeason)
                       .reduce((a, b) => a + b.rz, 0);
@@ -284,6 +290,20 @@ export function playerFeatures({ pid, position, season, week, snapLog, rzLog,
       // from the snap log or players with quiet seasons get the wrong prior
       prevGames ? prevRzSum / prevGames : null,
       priorFor('rz_touches', position, season)),
+    // td_share_prior: of the touchdowns his team scored, how many were his.
+    //
+    // Same denominator discipline as rz_touches_prior, and for a sharper
+    // reason: the TD log only has a row for a game he SCORED in, so counting
+    // its own length would compute "his share in games he scored", which is
+    // near 1 for everyone and says nothing. The games played come from the snap
+    // log, so a quiet game enters as the zero it is.
+    td_share_prior: shrunkPrior(
+      tdGames ? tdh.filter(s => s.season >= rzFrom).reduce((a, b) => a + b.share, 0) : 0,
+      tdGames,
+      prevGames
+        ? tdh.filter(s => s.season === prevSeason).reduce((a, b) => a + b.share, 0) / prevGames
+        : null,
+      priorFor('td_share', position, season)),
     // a debut has no window; build_dataset.py fills it with the shrunk prior
     snap_last3: lastN(snapVals, 3) ?? shrunkPrior(
       0, 0, null, priorFor('snap_share', position, season)),
@@ -490,13 +510,15 @@ export async function loadSnapLog(seasons, xwalk) {
  * loaders would double the build's network cost for no reason.
  */
 export async function loadPbpLogs(seasons) {
-  const rzLog = new Map(), passLog = new Map();
+  const rzLog = new Map(), passLog = new Map(), tdLog = new Map();
   for (const y of seasons) {
     const txt = await fetchOptional(`${REL}/pbp/play_by_play_${y}.csv`);
     if (!txt) { console.log(`  pbp ${y}: not published yet`); continue; }
     const { idx, rows } = parseCsv(txt);
     const per = new Map();        // `${pid}|${week}` -> rz touches
     const qb  = new Map();        // `${pid}|${week}` -> { att, ptd }
+    const td  = new Map();        // `${pid}|${week}` -> { n, team }
+    const tmTd = new Map();       // `${team}|${week}` -> team offensive TDs
     for (const r of rows) {
       const isPass = r[idx.pass_attempt] === '1';
       // Passing line: every attempt by the passer, and the TDs among them.
@@ -508,6 +530,20 @@ export async function loadPbpLogs(seasons) {
         e.att += 1;
         if (r[idx.pass_touchdown] === '1') e.ptd += 1;
         qb.set(k, e);
+      }
+      // Offensive touchdowns, for td_share. build_dataset.py credits a passing
+      // TD to the RECEIVER via td_player_id and never to the passer, so a
+      // quarterback's throwing scores correctly stay out of the anytime market.
+      if ((r[idx.rush_touchdown] === '1' || r[idx.pass_touchdown] === '1')
+          && r[idx.td_player_id]) {
+        const k = `${r[idx.td_player_id]}|${r[idx.week]}`;
+        const e = td.get(k) ?? { n: 0, team: r[idx.posteam] };
+        e.n += 1;
+        td.set(k, e);
+        if (r[idx.posteam]) {
+          const tk = `${r[idx.posteam]}|${r[idx.week]}`;
+          tmTd.set(tk, (tmTd.get(tk) ?? 0) + 1);
+        }
       }
       const yl = num(r[idx.yardline_100]);
       if (yl == null || yl > 20) continue;
@@ -528,11 +564,20 @@ export async function loadPbpLogs(seasons) {
       (passLog.get(pid) ?? passLog.set(pid, []).get(pid))
         .push({ season: y, week: +wk, att: v.att, ptd: v.ptd });
     }
+    // td_share needs the player's TDs over his team's, so it can only be
+    // resolved once the whole season's team totals are known.
+    for (const [k, v] of td) {
+      const [pid, wk] = k.split('|');
+      const tot = v.team ? (tmTd.get(`${v.team}|${wk}`) ?? 0) : 0;
+      (tdLog.get(pid) ?? tdLog.set(pid, []).get(pid))
+        .push({ season: y, week: +wk, share: tot > 0 ? v.n / tot : 0 });
+    }
   }
   const bySeasonWeek = (a, b) => a.season - b.season || a.week - b.week;
   for (const v of rzLog.values()) v.sort(bySeasonWeek);
   for (const v of passLog.values()) v.sort(bySeasonWeek);
-  return { rzLog, passLog };
+  for (const v of tdLog.values()) v.sort(bySeasonWeek);
+  return { rzLog, passLog, tdLog };
 }
 
 /** Back-compat wrapper — dump-features.js only wants the red-zone half. */
@@ -702,7 +747,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
 
   const { xwalk, birth, shot } = await loadPlayers();
   const snapLog = await loadSnapLog(snapSeasons, xwalk);
-  const { rzLog, passLog } = await loadPbpLogs(rzSeasons);
+  const { rzLog, passLog, tdLog } = await loadPbpLogs(rzSeasons);
   const roster = await loadRoster(upcomingSeason);
   const depth = await loadDepthChart(upcomingSeason);
   const { byWeek, outIds, questionable = new Set() } = await loadInjuries(season, week);
@@ -731,7 +776,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     const { matesOut, newAbsence } = absenceFeatures({
       byWeek, snapLog, pid, team: info.team, position: pos, season, week });
     const row = playerFeatures({
-      pid, position: pos, season, week, snapLog, rzLog,
+      pid, position: pos, season, week, snapLog, rzLog, tdLog,
       impliedTotal: ctx.implied, matesOut, newAbsence,
     });
     if (!row) continue;                                 // no usage history at all
@@ -792,6 +837,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
         snap3Raw: +(row.snap_last3_raw ?? row.snap_last3).toFixed(6),
         ...(depthRank ? { depthRank } : {}),
         snapPrior: +row.snap_share_prior.toFixed(6),
+        tdShare: +row.td_share_prior.toFixed(6),
         rz: +row.rz_touches_prior.toFixed(6),
         implied: +row.implied_total.toFixed(4),
         matesOut: row.mates_out, newAbsence: row.new_absence,

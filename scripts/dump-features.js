@@ -8,7 +8,7 @@
 // this script is to check the feature MATH, not the pool selection.
 
 import { REL, fetchText, fetchOptional, parseCsv, num } from './nflverse.js';
-import { loadCrosswalk, loadSnapLog, loadRzLog, loadInjuries, absenceFeatures,
+import { loadCrosswalk, loadSnapLog, loadPbpLogs, loadInjuries, absenceFeatures,
          playerFeatures, score } from './picks.js';
 
 const season = +process.argv[2];
@@ -25,7 +25,7 @@ const xwalk = await loadCrosswalk();
 const snapSeasons = [];
 for (let y = 2016; y <= season; y++) snapSeasons.push(y);
 const snapLog = await loadSnapLog(snapSeasons, xwalk);
-const rzLog = await loadRzLog([season - 1, season]);
+const { rzLog, tdLog } = await loadPbpLogs([season - 1, season]);
 const { byWeek } = await loadInjuries(season, week);
 
 // implied total for each team in that week, from pbp's closing lines
@@ -49,7 +49,7 @@ for (const [pid, games] of snapLog) {
   const { matesOut, newAbsence } = absenceFeatures({
     byWeek, snapLog, pid, team: g.team, position: g.position, season, week });
   const row = playerFeatures({
-    pid, position: g.position, season, week, snapLog, rzLog,
+    pid, position: g.position, season, week, snapLog, rzLog, tdLog,
     impliedTotal: imp, matesOut, newAbsence,
   });
   if (!row) continue;

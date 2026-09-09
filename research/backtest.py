@@ -120,8 +120,22 @@ MODELS = {
     # corrects a stale-role bias on ~11% of rows — see load_injuries().
     "M7 +injury":  ["snap_share_prior", "implied_total", "rz_touches_prior",
                     "snap_last3", "mates_out", "new_absence"],
+    # stage 5: conversion. Everything above measures OPPORTUNITY and nothing
+    # measures whether the opportunity turns into points. That gap is why the
+    # board topped out near -147 while the market prices lead backs at -300:
+    # the player-seasons that actually scored in 70%+ of their games carried
+    # LOWER snap share (0.685) and LOWER red-zone touches (2.844) than M7's own
+    # top-priced players (0.772, 4.240), so the existing features point away
+    # from them. Walk-forward 2019-2025, M7 -> M8: log loss 0.40257 -> 0.40118,
+    # AUC 0.7394 -> 0.7421, better in 6 of 7 seasons. Roughly double the gain of
+    # every other candidate tested at this stage combined (goal-line touches
+    # inside the 5 and the 10, team red-zone share, touch share and every
+    # unused dataset column were all nulls).
+    "M8 +td share": ["snap_share_prior", "implied_total", "rz_touches_prior",
+                     "snap_last3", "mates_out", "new_absence",
+                     "td_share_prior"],
 }
-FINAL = "M7 +injury"
+FINAL = "M8 +td share"
 
 
 def run():

@@ -122,7 +122,19 @@ def team_game_stats(pbp):
     rz = drv.groupby(["game_id", "posteam"], as_index=False).agg(
         rz_trips=("rz", "sum"), rz_tds=("rz_td", "sum"))
     rz.columns = ["game_id", "team", "rz_trips", "rz_tds"]
-    return pace.merge(rz, on=["game_id", "team"], how="outer").fillna(0)
+
+    # Offensive touchdowns per team, read straight off play-by-play rather than
+    # summed over the player pool. It denominates td_share, and taking it from
+    # the pool would make the feature depend on who survived the pool filters
+    # (unmatched gsis ids, players with no recorded offensive snap) — a quirk
+    # the Node build cannot reproduce, and one with no football meaning.
+    off = pbp[((pbp["rush_touchdown"] == 1) | (pbp["pass_touchdown"] == 1))
+              & pbp["td_player_id"].notna()]
+    ot = off.groupby(["game_id", "posteam"], as_index=False).size()
+    ot.columns = ["game_id", "team", "off_tds"]
+
+    out = pace.merge(rz, on=["game_id", "team"], how="outer")
+    return out.merge(ot, on=["game_id", "team"], how="outer").fillna(0)
 
 
 def add_entity_form(game_tbl, entity, value_cols, prefix, k=SHRINK_K):
@@ -330,14 +342,35 @@ def main():
     df["scored"] = (df["tds"] > 0).astype(int)
     df["snap_pct"] = df["offense_pct"].astype(float)
 
+    # td_share: of the touchdowns his team scored in a game, how many were his.
+    #
+    # Everything else in the model measures OPPORTUNITY — snaps, touches, red
+    # zone trips. None of it measures conversion, and that is the gap that made
+    # this board top out around -147 while the market prices lead backs at -300.
+    # The player-seasons that actually scored in 70%+ of their games carried
+    # LOWER snap share (0.685) and LOWER red-zone touches (2.844) than this
+    # model's own top-priced players (0.772, 4.240) — the existing features
+    # point away from them. Gibbs in 2024 scored in 78% of his games on 54% of
+    # the snaps and this model had him at +103.
+    #
+    # Bounded to 2 seasons like rz_touches, and for the same reason: the Node
+    # build reproduces it from the play-by-play it already loads. Tested
+    # unbounded as well and the difference is nil (0.40118 vs 0.40120).
+    df = df.merge(tg[["game_id", "team", "off_tds"]].rename(
+        columns={"off_tds": "team_tds"}), on=["game_id", "team"], how="left")
+    df["team_tds"] = df["team_tds"].fillna(0)
+    df["td_share"] = df["tds"] / df["team_tds"].clip(lower=1)
+
     df = add_form(df, "snap_pct", "snap_share_prior")
     df = add_form(df, "rz_touches", "rz_touches_prior", window_seasons=2)
     df = add_form(df, "touches", "touches_prior")
+    df = add_form(df, "td_share", "td_share_prior", window_seasons=2)
 
     # Snapshot the position priors as add_form saw them (pre-filter frame), so
     # the Node build reproduces the rookie fallback exactly.
     snap = {}
-    for col, label in (("snap_pct", "snap_share"), ("rz_touches", "rz_touches")):
+    for col, label in (("snap_pct", "snap_share"), ("rz_touches", "rz_touches"),
+                       ("td_share", "td_share")):
         t = position_prior(df, col)
         by = {}
         for _, r in t.iterrows():
@@ -432,6 +465,7 @@ def main():
 
     cols = ["season", "week", "game_id", "pid", "player", "position", "team",
             "defteam", "scored", "tds", "snap_pct", "touches", "rz_touches",
+            "team_tds", "td_share", "td_share_prior",
             "first_td", "last_td",
             "snap_share_prior", "rz_touches_prior", "touches_prior",
             "implied_total", "total_line", "spread_line",
