@@ -1361,7 +1361,7 @@
   .hm-tag-sub { color: var(--muted); font-weight: 600; }
   .hm-pair-score { color: var(--accent); }
   .hm-x { font-size: 0.72rem; color: var(--muted); font-weight: 700; margin-left: 0.08rem; }
-  .hm-score { margin-left: auto; font-family: var(--font-d); font-weight: 700; font-size: 0.95rem; flex-shrink: 0; }
+  .hm-score { margin-left: auto; font-family: var(--font-d); font-weight: 800; font-size: 1.24rem; line-height: 1.05; flex-shrink: 0; letter-spacing: -0.01em; }
   .hm-score.hot, .hm-score.great { color: var(--accent); }
   .hm-score.warm, .hm-score.good { color: var(--gold); }
   .hm-score.mild, .hm-score.ok   { color: var(--warn); }
@@ -3023,7 +3023,7 @@ function renderHome() {
     const t = new Date(g.gameDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     return `<div class="hm-row">
       <span class="hm-name">${teamLogoImg(g.away.teamAbbr, 'team-logo')}${g.away.teamAbbr} <span style="color:var(--muted)">@</span> ${teamLogoImg(g.home.teamAbbr, 'team-logo')}${g.home.teamAbbr}</span>
-      <span class="hm-score" style="color:var(--muted);font-size:0.68rem">${t}</span>
+      <span class="hm-score" style="color:var(--muted);font-size:0.84rem">${t}</span>
     </div>`;
   }).join('');
   const moreGames = sortedGames.length > 4 ? `<div class="hm-more">+ ${sortedGames.length - 4} more</div>` : '';
@@ -3078,7 +3078,7 @@ function renderHome() {
     return `<div class="hm-row">
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
       <span class="hm-name">${compactPlayerName(r.name)}${birthdayBadge(r.pid)}<span class="hm-subtle">${sub}</span></span>
-      <span class="hm-score" style="color:var(--gold);font-size:0.75rem">${r.milbAbPerHR ? r.milbAbPerHR.toFixed(1) : '—'}<span class="hm-subtle" style="font-size:0.58rem"> ${lvl} AB/HR</span></span>
+      <span class="hm-score" style="color:var(--gold)">${r.milbAbPerHR ? r.milbAbPerHR.toFixed(1) : '—'}<span class="hm-subtle" style="font-size:0.72rem"> ${lvl} AB/HR</span></span>
     </div>`;
   }).join('');
 
@@ -3103,7 +3103,7 @@ function renderHome() {
     return `<div class="hm-row">
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
       <span class="hm-name">${compactPlayerName(playerNames[r.pid] || r.pid)}${birthdayBadge(r.pid)}<span class="hm-subtle">${playerTeams[r.pid] || ''} · ${sub}</span></span>
-      <span class="hm-score" style="color:var(--accent);font-size:0.9rem">${hrTotals[r.pid] || 0}<span class="hm-subtle" style="font-size:0.58rem"> HR</span></span>
+      <span class="hm-score" style="color:var(--accent)">${hrTotals[r.pid] || 0}<span class="hm-subtle" style="font-size:0.72rem"> HR</span></span>
     </div>`;
   }).join('');
 
@@ -3112,7 +3112,7 @@ function renderHome() {
     <div class="hm-row">
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
       <span class="hm-name">${compactPlayerName(r.name)}<span class="hm-subtle">${r.team}${r.age != null ? ` · turns ${r.age}` : ''}</span></span>
-      <span class="hm-score" style="color:var(--gold);font-size:0.9rem">${r.hrs ?? 0}<span class="hm-subtle" style="font-size:0.58rem"> HR</span></span>
+      <span class="hm-score" style="color:var(--gold)">${r.hrs ?? 0}<span class="hm-subtle" style="font-size:0.72rem"> HR</span></span>
     </div>`).join('');
 
   // Milestones — the closest active chases, nearest first.
@@ -3121,7 +3121,7 @@ function renderHome() {
     <div class="hm-row">
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
       <span class="hm-name">${compactPlayerName(r.name)}<span class="hm-subtle">${r.team} · ${r.career} career</span></span>
-      <span class="hm-score" style="color:${r.away <= 3 ? 'var(--accent)' : 'var(--gold)'};font-size:0.9rem">${r.away}<span class="hm-subtle" style="font-size:0.58rem"> from ${r.next}</span></span>
+      <span class="hm-score" style="color:${r.away <= 3 ? 'var(--accent)' : 'var(--gold)'}">${r.away}<span class="hm-subtle" style="font-size:0.72rem"> from ${r.next}</span></span>
     </div>`).join('');
 
   // Strikeouts / Walks — same ranking the tools themselves use, so the home
@@ -3133,7 +3133,7 @@ function renderHome() {
       <div class="hm-row">
         <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
         <span class="hm-name">${compactPlayerName(r.name)}<span class="hm-subtle">${r.team} vs ${r.oppTeam}</span></span>
-        <span class="hm-score ${pvClass(r.exp / lg)}" style="font-size:0.9rem">${(r.exp * 100).toFixed(1)}<span class="hm-subtle" style="font-size:0.58rem">% ${lbl}</span></span>
+        <span class="hm-score ${pvClass(r.exp / lg)}">${(r.exp * 100).toFixed(1)}<span class="hm-subtle" style="font-size:0.72rem">% ${lbl}</span></span>
       </div>`).join('');
   };
   const ksRows = ppHomeRows('k');
@@ -3154,7 +3154,7 @@ function renderHome() {
       <div class="hm-row">
         <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
         <span class="hm-name">${compactPlayerName(r.name)}<span class="hm-subtle">${r.team} vs ${r.opp}</span></span>
-        <span class="hm-score ${pvClass(r.juice)}" style="font-size:0.9rem">${r.juice.toFixed(2)}<span class="hm-subtle" style="font-size:0.58rem">×</span></span>
+        <span class="hm-score ${pvClass(r.juice)}">${r.juice.toFixed(2)}<span class="hm-subtle" style="font-size:0.72rem">×</span></span>
       </div>`).join('')
     : '';
 
@@ -3163,7 +3163,7 @@ function renderHome() {
     <div class="hm-row">
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
       <span class="hm-name">${compactPlayerName(r.name)}<span class="hm-subtle">${r.team} vs ${r.pHand}HP · ${r.sb} SB</span></span>
-      <span class="hm-score ${stealScoreClass(r.stealScore)}" style="font-size:0.9rem">${r.stealScore}</span>
+      <span class="hm-score ${stealScoreClass(r.stealScore)}">${r.stealScore}</span>
     </div>`).join('');
 
   // "Yesterday's Homers" only when the last completed slate was literally

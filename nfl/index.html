@@ -1387,7 +1387,7 @@
   .hm-tag-sub { color: var(--muted); font-weight: 600; }
   .hm-pair-score { color: var(--accent); }
   .hm-x { font-size: 0.72rem; color: var(--muted); font-weight: 700; margin-left: 0.08rem; }
-  .hm-score { margin-left: auto; font-family: var(--font-d); font-weight: 700; font-size: 0.95rem; flex-shrink: 0; }
+  .hm-score { margin-left: auto; font-family: var(--font-d); font-weight: 800; font-size: 1.24rem; line-height: 1.05; flex-shrink: 0; letter-spacing: -0.01em; }
   .hm-score.hot, .hm-score.great { color: var(--accent); }
   .hm-score.warm, .hm-score.good { color: var(--gold); }
   .hm-score.mild, .hm-score.ok   { color: var(--warn); }
@@ -3102,7 +3102,7 @@
         <div class="pb-res-tile"><div class="pb-res-val">${(exp / all.length * 100).toFixed(1)}%</div><div class="pb-res-lbl">predicted</div></div>
       </div>
       <div class="pb-sec">Calibration</div>
-      <p style="font-size:0.68rem;color:var(--muted);margin:0 0 0.5rem">The real test of a priced model: did each band land as often as it said it would?</p>
+      <p style="font-size:0.84rem;color:var(--muted);margin:0 0 0.5rem">The real test of a priced model: did each band land as often as it said it would?</p>
       <table class="pb-cal"><thead><tr><th>Price band</th><th>Picks</th><th>Predicted</th><th>Actual</th><th>Diff</th></tr></thead><tbody>${calRows}</tbody></table>
       <div class="pb-sec">If you had only played the top N</div>
       <table class="pb-cal"><thead><tr><th>Slice</th><th>Hit / total</th><th>Rate</th></tr></thead><tbody>${tierRows}</tbody></table>`;
@@ -4009,13 +4009,13 @@ let pairStacks = false;
       .sort((a, b) => b.f.rz - a.f.rz).slice(0, 3).map(r => `
       <div class="hm-row">${faceHtml(r.pid, r.name)}
         <span class="hm-name">${r.name}<span class="hm-subtle">${r.team}${lastTd[r.pid] == null ? '' : ` · ${weeks.length - 1 - lastTd[r.pid]} wks`}</span></span>
-        <span class="hm-score hot">${r.f.rz.toFixed(1)}<span class="hm-subtle" style="font-size:0.55rem"> rz/g</span></span></div>`).join('');
+        <span class="hm-score hot">${r.f.rz.toFixed(1)}<span class="hm-subtle" style="font-size:0.72rem"> rz/g</span></span></div>`).join('');
 
     // ── Milestones ────────────────────────────────────────────────────
     const msRows = (nflData.milestones || []).slice(0, 3).map(m => `
       <div class="hm-row">${faceHtml(m.pid, m.name)}
         <span class="hm-name">${m.name}<span class="hm-subtle">${m.team} · ${m.career} career</span></span>
-        <span class="hm-score ${m.away <= 3 ? 'hot' : 'warm'}">${m.away}<span class="hm-subtle" style="font-size:0.55rem"> from ${m.next}</span></span></div>`).join('');
+        <span class="hm-score ${m.away <= 3 ? 'hot' : 'warm'}">${m.away}<span class="hm-subtle" style="font-size:0.72rem"> from ${m.next}</span></span></div>`).join('');
 
     // ── Schedule: read-only rows. The full card carries a chevron and an
     //    expand handler that only works inside the schedule panel, so using it
@@ -4025,18 +4025,18 @@ let pairStacks = false;
         <img class="hm-glogo" src="${teamLogo(g.away)}" alt="" loading="lazy">
         <span class="hm-name">${g.away} <span class="hm-subtle">@</span> ${g.home}</span>
         <img class="hm-glogo" src="${teamLogo(g.home)}" alt="" loading="lazy">
-        <span class="hm-score" style="font-size:0.68rem;color:var(--muted)">${g.gametime ? g.gametime.slice(0, 5) : ''}</span></div>`).join('');
+        <span class="hm-score" style="font-size:0.84rem;color:var(--muted)">${g.gametime ? g.gametime.slice(0, 5) : ''}</span></div>`).join('');
 
     // ── Leaders, pairs, birthdays ─────────────────────────────────────
     const leaders = (nflData.tdLeaders || []).slice(0, 4).map((l, i) => `
       <div class="hm-row"><span class="hm-subtle" style="width:0.9rem">${i + 1}</span>${faceHtml(l.pid, l.name)}
         <span class="hm-name">${l.name}<span class="hm-subtle">${l.pos} ${l.team}</span></span>
-        <span class="hm-score hot">${l.tds}<span class="hm-subtle" style="font-size:0.55rem"> TD</span></span></div>`).join('');
+        <span class="hm-score hot">${l.tds}<span class="hm-subtle" style="font-size:0.72rem"> TD</span></span></div>`).join('');
     if (!scorerIdx) buildScorerIdx();
     const duos = (computeAllGroups('week', 'all')[2] || []).slice(0, 3).map(g => `
       <div class="hm-row">
         <span class="hm-name">${g.pids.map(p => compactName(scorerIdx[p]?.name || p)).join(' + ')}</span>
-        <span class="hm-score warm">${g.count}<span class="hm-subtle" style="font-size:0.55rem"> wks</span></span></div>`).join('');
+        <span class="hm-score warm">${g.count}<span class="hm-subtle" style="font-size:0.72rem"> wks</span></span></div>`).join('');
     // birthdays carry `turning` and `off` (days from kickoff), not age/days —
     // guessing the field names is what put "undefinedd" on the page.
     const bdays = (P?.birthdays || []).slice(0, 3).map(b => `
