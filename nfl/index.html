@@ -145,7 +145,7 @@
      slides down out from under it. */
   /* 2-column tile grid on desktop too (mobile refines sizing below). Group
      headers span both columns; descriptions are dropped for a compact grid. */
-  .nav-tools-menu { position: absolute; top: calc(100% - 10px); right: 0; z-index: 1; min-width: 336px; background: var(--surface1); border: 1px solid var(--border2); border-radius: 14px; padding: 0.5rem; box-shadow: 0 14px 40px rgba(0,0,0,0.45); opacity: 0; transform: translateY(-8px); pointer-events: none; transition: opacity 0.16s, transform 0.16s; display: grid; grid-template-columns: 1fr; gap: 0.3rem; max-height: 80vh; overflow-y: auto; }
+  .nav-tools-menu { position: absolute; top: calc(100% - 10px); right: 0; z-index: 1; min-width: 336px; background: var(--surface1); border: 1px solid var(--border2); border-radius: 14px; padding: 0.5rem; box-shadow: 0 14px 40px rgba(0,0,0,0.45); opacity: 0; transform: translateY(-8px); pointer-events: none; transition: opacity 0.16s, transform 0.16s; display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; max-height: 80vh; overflow-y: auto; }
   .nav-tools-menu.open { opacity: 1; transform: none; pointer-events: auto; }
   .nav-menu-group { grid-column: 1 / -1; font-size: 0.655rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); padding: 0.4rem 0.3rem 0.1rem; opacity: 0.75; }
   .nav-menu-group:first-child { padding-top: 0.15rem; }
@@ -187,7 +187,7 @@
        better until that changes. Group headers span the row; a max-height
        scroll is the safety net if the tool count grows. */
     .nav-tools-menu { position: fixed; top: auto; left: var(--nav-side); right: var(--nav-side); bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.5rem); min-width: 0; border: 1px solid var(--border2); border-radius: 20px; padding: 0.55rem 0.6rem 0.65rem; opacity: 1; transform: translateY(135%); visibility: hidden; transition: transform 0.24s ease, visibility 0s linear 0.24s; box-shadow: 0 10px 34px rgba(0,0,0,0.5);
-      display: grid; grid-template-columns: 1fr; gap: 0.4rem; max-height: calc(100dvh - var(--nav-bottom) - var(--nav-h) - 2rem); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; max-height: calc(100dvh - var(--nav-bottom) - var(--nav-h) - 2rem); overflow-y: auto; -webkit-overflow-scrolling: touch; }
     .nav-tools-menu.open { transform: none; visibility: visible; transition: transform 0.24s ease; }
     .nav-menu-group { grid-column: 1 / -1; padding: 0.4rem 0.25rem 0.05rem; }
     .nav-menu-group:first-child { padding-top: 0.1rem; }
@@ -2090,34 +2090,37 @@
     </button>
   </nav>
     <div class="nav-tools-menu" id="nav-tools-menu">
+      <div class="nav-menu-group">Today's Boards</div>
       <button class="nav-menu-item" data-nav="picks" onclick="switchNav('picks')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.4l6.1-.8z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.75" fill="currentColor"/></svg>
         <span><span class="nm-name">Picks</span><span class="nm-desc">Who scores a TD this week</span></span>
       </button>
-      <button class="nav-menu-item" data-nav="birthdays" onclick="switchNav('birthdays')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16v-6H4zM6 14v-3h12v3M12 8V5M9.5 6.5 12 4l2.5 2.5"/></svg>
-        <span><span class="nm-name">Birthdays</span><span class="nm-desc">Who is celebrating on the slate</span></span>
-      </button>
-      <button class="nav-menu-item" data-nav="due" onclick="switchNav('due')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12M6 21h12M7 3c0 4 5 5 5 9s-5 5-5 9M17 3c0 4-5 5-5 9s5 5 5 9"/></svg>
-        <span><span class="nm-name">Due <span class="nm-new">NEW</span></span><span class="nm-desc">Red-zone work with nothing to show</span></span>
-      </button>
-      <button class="nav-menu-item" data-nav="returners" onclick="switchNav('returners')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18c6-10 12-10 16 0M8 6l-3 3 3 3"/></svg>
-        <span><span class="nm-name">Returners <span class="nm-new">NEW</span></span><span class="nm-desc">Punt and kick return volume</span></span>
-      </button>
       <button class="nav-menu-item" data-nav="receptions" onclick="switchNav('receptions')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16c3-8 13-8 16 0M9 12l3 3 3-3"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11.5V5.4a1.5 1.5 0 0 1 3 0v5.6"/><path d="M12 11V4.2a1.5 1.5 0 0 1 3 0V11"/><path d="M15 11.4V6.2a1.5 1.5 0 0 1 3 0v6.6"/><path d="M9 11.5V9.4a1.5 1.5 0 0 0-3 0v5.4c0 3.6 2.6 6.2 6.2 6.2 3.4 0 5.8-2.6 5.8-6.2v-2"/></svg>
         <span><span class="nm-name">Receptions <span class="nm-new">NEW</span></span><span class="nm-desc">Catch totals, priced over and under</span></span>
       </button>
-      <button class="nav-menu-item" data-nav="milestones" onclick="switchNav('milestones')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4M6 4h11l-2 3.5L17 11H6"/></svg>
-        <span><span class="nm-name">Milestones <span class="nm-new">NEW</span></span><span class="nm-desc">Chasing 50 · 100 · 150 career TDs</span></span>
+      <button class="nav-menu-item" data-nav="returners" onclick="switchNav('returners')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="14.5" cy="4" r="2"/><path d="M13 7.6 L10 13"/><path d="M13.2 9 L17.5 11.2"/><path d="M11.6 9.8 L7.5 8.6"/><path d="M10 13 L13 16 L12.4 21"/><path d="M10 13 L6.2 16.8"/></svg>
+        <span><span class="nm-name">Returners <span class="nm-new">NEW</span></span><span class="nm-desc">Punt and kick return volume</span></span>
       </button>
       <button class="nav-menu-item" data-nav="pairs" onclick="switchNav('pairs')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="12" r="4.75"/><circle cx="15" cy="12" r="4.75"/></svg>
         <span><span class="nm-name">Pairs</span><span class="nm-desc">Players who score the same week</span></span>
       </button>
+      <div class="nav-menu-group">Watch Lists</div>
+      <button class="nav-menu-item" data-nav="due" onclick="switchNav('due')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h11M6.5 20.5h11M8 3.5v2.6L12 12 8 17.9v2.6M16 3.5v2.6L12 12l4 5.9v2.6"/></svg>
+        <span><span class="nm-name">Due <span class="nm-new">NEW</span></span><span class="nm-desc">Red-zone work with nothing to show</span></span>
+      </button>
+      <button class="nav-menu-item" data-nav="milestones" onclick="switchNav('milestones')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V3M6 4h11l-2.2 3L17 10H6"/></svg>
+        <span><span class="nm-name">Milestones <span class="nm-new">NEW</span></span><span class="nm-desc">Chasing 50 · 100 · 150 career TDs</span></span>
+      </button>
+      <button class="nav-menu-item" data-nav="birthdays" onclick="switchNav('birthdays')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16"/><path d="M5.5 21v-9a2.5 2.5 0 0 1 2.5-2.5h8a2.5 2.5 0 0 1 2.5 2.5v9"/><path d="M5.5 15.5h13"/><path d="M9 9.5V7M12 9.5V7M15 9.5V7"/></svg>
+        <span><span class="nm-name">Birthdays</span><span class="nm-desc">Who is celebrating on the slate</span></span>
+      </button>
+    
     </div>
   </div>
   <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
