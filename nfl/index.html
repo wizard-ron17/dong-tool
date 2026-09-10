@@ -1382,6 +1382,11 @@
   .hm-photo { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: var(--surface2); flex-shrink: 0; }
   .hm-name { font-family: var(--font-d); font-weight: 700; font-size: 1.04rem; letter-spacing: 0.005em; line-height: 1.25; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
   .hm-name:has(.hm-subtle) { display: flex; flex-direction: column; white-space: normal; }
+  /* A matchup is a single line — "NE @ SEA" — not a name over a detail. It has
+     to opt out explicitly: the row used .hm-subtle for its "@" separator, which
+     matched the rule above and stacked the two teams vertically. */
+  .hm-name.hm-matchup, .hm-name.hm-matchup:has(.hm-at) { display: block; white-space: nowrap; flex: 0 1 auto; }
+  .hm-at { color: var(--dim); font-weight: 600; margin: 0 0.15rem; }
   .hm-subtle { font-size: 0.779rem; color: var(--muted); font-weight: 500; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .hm-combo-tag { flex-shrink: 0; text-align: center; font-family: var(--font-b); font-size: 0.729rem; font-weight: 700; color: var(--text); background: var(--surface2); border: 1px solid var(--border2); border-radius: 5px; padding: 0.1rem 0.38rem; letter-spacing: 0.02em; }
   .hm-tag-sub { color: var(--muted); font-weight: 600; }
@@ -4108,7 +4113,7 @@ let pairStacks = false;
     const gameRows = games.slice(0, 5).map(g => `
       <div class="hm-row">
         <img class="hm-glogo" src="${teamLogo(g.away)}" alt="" loading="lazy">
-        <span class="hm-name">${g.away} <span class="hm-subtle">@</span> ${g.home}</span>
+        <span class="hm-name hm-matchup">${g.away} <span class="hm-at">@</span> ${g.home}</span>
         <img class="hm-glogo" src="${teamLogo(g.home)}" alt="" loading="lazy">
         <span class="hm-score" style="font-size:0.84rem;color:var(--muted)">${g.gametime ? g.gametime.slice(0, 5) : ''}</span></div>`).join('');
 
