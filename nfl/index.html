@@ -151,12 +151,12 @@
   .nav-menu-group:first-child { padding-top: 0.15rem; }
   /* A single-column list: three tools do not need a tile grid, and a row can
      carry the description a centred tile has no room for. */
-  .nav-menu-item { display: flex; flex-direction: row; align-items: center; text-align: left; gap: 0.65rem; width: 100%; background: var(--surface0); border: none; border-radius: 11px; padding: 0.55rem 0.7rem; cursor: pointer; transition: background 0.15s; }
+  .nav-menu-item { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.3rem; width: 100%; background: var(--surface0); border: none; border-radius: 11px; padding: 0.6rem 0.4rem; cursor: pointer; transition: background 0.15s; }
   .nav-menu-item:hover:not(:disabled) { background: var(--surface2); }
   .nav-menu-item:disabled { opacity: 0.32; cursor: not-allowed; }
   .nav-menu-item svg { width: 21px; height: 21px; flex-shrink: 0; color: var(--muted); }
   .nav-menu-item .nm-name { font-family: var(--font-d); font-size: 1.06rem; font-weight: 700; color: var(--text); display: block; line-height: 1.2; letter-spacing: 0.005em; }
-  .nav-menu-item .nm-desc { display: block; font-size: 0.704rem; color: var(--dim); line-height: 1.3; margin-top: 0.05rem; }
+  .nav-menu-item .nm-desc { display: none; }
   .nav-menu-item.active svg, .nav-menu-item.active .nm-name { color: var(--accent); }
 
   /* Mobile: app-style bottom tab bar — icon over label, roomy touch targets. */
@@ -191,10 +191,10 @@
     .nav-tools-menu.open { transform: none; visibility: visible; transition: transform 0.24s ease; }
     .nav-menu-group { grid-column: 1 / -1; padding: 0.4rem 0.25rem 0.05rem; }
     .nav-menu-group:first-child { padding-top: 0.1rem; }
-    .nav-menu-item { flex-direction: row; align-items: center; text-align: left; gap: 0.6rem; padding: 0.6rem 0.7rem; border-radius: 12px; background: var(--surface0); }
+    .nav-menu-item { flex-direction: column; align-items: center; text-align: center; gap: 0.3rem; padding: 0.65rem 0.35rem; border-radius: 12px; background: var(--surface0); }
     .nav-menu-item:hover:not(:disabled), .nav-menu-item.active { background: var(--surface2); }
     .nav-menu-item .nm-name { font-size: 0.98rem; line-height: 1.2; }
-    .nav-menu-item .nm-desc { display: block; font-size: 0.692rem; color: var(--dim); }
+    .nav-menu-item .nm-desc { display: none; }
     .nav-menu-item svg { width: 23px; height: 23px; }
   }
 
@@ -1569,6 +1569,31 @@
   .pb-f b { color: var(--text-strong); font-weight: 700; }
 
   .pb-price { text-align: right; flex-shrink: 0; min-width: 4.1rem; }
+  /* Receptions — table and compact views. Wide content scrolls inside its own
+     container so the page body never scrolls sideways. */
+  .rc-tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border); border-radius: 10px; background: var(--surface0); }
+  .rc-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 520px; }
+  .rc-table th { position: sticky; top: 0; background: var(--surface1); color: var(--muted); font-size: 0.7rem;
+    text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; text-align: left; padding: 0.5rem 0.6rem; white-space: nowrap; }
+  .rc-table td { padding: 0.5rem 0.6rem; border-top: 1px solid var(--border); white-space: nowrap; }
+  .rc-table tbody tr { cursor: pointer; }
+  .rc-table tbody tr:hover { background: var(--surface1); }
+  .rc-table .num { text-align: right; font-family: var(--font-d); font-weight: 700; }
+  .rc-table .dim, .rc-table td.dim { color: var(--muted); font-weight: 500; }
+  .rc-table b { font-family: var(--font-d); font-weight: 700; }
+  .goodc { color: var(--good); } .dogc { color: var(--silver); }
+  .rc-compact { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface0); }
+  .rc-crow { display: grid; grid-template-columns: 1.6rem 1fr 2.6rem 3rem 4.2rem 2.6rem; align-items: center;
+    gap: 0.4rem; padding: 0.42rem 0.6rem; border-top: 1px solid var(--border); cursor: pointer; font-size: 0.82rem; }
+  .rc-crow:first-child { border-top: none; }
+  .rc-crow:hover { background: var(--surface1); }
+  .rc-crank { color: var(--dim); font-family: var(--font-d); font-weight: 700; text-align: center; }
+  .rc-cnm { font-family: var(--font-d); font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rc-cteam { color: var(--muted); font-size: 0.74rem; }
+  .rc-cproj { font-family: var(--font-d); font-weight: 700; color: var(--accent); text-align: right; }
+  .rc-cod { font-family: var(--font-d); font-weight: 700; text-align: right; }
+  .rc-cline { color: var(--dim); font-size: 0.72rem; text-align: right; }
+  @media (max-width: 520px) { .rc-crow { grid-template-columns: 1.4rem 1fr 2.8rem 4rem; } .rc-cteam, .rc-cline { display: none; } }
   .rc-proj { margin-left: 0.45rem; padding: 0.05rem 0.34rem; border-radius: 4px; background: var(--surface2);
     font-family: var(--font-d); font-weight: 700; color: var(--text); white-space: nowrap; }
   .rc-proj b { color: var(--accent); }
@@ -3698,12 +3723,41 @@ let pairStacks = false;
   // because that is the part the Picks model can't see; the price shown is the
   // bettable combined one.
   // ── Receptions ─────────────────────────────────────────────────────────
-  // A count market, so the board leads with the projection and then prices each
-  // standard line off it. The line nearest the projection is highlighted,
-  // because that is the one a book will actually be hanging.
-  let recLine = 'auto';
-  function setRecLine(v) { recLine = v; renderReceptions(); }
-  window.setRecLine = setRecLine;
+  // A count market, so the board leads with the projection and prices each
+  // standard line off it. "Best line" picks the one nearest a player's
+  // projection, which is the one a book is most likely to be hanging.
+  const rcF = { line: 'auto', pos: 'ALL', sort: 'proj', view: 'cards', q: '' };
+  function setRc(k, v) { rcF[k] = v; renderReceptions(); }
+  window.setRc = setRc;
+  function onRecSearch() {
+    rcF.q = (document.getElementById('rec-search')?.value || '').trim();
+    renderReceptions();
+  }
+  window.onRecSearch = onRecSearch;
+  function clearRecSearch() {
+    rcF.q = ''; const i = document.getElementById('rec-search'); if (i) i.value = '';
+    renderReceptions();
+  }
+  window.clearRecSearch = clearRecSearch;
+
+  const RC_LINES = () => nflData?.receptionModel?.lines || [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5];
+  const rcAutoLine = (mu) => RC_LINES().reduce((b, L) =>
+    Math.abs(L - mu) < Math.abs(b - mu) ? L : b, RC_LINES()[0]);
+  const rcPick = (r) => {
+    const L = rcF.line === 'auto' ? rcAutoLine(r.mu) : Number(rcF.line);
+    return { L, p: r.p[L] ?? r.p[String(L)] };
+  };
+
+  /** The filtered, sorted board — shared by the view and the modal's arrows. */
+  function rcRows() {
+    const R = nflData?.receptions || [];
+    const q = pbNorm(rcF.q);
+    return R.map(r => ({ ...r, ...rcPick(r) }))
+      .filter(r => r.p != null)
+      .filter(r => rcF.pos === 'ALL' || r.pos === rcF.pos)
+      .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q) || pbNorm(r.pos) === q)
+      .sort((a, b) => rcF.sort === 'proj' ? b.mu - a.mu : b.p - a.p);
+  }
 
   function renderReceptions() {
     const el = document.getElementById('receptions-content'); if (!el) return;
@@ -3712,47 +3766,161 @@ let pairStacks = false;
     const R = nflData.receptions || [], M = nflData.receptionModel;
     if (!R.length || !M) { el.innerHTML = '<div class="empty">No reception projections yet — they fill in once the slate has lines.</div>'; return; }
     const w = firstUpcomingWeek();
-    const LINES = M.lines || [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5];
-    // nearest line at or below the projection is the one most likely to be hung
-    const autoLine = (mu) => LINES.reduce((best, L) =>
-      Math.abs(L - mu) < Math.abs(best - mu) ? L : best, LINES[0]);
 
-    const chips = ['auto', ...LINES].map(v =>
-      `<button class="due-filter-chip mode-chip${String(recLine) === String(v) ? ' active' : ''}" onclick="setRecLine(${typeof v === 'string' ? `'${v}'` : v})">${v === 'auto' ? 'Best line' : 'o' + v}</button>`
-    ).join('');
+    const chip = (k, v, lab, cur) =>
+      `<button class="due-filter-chip mode-chip${String(cur) === String(v) ? ' active' : ''}" onclick="setRc('${k}',${typeof v === 'number' ? v : `'${v}'`})">${lab}</button>`;
+    const lineChips = ['auto', ...RC_LINES()].map(v =>
+      chip('line', v, v === 'auto' ? 'Best line' : 'o' + v, rcF.line)).join('');
+    const posChips = ['ALL', 'WR', 'TE', 'RB'].map(v =>
+      chip('pos', v, v === 'ALL' ? 'All' : v, rcF.pos)).join('');
+    const sortChips = [['proj', 'Projection'], ['odds', 'Shortest price']].map(([v, l]) =>
+      chip('sort', v, l, rcF.sort)).join('');
+    const viewChips = [['cards', 'Cards'], ['table', 'Table'], ['compact', 'Compact']].map(([v, l]) =>
+      chip('view', v, l, rcF.view)).join('');
 
-    const rows = R.map(r => {
-      const L = recLine === 'auto' ? autoLine(r.mu) : Number(recLine);
-      const p = r.p[L] ?? r.p[String(L)];
-      return { ...r, L, p };
-    }).filter(r => r.p != null)
-      .sort((a, b) => (recLine === 'auto' ? b.mu - a.mu : b.p - a.p));
+    const rows = rcRows();
+    const controls = `
+      <div class="pairs-filter-row"><span class="due-filter-label">Line</span>${lineChips}</div>
+      <div class="pairs-filter-row"><span class="due-filter-label">Position</span>${posChips}
+        <span class="due-filter-label" style="margin-left:0.5rem">Sort</span>${sortChips}</div>
+      <div class="pairs-filter-row"><span class="due-filter-label">View</span>${viewChips}</div>
+      <div class="pb-search">
+        <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path>
+        </svg>
+        <input type="text" id="rec-search" placeholder="Search a player, team or position…"
+               value="${rcF.q.replace(/"/g, '&quot;')}" oninput="onRecSearch()" autocomplete="off" spellcheck="false">
+        <button class="pb-search-x" onclick="clearRecSearch()" aria-label="Clear"${rcF.q ? ' style="display:flex"' : ''}>×</button>
+      </div>`;
 
     const meta = `<div class="pt-meta">Week ${w} pass-catchers by <b>projected receptions</b>, priced with a negative binomial —
       catch counts are more spread out than a Poisson allows, and pricing them Poisson would sell the over too cheap.
-      ${R.length} players projected. Every game is priced calm; no wind forecast is wired up yet.</div>`;
+      ${rows.length} of ${R.length} shown. Every game is priced calm; no wind forecast is wired up yet.</div>`;
 
-    const body = rows.map((r, i) => `
-      <div class="pb-card">
-        <div class="pb-rank">${i + 1}</div>${faceHtml(r.pid, r.name)}
-        <div class="pb-info">
-          <div class="pb-nm">${r.name}<span class="pb-flag" title="Position">${r.pos}</span></div>
-          <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
-            <span class="rc-proj" title="Projected receptions"><b>${r.mu.toFixed(1)}</b> proj</span></div>
-        </div>
-        <div class="pb-facts">
-          <span class="pb-f" title="Snap share over his last three games"><b>${Math.round((r.f.snapL3 || 0) * 100)}%</b> snaps</span>
-          <span class="pb-f" title="Share of his team's targets over his last three games"><b>${Math.round((r.f.shareL3 || 0) * 100)}%</b> tgt</span>
-          <span class="pb-f" title="His team's pass attempts per game"><b>${(r.f.teamPass || 0).toFixed(0)}</b> att</span>
-        </div>
-        <div class="pb-price">
-          <span class="pb-odds${r.p < 0.5 ? ' dog' : ''}">${pbOdds(r.p)}</span>
-          <span class="pb-pct">over ${r.L}</span>
-        </div>
-      </div>`).join('');
+    if (!rows.length) {
+      el.innerHTML = controls + `<div class="empty">Nothing matches that filter.</div>`;
+      return;
+    }
 
-    el.innerHTML = `<div class="pairs-filter-row"><span class="due-filter-label">Line</span>${chips}</div>${meta}<div class="pb-list">${body}</div>`;
+    let body;
+    if (rcF.view === 'table') {
+      body = `<div class="rc-tablewrap"><table class="rc-table">
+        <thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Proj</th>
+          <th class="num">Snap</th><th class="num">Tgt</th><th class="num">Line</th><th class="num">Price</th></tr></thead>
+        <tbody>${rows.map((r, i) => `
+          <tr onclick="openRec('${r.pid}')">
+            <td class="num dim">${i + 1}</td>
+            <td><b>${r.name}</b> <span class="dim">${r.pos}</span></td>
+            <td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
+            <td class="num"><b>${r.mu.toFixed(2)}</b></td>
+            <td class="num dim">${Math.round((r.f.snapL3 || 0) * 100)}%</td>
+            <td class="num dim">${Math.round((r.f.shareL3 || 0) * 100)}%</td>
+            <td class="num dim">o${r.L}</td>
+            <td class="num"><b class="${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</b></td>
+          </tr>`).join('')}</tbody></table></div>`;
+    } else if (rcF.view === 'compact') {
+      body = `<div class="rc-compact">${rows.map((r, i) => `
+        <div class="rc-crow" onclick="openRec('${r.pid}')">
+          <span class="rc-crank">${i + 1}</span>
+          <span class="rc-cnm">${r.name}</span>
+          <span class="rc-cteam">${r.team}</span>
+          <span class="rc-cproj">${r.mu.toFixed(1)}</span>
+          <span class="rc-cod ${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</span>
+          <span class="rc-cline">o${r.L}</span>
+        </div>`).join('')}</div>`;
+    } else {
+      body = `<div class="pb-list">${rows.map((r, i) => `
+        <div class="pb-card" onclick="openRec('${r.pid}')">
+          <div class="pb-rank">${i + 1}</div>${faceHtml(r.pid, r.name)}
+          <div class="pb-info">
+            <div class="pb-nm">${r.name}<span class="pb-flag" title="Position">${r.pos}</span></div>
+            <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
+              <span class="rc-proj" title="Projected receptions"><b>${r.mu.toFixed(1)}</b> proj</span></div>
+          </div>
+          <div class="pb-facts">
+            <span class="pb-f" title="Snap share over his last three games"><b>${Math.round((r.f.snapL3 || 0) * 100)}%</b> snaps</span>
+            <span class="pb-f" title="Share of his team's targets over his last three games"><b>${Math.round((r.f.shareL3 || 0) * 100)}%</b> tgt</span>
+            <span class="pb-f" title="His team's pass attempts per game"><b>${(r.f.teamPass || 0).toFixed(0)}</b> att</span>
+          </div>
+          <div class="pb-price">
+            <span class="pb-odds${r.p < 0.5 ? ' dog' : ''}">${pbOdds(r.p)}</span>
+            <span class="pb-pct">over ${r.L}</span>
+          </div>
+        </div>`).join('')}</div>`;
+    }
+    el.innerHTML = controls + meta + body;
   }
+
+  // ── Receptions modal: the full ladder, plus the usage behind it ─────────
+  let rcOpen = null;
+  function openRec(pid) {
+    const R = nflData?.receptions || []; const M = nflData?.receptionModel;
+    const r = R.find(x => x.pid === pid); if (!r || !M) return;
+    rcOpen = pid;
+    const deck = rcRows();
+    const at = deck.findIndex(x => x.pid === pid);
+    const sel = rcPick(r);
+    const ladder = RC_LINES().map(L => {
+      const p = r.p[L] ?? r.p[String(L)];
+      if (p == null) return '';
+      return `<div class="pm-mkt${L === sel.L ? ' on' : ''}">
+        <div class="pm-mkt-lbl">o${L}</div>
+        <div class="pm-mkt-od">${pbOdds(p)}</div>
+        <div class="pm-mkt-pct">${(p * 100).toFixed(1)}%</div></div>`;
+    }).join('');
+    const f = r.f || {};
+    const stat = (v, l, pc, tip) => `<div class="pm-stat" title="${tip}">
+      <div class="pm-stat-v">${v}</div><div class="pm-stat-l">${l}</div>
+      <div class="pm-stat-bar"><i style="width:${Math.max(0, Math.min(100, pc))}%"></i></div></div>`;
+
+    document.body.insertAdjacentHTML('beforeend', `
+      <div class="pm-back" id="rc-back" onclick="if(event.target===this)closeRec()">
+        <button class="pk-side-nav pk-side-prev" onclick="rcStep(-1)" aria-label="Previous"${at <= 0 ? ' disabled' : ''}>‹</button>
+        <button class="pk-side-nav pk-side-next" onclick="rcStep(1)" aria-label="Next"${at < 0 || at >= deck.length - 1 ? ' disabled' : ''}>›</button>
+        <div class="pm" role="dialog" aria-modal="true">
+          <button class="pm-x" onclick="closeRec()" aria-label="Close">×</button>
+          ${at >= 0 ? `<div class="pk-deck-count" style="padding-top:0.6rem">${at + 1} / ${deck.length}</div>` : ''}
+          <div class="pm-hero">
+            ${faceHtml(r.pid, r.name)}
+            <div class="pm-id">
+              <div class="pm-nm">${r.name}</div>
+              <div class="pm-meta"><b>${r.pos}</b> · ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</div>
+            </div>
+            <div class="pm-hero-price">
+              <div class="pm-hero-od">${r.mu.toFixed(2)}</div>
+              <div class="pm-hero-lbl">proj catches</div>
+            </div>
+          </div>
+          <div class="pm-sec">The ladder</div>
+          <div class="pm-mkts">${ladder}</div>
+          <div class="pm-sec">The usage behind it</div>
+          <div class="pm-stats">
+            ${stat(Math.round((f.snapL3 || 0) * 100) + '%', 'Snap share L3', (f.snapL3 || 0) * 100, "Share of his offense's snaps over the last three games — the largest term in the model")}
+            ${stat(Math.round((f.shareL3 || 0) * 100) + '%', 'Target share L3', (f.shareL3 || 0) * 400, "His share of the team's targets over the last three games")}
+            ${stat((f.teamPass || 0).toFixed(0), 'Team pass att', (f.teamPass || 0) / 45 * 100, 'His team’s pass attempts per game')}
+            ${stat((f.recL3 ?? 0).toFixed(1), 'Catches L3', (f.recL3 || 0) / 9 * 100, 'His receptions per game over the last three')}
+            ${stat((f.recPrior ?? 0).toFixed(1), 'Catches career', (f.recPrior || 0) / 9 * 100, 'His longer-run receptions per game, shrunk toward his position')}
+            ${stat(Math.round((f.catch || 0) * 100) + '%', 'Catch rate', (f.catch || 0) * 100, 'Receptions per target over his career')}
+          </div>
+          <p class="pm-note">Prices come off a <b>negative binomial</b>, not a Poisson. Catch counts are more spread out than
+            a Poisson allows, so pricing them that way would sell the over too cheap — by about 3 points at o2.5 and 9 at o6.5.
+            His ${f.games} prior games feed the projection.</p>
+        </div>
+      </div>`);
+    document.body.style.overflow = 'hidden';
+  }
+  window.openRec = openRec;
+  function closeRec() {
+    document.getElementById('rc-back')?.remove();
+    document.body.style.overflow = ''; rcOpen = null;
+  }
+  window.closeRec = closeRec;
+  function rcStep(d) {
+    const deck = rcRows(); const at = deck.findIndex(x => x.pid === rcOpen);
+    const nx = deck[at + d]; if (!nx) return;
+    closeRec(); openRec(nx.pid);
+  }
+  window.rcStep = rcStep;
 
   function renderReturners() {
     const el = document.getElementById('returners-content'); if (!el) return;
