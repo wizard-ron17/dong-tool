@@ -4294,6 +4294,23 @@ let pairStacks = false;
         ${body || `<div class="hm-subtle">${empty}</div>`}
       </div>`;
 
+    // Receptions and Returners mini-cards. Both reuse the tools' own logic:
+    // receptions leads with the projection at its best line, returners with
+    // what the role adds to the anytime price.
+    const recLines = nflData.receptionModel?.lines || [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5];
+    const recRows = (nflData.receptions || []).slice(0, 3).map(r => {
+      const L = recLines.reduce((b, x) => Math.abs(x - r.mu) < Math.abs(b - r.mu) ? x : b, recLines[0]);
+      const pv = r.p[L] ?? r.p[String(L)];
+      return `
+      <div class="hm-row">${faceHtml(r.pid, r.name)}
+        <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} · ${pbOdds(pv)} over ${L}</span></span>
+        <span class="hm-score hot">${r.mu.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> proj</span></span></div>`;
+    }).join('');
+    const retRows = (nflData.returners || []).slice(0, 3).map(r => `
+      <div class="hm-row">${faceHtml(r.pid, r.name)}
+        <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} · ${Math.round(r.prShare * 100)}% punts · ${Math.round(r.krShare * 100)}% kicks</span></span>
+        <span class="hm-score warm">${r.pr + r.kr}<span class="hm-subtle" style="font-size:0.766rem"> ret</span></span></div>`).join('');
+
     el.innerHTML = `
       <div class="hm-cols">
         <div class="hm-col">
@@ -4310,12 +4327,14 @@ let pairStacks = false;
               <span class="hm-subhead">Pass TD</span><span class="hm-link">Pass TD →</span>
             </div>${topPass}` : ''),
             'The board fills in once the slate has lines.')}
+          ${card('receptions', 'Receptions', 'Receptions', recRows, 'Projections fill in once the slate has lines.')}
           ${card('due', 'Due', 'Due', dueRows, 'Nobody with a red-zone role is in a drought.')}
           ${card('milestones', 'Milestone Watch 🏆', 'Milestones', msRows, 'No chases within reach.')}
         </div>
         <div class="hm-col">
           ${card('schedule', `Week ${w} · ${games.length} Games`, 'Schedule', gameRows, 'No games scheduled.')}
           ${card('stats', `${nflData.historySeason} TD Leaders`, 'Stats', leaders, 'No leaders yet.')}
+          ${card('returners', 'Returners', 'Returners', retRows, 'No return volume logged yet.')}
           ${card('pairs', 'Top Pairings', 'Pairs', duos, 'No co-occurrences yet.')}
           ${card('birthdays', 'Birthdays 🎂', 'Birthdays', bdays, 'Nobody celebrating on this slate.')}
         </div>
