@@ -3545,7 +3545,15 @@ let pairStacks = false;
   // min-2. Uniform MIN means every member of a shown group co-scored ≥MIN times.
   // First/last/2+ are far rarer than all TDs, so the co-occurrence floor drops
   // or nothing clears it.
-  function pairMinOcc(gran, basis) { return basis === 'all' ? (gran === 'week' ? 4 : 3) : 2; }
+  function pairMinOcc(gran, basis) {
+    const normal = basis === 'all' ? (gran === 'week' ? 4 : 3) : 2;
+    // A co-occurrence count can't exceed the number of weeks played, so early
+    // in a season the normal minimum filters out EVERYTHING — the board sat
+    // empty on opening night behind "min 4" with one game recapped. Clamp to
+    // the weeks available; the normal threshold takes back over by week 4.
+    const played = (nflData?.tdRecapWeeks || []).length;
+    return Math.max(1, Math.min(normal, played));
+  }
   function computeAllGroups(gran, basis) {
     const ck = gran + '|' + basis;
     if (pairGroupCache[ck]) return pairGroupCache[ck];
@@ -4145,6 +4153,14 @@ let pairStacks = false;
     if (pairSgpOnly) list = list.filter(g => sharedTeamsOf(g.pids).length);
     if (pairTerms.length) list = list.filter(g => { const ns = g.pids.map(p => (scorerIdx[p]?.name || '').toLowerCase()); return pairTerms.every(term => ns.some(n => n.includes(term))); });
     const minOcc = pairMinOcc(pairGran, pairBasis);
+    if (list.length && list[0].count === list[list.length - 1].count || (nflData.tdRecapWeeks || []).length < 4) {
+      const fairOf = new Map();
+      const fair = (g) => {
+        if (!fairOf.has(g)) fairOf.set(g, priceGroup(g.pids)?.fair ?? 0);
+        return fairOf.get(g);
+      };
+      list = [...list].sort((a, b) => b.count - a.count || fair(b) - fair(a));
+    }
     const meta = document.getElementById('pairs-meta');
     meta.textContent = `${list.length.toLocaleString()} unique ${PAIR_SIZE_NAMES[activePairSize]} · ${pairGran === 'week' ? 'same week' : 'same day'} · ${{ first: 'first TD only', last: 'last TD only', multi: '2+ TD games only' }[pairBasis] || 'all TDs'} · min ${minOcc}`
       + (pairSgpOnly ? ' · SGP only' : '') + (pairTerms.length ? ' · ' + pairTerms.join(' + ') : '')
