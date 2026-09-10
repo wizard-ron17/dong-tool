@@ -22,6 +22,8 @@
 
 import fs from 'node:fs';
 import { REL, fetchText, fetchOptional, parseCsv, num } from './nflverse.js';
+import { receptionFeatures, scoreMu, pOver, LINES as REC_LINES,
+         RECEPTION_POS, RECEPTION_MODEL } from './receptions.js';
 
 const POS = ['RB', 'WR', 'TE', 'QB', 'FB'];
 // PFR labels some running backs "HB" in some seasons (39 rows in 2025, 41 in
@@ -523,6 +525,7 @@ export async function loadSnapLog(seasons, xwalk) {
  */
 export async function loadPbpLogs(seasons) {
   const rzLog = new Map(), passLog = new Map(), tdLog = new Map();
+  const recLog = new Map(), teamPassLog = new Map();
   for (const y of seasons) {
     const txt = await fetchOptional(`${REL}/pbp/play_by_play_${y}.csv`);
     if (!txt) { console.log(`  pbp ${y}: not published yet`); continue; }
@@ -530,12 +533,32 @@ export async function loadPbpLogs(seasons) {
     const per = new Map();        // `${pid}|${week}` -> rz touches
     const qb  = new Map();        // `${pid}|${week}` -> { att, ptd }
     const td  = new Map();        // `${pid}|${week}` -> { n, team }
+    const rc  = new Map();        // `${pid}|${week}` -> { rec, tgt, air, n, team }
+    const tmPass = new Map();     // `${team}|${week}` -> pass attempts
+    const tmTgt  = new Map();     // `${team}|${week}` -> targets
     const tmTd = new Map();       // `${team}|${week}` -> team offensive TDs
     for (const r of rows) {
       const isPass = r[idx.pass_attempt] === '1';
       // Passing line: every attempt by the passer, and the TDs among them.
       // Sacks carry pass_attempt 0 in nflverse, so they correctly don't count
       // as attempts here — same as the Python that trained the model.
+      // Receptions. Targets are pass attempts with a named receiver; team pass
+      // volume counts every attempt, since an unaimed throwaway still consumed
+      // a pass play.
+      if (isPass && r[idx.posteam]) {
+        const tk = `${r[idx.posteam]}|${r[idx.week]}`;
+        tmPass.set(tk, (tmPass.get(tk) ?? 0) + 1);
+        if (r[idx.receiver_player_id]) {
+          tmTgt.set(tk, (tmTgt.get(tk) ?? 0) + 1);
+          const k = `${r[idx.receiver_player_id]}|${r[idx.week]}`;
+          const e = rc.get(k) ?? { rec: 0, tgt: 0, air: 0, n: 0, team: r[idx.posteam] };
+          e.tgt += 1;
+          if (r[idx.complete_pass] === '1') e.rec += 1;
+          const ay = num(r[idx.air_yards]);
+          if (ay != null) { e.air += ay; e.n += 1; }
+          rc.set(k, e);
+        }
+      }
       if (isPass && r[idx.passer_player_id]) {
         const k = `${r[idx.passer_player_id]}|${r[idx.week]}`;
         const e = qb.get(k) ?? { att: 0, ptd: 0 };
@@ -576,6 +599,19 @@ export async function loadPbpLogs(seasons) {
       (passLog.get(pid) ?? passLog.set(pid, []).get(pid))
         .push({ season: y, week: +wk, att: v.att, ptd: v.ptd });
     }
+    for (const [k, v] of tmPass) {
+      const [team, wk] = k.split('|');
+      teamPassLog.set(`${team}|${y}|${+wk}`, v);
+    }
+    for (const [k, v] of rc) {
+      const [pid, wk] = k.split('|');
+      const tt = tmTgt.get(`${v.team}|${wk}`) ?? 0;
+      (recLog.get(pid) ?? recLog.set(pid, []).get(pid)).push({
+        season: y, week: +wk, team: v.team, rec: v.rec, tgt: v.tgt,
+        air: v.n ? v.air / v.n : null,
+        share: tt > 0 ? v.tgt / tt : 0,
+      });
+    }
     // td_share needs the player's TDs over his team's, so it can only be
     // resolved once the whole season's team totals are known.
     for (const [k, v] of td) {
@@ -589,7 +625,8 @@ export async function loadPbpLogs(seasons) {
   for (const v of rzLog.values()) v.sort(bySeasonWeek);
   for (const v of passLog.values()) v.sort(bySeasonWeek);
   for (const v of tdLog.values()) v.sort(bySeasonWeek);
-  return { rzLog, passLog, tdLog };
+  for (const v of recLog.values()) v.sort(bySeasonWeek);
+  return { rzLog, passLog, tdLog, recLog, teamPassLog };
 }
 
 /** Back-compat wrapper — dump-features.js only wants the red-zone half. */
@@ -759,7 +796,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
 
   const { xwalk, birth, shot } = await loadPlayers();
   const snapLog = await loadSnapLog(snapSeasons, xwalk);
-  const { rzLog, passLog, tdLog } = await loadPbpLogs(rzSeasons);
+  const { rzLog, passLog, tdLog, recLog, teamPassLog } = await loadPbpLogs(rzSeasons);
   const roster = await loadRoster(upcomingSeason);
   const depth = await loadDepthChart(upcomingSeason);
   const { byWeek, outIds, questionable = new Set() } = await loadInjuries(season, week);
@@ -794,6 +831,50 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     if (!row) continue;                                 // no usage history at all
     staged.push({ pid, info, ctx, pos, row, team: info.team, position: pos });
   }
+  // ── Receptions ──────────────────────────────────────────────────────────
+  // A separate market with its own model (research/receptions.py): a Poisson
+  // GLM for the mean, priced through a negative binomial because reception
+  // counts are over-dispersed. Built here rather than in its own pass so it
+  // reuses the roster, schedule context, snap log and play-by-play already
+  // loaded — the pbp fetch is the slowest thing in the build and doing it twice
+  // would double it.
+  const receptions = [];
+  for (const [pid, info] of roster) {
+    if (!RECEPTION_POS.includes(info.position)) continue;
+    const ctx = teamsInPlay.get(info.team);
+    if (!ctx) continue;
+    const row = receptionFeatures({
+      pid, position: info.position, season, week, snapLog, recLog, teamPassLog,
+      team: info.team, impliedTotal: ctx.implied,
+      // No wind forecast is wired up yet, so every game is priced calm. The
+      // feature is live in the model and inert here until a forecast feed
+      // exists; see the note in research/receptions.py for what it is worth.
+      windExcess: 0,
+    });
+    if (!row || row._games < 3) continue;       // matches the training filter
+    const mu = scoreMu(row);
+    if (mu < 0.35) continue;                    // nothing to quote
+    receptions.push({
+      pid, name: info.name, team: info.team, opp: ctx.opp, pos: info.position,
+      gameId: ctx.gameId, home: ctx.home,
+      mu: +mu.toFixed(4),
+      p: Object.fromEntries(REC_LINES.map(L => [L, +pOver(L, mu).toFixed(6)])),
+      f: {
+        recL3: +row.rec_l3.toFixed(3),
+        recPrior: +row.rec_prior.toFixed(3),
+        shareL3: +row.share_l3.toFixed(4),
+        snapL3: +row.snap_l3.toFixed(4),
+        catch: +row.catch_prior.toFixed(3),
+        teamPass: +row.team_pass_prior.toFixed(2),
+        implied: +row.implied_total.toFixed(2),
+        games: row._games,
+      },
+    });
+  }
+  receptions.sort((a, b) => b.mu - a.mu);
+  console.log(`  receptions: ${receptions.length} players priced ` +
+              `(top ${receptions[0]?.name ?? '—'} ${receptions[0]?.mu.toFixed(2) ?? ''})`);
+
   const snapScale = normaliseTeamSnaps(staged, depth);
   {
     const f = [...snapScale.values()];
@@ -953,6 +1034,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   return {
     season, week, generatedAt: new Date().toISOString(),
     shots,
+    receptions, receptionModel: { alpha: RECEPTION_MODEL.alpha, lines: REC_LINES },
     birthdays: bdays, birthdayStats: BDAY.league, birthdaySeasons: BDAY.seasons,
     birthdayBase: BDAY.base_rate,
     // Ship the fitted model with the board so the UI can decompose each price

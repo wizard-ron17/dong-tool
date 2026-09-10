@@ -414,6 +414,7 @@ async function main() {
   for (const b of (picks?.birthdays ?? [])) referenced.add(b.pid);
   for (const m of milestones) referenced.add(m.pid);
   for (const r of returners) referenced.add(r.pid);
+  for (const r of (picks?.receptions ?? [])) referenced.add(r.pid);
   // Passers who never scored themselves aren't in tdLeaders or the recap's
   // scorer rows, so the Stacks view has no name for them without this.
   const passerNames = {};
@@ -443,7 +444,11 @@ async function main() {
     historySeason: HISTORY_SEASON, upcomingSeason: UPCOMING_SEASON,
     schedule, results, tdRecap, tdRecapWeeks: weeks, tdLeaders, headshots: shots,
     teamStats, teamScorers, teamQB,
-    picks: picks ? { ...picks, shots: undefined } : picks, picksHistory, parlay, milestones, passerNames, connPos, returners, returnModel,
+    // Receptions rides along in the picks payload because it reuses that pass's
+    // play-by-play, but it is its own market and reads better as its own key.
+    picks: picks ? { ...picks, shots: undefined, receptions: undefined, receptionModel: undefined } : picks,
+    receptions: picks?.receptions ?? [], receptionModel: picks?.receptionModel ?? null,
+    picksHistory, parlay, milestones, passerNames, connPos, returners, returnModel,
   };
   fs.writeFileSync(new URL('../nfl/data.json', import.meta.url), JSON.stringify(output));
   console.log(`Wrote nfl/data.json — ${schedule.length} ${UPCOMING_SEASON} games, ${tdTotal} TDs across ${weeks.length} weeks, ${tdLeaders.length} TD leaders, ${picks?.picks.length ?? 0} picks.`);

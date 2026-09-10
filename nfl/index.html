@@ -1564,6 +1564,9 @@
   .pb-f b { color: var(--text-strong); font-weight: 700; }
 
   .pb-price { text-align: right; flex-shrink: 0; min-width: 4.1rem; }
+  .rc-proj { margin-left: 0.45rem; padding: 0.05rem 0.34rem; border-radius: 4px; background: var(--surface2);
+    font-family: var(--font-d); font-weight: 700; color: var(--text); white-space: nowrap; }
+  .rc-proj b { color: var(--accent); }
   .pb-odds { display: block; font-family: var(--font-d); font-size: 1.45rem; font-weight: 700; line-height: 1; color: var(--good); }
   .pb-odds.dog { color: var(--silver); }
   .pb-pct { display: block; font-family: var(--font-m); font-size: 0.692rem; color: var(--dim); margin-top: 0.16rem; }
@@ -2073,6 +2076,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18c6-10 12-10 16 0M8 6l-3 3 3 3"/></svg>
         <span><span class="nm-name">Returners <span class="nm-new">NEW</span></span><span class="nm-desc">Punt and kick return volume</span></span>
       </button>
+      <button class="nav-menu-item" data-nav="receptions" onclick="switchNav('receptions')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16c3-8 13-8 16 0M9 12l3 3 3-3"/></svg>
+        <span><span class="nm-name">Receptions <span class="nm-new">NEW</span></span><span class="nm-desc">Catch totals, priced over and under</span></span>
+      </button>
       <button class="nav-menu-item" data-nav="milestones" onclick="switchNav('milestones')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4M6 4h11l-2 3.5L17 11H6"/></svg>
         <span><span class="nm-name">Milestones <span class="nm-new">NEW</span></span><span class="nm-desc">Chasing 50 · 100 · 150 career TDs</span></span>
@@ -2278,6 +2285,27 @@
     </div>
     <div id="returners-content"><div class="empty">Loading…</div></div>
   </div>
+  <div id="panel-receptions" class="panel">
+    <div class="due-explainer" id="receptions-explainer-toggle" onclick="toggleExplainer('receptions')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Receptions Works</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="receptions-explainer-chevron">&#9654;</span>
+      </div>
+      <div class="due-explainer-teaser">Projected catches for every pass-catcher on the slate, priced against the standard lines.</div>
+      <div class="due-explainer-body" id="receptions-explainer-body" style="display:none">
+        <ul>
+          <li><b>It is a volume market, not a scoring one.</b> Touchdowns turn on who gets the ball at the three; receptions turn on how often a player is on the field and thrown at. That makes the role far more predictable &mdash; a receiver's game-to-game catch volume splits half-against-half at <b>0.947</b>, which is why this is the market we built next rather than kickers (0.365) or interceptions thrown (0.145), both of which are close to noise.</li>
+          <li><b>Recent snaps carry it, again.</b> The largest term in the model is his snap share over the last three games, the same input that dominates the touchdown board. His longer-run catch rate, his share of the team's targets and his team's pass volume fill in the rest.</li>
+          <li><b>Prices are negative binomial, not Poisson.</b> This matters and it is not a technicality. Catch counts are more spread out than a Poisson allows &mdash; variance runs 1.1&ndash;1.3&times; the mean &mdash; so pricing them Poisson pushes too much probability past the line. It would have over-priced the over by 3 points at 2.5 catches and <b>9 points at 6.5</b>. The wider distribution fixes it.</li>
+          <li><b>Wind is in, and nothing else about the weather is.</b> Averaged across a season wind looks like a null, because 89% of games never reach 15&nbsp;mph. But in the ones that do it is large: at 20+&nbsp;mph a model without it over-projects catches by <b>18%</b>. Teams throw less (37.0 attempts in calm air, 34.2 at 20+) and complete less of what they throw (66.3% down to 63.0%). Temperature, indoors and game script were each tested against this market and are nulls.</li>
+          <li><b>Opposing defense is a null here too.</b> Receptions allowed to a position carries no predictive weight once usage and team pass volume are in &mdash; the fifth time defense has failed a test on this site.</li>
+          <li><b>No wind forecast is wired up yet</b>, so every game on this board is currently priced calm. When it is added, windy games will move and nothing else will.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="receptions-content"><div class="empty">Loading&hellip;</div></div>
+  </div>
   <div id="panel-pairs" class="panel">
     <div class="due-explainer" id="pairs-explainer-toggle" onclick="toggleExplainer('pairs')" aria-expanded="false">
       <div class="due-explainer-head">
@@ -2358,7 +2386,7 @@
   function closeSportMenu() { document.getElementById('sport-menu')?.classList.remove('open'); document.getElementById('sport-switch-btn')?.classList.remove('open'); }
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch')) closeSportMenu(); });
 
-  const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs', 'birthdays', 'due', 'milestones', 'returners']; // tools added here as they ship
+  const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs', 'birthdays', 'due', 'milestones', 'returners', 'receptions']; // tools added here as they ship
   const PAGE_TITLES = { home: "Ron's Tud Tool", stats: "Stats · Ron's Tud Tool", recap: "Recap · Ron's Tud Tool", schedule: "Schedule · Ron's Tud Tool", pairs: "Pairs · Ron's Tud Tool", due: "Due · Ron's Tud Tool", milestones: "Milestones · Ron's Tud Tool", returners: "Returners · Ron's Tud Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
@@ -3263,7 +3291,7 @@
     </div>`;
   }
 
-  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); else if (nav === 'birthdays') renderBirthdays(); else if (nav === 'due') renderDue(); else if (nav === 'milestones') renderMilestones(); else if (nav === 'returners') renderReturners(); }
+  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); else if (nav === 'birthdays') renderBirthdays(); else if (nav === 'due') renderDue(); else if (nav === 'receptions') renderReceptions(); else if (nav === 'milestones') renderMilestones(); else if (nav === 'returners') renderReturners(); }
   // ESPN team-logo CDN (transparent PNGs). nflverse abbrs are ESPN slugs
   // lowercased, save two: LA(Rams)->lar, WAS->wsh.
   const LOGO_SLUG = { LA: 'lar', WAS: 'wsh' };
@@ -3664,6 +3692,63 @@ let pairStacks = false;
   // next to his real market. The board now ranks on what the return role ADDS,
   // because that is the part the Picks model can't see; the price shown is the
   // bettable combined one.
+  // ── Receptions ─────────────────────────────────────────────────────────
+  // A count market, so the board leads with the projection and then prices each
+  // standard line off it. The line nearest the projection is highlighted,
+  // because that is the one a book will actually be hanging.
+  let recLine = 'auto';
+  function setRecLine(v) { recLine = v; renderReceptions(); }
+  window.setRecLine = setRecLine;
+
+  function renderReceptions() {
+    const el = document.getElementById('receptions-content'); if (!el) return;
+    if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
+    if (nflData === 'error') { el.innerHTML = `<div class="empty">Couldn't load NFL data. <a href="javascript:void(0)" onclick="loadNfl()">Retry</a></div>`; return; }
+    const R = nflData.receptions || [], M = nflData.receptionModel;
+    if (!R.length || !M) { el.innerHTML = '<div class="empty">No reception projections yet — they fill in once the slate has lines.</div>'; return; }
+    const w = firstUpcomingWeek();
+    const LINES = M.lines || [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5];
+    // nearest line at or below the projection is the one most likely to be hung
+    const autoLine = (mu) => LINES.reduce((best, L) =>
+      Math.abs(L - mu) < Math.abs(best - mu) ? L : best, LINES[0]);
+
+    const chips = ['auto', ...LINES].map(v =>
+      `<button class="due-filter-chip mode-chip${String(recLine) === String(v) ? ' active' : ''}" onclick="setRecLine(${typeof v === 'string' ? `'${v}'` : v})">${v === 'auto' ? 'Best line' : 'o' + v}</button>`
+    ).join('');
+
+    const rows = R.map(r => {
+      const L = recLine === 'auto' ? autoLine(r.mu) : Number(recLine);
+      const p = r.p[L] ?? r.p[String(L)];
+      return { ...r, L, p };
+    }).filter(r => r.p != null)
+      .sort((a, b) => (recLine === 'auto' ? b.mu - a.mu : b.p - a.p));
+
+    const meta = `<div class="pt-meta">Week ${w} pass-catchers by <b>projected receptions</b>, priced with a negative binomial —
+      catch counts are more spread out than a Poisson allows, and pricing them Poisson would sell the over too cheap.
+      ${R.length} players projected. Every game is priced calm; no wind forecast is wired up yet.</div>`;
+
+    const body = rows.map((r, i) => `
+      <div class="pb-card">
+        <div class="pb-rank">${i + 1}</div>${faceHtml(r.pid, r.name)}
+        <div class="pb-info">
+          <div class="pb-nm">${r.name}<span class="pb-flag" title="Position">${r.pos}</span></div>
+          <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
+            <span class="rc-proj" title="Projected receptions"><b>${r.mu.toFixed(1)}</b> proj</span></div>
+        </div>
+        <div class="pb-facts">
+          <span class="pb-f" title="Snap share over his last three games"><b>${Math.round((r.f.snapL3 || 0) * 100)}%</b> snaps</span>
+          <span class="pb-f" title="Share of his team's targets over his last three games"><b>${Math.round((r.f.shareL3 || 0) * 100)}%</b> tgt</span>
+          <span class="pb-f" title="His team's pass attempts per game"><b>${(r.f.teamPass || 0).toFixed(0)}</b> att</span>
+        </div>
+        <div class="pb-price">
+          <span class="pb-odds${r.p < 0.5 ? ' dog' : ''}">${pbOdds(r.p)}</span>
+          <span class="pb-pct">over ${r.L}</span>
+        </div>
+      </div>`).join('');
+
+    el.innerHTML = `<div class="pairs-filter-row"><span class="due-filter-label">Line</span>${chips}</div>${meta}<div class="pb-list">${body}</div>`;
+  }
+
   function renderReturners() {
     const el = document.getElementById('returners-content'); if (!el) return;
     if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
