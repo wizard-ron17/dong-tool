@@ -3014,15 +3014,11 @@
             <div class="fbars"><div class="fbar-baseline"></div>${bars}</div>
             <div class="fbar-note">Each bar multiplies his odds of scoring. A league-average ${r.pos} in a neutral spot sits at <b>${(sig(base) * 100).toFixed(0)}%</b>; these take him to <b>${((r.pOff ?? r.p) * 100).toFixed(1)}%</b>.${r.pRet ? ` His return work adds the rest, up to <b>${(r.p * 100).toFixed(1)}%</b> — the bars are the offense model and don't see it.` : ''}</div>`}
             ${f.snap3Raw != null && Math.abs(f.snap3Raw - f.snap3) > 0.02 ? `<p class="pm-note" style="margin-top:0.7rem">
-              <b>Team snap adjustment.</b> His last-3 snap share was <b>${Math.round(f.snap3Raw * 100)}%</b> on the team he last played for;
-              ${f.snap3 < f.snap3Raw ? 'his current room is crowded enough that those shares can\'t all hold' : 'his current room is thin enough that the shares understate him'},
-              so he settles at <b>${Math.round(f.snap3 * 100)}%</b>${f.depthRank ? ` as its <b>${['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth'][f.depthRank] || `${f.depthRank}th`}</b> ${r.pos}` : ''}.
-              A team fields five skill players and one quarterback on every snap, so a roster's shares have to sum to five and one.
-              The cut isn't spread evenly — historically a crowded room resolves by the depth giving way while the lead man holds his snaps.
+              <b>Team snap adjustment:</b> ${Math.round(f.snap3Raw * 100)}% on his old room → <b>${Math.round(f.snap3 * 100)}%</b>${f.depthRank ? ` as its ${['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth'][f.depthRank] || `${f.depthRank}th`} ${r.pos}` : ''} — shares resolved to a real depth chart. Details in <b>How Picks Works</b>.
             </p>` : ''}
             <div class="pm-sec">The numbers</div>
             <div class="pm-stats">${stats}</div>
-            ${mkt === '3' || mkt === '4' ? `<p class="pm-note" style="margin-top:0.7rem">The factors above build his <b>anytime</b> price. The ${mkt === '3' ? '1st' : 'last'}-TD price is that number divided by the whole game's scoring threat, so it moves when his rivals do — not only when he does.${mkt === '4' ? ' Last TD is the weakest of the four: the closing score lands in the fourth quarter, when the field holds whoever is playing by then.' : ''}</p>` : ''}
+            ${mkt === '3' || mkt === '4' ? `<p class="pm-note" style="margin-top:0.7rem">The bars build his <b>anytime</b> price; the ${mkt === '3' ? '1st' : 'last'}-TD price is his share of the whole game's scoring threat, so it moves when rivals do.${mkt === '4' ? ' Last TD is the weakest market of the four.' : ''}</p>` : ''}
             ${mkt === '5' ? `<p class="pm-note" style="margin-top:0.7rem">The stats above describe his <b>rushing</b> role and drive the other four markets — they are not inputs to the passing price, which runs on its own model.</p>` : ''}
             <p class="pm-foot">${mkt === '5'
               ? 'Fair odds, no vig — a book prices worse. Passing TDs are a separate model from the other four markets: the anytime model scores a QB as a <b>rusher</b>, so his arm never enters it.'
@@ -3796,9 +3792,7 @@ let pairStacks = false;
         <button class="pb-search-x" onclick="clearRecSearch()" aria-label="Clear"${rcF.q ? ' style="display:flex"' : ''}>×</button>
       </div>`;
 
-    const meta = `<div class="pt-meta">Week ${w} pass-catchers by <b>projected receptions</b>, priced with a negative binomial —
-      catch counts are more spread out than a Poisson allows, and pricing them Poisson would sell the over too cheap.
-      ${rows.length} of ${R.length} shown. Every game is priced calm; no wind forecast is wired up yet.</div>`;
+    const meta = `<div class="pt-meta">Week ${w} · ${rows.length} of ${R.length} pass-catchers · priced calm (no wind feed yet).</div>`;
 
     if (!rows.length) {
       el.innerHTML = controls + `<div class="empty">Nothing matches that filter.</div>`;
@@ -3905,9 +3899,7 @@ let pairStacks = false;
             ${stat((f.recPrior ?? 0).toFixed(1), 'Catches career', (f.recPrior || 0) / 9 * 100, 'His longer-run receptions per game, shrunk toward his position')}
             ${stat(Math.round((f.catch || 0) * 100) + '%', 'Catch rate', (f.catch || 0) * 100, 'Receptions per target over his career')}
           </div>
-          <p class="pm-note">Prices come off a <b>negative binomial</b>, not a Poisson. Catch counts are more spread out than
-            a Poisson allows, so pricing them that way would sell the over too cheap — by about 3 points at o2.5 and 9 at o6.5.
-            His ${f.games} prior games feed the projection.</p>
+          <p class="pm-note">Negative-binomial pricing off ${f.games} prior games — see <b>How Receptions Works</b> for why not Poisson.</p>
         </div>
       </div>`);
     document.body.style.overflow = 'hidden';
@@ -3965,12 +3957,7 @@ let pairStacks = false;
       .sort((a, b) => (b.known - a.known) || (b.add - a.add));
     if (!rows.length) { el.innerHTML = '<div class="empty">No returners on this week\'s slate yet — fills in once the games have lines.</div>'; return; }
 
-    const meta = `<div class="pt-meta">Week ${w} returners by <b>what the return role adds</b> to their anytime price.
-      There is no separate return-TD market — a return touchdown pays as an <b>anytime</b> touchdown, so the price shown is
-      his offense and his return chance combined, which is what a book is pricing.
-      The <b>ret</b> column is the part the Picks board can't see. Returners below the Picks cut have no offensive price, so those rows show the return leg alone and say so — their real anytime price is shorter. A punt return houses it
-      <b>${(M.punt_td_rate / M.kick_td_rate).toFixed(1)}×</b> as often as a kick return, and a weak opponent punts more while
-      scoring less — so the matchup shifts the <em>mix</em> even though the total barely moves.</div>`;
+    const meta = `<div class="pt-meta">Week ${w} · ranked by what the return role <b>adds</b> to his anytime price.</div>`;
     const cards = rows.slice(0, 40).map((r, i) => `
       <div class="pb-card"${off[r.pid] ? ` onclick="openPick('${r.pid}')"` : ''}>
         <div class="pb-rank">${i + 1}</div>${faceHtml(r.pid, r.name)}
@@ -4006,7 +3993,7 @@ let pairStacks = false;
     if (!ms.length) { el.innerHTML = '<div class="empty">No milestone chases tracked yet.</div>'; return; }
     const priced = {};
     for (const p of (nflData.picks?.picks || [])) priced[p.pid] = p;
-    const meta = `<div class="pt-meta">Career <b>rushing + receiving</b> touchdowns against the next round number, active players only. Passing TDs excluded — this board is about reaching the end zone. <b>A watch list, not a signal.</b></div>`;
+    const meta = `<div class="pt-meta">Career rushing + receiving TDs vs the next round number. <b>A watch list, not a signal.</b></div>`;
     const cards = ms.slice(0, 40).map((m, i) => {
       const pk = priced[m.pid];
       const close = m.away <= 2;
@@ -4065,11 +4052,7 @@ let pairStacks = false;
       .sort((a, b) => b.rz - a.rz);   // workload first — it's the part that predicts
     if (!rows.length) { el.innerHTML = '<div class="empty">Nobody with a real red-zone role is in a drought right now.</div>'; return; }
 
-    const meta = `<div class="pt-meta">Board players with <b>${DUE_MIN_RZ}+</b> red-zone touches a game who ${carried
-      ? `didn't score late in <b>${recapSeason}</b>` : `haven't scored in <b>2+</b> weeks`}.
-      Ordered by <b>red-zone workload</b>, not by drought length — <b>the drought predicts nothing</b> (it correlates with
-      future scoring at −0.03), the workload does (+0.38). Read this as a usage board with a hook.${carried
-      ? ` Droughts carry over from ${recapSeason}; they'll reset once ${nflData.upcomingSeason} games are played.` : ''}</div>`;
+    const meta = `<div class="pt-meta">${DUE_MIN_RZ}+ red-zone touches/g, no recent score · ordered by <b>workload</b>, not drought.</div>`;
     const cards = rows.slice(0, 40).map((r, i) => `
       <div class="pb-card p-${r.pos}" onclick="openPick('${r.pid}')">
         <div class="pb-rank">${i + 1}</div>${faceHtml(r.pid, r.name)}

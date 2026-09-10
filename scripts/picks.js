@@ -526,6 +526,7 @@ export async function loadSnapLog(seasons, xwalk) {
 export async function loadPbpLogs(seasons) {
   const rzLog = new Map(), passLog = new Map(), tdLog = new Map();
   const recLog = new Map(), teamPassLog = new Map();
+  const retAgg = new Map();     // `${pid}|${team}` -> return counts, both seasons
   for (const y of seasons) {
     const txt = await fetchOptional(`${REL}/pbp/play_by_play_${y}.csv`);
     if (!txt) { console.log(`  pbp ${y}: not published yet`); continue; }
@@ -542,6 +543,31 @@ export async function loadPbpLogs(seasons) {
       // Passing line: every attempt by the passer, and the TDs among them.
       // Sacks carry pass_attempt 0 in nflverse, so they correctly don't count
       // as attempts here — same as the Python that trained the model.
+      // Returns. Kept per (pid, TEAM) rather than per pid: a returner who
+      // changed teams would otherwise have last season's returns divided by his
+      // new team's total, which is not a share of anything.
+      {
+        const isPunt = r[idx.punt_attempt] === '1', isKick = r[idx.kickoff_attempt] === '1';
+        if (isPunt || isKick) {
+          const rp = isPunt ? r[idx.punt_returner_player_id] : r[idx.kickoff_returner_player_id];
+          // return_team is authoritative for both; posteam means the punting
+          // side on a punt and the RECEIVING side on a kickoff.
+          const rt = r[idx.return_team];
+          if (rp && rt) {
+            const k = `${rp}|${rt}`;
+            const a = retAgg.get(k) ?? {
+              pid: rp, team: rt, pr: 0, kr: 0, prTd: 0, krTd: 0, games: new Set(),
+              name: (isPunt ? r[idx.punt_returner_player_name] : r[idx.kickoff_returner_player_name]) || '',
+              last: 0,
+            };
+            a.games.add(r[idx.game_id]);
+            a.last = Math.max(a.last, y);
+            const td = r[idx.return_touchdown] === '1';
+            if (isPunt) { a.pr++; if (td) a.prTd++; } else { a.kr++; if (td) a.krTd++; }
+            retAgg.set(k, a);
+          }
+        }
+      }
       // Receptions. Targets are pass attempts with a named receiver; team pass
       // volume counts every attempt, since an unaimed throwaway still consumed
       // a pass play.
@@ -626,7 +652,7 @@ export async function loadPbpLogs(seasons) {
   for (const v of passLog.values()) v.sort(bySeasonWeek);
   for (const v of tdLog.values()) v.sort(bySeasonWeek);
   for (const v of recLog.values()) v.sort(bySeasonWeek);
-  return { rzLog, passLog, tdLog, recLog, teamPassLog };
+  return { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg };
 }
 
 /** Back-compat wrapper — dump-features.js only wants the red-zone half. */
@@ -796,7 +822,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
 
   const { xwalk, birth, shot } = await loadPlayers();
   const snapLog = await loadSnapLog(snapSeasons, xwalk);
-  const { rzLog, passLog, tdLog, recLog, teamPassLog } = await loadPbpLogs(rzSeasons);
+  const { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg } = await loadPbpLogs(rzSeasons);
   const roster = await loadRoster(upcomingSeason);
   const depth = await loadDepthChart(upcomingSeason);
   const { byWeek, outIds, questionable = new Set() } = await loadInjuries(season, week);
@@ -831,6 +857,42 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     if (!row) continue;                                 // no usage history at all
     staged.push({ pid, info, ctx, pos, row, team: info.team, position: pos });
   }
+  // ── Returners ───────────────────────────────────────────────────────────
+  // Built from TWO seasons rather than one. The old build read a single
+  // season's play-by-play, and that season flips to the new one the moment
+  // week 1 kicks off — so the board went from a full field to a single name
+  // with one game played. Two seasons keeps it populated through the boundary
+  // and the current season takes over naturally as it accumulates volume.
+  //
+  // A player is credited to the team he returns for NOW: entries are keyed by
+  // (pid, team), and his current roster team wins when he has one.
+  const byPid = new Map();
+  for (const a of retAgg.values()) {
+    const cur = byPid.get(a.pid);
+    const rosterTeam = roster.get(a.pid)?.team;
+    const better = !cur
+      || (a.team === rosterTeam && cur.team !== rosterTeam)
+      || (a.team === rosterTeam) === (cur.team === rosterTeam) && (a.last > cur.last
+          || (a.last === cur.last && a.pr + a.kr > cur.pr + cur.kr));
+    if (better) byPid.set(a.pid, a);
+  }
+  const teamRet = new Map();
+  for (const a of byPid.values()) {
+    const t = teamRet.get(a.team) ?? { pr: 0, kr: 0 };
+    t.pr += a.pr; t.kr += a.kr; teamRet.set(a.team, t);
+  }
+  const returners = [...byPid.values()]
+    .filter(a => a.pr + a.kr >= 3)
+    .map(a => ({
+      pid: a.pid, name: a.name, team: roster.get(a.pid)?.team ?? a.team,
+      pr: a.pr, kr: a.kr, prTd: a.prTd, krTd: a.krTd, games: a.games.size,
+      prShare: teamRet.get(a.team)?.pr ? +(a.pr / teamRet.get(a.team).pr).toFixed(3) : 0,
+      krShare: teamRet.get(a.team)?.kr ? +(a.kr / teamRet.get(a.team).kr).toFixed(3) : 0,
+    }))
+    .sort((x, y2) => (y2.pr + y2.kr) - (x.pr + x.kr));
+  console.log(`  returners: ${returners.length} over ${rzSeasons.join('+')} `
+    + `(${returners.reduce((n, r) => n + r.prTd + r.krTd, 0)} return TDs)`);
+
   // ── Receptions ──────────────────────────────────────────────────────────
   // A separate market with its own model (research/receptions.py): a Poisson
   // GLM for the mean, priced through a negative binomial because reception
@@ -1035,6 +1097,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     season, week, generatedAt: new Date().toISOString(),
     shots,
     receptions, receptionModel: { alpha: RECEPTION_MODEL.alpha, lines: REC_LINES },
+    returners,
     birthdays: bdays, birthdayStats: BDAY.league, birthdaySeasons: BDAY.seasons,
     birthdayBase: BDAY.base_rate,
     // Ship the fitted model with the board so the UI can decompose each price
