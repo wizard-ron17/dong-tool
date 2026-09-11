@@ -22,6 +22,7 @@
 
 import fs from 'node:fs';
 import { REL, fetchText, fetchOptional, parseCsv, num } from './nflverse.js';
+import { loadWind } from './wind.js';
 import { receptionFeatures, scoreMu, pOver, LINES as REC_LINES,
          RECEPTION_POS, RECEPTION_MODEL } from './receptions.js';
 
@@ -527,6 +528,7 @@ export async function loadPbpLogs(seasons) {
   const rzLog = new Map(), passLog = new Map(), tdLog = new Map();
   const recLog = new Map(), teamPassLog = new Map();
   const retAgg = new Map();     // `${pid}|${team}` -> return counts, both seasons
+  const windLog = new Map();    // `${team}|${season}|${week}` -> wind mph as played
   for (const y of seasons) {
     const txt = await fetchOptional(`${REL}/pbp/play_by_play_${y}.csv`);
     if (!txt) { console.log(`  pbp ${y}: not published yet`); continue; }
@@ -543,6 +545,17 @@ export async function loadPbpLogs(seasons) {
       // Passing line: every attempt by the passer, and the TDs among them.
       // Sacks carry pass_attempt 0 in nflverse, so they correctly don't count
       // as attempts here — same as the Python that trained the model.
+      // Actual wind as played, so the results replay can grade the wind feature
+      // instead of assuming every historical game was calm. roof is not in the
+      // pbp columns we parse, but nflverse leaves wind blank for indoor games,
+      // which is the same thing for this purpose.
+      if (r[idx.posteam]) {
+        const wk2 = `${r[idx.posteam]}|${y}|${r[idx.week]}`;
+        if (!windLog.has(wk2)) {
+          const w2 = num(r[idx.wind]);
+          if (w2 != null) windLog.set(wk2, w2);
+        }
+      }
       // Returns. Kept per (pid, TEAM) rather than per pid: a returner who
       // changed teams would otherwise have last season's returns divided by his
       // new team's total, which is not a share of anything.
@@ -652,7 +665,7 @@ export async function loadPbpLogs(seasons) {
   for (const v of passLog.values()) v.sort(bySeasonWeek);
   for (const v of tdLog.values()) v.sort(bySeasonWeek);
   for (const v of recLog.values()) v.sort(bySeasonWeek);
-  return { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg };
+  return { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog };
 }
 
 /** Back-compat wrapper — dump-features.js only wants the red-zone half. */
@@ -822,7 +835,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
 
   const { xwalk, birth, shot } = await loadPlayers();
   const snapLog = await loadSnapLog(snapSeasons, xwalk);
-  const { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg } = await loadPbpLogs(rzSeasons);
+  const { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog } = await loadPbpLogs(rzSeasons);
   const roster = await loadRoster(upcomingSeason);
   const depth = await loadDepthChart(upcomingSeason);
   const { byWeek, outIds, questionable = new Set() } = await loadInjuries(season, week);
@@ -939,7 +952,8 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
         const row = receptionFeatures({
           pid: pl.pid, position: pl.position, season: y, week: wk,
           snapLog, recLog, teamPassLog, team: pl.team,
-          impliedTotal: implied, windExcess: 0, windowFloor: rzSeasons[0],
+          impliedTotal: implied, windowFloor: rzSeasons[0],
+          windMph: windLog.get(`${pl.team}|${y}|${wk}`) ?? 0,
         });
         if (!row || row._games < 3) continue;                 // live-board filters
         const mu = scoreMu(row);
@@ -947,7 +961,8 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
         const L = REC_LINES.reduce((b, x) =>
           Math.abs(x - mu) < Math.abs(b - mu) ? x : b, REC_LINES[0]);
         rows.push([+mu.toFixed(2), L, +pOver(L, mu).toFixed(3),
-                   actBy.get(`${pl.pid}|${y}|${wk}`) ?? 0]);
+                   actBy.get(`${pl.pid}|${y}|${wk}`) ?? 0,
+                   windLog.get(`${pl.team}|${y}|${wk}`) ?? 0]);
       }
       if (!rows.length) continue;
       rows.sort((a, b) => b[0] - a[0]);                       // rank = index
@@ -955,6 +970,17 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     }
     const n = receptionsHistory.reduce((a, w2) => a + w2.rows.length, 0);
     console.log(`  receptions history: ${receptionsHistory.length} weeks replayed, ${n} graded rows`);
+  }
+
+  // Wind for this week's games. Inert until now: the model has always carried
+  // the feature and the build always passed 0.
+  const { wind: windByGame, skip: windSkip } = await loadWind(games);
+  {
+    const vals = [...windByGame.values()];
+    const windy = vals.filter(v => v >= 15).length;
+    console.log(`  wind: ${windByGame.size}/${games.length} games forecast`
+      + (vals.length ? `, max ${Math.max(...vals).toFixed(1)} mph, ${windy} at/over 15` : '')
+      + ` (indoor ${windSkip.indoor}, no venue ${windSkip.noVenue}, failed ${windSkip.failed})`);
   }
 
   // ── Receptions ──────────────────────────────────────────────────────────
@@ -972,10 +998,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     const row = receptionFeatures({
       pid, position: info.position, season, week, snapLog, recLog, teamPassLog,
       team: info.team, impliedTotal: ctx.implied, windowFloor: rzSeasons[0],
-      // No wind forecast is wired up yet, so every game is priced calm. The
-      // feature is live in the model and inert here until a forecast feed
-      // exists; see the note in research/receptions.py for what it is worth.
-      windExcess: 0,
+      windMph: windByGame.get(ctx.gameId) ?? 0,
     });
     if (!row || row._games < 3) continue;       // matches the training filter
     const mu = scoreMu(row);
@@ -1160,7 +1183,9 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   return {
     season, week, generatedAt: new Date().toISOString(),
     shots,
-    receptions, receptionModel: { alpha: RECEPTION_MODEL.alpha, lines: REC_LINES },
+    receptions, receptionModel: { alpha: RECEPTION_MODEL.alpha, lines: REC_LINES,
+                                  windFactor: RECEPTION_MODEL.wind_factor },
+    wind: Object.fromEntries(windByGame),
     receptionsHistory,
     returners,
     birthdays: bdays, birthdayStats: BDAY.league, birthdaySeasons: BDAY.seasons,

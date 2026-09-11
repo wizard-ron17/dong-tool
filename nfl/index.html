@@ -1597,6 +1597,9 @@
   .rc-proj { margin-left: 0.45rem; padding: 0.05rem 0.34rem; border-radius: 4px; background: var(--surface2);
     font-family: var(--font-d); font-weight: 700; color: var(--text); white-space: nowrap; }
   .rc-proj b { color: var(--accent); }
+  .rc-wind { margin-left: 0.35rem; padding: 0.05rem 0.32rem; border-radius: 4px; white-space: nowrap;
+    background: rgba(240,192,64,0.12); border: 1px solid rgba(240,192,64,0.3); color: var(--gold);
+    font-family: var(--font-d); font-weight: 700; }
   .pb-odds { display: block; font-family: var(--font-d); font-size: 1.45rem; font-weight: 700; line-height: 1; color: var(--good); }
   .pb-odds.dog { color: var(--silver); }
   .pb-pct { display: block; font-family: var(--font-m); font-size: 0.692rem; color: var(--dim); margin-top: 0.16rem; }
@@ -2331,7 +2334,8 @@
           <li><b>It is a volume market, not a scoring one.</b> Touchdowns turn on who gets the ball at the three; receptions turn on how often a player is on the field and thrown at. That makes the role far more predictable &mdash; a receiver's game-to-game catch volume splits half-against-half at <b>0.947</b>, which is why this is the market we built next rather than kickers (0.365) or interceptions thrown (0.145), both of which are close to noise.</li>
           <li><b>Recent snaps carry it, again.</b> The largest term in the model is his snap share over the last three games, the same input that dominates the touchdown board. His longer-run catch rate, his share of the team's targets and his team's pass volume fill in the rest.</li>
           <li><b>Prices are negative binomial, not Poisson.</b> This matters and it is not a technicality. Catch counts are more spread out than a Poisson allows &mdash; variance runs 1.1&ndash;1.3&times; the mean &mdash; so pricing them Poisson pushes too much probability past the line. It would have over-priced the over by 3 points at 2.5 catches and <b>9 points at 6.5</b>. The wider distribution fixes it.</li>
-          <li><b>Wind is in, and nothing else about the weather is.</b> Averaged across a season wind looks like a null, because 89% of games never reach 15&nbsp;mph. But in the ones that do it is large: at 20+&nbsp;mph a model without it over-projects catches by <b>18%</b>. Teams throw less (37.0 attempts in calm air, 34.2 at 20+) and complete less of what they throw (66.3% down to 63.0%). Temperature, indoors and game script were each tested against this market and are nulls.</li>
+          <li><b>Wind is in, and nothing else about the weather is.</b> Every outdoor game carries a forecast at kickoff and the projection is scaled by a measured multiplier &mdash; about &minus;2% at 10&nbsp;mph, &minus;6% at 15, &minus;15% at 25. Two mechanisms, both measured: teams throw less (37.0 attempts in calm air, 34.2 at 20+) and complete less of what they throw (66.3% down to 63.0%). Domes and closed roofs are unaffected by definition. Temperature, indoors and game script were each tested against this market and are nulls.</li>
+          <li><b>Why a multiplier and not a coefficient.</b> Wind started life as a term inside the fit and it did not work, which the Results tab is what caught: 20+&nbsp;mph games were projected at 2.25 catches and actually caught 1.71. Two reasons. The term used a threshold at 15&nbsp;mph, but the real decay is continuous from calm and accelerating, so everything below 15 was thrown away. And a coefficient fitted against a column that is zero in 89% of rows comes out far too weak. It is now measured directly from out-of-sample error by wind bin.</li>
           <li><b>Opposing defense is a null here too.</b> Receptions allowed to a position carries no predictive weight once usage and team pass volume are in &mdash; the fifth time defense has failed a test on this site.</li>
           <li><b>No wind forecast is wired up yet</b>, so every game on this board is currently priced calm. When it is added, windy games will move and nothing else will.</li>
         </ul>
@@ -3748,6 +3752,17 @@ let pairStacks = false;
   window.clearRecSearch = clearRecSearch;
 
   const RC_LINES = () => nflData?.receptionModel?.lines || [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5];
+  // Same interpolation the build uses, so the modal reports the multiplier that
+  // was actually applied rather than re-deriving one.
+  function rcWindFactor(mph) {
+    const w = nflData?.receptionModel?.windFactor;
+    if (!w || !(mph > 0)) return 1;
+    const { x, y } = w;
+    if (mph <= x[0]) return y[0];
+    if (mph >= x[x.length - 1]) return y[y.length - 1];
+    let i = 1; while (i < x.length && x[i] < mph) i++;
+    return y[i - 1] + (mph - x[i - 1]) / (x[i] - x[i - 1]) * (y[i] - y[i - 1]);
+  }
   const rcAutoLine = (mu) => RC_LINES().reduce((b, L) =>
     Math.abs(L - mu) < Math.abs(b - mu) ? L : b, RC_LINES()[0]);
   const rcPick = (r) => {
@@ -3781,8 +3796,8 @@ let pairStacks = false;
     const H = nflData.receptionsHistory || [];
     if (!H.length) return '<div class="empty">No graded weeks yet.</div>';
     const all = [];
-    for (const wk2 of H) wk2.rows.forEach(([mu, L, p, act], i) =>
-      all.push({ mu, L, p, act, rank: i + 1, over: act > L ? 1 : 0 }));
+    for (const wk2 of H) wk2.rows.forEach(([mu, L, p, act, wind], i) =>
+      all.push({ mu, L, p, act, rank: i + 1, over: act > L ? 1 : 0, wind: wind || 0 }));
     const n = all.length;
     const said = all.reduce((a, r) => a + r.p, 0) / n;
     const hit = all.reduce((a, r) => a + r.over, 0) / n;
@@ -3822,7 +3837,9 @@ let pairStacks = false;
       ${ledger('By projection', 'Calibration across the range of projected catches.',
         [['under 1.5', 0, 1.5], ['1.5–2.5', 1.5, 2.5], ['2.5–3.5', 2.5, 3.5], ['3.5–4.5', 3.5, 4.5], ['4.5+', 4.5, 99]], r => r.mu)}
       ${ledger('By line', 'The over at each best line the board would have quoted.',
-        [['o1.5', 1.5, 1.6], ['o2.5', 2.5, 2.6], ['o3.5', 3.5, 3.6], ['o4.5', 4.5, 4.6], ['o5.5', 5.5, 5.6], ['o6.5+', 6.5, 99]], r => r.L)}`;
+        [['o1.5', 1.5, 1.6], ['o2.5', 2.5, 2.6], ['o3.5', 3.5, 3.6], ['o4.5', 4.5, 4.6], ['o5.5', 5.5, 5.6], ['o6.5+', 6.5, 99]], r => r.L)}
+      ${ledger('By wind at kickoff', 'The projection already carries wind, so these bins test the correction rather than the weather. Indoor games read 0.',
+        [['calm / indoor', 0, 8], ['8–15 mph', 8, 15], ['15–20 mph', 15, 20], ['20+ mph', 20, 99]], r => r.wind)}`;
   }
 
   function renderReceptions() {
@@ -3860,7 +3877,10 @@ let pairStacks = false;
         <button class="pb-search-x" onclick="clearRecSearch()" aria-label="Clear"${rcF.q ? ' style="display:flex"' : ''}>×</button>
       </div>`;
 
-    const meta = `<div class="pt-meta">Week ${w} · ${rows.length} of ${R.length} pass-catchers · priced calm (no wind feed yet).</div>`;
+    const meta = `<div class="pt-meta">Week ${w} · ${rows.length} of ${R.length} pass-catchers${(() => {
+      const ws = Object.values(nflData.wind || {}); const hi = ws.filter(v => v >= 15).length;
+      return ws.length ? ` · wind forecast on ${ws.length} games${hi ? `, ${hi} at 15+ mph` : ''}` : '';
+    })()}.</div>`;
 
     if (!rows.length) {
       el.innerHTML = controls + `<div class="empty">Nothing matches that filter.</div>`;
@@ -3900,7 +3920,9 @@ let pairStacks = false;
           <div class="pb-info">
             <div class="pb-nm">${r.name}<span class="pb-flag" title="Position">${r.pos}</span></div>
             <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
-              <span class="rc-proj" title="Projected receptions"><b>${r.mu.toFixed(1)}</b> proj</span></div>
+              <span class="rc-proj" title="Projected receptions"><b>${r.mu.toFixed(1)}</b> proj</span>${
+                (nflData.wind?.[r.gameId] ?? 0) >= 12
+                  ? `<span class="rc-wind" title="Forecast wind at kickoff — the projection already carries it">${Math.round(nflData.wind[r.gameId])} mph</span>` : ''}</div>
           </div>
           <div class="pb-facts">
             <span class="pb-f" title="Snap share over his last three games"><b>${Math.round((r.f.snapL3 || 0) * 100)}%</b> snaps</span>
@@ -3966,6 +3988,15 @@ let pairStacks = false;
             ${stat((f.recL3 ?? 0).toFixed(1), 'Catches L3', (f.recL3 || 0) / 9 * 100, 'His receptions per game over the last three')}
             ${stat((f.recPrior ?? 0).toFixed(1), 'Catches career', (f.recPrior || 0) / 9 * 100, 'His longer-run receptions per game, shrunk toward his position')}
             ${stat(Math.round((f.catch || 0) * 100) + '%', 'Catch rate', (f.catch || 0) * 100, 'Receptions per target over his career')}
+            ${(() => {
+              const w = nflData.wind?.[r.gameId];
+              if (w == null) return stat('indoor', 'Wind', 0, 'Dome or closed roof — wind cannot affect this game');
+              const f2 = rcWindFactor(w);
+              return stat(Math.round(w) + ' mph', 'Wind' + (f2 < 0.995 ? ` · ×${f2.toFixed(2)}` : ''),
+                Math.min(100, w / 30 * 100),
+                f2 < 0.995 ? `Forecast at kickoff — cuts the projection by ${(100 * (1 - f2)).toFixed(0)}%`
+                           : 'Forecast at kickoff — not enough to move the projection');
+            })()}
           </div>
           <p class="pm-note">Negative-binomial pricing off ${f.games} prior games — see <b>How Receptions Works</b> for why not Poisson.</p>
         </div>

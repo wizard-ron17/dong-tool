@@ -37,8 +37,8 @@ function lastN(vals, n) {
  * the target week, exactly as research/build_receptions.py does it.
  */
 export function receptionFeatures({ pid, position, season, week, snapLog, recLog,
-                                    teamPassLog, team, impliedTotal, windExcess,
-                                    windowFloor }) {
+                                    teamPassLog, team, impliedTotal,
+                                    windowFloor, windMph }) {
   const before = (s) => s.season < season || (s.season === season && s.week < week);
   const snaps = (snapLog.get(pid) ?? []).filter(before);
   const recs = (recLog.get(pid) ?? []).filter(before);
@@ -91,7 +91,7 @@ export function receptionFeatures({ pid, position, season, week, snapLog, recLog
     team_pass_prior: tp.length ? tp.reduce((a, b) => a + b, 0) / tp.length
                                : pri('team_pass_prior'),
     implied_total: impliedTotal,
-    wind_excess: windExcess ?? 0,
+    wind_mph: windMph ?? 0,
     _games: played,
   };
 }
@@ -113,14 +113,39 @@ export function scoreMu(row) {
     z += c[f] * ((row[f] - s.mean) / s.sd);
   }
   const raw = Math.exp(Math.max(-8, Math.min(4, z)));
+
+  // Monotone recalibration of the usage-driven projection.
   const cal = MODEL.mu_cal;
-  if (!cal) return raw;
-  const { x, y } = cal;
-  if (raw <= x[0]) return y[0] * (raw / x[0]);      // scale toward zero below the map
-  if (raw >= x[x.length - 1]) return y[y.length - 1];
+  let base = raw;
+  if (cal) {
+    const { x, y } = cal;
+    if (raw <= x[0]) base = y[0] * (raw / x[0]);
+    else if (raw >= x[x.length - 1]) base = y[y.length - 1];
+    else {
+      let i = 1;
+      while (i < x.length && x[i] < raw) i++;
+      const t = (raw - x[i - 1]) / (x[i] - x[i - 1]);
+      base = y[i - 1] + t * (y[i] - y[i - 1]);
+    }
+  }
+  // Wind multiplies the calibrated mean rather than entering the fit. Applied
+  // AFTER the recalibration on purpose: the map is flat past its last knot,
+  // which is honest about usage but would swallow wind whole — a 25 mph game
+  // moved the top of the board 6.34 -> 6.34, zero effect on exactly the players
+  // most likely to be bet.
+  return base * windFactor(row.wind_mph);
+}
+
+/** Measured multiplier on expected catches, interpolated from research bins. */
+export function windFactor(mph) {
+  const w = MODEL.wind_factor;
+  if (!w || mph == null || !(mph > 0)) return 1;
+  const { x, y } = w;
+  if (mph <= x[0]) return y[0];
+  if (mph >= x[x.length - 1]) return y[y.length - 1];
   let i = 1;
-  while (i < x.length && x[i] < raw) i++;
-  const t = (raw - x[i - 1]) / (x[i] - x[i - 1]);
+  while (i < x.length && x[i] < mph) i++;
+  const t = (mph - x[i - 1]) / (x[i] - x[i - 1]);
   return y[i - 1] + t * (y[i] - y[i - 1]);
 }
 

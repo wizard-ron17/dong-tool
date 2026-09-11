@@ -42,6 +42,8 @@ async function main() {
     away: game(r, 'away_team'), home: game(r, 'home_team'),
     spread: num(game(r, 'spread_line')), total: num(game(r, 'total_line')),
     awayScore: num(game(r, 'away_score')), homeScore: num(game(r, 'home_score')),
+    // for the wind lookup — roof is known before kickoff, temp/wind are not
+    roof: game(r, 'roof'), stadium: game(r, 'stadium'),
   }));
 
   // results map for the historical season (to caption recap games + day-of-week filtering)
@@ -453,9 +455,9 @@ async function main() {
     teamStats, teamScorers, teamQB,
     // Receptions rides along in the picks payload because it reuses that pass's
     // play-by-play, but it is its own market and reads better as its own key.
-    picks: picks ? { ...picks, shots: undefined, receptions: undefined, receptionModel: undefined, returners: undefined, receptionsHistory: undefined } : picks,
+    picks: picks ? { ...picks, shots: undefined, receptions: undefined, receptionModel: undefined, returners: undefined, receptionsHistory: undefined, wind: undefined } : picks,
     receptions: picks?.receptions ?? [], receptionModel: picks?.receptionModel ?? null,
-    receptionsHistory: picks?.receptionsHistory ?? [],
+    receptionsHistory: picks?.receptionsHistory ?? [], wind: picks?.wind ?? {},
     picksHistory, parlay, milestones, passerNames, connPos,
     returners: (picks?.returners?.length ? picks.returners : returners), returnModel,
   };

@@ -25,7 +25,7 @@ POS = ["WR", "RB", "TE", "FB"]
 # is collinear and the fit gives tgt_prior a negative coefficient while chasing
 # a meaningless difference. Catch rate carries that information cleanly.
 BASE = ["rec_l3", "rec_prior", "share_l3", "tgt_share_prior", "snap_l3",
-        "catch_prior", "team_pass_prior", "implied_total", "wind_excess"]
+        "catch_prior", "team_pass_prior", "implied_total"]
 
 # WIND is in, and it is the one environment feature that survived — but not for
 # the reason a coefficient test would give. Linearly, and averaged over every
@@ -42,6 +42,22 @@ BASE = ["rec_l3", "rec_prior", "share_l3", "tgt_share_prior", "snap_l3",
 # average. Statistically significant and worth modelling are different tests and
 # this feature only passes the second one on the games that matter.
 WIND_THRESHOLD = 15.0
+
+# Wind is NOT a coefficient in the linear predictor any more. Two reasons, both
+# found by grading the board rather than by fitting it:
+#
+#  * The hinge max(wind - 15, 0) is the wrong shape. Measured out of sample the
+#    decay is continuous from calm and convex — 0.988 of expected catches at
+#    7.5 mph, 0.974 at 12.5, 0.941 at 17.5, 0.862 at 22 — so a hinge throws away
+#    everything below the threshold and still under-fits the tail.
+#  * As a coefficient it is fitted against a column that is zero in 89% of rows,
+#    so it came out at -0.013 and moved a 20 mph projection by 3.9%. The results
+#    ledger showed the truth: 20+ mph games projected 2.25 and caught 1.71.
+#
+# It ships instead as a measured multiplier on the mean, interpolated from bins
+# of (actual / predicted) fitted walk-forward on a model with no wind term at
+# all. Applied after the recalibration, so the clamp at the top of the board
+# cannot swallow it.
 
 # Defense, temperature, indoor/outdoor and game script were all tested here
 # against this market specifically rather than inherited from the TD model's
@@ -199,6 +215,45 @@ def oos_mu_pairs():
     return np.concatenate(mus), np.concatenate(acts)
 
 
+def wind_factor_table():
+    """(wind mph, multiplier) fitted walk-forward on a model WITHOUT wind.
+
+    Bins are equal-count over outdoor games so the tail gets its own knots
+    rather than being averaged into a 20-60 bucket, and x is each bin's MEAN
+    wind, not its midpoint — the 20+ bin averages 22 mph, and using 40 would
+    have flattened the very effect being measured.
+    """
+    d = D.copy(); d["wind"] = d.wind.fillna(0.0)
+    d = d[d.games_prior >= 3].dropna(subset=BASE).copy()
+    rows = []
+    for s in sorted(d.season.unique()):
+        if s < 2019: continue
+        tr = d[d.season < s]; te = d[d.season == s]
+        if len(tr) < 5000 or len(te) < 500: continue
+        ref = {f: (tr[f].to_numpy(float).mean(), tr[f].to_numpy(float).std() + 1e-9) for f in BASE}
+        b = poisson_irls(design(tr, BASE, ref), tr.rec.to_numpy(float))
+        mu = np.exp(np.clip(design(te, BASE, ref) @ b, -8, 4))
+        rows.append(pd.DataFrame({"mu": mu, "rec": te.rec.to_numpy(float),
+                                  "wind": te.wind.to_numpy(float),
+                                  "indoor": te.indoor.to_numpy(int)}))
+    t = pd.concat(rows)
+    out = t[t.indoor == 0]
+    # Explicit bins, not equal-count: the tail is ~2% of outdoor rows, so
+    # equal-count buckets averaged 20+ mph into a 17.4 knot and flattened the
+    # only part of the curve that matters.
+    BINS = [(0, 5), (5, 10), (10, 15), (15, 18), (18, 22), (22, 70)]
+    xs, ys = [], []
+    for lo, hi in BINS:
+        g = out[(out.wind >= lo) & (out.wind < hi)]
+        if len(g) < 120: continue
+        xs.append(float(g.wind.mean()))
+        ys.append(float(g.rec.mean() / g.mu.mean()))
+    base = ys[0]
+    ys = [min(1.0, v / base) for v in ys]            # relative to the calmest bin
+    ys = list(np.minimum.accumulate(ys))             # monotone: more wind never helps
+    return [round(v, 3) for v in xs], [round(v, 4) for v in ys]
+
+
 def export():
     """Fit on everything and write research/receptions_model.json for the build."""
     d = D.copy()
@@ -228,6 +283,7 @@ def export():
     by = [oa[a2:b2].mean() for a2, b2 in zip(edges[:-1], edges[1:]) if b2 > a2]
     by = np.maximum.accumulate(by).tolist()          # enforce monotone
     mu_cal = np.interp(mu, bx, by)
+    wx, wy = wind_factor_table()
     alpha = nb_dispersion(y, mu_cal)
     names = ["intercept"] + BASE + ["pos_" + p for p in POS[1:]]
     out = {
@@ -244,6 +300,7 @@ def export():
         "mu_cal": {"x": [round(float(v), 4) for v in bx],
                    "y": [round(float(v), 4) for v in by]},
         "wind_threshold": WIND_THRESHOLD,
+        "wind_factor": {"x": wx, "y": wy},
         "shrink_k": 3.0,
         "lines": [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5],
         "trained_on": "2016-2025",
