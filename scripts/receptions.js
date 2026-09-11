@@ -37,7 +37,8 @@ function lastN(vals, n) {
  * the target week, exactly as research/build_receptions.py does it.
  */
 export function receptionFeatures({ pid, position, season, week, snapLog, recLog,
-                                    teamPassLog, team, impliedTotal, windExcess }) {
+                                    teamPassLog, team, impliedTotal, windExcess,
+                                    windowFloor }) {
   const before = (s) => s.season < season || (s.season === season && s.week < week);
   const snaps = (snapLog.get(pid) ?? []).filter(before);
   const recs = (recLog.get(pid) ?? []).filter(before);
@@ -46,13 +47,23 @@ export function receptionFeatures({ pid, position, season, week, snapLog, recLog
   const pri = (k) => MODEL.position_priors[k]?.[position]
                   ?? MODEL.position_priors[k]?.WR ?? 0;
   // A game with no targets is a real zero, so the denominator is games PLAYED
-  // (the snap log), never the length of the reception log — using the latter
-  // would compute "his rate in games he caught something", which is near
-  // useless and always high.
-  const played = snaps.length;
-  const recSum = recs.reduce((a, b) => a + b.rec, 0);
-  const tgtSum = recs.reduce((a, b) => a + b.tgt, 0);
-  const shareSum = recs.reduce((a, b) => a + b.share, 0);
+  // from the snap log, never the length of the reception log — using the
+  // latter computes "his rate in games he caught something", always high.
+  //
+  // But played games must span the SAME WINDOW as the reception log, which
+  // only covers the loaded play-by-play seasons. The first cut counted a
+  // player's whole career of snap games (2016+) against two seasons of
+  // receptions — a veteran's rec_prior collapsed toward zero and the whole
+  // board under-projected: the results replay showed overs quoted 44.7% and
+  // hitting 67.4% in the top ten. Same bug class as the TD-share denominator,
+  // one level down.
+  const recFloor = Math.max(season - 1, windowFloor ?? season - 1);
+  const inWin = (e) => e.season >= recFloor;
+  const winSnaps = snaps.filter(inWin);
+  const played = winSnaps.length;
+  const recSum = recs.filter(inWin).reduce((a, b) => a + b.rec, 0);
+  const tgtSum = recs.filter(inWin).reduce((a, b) => a + b.tgt, 0);
+  const shareSum = recs.filter(inWin).reduce((a, b) => a + b.share, 0);
   const snapVals = snaps.map(s => s.pct);
 
   // per-game series padded with the zeros the reception log omits, so a quiet
@@ -85,7 +96,14 @@ export function receptionFeatures({ pid, position, season, week, snapLog, recLog
   };
 }
 
-/** Expected receptions. Log link, so the linear predictor exponentiates. */
+/**
+ * Expected receptions. Log link, then a monotone recalibration — the same cure
+ * the TD model applies to its logistic. A log link extrapolates exponentially
+ * where the empirical relationship flattens, so raw projections over-shot the
+ * top of the board (a 9.4-catch quote no receiver has ever averaged; rows
+ * projected 5.95 caught 5.25). Knots fitted on out-of-sample walk-forward
+ * pairs in research/receptions.py; interp clamps flat past the last knot.
+ */
 export function scoreMu(row) {
   const c = MODEL.coef;
   let z = c.intercept;
@@ -94,7 +112,16 @@ export function scoreMu(row) {
     const s = MODEL.scale[f];
     z += c[f] * ((row[f] - s.mean) / s.sd);
   }
-  return Math.exp(Math.max(-8, Math.min(4, z)));
+  const raw = Math.exp(Math.max(-8, Math.min(4, z)));
+  const cal = MODEL.mu_cal;
+  if (!cal) return raw;
+  const { x, y } = cal;
+  if (raw <= x[0]) return y[0] * (raw / x[0]);      // scale toward zero below the map
+  if (raw >= x[x.length - 1]) return y[y.length - 1];
+  let i = 1;
+  while (i < x.length && x[i] < raw) i++;
+  const t = (raw - x[i - 1]) / (x[i] - x[i - 1]);
+  return y[i - 1] + t * (y[i] - y[i - 1]);
 }
 
 /**

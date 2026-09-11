@@ -231,8 +231,15 @@ async function main() {
   // agree to machine precision on real historical weeks.
   let picks = null, picksHistory = [];
   try {
+    // Lines for the last two seasons feed the receptions results replay —
+    // implied totals are a model input, so grading past boards needs past lines.
+    const scheduleAll = grows
+      .filter(r => +game(r, 'season') >= UPCOMING_SEASON - 1)
+      .map(r => ({ season: +game(r, 'season'), week: +game(r, 'week'),
+                   home: game(r, 'home_team'), away: game(r, 'away_team'),
+                   spread: num(game(r, 'spread_line')), total: num(game(r, 'total_line')) }));
     picks = await buildPicks({ schedule, historySeason: HISTORY_SEASON,
-                               upcomingSeason: UPCOMING_SEASON });
+                               upcomingSeason: UPCOMING_SEASON, scheduleAll });
     // Carry the pick log forward across rebuilds and grade what has played.
     // data.json is regenerated from scratch every run, so the log has to be
     // read back off the previous build or it resets daily.
@@ -446,8 +453,9 @@ async function main() {
     teamStats, teamScorers, teamQB,
     // Receptions rides along in the picks payload because it reuses that pass's
     // play-by-play, but it is its own market and reads better as its own key.
-    picks: picks ? { ...picks, shots: undefined, receptions: undefined, receptionModel: undefined, returners: undefined } : picks,
+    picks: picks ? { ...picks, shots: undefined, receptions: undefined, receptionModel: undefined, returners: undefined, receptionsHistory: undefined } : picks,
     receptions: picks?.receptions ?? [], receptionModel: picks?.receptionModel ?? null,
+    receptionsHistory: picks?.receptionsHistory ?? [],
     picksHistory, parlay, milestones, passerNames, connPos,
     returners: (picks?.returners?.length ? picks.returners : returners), returnModel,
   };

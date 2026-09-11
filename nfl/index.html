@@ -3733,7 +3733,7 @@ let pairStacks = false;
   // A count market, so the board leads with the projection and prices each
   // standard line off it. "Best line" picks the one nearest a player's
   // projection, which is the one a book is most likely to be hanging.
-  const rcF = { line: 'auto', pos: 'ALL', sort: 'proj', view: 'cards', q: '' };
+  const rcF = { line: 'auto', pos: 'ALL', sort: 'proj', view: 'cards', q: '', tab: 'board' };
   function setRc(k, v) { rcF[k] = v; renderReceptions(); }
   window.setRc = setRc;
   function onRecSearch() {
@@ -3766,6 +3766,65 @@ let pairStacks = false;
       .sort((a, b) => rcF.sort === 'proj' ? b.mu - a.mu : b.p - a.p);
   }
 
+  const rcTabs = () => `
+    <div class="pairs-filter-row" style="margin-bottom:0.55rem">
+      <button class="due-filter-chip mode-chip${rcF.tab === 'board' ? ' active' : ''}" onclick="setRc('tab','board')">Board</button>
+      <button class="due-filter-chip mode-chip${rcF.tab === 'results' ? ' active' : ''}" onclick="setRc('tab','results')">Results</button>
+    </div>`;
+
+  // ── Receptions results: every past board replayed and graded ────────────
+  // Rows per week are [proj, line, quoted p(over), actual receptions], sorted
+  // by projection so a row's index IS its board rank. The ledgers below bin the
+  // same rows three ways; the rank ledger is the one that decides how deep the
+  // board stays trustworthy.
+  function renderRecResults() {
+    const H = nflData.receptionsHistory || [];
+    if (!H.length) return '<div class="empty">No graded weeks yet.</div>';
+    const all = [];
+    for (const wk2 of H) wk2.rows.forEach(([mu, L, p, act], i) =>
+      all.push({ mu, L, p, act, rank: i + 1, over: act > L ? 1 : 0 }));
+    const n = all.length;
+    const said = all.reduce((a, r) => a + r.p, 0) / n;
+    const hit = all.reduce((a, r) => a + r.over, 0) / n;
+
+    const ledger = (title, note, bins, of) => {
+      const rows = bins.map(([lab, lo, hi]) => {
+        const g = all.filter(r => of(r) >= lo && of(r) < hi);
+        if (g.length < 25) return '';
+        const gs = g.reduce((a, r) => a + r.p, 0) / g.length;
+        const ga = g.reduce((a, r) => a + r.over, 0) / g.length;
+        const se = Math.sqrt(ga * (1 - ga) / g.length);
+        const gap = gs - ga;
+        const sig = Math.abs(gap) > 2 * se;
+        return `<tr><td>${lab}</td><td class="num dim">${g.length}</td>
+          <td class="num">${(100 * gs).toFixed(1)}%</td>
+          <td class="num">${(100 * ga).toFixed(1)}%</td>
+          <td class="num ${sig ? (gap > 0 ? 'dogc' : 'goodc') : 'dim'}">${gap > 0 ? '+' : ''}${(100 * gap).toFixed(1)}${sig ? '' : ' <span class="dim" title="within 2 standard errors — noise">≈</span>'}</td></tr>`;
+      }).join('');
+      return `<div class="pm-sec">${title}</div>
+        <div class="rc-tablewrap"><table class="rc-table" style="min-width:380px">
+        <thead><tr><th>bin</th><th class="num">n</th><th class="num">we said</th><th class="num">hit</th><th class="num">gap</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+        <div class="pt-meta" style="margin-top:0.3rem">${note}</div>`;
+    };
+
+    return `
+      <div class="hm-tiles" style="margin-bottom:0.7rem">
+        <div class="hm-tile"><b>${H.length}</b><span>Weeks graded</span></div>
+        <div class="hm-tile"><b>${n.toLocaleString()}</b><span>Player-lines</span></div>
+        <div class="hm-tile"><b>${(100 * hit).toFixed(1)}%</b><span>Overs hit · said ${(100 * said).toFixed(1)}%</span></div>
+      </div>
+      <div class="pt-meta">Every past board replayed walk-forward — same features, same filters, same
+        nearest-line pricing as the live board — and graded against actual catch counts.
+        <b>gap</b> = quoted minus actual; ≈ means within noise.</div>
+      ${ledger('By board rank', 'The threshold ledger: how deep down the board the pricing stays honest.',
+        [['1–10', 1, 11], ['11–25', 11, 26], ['26–50', 26, 51], ['51–100', 51, 101], ['101+', 101, 1e9]], r => r.rank)}
+      ${ledger('By projection', 'Calibration across the range of projected catches.',
+        [['under 1.5', 0, 1.5], ['1.5–2.5', 1.5, 2.5], ['2.5–3.5', 2.5, 3.5], ['3.5–4.5', 3.5, 4.5], ['4.5+', 4.5, 99]], r => r.mu)}
+      ${ledger('By line', 'The over at each best line the board would have quoted.',
+        [['o1.5', 1.5, 1.6], ['o2.5', 2.5, 2.6], ['o3.5', 3.5, 3.6], ['o4.5', 4.5, 4.6], ['o5.5', 5.5, 5.6], ['o6.5+', 6.5, 99]], r => r.L)}`;
+  }
+
   function renderReceptions() {
     const el = document.getElementById('receptions-content'); if (!el) return;
     if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
@@ -3785,8 +3844,9 @@ let pairStacks = false;
     const viewChips = [['cards', 'Cards'], ['table', 'Table'], ['compact', 'Compact']].map(([v, l]) =>
       chip('view', v, l, rcF.view)).join('');
 
+    if (rcF.tab === 'results') { el.innerHTML = rcTabs() + renderRecResults(); return; }
     const rows = rcRows();
-    const controls = `
+    const controls = rcTabs() + `
       <div class="pairs-filter-row"><span class="due-filter-label">Line</span>${lineChips}</div>
       <div class="pairs-filter-row"><span class="due-filter-label">Position</span>${posChips}
         <span class="due-filter-label" style="margin-left:0.5rem">Sort</span>${sortChips}</div>

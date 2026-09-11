@@ -90,10 +90,30 @@ def main():
 
     df = df.sort_values(["pid","season","week"]).reset_index(drop=True)
 
-    def form(col, out, k=SHRINK_K):
+    def form(col, out, k=SHRINK_K, window=2):
+        # Priors are bounded to a 2-SEASON window because that is exactly what
+        # the Node port can compute — its reception log spans the two seasons
+        # of play-by-play the build loads. The first fit used full-career
+        # expanding priors here, so the coefficients were fitted on a quantity
+        # the port never produces; the port's own first cut then divided a
+        # 2-season numerator by a career denominator on top of it. Both showed
+        # up in the results replay as large opposite-signed calibration gaps.
+        # Same as-of subtraction as build_dataset.add_form.
         g = df.groupby("pid", sort=False)[col]
         s = (g.cumsum() - df[col]).to_numpy(float)
         n = g.cumcount().to_numpy(float)
+        per = (df.groupby(["pid", "season"])[col].agg(s="sum", n="size")
+                 .reset_index().sort_values(["pid", "season"]))
+        pg = per.groupby("pid")
+        per["cs"] = pg["s"].cumsum(); per["cn"] = pg["n"].cumsum()
+        left = pd.DataFrame({"pid": df["pid"].values,
+                             "key": df["season"].values - window,
+                             "_i": np.arange(len(df))}).sort_values("key")
+        asof = pd.merge_asof(left, per[["pid", "season", "cs", "cn"]].sort_values("season"),
+                             left_on="key", right_on="season", by="pid",
+                             direction="backward").sort_values("_i")
+        s = np.maximum(s - asof["cs"].fillna(0).to_numpy(), 0)
+        n = np.maximum(n - asof["cn"].fillna(0).to_numpy(), 0)
         pos_mean = df.groupby("position")[col].transform("mean").to_numpy(float)
         df[out] = (s + k * pos_mean) / (n + k)
 

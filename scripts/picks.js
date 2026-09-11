@@ -799,7 +799,7 @@ export function absenceFeatures({ byWeek, snapLog, pid, team, position, season, 
  * @param schedule  the parsed upcoming-season schedule (needs week/total/spread)
  * @param target    {season, week} to score; defaults to the next unplayed week
  */
-export async function buildPicks({ schedule, historySeason, upcomingSeason, target }) {
+export async function buildPicks({ schedule, historySeason, upcomingSeason, target, scheduleAll = [] }) {
   const snapSeasons = [];
   for (let y = SNAP_FROM; y <= upcomingSeason; y++) snapSeasons.push(y);
   const rzSeasons = [];
@@ -893,6 +893,70 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   console.log(`  returners: ${returners.length} over ${rzSeasons.join('+')} `
     + `(${returners.reduce((n, r) => n + r.prTd + r.krTd, 0)} return TDs)`);
 
+  // ── Receptions results: replay every past board and grade it ────────────
+  // Features are computed strictly from games before the target week, so past
+  // boards can be rebuilt exactly as they would have been quoted and graded
+  // against what happened — the K/Walks pattern, backfilled instead of logged.
+  // No carry-forward state: the replay is deterministic from the same feeds
+  // the live board already loads.
+  //
+  // Starts at week 4 of the PREVIOUS season because recLog spans two seasons:
+  // earlier weeks would be scored off materially colder priors than the live
+  // board ever runs on, and would grade a pipeline that doesn't exist.
+  const receptionsHistory = [];
+  {
+    const ctxBy = new Map();            // `${y}|${wk}` -> Map(team -> implied)
+    for (const g of scheduleAll) {
+      if (g.total == null) continue;
+      const half = g.total / 2, edge = (g.spread ?? 0) / 2;
+      const k = `${g.season}|${g.week}`;
+      const m = ctxBy.get(k) ?? ctxBy.set(k, new Map()).get(k);
+      m.set(g.home, half + edge);
+      m.set(g.away, half - edge);
+    }
+    const poolBy = new Map();           // `${y}|${wk}` -> [{pid, team, position}]
+    for (const [pid, arr] of snapLog) for (const e of arr) {
+      if (e.season < rzSeasons[0] || !RECEPTION_POS.includes(e.position)) continue;
+      if (e.season === rzSeasons[0] && e.week < 4) continue;
+      if (e.season === season && e.week >= week) continue;    // not yet played
+      const k = `${e.season}|${e.week}`;
+      (poolBy.get(k) ?? poolBy.set(k, []).get(k))
+        .push({ pid, team: e.team, position: e.position });
+    }
+    const actBy = new Map();            // `${pid}|${y}|${wk}` -> receptions
+    for (const [pid, arr] of recLog) for (const e of arr)
+      actBy.set(`${pid}|${e.season}|${e.week}`, e.rec);
+
+    const keys = [...poolBy.keys()].map(k => k.split('|').map(Number))
+      .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    for (const [y, wk] of keys) {
+      const ctx = ctxBy.get(`${y}|${wk}`);
+      if (!ctx) continue;
+      const rows = [];
+      for (const pl of poolBy.get(`${y}|${wk}`)) {
+        const implied = ctx.get(pl.team);
+        if (implied == null) continue;
+        const row = receptionFeatures({
+          pid: pl.pid, position: pl.position, season: y, week: wk,
+          snapLog, recLog, teamPassLog, team: pl.team,
+          impliedTotal: implied, windExcess: 0, windowFloor: rzSeasons[0],
+        });
+        if (!row || row._games < 3) continue;                 // live-board filters
+        const mu = scoreMu(row);
+        if (mu < 0.35) continue;
+        const L = REC_LINES.reduce((b, x) =>
+          Math.abs(x - mu) < Math.abs(b - mu) ? x : b, REC_LINES[0]);
+        rows.push([+mu.toFixed(2), L, +pOver(L, mu).toFixed(3),
+                   actBy.get(`${pl.pid}|${y}|${wk}`) ?? 0]);
+      }
+      if (!rows.length) continue;
+      rows.sort((a, b) => b[0] - a[0]);                       // rank = index
+      receptionsHistory.push({ s: y, w: wk, rows: rows.slice(0, 250) });
+    }
+    const n = receptionsHistory.reduce((a, w2) => a + w2.rows.length, 0);
+    console.log(`  receptions history: ${receptionsHistory.length} weeks replayed, ${n} graded rows`);
+  }
+
   // ── Receptions ──────────────────────────────────────────────────────────
   // A separate market with its own model (research/receptions.py): a Poisson
   // GLM for the mean, priced through a negative binomial because reception
@@ -907,7 +971,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     if (!ctx) continue;
     const row = receptionFeatures({
       pid, position: info.position, season, week, snapLog, recLog, teamPassLog,
-      team: info.team, impliedTotal: ctx.implied,
+      team: info.team, impliedTotal: ctx.implied, windowFloor: rzSeasons[0],
       // No wind forecast is wired up yet, so every game is priced calm. The
       // feature is live in the model and inert here until a forecast feed
       // exists; see the note in research/receptions.py for what it is worth.
@@ -1097,6 +1161,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     season, week, generatedAt: new Date().toISOString(),
     shots,
     receptions, receptionModel: { alpha: RECEPTION_MODEL.alpha, lines: REC_LINES },
+    receptionsHistory,
     returners,
     birthdays: bdays, birthdayStats: BDAY.league, birthdaySeasons: BDAY.seasons,
     birthdayBase: BDAY.base_rate,

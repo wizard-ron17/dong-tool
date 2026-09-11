@@ -180,6 +180,25 @@ if __name__ == "__main__":
     main()
 
 
+def oos_mu_pairs():
+    """Walk-forward (raw mu, actual receptions) pairs for the calibration fit."""
+    d = D.copy()
+    d["wind"] = d.wind.fillna(0.0)
+    d["wind_excess"] = np.where(d.indoor == 1, 0.0,
+                                np.maximum(d.wind - WIND_THRESHOLD, 0.0))
+    d = d[d.games_prior >= 3].dropna(subset=BASE).copy()
+    mus, acts = [], []
+    for s in sorted(d.season.unique()):
+        if s < 2019: continue
+        tr = d[d.season < s]; te = d[d.season == s]
+        if len(tr) < 5000 or len(te) < 500: continue
+        ref = {f: (tr[f].to_numpy(float).mean(), tr[f].to_numpy(float).std() + 1e-9) for f in BASE}
+        b = poisson_irls(design(tr, BASE, ref), tr.rec.to_numpy(float))
+        mus.append(np.exp(np.clip(design(te, BASE, ref) @ b, -8, 4)))
+        acts.append(te.rec.to_numpy(float))
+    return np.concatenate(mus), np.concatenate(acts)
+
+
 def export():
     """Fit on everything and write research/receptions_model.json for the build."""
     d = D.copy()
@@ -193,7 +212,23 @@ def export():
     y = d.rec.to_numpy(float)
     b = poisson_irls(X, y)
     mu = np.exp(np.clip(X @ b, -8, 4))
-    alpha = nb_dispersion(y, mu)
+    # Monotone recalibration of the projection, the same cure the TD model
+    # applies to its logistic: a log link extrapolates exponentially where the
+    # empirical relationship flattens, so the top of the board over-projects
+    # (walk-forward: rows projected 5.95 actually caught 5.25, and week-1
+    # boards quoted a 9.4-catch projection that no receiver has ever averaged).
+    # Fitted on out-of-sample walk-forward pairs with the same equal-count-bin
+    # isotonic used by calibrate.py.
+    from calibrate import fit_map
+    om, oa = oos_mu_pairs()
+    order = np.argsort(om)
+    om, oa = om[order], oa[order]
+    edges = np.linspace(0, len(om), 41).astype(int)
+    bx = [om[a2:b2].mean() for a2, b2 in zip(edges[:-1], edges[1:]) if b2 > a2]
+    by = [oa[a2:b2].mean() for a2, b2 in zip(edges[:-1], edges[1:]) if b2 > a2]
+    by = np.maximum.accumulate(by).tolist()          # enforce monotone
+    mu_cal = np.interp(mu, bx, by)
+    alpha = nb_dispersion(y, mu_cal)
     names = ["intercept"] + BASE + ["pos_" + p for p in POS[1:]]
     out = {
         "note": ("Receptions. Poisson GLM for the mean (consistent under "
@@ -206,6 +241,8 @@ def export():
         "coef": {n: float(v) for n, v in zip(names, b)},
         "scale": {f: {"mean": ref[f][0], "sd": ref[f][1]} for f in BASE},
         "alpha": float(alpha),
+        "mu_cal": {"x": [round(float(v), 4) for v in bx],
+                   "y": [round(float(v), 4) for v in by]},
         "wind_threshold": WIND_THRESHOLD,
         "shrink_k": 3.0,
         "lines": [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5],
