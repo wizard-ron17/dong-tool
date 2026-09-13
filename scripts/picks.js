@@ -24,7 +24,8 @@ import fs from 'node:fs';
 import { REL, fetchText, fetchOptional, parseCsv, num } from './nflverse.js';
 import { loadWind } from './wind.js';
 import { completionFeatures, scoreMu as cmpMu, pOver as cmpOver, CMP_LINES,
-         COMPLETIONS_MODEL, windFactor as cmpWind, defFactor as cmpDef } from './completions.js';
+         COMPLETIONS_MODEL, windFactor as cmpWind, defFactor as cmpDef,
+         thinFactor as cmpThin } from './completions.js';
 import { receptionFeatures, scoreMu, pOver, LINES as REC_LINES,
          RECEPTION_POS, RECEPTION_MODEL } from './receptions.js';
 
@@ -189,6 +190,13 @@ export function normaliseTeamSnaps(rows, depth = new Map()) {
 }
 
 const PASS_MIN_STARTS = 3;
+// A depth-chart starter with fewer than PASS_MIN_STARTS recent starts is still
+// priced — the market quotes him — but his shrunk rate overstates him. On the
+// exported passing model, 0-start starters threw 0.899 TDs against 1.246
+// projected and 1-2-start starters 1.022 against 1.211, both beyond noise,
+// while 3+ is calibrated (1.473 vs 1.504). Ratios relative to the 3+ group.
+const PASS_THIN_FACTOR = { 0: (0.899 / 1.246) / (1.504 / 1.473), 1: (1.022 / 1.211) / (1.504 / 1.473),
+                           2: (1.022 / 1.211) / (1.504 / 1.473) };
 // A Questionable tag is real information the features can't see: snap history
 // describes a healthy player. Across 2016-2025 the board's price for a
 // Questionable player ran 12% above what he actually did (0.213 priced against
@@ -1029,10 +1037,9 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     if (!pid) continue;
     const row = completionFeatures({ pid, season, week, passLog, defLog, opp: ctx.opp,
                                      impliedTotal: ctx.implied, floor: rzSeasons[0] });
-    if (row._starts < 3) {                                 // training filter
-      thinStarters.push(`${team} ${roster.get(pid)?.name ?? pid} (${row._starts})`);
-      continue;
-    }
+    // The depth chart says he starts, so he is priced — with the measured
+    // thin-history discount applied in scoreMu and a flag for the board.
+    if (row._starts < 3) thinStarters.push(`${team} ${roster.get(pid)?.name ?? pid} (${row._starts})`);
     const w = windByGame.get(ctx.gameId) ?? 0;
     const mu = cmpMu(row, w);
     completions.push({
@@ -1042,12 +1049,13 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
       f: { cmpPrior: +row.cmp_prior.toFixed(2), attPrior: +row.att_prior.toFixed(1),
            rate: +row.rate_prior.toFixed(3), l3: +row._l3.toFixed(1), implied: +row.implied.toFixed(1),
            defRate: +row.def_rate.toFixed(3), windMph: w,
-           windX: +cmpWind(w).toFixed(3), defX: +cmpDef(row.def_rate).toFixed(3), starts: row._starts },
+           windX: +cmpWind(w).toFixed(3), defX: +cmpDef(row.def_rate).toFixed(3), starts: row._starts,
+           thinX: +cmpThin(row._starts).toFixed(3) },
     });
   }
   completions.sort((a, b) => b.mu - a.mu);
   console.log(`  completions: ${completions.length} starters priced (top ${completions[0]?.name ?? '—'} ${completions[0]?.mu ?? ''})`
-    + (thinStarters.length ? ` · skipped for <3 recent starts: ${thinStarters.join(', ')}` : ''));
+    + (thinStarters.length ? ` · thin history, discounted: ${thinStarters.join(', ')}` : ''));
 
   // Results replay: every past start rebuilt walk-forward and graded, the same
   // way the receptions history works.
@@ -1073,7 +1081,6 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
       const c = ctx2.get(k); if (!c) continue;
       const row = completionFeatures({ pid, season: e.season, week: e.week, passLog, defLog,
                                        opp: c.opp, impliedTotal: c.implied, floor: rzSeasons[0] });
-      if (row._starts < 3) continue;
       const w = windLog.get(k) ?? 0;
       const mu = cmpMu(row, w);
       const L = nearestLine(CMP_LINES, mu);
@@ -1150,11 +1157,12 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     let pass;
     if (pos === 'QB' && starterQb.get(info.team) === pid) {
       const pf = passFeatures({ pid, season, week, passLog, impliedTotal: ctx.implied });
-      if (pf.starts >= PASS_MIN_STARTS) {
-        const mu = scorePass(pf);
+      {
+        const mu = scorePass(pf) * (pf.starts >= PASS_MIN_STARTS ? 1 : PASS_THIN_FACTOR[pf.starts]);
         pass = {
           proj: +mu.toFixed(4),
           starts: pf.starts,
+          thin: pf.starts < PASS_MIN_STARTS ? 1 : 0,
           attPg: +pf.att_pg.toFixed(3),
           ptdPg: +pf.ptd_pg.toFixed(4),
           // One price per line the board quotes, calibrated.

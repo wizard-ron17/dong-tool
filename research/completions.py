@@ -213,6 +213,30 @@ def export():
     mid = float(np.interp(t2.def_rate_prior.median(), dx, dy))
     dy = [round(min(1.05, max(0.9, v / mid)), 4) for v in dy]
 
+    # THIN HISTORY. A depth-chart starter with fewer than 3 starts in the window
+    # still has to be priced — the market hangs a line on him either way. His
+    # priors shrink toward a league-average QB, and that is biased: walk-forward,
+    # starters with 0 recent starts completed 2.39 fewer than projected (beyond
+    # noise), 1-2 starts 0.73 fewer. No recent starts usually means a backup, a
+    # rookie or a return from injury, not an average starter. Measured as a
+    # multiplier relative to the trained population.
+    qa = build()
+    tt = []
+    for s_ in sorted(qa.season.unique()):
+        if s_ < 2019: continue
+        tr_ = qa[(qa.season < s_) & (qa.cmp_n >= 3)]; te_ = qa[qa.season == s_]
+        if len(tr_) < 800: continue
+        rf = {f: (tr_[f].mean(), tr_[f].std() + 1e-9) for f in BASE}
+        bb = irls(design(tr_, BASE, rf), tr_.cmp.to_numpy(float))
+        tt.append(te_.assign(mu=np.exp(np.clip(design(te_, BASE, rf) @ bb, -8, 5))))
+    tt = pd.concat(tt)
+    ratio = lambda g: float(g.cmp.mean() / g.mu.mean())
+    ref3 = ratio(tt[tt.cmp_n >= 3])
+    thin = {"0": round(ratio(tt[tt.cmp_n == 0]) / ref3, 4),
+            "1": round(ratio(tt[tt.cmp_n.between(1, 2)]) / ref3, 4),
+            "2": round(ratio(tt[tt.cmp_n.between(1, 2)]) / ref3, 4)}
+    print("  thin-history factor:", thin)
+
     ref = {f: (float(q[f].mean()), float(q[f].std() + 1e-9)) for f in BASE}
     X = design(q, BASE, ref); y = q.cmp.to_numpy(float)
     b = irls(X, y); mu = np.exp(np.clip(X @ b, -8, 5))
@@ -228,6 +252,7 @@ def export():
                    "def_rate": float(q.def_rate_prior.mean())},
         "wind_factor": {"x": wx, "y": wy},
         "def_factor": {"x": dx, "y": dy},
+        "thin_factor": thin,
         "trained_on": "2016-2025", "n_rows": int(len(q)),
     }
     json.dump(outj, open(os.path.join(HERE, "completions_model.json"), "w"), indent=1)

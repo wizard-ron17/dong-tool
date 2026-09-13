@@ -56,8 +56,16 @@ export function scoreMu(row, windMph) {
   let z = M.coef.intercept;
   for (const f of M.features) z += M.coef[f] * ((row[f] - M.scale[f].mean) / M.scale[f].sd);
   const base = Math.exp(Math.max(-8, Math.min(5, z)));
-  return base * windFactor(windMph) * defFactor(row.def_rate);
+  return base * windFactor(windMph) * defFactor(row.def_rate) * thinFactor(row._starts);
 }
+
+/**
+ * A starter with under 3 recent starts shrinks toward a league-average QB, and
+ * that overstates him: walk-forward, 0-start starters completed 2.39 fewer than
+ * projected. x0.894 at 0 starts, x0.974 at 1-2, 1 from 3 on.
+ */
+export const thinFactor = (starts) =>
+  starts >= 3 ? 1 : (M.thin_factor?.[String(Math.max(0, starts))] ?? 1);
 
 /** P(completions > line) under NB2. */
 export function pOver(line, mu, alpha = M.alpha) {

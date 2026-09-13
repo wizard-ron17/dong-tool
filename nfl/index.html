@@ -4083,6 +4083,7 @@ let pairStacks = false;
     const n = [];
     if (r.f.windX < 0.995) n.push(`<span class="rc-wind" title="Forecast wind at kickoff — already in the projection">${Math.round(r.f.windMph)} mph</span>`);
     if (r.f.defX < 0.995) n.push(`<span class="rc-wind" title="Elite pass defense — already in the projection">tough D</span>`);
+    if (r.f.thinX < 0.999) n.push(`<span class="rc-wind" title="Fewer than 3 starts in the last two seasons — projection discounted ×${r.f.thinX.toFixed(2)}, the measured shortfall for starters with thin history">limited history</span>`);
     return n.join('');
   };
 
@@ -4213,6 +4214,7 @@ let pairStacks = false;
             ${stat(f.l3.toFixed(1), 'Last 3 starts', f.l3 / 30 * 100, 'Shown for context — for a QB this is noisier than his longer average and is not in the projection')}
             ${stat(f.implied.toFixed(1), 'Team total', f.implied / 35 * 100, 'Points his team is implied to score')}
             ${stat((f.defRate * 100).toFixed(1) + '%' , 'Opp cmp% allowed' + (f.defX < 0.995 ? ` · ×${f.defX.toFixed(2)}` : ''), (f.defRate - 0.5) / 0.2 * 100, f.defX < 0.995 ? 'Elite pass defense — trims the projection' : 'Opponent pass defense — no measurable effect at this level')}
+            ${f.thinX < 0.999 ? stat(f.starts + ' of 3', 'Recent starts · ×' + f.thinX.toFixed(2), f.starts / 3 * 100, 'Thin history: starters with fewer than 3 recent starts complete measurably fewer than a league-average baseline, so the projection is discounted') : ''}
             ${stat(f.windMph ? Math.round(f.windMph) + ' mph' : 'calm/indoor', 'Wind' + (f.windX < 0.995 ? ` · ×${f.windX.toFixed(2)}` : ''), Math.min(100, (f.windMph || 0) / 30 * 100), f.windX < 0.995 ? 'Forecast wind at kickoff — trims the projection' : 'Not enough wind to matter')}
           </div>
         </div>
