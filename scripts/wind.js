@@ -46,32 +46,44 @@ export async function loadWind(schedule, { threshold = 15 } = {}) {
   const days = [...new Set(schedule.map(g => g.gameday).filter(Boolean))].sort();
   const start = days[0], end = days[days.length - 1];
 
-  await Promise.all([...byPoint.entries()].map(async ([k, games]) => {
-    const [lat, lon] = k.split(',');
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
-      + `&hourly=wind_speed_10m&wind_speed_unit=mph&timezone=UTC`
-      + `&start_date=${start}&end_date=${end}`;
-    let j;
+  // ONE request for every venue: open-meteo takes comma-separated coordinate
+  // lists and returns an array in the same order. The first version fired a
+  // request per venue in parallel and a build lost all nine outdoor forecasts
+  // to HTTP 429 rate limiting.
+  const points = [...byPoint.entries()];
+  const lats = points.map(([k]) => k.split(',')[0]).join(',');
+  const lons = points.map(([k]) => k.split(',')[1]).join(',');
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}`
+    + `&hourly=wind_speed_10m&wind_speed_unit=mph&timezone=UTC`
+    + `&start_date=${start}&end_date=${end}`;
+  let body;
+  for (let attempt = 0; attempt < 3 && !body; attempt++) {
     try {
-      const r = await fetch(url, { signal: AbortSignal.timeout(20000) });
+      if (attempt) await new Promise(res => setTimeout(res, 5000 * attempt));
+      const r = await fetch(url, { signal: AbortSignal.timeout(30000) });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      j = await r.json();
-    } catch (e) { skip.failed += games.length; return; }
+      body = await r.json();
+    } catch (e) { skip.reason = e.cause?.code || e.message; }
+  }
+  if (!body) {
+    for (const [, games] of points) skip.failed += games.length;
+    return { wind: out, skip, threshold };
+  }
+  const list = Array.isArray(body) ? body : [body];      // a single point returns an object
+  points.forEach(([, games], i) => {
+    const j = list[i];
     const times = j?.hourly?.time ?? [], speeds = j?.hourly?.wind_speed_10m ?? [];
     if (!times.length) { skip.failed += games.length; return; }
-    const at = new Map(times.map((t, i) => [t.slice(0, 13), speeds[i]]));
+    const at = new Map(times.map((t, n) => [t.slice(0, 13), speeds[n]]));
     for (const g of games) {
-      // gametime is venue-local wall clock; the forecast is requested in UTC.
-      // Hour-of-day precision is all this needs — wind does not swing on a
-      // 3-hour offset the way temperature does, and the model only reads a
-      // 15 mph threshold.
+      // gametime is venue-local wall clock; hour-of-day precision is all a
+      // 15 mph-scale effect needs.
       const hh = String(g.gametime).slice(0, 2).padStart(2, '0');
-      const key = `${g.gameday}T${hh}`;
-      const w = at.get(key) ?? at.get(`${g.gameday}T12`);
+      const w = at.get(`${g.gameday}T${hh}`) ?? at.get(`${g.gameday}T12`);
       if (w == null) { skip.horizon++; continue; }
       out.set(g.gameId, Math.round(w * 10) / 10);
     }
-  }));
+  });
   return { wind: out, skip, threshold };
 }
 

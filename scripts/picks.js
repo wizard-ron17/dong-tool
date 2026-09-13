@@ -23,6 +23,8 @@
 import fs from 'node:fs';
 import { REL, fetchText, fetchOptional, parseCsv, num } from './nflverse.js';
 import { loadWind } from './wind.js';
+import { completionFeatures, scoreMu as cmpMu, pOver as cmpOver, CMP_LINES,
+         COMPLETIONS_MODEL, windFactor as cmpWind, defFactor as cmpDef } from './completions.js';
 import { receptionFeatures, scoreMu, pOver, LINES as REC_LINES,
          RECEPTION_POS, RECEPTION_MODEL } from './receptions.js';
 
@@ -529,12 +531,14 @@ export async function loadPbpLogs(seasons) {
   const recLog = new Map(), teamPassLog = new Map();
   const retAgg = new Map();     // `${pid}|${team}` -> return counts, both seasons
   const windLog = new Map();    // `${team}|${season}|${week}` -> wind mph as played
+  const defLog = new Map();     // defteam -> [{season, week, att, cmp}] faced
   for (const y of seasons) {
     const txt = await fetchOptional(`${REL}/pbp/play_by_play_${y}.csv`);
     if (!txt) { console.log(`  pbp ${y}: not published yet`); continue; }
     const { idx, rows } = parseCsv(txt);
     const per = new Map();        // `${pid}|${week}` -> rz touches
-    const qb  = new Map();        // `${pid}|${week}` -> { att, ptd }
+    const qb  = new Map();        // `${pid}|${week}` -> { att, ptd, cmp, team }
+    const dfPass = new Map();     // `${defteam}|${week}` -> { att, cmp } faced
     const td  = new Map();        // `${pid}|${week}` -> { n, team }
     const rc  = new Map();        // `${pid}|${week}` -> { rec, tgt, air, n, team }
     const tmPass = new Map();     // `${team}|${week}` -> pass attempts
@@ -600,10 +604,19 @@ export async function loadPbpLogs(seasons) {
       }
       if (isPass && r[idx.passer_player_id]) {
         const k = `${r[idx.passer_player_id]}|${r[idx.week]}`;
-        const e = qb.get(k) ?? { att: 0, ptd: 0 };
+        const e = qb.get(k) ?? { att: 0, ptd: 0, cmp: 0, team: r[idx.posteam], name: r[idx.passer_player_name] || '' };
         e.att += 1;
         if (r[idx.pass_touchdown] === '1') e.ptd += 1;
+        if (r[idx.complete_pass] === '1') e.cmp += 1;
         qb.set(k, e);
+        // pass defense faced: every attempt against this defense, any passer —
+        // the Completions board's opponent term
+        if (r[idx.defteam]) {
+          const dk = `${r[idx.defteam]}|${r[idx.week]}`;
+          const de = dfPass.get(dk) ?? { att: 0, cmp: 0 };
+          de.att += 1; if (r[idx.complete_pass] === '1') de.cmp += 1;
+          dfPass.set(dk, de);
+        }
       }
       // Offensive touchdowns, for td_share. build_dataset.py credits a passing
       // TD to the RECEIVER via td_player_id and never to the passer, so a
@@ -636,7 +649,11 @@ export async function loadPbpLogs(seasons) {
     for (const [k, v] of qb) {
       const [pid, wk] = k.split('|');
       (passLog.get(pid) ?? passLog.set(pid, []).get(pid))
-        .push({ season: y, week: +wk, att: v.att, ptd: v.ptd });
+        .push({ season: y, week: +wk, att: v.att, ptd: v.ptd, cmp: v.cmp, team: v.team, name: v.name });
+    }
+    for (const [k, v] of dfPass) {
+      const [dt, wk] = k.split('|');
+      (defLog.get(dt) ?? defLog.set(dt, []).get(dt)).push({ season: y, week: +wk, att: v.att, cmp: v.cmp });
     }
     for (const [k, v] of tmPass) {
       const [team, wk] = k.split('|');
@@ -665,7 +682,8 @@ export async function loadPbpLogs(seasons) {
   for (const v of passLog.values()) v.sort(bySeasonWeek);
   for (const v of tdLog.values()) v.sort(bySeasonWeek);
   for (const v of recLog.values()) v.sort(bySeasonWeek);
-  return { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog };
+  for (const v of defLog.values()) v.sort(bySeasonWeek);
+  return { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog, defLog };
 }
 
 /** Back-compat wrapper — dump-features.js only wants the red-zone half. */
@@ -835,7 +853,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
 
   const { xwalk, birth, shot } = await loadPlayers();
   const snapLog = await loadSnapLog(snapSeasons, xwalk);
-  const { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog } = await loadPbpLogs(rzSeasons);
+  const { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog, defLog } = await loadPbpLogs(rzSeasons);
   const roster = await loadRoster(upcomingSeason);
   const depth = await loadDepthChart(upcomingSeason);
   const { byWeek, outIds, questionable = new Set() } = await loadInjuries(season, week);
@@ -980,7 +998,77 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     const windy = vals.filter(v => v >= 15).length;
     console.log(`  wind: ${windByGame.size}/${games.length} games forecast`
       + (vals.length ? `, max ${Math.max(...vals).toFixed(1)} mph, ${windy} at/over 15` : '')
-      + ` (indoor ${windSkip.indoor}, no venue ${windSkip.noVenue}, failed ${windSkip.failed})`);
+      + ` (indoor ${windSkip.indoor}, no venue ${windSkip.noVenue}, failed ${windSkip.failed}${windSkip.reason ? ': ' + windSkip.reason : ''})`);
+  }
+
+  // ── Completions ─────────────────────────────────────────────────────────
+  // One starter per team, priced over the full completion ladder. Wind and the
+  // opponent's pass defense are multipliers on the usage mean; both only bite at
+  // the extreme, and the board ships each factor so the modal can show it.
+  const nearestLine = (lines, mu) => lines.reduce((b, x) => Math.abs(x - mu) < Math.abs(b - mu) ? x : b, lines[0]);
+  const completions = [];
+  for (const [team, ctx] of teamsInPlay) {
+    const pid = starterQb.get(team);
+    if (!pid) continue;
+    const row = completionFeatures({ pid, season, week, passLog, defLog, opp: ctx.opp,
+                                     impliedTotal: ctx.implied, floor: rzSeasons[0] });
+    if (row._starts < 3) continue;                          // training filter
+    const w = windByGame.get(ctx.gameId) ?? 0;
+    const mu = cmpMu(row, w);
+    completions.push({
+      pid, name: roster.get(pid)?.name ?? pid, team, opp: ctx.opp, gameId: ctx.gameId, home: ctx.home,
+      mu: +mu.toFixed(2),
+      p: Object.fromEntries(CMP_LINES.map(L => [L, +cmpOver(L, mu).toFixed(4)])),
+      f: { cmpPrior: +row.cmp_prior.toFixed(2), attPrior: +row.att_prior.toFixed(1),
+           rate: +row.rate_prior.toFixed(3), l3: +row._l3.toFixed(1), implied: +row.implied.toFixed(1),
+           defRate: +row.def_rate.toFixed(3), windMph: w,
+           windX: +cmpWind(w).toFixed(3), defX: +cmpDef(row.def_rate).toFixed(3), starts: row._starts },
+    });
+  }
+  completions.sort((a, b) => b.mu - a.mu);
+  console.log(`  completions: ${completions.length} starters priced (top ${completions[0]?.name ?? '—'} ${completions[0]?.mu ?? ''})`);
+
+  // Results replay: every past start rebuilt walk-forward and graded, the same
+  // way the receptions history works.
+  const completionsHistory = [];
+  {
+    const ctx2 = new Map();                     // `${team}|${y}|${wk}` -> {opp, implied}
+    for (const g of scheduleAll) {
+      if (g.total == null) continue;
+      const half = g.total / 2, edge = (g.spread ?? 0) / 2;
+      ctx2.set(`${g.home}|${g.season}|${g.week}`, { opp: g.away, implied: half + edge });
+      ctx2.set(`${g.away}|${g.season}|${g.week}`, { opp: g.home, implied: half - edge });
+    }
+    const top = new Map();                      // `${team}|${y}|${wk}` -> {pid, e}
+    for (const [pid, arr] of passLog) for (const e of arr) {
+      if (e.att < 10 || !e.team || e.season < rzSeasons[0]) continue;
+      if (e.season === rzSeasons[0] && e.week < 4) continue;
+      if (e.season === season && e.week >= week) continue;
+      const k = `${e.team}|${e.season}|${e.week}`;
+      if (!top.has(k) || e.att > top.get(k).e.att) top.set(k, { pid, e });
+    }
+    const byWk = new Map();
+    for (const [k, { pid, e }] of top) {
+      const c = ctx2.get(k); if (!c) continue;
+      const row = completionFeatures({ pid, season: e.season, week: e.week, passLog, defLog,
+                                       opp: c.opp, impliedTotal: c.implied, floor: rzSeasons[0] });
+      if (row._starts < 3) continue;
+      const w = windLog.get(k) ?? 0;
+      const mu = cmpMu(row, w);
+      const L = nearestLine(CMP_LINES, mu);
+      const wk2 = `${e.season}|${e.week}`;
+      (byWk.get(wk2) ?? byWk.set(wk2, []).get(wk2))
+        .push([+mu.toFixed(2), L, +cmpOver(L, mu).toFixed(3), e.cmp, w, e.name || pid, e.team, e.att]);
+    }
+    for (const [k, rows] of [...byWk].sort((a, b) => {
+      const [ay, aw] = a[0].split('|').map(Number), [by, bw] = b[0].split('|').map(Number);
+      return ay - by || aw - bw; })) {
+      const [y2, w2] = k.split('|').map(Number);
+      rows.sort((a, b) => b[0] - a[0]);
+      completionsHistory.push({ s: y2, w: w2, rows });
+    }
+    const n = completionsHistory.reduce((a, x) => a + x.rows.length, 0);
+    console.log(`  completions history: ${completionsHistory.length} weeks, ${n} graded starts`);
   }
 
   // ── Receptions ──────────────────────────────────────────────────────────
@@ -1187,6 +1275,8 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
                                   windFactor: RECEPTION_MODEL.wind_factor },
     wind: Object.fromEntries(windByGame),
     receptionsHistory,
+    completions, completionsHistory,
+    completionModel: { alpha: COMPLETIONS_MODEL.alpha, lines: CMP_LINES },
     returners,
     birthdays: bdays, birthdayStats: BDAY.league, birthdaySeasons: BDAY.seasons,
     birthdayBase: BDAY.base_rate,

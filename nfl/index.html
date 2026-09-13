@@ -1594,6 +1594,26 @@
   .rc-cod { font-family: var(--font-d); font-weight: 700; text-align: right; }
   .rc-cline { color: var(--dim); font-size: 0.72rem; text-align: right; }
   @media (max-width: 520px) { .rc-crow { grid-template-columns: 1.4rem 1fr 2.8rem 4rem; } .rc-cteam, .rc-cline { display: none; } }
+  /* Completions results — one week, every starter, what hit */
+  .cp-wknav { display: flex; align-items: center; justify-content: center; gap: 0.6rem; margin: 0.2rem 0 0.5rem; }
+  .cp-wk { font-family: var(--font-d); font-weight: 700; color: var(--text); min-width: 11rem; text-align: center; }
+  .cp-res { display: grid; grid-template-columns: 1fr 5.4rem 3rem 2.6rem 4rem; align-items: center; gap: 0.4rem;
+    padding: 0.5rem 0.65rem; border: 1px solid var(--border); border-radius: 9px; margin-bottom: 0.3rem;
+    background: var(--surface0); font-size: 0.86rem; }
+  .cp-res.head { background: none; border: none; padding-block: 0.1rem; color: var(--muted); font-size: 0.7rem;
+    text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+  .cp-res.hit { border-color: rgba(51,208,124,0.45); background: rgba(51,208,124,0.07); }
+  .cp-res-nm { font-family: var(--font-d); font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cp-res.head .cp-res-nm { font-family: inherit; color: var(--muted); }
+  .cp-res.head .cp-res-act, .cp-res.head .cp-res-proj, .cp-res.head .cp-res-line { font-size: 0.7rem; color: var(--muted); font-family: inherit; }
+  .cp-res-tm { display: block; font-family: var(--font-b); font-weight: 500; font-size: 0.72rem; color: var(--muted); }
+  .cp-res-line { font-family: var(--font-d); font-weight: 700; color: var(--text); }
+  .cp-res-od { display: block; font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+  .cp-res-proj, .cp-res-act { text-align: right; font-family: var(--font-d); font-weight: 700; }
+  .cp-res-proj { color: var(--muted); }
+  .cp-res-act { color: var(--text); font-size: 1rem; }
+  .cp-res-tag { text-align: right; font-family: var(--font-d); font-weight: 700; font-size: 0.74rem; letter-spacing: 0.05em; color: var(--dim); }
+  .cp-res.hit .cp-res-tag { color: var(--good); }
   .rc-proj { margin-left: 0.45rem; padding: 0.05rem 0.34rem; border-radius: 4px; background: var(--surface2);
     font-family: var(--font-d); font-weight: 700; color: var(--text); white-space: nowrap; }
   .rc-proj b { color: var(--accent); }
@@ -2102,6 +2122,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11.5V5.4a1.5 1.5 0 0 1 3 0v5.6"/><path d="M12 11V4.2a1.5 1.5 0 0 1 3 0V11"/><path d="M15 11.4V6.2a1.5 1.5 0 0 1 3 0v6.6"/><path d="M9 11.5V9.4a1.5 1.5 0 0 0-3 0v5.4c0 3.6 2.6 6.2 6.2 6.2 3.4 0 5.8-2.6 5.8-6.2v-2"/></svg>
         <span><span class="nm-name">Receptions <span class="nm-new">NEW</span></span><span class="nm-desc">Catch totals, priced over and under</span></span>
       </button>
+      <button class="nav-menu-item" data-nav="completions" onclick="switchNav('completions')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M8 12.4l2.7 2.7L16.2 9.4"/></svg>
+        <span><span class="nm-name">Completions <span class="nm-new">NEW</span></span><span class="nm-desc">QB completions, priced over and under</span></span>
+      </button>
       <button class="nav-menu-item" data-nav="returners" onclick="switchNav('returners')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="14.5" cy="4" r="2"/><path d="M13 7.6 L10 13"/><path d="M13.2 9 L17.5 11.2"/><path d="M11.6 9.8 L7.5 8.6"/><path d="M10 13 L13 16 L12.4 21"/><path d="M10 13 L6.2 16.8"/></svg>
         <span><span class="nm-name">Returners <span class="nm-new">NEW</span></span><span class="nm-desc">Punt and kick return volume</span></span>
@@ -2321,6 +2345,27 @@
     </div>
     <div id="returners-content"><div class="empty">Loading…</div></div>
   </div>
+  <div id="panel-completions" class="panel">
+    <div class="due-explainer" id="completions-explainer-toggle" onclick="toggleExplainer('completions')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Completions Works</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="completions-explainer-chevron">&#9654;</span>
+      </div>
+      <div class="due-explainer-teaser">Projected completions for every starting quarterback, priced against the standard lines.</div>
+      <div class="due-explainer-body" id="completions-explainer-body" style="display:none">
+        <ul>
+          <li><b>Start from his baseline.</b> A quarterback's completions are remarkably steady season to season, so the projection is built on his own completions, attempts and completion rate over his last two seasons of starts, plus how many points his team is expected to score. Unlike every other board on this site, his last three games are <em>worse</em> than his longer average &mdash; recent form is mostly noise for a QB.</li>
+          <li><b>Then two things that genuinely move him.</b> Both only matter at the extremes, so each is a measured adjustment rather than a guess:</li>
+          <li><b>Wind.</b> It hits completions twice &mdash; teams throw less, and complete less of what they throw. Around 23&nbsp;mph that's roughly <b>11% fewer completions</b>. Domes are unaffected.</li>
+          <li><b>Elite pass defense.</b> Against the stingiest fifth of defenses by completion % allowed, QBs complete about <b>3% fewer</b> than their baseline. Against the other four-fifths, the opponent makes no measurable difference &mdash; which is why a "tough matchup" label on an average defense means nothing here.</li>
+          <li><b>Honest scale.</b> Our read on a quarterback's usage adds very little over his career average &mdash; that number is common knowledge. What moves a price off that average is weather and the rare elite secondary, and those are where to look.</li>
+          <li><b>Prices are negative binomial.</b> Completion counts swing more than a simple model allows, so the ladder is wider than you'd expect.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="completions-content"><div class="empty">Loading&hellip;</div></div>
+  </div>
   <div id="panel-receptions" class="panel">
     <div class="due-explainer" id="receptions-explainer-toggle" onclick="toggleExplainer('receptions')" aria-expanded="false">
       <div class="due-explainer-head">
@@ -2423,7 +2468,7 @@
   function closeSportMenu() { document.getElementById('sport-menu')?.classList.remove('open'); document.getElementById('sport-switch-btn')?.classList.remove('open'); }
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch')) closeSportMenu(); });
 
-  const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs', 'birthdays', 'due', 'milestones', 'returners', 'receptions']; // tools added here as they ship
+  const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs', 'birthdays', 'due', 'milestones', 'returners', 'receptions', 'completions']; // tools added here as they ship
   const PAGE_TITLES = { home: "Ron's Tud Tool", stats: "Stats · Ron's Tud Tool", recap: "Recap · Ron's Tud Tool", schedule: "Schedule · Ron's Tud Tool", pairs: "Pairs · Ron's Tud Tool", due: "Due · Ron's Tud Tool", milestones: "Milestones · Ron's Tud Tool", returners: "Returners · Ron's Tud Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
@@ -3324,7 +3369,7 @@
     </div>`;
   }
 
-  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); else if (nav === 'birthdays') renderBirthdays(); else if (nav === 'due') renderDue(); else if (nav === 'receptions') renderReceptions(); else if (nav === 'milestones') renderMilestones(); else if (nav === 'returners') renderReturners(); }
+  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); else if (nav === 'birthdays') renderBirthdays(); else if (nav === 'due') renderDue(); else if (nav === 'receptions') renderReceptions(); else if (nav === 'completions') renderCompletions(); else if (nav === 'milestones') renderMilestones(); else if (nav === 'returners') renderReturners(); }
   // ESPN team-logo CDN (transparent PNGs). nflverse abbrs are ESPN slugs
   // lowercased, save two: LA(Rams)->lar, WAS->wsh.
   const LOGO_SLUG = { LA: 'lar', WAS: 'wsh' };
@@ -4016,6 +4061,168 @@ let pairStacks = false;
   }
   window.rcStep = rcStep;
 
+  // ── Completions ─────────────────────────────────────────────────────────
+  const cpF = { line: 'auto', sort: 'proj', view: 'cards', q: '', tab: 'board', wk: null };
+  function setCp(k, v) { cpF[k] = v; renderCompletions(); }
+  window.setCp = setCp;
+  window.onCmpSearch = () => { cpF.q = (document.getElementById('cmp-search')?.value || '').trim(); renderCompletions(); };
+  window.clearCmpSearch = () => { cpF.q = ''; renderCompletions(); };
+  const CP_LINES = () => nflData?.completionModel?.lines || [];
+  const cpNear = (mu) => CP_LINES().reduce((b, x) => Math.abs(x - mu) < Math.abs(b - mu) ? x : b, CP_LINES()[0]);
+  const cpPick = (r) => { const L = cpF.line === 'auto' ? cpNear(r.mu) : Number(cpF.line); return { L, p: r.p[L] ?? r.p[String(L)] }; };
+  function cpRows() {
+    const q = pbNorm(cpF.q);
+    return (nflData?.completions || []).map(r => ({ ...r, ...cpPick(r) }))
+      .filter(r => r.p != null)
+      .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q))
+      .sort((a, b) => cpF.sort === 'proj' ? b.mu - a.mu : b.p - a.p);
+  }
+  const cpChip = (k, v, lab, cur) =>
+    `<button class="due-filter-chip mode-chip${String(cur) === String(v) ? ' active' : ''}" onclick="setCp('${k}',${typeof v === 'number' ? v : `'${v}'`})">${lab}</button>`;
+  const cpNotes = (r) => {
+    const n = [];
+    if (r.f.windX < 0.995) n.push(`<span class="rc-wind" title="Forecast wind at kickoff — already in the projection">${Math.round(r.f.windMph)} mph</span>`);
+    if (r.f.defX < 0.995) n.push(`<span class="rc-wind" title="Elite pass defense — already in the projection">tough D</span>`);
+    return n.join('');
+  };
+
+  function renderCompletions() {
+    const el = document.getElementById('completions-content'); if (!el) return;
+    if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
+    if (nflData === 'error') { el.innerHTML = `<div class="empty">Couldn't load NFL data. <a href="javascript:void(0)" onclick="loadNfl()">Retry</a></div>`; return; }
+    const tabs = `<div class="pairs-filter-row" style="margin-bottom:0.55rem">${cpChip('tab', 'board', 'Board', cpF.tab)}${cpChip('tab', 'results', 'Results', cpF.tab)}</div>`;
+    if (cpF.tab === 'results') { el.innerHTML = tabs + renderCmpResults(); return; }
+    const R = nflData.completions || [];
+    if (!R.length) { el.innerHTML = tabs + '<div class="empty">No projections yet — they fill in once the slate has lines.</div>'; return; }
+    const rows = cpRows();
+    const controls = tabs + `
+      <div class="pairs-filter-row"><span class="due-filter-label">Line</span>${(() => {
+        // 15 lines wrap to two rows; offer only the ones this slate's projections sit near
+        const mus = R.map(r => r.mu), lo = Math.min(...mus) - 1, hi = Math.max(...mus) + 1;
+        const near = CP_LINES().filter(L => L >= lo && L <= hi);
+        return ['auto', ...near].map(v => cpChip('line', v, v === 'auto' ? 'Best line' : 'o' + v, cpF.line)).join('');
+      })()}</div>
+      <div class="pairs-filter-row"><span class="due-filter-label">Sort</span>${cpChip('sort', 'proj', 'Projection', cpF.sort)}${cpChip('sort', 'odds', 'Shortest price', cpF.sort)}
+        <span class="due-filter-label" style="margin-left:0.5rem">View</span>${cpChip('view', 'cards', 'Cards', cpF.view)}${cpChip('view', 'table', 'Table', cpF.view)}${cpChip('view', 'compact', 'Compact', cpF.view)}</div>
+      <div class="pb-search">
+        <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        <input type="text" id="cmp-search" placeholder="Search a quarterback or team…" value="${cpF.q.replace(/"/g, '&quot;')}" oninput="onCmpSearch()" autocomplete="off" spellcheck="false">
+        <button class="pb-search-x" onclick="clearCmpSearch()" aria-label="Clear"${cpF.q ? ' style="display:flex"' : ''}>×</button>
+      </div>
+      <div class="pt-meta">Week ${firstUpcomingWeek()} · ${rows.length} starting QBs · gold tags mark wind or an elite pass defense already in the number.</div>`;
+    if (!rows.length) { el.innerHTML = controls + '<div class="empty">Nothing matches that search.</div>'; return; }
+    let body;
+    if (cpF.view === 'table') {
+      body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>QB</th><th>Game</th><th class="num">Proj</th><th class="num">Att</th><th class="num">Cmp%</th><th class="num">Line</th><th class="num">Price</th></tr></thead><tbody>${rows.map((r, i) => `
+        <tr onclick="openCmp('${r.pid}')"><td class="num dim">${i + 1}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
+          <td class="num"><b>${r.mu.toFixed(1)}</b></td><td class="num dim">${r.f.attPrior.toFixed(0)}</td><td class="num dim">${(r.f.rate * 100).toFixed(0)}%</td>
+          <td class="num dim">o${r.L}</td><td class="num"><b class="${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</b></td></tr>`).join('')}</tbody></table></div>`;
+    } else if (cpF.view === 'compact') {
+      body = `<div class="rc-compact">${rows.map((r, i) => `
+        <div class="rc-crow" onclick="openCmp('${r.pid}')"><span class="rc-crank">${i + 1}</span><span class="rc-cnm">${r.name}</span>
+          <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${r.mu.toFixed(1)}</span>
+          <span class="rc-cod ${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
+    } else {
+      body = `<div class="pb-list">${rows.map((r, i) => `
+        <div class="pb-card" onclick="openCmp('${r.pid}')">
+          <div class="pb-rank">${i + 1}</div>${faceHtml(r.pid, r.name)}
+          <div class="pb-info">
+            <div class="pb-nm">${r.name}</div>
+            <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
+              <span class="rc-proj" title="Projected completions"><b>${r.mu.toFixed(1)}</b> proj</span>${cpNotes(r)}</div>
+          </div>
+          <div class="pb-facts">
+            <span class="pb-f" title="Completions per start, last two seasons"><b>${r.f.cmpPrior.toFixed(1)}</b> avg</span>
+            <span class="pb-f" title="Attempts per start"><b>${r.f.attPrior.toFixed(0)}</b> att</span>
+            <span class="pb-f" title="Completion rate"><b>${(r.f.rate * 100).toFixed(0)}%</b></span>
+          </div>
+          <div class="pb-price"><span class="pb-odds${r.p < 0.5 ? ' dog' : ''}">${pbOdds(r.p)}</span><span class="pb-pct">over ${r.L}</span></div>
+        </div>`).join('')}</div>`;
+    }
+    el.innerHTML = controls + body;
+  }
+
+  // Results the way the MLB tools do it: one week, every starter, what hit.
+  function renderCmpResults() {
+    const H = nflData.completionsHistory || [];
+    if (!H.length) return '<div class="empty">No graded weeks yet.</div>';
+    if (cpF.wk == null || cpF.wk >= H.length) {
+      // latest week with a full slate — the season's last graded week is often
+      // the Super Bowl, which is two quarterbacks
+      let i = H.length - 1;
+      while (i > 0 && H[i].rows.length < 16) i--;
+      cpF.wk = i;
+    }
+    const wk = H[cpF.wk];
+    let hits = 0, n = 0, said = 0;
+    for (const x of H) for (const r of x.rows) { n++; said += r[2]; if (r[3] > r[1]) hits++; }
+    const wHits = wk.rows.filter(r => r[3] > r[1]).length;
+    const label = (x) => `${x.s} · Week ${x.w}`;
+    const rows = wk.rows.map(([mu, L, p, act, wind, name, team]) => {
+      const hit = act > L;
+      return `<div class="cp-res${hit ? ' hit' : ''}">
+        <span class="cp-res-nm">${name}<span class="cp-res-tm">${team}${wind >= 15 ? ` · ${Math.round(wind)} mph` : ''}</span></span>
+        <span class="cp-res-line">o${L}<span class="cp-res-od">${pbOdds(p)}</span></span>
+        <span class="cp-res-proj">${mu.toFixed(1)}</span>
+        <span class="cp-res-act">${act}</span>
+        <span class="cp-res-tag">${hit ? 'OVER' : 'UNDER'}</span></div>`;
+    }).join('');
+    return `
+      <div class="hm-tiles" style="margin-bottom:0.6rem">
+        <div class="hm-tile"><b>${n}</b><span>Starts graded</span></div>
+        <div class="hm-tile"><b>${(100 * hits / n).toFixed(0)}%</b><span>Overs hit</span></div>
+        <div class="hm-tile"><b>${(100 * said / n).toFixed(0)}%</b><span>We said</span></div>
+      </div>
+      <div class="cp-wknav">
+        <button class="due-filter-chip mode-chip" onclick="setCp('wk',${Math.max(0, cpF.wk - 1)})"${cpF.wk <= 0 ? ' disabled' : ''}>‹</button>
+        <span class="cp-wk">${label(wk)} · ${wHits}/${wk.rows.length} overs</span>
+        <button class="due-filter-chip mode-chip" onclick="setCp('wk',${Math.min(H.length - 1, cpF.wk + 1)})"${cpF.wk >= H.length - 1 ? ' disabled' : ''}>›</button>
+      </div>
+      <div class="cp-res head"><span class="cp-res-nm">QB</span><span class="cp-res-line">Line</span><span class="cp-res-proj">Proj</span><span class="cp-res-act">Got</span><span class="cp-res-tag"></span></div>
+      ${rows}
+      <div class="pt-meta" style="margin-top:0.5rem">Every past start rebuilt with only the data available that week and priced at the line nearest its projection.</div>`;
+  }
+
+  let cpOpen = null;
+  function openCmp(pid) {
+    const r = (nflData?.completions || []).find(x => x.pid === pid); if (!r) return;
+    cpOpen = pid;
+    const deck = cpRows(), at = deck.findIndex(x => x.pid === pid), sel = cpPick(r);
+    const lines = CP_LINES().filter(L => Math.abs(L - r.mu) <= 4.5);
+    const ladder = lines.map(L => { const p = r.p[L] ?? r.p[String(L)];
+      return `<div class="pm-mkt${L === sel.L ? ' on' : ''}"><div class="pm-mkt-lbl">o${L}</div><div class="pm-mkt-od">${pbOdds(p)}</div><div class="pm-mkt-pct">${(p * 100).toFixed(1)}%</div></div>`; }).join('');
+    const f = r.f;
+    const stat = (v, l, pc, tip) => `<div class="pm-stat" title="${tip}"><div class="pm-stat-v">${v}</div><div class="pm-stat-l">${l}</div><div class="pm-stat-bar"><i style="width:${Math.max(0, Math.min(100, pc))}%"></i></div></div>`;
+    document.body.insertAdjacentHTML('beforeend', `
+      <div class="pm-back" id="cp-back" onclick="if(event.target===this)closeCmp()">
+        <button class="pk-side-nav pk-side-prev" onclick="cpStep(-1)"${at <= 0 ? ' disabled' : ''}>‹</button>
+        <button class="pk-side-nav pk-side-next" onclick="cpStep(1)"${at < 0 || at >= deck.length - 1 ? ' disabled' : ''}>›</button>
+        <div class="pm" role="dialog" aria-modal="true">
+          <button class="pm-x" onclick="closeCmp()" aria-label="Close">×</button>
+          ${at >= 0 ? `<div class="pk-deck-count" style="padding-top:0.6rem">${at + 1} / ${deck.length}</div>` : ''}
+          <div class="pm-hero">${faceHtml(r.pid, r.name)}
+            <div class="pm-id"><div class="pm-nm">${r.name}</div><div class="pm-meta"><b>QB</b> · ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</div></div>
+            <div class="pm-hero-price"><div class="pm-hero-od">${r.mu.toFixed(1)}</div><div class="pm-hero-lbl">proj completions</div></div>
+          </div>
+          <div class="pm-sec">The ladder</div><div class="pm-mkts">${ladder}</div>
+          <div class="pm-sec">What builds it</div>
+          <div class="pm-stats">
+            ${stat(f.cmpPrior.toFixed(1), 'Completions / start', f.cmpPrior / 30 * 100, 'His completions per start, last two seasons')}
+            ${stat(f.attPrior.toFixed(0), 'Attempts / start', f.attPrior / 45 * 100, 'His attempts per start')}
+            ${stat((f.rate * 100).toFixed(0) + '%', 'Completion rate', f.rate * 100, 'His completion rate')}
+            ${stat(f.l3.toFixed(1), 'Last 3 starts', f.l3 / 30 * 100, 'Shown for context — for a QB this is noisier than his longer average and is not in the projection')}
+            ${stat(f.implied.toFixed(1), 'Team total', f.implied / 35 * 100, 'Points his team is implied to score')}
+            ${stat((f.defRate * 100).toFixed(1) + '%' , 'Opp cmp% allowed' + (f.defX < 0.995 ? ` · ×${f.defX.toFixed(2)}` : ''), (f.defRate - 0.5) / 0.2 * 100, f.defX < 0.995 ? 'Elite pass defense — trims the projection' : 'Opponent pass defense — no measurable effect at this level')}
+            ${stat(f.windMph ? Math.round(f.windMph) + ' mph' : 'calm/indoor', 'Wind' + (f.windX < 0.995 ? ` · ×${f.windX.toFixed(2)}` : ''), Math.min(100, (f.windMph || 0) / 30 * 100), f.windX < 0.995 ? 'Forecast wind at kickoff — trims the projection' : 'Not enough wind to matter')}
+          </div>
+        </div>
+      </div>`);
+    document.body.style.overflow = 'hidden';
+  }
+  window.openCmp = openCmp;
+  window.closeCmp = () => { document.getElementById('cp-back')?.remove(); document.body.style.overflow = ''; cpOpen = null; };
+  window.cpStep = (d) => { const deck = cpRows(), at = deck.findIndex(x => x.pid === cpOpen), nx = deck[at + d]; if (!nx) return; closeCmp(); openCmp(nx.pid); };
+
   function renderReturners() {
     const el = document.getElementById('returners-content'); if (!el) return;
     if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
@@ -4413,6 +4620,14 @@ let pairStacks = false;
         <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} · ${pbOdds(pv)} over ${L}</span></span>
         <span class="hm-score hot">${r.mu.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> proj</span></span></div>`;
     }).join('');
+    const cmpLines = nflData.completionModel?.lines || [];
+    const cmpHomeRows = (nflData.completions || []).slice(0, 3).map(r => {
+      const L = cmpLines.reduce((b, x) => Math.abs(x - r.mu) < Math.abs(b - r.mu) ? x : b, cmpLines[0]);
+      return `
+      <div class="hm-row">${faceHtml(r.pid, r.name)}
+        <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} · ${pbOdds(r.p[L] ?? r.p[String(L)])} over ${L}</span></span>
+        <span class="hm-score hot">${r.mu.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> proj</span></span></div>`;
+    }).join('');
     const retRows = (nflData.returners || []).slice(0, 3).map(r => `
       <div class="hm-row">${faceHtml(r.pid, r.name)}
         <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} · ${Math.round(r.prShare * 100)}% punts · ${Math.round(r.krShare * 100)}% kicks</span></span>
@@ -4435,6 +4650,7 @@ let pairStacks = false;
             </div>${topPass}` : ''),
             'The board fills in once the slate has lines.')}
           ${card('receptions', 'Receptions', 'Receptions', recRows, 'Projections fill in once the slate has lines.')}
+          ${card('completions', 'Completions', 'Completions', cmpHomeRows, 'Projections fill in once the slate has lines.')}
           ${card('due', 'Due', 'Due', dueRows, 'Nobody with a red-zone role is in a drought.')}
           ${card('milestones', 'Milestone Watch 🏆', 'Milestones', msRows, 'No chases within reach.')}
         </div>

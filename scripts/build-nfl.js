@@ -424,6 +424,7 @@ async function main() {
   for (const m of milestones) referenced.add(m.pid);
   for (const r of (picks?.returners?.length ? picks.returners : returners)) referenced.add(r.pid);
   for (const r of (picks?.receptions ?? [])) referenced.add(r.pid);
+  for (const r of (picks?.completions ?? [])) referenced.add(r.pid);
   // Passers who never scored themselves aren't in tdLeaders or the recap's
   // scorer rows, so the Stacks view has no name for them without this.
   const passerNames = {};
@@ -455,9 +456,11 @@ async function main() {
     teamStats, teamScorers, teamQB,
     // Receptions rides along in the picks payload because it reuses that pass's
     // play-by-play, but it is its own market and reads better as its own key.
-    picks: picks ? { ...picks, shots: undefined, receptions: undefined, receptionModel: undefined, returners: undefined, receptionsHistory: undefined, wind: undefined } : picks,
+    picks: picks ? { ...picks, shots: undefined, receptions: undefined, receptionModel: undefined, returners: undefined, receptionsHistory: undefined, wind: undefined, completions: undefined, completionsHistory: undefined, completionModel: undefined } : picks,
     receptions: picks?.receptions ?? [], receptionModel: picks?.receptionModel ?? null,
     receptionsHistory: picks?.receptionsHistory ?? [], wind: picks?.wind ?? {},
+    completions: picks?.completions ?? [], completionsHistory: picks?.completionsHistory ?? [],
+    completionModel: picks?.completionModel ?? null,
     picksHistory, parlay, milestones, passerNames, connPos,
     returners: (picks?.returners?.length ? picks.returners : returners), returnModel,
   };
