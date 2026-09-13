@@ -395,7 +395,21 @@ const PASS_MODEL = JSON.parse(
  * appears in, preferring the later season when two QBs split a room. Returns
  * team -> pid.
  */
-export function passStarters(roster, passLog, season) {
+export function passStarters(roster, passLog, season, depth = new Map()) {
+  // The published depth chart decides the starter when it has one. Last
+  // season's attempt volume was the only signal before, and it picks the
+  // BACKUP whenever the starter missed last year: week 1 of 2026 priced Joe
+  // Flacco for Cincinnati, Marcus Mariota for Washington, Shedeur Sanders for
+  // Cleveland, J.J. McCarthy over Kyler Murray in Minnesota and Brady Cook in
+  // Miami — five of 31 teams, on both the Completions and Pass TD boards.
+  const byDepth = new Map();    // team -> { pid, rank }
+  for (const [pid, info] of roster) {
+    if (info.position !== 'QB') continue;
+    const d = depth.get(pid);
+    if (!d || d.pos !== 'QB') continue;
+    const cur = byDepth.get(info.team);
+    if (!cur || d.rank < cur.rank) byDepth.set(info.team, { pid, rank: d.rank });
+  }
   const best = new Map();       // team -> { pid, season, att }
   for (const [pid, info] of roster) {
     if (info.position !== 'QB') continue;
@@ -408,7 +422,9 @@ export function passStarters(roster, passLog, season) {
     if (!cur || last > cur.season || (last === cur.season && att > cur.att))
       best.set(info.team, { pid, season: last, att });
   }
-  return new Map([...best].map(([t, v]) => [t, v.pid]));
+  const out = new Map([...best].map(([t, v]) => [t, v.pid]));
+  for (const [t, v] of byDepth) out.set(t, v.pid);      // depth chart wins
+  return out;
 }
 
 export function passFeatures({ pid, season, week, passLog, impliedTotal }) {
@@ -867,7 +883,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     teamsInPlay.set(g.away, { opp: g.home, implied: half - edge, gameId: g.gameId, home: 0 });
   }
 
-  const starterQb = passStarters(roster, passLog, season);
+  const starterQb = passStarters(roster, passLog, season, depth);
   console.log(`  passing market: ${starterQb.size} starting QBs identified`);
 
   // Two passes: gather every player's features first so team snap shares can be
@@ -1007,12 +1023,16 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   // the extreme, and the board ships each factor so the modal can show it.
   const nearestLine = (lines, mu) => lines.reduce((b, x) => Math.abs(x - mu) < Math.abs(b - mu) ? x : b, lines[0]);
   const completions = [];
+  const thinStarters = [];
   for (const [team, ctx] of teamsInPlay) {
     const pid = starterQb.get(team);
     if (!pid) continue;
     const row = completionFeatures({ pid, season, week, passLog, defLog, opp: ctx.opp,
                                      impliedTotal: ctx.implied, floor: rzSeasons[0] });
-    if (row._starts < 3) continue;                          // training filter
+    if (row._starts < 3) {                                 // training filter
+      thinStarters.push(`${team} ${roster.get(pid)?.name ?? pid} (${row._starts})`);
+      continue;
+    }
     const w = windByGame.get(ctx.gameId) ?? 0;
     const mu = cmpMu(row, w);
     completions.push({
@@ -1026,7 +1046,8 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     });
   }
   completions.sort((a, b) => b.mu - a.mu);
-  console.log(`  completions: ${completions.length} starters priced (top ${completions[0]?.name ?? '—'} ${completions[0]?.mu ?? ''})`);
+  console.log(`  completions: ${completions.length} starters priced (top ${completions[0]?.name ?? '—'} ${completions[0]?.mu ?? ''})`
+    + (thinStarters.length ? ` · skipped for <3 recent starts: ${thinStarters.join(', ')}` : ''));
 
   // Results replay: every past start rebuilt walk-forward and graded, the same
   // way the receptions history works.
