@@ -215,11 +215,11 @@
   .sub-btn:disabled { opacity: 0.3; cursor: not-allowed; }
   /* Picks page: turn the Today's Picks / Results VIEW switch into underline
      tabs so it no longer mirrors the filled lens toggle above it. */
-  #picks-sub-tabs { background: transparent; border: none; border-bottom: 1px solid var(--border); border-radius: 0; padding: 0; gap: 1.5rem; justify-content: flex-start; margin-bottom: 1rem; }
-  #picks-sub-tabs .sub-btn { flex: 0 0 auto; background: transparent; border-radius: 0; padding: 0.5rem 0.15rem 0.55rem; color: var(--muted); position: relative; }
-  #picks-sub-tabs .sub-btn:hover:not(.active):not(:disabled) { color: var(--text); background: transparent; }
-  #picks-sub-tabs .sub-btn.active { background: transparent; color: var(--text-strong); }
-  #picks-sub-tabs .sub-btn.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2.5px; background: var(--accent); border-radius: 2px 2px 0 0; }
+  :is(#picks-sub-tabs, .u-tabs) { background: transparent; border: none; border-bottom: 1px solid var(--border); border-radius: 0; padding: 0; gap: 1.5rem; justify-content: flex-start; margin-bottom: 1rem; }
+  :is(#picks-sub-tabs, .u-tabs) .sub-btn { flex: 0 0 auto; background: transparent; border-radius: 0; padding: 0.5rem 0.15rem 0.55rem; color: var(--muted); position: relative; }
+  :is(#picks-sub-tabs, .u-tabs) .sub-btn:hover:not(.active):not(:disabled) { color: var(--text); background: transparent; }
+  :is(#picks-sub-tabs, .u-tabs) .sub-btn.active { background: transparent; color: var(--text-strong); }
+  :is(#picks-sub-tabs, .u-tabs) .sub-btn.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2.5px; background: var(--accent); border-radius: 2px 2px 0 0; }
 
   .search-wrap { display: none; margin-bottom: 0.8rem; }
   .search-wrap.visible { display: block; }
@@ -1841,7 +1841,7 @@
   /* The inherited .due-filter-row is a wrapping flex container, which turns
      each labelled row below into a flex ITEM and pairs them up two-per-line.
      The panel owns its own layout. */
-  #picks-filter-row { display: block; }
+  #picks-filter-row, .pbf-body { display: block; }
   /* ── Picks filter panel ───────────────────────────────────────────────────
      One labelled row per control with hairline dividers, instead of every
      group wrapping into a single undifferentiated field of pills. */
@@ -2728,7 +2728,6 @@
     // replacing them, so a term plus a market plus a cut all compose.
     // Comma-separated terms are OR here, unlike Pairs where they're AND — a
     // group has to contain every name, but a board should show any of them.
-    if (pbSearch.length) rows = rows.filter(r => pbSearch.some(t => pbMatch(r, t)));
     if (pbF.team !== 'all') rows = rows.filter(r => r.team === pbF.team);
     const key = {
       p: r => pbP(r),
@@ -2752,6 +2751,10 @@
       if (x > y) return 1 * dir;
       return pbP(b) - pbP(a);                 // price is the stable tiebreak
     });
+    // Rank is fixed before the search runs: looking a player up should show
+    // where he sits on the board, not "#1 of the one row that matched".
+    rows.forEach((r, i) => { r.rank = i + 1; });
+    if (pbSearch.length) rows = rows.filter(r => pbSearch.some(t => pbMatch(r, t)));
     return rows;
   }
 
@@ -2844,7 +2847,7 @@
     return `<div class="pb-tablewrap"><table class="pb-table">
       <thead><tr><th class="static">#</th>${th('name', 'Player')}${th('pos', 'Pos')}${th('time', 'Game')}${th('p', 'Price', 'num')}${th('pct', 'Chance', 'num')}${th('alt', pbF.mkt === '1' ? '2+ TD' : '1+ TD', 'num')}${th('first', '1st TD', 'num')}${th('last', 'Last TD', 'num')}${th('snap3', 'Snap%', 'num')}${th('rz', 'RZ/g', 'num')}${th('imp', 'Total', 'num')}</tr></thead>
       <tbody>${rows.map((r, i) => `<tr onclick="openPick('${r.pid}')">
-        <td class="num">${i + 1}</td>
+        <td class="num">${r.rank ?? i + 1}</td>
         <td class="nm">${r.name}${r.f?.newAbsence ? ' <span class="pb-flag">ROLE OPEN</span>' : ''}</td>
         <td>${posBadge(r.pos)}</td>
         <td><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}${r.kick ? ` <span style="color:var(--dim)">${r.kick}</span>` : ''}</td>
@@ -2870,7 +2873,7 @@
         <span class="pbc-sub">${WK_LABEL(P.week)} · ${pbMkt().lab}${posLbl}</span>
       </div>
       ${rows.map((r, i) => `<div class="pbc-row" onclick="openPick('${r.pid}')">
-        <span class="pbc-rank">${i + 1}</span>
+        <span class="pbc-rank">${r.rank ?? i + 1}</span>
         <img class="pbc-logo" src="${teamLogo(r.team)}" alt="${r.team}" loading="lazy">
         <span class="pbc-nm">${r.name}</span>
         ${posBadge(r.pos)}
@@ -3150,7 +3153,7 @@
     })()
       : pbF.view === 'table' ? pbTable(rows)
       : pbF.view === 'compact' ? pbCompact(rows, P)
-      : `<div class="pb-list">${rows.map((r, i) => pbCard(r, i + 1)).join('')}</div>`;
+      : `<div class="pb-list">${rows.map((r, i) => pbCard(r, r.rank ?? i + 1)).join('')}</div>`;
     el.innerHTML = `
       <div class="pb-head">
         <span class="pb-week">${WK_LABEL(P.week)}</span>
@@ -3782,7 +3785,7 @@ let pairStacks = false;
   // A count market, so the board leads with the projection and prices each
   // standard line off it. "Best line" picks the one nearest a player's
   // projection, which is the one a book is most likely to be hanging.
-  const rcF = { line: 'auto', pos: 'ALL', sort: 'proj', view: 'cards', q: '', tab: 'board' };
+  const rcF = { line: 'auto', pos: 'ALL', sort: 'proj', view: 'cards', q: '', tab: 'board', open: false };
   function setRc(k, v) { rcF[k] = v; renderReceptions(); }
   window.setRc = setRc;
   // The board re-renders the panel that holds the search box, which replaces
@@ -3833,15 +3836,34 @@ let pairStacks = false;
     return R.map(r => ({ ...r, ...rcPick(r) }))
       .filter(r => r.p != null)
       .filter(r => rcF.pos === 'ALL' || r.pos === rcF.pos)
-      .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q) || pbNorm(r.pos) === q)
-      .sort((a, b) => rcF.sort === 'proj' ? b.mu - a.mu : b.p - a.p);
+      .sort((a, b) => rcF.sort === 'proj' ? b.mu - a.mu : b.p - a.p)
+      .map((r, i) => ({ ...r, rank: i + 1 }))          // ranked before the search narrows it
+      .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q) || pbNorm(r.pos) === q);
   }
 
-  const rcTabs = () => `
-    <div class="pairs-filter-row" style="margin-bottom:0.55rem">
-      <button class="due-filter-chip mode-chip${rcF.tab === 'board' ? ' active' : ''}" onclick="setRc('tab','board')">Board</button>
-      <button class="due-filter-chip mode-chip${rcF.tab === 'results' ? ' active' : ''}" onclick="setRc('tab','results')">Results</button>
+  // Board controls built from the Picks page's parts, so every board reads the
+  // same: underline tabs, a collapsible Filters card, a segmented view switch.
+  //   setFn  — the page's setter name ('setRc'), called as setFn(key, value)
+  const uiTabs = (setFn, cur) => `
+    <div class="sub-tabs u-tabs">${[['board', 'Board'], ['results', 'Results']].map(([v, l]) =>
+      `<button class="sub-btn${cur === v ? ' active' : ''}" onclick="${setFn}('tab','${v}')">${l}</button>`).join('')}</div>`;
+  const uiArg = (v) => typeof v === 'number' ? v : `'${v}'`;
+  const uiChip = (setFn, k, v, lab, cur, extra = '') =>
+    `<button class="pbf-chip${extra ? ' ' + extra : ''}${String(cur) === String(v) ? ' on' : ''}" onclick="${setFn}('${k}',${uiArg(v)})">${lab}</button>`;
+  // rows: [[label, chipsHtml]]; changed: how many filters are off their default
+  const uiFilters = (setFn, open, rows, changed) => `
+    <div class="due-filters-card">
+      <button class="due-filters-toggle" onclick="${setFn}('open',${!open})" aria-expanded="${open}">
+        <span class="due-explainer-title">Filters${changed ? `<span class="due-filters-badge">${changed}</span>` : ''}</span>
+        <span class="due-explainer-chevron${open ? ' open' : ''}">▶</span>
+      </button>
+      ${open ? `<div class="due-filter-row pbf-body">${rows.map(([l, c]) =>
+        `<div class="pbf-row"><span class="pbf-lbl">${l}</span><div class="pbf-chips">${c}</div></div>`).join('')}</div>` : ''}
     </div>`;
+  const uiView = (setFn, cur) => `
+    <div class="lb-toolbar"><div class="view-switch">${[['table', 'Table'], ['cards', 'Cards'], ['compact', 'Compact']].map(([v, l]) =>
+      `<button class="view-btn${cur === v ? ' active' : ''}" onclick="${setFn}('view','${v}')">${l}</button>`).join('')}</div></div>`;
+  const rcTabs = () => uiTabs('setRc', rcF.tab);
 
   // ── Receptions results: every past board replayed and graded ────────────
   // Rows per week are [proj, line, quoted p(over), actual receptions], sorted
@@ -3906,24 +3928,19 @@ let pairStacks = false;
     if (!R.length || !M) { el.innerHTML = '<div class="empty">No reception projections yet — they fill in once the slate has lines.</div>'; return; }
     const w = firstUpcomingWeek();
 
-    const chip = (k, v, lab, cur) =>
-      `<button class="due-filter-chip mode-chip${String(cur) === String(v) ? ' active' : ''}" onclick="setRc('${k}',${typeof v === 'number' ? v : `'${v}'`})">${lab}</button>`;
+    const chip = (k, v, lab, cur) => uiChip('setRc', k, v, lab, cur);
     const lineChips = ['auto', ...RC_LINES()].map(v =>
       chip('line', v, v === 'auto' ? 'Best line' : 'o' + v, rcF.line)).join('');
     const posChips = ['ALL', 'WR', 'TE', 'RB'].map(v =>
-      chip('pos', v, v === 'ALL' ? 'All' : v, rcF.pos)).join('');
+      uiChip('setRc', 'pos', v, v === 'ALL' ? 'All' : v, rcF.pos, v === 'ALL' ? '' : 'pos ' + v)).join('');
     const sortChips = [['proj', 'Projection'], ['odds', 'Shortest price']].map(([v, l]) =>
       chip('sort', v, l, rcF.sort)).join('');
-    const viewChips = [['cards', 'Cards'], ['table', 'Table'], ['compact', 'Compact']].map(([v, l]) =>
-      chip('view', v, l, rcF.view)).join('');
 
     if (rcF.tab === 'results') { el.innerHTML = rcTabs() + renderRecResults(); return; }
     const rows = rcRows();
     const controls = rcTabs() + `
-      <div class="pairs-filter-row"><span class="due-filter-label">Line</span>${lineChips}</div>
-      <div class="pairs-filter-row"><span class="due-filter-label">Position</span>${posChips}
-        <span class="due-filter-label" style="margin-left:0.5rem">Sort</span>${sortChips}</div>
-      <div class="pairs-filter-row"><span class="due-filter-label">View</span>${viewChips}</div>
+      ${uiFilters('setRc', rcF.open, [['Line', lineChips], ['Position', posChips], ['Sort', sortChips]],
+        (rcF.line !== 'auto') + (rcF.pos !== 'ALL') + (rcF.sort !== 'proj'))}
       <div class="pb-search">
         <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
           <circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path>
@@ -3933,10 +3950,10 @@ let pairStacks = false;
         <button class="pb-search-x" onclick="clearRecSearch()" aria-label="Clear"${rcF.q ? ' style="display:flex"' : ''}>×</button>
       </div>`;
 
-    const meta = `<div class="pt-meta">Week ${w} · ${rows.length} of ${R.length} pass-catchers${(() => {
+    const meta = `<div class="pb-head"><span class="pb-week">${WK_LABEL(w)}</span><span class="pb-meta">${rows.length} of ${R.length} pass-catchers${(() => {
       const ws = Object.values(nflData.wind || {}); const hi = ws.filter(v => v >= 15).length;
       return ws.length ? ` · wind forecast on ${ws.length} games${hi ? `, ${hi} at 15+ mph` : ''}` : '';
-    })()}.</div>`;
+    })()}</span></div>${uiView('setRc', rcF.view)}`;
 
     if (!rows.length) {
       el.innerHTML = controls + `<div class="empty">Nothing matches that filter.</div>`;
@@ -3950,7 +3967,7 @@ let pairStacks = false;
           <th class="num">Snap</th><th class="num">Tgt</th><th class="num">Line</th><th class="num">Price</th></tr></thead>
         <tbody>${rows.map((r, i) => `
           <tr onclick="openRec('${r.pid}')">
-            <td class="num dim">${i + 1}</td>
+            <td class="num dim">${r.rank}</td>
             <td><b>${r.name}</b> <span class="dim">${r.pos}</span></td>
             <td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
             <td class="num"><b>${r.mu.toFixed(2)}</b></td>
@@ -3962,7 +3979,7 @@ let pairStacks = false;
     } else if (rcF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map((r, i) => `
         <div class="rc-crow" onclick="openRec('${r.pid}')">
-          <span class="rc-crank">${i + 1}</span>
+          <span class="rc-crank">${r.rank}</span>
           <span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span>
           <span class="rc-cproj">${r.mu.toFixed(1)}</span>
@@ -3972,7 +3989,7 @@ let pairStacks = false;
     } else {
       body = `<div class="pb-list">${rows.map((r, i) => `
         <div class="pb-card" onclick="openRec('${r.pid}')">
-          <div class="pb-rank">${i + 1}</div>${faceHtml(r.pid, r.name)}
+          <div class="pb-rank">${r.rank}</div>${faceHtml(r.pid, r.name)}
           <div class="pb-info">
             <div class="pb-nm">${r.name}<span class="pb-flag" title="Position">${r.pos}</span></div>
             <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
@@ -4073,7 +4090,7 @@ let pairStacks = false;
   window.rcStep = rcStep;
 
   // ── Completions ─────────────────────────────────────────────────────────
-  const cpF = { line: 'auto', sort: 'proj', view: 'cards', q: '', tab: 'board', wk: null };
+  const cpF = { line: 'auto', sort: 'proj', view: 'cards', q: '', tab: 'board', wk: null, open: false };
   function setCp(k, v) { cpF[k] = v; renderCompletions(); }
   window.setCp = setCp;
   window.onCmpSearch = () => { cpF.q = document.getElementById('cmp-search')?.value || ''; refocusSearch('cmp-search', renderCompletions); };
@@ -4085,11 +4102,12 @@ let pairStacks = false;
     const q = pbNorm(cpF.q.trim());
     return (nflData?.completions || []).map(r => ({ ...r, ...cpPick(r) }))
       .filter(r => r.p != null)
-      .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q))
-      .sort((a, b) => cpF.sort === 'proj' ? b.mu - a.mu : b.p - a.p);
+      .sort((a, b) => cpF.sort === 'proj' ? b.mu - a.mu : b.p - a.p)
+      .map((r, i) => ({ ...r, rank: i + 1 }))
+      .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q));
   }
   const cpChip = (k, v, lab, cur) =>
-    `<button class="due-filter-chip mode-chip${String(cur) === String(v) ? ' active' : ''}" onclick="setCp('${k}',${typeof v === 'number' ? v : `'${v}'`})">${lab}</button>`;
+    uiChip('setCp', k, v, lab, cur);
   const cpNotes = (r) => {
     const n = [];
     if (r.f.windX < 0.995) n.push(`<span class="rc-wind" title="Forecast wind at kickoff — already in the projection">${Math.round(r.f.windMph)} mph</span>`);
@@ -4102,42 +4120,41 @@ let pairStacks = false;
     const el = document.getElementById('completions-content'); if (!el) return;
     if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
     if (nflData === 'error') { el.innerHTML = `<div class="empty">Couldn't load NFL data. <a href="javascript:void(0)" onclick="loadNfl()">Retry</a></div>`; return; }
-    const tabs = `<div class="pairs-filter-row" style="margin-bottom:0.55rem">${cpChip('tab', 'board', 'Board', cpF.tab)}${cpChip('tab', 'results', 'Results', cpF.tab)}</div>`;
+    const tabs = uiTabs('setCp', cpF.tab);
     if (cpF.tab === 'results') { el.innerHTML = tabs + renderCmpResults(); return; }
     const R = nflData.completions || [];
     if (!R.length) { el.innerHTML = tabs + '<div class="empty">No projections yet — they fill in once the slate has lines.</div>'; return; }
     const rows = cpRows();
     const controls = tabs + `
-      <div class="pairs-filter-row"><span class="due-filter-label">Line</span>${(() => {
+      ${uiFilters('setCp', cpF.open, [['Line', (() => {
         // 15 lines wrap to two rows; offer only the ones this slate's projections sit near
         const mus = R.map(r => r.mu), lo = Math.min(...mus) - 1, hi = Math.max(...mus) + 1;
         const near = CP_LINES().filter(L => L >= lo && L <= hi);
         return ['auto', ...near].map(v => cpChip('line', v, v === 'auto' ? 'Best line' : 'o' + v, cpF.line)).join('');
-      })()}</div>
-      <div class="pairs-filter-row"><span class="due-filter-label">Sort</span>${cpChip('sort', 'proj', 'Projection', cpF.sort)}${cpChip('sort', 'odds', 'Shortest price', cpF.sort)}
-        <span class="due-filter-label" style="margin-left:0.5rem">View</span>${cpChip('view', 'cards', 'Cards', cpF.view)}${cpChip('view', 'table', 'Table', cpF.view)}${cpChip('view', 'compact', 'Compact', cpF.view)}</div>
+      })()], ['Sort', cpChip('sort', 'proj', 'Projection', cpF.sort) + cpChip('sort', 'odds', 'Shortest price', cpF.sort)]],
+        (cpF.line !== 'auto') + (cpF.sort !== 'proj'))}
       <div class="pb-search">
         <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
         <input type="text" id="cmp-search" placeholder="Search a quarterback or team…" value="${cpF.q.replace(/"/g, '&quot;')}" oninput="onCmpSearch()" autocomplete="off" spellcheck="false">
         <button class="pb-search-x" onclick="clearCmpSearch()" aria-label="Clear"${cpF.q ? ' style="display:flex"' : ''}>×</button>
       </div>
-      <div class="pt-meta">Week ${firstUpcomingWeek()} · ${rows.length} starting QBs · gold tags mark wind or an elite pass defense already in the number.</div>`;
+      <div class="pb-head"><span class="pb-week">${WK_LABEL(firstUpcomingWeek())}</span><span class="pb-meta">${rows.length} starting QBs · gold tags mark wind or an elite pass defense already in the number</span></div>`;
     if (!rows.length) { el.innerHTML = controls + '<div class="empty">Nothing matches that search.</div>'; return; }
     let body;
     if (cpF.view === 'table') {
       body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>QB</th><th>Game</th><th class="num">Proj</th><th class="num">Att</th><th class="num">Cmp%</th><th class="num">Line</th><th class="num">Price</th></tr></thead><tbody>${rows.map((r, i) => `
-        <tr onclick="openCmp('${r.pid}')"><td class="num dim">${i + 1}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
+        <tr onclick="openCmp('${r.pid}')"><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
           <td class="num"><b>${r.mu.toFixed(1)}</b></td><td class="num dim">${r.f.attPrior.toFixed(0)}</td><td class="num dim">${(r.f.rate * 100).toFixed(0)}%</td>
           <td class="num dim">o${r.L}</td><td class="num"><b class="${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</b></td></tr>`).join('')}</tbody></table></div>`;
     } else if (cpF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map((r, i) => `
-        <div class="rc-crow" onclick="openCmp('${r.pid}')"><span class="rc-crank">${i + 1}</span><span class="rc-cnm">${r.name}</span>
+        <div class="rc-crow" onclick="openCmp('${r.pid}')"><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${r.mu.toFixed(1)}</span>
           <span class="rc-cod ${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map((r, i) => `
         <div class="pb-card" onclick="openCmp('${r.pid}')">
-          <div class="pb-rank">${i + 1}</div>${faceHtml(r.pid, r.name)}
+          <div class="pb-rank">${r.rank}</div>${faceHtml(r.pid, r.name)}
           <div class="pb-info">
             <div class="pb-nm">${r.name}</div>
             <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
@@ -4151,7 +4168,7 @@ let pairStacks = false;
           <div class="pb-price"><span class="pb-odds${r.p < 0.5 ? ' dog' : ''}">${pbOdds(r.p)}</span><span class="pb-pct">over ${r.L}</span></div>
         </div>`).join('')}</div>`;
     }
-    el.innerHTML = controls + body;
+    el.innerHTML = controls + uiView('setCp', cpF.view) + body;
   }
 
   // Results the way the MLB tools do it: one week, every starter, what hit.
