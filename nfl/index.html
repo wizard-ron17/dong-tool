@@ -3785,9 +3785,20 @@ let pairStacks = false;
   const rcF = { line: 'auto', pos: 'ALL', sort: 'proj', view: 'cards', q: '', tab: 'board' };
   function setRc(k, v) { rcF[k] = v; renderReceptions(); }
   window.setRc = setRc;
+  // The board re-renders the panel that holds the search box, which replaces
+  // the input mid-keystroke. Put focus and the caret back on the new one.
+  function refocusSearch(id, render) {
+    const el = document.getElementById(id);
+    const start = el?.selectionStart, end = el?.selectionEnd;
+    render();
+    const nx = document.getElementById(id);
+    if (!nx) return;
+    nx.focus();
+    if (start != null) nx.setSelectionRange(start, end);
+  }
   function onRecSearch() {
-    rcF.q = (document.getElementById('rec-search')?.value || '').trim();
-    renderReceptions();
+    rcF.q = document.getElementById('rec-search')?.value || '';
+    refocusSearch('rec-search', renderReceptions);
   }
   window.onRecSearch = onRecSearch;
   function clearRecSearch() {
@@ -3818,7 +3829,7 @@ let pairStacks = false;
   /** The filtered, sorted board — shared by the view and the modal's arrows. */
   function rcRows() {
     const R = nflData?.receptions || [];
-    const q = pbNorm(rcF.q);
+    const q = pbNorm(rcF.q.trim());
     return R.map(r => ({ ...r, ...rcPick(r) }))
       .filter(r => r.p != null)
       .filter(r => rcF.pos === 'ALL' || r.pos === rcF.pos)
@@ -4065,13 +4076,13 @@ let pairStacks = false;
   const cpF = { line: 'auto', sort: 'proj', view: 'cards', q: '', tab: 'board', wk: null };
   function setCp(k, v) { cpF[k] = v; renderCompletions(); }
   window.setCp = setCp;
-  window.onCmpSearch = () => { cpF.q = (document.getElementById('cmp-search')?.value || '').trim(); renderCompletions(); };
+  window.onCmpSearch = () => { cpF.q = document.getElementById('cmp-search')?.value || ''; refocusSearch('cmp-search', renderCompletions); };
   window.clearCmpSearch = () => { cpF.q = ''; renderCompletions(); };
   const CP_LINES = () => nflData?.completionModel?.lines || [];
   const cpNear = (mu) => CP_LINES().reduce((b, x) => Math.abs(x - mu) < Math.abs(b - mu) ? x : b, CP_LINES()[0]);
   const cpPick = (r) => { const L = cpF.line === 'auto' ? cpNear(r.mu) : Number(cpF.line); return { L, p: r.p[L] ?? r.p[String(L)] }; };
   function cpRows() {
-    const q = pbNorm(cpF.q);
+    const q = pbNorm(cpF.q.trim());
     return (nflData?.completions || []).map(r => ({ ...r, ...cpPick(r) }))
       .filter(r => r.p != null)
       .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q))
