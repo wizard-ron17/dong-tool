@@ -1700,21 +1700,27 @@
   .ydl-pc { color: var(--silver); text-align: center; } .ydl-od { text-align: right; font-weight: 700; }
   .ydm-tip { display: flex; align-items: center; gap: 0.7rem; margin-top: 1rem; padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 10px; color: var(--silver); font-size: 0.92rem; }
   .ydm-tip svg { width: 22px; height: 22px; color: var(--gold); flex: none; }
+  /* Phones: the ladder moves INTO the distribution box, under the over/under
+     panels — it drives that chart — as a thin row of swipeable chips. */
+  .ydl-mob-wrap { display: none; }
   @media (max-width: 860px) {
     .ydm-grid { grid-template-columns: minmax(0, 1fr); }
-    .ydm-side { min-height: 0; padding: 0.9rem 0 0.9rem 0.9rem; }
-    .ydm-side-in { position: static; padding: 0; display: block; }
-    .ydm-side-in h4, .ydm-side-in .ydl-help { padding-right: 0.9rem; }
-    .ydl-head { display: none; }
-    .ydm-side-in .ydl { display: flex; gap: 0.5rem; overflow-x: auto; scroll-snap-type: x proximity; padding: 0.15rem 0.9rem 0.5rem 0.15rem;
-      -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
-    .ydm-side-in .ydl-row { flex: 0 0 5.6rem; display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
-      padding: 0.6rem 0.3rem; text-align: center; scroll-snap-align: center; }
-    .ydl-row.on::before { display: none; }
-    .ydl-ln { font-size: 1.15rem; } .ydl-ln small { display: block; margin: 0.1rem 0 0; }
-    .ydl-pc, .ydl-od, .ydl-un { text-align: center; }
-    .ydl-od::before { content: 'o '; color: var(--muted); font-weight: 400; }
-    .ydl-un::before { content: 'u '; color: var(--muted); }
+    .ydm-side { display: none; }
+    .ydl-mob-wrap { display: block; margin: 0.7rem -0.8rem -0.2rem; }
+    .ydl.ydl-mob { display: flex; gap: 0.4rem; overflow-x: auto; scroll-snap-type: x proximity; padding: 0.1rem 0.8rem 0.35rem;
+      -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .ydl.ydl-mob::-webkit-scrollbar { display: none; }
+    .ydl-mob .ydl-row { flex: 0 0 4.3rem; display: grid; grid-template-columns: 1fr; justify-items: center; gap: 0;
+      padding: 0.32rem 0.2rem 0.3rem; border-radius: 8px; text-align: center; scroll-snap-align: center; font-size: 0.9rem; }
+    .ydl-mob .ydl-row.on::before { display: none; }
+    .ydl-mob .ydl-ln { font-size: 0.98rem; line-height: 1.15; }
+    .ydl-mob .ydl-ln small { display: none; }
+    .ydl-mob .ydl-row.on .ydl-ln::after { content: ''; }
+    .ydl-mob .ydl-pc { display: none; }
+    .ydl-mob .ydl-od { font-size: 0.82rem; line-height: 1.2; text-align: center; }
+    .ydl-mob .ydl-un { font-size: 0.7rem; line-height: 1.15; text-align: center; }
+    .ydl-mob .ydl-od::before { content: 'o '; color: var(--muted); font-weight: 400; }
+    .ydl-mob .ydl-un::before { content: 'u '; color: var(--muted); }
   }
   @media (max-width: 620px) {
     .pm.ydm { padding: 1rem 0.8rem 0.9rem; }
@@ -5055,6 +5061,9 @@ let pairStacks = false;
               <div class="ydc-wrap">${ydChart(r, D)}</div>
               <div class="ydm-probs" id="ydm-probs">${side.probs}</div>
             </div>
+            <div class="ydl-mob-wrap" aria-label="Line ladder">
+              <div class="ydl ydl-mob" id="ydm-ladder-m">${side.ladder}</div>
+            </div>
           </section>
           <section class="ydm-panel ydm-keys"><h4>Key metrics</h4><div class="ydk-row">${ydMetrics(r)}</div></section>
         </div>
@@ -5113,14 +5122,14 @@ let pairStacks = false;
     const r = ydRow(); if (!r) return;
     const side = ydSide(r);
     const set = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
-    set('ydm-probs', side.probs); set('ydm-ladder', side.ladder);
+    set('ydm-probs', side.probs); set('ydm-ladder', side.ladder); set('ydm-ladder-m', side.ladder);
     ydCenterRung();
     const wrap = document.querySelector('#yd-back .ydc-wrap'); if (wrap) wrap.innerHTML = ydChart(r, ydDist(r));
   }
   function ydCenterRung() {
-    const box = document.getElementById('ydm-ladder'), on = box?.querySelector('.ydl-row.on');
+    const box = document.getElementById('ydm-ladder-m'), on = box?.querySelector('.ydl-row.on');
     if (!box || !on || box.scrollWidth <= box.clientWidth) return;
-    box.scrollLeft = on.offsetLeft - (box.clientWidth - on.offsetWidth) / 2;
+    box.scrollLeft = on.offsetLeft - box.offsetLeft - (box.clientWidth - on.offsetWidth) / 2;
   }
   window.openYds = openYds;
   window.ydSetLine = (x) => { ydm.line = x; ydRefreshLine(); };
