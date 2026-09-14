@@ -419,20 +419,37 @@ async function main() {
   // so a chase stays current mid-season without refetching 27 years.
   const career = JSON.parse(
     fs.readFileSync(new URL('../research/career_tds.json', import.meta.url), 'utf8'));
+  const fileThrough = career.through;
   if (HISTORY_SEASON > career.through) {
+    // Same definition as the file: regular-season rushing + receiving scores.
+    // The recap also carries return and defensive touchdowns, and playoff weeks.
     const since = {};
-    for (const wk of weeks) for (const t of (tdRecap[wk] || [])) if (t.pid) since[t.pid] = (since[t.pid] || 0) + 1;
+    for (const wk of weeks) {
+      if (+wk > REG_WEEKS) continue;
+      for (const t of (tdRecap[wk] || []))
+        if (t.pid && (t.type === 'rush' || t.type === 'rec')) since[t.pid] = (since[t.pid] || 0) + 1;
+    }
     let bumped = 0;
     for (const [pid, n] of Object.entries(since)) {
-      if (career.players[pid]) { career.players[pid].t += n; bumped++; }
+      if (career.players[pid]) { career.players[pid].t += n; career.players[pid].ls = HISTORY_SEASON; bumped++; }
     }
     career.through = HISTORY_SEASON;
     console.log(`  career TDs: added ${HISTORY_SEASON} for ${bumped} players`);
   }
+  // Who is still playing. The file only knows each player's last season WITH
+  // A TOUCHDOWN, so the moment a new season starts every veteran looks retired
+  // until he scores — which emptied the board on opening week. Active means on
+  // this week's Picks board (active rosters) or holding a stat line this season
+  // (agg, from the weekly stats), so a bye week doesn't drop anyone. Last
+  // season is the fallback if Picks failed.
+  const activeNow = new Map((picks?.picks ?? []).map(p => [p.pid, p]));
   const milestones = (() => {
     const rungs = career.rungs, out = [];
     for (const [pid, v] of Object.entries(career.players)) {
-      if (v.ls < career.through) continue;                 // retired / inactive
+      const live = activeNow.get(pid);
+      // on this week's board, or has recorded a stat this season (covers byes)
+      if (activeNow.size ? !live && !agg[pid] && v.ls < HISTORY_SEASON : v.ls < fileThrough) continue;
+      if (live) { v.tm = live.team; v.p = live.pos || v.p; }
       const next = rungs.find(r => r > v.t);
       // Cap at a distance someone could cover inside a season, so the board is
       // people actually approaching something rather than the whole league.

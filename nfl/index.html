@@ -4651,15 +4651,15 @@ let pairStacks = false;
     for (const g of (byWeek[w] || [])) {
       if (g.total == null) continue;
       const half = g.total / 2, edge = (g.spread ?? 0) / 2;
-      ctx[g.home] = { opp: g.away, oppImp: half - edge, home: 1 };
-      ctx[g.away] = { opp: g.home, oppImp: half + edge, home: 0 };
+      ctx[g.home] = { opp: g.away, oppImp: half - edge, home: 1, gameId: g.gameId };
+      ctx[g.away] = { opp: g.home, oppImp: half + edge, home: 0, gameId: g.gameId };
     }
     const off = {};
     for (const p of (nflData.picks?.picks || [])) off[p.pid] = p;
     const expK = (oi) => Math.max(0, M.kick_fit.a + M.kick_fit.b * oi);
     const expP = (oi) => Math.max(0, M.punt_fit.a + M.punt_fit.b * oi);
 
-    const rows = R.filter(r => ctx[r.team]).map(r => {
+    const rows = dayScope(R.filter(r => ctx[r.team]).map(r => {
       const c = ctx[r.team];
       const kr = expK(c.oppImp) * r.krShare, pr = expP(c.oppImp) * r.prShare;
       const ret = kr * M.kick_td_rate + pr * M.punt_td_rate;
@@ -4672,13 +4672,13 @@ let pairStacks = false;
       const o = known ? off[r.pid].p : 0;
       const both = 1 - (1 - o) * (1 - ret);
       return { ...r, ...c, expK: kr, expP: pr, ret, off: o, known, both, add: ret };
-    }).filter(r => r.expK + r.expP >= 0.5)
+    })).filter(r => r.expK + r.expP >= 0.5)
       // Rows we can price fully come first — a complete number is more use than
       // a bigger incomplete one — then by how much return work he actually gets.
       .sort((a, b) => (b.known - a.known) || (b.add - a.add));
-    if (!rows.length) { el.innerHTML = '<div class="empty">No returners on this week\'s slate yet — fills in once the games have lines.</div>'; return; }
+    const meta = `<div class="pb-head"><span class="pb-week">${WK_LABEL(w)}</span><span class="pb-meta">ranked by what the return role <b>adds</b> to his anytime price</span></div>${dayBar()}`;
+    if (!rows.length) { el.innerHTML = meta + '<div class="empty">No returners left on this slate — pick another day above.</div>'; return; }
 
-    const meta = `<div class="pt-meta">Week ${w} · ranked by what the return role <b>adds</b> to his anytime price.</div>`;
     const cards = rows.slice(0, 40).map((r, i) => `
       <div class="pb-card"${off[r.pid] ? ` onclick="openPick('${r.pid}')"` : ''}>
         <div class="pb-rank">${i + 1}</div>${faceHtml(r.pid, r.name)}
@@ -5050,7 +5050,9 @@ let pairStacks = false;
       <div class="hm-row">${faceHtml(r.pid, r.name)}
         <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} ${r.home ? 'vs' : '@'} ${r.opp} · over 0.5</span></span>
         <span class="hm-score hot">${pbOdds(r.p['0.5'] ?? r.p[0.5])}</span></div>`).join('');
-    const retRows = (nflData.returners || []).slice(0, 3).map(r => `
+    const teamGame = {};
+    for (const g of (nflData.schedule || [])) if (g.week === (P?.week ?? w)) { teamGame[g.home] = g.gameId; teamGame[g.away] = g.gameId; }
+    const retRows = upcoming((nflData.returners || []).filter(r => teamGame[r.team]).map(r => ({ ...r, gameId: teamGame[r.team] }))).slice(0, 3).map(r => `
       <div class="hm-row">${faceHtml(r.pid, r.name)}
         <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} · ${Math.round(r.prShare * 100)}% punts · ${Math.round(r.krShare * 100)}% kicks</span></span>
         <span class="hm-score warm">${r.pr + r.kr}<span class="hm-subtle" style="font-size:0.766rem"> ret</span></span></div>`).join('');
