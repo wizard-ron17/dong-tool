@@ -36,7 +36,14 @@ const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g
 // The multi-sport landing + Tud Tool live outside the MLB (/mlb) route tree.
 const LANDING = { title: "Ron's Tools", desc: "Ron's sports tools — MLB home run picks (Dong Tool), football touchdowns (Tud Tool), and more. Inspired by Green Means Go." };
 const NFL_ROUTES = {
-  '':      { title: "Ron's Tud Tool", desc: "NFL touchdowns — every score by week, TD leaders, schedule, and the correlated-parlay Pairs tool." },
+  '':      { title: "Ron's Tud Tool", desc: "NFL touchdown prices, receptions and completions projections, TD leaders, schedule, and the correlated-parlay Pairs tool." },
+  picks:   { title: "TD Picks · Ron's Tud Tool", desc: "Every skill player on the slate, priced to score a touchdown — and every starting QB, priced to throw one." },
+  receptions: { title: "Receptions · Ron's Tud Tool", desc: "Projected catches for every pass-catcher on the slate, priced against the standard lines." },
+  completions: { title: "Completions · Ron's Tud Tool", desc: "Projected completions for every starting quarterback, priced against the standard lines." },
+  returners: { title: "Returners · Ron's Tud Tool", desc: "Who takes the punts and kickoffs, and what that adds to his anytime touchdown price." },
+  due:     { title: "Due for a TD · Ron's Tud Tool", desc: "Heavy red-zone workload, no touchdown to show for it — the guys whose usage has outrun their scoring." },
+  milestones: { title: "TD Milestones · Ron's Tud Tool", desc: "Who is closing in on a career touchdown milestone — 50, 100, 150, 200." },
+  birthdays: { title: "Birthdays · Ron's Tud Tool", desc: "Who is playing on or near his birthday — and whether birthday boys actually find the end zone." },
   pairs:   { title: "TD Pairs · Ron's Tud Tool", desc: "Which players score touchdowns in the same week — the correlated lens for building weekly TD parlays." },
   recap:   { title: "TD Recap · Ron's Tud Tool", desc: "Every touchdown of the season by week — rushing, receiving, and defensive/ST scores with distances." },
   stats:   { title: "TD Leaders · Ron's Tud Tool", desc: "Season touchdown leaders — total, rushing, receiving, defensive, special-teams, and first-TD counts." },
@@ -67,6 +74,7 @@ export default async (request, context) => {
   try {
     const ct = res.headers.get('content-type') || '';
     if (!ct.includes('text/html')) return res; // only touch HTML documents
+    if (res.status === 404) return res;         // keep the 404 page's own title
     const url = new URL(request.url);
     const m = metaFor(url.pathname);
     const html = await res.text();

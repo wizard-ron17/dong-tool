@@ -26,9 +26,6 @@
   to = "/nfl/index.html"
   status = 200
 
-# Everything else falls to the landing page (which also client-redirects any
-# legacy top-level MLB link like /picks -> /mlb/picks).
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# No catch-all: any other path that isn't a real file gets Netlify's automatic
+# 404.html with a real 404 status. That page also forwards legacy top-level MLB
+# links (/picks -> /mlb/picks) before showing "not found".
