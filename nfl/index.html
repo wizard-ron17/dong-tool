@@ -1678,20 +1678,15 @@
   /* the deck arrows sit outside the wide card, not on top of the chart */
   #yd-back .pk-side-prev { left: max(6px, calc(50% - 510px - 52px)); }
   #yd-back .pk-side-next { right: max(6px, calc(50% - 510px - 52px)); }
-  .ydm-input { width: 100%; box-sizing: border-box; background: color-mix(in srgb, var(--good) 7%, var(--surface0)); border: 1px solid color-mix(in srgb, var(--good) 35%, var(--border2));
-    color: var(--text-strong); font-family: var(--font-d); font-size: 1.6rem; font-weight: 700; padding: 0.5rem 0.8rem; border-radius: 10px; outline: none; }
-  .ydm-input:focus { border-color: var(--good); }
-  .yde { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.9rem 0 1rem; margin-bottom: 0.9rem; border-bottom: 1px solid var(--border); }
-  .yde-l { display: flex; flex-direction: column; gap: 0.1rem; }
-  .yde-lbl { font-family: var(--font-d); font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--silver); }
-  .yde-l b { font-family: var(--font-d); font-size: 2.2rem; line-height: 1.05; }
-  .yde-sub { font-size: 0.74rem; color: var(--muted); }
-  .yde-badge { font-family: var(--font-d); font-weight: 700; font-size: 0.72rem; letter-spacing: 0.06em; padding: 0.3rem 0.55rem; border-radius: 6px; text-align: center; }
-  .yde-badge.good { color: var(--good); border: 1px solid color-mix(in srgb, var(--good) 50%, transparent); background: color-mix(in srgb, var(--good) 10%, transparent); }
-  .yde-badge.flat { color: var(--muted); border: 1px solid var(--border2); }
-  .ydl { display: grid; gap: 0.4rem; }
-  .ydl-row { display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; background: var(--surface0); border: 1px solid var(--border); border-radius: 8px;
-    padding: 0.55rem 0.8rem; color: var(--text); font-family: var(--font-d); font-size: 1rem; cursor: pointer; position: relative; text-align: left; }
+  .ydl-help { margin: -0.3rem 0 0.8rem; font-size: 0.82rem; color: var(--muted); }
+  .ydl-head, .ydl-row { display: grid; grid-template-columns: 1.25fr 0.9fr 1fr 1fr; align-items: center; }
+  .ydl-head { padding: 0 0.8rem 0.35rem; font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .ydl-head span:nth-child(n+2) { text-align: right; } .ydl-head span:nth-child(2) { text-align: center; }
+  .ydl { display: grid; gap: 0.38rem; }
+  .ydl-row { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px;
+    padding: 0.62rem 0.8rem; color: var(--text); font-family: var(--font-d); font-size: 1.02rem; cursor: pointer; position: relative; text-align: left; transition: border-color 0.12s, background 0.12s; }
+  .ydl-ln small { margin-left: 0.4rem; font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .ydl-un { text-align: right; color: var(--silver); font-size: 0.92rem; }
   .ydl-row:hover { border-color: var(--border2); }
   .ydl-row.on { border-color: var(--good); box-shadow: 0 0 0 1px var(--good) inset; background: color-mix(in srgb, var(--good) 8%, var(--surface0)); }
   .ydl-row.on::before { content: ''; position: absolute; left: -9px; top: 50%; transform: translateY(-50%); border: 7px solid transparent; border-left-color: var(--good); border-right: 0; }
@@ -4819,14 +4814,24 @@ let pairStacks = false;
   }
   const ydStep = (mk) => mk === 'pass' ? 10 : 5;
   // a book-style line just under his median: 265 -> o264.5, 73.9 -> o69.5
-  const ydLine = (mk, med) => Math.max(0.5, Math.floor(med / ydStep(mk)) * ydStep(mk) - 0.5);
+  // Book-style lines sit on x4.5 / x9.5 (x9.5 for passing). The default is the
+  // rung closest to even money — the first rung under the median always leaned
+  // over (Worthy: 24.5 at -141 when 29.5 is -101).
+  const ydRungs = (mk, med, below, above) => {
+    const st = ydStep(mk), base = Math.floor(med / st) * st - 0.5;
+    const out = [];
+    for (let k = -below; k <= above; k++) { const x = base + k * st; if (x > 0) out.push(x); }
+    return out;
+  };
+  const ydPick = (r, mk = ydF.mkt) =>
+    ydRungs(mk, r.med, 1, 2).reduce((b, x) => Math.abs(ydPOver(r.m, x, r.mu) - 0.5) < Math.abs(ydPOver(r.m, b, r.mu) - 0.5) ? x : b);
   function ydRows() {
     const q = pbNorm(ydF.q.trim());
     const all = nflData?.yards?.[ydF.mkt] || [];
     return dayScope(all)
       .filter(r => ydF.pos === 'ALL' || r.pos === ydF.pos)
       .sort((a, b) => ydF.sort === 'high' ? b.med - a.med : a.med - b.med)
-      .map((r, i) => { const L = ydLine(ydF.mkt, r.med); return { ...r, rank: i + 1, L, p: ydPOver(r.m, L, r.mu) }; })
+      .map((r, i) => { const L = ydPick(r); return { ...r, rank: i + 1, L, p: ydPOver(r.m, L, r.mu) }; })
       .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q) || pbNorm(r.pos) === q);
   }
   // the two or three numbers behind a card, per market
@@ -4995,19 +5000,18 @@ let pairStacks = false;
   function ydSide(r) {
     const L = ydm.line;
     const p = ydPOver(r.m, L, r.mu);
-    const edge = r.med - L;
-    // A book's -110 needs 52.4% to break even, so "edge" means clearing that.
-    const verdict = p >= 0.524 ? ['LEAN OVER', 'good'] : p <= 0.476 ? ['LEAN UNDER', 'good'] : ['NO EDGE AT −110', 'flat'];
-    const step = ydStep(ydF.mkt), L0 = ydLine(ydF.mkt, r.med);
-    const ladder = [-2, -1, 0, 1, 2, 3].map(i => L0 + i * step).filter(x => x > 0).map(x => {
+    const pick = ydPick(r);
+    const ladder = ydRungs(ydF.mkt, r.med, 5, 5).map(x => {
       const px = ydPOver(r.m, x, r.mu);
-      return `<button class="ydl-row${Math.abs(x - L) < 0.01 ? ' on' : ''}" onclick="ydSetLine(${x})"><span class="ydl-ln">${x}</span><span class="ydl-pc">${Math.round(px * 100)}%</span><span class="ydl-od ${px >= 0.5 ? 'goodc' : 'dogc'}">${pbOdds(px)}</span></button>`;
+      return `<button class="ydl-row${Math.abs(x - L) < 0.01 ? ' on' : ''}" onclick="ydSetLine(${x})" aria-pressed="${Math.abs(x - L) < 0.01}">
+        <span class="ydl-ln">${x}${Math.abs(x - pick) < 0.01 ? '<small>even</small>' : ''}</span>
+        <span class="ydl-pc">${Math.round(px * 100)}%</span>
+        <span class="ydl-od ${px >= 0.5 ? 'goodc' : 'dogc'}">${pbOdds(px)}</span>
+        <span class="ydl-un">${pbOdds(1 - px)}</span></button>`;
     }).join('');
     return {
       probs: `<div class="ydp"><span>Probability of going over ${L}</span><b>${Math.round(p * 100)}%</b><i><em style="width:${(p * 100).toFixed(1)}%"></em></i></div>
               <div class="ydp under"><span>Probability of going under ${L}</span><b>${Math.round((1 - p) * 100)}%</b><i><em style="width:${((1 - p) * 100).toFixed(1)}%"></em></i></div>`,
-      edge: `<div class="yde-l"><span class="yde-lbl">Edge</span><b class="${edge >= 0 ? 'goodc' : 'dogc'}">${edge >= 0 ? '+' : '−'}${Math.abs(edge).toFixed(1)}</b><span class="yde-sub">vs median · o ${pbOdds(p)} · u ${pbOdds(1 - p)}</span></div>
-             <span class="yde-badge ${verdict[1]}">${verdict[0]}</span>`,
       ladder,
     };
   }
@@ -5032,10 +5036,9 @@ let pairStacks = false;
           <section class="ydm-panel ydm-keys"><h4>Key metrics</h4><div class="ydk-row">${ydMetrics(r)}</div></section>
         </div>
         <aside class="ydm-panel ydm-side">
-          <h4 class="accent">Your book's line</h4>
-          <input type="number" inputmode="decimal" step="0.5" id="ydm-input" class="ydm-input" placeholder="e.g. ${ydLine(ydF.mkt, r.med)}" value="${ydm.line}" oninput="ydInput(this.value)">
-          <div class="yde" id="ydm-edge">${side.edge}</div>
-          <h4>The ladder</h4>
+          <h4 class="accent">The ladder</h4>
+          <p class="ydl-help">Tap a line to see it on the chart. Fair odds, no vig.</p>
+          <div class="ydl-head"><span>Line</span><span>Chance</span><span>Over</span><span>Under</span></div>
           <div class="ydl" id="ydm-ladder">${side.ladder}</div>
         </aside>
       </div>`;
@@ -5057,7 +5060,7 @@ let pairStacks = false;
 
   function openYds(pid, m) {
     const r = (nflData?.yards?.[ydF.mkt] || []).find(x => x.pid === pid && (!m || x.m === m)); if (!r) return;
-    Object.assign(ydm, { pid, m: r.m, line: ydLine(ydF.mkt, r.med) });
+    Object.assign(ydm, { pid, m: r.m, line: ydPick(r) });
     if (!document.getElementById('yd-back')) {
       document.body.insertAdjacentHTML('beforeend', `
         <div class="pm-back" id="yd-back" onclick="if(event.target===this)closeYds()">
@@ -5073,23 +5076,26 @@ let pairStacks = false;
   function ydKey(e) {
     if (!document.getElementById('yd-back')) return;
     if (e.key === 'Escape') closeYds();
-    else if (e.target?.id !== 'ydm-input' && e.key === 'ArrowLeft') ydStepTo(-1);
-    else if (e.target?.id !== 'ydm-input' && e.key === 'ArrowRight') ydStepTo(1);
+    else if (e.key === 'ArrowLeft') ydStepTo(-1);
+    else if (e.key === 'ArrowRight') ydStepTo(1);
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {       // walk the ladder
+      e.preventDefault();
+      const x = ydm.line + (e.key === 'ArrowUp' ? -1 : 1) * ydStep(ydF.mkt);
+      if (x > 0) window.ydSetLine(x);
+    }
   }
-  // Typing only refreshes the pieces that depend on the line, so the input
-  // keeps focus (the same trap the board searches fell into).
+  // A rung click only refreshes what depends on the line, not the whole card.
   function ydRefreshLine() {
     const r = ydRow(); if (!r) return;
     const side = ydSide(r);
     const set = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
-    set('ydm-probs', side.probs); set('ydm-edge', side.edge); set('ydm-ladder', side.ladder);
+    set('ydm-probs', side.probs); set('ydm-ladder', side.ladder);
     const wrap = document.querySelector('#yd-back .ydc-wrap'); if (wrap) wrap.innerHTML = ydChart(r, ydDist(r));
   }
   window.openYds = openYds;
-  window.ydInput = (v) => { const x = parseFloat(v); if (x > 0) { ydm.line = x; ydRefreshLine(); } };
-  window.ydSetLine = (x) => { ydm.line = x; const i = document.getElementById('ydm-input'); if (i) i.value = x; ydRefreshLine(); };
+  window.ydSetLine = (x) => { ydm.line = x; ydRefreshLine(); };
   window.closeYds = () => { document.getElementById('yd-back')?.remove(); document.removeEventListener('keydown', ydKey); document.body.style.overflow = ''; ydm.pid = null; };
-  window.ydStepTo = (d) => { const deck = ydRows(), at = deck.findIndex(x => x.pid === ydm.pid), nx = deck[at + d]; if (!nx) return; Object.assign(ydm, { pid: nx.pid, m: nx.m, line: ydLine(ydF.mkt, nx.med) }); ydRender(); };
+  window.ydStepTo = (d) => { const deck = ydRows(), at = deck.findIndex(x => x.pid === ydm.pid), nx = deck[at + d]; if (!nx) return; Object.assign(ydm, { pid: nx.pid, m: nx.m, line: ydPick(nx) }); ydRender(); };
 
   function renderReturners() {
     const el = document.getElementById('returners-content'); if (!el) return;
