@@ -48,8 +48,14 @@ PBP = ["game_id", "season", "week", "season_type", "posteam", "defteam", "home_t
        "game_seconds_remaining"]
 
 
-def load_pbp():
+def load_pbp(port=False):
+    """port=True keeps exactly the rows the Node build reads (scripts/picks.js
+    loadPbpLogs): playoffs and two-point tries included. The snap-count pool
+    includes playoff games, so dropping their play-by-play would book every
+    playoff appearance as zero yards."""
     d = pd.concat([pd.read_parquet(f"{CACHE}/pbp_{y}.parquet", columns=PBP) for y in SEASONS], ignore_index=True)
+    if port:
+        return d[d.posteam.notna()]
     d = d[(d.season_type == "REG") & d.posteam.notna() & (d.two_point_attempt != 1)]
     return d
 
@@ -277,7 +283,7 @@ def live(d, ctx, dfp):
           f"{np.corrcoef(q.rest, q.y_h1)[0, 1]:+.2f}, with halftime margin {np.corrcoef(q.rest, q.diff_h1)[0, 1]:+.2f}")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and "--export" not in sys.argv:
     d = load_pbp()
     ctx = game_ctx(d)
     dfp = def_priors(defense_table(d))
@@ -286,3 +292,182 @@ if __name__ == "__main__":
     else:
         passing(d, ctx, dfp)
         skill(d, ctx, dfp)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# EXPORT — the shipped models, with every feature built the way the Node port
+# (scripts/yards.js) can reproduce it:
+#   * priors: sum over the player's pool games inside a 2-season as-of window,
+#     shrunk k=3 toward the POSITION mean (the build_receptions.form rule)
+#   * last-3: mean of his last three pool games, zeros included
+#   * rates (yards per target / carry): windowed sums, shrunk toward league
+# Pricing is not parametric: P(yards > line) comes from the out-of-sample
+# distribution of actual/projection, stored as quantiles within projection
+# quintiles, so the skew (receiving mean 42, median 34) prices itself.
+# ════════════════════════════════════════════════════════════════════════════
+import json
+
+K = 3.0
+QN = 41                     # stored quantiles of the ratio distribution
+
+
+def form(df, col, out, group="position", k=K, window=2):
+    df = df.sort_values(["pid", "season", "week"]).reset_index(drop=True)
+    g = df.groupby("pid", sort=False)[col]
+    s = (g.cumsum() - df[col]).to_numpy(float)
+    n = g.cumcount().to_numpy(float)
+    per = df.groupby(["pid", "season"])[col].agg(s="sum", n="size").reset_index().sort_values(["pid", "season"])
+    pg = per.groupby("pid"); per["cs"] = pg["s"].cumsum(); per["cn"] = pg["n"].cumsum()
+    left = pd.DataFrame({"pid": df.pid.values, "key": df.season.values - window, "_i": np.arange(len(df))}).sort_values("key")
+    a = pd.merge_asof(left, per[["pid", "season", "cs", "cn"]].sort_values("season"), left_on="key", right_on="season",
+                      by="pid", direction="backward").sort_values("_i")
+    s = np.maximum(s - a.cs.fillna(0).to_numpy(), 0)
+    n = np.maximum(n - a.cn.fillna(0).to_numpy(), 0)
+    m = df.groupby(group)[col].transform("mean").to_numpy(float) if group else np.full(len(df), df[col].mean())
+    df[out] = (s + k * m) / (n + k)
+    df[out + "_sum"] = s; df["n_win"] = n
+    return df
+
+
+def last3(df, col, out):
+    df = df.sort_values(["pid", "season", "week"]).reset_index(drop=True)
+    df[out] = df.groupby("pid")[col].transform(lambda x: x.shift(1).rolling(3, min_periods=1).mean())
+    df[out] = df[out].fillna(0.0)
+    return df
+
+
+def skill_frame(d):
+    pool = pd.read_parquet(os.path.join(HERE, "receptions.parquet"))[
+        ["season", "week", "game_id", "pid", "player", "position", "team", "tgt", "snap_pct", "tgt_share",
+         "implied_total", "spread_own", "games_prior"]]
+    rec = d[d.receiver_player_id.notna() & (d.pass_attempt == 1)].groupby(["game_id", "receiver_player_id"], as_index=False).agg(
+        ryds=("receiving_yards", "sum")).rename(columns={"receiver_player_id": "pid"})
+    ru = d[d.rusher_player_id.notna() & (d.rush_attempt == 1)].groupby(["game_id", "rusher_player_id"], as_index=False).agg(
+        rush=("rushing_yards", "sum"), car=("rush_attempt", "sum")).rename(columns={"rusher_player_id": "pid"})
+    q = pool.merge(rec, on=["game_id", "pid"], how="left").merge(ru, on=["game_id", "pid"], how="left")
+    q[["ryds", "rush", "car"]] = q[["ryds", "rush", "car"]].fillna(0)
+    # target share over ALL of the team's targets, as the port computes it —
+    # receptions.parquet divides by the snap pool's targets only
+    tt = d[d.receiver_player_id.notna() & (d.pass_attempt == 1)].groupby(["game_id", "posteam"], as_index=False).agg(
+        team_tgt_all=("pass_attempt", "sum")).rename(columns={"posteam": "team"})
+    q = q.merge(tt, on=["game_id", "team"], how="left")
+    q["tgt_share"] = q.tgt / q.team_tgt_all.clip(lower=1)
+    q["rr"] = q.ryds + q.rush
+    for c in ("ryds", "tgt", "rush", "car", "rr"):
+        q = form(q, c, c + "_prior")
+    for c in ("ryds", "car", "rush", "snap_pct", "tgt_share", "rr"):
+        q = last3(q, c, c + "_l3")
+    q = q.rename(columns={"snap_pct_l3": "snap_l3", "tgt_share_l3": "share_l3"})
+    lg_ypt = q.ryds.sum() / q.tgt.sum(); lg_ypc = q.rush.sum() / max(q.car.sum(), 1)
+    q["ypt"] = (q.ryds_prior_sum + 40 * lg_ypt) / (q.tgt_prior_sum + 40)
+    q["ypc"] = (q.rush_prior_sum + 60 * lg_ypc) / (q.car_prior_sum + 60)
+    return q, {"ypt": float(lg_ypt), "ypc": float(lg_ypc)}
+
+
+def qb_frame(d, ctx):
+    p = d[d.pass_attempt == 1]
+    qb = p.groupby(["game_id", "season", "week", "posteam", "passer_player_id"], as_index=False).agg(
+        att=("pass_attempt", "sum"), pyds=("passing_yards", "sum"))
+    qb = qb.sort_values("att", ascending=False).groupby(["game_id", "posteam"], as_index=False).first()
+    qb = qb[qb.att >= 10].rename(columns={"posteam": "team", "passer_player_id": "pid"}).copy()
+    ru = d[d.rusher_player_id.notna() & (d.rush_attempt == 1)].groupby(["game_id", "rusher_player_id"], as_index=False).agg(
+        rush=("rushing_yards", "sum"), car=("rush_attempt", "sum")).rename(columns={"rusher_player_id": "pid"})
+    qb = qb.merge(ru, on=["game_id", "pid"], how="left")
+    qb[["pyds", "rush", "car"]] = qb[["pyds", "rush", "car"]].fillna(0)
+    qb["position"] = "QB"
+    for c in ("pyds", "att", "rush", "car"):
+        qb = form(qb, c, c + "_prior")
+    for c in ("pyds", "rush", "car"):
+        qb = last3(qb, c, c + "_l3")
+    qb = qb.merge(ctx[["game_id", "team", "implied", "fav"]], on=["game_id", "team"], how="left")
+    qb = qb.rename(columns={"implied": "implied_total", "fav": "spread_own"})
+    qb["games_prior"] = qb.groupby("pid").cumcount()
+    return qb
+
+
+MARKETS = {
+    # key: (label, target, population filter on prior features, features)
+    "pass":   ("Passing yards (starting QB)", "pyds", lambda q: q.position == "QB",
+               ["pyds_prior", "att_prior", "implied_total", "spread_own"]),
+    "qbrush": ("Rushing yards (starting QB)", "rush", lambda q: q.position == "QB",
+               ["rush_prior", "car_prior", "rush_l3", "car_l3", "implied_total", "spread_own"]),
+    "rush":   ("Rushing yards (RB, 4+ carries)", "rush", lambda q: (q.position == "RB") & (q.car_prior >= 4),
+               ["rush_prior", "car_prior", "implied_total", "spread_own", "snap_l3", "car_l3", "rush_l3", "ypc"]),
+    "rec":    ("Receiving yards (2+ targets)", "ryds", lambda q: q.position.isin(["WR", "TE", "RB"]) & (q.tgt_prior >= 2),
+               ["ryds_prior", "tgt_prior", "implied_total", "spread_own", "snap_l3", "share_l3", "ryds_l3", "ypt"]),
+    "rr":     ("Rush + receiving yards", "rr", lambda q: q.position.isin(["WR", "TE", "RB"]) & (q.tgt_prior + q.car_prior >= 5),
+               ["rr_prior", "ryds_prior", "rush_prior", "tgt_prior", "car_prior", "implied_total", "spread_own",
+                "snap_l3", "share_l3", "car_l3", "rr_l3"]),
+}
+
+
+def ratio_table(t, y):
+    """Quantiles of actual/projection within projection quintiles (out-of-sample)."""
+    edges = np.quantile(t.mu, [0.2, 0.4, 0.6, 0.8])
+    b = np.searchsorted(edges, t.mu)
+    qs = np.linspace(0, 1, QN)
+    buckets = []
+    for i in range(5):
+        r = (t[y] / t.mu.clip(lower=1e-6))[b == i]
+        buckets.append([round(float(v), 4) for v in np.quantile(r, qs)])
+    return [round(float(e), 2) for e in edges], buckets
+
+
+def p_over_tab(line, mu, edges, buckets):
+    b = np.searchsorted(edges, mu)
+    out = np.empty(len(mu))
+    qs = np.linspace(0, 1, QN)
+    for i in range(5):
+        m = b == i
+        if m.any():
+            out[m] = 1 - np.interp(line[m] / np.maximum(mu[m], 1e-6), buckets[i], qs, left=0, right=1)
+    return np.clip(out, 0.005, 0.995)
+
+
+def export():
+    d = load_pbp(port=True); ctx = game_ctx(d)
+    skill, lg = skill_frame(d)
+    qb = qb_frame(d, ctx)
+    out = {"note": ("NFL yards. One quasi-Poisson log-link mean per market on 2-season windowed priors "
+                    "shrunk toward the position mean; priced from the out-of-sample distribution of "
+                    "actual/projection within projection quintiles."),
+           "shrink_k": K, "window": 2, "league": lg, "markets": {}}
+    for key, (lab, y, pop, fs) in MARKETS.items():
+        base = qb if key in ("pass", "qbrush") else skill
+        q = base[pop(base) & (base.games_prior >= 3)].dropna(subset=fs + [y]).copy()
+        q["line"] = np.floor(q[y + "_prior"]) + 0.5
+        mae, ll, t = walk(q, fs, y, "line")
+        # naive: his own prior as the projection
+        mae_naive = float(np.abs(t[y] - t[y + "_prior"]).mean())
+        edges, buckets = ratio_table(t, y)
+        # calibration of the exported pricing, out-of-sample, at book-like lines
+        # around each projection
+        chk = []
+        for off in (-0.25, 0.0, 0.25):
+            L = np.floor(t.mu * np.exp(np.quantile(np.log(np.clip(t[y] / t.mu, 0.05, None)), 0.5)) * (1 + off)) + 0.5
+            p = p_over_tab(L.to_numpy(), t.mu.to_numpy(), edges, buckets)
+            chk.append((off, float(p.mean()), float((t[y] > L).mean())))
+        dec = pd.qcut(t.mu, 5, labels=False)
+        bias = t.groupby(dec).agg(mu=("mu", "mean"), act=(y, "mean"))
+        ref = {f: (float(q[f].mean()), float(q[f].std() + 1e-9)) for f in fs}
+        X = np.column_stack([np.ones(len(q))] + [(q[f] - ref[f][0]) / ref[f][1] for f in fs])
+        b = irls(X, q[y].clip(lower=0).to_numpy(float) / 10.0)
+        pos_means = {f: {p: float(v) for p, v in base.groupby("position")[f.replace("_prior", "")].mean().items()}
+                     for f in fs if f.endswith("_prior")}
+        out["markets"][key] = {
+            "label": lab, "target": y, "features": fs,
+            "coef": {n: float(v) for n, v in zip(["intercept"] + fs, b)},
+            "scale": {f: {"mean": ref[f][0], "sd": ref[f][1]} for f in fs},
+            "position_means": pos_means,
+            "ratio_edges": edges, "ratio_q": buckets, "n": int(len(q)),
+        }
+        print(f"\n{lab}: n={len(q):,} walk-forward MAE {mae:.1f} (his own average: {mae_naive:.1f}) · own-average line log loss {ll:.4f}")
+        print("  pricing check (said vs hit) at lines 25% below / at / 25% above the median:",
+              "  ".join(f"{int(o * 100):+d}%: {s:.3f}/{h:.3f}" for o, s, h in chk))
+        print("  projection quintiles (proj -> actual mean):", "  ".join(f"{r.mu:.0f}->{r.act:.0f}" for _, r in bias.iterrows()))
+    json.dump(out, open(os.path.join(HERE, "yards_model.json"), "w"), indent=1)
+    print("\nwrote yards_model.json")
+
+
+if __name__ == "__main__" and "--export" in sys.argv:
+    export()

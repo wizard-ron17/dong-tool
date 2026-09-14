@@ -1625,6 +1625,14 @@
   .lr-bt[open] > summary { margin-bottom: 0.7rem; }
   .lr-note { font-size: 0.78rem; color: var(--muted); margin-top: 0.6rem; line-height: 1.45; }
   /* A finished game's result, right on the board card */
+  /* Yards: "your book's line" checker in the player card */
+  .yd-check { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+  .yd-check input { width: 7rem; background: var(--surface1); border: 1px solid var(--border2); color: var(--text-strong);
+    font-family: var(--font-d); font-size: 1.1rem; font-weight: 700; padding: 0.35rem 0.6rem; border-radius: 8px; outline: none; }
+  .yd-check input:focus { border-color: var(--accent); }
+  .yd-check-out { font-size: 0.9rem; color: var(--muted); }
+  .yd-check-out b { font-family: var(--font-d); font-size: 1.05rem; }
+  .yd-mkts { grid-template-columns: repeat(3, 1fr); }
   /* Day-by-day slate switch, shared by every weekly board */
   .day-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin: 0 0 0.6rem; }
   .day-bar .pbf-chip.done:not(.on) { color: var(--dim); }
@@ -2153,6 +2161,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h11a5 5 0 0 1 0 10H9"/><path d="M12 14l-3 3 3 3"/></svg>
         <span><span class="nm-name">Interceptions <span class="nm-new">NEW</span></span><span class="nm-desc">Which QBs throw a pick</span></span>
       </button>
+      <button class="nav-menu-item" data-nav="yards" onclick="switchNav('yards')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="8" width="19" height="8" rx="1.5"/><path d="M6.5 8v3M10.5 8v4.5M14.5 8v3M18.5 8v4.5"/></svg>
+        <span><span class="nm-name">Yards <span class="nm-new">NEW</span></span><span class="nm-desc">Passing, rushing, receiving</span></span>
+      </button>
       <button class="nav-menu-item" data-nav="returners" onclick="switchNav('returners')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="14.5" cy="4" r="2"/><path d="M13 7.6 L10 13"/><path d="M13.2 9 L17.5 11.2"/><path d="M11.6 9.8 L7.5 8.6"/><path d="M10 13 L13 16 L12.4 21"/><path d="M10 13 L6.2 16.8"/></svg>
         <span><span class="nm-name">Returners <span class="nm-new">NEW</span></span><span class="nm-desc">Punt and kick return volume</span></span>
@@ -2414,6 +2426,27 @@
     </div>
     <div id="interceptions-content"><div class="empty">Loading&hellip;</div></div>
   </div>
+  <div id="panel-yards" class="panel">
+    <div class="due-explainer" id="yards-explainer-toggle" onclick="toggleExplainer('yards')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Yards Works</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="yards-explainer-chevron">&#9654;</span>
+      </div>
+      <div class="due-explainer-teaser">Projected passing, rushing and receiving yards for everyone on the slate, priced at any line.</div>
+      <div class="due-explainer-body" id="yards-explainer-body" style="display:none">
+        <ul>
+          <li><b>The median is the number.</b> Yards are lopsided &mdash; one long catch drags the average up &mdash; so a book's line sits near the <em>median</em>, and that is what each card leads with.</li>
+          <li><b>Passing.</b> A quarterback's own yards and attempts, plus how many points his team is expected to score and the spread. We tested yards per attempt, EPA, completion % over expected, depth of throws, sack rate, and every defensive stat &mdash; none of them added anything once the Vegas total was in.</li>
+          <li><b>Rushing and receiving.</b> His averages, then his <b>recent role</b>: carries, targets, snap share and target share over his last three games. That recent workload is the strongest signal we found; the opposing defense again added nothing.</li>
+          <li><b>Quarterbacks run too.</b> Rushing includes starting QBs on their own model &mdash; filter by position to see them.</li>
+          <li><b>Any line.</b> Prices come from how real games spread around the projection, not a textbook curve. Open a player and type your book's line to get the fair over and under.</li>
+          <li><b>Honest scale.</b> A projection misses by about 21 receiving, 24 rushing and 57 passing yards on an average game. The edge is in where we differ from the line, not in the number being exact.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="yards-content"><div class="empty">Loading&hellip;</div></div>
+  </div>
   <div id="panel-receptions" class="panel">
     <div class="due-explainer" id="receptions-explainer-toggle" onclick="toggleExplainer('receptions')" aria-expanded="false">
       <div class="due-explainer-head">
@@ -2516,7 +2549,7 @@
   function closeSportMenu() { document.getElementById('sport-menu')?.classList.remove('open'); document.getElementById('sport-switch-btn')?.classList.remove('open'); }
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch')) closeSportMenu(); });
 
-  const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs', 'birthdays', 'due', 'milestones', 'returners', 'receptions', 'completions', 'interceptions']; // tools added here as they ship
+  const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs', 'birthdays', 'due', 'milestones', 'returners', 'receptions', 'completions', 'interceptions', 'yards']; // tools added here as they ship
   const PAGE_TITLES = { home: "Ron's Tud Tool", stats: "Stats · Ron's Tud Tool", recap: "Recap · Ron's Tud Tool", schedule: "Schedule · Ron's Tud Tool", pairs: "Pairs · Ron's Tud Tool", due: "Due · Ron's Tud Tool", milestones: "Milestones · Ron's Tud Tool", returners: "Returners · Ron's Tud Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
@@ -3341,6 +3374,15 @@
       const got = res?.rec?.[pid] ?? 0;
       return { pid, name, team, game: vs(team), p, line: 'o' + L, proj: mu?.toFixed(1), got: g.final ? got : '', st: state(pid, got > L) };
     });
+    if (kind === 'yds') {
+      const mk = ydF.mkt;
+      return (g.yds?.[mk] ?? []).map(([pid, name, team, pos, m, mu, med]) => {
+        const got = !res ? 0 : mk === 'pass' ? (res.pyds?.[pid] ?? 0) : mk === 'rush' ? (res.rush?.[pid] ?? 0)
+          : mk === 'rec' ? (res.ryds?.[pid] ?? 0) : (res.rush?.[pid] ?? 0) + (res.ryds?.[pid] ?? 0);
+        const L = Math.floor(med) + 0.5;
+        return { pid, name, team, game: vs(team), p: ydPOver(m, L, mu), line: 'o' + L, proj: med.toFixed(0), got: g.final ? got : '', st: state(pid, got > L), miss: Math.abs(got - med) };
+      });
+    }
     if (kind === 'int') return (g.int ?? []).map(([pid, name, team, mu, p05, p15]) => {
       const got = res?.ints?.[pid] ?? 0, L = inF.line;
       return { pid, name, team, game: vs(team), p: L === 1.5 ? p15 : p05, line: 'o' + L, proj: mu?.toFixed(2), got: g.final ? got : '', st: state(pid, got > L) };
@@ -3371,7 +3413,8 @@
 
     const rows = wk.flatMap(g => lrRows(kind, g)).filter(r => r.p != null);
     const ORDER = { hit: 0, miss: 0, void: 1, live: 2, pend: 3 };
-    rows.sort((a, b) => ORDER[a.st] - ORDER[b.st] || b.p - a.p);
+    // yards prices all sit near even money at the median line, so rank by the projection
+    rows.sort((a, b) => ORDER[a.st] - ORDER[b.st] || (kind === 'yds' ? +b.proj - +a.proj : b.p - a.p));
     const graded = rows.filter(r => r.st === 'hit' || r.st === 'miss');
     const byPrice = [...graded].sort((a, b) => b.p - a.p);
     const hits = (list) => list.filter(r => r.st === 'hit').length;
@@ -3380,7 +3423,12 @@
     const logged = rows.length;
 
     const noun = kind === 'td' ? (lrF.mkt === '5' ? 'hit' : 'scored') : 'went over';
-    const tiles = graded.length ? `
+    const tiles = graded.length && kind === 'yds' ? `
+      <div class="hm-tiles" style="margin-bottom:0.6rem">
+        <div class="hm-tile"><b>${hits(graded)}/${graded.length}</b><span>Over our median</span></div>
+        <div class="hm-tile"><b>${(graded.reduce((a, r) => a + r.miss, 0) / graded.length).toFixed(0)}</b><span>Avg miss, yds</span></div>
+        <div class="hm-tile"><b>${nFinal}/${wk.length}</b><span>Games final</span></div>
+      </div>` : graded.length ? `
       <div class="hm-tiles" style="margin-bottom:0.6rem">
         <div class="hm-tile"><b>${hits(top)}/${top.length}</b><span>Top ${top.length} ${noun}</span></div>
         <div class="hm-tile"><b>${hits(graded)}</b><span>Hit · we said ${said(graded).toFixed(0)}</span></div>
@@ -3399,7 +3447,7 @@
     const shown = lrF.all ? rows : rows.slice(0, LIMIT);
     const head = kind === 'td'
       ? `<div class="cp-res head"><span class="cp-res-nm">Player</span><span class="cp-res-line">Price</span><span class="cp-res-proj">${lrF.mkt === '5' ? 'Proj' : 'Chance'}</span><span class="cp-res-act">${lrF.mkt === '5' ? 'TD' : lrF.mkt === '3' || lrF.mkt === '4' ? '' : 'TD'}</span><span class="cp-res-tag"></span></div>`
-      : `<div class="cp-res head"><span class="cp-res-nm">${kind === 'cmp' || kind === 'int' ? 'QB' : 'Player'}</span><span class="cp-res-line">Line</span><span class="cp-res-proj">Proj</span><span class="cp-res-act">Got</span><span class="cp-res-tag"></span></div>`;
+      : `<div class="cp-res head"><span class="cp-res-nm">${kind === 'cmp' || kind === 'int' ? 'QB' : 'Player'}</span><span class="cp-res-line">Line</span><span class="cp-res-proj">${kind === 'yds' ? 'Median' : 'Proj'}</span><span class="cp-res-act">Got</span><span class="cp-res-tag"></span></div>`;
     const list = shown.map(r => `<div class="cp-res ${r.st}">
         <span class="cp-res-nm">${r.name}<span class="cp-res-tm">${r.game}</span></span>
         <span class="cp-res-line">${r.line || pbOdds(r.p)}${r.line ? `<span class="cp-res-od">${pbOdds(r.p)}</span>` : ''}</span>
@@ -3433,6 +3481,10 @@
     if (kind === 'rec') { const n = W.rec[r.pid] ?? 0; return chip(n > line, `${n} rec`); }
     if (kind === 'cmp') { const n = W.cmp[r.pid] ?? 0; return chip(n > line, `${n} cmp`); }
     if (kind === 'int') { const n = W.ints?.[r.pid] ?? 0; return chip(n > line, `${n} INT`); }
+    if (kind === 'yds') {
+      const n = r.m === 'pass' ? W.pyds?.[r.pid] : r.m === 'rec' ? W.ryds?.[r.pid] : r.m === 'rr' ? (W.rush?.[r.pid] ?? 0) + (W.ryds?.[r.pid] ?? 0) : W.rush?.[r.pid];
+      return chip((n ?? 0) > line, `${n ?? 0} yds`);
+    }
     if (kind === '5') { const n = W.ptd[r.pid] ?? 0; return chip(n >= 2, `${n} pass TD`); }
     if (kind === '3') return chip(g.first === r.pid, g.first === r.pid ? '1st TD' : 'not 1st');
     if (kind === '4') return chip(g.last === r.pid, g.last === r.pid ? 'last TD' : 'not last');
@@ -3595,7 +3647,7 @@
     </div>`;
   }
 
-  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); else if (nav === 'birthdays') renderBirthdays(); else if (nav === 'due') renderDue(); else if (nav === 'receptions') renderReceptions(); else if (nav === 'completions') renderCompletions(); else if (nav === 'interceptions') renderInterceptions(); else if (nav === 'milestones') renderMilestones(); else if (nav === 'returners') renderReturners(); }
+  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); else if (nav === 'birthdays') renderBirthdays(); else if (nav === 'due') renderDue(); else if (nav === 'receptions') renderReceptions(); else if (nav === 'completions') renderCompletions(); else if (nav === 'interceptions') renderInterceptions(); else if (nav === 'yards') renderYards(); else if (nav === 'milestones') renderMilestones(); else if (nav === 'returners') renderReturners(); }
   // ESPN team-logo CDN (transparent PNGs). nflverse abbrs are ESPN slugs
   // lowercased, save two: LA(Rams)->lar, WAS->wsh.
   const LOGO_SLUG = { LA: 'lar', WAS: 'wsh' };
@@ -4638,6 +4690,155 @@ let pairStacks = false;
   window.closeInt = () => { document.getElementById('in-back')?.remove(); document.body.style.overflow = ''; inOpen = null; };
   window.inStep = (d) => { const deck = inRows(), at = deck.findIndex(x => x.pid === inOpen), nx = deck[at + d]; if (!nx) return; closeInt(); openInt(nx.pid); };
 
+  // ── Yards ───────────────────────────────────────────────────────────────
+  const YD_MKTS = [['pass', 'Passing'], ['rush', 'Rushing'], ['rec', 'Receiving'], ['rr', 'Rush + Rec']];
+  const YD_POS = { pass: [], rush: ['QB', 'RB'], rec: ['WR', 'TE', 'RB'], rr: ['RB', 'WR', 'TE'] };
+  const ydF = { mkt: 'rec', pos: 'ALL', sort: 'high', view: 'cards', q: '', tab: 'board', open: false };
+  function setYd(k, v) { ydF[k] = v; if (k === 'mkt') ydF.pos = 'ALL'; renderYards(); }
+  window.setYd = setYd;
+  window.onYdSearch = () => { ydF.q = document.getElementById('yd-search')?.value || ''; refocusSearch('yd-search', renderYards); };
+  window.clearYdSearch = () => { ydF.q = ''; renderYards(); };
+  // P(yards > line) from the shipped ratio tables — the same math as scripts/yards.js
+  function ydPOver(m, line, mu) {
+    const t = nflData?.yardsModel?.[m]; if (!t) return 0.5;
+    let b = 0; while (b < t.edges.length && mu > t.edges[b]) b++;
+    const q = t.q[b], n = q.length, r = line / Math.max(mu, 1e-6);
+    if (r <= q[0]) return 0.995;
+    if (r >= q[n - 1]) return 0.005;
+    let i = 1; while (q[i] < r) i++;
+    const lo = (i - 1) / (n - 1), hi = i / (n - 1);
+    const cdf = q[i] === q[i - 1] ? hi : lo + (r - q[i - 1]) / (q[i] - q[i - 1]) * (hi - lo);
+    return Math.min(0.995, Math.max(0.005, 1 - cdf));
+  }
+  const ydStep = (mk) => mk === 'pass' ? 10 : 5;
+  // a book-style line just under his median: 265 -> o264.5, 73.9 -> o69.5
+  const ydLine = (mk, med) => Math.max(0.5, Math.floor(med / ydStep(mk)) * ydStep(mk) - 0.5);
+  function ydRows() {
+    const q = pbNorm(ydF.q.trim());
+    const all = nflData?.yards?.[ydF.mkt] || [];
+    return dayScope(all)
+      .filter(r => ydF.pos === 'ALL' || r.pos === ydF.pos)
+      .sort((a, b) => ydF.sort === 'high' ? b.med - a.med : a.med - b.med)
+      .map((r, i) => { const L = ydLine(ydF.mkt, r.med); return { ...r, rank: i + 1, L, p: ydPOver(r.m, L, r.mu) }; })
+      .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q) || pbNorm(r.pos) === q);
+  }
+  // the two or three numbers behind a card, per market
+  function ydFacts(r) {
+    const f = r.f, pct = (x) => Math.round(x * 100) + '%';
+    if (r.m === 'pass') return [[f.avg.toFixed(0), 'avg', 'Passing yards per start, last two seasons'], [f.att.toFixed(0), 'att', 'Attempts per start'], [f.l3.toFixed(0), 'last 3', 'Average over his last three starts']];
+    if (r.m === 'qbrush') return [[f.avg.toFixed(0), 'avg', 'Rushing yards per start, last two seasons'], [f.carL3.toFixed(1), 'car L3', 'Rushes per start, last three starts'], [f.l3.toFixed(0), 'last 3', 'Rushing yards, last three starts']];
+    if (r.m === 'rush') return [[f.carL3.toFixed(1), 'car L3', 'Carries per game, last three — the strongest signal on this board'], [pct(f.snapL3), 'snaps', 'Snap share, last three games'], [f.ypc.toFixed(1), 'ypc', 'Yards per carry, shrunk toward league average']];
+    if (r.m === 'rec') return [[pct(f.shareL3), 'tgt', 'Share of his team\u2019s targets, last three games'], [pct(f.snapL3), 'snaps', 'Snap share, last three games'], [f.ypt.toFixed(1), 'y/tgt', 'Yards per target, shrunk toward league average']];
+    return [[f.rec.toFixed(0), 'rec avg', 'Receiving yards per game, last two seasons'], [f.rushAvg.toFixed(0), 'rush avg', 'Rushing yards per game, last two seasons'], [pct(f.snapL3), 'snaps', 'Snap share, last three games']];
+  }
+
+  function renderYards() {
+    const el = document.getElementById('yards-content'); if (!el) return;
+    if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
+    if (nflData === 'error') { el.innerHTML = `<div class="empty">Couldn't load NFL data. <a href="javascript:void(0)" onclick="loadNfl()">Retry</a></div>`; return; }
+    const tabs = uiTabs('setYd', ydF.tab);
+    const mktChips = `<div class="pbf-chips" style="margin-bottom:0.6rem">${YD_MKTS.map(([v, l]) => uiChip('setYd', 'mkt', v, l, ydF.mkt)).join('')}</div>`;
+    if (ydF.tab === 'results') { el.innerHTML = tabs + mktChips + liveResults('yds', 'setLr'); return; }
+    if (!nflData.yards) { el.innerHTML = tabs + '<div class="empty">No projections yet — they fill in once the slate has lines.</div>'; return; }
+    const rows = ydRows();
+    const posList = YD_POS[ydF.mkt];
+    const filterRows = [['Sort', uiChip('setYd', 'sort', 'high', 'Most yards', ydF.sort) + uiChip('setYd', 'sort', 'low', 'Fewest yards', ydF.sort)]];
+    if (posList.length) filterRows.unshift(['Position', ['ALL', ...posList].map(v => uiChip('setYd', 'pos', v, v === 'ALL' ? 'All' : v, ydF.pos, v === 'ALL' ? '' : 'pos ' + v)).join('')]);
+    const label = YD_MKTS.find(x => x[0] === ydF.mkt)[1];
+    const controls = tabs + mktChips + `
+      ${uiFilters('setYd', ydF.open, filterRows, (ydF.pos !== 'ALL') + (ydF.sort !== 'high'))}
+      <div class="pb-search">
+        <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        <input type="text" id="yd-search" placeholder="Search a player, team or position…" value="${ydF.q.replace(/"/g, '&quot;')}" oninput="onYdSearch()" autocomplete="off" spellcheck="false">
+        <button class="pb-search-x" onclick="clearYdSearch()" aria-label="Clear"${ydF.q ? ' style="display:flex"' : ''}>×</button>
+      </div>
+      <div class="pb-head"><span class="pb-week">${WK_LABEL(firstUpcomingWeek())}</span><span class="pb-meta">${label} yards · ${rows.length} players · median projection, fair odds</span></div>${dayBar()}`;
+    if (!rows.length) { el.innerHTML = controls + '<div class="empty">Nothing matches — try another day, position or search.</div>'; return; }
+    const pos = (r) => `<span class="posb ${r.pos}">${r.pos}</span>`;
+    let body;
+    if (ydF.view === 'table') {
+      body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Median</th><th class="num">Avg</th><th class="num">Last 3</th><th class="num">Line</th><th class="num">Over</th><th class="num">Under</th></tr></thead><tbody>${rows.map(r => `
+        <tr onclick="openYds('${r.pid}','${r.m}')"><td class="num dim">${r.rank}</td><td><b>${r.name}</b> <span class="dim">${r.pos}</span></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
+          <td class="num"><b>${r.med.toFixed(0)}</b></td><td class="num dim">${r.f.avg.toFixed(0)}</td><td class="num dim">${r.f.l3.toFixed(0)}</td>
+          <td class="num dim">o${r.L}</td><td class="num"><b class="${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</b></td><td class="num dim">${pbOdds(1 - r.p)}</td></tr>`).join('')}</tbody></table></div>`;
+    } else if (ydF.view === 'compact') {
+      body = `<div class="rc-compact">${rows.map(r => `
+        <div class="rc-crow" onclick="openYds('${r.pid}','${r.m}')"><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
+          <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${r.med.toFixed(0)}</span>
+          <span class="rc-cod ${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
+    } else {
+      body = `<div class="pb-list">${rows.map(r => `
+        <div class="pb-card p-${r.pos}" onclick="openYds('${r.pid}','${r.m}')">
+          <div class="pb-rank">${r.rank}</div>${faceHtml(r.pid, r.name)}
+          <div class="pb-info">
+            <div class="pb-nm">${r.name}${pos(r)}</div>
+            <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
+              ${liveChip('yds', r, r.med)}${r.f.thin ? '<span class="rc-wind" title="Fewer than 3 recent starts — his numbers lean on a league-average QB">limited history</span>' : ''}</div>
+          </div>
+          <div class="pb-facts">${ydFacts(r).map(([v, l, t]) => `<span class="pb-f" title="${t}"><b>${v}</b> ${l}</span>`).join('')}</div>
+          <div class="pb-price"><span class="pb-odds" style="color:var(--text-strong)">${r.med.toFixed(0)}</span><span class="pb-pct">median · o${r.L} ${pbOdds(r.p)}</span></div>
+        </div>`).join('')}</div>`;
+    }
+    el.innerHTML = controls + uiView('setYd', ydF.view) + body;
+  }
+
+  let ydOpen = null;
+  function ydLadder(r, L) {
+    const p = ydPOver(r.m, L, r.mu);
+    return `<div class="pm-mkt${Math.abs(L - ydLine(ydF.mkt, r.med)) < 0.01 ? ' on' : ''}"><div class="pm-mkt-lbl">o${L}</div><div class="pm-mkt-od">${pbOdds(p)}</div><div class="pm-mkt-pct">${(p * 100).toFixed(0)}% · u ${pbOdds(1 - p)}</div></div>`;
+  }
+  function openYds(pid, m) {
+    const r = (nflData?.yards?.[ydF.mkt] || []).find(x => x.pid === pid && (!m || x.m === m)); if (!r) return;
+    ydOpen = pid;
+    const deck = ydRows(), at = deck.findIndex(x => x.pid === pid);
+    const step = ydStep(ydF.mkt), L0 = ydLine(ydF.mkt, r.med);
+    const ladder = [-2, -1, 0, 1, 2, 3].map(i => L0 + i * step).filter(L => L > 0).map(L => ydLadder(r, L)).join('');
+    const facts = ydFacts(r);
+    const f = r.f;
+    const stat = (v, l, tip) => `<div class="pm-stat" title="${tip}"><div class="pm-stat-v">${v}</div><div class="pm-stat-l">${l}</div></div>`;
+    const lo = Math.round(r.med * 0.55), hi = Math.round(r.mu * 1.6);
+    document.body.insertAdjacentHTML('beforeend', `
+      <div class="pm-back" id="yd-back" onclick="if(event.target===this)closeYds()">
+        <button class="pk-side-nav pk-side-prev" onclick="ydStepTo(-1)"${at <= 0 ? ' disabled' : ''}>‹</button>
+        <button class="pk-side-nav pk-side-next" onclick="ydStepTo(1)"${at < 0 || at >= deck.length - 1 ? ' disabled' : ''}>›</button>
+        <div class="pm" role="dialog" aria-modal="true">
+          <button class="pm-x" onclick="closeYds()" aria-label="Close">×</button>
+          ${at >= 0 ? `<div class="pk-deck-count" style="padding-top:0.6rem">${at + 1} / ${deck.length}</div>` : ''}
+          <div class="pm-hero">${faceHtml(r.pid, r.name)}
+            <div class="pm-id"><div class="pm-nm">${r.name}</div><div class="pm-meta"><b>${r.pos}</b> · ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</div></div>
+            <div class="pm-hero-price"><div class="pm-hero-od">${r.med.toFixed(0)}</div><div class="pm-hero-lbl">median ${YD_MKTS.find(x => x[0] === ydF.mkt)[1].toLowerCase()} yds · avg ${r.mu.toFixed(0)}</div></div>
+          </div>
+          <div class="pm-sec">Your book's line</div>
+          <div class="yd-check">
+            <input type="number" inputmode="decimal" step="0.5" id="yd-line" placeholder="e.g. ${L0}" oninput="ydCheck('${r.pid}','${r.m}')">
+            <span id="yd-check-out" class="yd-check-out">Type a line for the fair over and under</span>
+          </div>
+          <div class="pm-sec">The ladder</div><div class="pm-mkts yd-mkts">${ladder}</div>
+          <div class="pm-sec">What builds it</div>
+          <div class="pm-stats">
+            ${stat(f.avg.toFixed(0), 'Avg, last 2 seasons', 'Per game in his last two seasons, shrunk toward his position')}
+            ${stat(f.l3.toFixed(0), 'Last 3 games', 'His last three games — recent role is the strongest signal for rushing and receiving')}
+            ${facts.map(([v, l, t]) => stat(v, l, t)).join('')}
+            ${stat(f.implied.toFixed(1), 'Team total', 'Points his team is implied to score')}
+            ${stat(f.fav === 0 ? 'pk' : (f.fav > 0 ? '−' : '+') + Math.abs(f.fav), 'Spread', 'His team\u2019s point spread')}
+          </div>
+          <p class="pm-foot">Most games land between about <b>${lo}</b> and <b>${hi}</b>. Fair odds, no vig — a book prices worse.</p>
+        </div>
+      </div>`);
+    document.body.style.overflow = 'hidden';
+  }
+  window.openYds = openYds;
+  window.ydCheck = (pid, m) => {
+    const r = (nflData?.yards?.[ydF.mkt] || []).find(x => x.pid === pid && x.m === m);
+    const out = document.getElementById('yd-check-out'), v = parseFloat(document.getElementById('yd-line')?.value);
+    if (!r || !out) return;
+    if (!(v > 0)) { out.textContent = 'Type a line for the fair over and under'; return; }
+    const p = ydPOver(r.m, v, r.mu);
+    out.innerHTML = `over <b class="${p >= 0.5 ? 'goodc' : 'dogc'}">${pbOdds(p)}</b> · under <b class="${p <= 0.5 ? 'goodc' : 'dogc'}">${pbOdds(1 - p)}</b> <span class="dim">(${(p * 100).toFixed(0)}% over)</span>`;
+  };
+  window.closeYds = () => { document.getElementById('yd-back')?.remove(); document.body.style.overflow = ''; ydOpen = null; };
+  window.ydStepTo = (d) => { const deck = ydRows(), at = deck.findIndex(x => x.pid === ydOpen), nx = deck[at + d]; if (!nx) return; closeYds(); openYds(nx.pid, nx.m); };
+
   function renderReturners() {
     const el = document.getElementById('returners-content'); if (!el) return;
     if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
@@ -5046,6 +5247,10 @@ let pairStacks = false;
         <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} · ${pbOdds(r.p[L] ?? r.p[String(L)])} over ${L}</span></span>
         <span class="hm-score hot">${r.mu.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> proj</span></span></div>`;
     }).join('');
+    const ydHomeRows = upcoming(nflData.yards?.rec || []).slice(0, 3).map(r => `
+      <div class="hm-row">${faceHtml(r.pid, r.name)}
+        <span class="hm-name">${r.name}<span class="hm-subtle">${r.pos} ${r.team} ${r.home ? 'vs' : '@'} ${r.opp} · receiving</span></span>
+        <span class="hm-score hot">${r.med.toFixed(0)}<span class="hm-subtle" style="font-size:0.766rem"> yds</span></span></div>`).join('');
     const intHomeRows = upcoming(nflData.interceptions || []).slice(0, 3).map(r => `
       <div class="hm-row">${faceHtml(r.pid, r.name)}
         <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} ${r.home ? 'vs' : '@'} ${r.opp} · over 0.5</span></span>
@@ -5076,6 +5281,7 @@ let pairStacks = false;
           ${card('receptions', 'Receptions', 'Receptions', recRows, 'Projections fill in once the slate has lines.')}
           ${card('completions', 'Completions', 'Completions', cmpHomeRows, 'Projections fill in once the slate has lines.')}
           ${card('interceptions', 'Interceptions', 'Interceptions', intHomeRows, 'Prices fill in once the slate has lines.')}
+          ${card('yards', 'Yards', 'Yards', ydHomeRows, 'Projections fill in once the slate has lines.')}
           ${card('due', 'Due', 'Due', dueRows, 'Nobody with a red-zone role is in a drought.')}
           ${card('milestones', 'Milestone Watch 🏆', 'Milestones', msRows, 'No chases within reach.')}
         </div>

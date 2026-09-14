@@ -40,6 +40,7 @@ const NFL_ROUTES = {
   picks:   { title: "TD Picks · Ron's Tud Tool", desc: "Every skill player on the slate, priced to score a touchdown — and every starting QB, priced to throw one." },
   receptions: { title: "Receptions · Ron's Tud Tool", desc: "Projected catches for every pass-catcher on the slate, priced against the standard lines." },
   completions: { title: "Completions · Ron's Tud Tool", desc: "Projected completions for every starting quarterback, priced against the standard lines." },
+  yards:   { title: "Yards · Ron's Tud Tool", desc: "Passing, rushing, receiving and rush + receiving yards for the slate — median projections and fair odds at any line." },
   interceptions: { title: "Interceptions · Ron's Tud Tool", desc: "Every starting quarterback, priced to throw an interception — game script, bad balls and the defense across the field." },
   returners: { title: "Returners · Ron's Tud Tool", desc: "Who takes the punts and kickoffs, and what that adds to his anytime touchdown price." },
   due:     { title: "Due for a TD · Ron's Tud Tool", desc: "Heavy red-zone workload, no touchdown to show for it — the guys whose usage has outrun their scoring." },

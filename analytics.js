@@ -130,7 +130,7 @@
     send(function (u) { u.track(name, data); });
   }
 
-  var PLAYER = /^(openPick|openRec|openCmp|openInt|openPickModal|openDueModal|openStealModal)\(/;
+  var PLAYER = /^(openPick|openRec|openCmp|openInt|openYds|openPickModal|openDueModal|openStealModal)\(/;
   document.addEventListener('click', function (e) {
     var t = e.target;
     if (!t || !t.closest) return;

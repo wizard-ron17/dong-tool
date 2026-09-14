@@ -23,6 +23,8 @@
 import fs from 'node:fs';
 import { REL, fetchText, fetchOptional, parseCsv, num } from './nflverse.js';
 import { loadWind } from './wind.js';
+import { skillYardsFeatures, qbYardsFeatures, startKeys, scoreMu as ydsMu, quantile as ydsQ,
+         YARDS_MODEL } from './yards.js';
 import { interceptionFeatures, scoreMu as intMu, pOver as intOver, thinFactor as intThin,
          contributions as intParts, INT_LINES, INTERCEPTIONS_MODEL } from './interceptions.js';
 import { completionFeatures, scoreMu as cmpMu, pOver as cmpOver, CMP_LINES,
@@ -563,6 +565,7 @@ export async function loadPbpLogs(seasons) {
   const retAgg = new Map();     // `${pid}|${team}` -> return counts, both seasons
   const windLog = new Map();    // `${team}|${season}|${week}` -> wind mph as played
   const defLog = new Map();     // defteam -> [{season, week, att, cmp}] faced
+  const rushLog = new Map();    // pid -> [{season, week, car, yds, team}]
   for (const y of seasons) {
     const txt = await fetchOptional(`${REL}/pbp/play_by_play_${y}.csv`);
     if (!txt) { console.log(`  pbp ${y}: not published yet`); continue; }
@@ -570,6 +573,7 @@ export async function loadPbpLogs(seasons) {
     const per = new Map();        // `${pid}|${week}` -> rz touches
     const qb  = new Map();        // `${pid}|${week}` -> { att, ptd, cmp, team }
     const dfPass = new Map();     // `${defteam}|${week}` -> { att, cmp } faced
+    const ru = new Map();         // `${pid}|${week}` -> { car, yds, team }
     const td  = new Map();        // `${pid}|${week}` -> { n, team }
     const rc  = new Map();        // `${pid}|${week}` -> { rec, tgt, air, n, team }
     const tmPass = new Map();     // `${team}|${week}` -> pass attempts
@@ -625,9 +629,10 @@ export async function loadPbpLogs(seasons) {
         if (r[idx.receiver_player_id]) {
           tmTgt.set(tk, (tmTgt.get(tk) ?? 0) + 1);
           const k = `${r[idx.receiver_player_id]}|${r[idx.week]}`;
-          const e = rc.get(k) ?? { rec: 0, tgt: 0, air: 0, n: 0, team: r[idx.posteam] };
+          const e = rc.get(k) ?? { rec: 0, tgt: 0, air: 0, n: 0, yds: 0, team: r[idx.posteam] };
           e.tgt += 1;
           if (r[idx.complete_pass] === '1') e.rec += 1;
+          e.yds += num(r[idx.receiving_yards]) || 0;
           const ay = num(r[idx.air_yards]);
           if (ay != null) { e.air += ay; e.n += 1; }
           rc.set(k, e);
@@ -635,8 +640,9 @@ export async function loadPbpLogs(seasons) {
       }
       if (isPass && r[idx.passer_player_id]) {
         const k = `${r[idx.passer_player_id]}|${r[idx.week]}`;
-        const e = qb.get(k) ?? { att: 0, ptd: 0, cmp: 0, int: 0, bad: 0, team: r[idx.posteam], name: r[idx.passer_player_name] || '' };
+        const e = qb.get(k) ?? { att: 0, ptd: 0, cmp: 0, int: 0, bad: 0, pyds: 0, team: r[idx.posteam], name: r[idx.passer_player_name] || '' };
         e.att += 1;
+        e.pyds += num(r[idx.passing_yards]) || 0;
         if (r[idx.pass_touchdown] === '1') e.ptd += 1;
         if (r[idx.complete_pass] === '1') e.cmp += 1;
         const intercepted = r[idx.interception] === '1';
@@ -654,6 +660,15 @@ export async function loadPbpLogs(seasons) {
           if (intercepted) de.int += 1;
           dfPass.set(dk, de);
         }
+      }
+      // Rushing, for the Yards board: every rush attempt, scrambles and kneels
+      // included — the same rows research/yards.py sums, and how official
+      // rushing yards are kept.
+      if (r[idx.rush_attempt] === '1' && r[idx.rusher_player_id]) {
+        const k = `${r[idx.rusher_player_id]}|${r[idx.week]}`;
+        const e = ru.get(k) ?? { car: 0, yds: 0, team: r[idx.posteam] };
+        e.car += 1; e.yds += num(r[idx.rushing_yards]) || 0;
+        ru.set(k, e);
       }
       // Offensive touchdowns, for td_share. build_dataset.py credits a passing
       // TD to the RECEIVER via td_player_id and never to the passer, so a
@@ -686,7 +701,11 @@ export async function loadPbpLogs(seasons) {
     for (const [k, v] of qb) {
       const [pid, wk] = k.split('|');
       (passLog.get(pid) ?? passLog.set(pid, []).get(pid))
-        .push({ season: y, week: +wk, att: v.att, ptd: v.ptd, cmp: v.cmp, int: v.int, bad: v.bad, team: v.team, name: v.name });
+        .push({ season: y, week: +wk, att: v.att, ptd: v.ptd, cmp: v.cmp, int: v.int, bad: v.bad, pyds: v.pyds, team: v.team, name: v.name });
+    }
+    for (const [k, v] of ru) {
+      const [pid, wk] = k.split('|');
+      (rushLog.get(pid) ?? rushLog.set(pid, []).get(pid)).push({ season: y, week: +wk, car: v.car, yds: v.yds, team: v.team });
     }
     for (const [k, v] of dfPass) {
       const [dt, wk] = k.split('|');
@@ -700,7 +719,7 @@ export async function loadPbpLogs(seasons) {
       const [pid, wk] = k.split('|');
       const tt = tmTgt.get(`${v.team}|${wk}`) ?? 0;
       (recLog.get(pid) ?? recLog.set(pid, []).get(pid)).push({
-        season: y, week: +wk, team: v.team, rec: v.rec, tgt: v.tgt,
+        season: y, week: +wk, team: v.team, rec: v.rec, tgt: v.tgt, yds: v.yds,
         air: v.n ? v.air / v.n : null,
         share: tt > 0 ? v.tgt / tt : 0,
       });
@@ -720,7 +739,8 @@ export async function loadPbpLogs(seasons) {
   for (const v of tdLog.values()) v.sort(bySeasonWeek);
   for (const v of recLog.values()) v.sort(bySeasonWeek);
   for (const v of defLog.values()) v.sort(bySeasonWeek);
-  return { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog, defLog };
+  for (const v of rushLog.values()) v.sort(bySeasonWeek);
+  return { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog, defLog, rushLog };
 }
 
 /** Back-compat wrapper — dump-features.js only wants the red-zone half. */
@@ -890,7 +910,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
 
   const { xwalk, birth, shot } = await loadPlayers();
   const snapLog = await loadSnapLog(snapSeasons, xwalk);
-  const { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog, defLog } = await loadPbpLogs(rzSeasons);
+  const { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog, defLog, rushLog } = await loadPbpLogs(rzSeasons);
   const roster = await loadRoster(upcomingSeason);
   const depth = await loadDepthChart(upcomingSeason);
   const { byWeek, outIds, questionable = new Set() } = await loadInjuries(season, week);
@@ -1180,6 +1200,58 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     console.log(`  interceptions history: ${n} starts, said ${(100 * said / Math.max(n, 1)).toFixed(1)}% 1+ INT, hit ${(100 * hit / Math.max(n, 1)).toFixed(1)}%`);
   }
 
+  // ── Yards ───────────────────────────────────────────────────────────────
+  // Passing, rushing (QB + RB), receiving, rush + receiving. research/yards.py.
+  // Rows carry the mean and median; the app prices any line from the model's
+  // ratio tables, which ship in yardsModel. Populations match training.
+  const yards = { pass: [], rush: [], rec: [], rr: [] };
+  {
+    const topPasser = startKeys(passLog);
+    const r1 = (x) => +x.toFixed(1);
+    const row0 = (pid, name, team, pos, ctx) => ({ pid, name, team, pos, opp: ctx.opp, gameId: ctx.gameId, home: ctx.home });
+    for (const [team, ctx] of teamsInPlay) {
+      const pid = starterQb.get(team);
+      if (!pid) continue;
+      const f = qbYardsFeatures({ pid, season, week, passLog, rushLog, implied: ctx.implied, spread: ctx.fav, floor: rzSeasons[0], topPasser });
+      const name = roster.get(pid)?.name ?? pid;
+      const thin = f._games < 3;
+      const mp = ydsMu('pass', f), mr = ydsMu('qbrush', f);
+      yards.pass.push({ ...row0(pid, name, team, 'QB', ctx), m: 'pass', mu: r1(mp), med: r1(ydsQ('pass', mp)),
+        f: { avg: r1(f.pyds_prior), att: r1(f.att_prior), l3: r1(f.pyds_l3), implied: r1(ctx.implied), fav: r1(ctx.fav), games: f._games, thin } });
+      yards.rush.push({ ...row0(pid, name, team, 'QB', ctx), m: 'qbrush', mu: r1(mr), med: r1(ydsQ('qbrush', mr)),
+        f: { avg: r1(f.rush_prior), car: r1(f.car_prior), l3: r1(f.rush_l3), carL3: r1(f.car_l3), implied: r1(ctx.implied), fav: r1(ctx.fav), games: f._games, thin } });
+    }
+    for (const [pid, info] of roster) {
+      if (!['RB', 'WR', 'TE'].includes(info.position)) continue;
+      const ctx = teamsInPlay.get(info.team);
+      if (!ctx) continue;
+      const f = skillYardsFeatures({ pid, position: info.position, season, week, snapLog, recLog, rushLog,
+                                     implied: ctx.implied, spread: ctx.fav, floor: rzSeasons[0] });
+      if (!f || f._games < 3) continue;           // matches the training filter
+      const base = row0(pid, info.name, info.team, info.position, ctx);
+      const common = { snapL3: +f.snap_l3.toFixed(3), implied: r1(ctx.implied), fav: r1(ctx.fav), games: f._games };
+      if (info.position === 'RB' && f.car_prior >= 4) {
+        const mu = ydsMu('rush', f);
+        yards.rush.push({ ...base, m: 'rush', mu: r1(mu), med: r1(ydsQ('rush', mu)),
+          f: { ...common, avg: r1(f.rush_prior), car: r1(f.car_prior), l3: r1(f.rush_l3), carL3: r1(f.car_l3), ypc: +f.ypc.toFixed(2) } });
+      }
+      if (f.tgt_prior >= 2) {
+        const mu = ydsMu('rec', f);
+        yards.rec.push({ ...base, m: 'rec', mu: r1(mu), med: r1(ydsQ('rec', mu)),
+          f: { ...common, avg: r1(f.ryds_prior), tgt: r1(f.tgt_prior), l3: r1(f.ryds_l3), shareL3: +f.share_l3.toFixed(3), ypt: +f.ypt.toFixed(2) } });
+      }
+      if (f.tgt_prior + f.car_prior >= 5) {
+        const mu = ydsMu('rr', f);
+        yards.rr.push({ ...base, m: 'rr', mu: r1(mu), med: r1(ydsQ('rr', mu)),
+          f: { ...common, avg: r1(f.rr_prior), l3: r1(f.rr_l3), tgt: r1(f.tgt_prior), car: r1(f.car_prior), rec: r1(f.ryds_prior), rushAvg: r1(f.rush_prior) } });
+      }
+    }
+    for (const k of Object.keys(yards)) yards[k].sort((a, b) => b.med - a.med);
+    console.log(`  yards: pass ${yards.pass.length} (top ${yards.pass[0]?.name} ${yards.pass[0]?.med}), rush ${yards.rush.length} `
+      + `(top ${yards.rush[0]?.name} ${yards.rush[0]?.med}), rec ${yards.rec.length} (top ${yards.rec[0]?.name} ${yards.rec[0]?.med}), `
+      + `rush+rec ${yards.rr.length} (top ${yards.rr[0]?.name} ${yards.rr[0]?.med})`);
+  }
+
   // ── Receptions ──────────────────────────────────────────────────────────
   // A separate market with its own model (research/receptions.py): a Poisson
   // GLM for the mean, priced through a negative binomial because reception
@@ -1388,6 +1460,9 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     completions, completionsHistory,
     completionModel: { alpha: COMPLETIONS_MODEL.alpha, lines: CMP_LINES },
     interceptions, interceptionsHistory,
+    yards,
+    yardsModel: Object.fromEntries(Object.entries(YARDS_MODEL.markets).map(([k, m]) =>
+      [k, { label: m.label, edges: m.ratio_edges, q: m.ratio_q }])),
     interceptionModel: { alpha: INTERCEPTIONS_MODEL.alpha, lines: INT_LINES, coef: INTERCEPTIONS_MODEL.coef },
     returners,
     birthdays: bdays, birthdayStats: BDAY.league, birthdaySeasons: BDAY.seasons,

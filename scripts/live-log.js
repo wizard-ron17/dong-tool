@@ -53,6 +53,7 @@ const nearest = (lines, mu) => lines.reduce((b, L) => (Math.abs(L - mu) < Math.a
  *   rec  [pid, name, team, pos, mu, line, p(over line)]
  *   cmp  [pid, name, team, mu, line, p(over line)]
  *   int  [pid, name, team, mu, p(over 0.5), p(over 1.5)]
+ *   yds  { pass|rush|rec|rr: [pid, name, team, pos, market, mean, median] }
  * rec/cmp keep the projection, so the app can price any other line from the
  * model's alpha without storing the whole ladder.
  */
@@ -75,6 +76,11 @@ function boardFor(gameId, b) {
       const L = nearest(b.cmpLines, r.mu);
       return [r.pid, r.name, r.team, r2(r.mu), L, r3(r.p[L] ?? r.p[String(L)])];
     });
+  }
+  if (b.yards) {
+    out.yds = {};
+    for (const [k, rows] of Object.entries(b.yards))
+      out.yds[k] = rows.filter(r => r.gameId === gameId).map(r => [r.pid, r.name, r.team, r.pos, r.m, r.mu, r.med]);
   }
   if (b.interceptions?.length) {
     out.int = b.interceptions.filter(r => r.gameId === gameId)
@@ -102,7 +108,7 @@ export function snapshot(log, schedule, board, now = new Date()) {
       id: g.gameId, season: board.season, week: g.week, kick: kick.toISOString(),
       away: g.away, home: g.home, snapAt: board.generatedAt,
       td: rows.td ?? prev?.td, pass: rows.pass ?? prev?.pass,
-      rec: rows.rec ?? prev?.rec, cmp: rows.cmp ?? prev?.cmp, int: rows.int ?? prev?.int,
+      rec: rows.rec ?? prev?.rec, cmp: rows.cmp ?? prev?.cmp, int: rows.int ?? prev?.int, yds: rows.yds ?? prev?.yds,
       final: false, res: null,
     };
     wrote++;
@@ -133,7 +139,7 @@ const statIdx = (cat, label) => cat.labels.indexOf(label);
  *   first/last  the scorer of the game's first and last touchdown
  */
 function readBox(summary, espnToGsis, nameTeamToGsis) {
-  const td = {}, ptd = {}, rec = {}, cmp = {}, att = {}, ints = {}, inBox = new Set();
+  const td = {}, ptd = {}, rec = {}, cmp = {}, att = {}, ints = {}, pyds = {}, rush = {}, ryds = {}, inBox = new Set();
   const names = [];                                  // [displayName, gsis] for scoring-play text
   const gsisOf = (ath, team) => espnToGsis.get(String(ath.id))
     ?? nameTeamToGsis.get(`${(ath.displayName || '').toLowerCase()}|${team}`) ?? null;
@@ -149,10 +155,12 @@ function readBox(summary, espnToGsis, nameTeamToGsis) {
         const v = (label) => { const i = statIdx(cat, label); return i < 0 ? 0 : (parseFloat(s[i]) || 0); };
         if (cat.name === 'passing') {
           const [c, at] = String(s[statIdx(cat, 'C/ATT')] || '0/0').split('/').map(Number);
-          cmp[pid] = c || 0; att[pid] = at || 0; ptd[pid] = v('TD'); ints[pid] = v('INT');
+          cmp[pid] = c || 0; att[pid] = at || 0; ptd[pid] = v('TD'); ints[pid] = v('INT'); pyds[pid] = v('YDS');
         } else if (cat.name === 'receiving') {
-          rec[pid] = v('REC'); td[pid] = (td[pid] || 0) + v('TD');
-        } else if (['rushing', 'kickReturns', 'puntReturns', 'defensive'].includes(cat.name)) {
+          rec[pid] = v('REC'); ryds[pid] = v('YDS'); td[pid] = (td[pid] || 0) + v('TD');
+        } else if (cat.name === 'rushing') {
+          rush[pid] = v('YDS'); td[pid] = (td[pid] || 0) + v('TD');
+        } else if (['kickReturns', 'puntReturns', 'defensive'].includes(cat.name)) {
           td[pid] = (td[pid] || 0) + v('TD');
         }
       }
@@ -173,7 +181,7 @@ function readBox(summary, espnToGsis, nameTeamToGsis) {
   });
   const scorer = (p) => (names.find(([n]) => (p.text || '').startsWith(n)) || [])[1] ?? null;
   return {
-    td, ptd, rec, cmp, att, ints, inBox: [...inBox],
+    td, ptd, rec, cmp, att, ints, pyds, rush, ryds, inBox: [...inBox],
     first: tdPlays.length ? scorer(tdPlays[0]) : null,
     last: tdPlays.length ? scorer(tdPlays[tdPlays.length - 1]) : null,
   };
@@ -187,7 +195,7 @@ function readBox(summary, espnToGsis, nameTeamToGsis) {
 export async function grade(log, loadIds, now = new Date()) {
   // Also re-read a final game graded before a stat was tracked (interceptions
   // arrived after week 1 was already graded) — once, then it has the field.
-  const stale = (g) => g.final && g.res && g.res.ints === undefined;
+  const stale = (g) => g.final && g.res && (g.res.ints === undefined || g.res.ryds === undefined);
   const due = Object.values(log.games).filter(g => (!g.final && new Date(g.kick) <= now) || stale(g));
   if (!due.length) return { graded: 0 };
   let ids = null, graded = 0;
@@ -253,7 +261,8 @@ export async function resolveDnp(log, loadIds) {
     for (const g of games) {
       if (!teamsIn.has(`${g.week}|${g.home}`) || !teamsIn.has(`${g.week}|${g.away}`)) continue;
       const box = new Set(g.res.inBox);
-      const logged = new Set([...(g.td ?? []), ...(g.pass ?? []), ...(g.rec ?? []), ...(g.cmp ?? []), ...(g.int ?? [])].map(r => r[0]));
+      const logged = new Set([...(g.td ?? []), ...(g.pass ?? []), ...(g.rec ?? []), ...(g.cmp ?? []), ...(g.int ?? []),
+        ...Object.values(g.yds ?? {}).flat()].map(r => r[0]));
       g.res.dnp = [...logged].filter(pid => !box.has(pid) && !played.has(`${g.week}|${pid}`));
       g.res.snapsChecked = true;
       resolved++;
