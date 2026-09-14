@@ -260,6 +260,7 @@ async function main() {
         season: picks.season, week: picks.week, generatedAt: picks.generatedAt,
         picks: picks.picks, receptions: picks.receptions, recLines: picks.receptionModel?.lines,
         completions: picks.completions, cmpLines: picks.completionModel?.lines,
+        interceptions: picks.interceptions,
       });
       console.log(`  results log: snapshot ${n} not-yet-started games`);
     }
@@ -279,13 +280,14 @@ async function main() {
     // can show what already happened without loading the whole log.
     if (picks) {
       const wk = all.filter(g => g.season === picks.season && g.week === picks.week);
-      liveWeek = { season: picks.season, week: picks.week, games: {}, td: {}, rec: {}, cmp: {}, ptd: {}, dnp: [] };
+      liveWeek = { season: picks.season, week: picks.week, games: {}, td: {}, rec: {}, cmp: {}, ptd: {}, ints: {}, dnp: [] };
       for (const g of wk) {
         liveWeek.games[g.id] = { final: !!g.final, live: !!g.live, score: g.score ?? null,
                                  first: g.res?.first ?? null, last: g.res?.last ?? null };
         if (!g.res) continue;
         Object.assign(liveWeek.td, g.res.td); Object.assign(liveWeek.rec, g.res.rec);
         Object.assign(liveWeek.cmp, g.res.cmp); Object.assign(liveWeek.ptd, g.res.ptd);
+        Object.assign(liveWeek.ints, g.res.ints ?? {});
         liveWeek.dnp.push(...(g.res.dnp ?? []));
       }
     }
@@ -489,11 +491,13 @@ async function main() {
     teamStats, teamScorers, teamQB,
     // Receptions rides along in the picks payload because it reuses that pass's
     // play-by-play, but it is its own market and reads better as its own key.
-    picks: picks ? { ...picks, shots: undefined, receptions: undefined, receptionModel: undefined, returners: undefined, receptionsHistory: undefined, wind: undefined, completions: undefined, completionsHistory: undefined, completionModel: undefined } : picks,
+    picks: picks ? { ...picks, shots: undefined, receptions: undefined, receptionModel: undefined, returners: undefined, receptionsHistory: undefined, wind: undefined, completions: undefined, completionsHistory: undefined, completionModel: undefined, interceptions: undefined, interceptionsHistory: undefined, interceptionModel: undefined } : picks,
     receptions: picks?.receptions ?? [], receptionModel: picks?.receptionModel ?? null,
     receptionsHistory: picks?.receptionsHistory ?? [], wind: picks?.wind ?? {},
     completions: picks?.completions ?? [], completionsHistory: picks?.completionsHistory ?? [],
     completionModel: picks?.completionModel ?? null,
+    interceptions: picks?.interceptions ?? [], interceptionsHistory: picks?.interceptionsHistory ?? [],
+    interceptionModel: picks?.interceptionModel ?? null,
     liveWeek, parlay, milestones, passerNames, connPos,
     returners: (picks?.returners?.length ? picks.returners : returners), returnModel,
   };

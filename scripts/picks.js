@@ -23,6 +23,8 @@
 import fs from 'node:fs';
 import { REL, fetchText, fetchOptional, parseCsv, num } from './nflverse.js';
 import { loadWind } from './wind.js';
+import { interceptionFeatures, scoreMu as intMu, pOver as intOver, thinFactor as intThin,
+         contributions as intParts, INT_LINES, INTERCEPTIONS_MODEL } from './interceptions.js';
 import { completionFeatures, scoreMu as cmpMu, pOver as cmpOver, CMP_LINES,
          COMPLETIONS_MODEL, windFactor as cmpWind, defFactor as cmpDef,
          thinFactor as cmpThin } from './completions.js';
@@ -633,17 +635,23 @@ export async function loadPbpLogs(seasons) {
       }
       if (isPass && r[idx.passer_player_id]) {
         const k = `${r[idx.passer_player_id]}|${r[idx.week]}`;
-        const e = qb.get(k) ?? { att: 0, ptd: 0, cmp: 0, team: r[idx.posteam], name: r[idx.passer_player_name] || '' };
+        const e = qb.get(k) ?? { att: 0, ptd: 0, cmp: 0, int: 0, bad: 0, team: r[idx.posteam], name: r[idx.passer_player_name] || '' };
         e.att += 1;
         if (r[idx.pass_touchdown] === '1') e.ptd += 1;
         if (r[idx.complete_pass] === '1') e.cmp += 1;
+        const intercepted = r[idx.interception] === '1';
+        if (intercepted) e.int += 1;
+        // a "bad ball": intercepted or broken up — nflverse records a pass
+        // defensed on every interception, so this one column counts both
+        if (r[idx.pass_defense_1_player_id]) e.bad += 1;
         qb.set(k, e);
         // pass defense faced: every attempt against this defense, any passer —
         // the Completions board's opponent term
         if (r[idx.defteam]) {
           const dk = `${r[idx.defteam]}|${r[idx.week]}`;
-          const de = dfPass.get(dk) ?? { att: 0, cmp: 0 };
+          const de = dfPass.get(dk) ?? { att: 0, cmp: 0, int: 0 };
           de.att += 1; if (r[idx.complete_pass] === '1') de.cmp += 1;
+          if (intercepted) de.int += 1;
           dfPass.set(dk, de);
         }
       }
@@ -678,11 +686,11 @@ export async function loadPbpLogs(seasons) {
     for (const [k, v] of qb) {
       const [pid, wk] = k.split('|');
       (passLog.get(pid) ?? passLog.set(pid, []).get(pid))
-        .push({ season: y, week: +wk, att: v.att, ptd: v.ptd, cmp: v.cmp, team: v.team, name: v.name });
+        .push({ season: y, week: +wk, att: v.att, ptd: v.ptd, cmp: v.cmp, int: v.int, bad: v.bad, team: v.team, name: v.name });
     }
     for (const [k, v] of dfPass) {
       const [dt, wk] = k.split('|');
-      (defLog.get(dt) ?? defLog.set(dt, []).get(dt)).push({ season: y, week: +wk, att: v.att, cmp: v.cmp });
+      (defLog.get(dt) ?? defLog.set(dt, []).get(dt)).push({ season: y, week: +wk, att: v.att, cmp: v.cmp, int: v.int });
     }
     for (const [k, v] of tmPass) {
       const [team, wk] = k.split('|');
@@ -892,8 +900,9 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   const teamsInPlay = new Map();
   for (const g of games) {
     const half = g.total / 2, edge = (g.spread ?? 0) / 2;
-    teamsInPlay.set(g.home, { opp: g.away, implied: half + edge, gameId: g.gameId, home: 1 });
-    teamsInPlay.set(g.away, { opp: g.home, implied: half - edge, gameId: g.gameId, home: 0 });
+    // fav: points the team is favoured by — nfldata's spread_line is home minus away
+    teamsInPlay.set(g.home, { opp: g.away, implied: half + edge, gameId: g.gameId, home: 1, fav: g.spread ?? 0 });
+    teamsInPlay.set(g.away, { opp: g.home, implied: half - edge, gameId: g.gameId, home: 0, fav: -(g.spread ?? 0) });
   }
 
   const starterQb = passStarters(roster, passLog, season, depth);
@@ -1104,6 +1113,73 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     console.log(`  completions history: ${completionsHistory.length} weeks, ${n} graded starts`);
   }
 
+  // ── Interceptions ───────────────────────────────────────────────────────
+  // Same starters as Completions. Model in research/interceptions.py: game
+  // script, the QB's bad-ball rate and the defense's INT rate. The market with
+  // the least signal on the site, so the board says so.
+  const interceptions = [];
+  for (const [team, ctx] of teamsInPlay) {
+    const pid = starterQb.get(team);
+    if (!pid) continue;
+    const row = interceptionFeatures({ pid, season, week, passLog, defLog, opp: ctx.opp,
+                                       impliedTotal: ctx.implied, fav: ctx.fav, floor: rzSeasons[0] });
+    const mu = intMu(row);
+    const parts = intParts(row);
+    interceptions.push({
+      pid, name: roster.get(pid)?.name ?? pid, team, opp: ctx.opp, gameId: ctx.gameId, home: ctx.home,
+      mu: +mu.toFixed(3),
+      p: Object.fromEntries(INT_LINES.map(L => [L, +intOver(L, mu).toFixed(4)])),
+      f: { att: +row._att.toFixed(1), bad: +row._bad.toFixed(4), defInt: +row._defInt.toFixed(4),
+           implied: +ctx.implied.toFixed(1), fav: +(ctx.fav ?? 0).toFixed(1), starts: row._starts,
+           ints: row._int, attSum: row._attSum, thinX: +intThin(row._starts).toFixed(3),
+           x: Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, +v.toFixed(3)])) },
+    });
+  }
+  interceptions.sort((a, b) => b.mu - a.mu);
+  console.log(`  interceptions: ${interceptions.length} starters priced (most likely ${interceptions[0]?.name ?? '—'} `
+    + `${interceptions[0] ? (interceptions[0].p['0.5'] * 100).toFixed(0) + '%' : ''})`);
+
+  // Backtest replay, graded, like the completions history.
+  const interceptionsHistory = [];
+  {
+    const ctx3 = new Map();
+    for (const g of scheduleAll) {
+      if (g.total == null) continue;
+      const half = g.total / 2, edge = (g.spread ?? 0) / 2;
+      ctx3.set(`${g.home}|${g.season}|${g.week}`, { opp: g.away, implied: half + edge, fav: g.spread ?? 0 });
+      ctx3.set(`${g.away}|${g.season}|${g.week}`, { opp: g.home, implied: half - edge, fav: -(g.spread ?? 0) });
+    }
+    const top = new Map();
+    for (const [pid, arr] of passLog) for (const e of arr) {
+      if (e.att < 10 || !e.team || e.season < rzSeasons[0]) continue;
+      if (e.season === rzSeasons[0] && e.week < 4) continue;
+      if (e.season === season && e.week >= week) continue;
+      const k = `${e.team}|${e.season}|${e.week}`;
+      if (!top.has(k) || e.att > top.get(k).e.att) top.set(k, { pid, e });
+    }
+    const byWk = new Map();
+    for (const [k, { pid, e }] of top) {
+      const c = ctx3.get(k); if (!c) continue;
+      const row = interceptionFeatures({ pid, season: e.season, week: e.week, passLog, defLog, opp: c.opp,
+                                         impliedTotal: c.implied, fav: c.fav, floor: rzSeasons[0] });
+      const mu = intMu(row);
+      const wk2 = `${e.season}|${e.week}`;
+      (byWk.get(wk2) ?? byWk.set(wk2, []).get(wk2))
+        .push([+mu.toFixed(3), +intOver(0.5, mu).toFixed(3), e.int, e.name || pid, e.team, e.att]);
+    }
+    for (const [k, rows] of [...byWk].sort((a, b) => {
+      const [ay, aw] = a[0].split('|').map(Number), [by, bw] = b[0].split('|').map(Number);
+      return ay - by || aw - bw; })) {
+      const [y2, w2] = k.split('|').map(Number);
+      rows.sort((a, b) => b[1] - a[1]);
+      interceptionsHistory.push({ s: y2, w: w2, rows });
+    }
+    const n = interceptionsHistory.reduce((a, x) => a + x.rows.length, 0);
+    const said = interceptionsHistory.reduce((a, x) => a + x.rows.reduce((b, r) => b + r[1], 0), 0);
+    const hit = interceptionsHistory.reduce((a, x) => a + x.rows.filter(r => r[2] >= 1).length, 0);
+    console.log(`  interceptions history: ${n} starts, said ${(100 * said / Math.max(n, 1)).toFixed(1)}% 1+ INT, hit ${(100 * hit / Math.max(n, 1)).toFixed(1)}%`);
+  }
+
   // ── Receptions ──────────────────────────────────────────────────────────
   // A separate market with its own model (research/receptions.py): a Poisson
   // GLM for the mean, priced through a negative binomial because reception
@@ -1311,6 +1387,8 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     receptionsHistory,
     completions, completionsHistory,
     completionModel: { alpha: COMPLETIONS_MODEL.alpha, lines: CMP_LINES },
+    interceptions, interceptionsHistory,
+    interceptionModel: { alpha: INTERCEPTIONS_MODEL.alpha, lines: INT_LINES, coef: INTERCEPTIONS_MODEL.coef },
     returners,
     birthdays: bdays, birthdayStats: BDAY.league, birthdaySeasons: BDAY.seasons,
     birthdayBase: BDAY.base_rate,

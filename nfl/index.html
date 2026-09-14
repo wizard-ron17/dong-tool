@@ -2143,6 +2143,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M8 12.4l2.7 2.7L16.2 9.4"/></svg>
         <span><span class="nm-name">Completions <span class="nm-new">NEW</span></span><span class="nm-desc">QB completions, priced over and under</span></span>
       </button>
+      <button class="nav-menu-item" data-nav="interceptions" onclick="switchNav('interceptions')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h11a5 5 0 0 1 0 10H9"/><path d="M12 14l-3 3 3 3"/></svg>
+        <span><span class="nm-name">Interceptions <span class="nm-new">NEW</span></span><span class="nm-desc">Which QBs throw a pick</span></span>
+      </button>
       <button class="nav-menu-item" data-nav="returners" onclick="switchNav('returners')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="14.5" cy="4" r="2"/><path d="M13 7.6 L10 13"/><path d="M13.2 9 L17.5 11.2"/><path d="M11.6 9.8 L7.5 8.6"/><path d="M10 13 L13 16 L12.4 21"/><path d="M10 13 L6.2 16.8"/></svg>
         <span><span class="nm-name">Returners <span class="nm-new">NEW</span></span><span class="nm-desc">Punt and kick return volume</span></span>
@@ -2383,6 +2387,27 @@
     </div>
     <div id="completions-content"><div class="empty">Loading&hellip;</div></div>
   </div>
+  <div id="panel-interceptions" class="panel">
+    <div class="due-explainer" id="interceptions-explainer-toggle" onclick="toggleExplainer('interceptions')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Interceptions Works</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="interceptions-explainer-chevron">&#9654;</span>
+      </div>
+      <div class="due-explainer-teaser">Every starting quarterback, priced to throw an interception.</div>
+      <div class="due-explainer-body" id="interceptions-explainer-body" style="display:none">
+        <ul>
+          <li><b>Game script matters most.</b> A team expected to trail throws riskier passes. Big underdogs average <b>0.81</b> interceptions a start, big favorites <b>0.58</b>, on the same number of attempts.</li>
+          <li><b>Bad balls, not past picks.</b> A quarterback's own interception rate is mostly luck &mdash; odd and even games of the same season barely agree (reliability 0.10). The passes he gets <em>broken up or picked</em> are a real habit, so that is what the price uses.</li>
+          <li><b>The defense counts, about half as much.</b> A secondary that picks off passes adds to the price, at roughly half the weight of the quarterback's own bad-ball rate.</li>
+          <li><b>What didn't matter.</b> Completion %, depth of throws, and wind &mdash; all tested, none predicted interceptions once the above were in.</li>
+          <li><b>New or returning starters</b> with no recent starts throw about <b>17% more</b> interceptions than their numbers suggest, so they are marked up.</li>
+          <li><b>Honest scale.</b> This is the hardest market on the site. Prices only range from about +145 to &minus;155, and the model's edge over a coin flip is small. The value is in the gaps between quarterbacks, not in any one being a lock.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="interceptions-content"><div class="empty">Loading&hellip;</div></div>
+  </div>
   <div id="panel-receptions" class="panel">
     <div class="due-explainer" id="receptions-explainer-toggle" onclick="toggleExplainer('receptions')" aria-expanded="false">
       <div class="due-explainer-head">
@@ -2485,7 +2510,7 @@
   function closeSportMenu() { document.getElementById('sport-menu')?.classList.remove('open'); document.getElementById('sport-switch-btn')?.classList.remove('open'); }
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch')) closeSportMenu(); });
 
-  const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs', 'birthdays', 'due', 'milestones', 'returners', 'receptions', 'completions']; // tools added here as they ship
+  const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs', 'birthdays', 'due', 'milestones', 'returners', 'receptions', 'completions', 'interceptions']; // tools added here as they ship
   const PAGE_TITLES = { home: "Ron's Tud Tool", stats: "Stats · Ron's Tud Tool", recap: "Recap · Ron's Tud Tool", schedule: "Schedule · Ron's Tud Tool", pairs: "Pairs · Ron's Tud Tool", due: "Due · Ron's Tud Tool", milestones: "Milestones · Ron's Tud Tool", returners: "Returners · Ron's Tud Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
@@ -3237,6 +3262,10 @@
       const got = res?.rec?.[pid] ?? 0;
       return { pid, name, team, game: vs(team), p, line: 'o' + L, proj: mu?.toFixed(1), got: g.final ? got : '', st: state(pid, got > L) };
     });
+    if (kind === 'int') return (g.int ?? []).map(([pid, name, team, mu, p05, p15]) => {
+      const got = res?.ints?.[pid] ?? 0, L = inF.line;
+      return { pid, name, team, game: vs(team), p: L === 1.5 ? p15 : p05, line: 'o' + L, proj: mu?.toFixed(2), got: g.final ? got : '', st: state(pid, got > L) };
+    });
     return (g.cmp ?? []).map(([pid, name, team, mu, L, p]) => {
       const got = res?.cmp?.[pid] ?? 0;
       return { pid, name, team, game: vs(team), p, line: 'o' + L, proj: mu?.toFixed(1), got: g.final ? got : '', st: state(pid, got > L) };
@@ -3291,7 +3320,7 @@
     const shown = lrF.all ? rows : rows.slice(0, LIMIT);
     const head = kind === 'td'
       ? `<div class="cp-res head"><span class="cp-res-nm">Player</span><span class="cp-res-line">Price</span><span class="cp-res-proj">${lrF.mkt === '5' ? 'Proj' : 'Chance'}</span><span class="cp-res-act">${lrF.mkt === '5' ? 'TD' : lrF.mkt === '3' || lrF.mkt === '4' ? '' : 'TD'}</span><span class="cp-res-tag"></span></div>`
-      : `<div class="cp-res head"><span class="cp-res-nm">${kind === 'cmp' ? 'QB' : 'Player'}</span><span class="cp-res-line">Line</span><span class="cp-res-proj">Proj</span><span class="cp-res-act">Got</span><span class="cp-res-tag"></span></div>`;
+      : `<div class="cp-res head"><span class="cp-res-nm">${kind === 'cmp' || kind === 'int' ? 'QB' : 'Player'}</span><span class="cp-res-line">Line</span><span class="cp-res-proj">Proj</span><span class="cp-res-act">Got</span><span class="cp-res-tag"></span></div>`;
     const list = shown.map(r => `<div class="cp-res ${r.st}">
         <span class="cp-res-nm">${r.name}<span class="cp-res-tm">${r.game}</span></span>
         <span class="cp-res-line">${r.line || pbOdds(r.p)}${r.line ? `<span class="cp-res-od">${pbOdds(r.p)}</span>` : ''}</span>
@@ -3323,6 +3352,7 @@
     const chip = (hit, txt) => `<span class="lv-chip${hit ? ' hit' : ''}">${hit ? '✓ ' : ''}${txt}</span>`;
     if (kind === 'rec') { const n = W.rec[r.pid] ?? 0; return chip(n > line, `${n} rec`); }
     if (kind === 'cmp') { const n = W.cmp[r.pid] ?? 0; return chip(n > line, `${n} cmp`); }
+    if (kind === 'int') { const n = W.ints?.[r.pid] ?? 0; return chip(n > line, `${n} INT`); }
     if (kind === '5') { const n = W.ptd[r.pid] ?? 0; return chip(n >= 2, `${n} pass TD`); }
     if (kind === '3') return chip(g.first === r.pid, g.first === r.pid ? '1st TD' : 'not 1st');
     if (kind === '4') return chip(g.last === r.pid, g.last === r.pid ? 'last TD' : 'not last');
@@ -3485,7 +3515,7 @@
     </div>`;
   }
 
-  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); else if (nav === 'birthdays') renderBirthdays(); else if (nav === 'due') renderDue(); else if (nav === 'receptions') renderReceptions(); else if (nav === 'completions') renderCompletions(); else if (nav === 'milestones') renderMilestones(); else if (nav === 'returners') renderReturners(); }
+  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); else if (nav === 'birthdays') renderBirthdays(); else if (nav === 'due') renderDue(); else if (nav === 'receptions') renderReceptions(); else if (nav === 'completions') renderCompletions(); else if (nav === 'interceptions') renderInterceptions(); else if (nav === 'milestones') renderMilestones(); else if (nav === 'returners') renderReturners(); }
   // ESPN team-logo CDN (transparent PNGs). nflverse abbrs are ESPN slugs
   // lowercased, save two: LA(Rams)->lar, WAS->wsh.
   const LOGO_SLUG = { LA: 'lar', WAS: 'wsh' };
@@ -4374,6 +4404,160 @@ let pairStacks = false;
   window.closeCmp = () => { document.getElementById('cp-back')?.remove(); document.body.style.overflow = ''; cpOpen = null; };
   window.cpStep = (d) => { const deck = cpRows(), at = deck.findIndex(x => x.pid === cpOpen), nx = deck[at + d]; if (!nx) return; closeCmp(); openCmp(nx.pid); };
 
+  // ── Interceptions ───────────────────────────────────────────────────────
+  const inF = { line: 0.5, sort: 'most', view: 'cards', q: '', tab: 'board', wk: null, open: false };
+  function setIn(k, v) { inF[k] = v; renderInterceptions(); }
+  window.setIn = setIn;
+  window.onIntSearch = () => { inF.q = document.getElementById('int-search')?.value || ''; refocusSearch('int-search', renderInterceptions); };
+  window.clearIntSearch = () => { inF.q = ''; renderInterceptions(); };
+  const inP = (r, L = inF.line) => r.p[L] ?? r.p[String(L)];
+  function inRows() {
+    const q = pbNorm(inF.q.trim());
+    return (nflData?.interceptions || []).map(r => ({ ...r, L: inF.line, p: inP(r) }))
+      .filter(r => r.p != null)
+      .sort((a, b) => inF.sort === 'most' ? b.p - a.p : a.p - b.p)
+      .map((r, i) => ({ ...r, rank: i + 1 }))
+      .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q));
+  }
+  const spreadTxt = (fav) => fav === 0 ? 'pick’em' : fav > 0 ? `−${fav} fav` : `+${-fav} dog`;
+  const inNotes = (r) => {
+    const n = [];
+    if (r.f.fav <= -7) n.push(`<span class="rc-wind" title="Big underdog — teams expected to trail throw riskier passes; already in the price">big dog</span>`);
+    if (r.f.thinX > 1.001) n.push(`<span class="rc-wind" title="Fewer than 3 starts in the last two seasons — marked up ×${r.f.thinX.toFixed(2)}, the measured extra for starters with thin history">limited history</span>`);
+    return n.join('');
+  };
+
+  function renderInterceptions() {
+    const el = document.getElementById('interceptions-content'); if (!el) return;
+    if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
+    if (nflData === 'error') { el.innerHTML = `<div class="empty">Couldn't load NFL data. <a href="javascript:void(0)" onclick="loadNfl()">Retry</a></div>`; return; }
+    const tabs = uiTabs('setIn', inF.tab);
+    if (inF.tab === 'results') {
+      el.innerHTML = tabs + liveResults('int', 'setLr')
+        + `<details class="lr-bt"${window.lrBtOpen ? ' open' : ''} ontoggle="window.lrBtOpen = this.open"><summary>2025 backtest — every past start replayed</summary>${renderIntBacktest()}</details>`;
+      return;
+    }
+    const R = nflData.interceptions || [];
+    if (!R.length) { el.innerHTML = tabs + '<div class="empty">No prices yet — they fill in once the slate has lines.</div>'; return; }
+    const rows = inRows();
+    const lines = nflData.interceptionModel?.lines || [0.5, 1.5];
+    const controls = tabs + `
+      ${uiFilters('setIn', inF.open, [
+        ['Line', lines.slice(0, 2).map(L => uiChip('setIn', 'line', L, 'o' + L, inF.line)).join('')],
+        ['Sort', uiChip('setIn', 'sort', 'most', 'Most likely', inF.sort) + uiChip('setIn', 'sort', 'least', 'Least likely', inF.sort)],
+      ], (inF.line !== 0.5) + (inF.sort !== 'most'))}
+      <div class="pb-search">
+        <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        <input type="text" id="int-search" placeholder="Search a quarterback or team…" value="${inF.q.replace(/"/g, '&quot;')}" oninput="onIntSearch()" autocomplete="off" spellcheck="false">
+        <button class="pb-search-x" onclick="clearIntSearch()" aria-label="Clear"${inF.q ? ' style="display:flex"' : ''}>×</button>
+      </div>
+      <div class="pb-head"><span class="pb-week">${WK_LABEL(firstUpcomingWeek())}</span><span class="pb-meta">${rows.length} starting QBs · over ${inF.line} interceptions · fair odds, no vig</span></div>`;
+    if (!rows.length) { el.innerHTML = controls + '<div class="empty">Nothing matches that search.</div>'; return; }
+    const under = (r) => pbOdds(1 - r.p);
+    let body;
+    if (inF.view === 'table') {
+      body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>QB</th><th>Game</th><th class="num">Spread</th><th class="num">Bad balls</th><th class="num">Opp INT%</th><th class="num">Over</th><th class="num">Under</th></tr></thead><tbody>${rows.map(r => `
+        <tr onclick="openInt('${r.pid}')"><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
+          <td class="num dim">${spreadTxt(r.f.fav)}</td><td class="num dim">${(r.f.bad * 100).toFixed(1)}%</td><td class="num dim">${(r.f.defInt * 100).toFixed(1)}%</td>
+          <td class="num"><b class="${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</b></td><td class="num dim">${under(r)}</td></tr>`).join('')}</tbody></table></div>`;
+    } else if (inF.view === 'compact') {
+      body = `<div class="rc-compact">${rows.map(r => `
+        <div class="rc-crow" onclick="openInt('${r.pid}')"><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
+          <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${Math.round(r.p * 100)}%</span>
+          <span class="rc-cod ${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
+    } else {
+      body = `<div class="pb-list">${rows.map(r => `
+        <div class="pb-card" onclick="openInt('${r.pid}')">
+          <div class="pb-rank">${r.rank}</div>${faceHtml(r.pid, r.name)}
+          <div class="pb-info">
+            <div class="pb-nm">${r.name}</div>
+            <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
+              ${liveChip('int', r, r.L)}${inNotes(r)}</div>
+          </div>
+          <div class="pb-facts">
+            <span class="pb-f" title="Point spread for his team — trailing teams throw riskier passes"><b>${spreadTxt(r.f.fav)}</b></span>
+            <span class="pb-f" title="Share of his passes intercepted or broken up, last two seasons (shrunk toward league average)"><b>${(r.f.bad * 100).toFixed(1)}%</b> bad</span>
+            <span class="pb-f" title="Share of passes this defense intercepts, last two seasons"><b>${(r.f.defInt * 100).toFixed(1)}%</b> opp INT</span>
+          </div>
+          <div class="pb-price"><span class="pb-odds${r.p < 0.5 ? ' dog' : ''}">${pbOdds(r.p)}</span><span class="pb-pct">over ${r.L} · u ${under(r)}</span></div>
+        </div>`).join('')}</div>`;
+    }
+    el.innerHTML = controls + uiView('setIn', inF.view) + body;
+  }
+
+  // 2025 backtest: the latest full week, every starter, what happened.
+  function renderIntBacktest() {
+    const H = nflData.interceptionsHistory || [];
+    if (!H.length) return '<div class="empty">No graded weeks yet.</div>';
+    if (inF.wk == null || inF.wk >= H.length) { let i = H.length - 1; while (i > 0 && H[i].rows.length < 16) i--; inF.wk = i; }
+    const wk = H[inF.wk];
+    let n = 0, said = 0, hit = 0;
+    for (const x of H) for (const r of x.rows) { n++; said += r[1]; if (r[2] >= 1) hit++; }
+    const rows = wk.rows.map(([mu, p, ints, name, team]) => `<div class="cp-res${ints >= 1 ? ' hit' : ''}">
+        <span class="cp-res-nm">${name}<span class="cp-res-tm">${team}</span></span>
+        <span class="cp-res-line">o0.5<span class="cp-res-od">${pbOdds(p)}</span></span>
+        <span class="cp-res-proj">${Math.round(p * 100)}%</span><span class="cp-res-act">${ints}</span>
+        <span class="cp-res-tag">${ints >= 1 ? 'OVER' : 'UNDER'}</span></div>`).join('');
+    return `
+      <div class="hm-tiles" style="margin-bottom:0.6rem">
+        <div class="hm-tile"><b>${n}</b><span>Starts graded</span></div>
+        <div class="hm-tile"><b>${(100 * hit / n).toFixed(0)}%</b><span>Threw a pick</span></div>
+        <div class="hm-tile"><b>${(100 * said / n).toFixed(0)}%</b><span>We said</span></div>
+      </div>
+      <div class="cp-wknav">
+        <button class="due-filter-chip mode-chip" onclick="setIn('wk',${Math.max(0, inF.wk - 1)})"${inF.wk <= 0 ? ' disabled' : ''}>‹</button>
+        <span class="cp-wk">${wk.s} · Week ${wk.w}</span>
+        <button class="due-filter-chip mode-chip" onclick="setIn('wk',${Math.min(H.length - 1, inF.wk + 1)})"${inF.wk >= H.length - 1 ? ' disabled' : ''}>›</button>
+      </div>
+      <div class="cp-res head"><span class="cp-res-nm">QB</span><span class="cp-res-line">Line</span><span class="cp-res-proj">Chance</span><span class="cp-res-act">INT</span><span class="cp-res-tag"></span></div>
+      ${rows}`;
+  }
+
+  let inOpen = null;
+  function openInt(pid) {
+    const r = (nflData?.interceptions || []).find(x => x.pid === pid); if (!r) return;
+    inOpen = pid;
+    const deck = inRows(), at = deck.findIndex(x => x.pid === pid);
+    const f = r.f;
+    const ladder = (nflData.interceptionModel?.lines || [0.5, 1.5, 2.5]).map(L => {
+      const p = inP(r, L);
+      return `<div class="pm-mkt${L === inF.line ? ' on' : ''}"><div class="pm-mkt-lbl">o${L}</div><div class="pm-mkt-od">${pbOdds(p)}</div><div class="pm-mkt-pct">${(p * 100).toFixed(1)}% · u ${pbOdds(1 - p)}</div></div>`; }).join('');
+    const x = f.x || {};
+    const bar = (lab, mult, detail, tip) => {
+      const pct = (mult - 1) * 100;
+      return `<div class="pm-stat" title="${tip}"><div class="pm-stat-v">${pct >= 0 ? '+' : '−'}${Math.abs(pct).toFixed(0)}%</div><div class="pm-stat-l">${lab} · ${detail}</div><div class="pm-stat-bar"><i style="width:${Math.max(4, Math.min(100, 50 + pct * 2.5))}%"></i></div></div>`;
+    };
+    document.body.insertAdjacentHTML('beforeend', `
+      <div class="pm-back" id="in-back" onclick="if(event.target===this)closeInt()">
+        <button class="pk-side-nav pk-side-prev" onclick="inStep(-1)"${at <= 0 ? ' disabled' : ''}>‹</button>
+        <button class="pk-side-nav pk-side-next" onclick="inStep(1)"${at < 0 || at >= deck.length - 1 ? ' disabled' : ''}>›</button>
+        <div class="pm" role="dialog" aria-modal="true">
+          <button class="pm-x" onclick="closeInt()" aria-label="Close">×</button>
+          ${at >= 0 ? `<div class="pk-deck-count" style="padding-top:0.6rem">${at + 1} / ${deck.length}</div>` : ''}
+          <div class="pm-hero">${faceHtml(r.pid, r.name)}
+            <div class="pm-id"><div class="pm-nm">${r.name}</div><div class="pm-meta"><b>QB</b> · ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</div></div>
+            <div class="pm-hero-price"><div class="pm-hero-od">${pbOdds(inP(r, 0.5))}</div><div class="pm-hero-lbl">1+ INT · ${r.mu.toFixed(2)} proj</div></div>
+          </div>
+          <div class="pm-sec">The ladder</div><div class="pm-mkts">${ladder}</div>
+          <div class="pm-sec">What moves his price</div>
+          <p class="pm-note" style="margin:0 0 0.5rem">Each factor's pull on his expected interceptions, against an average starter in an average spot.</p>
+          <div class="pm-stats">
+            ${bar('Game script', x.fav ?? 1, spreadTxt(f.fav), 'Teams expected to trail throw riskier passes')}
+            ${bar('Bad balls', x.log_bad_rate ?? 1, (f.bad * 100).toFixed(1) + '% of passes', 'Intercepted or broken up, last two seasons, shrunk toward league average')}
+            ${bar('Defense', x.log_def_int ?? 1, (f.defInt * 100).toFixed(1) + '% INT rate', 'How often this defense intercepts, last two seasons')}
+            ${bar('Team total', x.implied ?? 1, f.implied.toFixed(1) + ' pts', 'Points his team is implied to score')}
+            ${bar('Volume', x.log_att ?? 1, f.att.toFixed(0) + ' att/start', 'His attempts per start')}
+            ${f.thinX > 1.001 ? bar('Limited history', f.thinX, f.starts + ' recent starts', 'Starters with fewer than 3 recent starts throw measurably more interceptions than their numbers suggest') : ''}
+          </div>
+          <p class="pm-foot">${f.attSum ? `Last two seasons: <b>${f.ints}</b> interceptions on <b>${f.attSum}</b> attempts. ` : ''}His raw interception rate isn't in the price &mdash; it swings too much game to game to predict the next one. Fair odds, no vig.</p>
+        </div>
+      </div>`);
+    document.body.style.overflow = 'hidden';
+  }
+  window.openInt = openInt;
+  window.closeInt = () => { document.getElementById('in-back')?.remove(); document.body.style.overflow = ''; inOpen = null; };
+  window.inStep = (d) => { const deck = inRows(), at = deck.findIndex(x => x.pid === inOpen), nx = deck[at + d]; if (!nx) return; closeInt(); openInt(nx.pid); };
+
   function renderReturners() {
     const el = document.getElementById('returners-content'); if (!el) return;
     if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
@@ -4779,6 +4963,10 @@ let pairStacks = false;
         <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} · ${pbOdds(r.p[L] ?? r.p[String(L)])} over ${L}</span></span>
         <span class="hm-score hot">${r.mu.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> proj</span></span></div>`;
     }).join('');
+    const intHomeRows = (nflData.interceptions || []).slice(0, 3).map(r => `
+      <div class="hm-row">${faceHtml(r.pid, r.name)}
+        <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} ${r.home ? 'vs' : '@'} ${r.opp} · over 0.5</span></span>
+        <span class="hm-score hot">${pbOdds(r.p['0.5'] ?? r.p[0.5])}</span></div>`).join('');
     const retRows = (nflData.returners || []).slice(0, 3).map(r => `
       <div class="hm-row">${faceHtml(r.pid, r.name)}
         <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} · ${Math.round(r.prShare * 100)}% punts · ${Math.round(r.krShare * 100)}% kicks</span></span>
@@ -4802,6 +4990,7 @@ let pairStacks = false;
             'The board fills in once the slate has lines.')}
           ${card('receptions', 'Receptions', 'Receptions', recRows, 'Projections fill in once the slate has lines.')}
           ${card('completions', 'Completions', 'Completions', cmpHomeRows, 'Projections fill in once the slate has lines.')}
+          ${card('interceptions', 'Interceptions', 'Interceptions', intHomeRows, 'Prices fill in once the slate has lines.')}
           ${card('due', 'Due', 'Due', dueRows, 'Nobody with a red-zone role is in a drought.')}
           ${card('milestones', 'Milestone Watch 🏆', 'Milestones', msRows, 'No chases within reach.')}
         </div>

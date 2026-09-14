@@ -1,0 +1,64 @@
+{
+ "note": "QB interceptions. Poisson GLM for the mean, priced negative binomial. Features: projected attempts, implied team total, spread, the QB's bad-ball rate (INT + passes defensed per attempt) and the opponent defense's INT rate, all 2-season-windowed and shrunk. His own INT rate is left out: split-half 0.10, noise.",
+ "features": [
+  "log_att",
+  "implied",
+  "fav",
+  "log_bad_rate",
+  "log_def_int"
+ ],
+ "coef": {
+  "intercept": -0.3308271782499186,
+  "log_att": 0.031138119745385388,
+  "implied": 0.05415229685520699,
+  "fav": -0.1178226746769392,
+  "log_bad_rate": 0.12127679498019546,
+  "log_def_int": 0.05353365732476619
+ },
+ "scale": {
+  "log_att": {
+   "mean": 3.5818861085515,
+   "sd": 0.0855654837279299
+  },
+  "implied": {
+   "mean": 22.971825962910128,
+   "sd": 3.7783354655759642
+  },
+  "fav": {
+   "mean": 0.38659058487874465,
+   "sd": 6.2644392964355875
+  },
+  "log_bad_rate": {
+   "mean": -2.2042270010793725,
+   "sd": 0.11842021477832797
+  },
+  "log_def_int": {
+   "mean": -3.860934027177921,
+   "sd": 0.1541090930197374
+  }
+ },
+ "alpha": 0.061866414681855754,
+ "lines": [
+  0.5,
+  1.5,
+  2.5
+ ],
+ "window": 2,
+ "shrink": {
+  "att_starts": 3.0,
+  "bad_att": 300,
+  "def_att": 600
+ },
+ "league": {
+  "att": 35.900142653352354,
+  "bad_rate": 0.11346415584943222,
+  "def_int": 0.02081682816340626
+ },
+ "thin_factor": {
+  "0": 1.1747,
+  "1": 1.0266,
+  "2": 1.0266
+ },
+ "trained_on": "2016-2025",
+ "n_rows": 4907
+}
