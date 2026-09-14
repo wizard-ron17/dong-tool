@@ -4366,7 +4366,7 @@ let pairStacks = false;
             <td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
             <td class="num"><b>${r.mu.toFixed(2)}</b></td>
             <td class="num dim">${Math.round((r.f.snapL3 || 0) * 100)}%</td>
-            <td class="num dim">${Math.round((r.f.shareL3 || 0) * 100)}%</td>
+            <td class="num dim">${r.f.thinRole ? '—' : Math.round((r.f.shareL3 || 0) * 100) + '%'}</td>
             <td class="num dim">o${r.L}</td>
             <td class="num"><b class="${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</b></td>
           </tr>`).join('')}</tbody></table></div>`;
@@ -4387,14 +4387,15 @@ let pairStacks = false;
           <div class="pb-info">
             <div class="pb-nm">${r.name}<span class="pb-flag" title="Position">${r.pos}</span></div>
             <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
-              <span class="rc-proj" title="Projected receptions"><b>${r.mu.toFixed(1)}</b> proj</span>${liveChip('rec', r, r.L)}${roleTag(r.f)}${
+              <span class="rc-proj" title="Projected receptions"><b>${r.mu.toFixed(1)}</b> proj</span>${liveChip('rec', r, r.L)}${roleTag(r.f)}${r.f.thinRole ? '<span class="rc-wind" title="No NFL history — priced from his depth-chart snap share against what rookies at his position and snap tier caught">rookie baseline</span>' : ''}${
                 (nflData.wind?.[r.gameId] ?? 0) >= 12
                   ? `<span class="rc-wind" title="Forecast wind at kickoff — the projection already carries it">${Math.round(nflData.wind[r.gameId])} mph</span>` : ''}</div>
           </div>
           <div class="pb-facts">
-            <span class="pb-f" title="Snap share over his last three games"><b>${Math.round((r.f.snapL3 || 0) * 100)}%</b> snaps</span>
+            ${r.f.thinRole ? `<span class="pb-f" title="Snap share the depth chart gives him"><b>${Math.round(r.f.snapEst * 100)}%</b> exp snaps</span>
+            <span class="pb-f" title="His rank at his position on the depth chart"><b>#${r.f.depth ?? '—'}</b> depth</span>` : `<span class="pb-f" title="Snap share over his last three games"><b>${Math.round((r.f.snapL3 || 0) * 100)}%</b> snaps</span>
             <span class="pb-f" title="Share of his team's targets over his last three games"><b>${Math.round((r.f.shareL3 || 0) * 100)}%</b> tgt</span>
-            <span class="pb-f" title="His team's pass attempts per game"><b>${(r.f.teamPass || 0).toFixed(0)}</b> att</span>
+            <span class="pb-f" title="His team's pass attempts per game"><b>${(r.f.teamPass || 0).toFixed(0)}</b> att</span>`}
           </div>
           <div class="pb-price">
             <span class="pb-odds${r.p < 0.5 ? ' dog' : ''}">${pbOdds(r.p)}</span>
@@ -4449,6 +4450,9 @@ let pairStacks = false;
           <div class="pm-mkts">${ladder}</div>
           <div class="pm-sec">The usage behind it</div>
           <div class="pm-stats">
+            ${f.thinRole ? `${stat(Math.round(f.snapEst * 100) + '%', 'Expected snaps', f.snapEst * 100, 'Snap share the depth chart gives him — he has no NFL games to measure')}
+            ${stat('#' + (f.depth ?? '—'), 'Depth chart', Math.max(5, 100 - ((f.depth || 5) - 1) * 20), 'His rank at his position')}
+            </div><p class="pm-note" style="margin-top:0.7rem"><b>Rookie baseline.</b> No NFL history, so this is what rookies and newcomers at his position actually caught when they played ${THIN_TIER_LBL[f.tier]} of snaps (2017–2025). It sharpens as he plays.</p><div style="display:none">` : ''}
             ${stat(Math.round((f.snapL3 || 0) * 100) + '%', 'Snap share L3', (f.snapL3 || 0) * 100, "Share of his offense's snaps over the last three games — the largest term in the model")}
             ${stat(Math.round((f.shareL3 || 0) * 100) + '%', 'Target share L3', (f.shareL3 || 0) * 400, "His share of the team's targets over the last three games")}
             ${stat((f.teamPass || 0).toFixed(0), 'Team pass att', (f.teamPass || 0) / 45 * 100, 'His team’s pass attempts per game')}
@@ -4825,7 +4829,9 @@ let pairStacks = false;
   window.onYdSearch = () => { ydF.q = document.getElementById('yd-search')?.value || ''; refocusSearch('yd-search', renderYards); };
   window.clearYdSearch = () => { ydF.q = ''; renderYards(); };
   // P(yards > line) from the shipped ratio tables — the same math as scripts/yards.js
-  function ydPOver(m, line, mu) {
+  function ydPOver(m, line, mu, tq) {
+    // rookie baseline rows ship their own quantiles (research/thin.py)
+    if (tq) return Math.min(0.995, Math.max(0.005, tq.filter(v => v > line).length / tq.length));
     const t = nflData?.yardsModel?.[m]; if (!t) return 0.5;
     let b = 0; while (b < t.edges.length && mu > t.edges[b]) b++;
     const q = t.q[b], n = q.length, r = line / Math.max(mu, 1e-6);
@@ -4848,19 +4854,23 @@ let pairStacks = false;
     return out;
   };
   const ydPick = (r, mk = ydF.mkt) =>
-    ydRungs(mk, r.med, 1, 2).reduce((b, x) => Math.abs(ydPOver(r.m, x, r.mu) - 0.5) < Math.abs(ydPOver(r.m, b, r.mu) - 0.5) ? x : b);
+    ydRungs(mk, r.med, 1, 2).reduce((b, x) => Math.abs(ydPOver(r.m, x, r.mu, r.tq) - 0.5) < Math.abs(ydPOver(r.m, b, r.mu, r.tq) - 0.5) ? x : b);
   function ydRows() {
     const q = pbNorm(ydF.q.trim());
     const all = nflData?.yards?.[ydF.mkt] || [];
     return dayScope(all)
       .filter(r => ydF.pos === 'ALL' || r.pos === ydF.pos)
       .sort((a, b) => ydF.sort === 'high' ? b.med - a.med : a.med - b.med)
-      .map((r, i) => { const L = ydPick(r); return { ...r, rank: i + 1, L, p: ydPOver(r.m, L, r.mu) }; })
+      .map((r, i) => { const L = ydPick(r); return { ...r, rank: i + 1, L, p: ydPOver(r.m, L, r.mu, r.tq) }; })
       .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q) || pbNorm(r.pos) === q);
   }
   // the two or three numbers behind a card, per market
+  const THIN_TIER_LBL = ['25–45%', '45–65%', '65%+'];
   function ydFacts(r) {
     const f = r.f, pct = (x) => Math.round(x * 100) + '%';
+    if (f.thinRole) return [[pct(f.snapEst), 'exp snaps', 'Snap share the depth chart gives him — he has no NFL games to measure'],
+                            [f.depth ? '#' + f.depth : '—', 'depth', 'His rank at his position on the depth chart'],
+                            [THIN_TIER_LBL[f.tier] ?? '', 'tier', 'Priced from rookies and newcomers at his position who played this share of snaps']];
     if (r.m === 'pass') return [[f.avg.toFixed(0), 'avg', 'Passing yards per start, last two seasons'], [f.att.toFixed(0), 'att', 'Attempts per start'], [f.l3.toFixed(0), 'last 3', 'Average over his last three starts']];
     if (r.m === 'qbrush') return [[f.avg.toFixed(0), 'avg', 'Rushing yards per start, last two seasons'], [f.carL3.toFixed(1), 'car L3', 'Rushes per start, last three starts'], [f.l3.toFixed(0), 'last 3', 'Rushing yards, last three starts']];
     if (r.m === 'rush') return [[f.carL3.toFixed(1), 'car L3', 'Carries per game, last three — the strongest signal on this board'], [pct(f.snapL3), 'snaps', 'Snap share, last three games'], [f.ypc.toFixed(1), 'ypc', 'Yards per carry, shrunk toward league average']];
@@ -4895,7 +4905,7 @@ let pairStacks = false;
     if (ydF.view === 'table') {
       body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Median</th><th class="num">Avg</th><th class="num">Last 3</th><th class="num">Line</th><th class="num">Over</th><th class="num">Under</th></tr></thead><tbody>${rows.map(r => `
         <tr onclick="openYds('${r.pid}','${r.m}')"><td class="num dim">${r.rank}</td><td><b>${r.name}</b> <span class="dim">${r.pos}</span></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
-          <td class="num"><b>${r.med.toFixed(0)}</b></td><td class="num dim">${r.f.avg.toFixed(0)}</td><td class="num dim">${r.f.l3.toFixed(0)}</td>
+          <td class="num"><b>${r.med.toFixed(0)}</b></td><td class="num dim">${r.f.avg != null ? r.f.avg.toFixed(0) : '—'}</td><td class="num dim">${r.f.l3 != null ? r.f.l3.toFixed(0) : '—'}</td>
           <td class="num dim">o${r.L}</td><td class="num"><b class="${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</b></td><td class="num dim">${pbOdds(1 - r.p)}</td></tr>`).join('')}</tbody></table></div>`;
     } else if (ydF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
@@ -4909,7 +4919,7 @@ let pairStacks = false;
           <div class="pb-info">
             <div class="pb-nm">${r.name}${pos(r)}</div>
             <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
-              ${liveChip('yds', r, r.med)}${roleTag(r.f)}${r.f.thin ? '<span class="rc-wind" title="Fewer than 3 recent starts — his numbers lean on a league-average QB">limited history</span>' : ''}</div>
+              ${liveChip('yds', r, r.med)}${roleTag(r.f)}${r.f.thinRole ? '<span class="rc-wind" title="No NFL history — priced from his depth-chart snap share against what rookies at his position and snap tier produced">rookie baseline</span>' : ''}${r.f.thin ? '<span class="rc-wind" title="Fewer than 3 recent starts — his numbers lean on a league-average QB">limited history</span>' : ''}</div>
           </div>
           <div class="pb-facts">${ydFacts(r).map(([v, l, t]) => `<span class="pb-f" title="${t}"><b>${v}</b> ${l}</span>`).join('')}</div>
           <div class="pb-price"><span class="pb-odds" style="color:var(--text-strong)">${r.med.toFixed(0)}</span><span class="pb-pct">median · o${r.L} ${pbOdds(r.p)}</span></div>
@@ -4942,10 +4952,14 @@ let pairStacks = false;
 
   /** The model's distribution for one player: quantile points, CDF, density. */
   function ydDist(r) {
-    const t = nflData.yardsModel[r.m];
-    let b = 0; while (b < t.edges.length && r.mu > t.edges[b]) b++;
-    const q = t.q[b], n = q.length;
-    const vals = q.map(v => v * r.mu), probs = q.map((_, i) => i / (n - 1));
+    let vals;
+    if (r.tq) vals = r.tq.slice();
+    else {
+      const t = nflData.yardsModel[r.m];
+      let b = 0; while (b < t.edges.length && r.mu > t.edges[b]) b++;
+      vals = t.q[b].map(v => v * r.mu);
+    }
+    const n = vals.length, probs = vals.map((_, i) => i / (n - 1));
     const at = (p) => { // quantile
       const i = Math.min(n - 2, Math.floor(p * (n - 1))), f = p * (n - 1) - i;
       return vals[i] + f * (vals[i + 1] - vals[i]);
@@ -5010,6 +5024,12 @@ let pairStacks = false;
   function ydMetrics(r) {
     const f = r.f, pct = (x) => Math.round(x * 100) + '%';
     const spread = f.fav === 0 ? 'PK' : (f.fav > 0 ? '−' : '+') + Math.abs(f.fav);
+    if (f.thinRole) return [[ydIco('ball'), pct(f.snapEst), 'Expected snaps', 'Snap share the depth chart gives him'],
+        [ydIco('bars'), f.depth ? '#' + f.depth : '—', 'Depth chart', 'His rank at his position'],
+        [ydIco('clock'), String(f.games ?? 0), 'NFL games', 'Games on file before this one'],
+        [ydIco('team'), f.implied.toFixed(1), 'Team total', 'Points his team is implied to score'],
+        [ydIco('spread'), spread, 'Spread', 'His team\u2019s point spread']]
+      .map(([ic, v, l, t]) => `<div class="ydk" title="${t}"><span class="ydk-ic">${ic}</span><b>${v}</b><span>${l}</span></div>`).join('');
     const out = [[ydIco('bars'), f.avg.toFixed(0), 'Avg, 2 seasons', 'Per game over his last two seasons, shrunk toward his position'],
                  [ydIco('clock'), f.l3.toFixed(0), 'Last 3 games', 'His last three games — recent role is the strongest signal for rushing and receiving']];
     if (r.m === 'pass') out.push([ydIco('arm'), f.att.toFixed(0), 'Att / start', 'Pass attempts per start']);
@@ -5023,7 +5043,7 @@ let pairStacks = false;
 
   function ydSide(r) {
     const L = ydm.line;
-    const p = ydPOver(r.m, L, r.mu);
+    const p = ydPOver(r.m, L, r.mu, r.tq);
     const pick = ydPick(r);
     // 8 rungs around the even line: three shorter, the even line, four longer.
     // A low median slides the window up rather than quoting lines at or below 0.
@@ -5031,7 +5051,7 @@ let pairStacks = false;
     let first = pick - 3 * st;
     while (first <= 0) first += st;
     const ladder = Array.from({ length: 8 }, (_, i) => first + i * st).map(x => {
-      const px = ydPOver(r.m, x, r.mu);
+      const px = ydPOver(r.m, x, r.mu, r.tq);
       return `<button class="ydl-row${Math.abs(x - L) < 0.01 ? ' on' : ''}" onclick="ydSetLine(${x})" aria-pressed="${Math.abs(x - L) < 0.01}">
         <span class="ydl-ln">${x}${Math.abs(x - pick) < 0.01 ? '<small>even</small>' : ''}</span>
         <span class="ydl-pc">${Math.round(px * 100)}%</span>
@@ -5055,7 +5075,7 @@ let pairStacks = false;
         <div class="ydm-main">
           <section class="ydm-panel">
             <div class="ydm-chart-head">
-              <div><h3>${ydMktName(r.m)} yards distribution</h3><p>From ${r.f.games} of his games and how players projected like him land</p></div>
+              <div><h3>${ydMktName(r.m)} yards distribution</h3><p>${r.f.thinRole ? `Rookie baseline: what ${r.pos}s playing ${THIN_TIER_LBL[r.f.tier]} of snaps with little or no history produced` : `From ${r.f.games} of his games and how players projected like him land`}</p></div>
             </div>
             <div class="ydm-chart-row">
               <div class="ydc-wrap">${ydChart(r, D)}</div>

@@ -136,4 +136,23 @@ export function quantile(market, mu, p = 0.5) {
   return mu * interp(p, QS, bucket(market, mu));
 }
 
+// ── Rookies and newcomers (fewer than 3 prior games) ─────────────────────
+// No history to project from, so a baseline: the actual spread of catches and
+// yards for rookies/newcomers at his position and snap tier (research/thin.py,
+// 2017-2025, checked on 2023-25: receptions said 45.7% / hit 45.6%, receiving
+// yards 47.5 / 47.0). His tier comes from the depth-chart snap estimate.
+const THIN = JSON.parse(fs.readFileSync(new URL('../research/thin_model.json', import.meta.url), 'utf8'));
+export const THIN_MIN_SNAP = THIN.tiers[0];
+/** Stored quantiles for market 'rec' | 'ryds' | 'rush' | 'rr', or null. */
+export function thinQuantiles(market, position, snap) {
+  if (!(snap >= THIN.tiers[0])) return null;
+  let t = 0; while (t < THIN.tiers.length - 2 && snap >= THIN.tiers[t + 1]) t++;
+  return THIN.markets[market]?.[`${position}|${t}`] ?? null;
+}
+export const thinTier = (snap) => { let t = 0; while (t < THIN.tiers.length - 2 && snap >= THIN.tiers[t + 1]) t++; return t; };
+/** P(value > line) from the quantiles: share of them strictly above. */
+export const thinOver = (qs, line) => Math.min(0.995, Math.max(0.005, qs.filter(v => v > line).length / qs.length));
+export const qMean = (qs) => qs.reduce((a, b) => a + b, 0) / qs.length;
+export const qMedian = (qs) => qs[Math.floor(qs.length / 2)];
+
 export const YARDS_MODEL = M;

@@ -24,7 +24,7 @@ import fs from 'node:fs';
 import { REL, fetchText, fetchOptional, parseCsv, num } from './nflverse.js';
 import { loadWind } from './wind.js';
 import { skillYardsFeatures, qbYardsFeatures, startKeys, scoreMu as ydsMu, quantile as ydsQ,
-         YARDS_MODEL } from './yards.js';
+         YARDS_MODEL, thinQuantiles, thinTier, thinOver, qMean, qMedian, THIN_MIN_SNAP } from './yards.js';
 import { interceptionFeatures, scoreMu as intMu, pOver as intOver, thinFactor as intThin,
          contributions as intParts, INT_LINES, INTERCEPTIONS_MODEL } from './interceptions.js';
 import { completionFeatures, scoreMu as cmpMu, pOver as cmpOver, CMP_LINES,
@@ -969,7 +969,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     const raw = r.row.snap_last3_raw, adj = r.row.snap_last3;
     if (raw == null || adj == null) continue;
     const x = Math.min(2.5, Math.max(0.5, adj / Math.max(raw, 0.05)));
-    role.set(r.pid, { x, s: Math.sqrt(x), rank: r.depthRank ?? null });
+    role.set(r.pid, { x, s: Math.sqrt(x), rank: r.depthRank ?? null, snap: adj });
   }
   const roleS = (pid) => role.get(pid)?.s ?? 1;
   // ── Returners ───────────────────────────────────────────────────────────
@@ -1253,7 +1253,24 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
       if (!ctx) continue;
       const f = skillYardsFeatures({ pid, position: info.position, season, week, snapLog, recLog, rushLog,
                                      implied: ctx.implied, spread: ctx.fav, floor: rzSeasons[0] });
-      if (!f || f._games < 3) continue;           // matches the training filter
+      if (!f || f._games < 3) {
+        // Rookie / newcomer: priced from his depth-chart snap estimate against
+        // what players at his position and snap tier actually produced.
+        const ro = role.get(pid);
+        if (!ro || !(ro.snap >= THIN_MIN_SNAP)) continue;
+        const base = row0(pid, info.name, info.team, info.position, ctx);
+        const ff = { thinRole: true, snapEst: +ro.snap.toFixed(3), tier: thinTier(ro.snap), depth: ro.rank, games: f?._games ?? 0,
+                     implied: r1(ctx.implied), fav: r1(ctx.fav), q: questionable.has(pid) };
+        const add = (list, m, cellKey) => {
+          const tq = thinQuantiles(cellKey, info.position, ro.snap);
+          if (!tq || qMedian(tq) < 3) return;       // a baseline of ~0 yards is not a line anyone hangs
+          list.push({ ...base, m, mu: r1(qMean(tq)), med: r1(qMedian(tq)), tq, f: ff });
+        };
+        add(yards.rec, 'rec', 'ryds');
+        if (info.position === 'RB') add(yards.rush, 'rush', 'rush');
+        add(yards.rr, 'rr', 'rr');
+        continue;
+      }
       const rs = roleS(pid);
       for (const k of ['snap_l3', 'share_l3', 'car_l3', 'ryds_l3', 'rush_l3', 'rr_l3']) f[k] *= rs;
       const base = row0(pid, info.name, info.team, info.position, ctx);
@@ -1298,7 +1315,21 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
       team: info.team, impliedTotal: ctx.implied, windowFloor: rzSeasons[0],
       windMph: windByGame.get(ctx.gameId) ?? 0,
     });
-    if (!row || row._games < 3) continue;       // matches the training filter
+    if (!row || row._games < 3) {
+      // Rookie / newcomer baseline — see the Yards block above and research/thin.py.
+      const ro = role.get(pid);
+      const tq = ro && thinQuantiles('rec', info.position, ro.snap);
+      if (tq && qMean(tq) >= 0.8) {
+        receptions.push({
+          pid, name: info.name, team: info.team, opp: ctx.opp, pos: info.position, gameId: ctx.gameId, home: ctx.home,
+          mu: +qMean(tq).toFixed(4),
+          p: Object.fromEntries(REC_LINES.map(L => [L, +thinOver(tq, L).toFixed(6)])),
+          f: { thinRole: true, snapL3: +ro.snap.toFixed(4), snapEst: +ro.snap.toFixed(3), tier: thinTier(ro.snap), depth: ro.rank,
+               implied: +ctx.implied.toFixed(2), games: row?._games ?? 0, q: questionable.has(pid) },
+        });
+      }
+      continue;
+    }
     const rs = roleS(pid);                      // depth chart + injuries, see "Role, sitewide"
     row.snap_l3 *= rs; row.share_l3 *= rs; row.rec_l3 *= rs;
     const mu = scoreMu(row);
