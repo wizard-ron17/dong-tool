@@ -3338,6 +3338,7 @@
         <button class="due-filter-chip mode-chip" onclick="${setFn}('wk',${weeks[wi + 1] ?? lrF.wk})"${wi >= weeks.length - 1 ? ' disabled' : ''}>›</button>
       </div>
       ${pendLine}
+      ${wk.some(g => g.rebuilt?.includes(kind)) ? `<div class="lr-pending">This board launched after some of these games, so theirs were <b>rebuilt</b> from the lines and starters known before kickoff — nothing from the games themselves.</div>` : ''}
       ${logged ? head + list + more : '<div class="empty">This market wasn\'t on the board for these games yet.</div>'}
       <div class="lr-note">Each game is graded against the board as it stood at <b>kickoff</b> — the last build before it started — and scored from the box score as soon as it goes final. A player with no stats is checked against snap counts the next morning: no snaps means he didn't play, which books treat as a void (<b>DNP</b>).</div>`;
   }
