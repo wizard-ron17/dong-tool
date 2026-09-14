@@ -1625,6 +1625,12 @@
   .lr-bt[open] > summary { margin-bottom: 0.7rem; }
   .lr-note { font-size: 0.78rem; color: var(--muted); margin-top: 0.6rem; line-height: 1.45; }
   /* A finished game's result, right on the board card */
+  /* Day-by-day slate switch, shared by every weekly board */
+  .day-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin: 0 0 0.6rem; }
+  .day-bar .pbf-chip.done:not(.on) { color: var(--dim); }
+  .day-bar .pbf-chip small { font-weight: 600; opacity: 0.75; margin-left: 0.25rem; }
+  .day-note { font-size: 0.76rem; color: var(--muted); margin-left: 0.2rem; }
+  .day-note a { color: var(--accent); cursor: pointer; }
   .lv-chip { margin-left: 0.4rem; padding: 0.04rem 0.34rem; border-radius: 4px; white-space: nowrap;
     font-family: var(--font-d); font-weight: 700; font-size: 0.78rem; border: 1px solid var(--border2);
     color: var(--muted); background: var(--surface1); }
@@ -2724,6 +2730,78 @@
   }
 
   // Kickoff time, joined from the schedule on gameId.
+  // ── Day-by-day slates ───────────────────────────────────────────────────
+  // A week's boards are really three or four slates (Thursday, Sunday, Monday).
+  // Every board shows one day, defaulting to the next one with a game still to
+  // kick off, and drops players whose game has already started — you can still
+  // open a finished day, or show the started games, from the bar.
+  const dayF = { day: null, started: false };
+  function setDay(day) { dayF.day = day; dayF.started = false; renderPanel(activeNav); }
+  function setDayStarted(v) { dayF.started = v; renderPanel(activeNav); }
+  window.setDay = setDay; window.setDayStarted = setDayStarted;
+  // nfldata's gameday/gametime are US Eastern wall-clock; resolve the real
+  // offset for that date so November's clock change lands right.
+  function kickoffAt(g) {
+    if (!g?.gameday) return null;
+    const [y, m, d] = g.gameday.split('-').map(Number);
+    const [hh, mm] = (g.gametime || '13:00').split(':').map(Number);
+    const guess = new Date(Date.UTC(y, m - 1, d, hh + 4, mm));
+    const ny = new Date(guess.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const utc = new Date(guess.toLocaleString('en-US', { timeZone: 'UTC' }));
+    return new Date(Date.UTC(y, m - 1, d, hh + Math.round((utc - ny) / 36e5), mm));
+  }
+  function gameStarted(gameId) {
+    const lw = nflData?.liveWeek?.games?.[gameId];
+    if (lw?.final || lw?.live) return true;
+    const g = pbGameMap()[gameId];
+    if (!g) return false;
+    if (g.homeScore != null) return true;
+    const k = kickoffAt(g);
+    return !!k && Date.now() >= k.getTime();
+  }
+  function slateDays() {
+    const week = nflData?.picks?.week ?? firstUpcomingWeek();
+    const by = new Map();
+    for (const g of (nflData?.schedule || [])) {
+      if (g.week !== week) continue;
+      const d = by.get(g.gameday) ?? by.set(g.gameday, { day: g.gameday, ids: new Set(), total: 0, started: 0 }).get(g.gameday);
+      d.ids.add(g.gameId); d.total++; if (gameStarted(g.gameId)) d.started++;
+    }
+    return [...by.values()].sort((a, b) => a.day.localeCompare(b.day)).map(d => ({
+      ...d, label: new Date(d.day + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric', timeZone: 'UTC' }).replace(',', ''),
+    }));
+  }
+  function activeDay(days = slateDays()) {
+    if (dayF.day === 'all') return null;
+    return days.find(d => d.day === dayF.day) ?? days.find(d => d.started < d.total) ?? days[days.length - 1] ?? null;
+  }
+  /** Rows for the selected day, minus players whose game already started. */
+  function dayScope(rows) {
+    const days = slateDays();
+    if (days.length < 2 && !days.some(d => d.started)) return rows;
+    const d = activeDay(days);
+    let out = d ? rows.filter(r => d.ids.has(r.gameId)) : rows;
+    if (!dayF.started && (!d || d.started < d.total)) out = out.filter(r => !gameStarted(r.gameId));
+    return out;
+  }
+  function dayBar() {
+    const days = slateDays();
+    if (!days.length) return '';
+    const d = activeDay(days);
+    const chips = days.map(x => {
+      const done = x.started === x.total;
+      const tag = done ? '✓' : x.started ? 'live' : `${x.total}`;
+      return `<button class="pbf-chip${d?.day === x.day ? ' on' : ''}${done ? ' done' : ''}" onclick="setDay('${x.day}')">${x.label}<small>${tag}</small></button>`;
+    }).join('') + `<button class="pbf-chip${!d ? ' on' : ''}" onclick="setDay('all')">All week</button>`;
+    const scope = d ? [d] : days;
+    const hidden = scope.filter(x => x.started < x.total || !d).reduce((a, x) => a + x.started, 0);
+    const note = dayF.started
+      ? `<span class="day-note">showing started games · <a onclick="setDayStarted(false)">hide</a></span>`
+      : hidden && (!d || d.started < d.total)
+        ? `<span class="day-note">${hidden} game${hidden > 1 ? 's' : ''} already started · <a onclick="setDayStarted(true)">show</a></span>` : '';
+    return `<div class="day-bar">${chips}${note}</div>`;
+  }
+
   function pbGameMap() {
     const m = {};
     for (const g of (nflData?.schedule || [])) m[g.gameId] = g;
@@ -2758,7 +2836,7 @@
     const P = nflData?.picks;
     if (!P || !P.picks) return [];
     const gm = pbGameMap();
-    let rows = P.picks.map(p => pbEnrich(p, gm));
+    let rows = dayScope(P.picks.map(p => pbEnrich(p, gm)));
     // A market that only applies to some players drops everyone else outright,
     // rather than showing them at a price of zero.
     if (pbMkt().qbOnly) rows = rows.filter(r => r.pPass != null);
@@ -3180,7 +3258,7 @@
         if (!hits.length) return `<div class="empty">No player or team matches
           <b>${pbSearch.join(', ')}</b>. <a href="javascript:void(0)" onclick="clearPicksSearch()">Clear search →</a></div>`;
         return `<div class="empty"><b>${hits.map(h => h.name).slice(0, 3).join(', ')}</b>${hits.length > 3 ? ` +${hits.length - 3} more` : ''}
-          ${hits.length === 1 ? 'is' : 'are'} on the board, but filtered out by the current market, price cut or position.
+          ${hits.length === 1 ? 'is' : 'are'} on the board, but filtered out by the current market, price cut, position or day.
           <a href="javascript:void(0)" onclick="clearPbF()">Reset filters →</a></div>`;
       }
       if (pbF.pos.length) pool = pool.filter(x => pbF.pos.includes(x.pos));
@@ -3201,6 +3279,7 @@
         <span class="pb-week">${WK_LABEL(P.week)}</span>
         <span class="pb-meta">${P.season} · ${pbMkt().lab}${pbF.pos.length && !pbMkt().qbOnly ? ' · ' + pbF.pos.join('/') : ''}${pbSearch.length ? ' · “' + pbSearch.join('”, “') + '”' : ''} · ${rows.length} shown · fair odds, no vig</span>
       </div>
+      ${dayBar()}
       <div class="lb-toolbar">
         <div class="view-switch">${[['table', 'Table'], ['cards', 'Cards'], ['compact', 'Compact']]
           .map(([v, l]) => `<button class="view-btn${pbF.view === v ? ' active' : ''}" onclick="setPbF('view','${v}')">${l}</button>`).join('')}</div>
@@ -3977,7 +4056,7 @@ let pairStacks = false;
   function rcRows() {
     const R = nflData?.receptions || [];
     const q = pbNorm(rcF.q.trim());
-    return R.map(r => ({ ...r, ...rcPick(r) }))
+    return dayScope(R.map(r => ({ ...r, ...rcPick(r) })))
       .filter(r => r.p != null)
       .filter(r => rcF.pos === 'ALL' || r.pos === rcF.pos)
       .sort((a, b) => rcF.sort === 'proj' ? b.mu - a.mu : b.p - a.p)
@@ -4101,10 +4180,10 @@ let pairStacks = false;
     const meta = `<div class="pb-head"><span class="pb-week">${WK_LABEL(w)}</span><span class="pb-meta">${rows.length} of ${R.length} pass-catchers${(() => {
       const ws = Object.values(nflData.wind || {}); const hi = ws.filter(v => v >= 15).length;
       return ws.length ? ` · wind forecast on ${ws.length} games${hi ? `, ${hi} at 15+ mph` : ''}` : '';
-    })()}</span></div>${uiView('setRc', rcF.view)}`;
+    })()}</span></div>${dayBar()}${uiView('setRc', rcF.view)}`;
 
     if (!rows.length) {
-      el.innerHTML = controls + `<div class="empty">Nothing matches that filter.</div>`;
+      el.innerHTML = controls + dayBar() + `<div class="empty">Nothing matches that filter.</div>`;
       return;
     }
 
@@ -4248,7 +4327,7 @@ let pairStacks = false;
   const cpPick = (r) => { const L = cpF.line === 'auto' ? cpNear(r.mu) : Number(cpF.line); return { L, p: r.p[L] ?? r.p[String(L)] }; };
   function cpRows() {
     const q = pbNorm(cpF.q.trim());
-    return (nflData?.completions || []).map(r => ({ ...r, ...cpPick(r) }))
+    return dayScope((nflData?.completions || []).map(r => ({ ...r, ...cpPick(r) })))
       .filter(r => r.p != null)
       .sort((a, b) => cpF.sort === 'proj' ? b.mu - a.mu : b.p - a.p)
       .map((r, i) => ({ ...r, rank: i + 1 }))
@@ -4290,7 +4369,7 @@ let pairStacks = false;
         <input type="text" id="cmp-search" placeholder="Search a quarterback or team…" value="${cpF.q.replace(/"/g, '&quot;')}" oninput="onCmpSearch()" autocomplete="off" spellcheck="false">
         <button class="pb-search-x" onclick="clearCmpSearch()" aria-label="Clear"${cpF.q ? ' style="display:flex"' : ''}>×</button>
       </div>
-      <div class="pb-head"><span class="pb-week">${WK_LABEL(firstUpcomingWeek())}</span><span class="pb-meta">${rows.length} starting QBs · gold tags mark wind or an elite pass defense already in the number</span></div>`;
+      <div class="pb-head"><span class="pb-week">${WK_LABEL(firstUpcomingWeek())}</span><span class="pb-meta">${rows.length} starting QBs · gold tags mark wind or an elite pass defense already in the number</span></div>${dayBar()}`;
     if (!rows.length) { el.innerHTML = controls + '<div class="empty">Nothing matches that search.</div>'; return; }
     let body;
     if (cpF.view === 'table') {
@@ -4414,7 +4493,7 @@ let pairStacks = false;
   const inP = (r, L = inF.line) => r.p[L] ?? r.p[String(L)];
   function inRows() {
     const q = pbNorm(inF.q.trim());
-    return (nflData?.interceptions || []).map(r => ({ ...r, L: inF.line, p: inP(r) }))
+    return dayScope((nflData?.interceptions || []).map(r => ({ ...r, L: inF.line, p: inP(r) })))
       .filter(r => r.p != null)
       .sort((a, b) => inF.sort === 'most' ? b.p - a.p : a.p - b.p)
       .map((r, i) => ({ ...r, rank: i + 1 }))
@@ -4452,7 +4531,7 @@ let pairStacks = false;
         <input type="text" id="int-search" placeholder="Search a quarterback or team…" value="${inF.q.replace(/"/g, '&quot;')}" oninput="onIntSearch()" autocomplete="off" spellcheck="false">
         <button class="pb-search-x" onclick="clearIntSearch()" aria-label="Clear"${inF.q ? ' style="display:flex"' : ''}>×</button>
       </div>
-      <div class="pb-head"><span class="pb-week">${WK_LABEL(firstUpcomingWeek())}</span><span class="pb-meta">${rows.length} starting QBs · over ${inF.line} interceptions · fair odds, no vig</span></div>`;
+      <div class="pb-head"><span class="pb-week">${WK_LABEL(firstUpcomingWeek())}</span><span class="pb-meta">${rows.length} starting QBs · over ${inF.line} interceptions · fair odds, no vig</span></div>${dayBar()}`;
     if (!rows.length) { el.innerHTML = controls + '<div class="empty">Nothing matches that search.</div>'; return; }
     const under = (r) => pbOdds(1 - r.p);
     let body;
@@ -4886,11 +4965,14 @@ let pairStacks = false;
     const multi = Object.values(scorers).filter(x => x.c > 1).sort((a, b) => b.c - a.c).slice(0, 4);
 
     // ── Picks ─────────────────────────────────────────────────────────
-    const topPicks = [...priced].sort((a, b) => b.p - a.p).slice(0, 4).map(r => `
+    // Home cards skip players whose game has started; once the whole week has
+    // kicked off they fall back to everyone rather than going blank.
+    const upcoming = (arr) => { const u = arr.filter(r => !gameStarted(r.gameId)); return u.length ? u : arr; };
+    const topPicks = [...upcoming(priced)].sort((a, b) => b.p - a.p).slice(0, 4).map(r => `
       <div class="hm-row">${faceHtml(r.pid, r.name)}
         <span class="hm-name">${r.name}<span class="hm-subtle">${r.pos} ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</span></span>
         <span class="hm-score ${r.p >= 0.5 ? 'hot' : 'warm'}">${pbOdds(r.p)}</span></div>`).join('');
-    const topPass = [...priced].filter(r => r.pass).sort((a, b) => b.pass.p['2'] - a.pass.p['2']).slice(0, 2).map(r => `
+    const topPass = [...upcoming(priced)].filter(r => r.pass).sort((a, b) => b.pass.p['2'] - a.pass.p['2']).slice(0, 2).map(r => `
       <div class="hm-row" onclick="event.stopPropagation(); goPicksMarket('5')">${faceHtml(r.pid, r.name)}
         <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} · ${r.pass.proj.toFixed(1)} proj</span></span>
         <span class="hm-score ${r.pass.p['2'] >= 0.5 ? 'hot' : 'warm'}">${pbOdds(r.pass.p['2'])}</span></div>`).join('');
@@ -4948,7 +5030,7 @@ let pairStacks = false;
     // receptions leads with the projection at its best line, returners with
     // what the role adds to the anytime price.
     const recLines = nflData.receptionModel?.lines || [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5];
-    const recRows = (nflData.receptions || []).slice(0, 3).map(r => {
+    const recRows = upcoming(nflData.receptions || []).slice(0, 3).map(r => {
       const L = recLines.reduce((b, x) => Math.abs(x - r.mu) < Math.abs(b - r.mu) ? x : b, recLines[0]);
       const pv = r.p[L] ?? r.p[String(L)];
       return `
@@ -4957,14 +5039,14 @@ let pairStacks = false;
         <span class="hm-score hot">${r.mu.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> proj</span></span></div>`;
     }).join('');
     const cmpLines = nflData.completionModel?.lines || [];
-    const cmpHomeRows = (nflData.completions || []).slice(0, 3).map(r => {
+    const cmpHomeRows = upcoming(nflData.completions || []).slice(0, 3).map(r => {
       const L = cmpLines.reduce((b, x) => Math.abs(x - r.mu) < Math.abs(b - r.mu) ? x : b, cmpLines[0]);
       return `
       <div class="hm-row">${faceHtml(r.pid, r.name)}
         <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} · ${pbOdds(r.p[L] ?? r.p[String(L)])} over ${L}</span></span>
         <span class="hm-score hot">${r.mu.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> proj</span></span></div>`;
     }).join('');
-    const intHomeRows = (nflData.interceptions || []).slice(0, 3).map(r => `
+    const intHomeRows = upcoming(nflData.interceptions || []).slice(0, 3).map(r => `
       <div class="hm-row">${faceHtml(r.pid, r.name)}
         <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} ${r.home ? 'vs' : '@'} ${r.opp} · over 0.5</span></span>
         <span class="hm-score hot">${pbOdds(r.p['0.5'] ?? r.p[0.5])}</span></div>`).join('');
