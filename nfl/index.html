@@ -1674,7 +1674,13 @@
   .ydk-ic svg { width: 22px; height: 22px; color: var(--silver); }
   .ydk b { font-family: var(--font-d); font-size: 1.4rem; color: var(--text-strong); line-height: 1.1; }
   .ydk > span:last-child { font-size: 0.66rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--silver); line-height: 1.2; }
-  .ydm-side { position: sticky; top: 0.5rem; }
+  /* The left column sets the row height; the ladder fills it. The inner box is
+     absolutely positioned so the ladder never makes the row taller. */
+  .ydm-grid { align-items: stretch; }
+  .ydm-side { position: relative; padding: 0; min-height: 420px; }
+  .ydm-side-in { position: absolute; inset: 0; padding: 1rem 1.1rem; display: flex; flex-direction: column; }
+  .ydm-side-in .ydl { flex: 1; min-height: 0; grid-auto-rows: 1fr; }
+  .ydm-side-in .ydl-row { padding-top: 0.2rem; padding-bottom: 0.2rem; }
   /* the deck arrows sit outside the wide card, not on top of the chart */
   #yd-back .pk-side-prev { left: max(6px, calc(50% - 510px - 52px)); }
   #yd-back .pk-side-next { right: max(6px, calc(50% - 510px - 52px)); }
@@ -1696,7 +1702,19 @@
   .ydm-tip svg { width: 22px; height: 22px; color: var(--gold); flex: none; }
   @media (max-width: 860px) {
     .ydm-grid { grid-template-columns: minmax(0, 1fr); }
-    .ydm-side { position: static; }
+    .ydm-side { min-height: 0; padding: 0.9rem 0 0.9rem 0.9rem; }
+    .ydm-side-in { position: static; padding: 0; display: block; }
+    .ydm-side-in h4, .ydm-side-in .ydl-help { padding-right: 0.9rem; }
+    .ydl-head { display: none; }
+    .ydm-side-in .ydl { display: flex; gap: 0.5rem; overflow-x: auto; scroll-snap-type: x proximity; padding: 0.15rem 0.9rem 0.5rem 0.15rem;
+      -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+    .ydm-side-in .ydl-row { flex: 0 0 5.6rem; display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
+      padding: 0.6rem 0.3rem; text-align: center; scroll-snap-align: center; }
+    .ydl-row.on::before { display: none; }
+    .ydl-ln { font-size: 1.15rem; } .ydl-ln small { display: block; margin: 0.1rem 0 0; }
+    .ydl-pc, .ydl-od, .ydl-un { text-align: center; }
+    .ydl-od::before { content: 'o '; color: var(--muted); font-weight: 400; }
+    .ydl-un::before { content: 'u '; color: var(--muted); }
   }
   @media (max-width: 620px) {
     .pm.ydm { padding: 1rem 0.8rem 0.9rem; }
@@ -5001,7 +5019,12 @@ let pairStacks = false;
     const L = ydm.line;
     const p = ydPOver(r.m, L, r.mu);
     const pick = ydPick(r);
-    const ladder = ydRungs(ydF.mkt, r.med, 5, 5).map(x => {
+    // 8 rungs around the even line: three shorter, the even line, four longer.
+    // A low median slides the window up rather than quoting lines at or below 0.
+    const st = ydStep(ydF.mkt);
+    let first = pick - 3 * st;
+    while (first <= 0) first += st;
+    const ladder = Array.from({ length: 8 }, (_, i) => first + i * st).map(x => {
       const px = ydPOver(r.m, x, r.mu);
       return `<button class="ydl-row${Math.abs(x - L) < 0.01 ? ' on' : ''}" onclick="ydSetLine(${x})" aria-pressed="${Math.abs(x - L) < 0.01}">
         <span class="ydl-ln">${x}${Math.abs(x - pick) < 0.01 ? '<small>even</small>' : ''}</span>
@@ -5035,12 +5058,12 @@ let pairStacks = false;
           </section>
           <section class="ydm-panel ydm-keys"><h4>Key metrics</h4><div class="ydk-row">${ydMetrics(r)}</div></section>
         </div>
-        <aside class="ydm-panel ydm-side">
+        <aside class="ydm-panel ydm-side"><div class="ydm-side-in">
           <h4 class="accent">The ladder</h4>
           <p class="ydl-help">Tap a line to see it on the chart. Fair odds, no vig.</p>
           <div class="ydl-head"><span>Line</span><span>Chance</span><span>Over</span><span>Under</span></div>
           <div class="ydl" id="ydm-ladder">${side.ladder}</div>
-        </aside>
+        </div></aside>
       </div>`;
     const pm = document.querySelector('#yd-back .ydm');
     const html = `
@@ -5053,6 +5076,7 @@ let pairStacks = false;
       ${body}
       <footer class="ydm-tip">${ydIco('bulb')}<span>Most games land between about <b>${lo}</b> and <b>${hi}</b>. Fair odds, no vig — a book prices worse.</span></footer>`;
     if (pm) pm.innerHTML = html;
+    ydCenterRung();
     const back = document.getElementById('yd-back');
     back.querySelector('.pk-side-prev').disabled = at <= 0;
     back.querySelector('.pk-side-next').disabled = at < 0 || at >= deck.length - 1;
@@ -5090,7 +5114,13 @@ let pairStacks = false;
     const side = ydSide(r);
     const set = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
     set('ydm-probs', side.probs); set('ydm-ladder', side.ladder);
+    ydCenterRung();
     const wrap = document.querySelector('#yd-back .ydc-wrap'); if (wrap) wrap.innerHTML = ydChart(r, ydDist(r));
+  }
+  function ydCenterRung() {
+    const box = document.getElementById('ydm-ladder'), on = box?.querySelector('.ydl-row.on');
+    if (!box || !on || box.scrollWidth <= box.clientWidth) return;
+    box.scrollLeft = on.offsetLeft - (box.clientWidth - on.offsetWidth) / 2;
   }
   window.openYds = openYds;
   window.ydSetLine = (x) => { ydm.line = x; ydRefreshLine(); };
