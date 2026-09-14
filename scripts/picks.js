@@ -407,7 +407,7 @@ const PASS_MODEL = JSON.parse(
  * appears in, preferring the later season when two QBs split a room. Returns
  * team -> pid.
  */
-export function passStarters(roster, passLog, season, depth = new Map()) {
+export function passStarters(roster, passLog, season, depth = new Map(), ruledOut = new Set()) {
   // The published depth chart decides the starter when it has one. Last
   // season's attempt volume was the only signal before, and it picks the
   // BACKUP whenever the starter missed last year: week 1 of 2026 priced Joe
@@ -416,7 +416,7 @@ export function passStarters(roster, passLog, season, depth = new Map()) {
   // Miami — five of 31 teams, on both the Completions and Pass TD boards.
   const byDepth = new Map();    // team -> { pid, rank }
   for (const [pid, info] of roster) {
-    if (info.position !== 'QB') continue;
+    if (info.position !== 'QB' || ruledOut.has(pid)) continue;   // ruled out: next man up
     const d = depth.get(pid);
     if (!d || d.pos !== 'QB') continue;
     const cur = byDepth.get(info.team);
@@ -424,7 +424,7 @@ export function passStarters(roster, passLog, season, depth = new Map()) {
   }
   const best = new Map();       // team -> { pid, season, att }
   for (const [pid, info] of roster) {
-    if (info.position !== 'QB') continue;
+    if (info.position !== 'QB' || ruledOut.has(pid)) continue;
     const log = passLog.get(pid);
     if (!log?.length) continue;
     const last = log[log.length - 1].season;
@@ -925,7 +925,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     teamsInPlay.set(g.away, { opp: g.home, implied: half - edge, gameId: g.gameId, home: 0, fav: -(g.spread ?? 0) });
   }
 
-  const starterQb = passStarters(roster, passLog, season, depth);
+  const starterQb = passStarters(roster, passLog, season, depth, outIds);
   console.log(`  passing market: ${starterQb.size} starting QBs identified`);
 
   // Two passes: gather every player's features first so team snap shares can be
@@ -946,6 +946,32 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     if (!row) continue;                                 // no usage history at all
     staged.push({ pid, info, ctx, pos, row, team: info.team, position: pos });
   }
+  const snapScale = normaliseTeamSnaps(staged, depth);
+  {
+    const f = [...snapScale.values()];
+    const med = f.sort((a, b) => a - b)[Math.floor(f.length / 2)] ?? 1;
+    console.log(`  team snap normalisation: median scale ${med.toFixed(2)}x `
+      + `(${f.filter(x => x < 0.95).length} teams scaled down, ${f.filter(x => x > 1.05).length} up)`);
+  }
+
+  // ── Role, sitewide ───────────────────────────────────────────────────────
+  // The normalisation above is where injuries and the depth chart reach the
+  // price: ruled-out players are gone and each room is re-ordered by the
+  // published depth chart. Every other board reuses it through one number per
+  // player, x = resolved snap share / raw snap share, and scales its last-3
+  // ROLE features (snap share, target share, carries, catches, yards) by the
+  // square root of x. research/role_adjust.py, walk-forward 2019-2025,
+  // inference-only like Picks: receptions MAE t=-7.7, receiving yards t=-9.2,
+  // rushing t=-7.0, rush+rec t=-8.4. Full-strength x over-corrected promoted
+  // backups (bias +3 -> -2 yards); the square root does not.
+  const role = new Map();
+  for (const r of staged) {
+    const raw = r.row.snap_last3_raw, adj = r.row.snap_last3;
+    if (raw == null || adj == null) continue;
+    const x = Math.min(2.5, Math.max(0.5, adj / Math.max(raw, 0.05)));
+    role.set(r.pid, { x, s: Math.sqrt(x), rank: r.depthRank ?? null });
+  }
+  const roleS = (pid) => role.get(pid)?.s ?? 1;
   // ── Returners ───────────────────────────────────────────────────────────
   // Built from TWO seasons rather than one. The old build read a single
   // season's play-by-play, and that season flips to the new one the moment
@@ -971,7 +997,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     t.pr += a.pr; t.kr += a.kr; teamRet.set(a.team, t);
   }
   const returners = [...byPid.values()]
-    .filter(a => a.pr + a.kr >= 3)
+    .filter(a => a.pr + a.kr >= 3 && roster.has(a.pid) && !outIds.has(a.pid))
     .map(a => ({
       pid: a.pid, name: a.name, team: roster.get(a.pid)?.team ?? a.team,
       pr: a.pr, kr: a.kr, prTd: a.prTd, krTd: a.krTd, games: a.games.size,
@@ -1222,14 +1248,17 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
         f: { avg: r1(f.rush_prior), car: r1(f.car_prior), l3: r1(f.rush_l3), carL3: r1(f.car_l3), implied: r1(ctx.implied), fav: r1(ctx.fav), games: f._games, thin } });
     }
     for (const [pid, info] of roster) {
-      if (!['RB', 'WR', 'TE'].includes(info.position)) continue;
+      if (!['RB', 'WR', 'TE'].includes(info.position) || outIds.has(pid)) continue;
       const ctx = teamsInPlay.get(info.team);
       if (!ctx) continue;
       const f = skillYardsFeatures({ pid, position: info.position, season, week, snapLog, recLog, rushLog,
                                      implied: ctx.implied, spread: ctx.fav, floor: rzSeasons[0] });
       if (!f || f._games < 3) continue;           // matches the training filter
+      const rs = roleS(pid);
+      for (const k of ['snap_l3', 'share_l3', 'car_l3', 'ryds_l3', 'rush_l3', 'rr_l3']) f[k] *= rs;
       const base = row0(pid, info.name, info.team, info.position, ctx);
-      const common = { snapL3: +f.snap_l3.toFixed(3), implied: r1(ctx.implied), fav: r1(ctx.fav), games: f._games };
+      const common = { snapL3: +f.snap_l3.toFixed(3), implied: r1(ctx.implied), fav: r1(ctx.fav), games: f._games,
+                       roleX: +(role.get(pid)?.x ?? 1).toFixed(2), depth: role.get(pid)?.rank ?? null, q: questionable.has(pid) };
       if (info.position === 'RB' && f.car_prior >= 4) {
         const mu = ydsMu('rush', f);
         yards.rush.push({ ...base, m: 'rush', mu: r1(mu), med: r1(ydsQ('rush', mu)),
@@ -1261,7 +1290,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   // would double it.
   const receptions = [];
   for (const [pid, info] of roster) {
-    if (!RECEPTION_POS.includes(info.position)) continue;
+    if (!RECEPTION_POS.includes(info.position) || outIds.has(pid)) continue;
     const ctx = teamsInPlay.get(info.team);
     if (!ctx) continue;
     const row = receptionFeatures({
@@ -1270,6 +1299,8 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
       windMph: windByGame.get(ctx.gameId) ?? 0,
     });
     if (!row || row._games < 3) continue;       // matches the training filter
+    const rs = roleS(pid);                      // depth chart + injuries, see "Role, sitewide"
+    row.snap_l3 *= rs; row.share_l3 *= rs; row.rec_l3 *= rs;
     const mu = scoreMu(row);
     if (mu < 0.35) continue;                    // nothing to quote
     receptions.push({
@@ -1286,6 +1317,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
         teamPass: +row.team_pass_prior.toFixed(2),
         implied: +row.implied_total.toFixed(2),
         games: row._games,
+        roleX: +(role.get(pid)?.x ?? 1).toFixed(2), depth: role.get(pid)?.rank ?? null, q: questionable.has(pid),
       },
     });
   }
@@ -1293,13 +1325,6 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   console.log(`  receptions: ${receptions.length} players priced ` +
               `(top ${receptions[0]?.name ?? '—'} ${receptions[0]?.mu.toFixed(2) ?? ''})`);
 
-  const snapScale = normaliseTeamSnaps(staged, depth);
-  {
-    const f = [...snapScale.values()];
-    const med = f.sort((a, b) => a - b)[Math.floor(f.length / 2)] ?? 1;
-    console.log(`  team snap normalisation: median scale ${med.toFixed(2)}x `
-      + `(${f.filter(x => x < 0.95).length} teams scaled down, ${f.filter(x => x > 1.05).length} up)`);
-  }
 
   const picks = [];
   for (const { pid, info, ctx, pos, row, depthRank } of staged) {

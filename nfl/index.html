@@ -4272,7 +4272,7 @@ let pairStacks = false;
           <div class="pb-info">
             <div class="pb-nm">${r.name}<span class="pb-flag" title="Position">${r.pos}</span></div>
             <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
-              <span class="rc-proj" title="Projected receptions"><b>${r.mu.toFixed(1)}</b> proj</span>${liveChip('rec', r, r.L)}${
+              <span class="rc-proj" title="Projected receptions"><b>${r.mu.toFixed(1)}</b> proj</span>${liveChip('rec', r, r.L)}${roleTag(r.f)}${
                 (nflData.wind?.[r.gameId] ?? 0) >= 12
                   ? `<span class="rc-wind" title="Forecast wind at kickoff — the projection already carries it">${Math.round(nflData.wind[r.gameId])} mph</span>` : ''}</div>
           </div>
@@ -4690,6 +4690,17 @@ let pairStacks = false;
   window.closeInt = () => { document.getElementById('in-back')?.remove(); document.body.style.overflow = ''; inOpen = null; };
   window.inStep = (d) => { const deck = inRows(), at = deck.findIndex(x => x.pid === inOpen), nx = deck[at + d]; if (!nx) return; closeInt(); openInt(nx.pid); };
 
+  // Depth chart + injuries, sitewide: the build scales each player's recent role
+  // by how far the resolved snap share moved (see "Role, sitewide" in picks.js).
+  function roleTag(f) {
+    if (!f) return '';
+    const x = f.roleX ?? 1, tags = [];
+    if (x >= 1.15) tags.push(`<span class="rc-wind" title="Depth chart and injuries put him in a bigger role than his last three games — ${f.depth ? `now #${f.depth} at his position; ` : ''}his recent usage is scaled up ×${Math.sqrt(x).toFixed(2)}">role ↑</span>`);
+    else if (x <= 0.87) tags.push(`<span class="rc-wind" title="Depth chart says a smaller role than his last three games — ${f.depth ? `#${f.depth} at his position; ` : ''}his recent usage is scaled down ×${Math.sqrt(x).toFixed(2)}">role ↓</span>`);
+    if (f.q) tags.push(`<span class="pb-q" title="Listed Questionable — not priced in for this market, check his status">Q</span>`);
+    return tags.join('');
+  }
+
   // ── Yards ───────────────────────────────────────────────────────────────
   const YD_MKTS = [['pass', 'Passing'], ['rush', 'Rushing'], ['rec', 'Receiving'], ['rr', 'Rush + Rec']];
   const YD_POS = { pass: [], rush: ['QB', 'RB'], rec: ['WR', 'TE', 'RB'], rr: ['RB', 'WR', 'TE'] };
@@ -4773,7 +4784,7 @@ let pairStacks = false;
           <div class="pb-info">
             <div class="pb-nm">${r.name}${pos(r)}</div>
             <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
-              ${liveChip('yds', r, r.med)}${r.f.thin ? '<span class="rc-wind" title="Fewer than 3 recent starts — his numbers lean on a league-average QB">limited history</span>' : ''}</div>
+              ${liveChip('yds', r, r.med)}${roleTag(r.f)}${r.f.thin ? '<span class="rc-wind" title="Fewer than 3 recent starts — his numbers lean on a league-average QB">limited history</span>' : ''}</div>
           </div>
           <div class="pb-facts">${ydFacts(r).map(([v, l, t]) => `<span class="pb-f" title="${t}"><b>${v}</b> ${l}</span>`).join('')}</div>
           <div class="pb-price"><span class="pb-odds" style="color:var(--text-strong)">${r.med.toFixed(0)}</span><span class="pb-pct">median · o${r.L} ${pbOdds(r.p)}</span></div>
