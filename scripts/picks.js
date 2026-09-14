@@ -500,16 +500,21 @@ export const PASS_LINES = PASS_MODEL.lines;
 export async function loadPlayers() {
   const { idx, rows } = parseCsv(await fetchText(`${REL}/players/players.csv`));
   const xwalk = new Map(), birth = new Map(), shot = new Map();
+  // ESPN's ids, for grading games off ESPN box scores the night they finish;
+  // name|team is the fallback for the handful players.csv has no espn_id for.
+  const espn = new Map(), nameTeam = new Map();
   for (const r of rows) {
     const g = r[idx.gsis_id], p = r[idx.pfr_id];
     if (g && p && !xwalk.has(p)) xwalk.set(p, g);
+    if (g && r[idx.espn_id]) espn.set(String(r[idx.espn_id]), g);
+    if (g && r[idx.display_name] && r[idx.latest_team]) nameTeam.set(`${r[idx.display_name].toLowerCase()}|${r[idx.latest_team]}`, g);
     if (g && r[idx.birth_date]) birth.set(g, r[idx.birth_date]);
     // Headshots ride along on a file we already download. The season stats feed
     // only has one for a player who took a snap last year, which left every
     // rookie and every pocket QB faceless on the board; this covers 437 of 480.
     if (g && r[idx.headshot]) shot.set(g, r[idx.headshot]);
   }
-  return { xwalk, birth, shot };
+  return { xwalk, birth, shot, espn, nameTeam };
 }
 export async function loadCrosswalk() { return (await loadPlayers()).xwalk; }
 

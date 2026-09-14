@@ -5,7 +5,8 @@
 //   - nflverse stats_player    -> weekly player stats -> TD + opportunity leaders
 import fs from 'node:fs';
 import { fetchText, parseCsv, num } from './nflverse.js';
-import { buildPicks, loadTdSet, updateHistory } from './picks.js';
+import { buildPicks, loadPlayers } from './picks.js';
+import * as liveLog from './live-log.js';
 
 // Neither season is a constant any more. Both are read off the schedule feed so
 // the app rolls forward on its own — opening Sunday and the turn of a season
@@ -231,7 +232,7 @@ async function main() {
   // Model + methodology live in research/; this only computes features and
   // applies exported coefficients. research/validate_port.py checks the two
   // agree to machine precision on real historical weeks.
-  let picks = null, picksHistory = [];
+  let picks = null;
   try {
     // Lines for the last two seasons feed the receptions results replay —
     // implied totals are a model input, so grading past boards needs past lines.
@@ -242,22 +243,54 @@ async function main() {
                    spread: num(game(r, 'spread_line')), total: num(game(r, 'total_line')) }));
     picks = await buildPicks({ schedule, historySeason: HISTORY_SEASON,
                                upcomingSeason: UPCOMING_SEASON, scheduleAll });
-    // Carry the pick log forward across rebuilds and grade what has played.
-    // data.json is regenerated from scratch every run, so the log has to be
-    // read back off the previous build or it resets daily.
-    let prev = [];
-    try {
-      const old = JSON.parse(fs.readFileSync(new URL('../nfl/data.json', import.meta.url), 'utf8'));
-      prev = old.picksHistory ?? [];
-    } catch (e) {}
-    const tdSet = await loadTdSet(UPCOMING_SEASON);
-    picksHistory = updateHistory(prev, picks, tdSet);
-    const graded = picksHistory.filter(w => w.graded).length;
-    console.log(`  pick log: ${picksHistory.length} weeks (${graded} graded)`);
   } catch (e) {
     // A picks failure must not take the whole build down — recap/stats/schedule
     // are independent of it and are what the site mostly shows.
     console.error('  picks failed (continuing without them):', e.message);
+  }
+
+  // ── 4b) Live results: log each game's board at kickoff, grade it when final ─
+  // Separate file (nfl/results.json) — see scripts/live-log.js.
+  const LOG_PATH = new URL('../nfl/results.json', import.meta.url);
+  const log = liveLog.readLog(LOG_PATH);
+  let liveWeek = null;
+  try {
+    if (picks) {
+      const n = liveLog.snapshot(log, schedule, {
+        season: picks.season, week: picks.week, generatedAt: picks.generatedAt,
+        picks: picks.picks, receptions: picks.receptions, recLines: picks.receptionModel?.lines,
+        completions: picks.completions, cmpLines: picks.completionModel?.lines,
+      });
+      console.log(`  results log: snapshot ${n} not-yet-started games`);
+    }
+    let ids = null;
+    const loadIds = async () => {
+      if (!ids) { const { espn, nameTeam, xwalk } = await loadPlayers(); ids = { espnToGsis: espn, nameTeamToGsis: nameTeam, xwalk }; }
+      return ids;
+    };
+    const { graded } = await liveLog.grade(log, loadIds);
+    const checked = await liveLog.resolveDnp(log, loadIds);
+    if (checked) console.log(`  results log: snap counts confirmed ${checked} games`);
+    liveLog.trim(log);
+    fs.writeFileSync(LOG_PATH, JSON.stringify(log));
+    const all = Object.values(log.games);
+    console.log(`  results log: graded ${graded} new, ${all.filter(g => g.final).length}/${all.length} games final`);
+    // The board's own week, small enough to ride in data.json so board cards
+    // can show what already happened without loading the whole log.
+    if (picks) {
+      const wk = all.filter(g => g.season === picks.season && g.week === picks.week);
+      liveWeek = { season: picks.season, week: picks.week, games: {}, td: {}, rec: {}, cmp: {}, ptd: {}, dnp: [] };
+      for (const g of wk) {
+        liveWeek.games[g.id] = { final: !!g.final, live: !!g.live, score: g.score ?? null,
+                                 first: g.res?.first ?? null, last: g.res?.last ?? null };
+        if (!g.res) continue;
+        Object.assign(liveWeek.td, g.res.td); Object.assign(liveWeek.rec, g.res.rec);
+        Object.assign(liveWeek.cmp, g.res.cmp); Object.assign(liveWeek.ptd, g.res.ptd);
+        liveWeek.dnp.push(...(g.res.dnp ?? []));
+      }
+    }
+  } catch (e) {
+    console.error('  results log failed (continuing):', e.message);
   }
 
   // ── 5) Team matchup profiles ──────────────────────────────────────────
@@ -461,7 +494,7 @@ async function main() {
     receptionsHistory: picks?.receptionsHistory ?? [], wind: picks?.wind ?? {},
     completions: picks?.completions ?? [], completionsHistory: picks?.completionsHistory ?? [],
     completionModel: picks?.completionModel ?? null,
-    picksHistory, parlay, milestones, passerNames, connPos,
+    liveWeek, parlay, milestones, passerNames, connPos,
     returners: (picks?.returners?.length ? picks.returners : returners), returnModel,
   };
   fs.writeFileSync(new URL('../nfl/data.json', import.meta.url), JSON.stringify(output));

@@ -2,10 +2,21 @@ name: Build nfl/data.json
 
 on:
   schedule:
-    # NFL is weekly (Thu/Sun/Mon), so a daily rebuild is plenty — it picks up
-    # each slate's final scores and the growing TD recap the morning after.
-    # 11:07 UTC ≈ 6-7am ET, after Sunday/Monday night games have posted.
+    # Daily baseline: 11:07 UTC ≈ 6-7am ET, after nflverse's overnight refresh
+    # (snap counts, play-by-play) has landed.
     - cron: '7 11 * * *'
+    # Game windows, hourly (all times UTC; ET is UTC-4 in-season, UTC-5 after
+    # the November clock change). Each run re-logs the board for every game
+    # not yet started — so a game keeps the last board before its kickoff,
+    # inactives included — and grades any game ESPN has called final.
+    #   Sunday: 1pm ET slate through Sunday Night Football's finish
+    - cron: '7 12-23 * * 0'
+    - cron: '7 0-5 * * 1'
+    #   Thursday / Monday nights (and Saturday late season): pre-kick + finish
+    - cron: '7 20-23 * * 1,4,6'
+    - cron: '7 0-5 * * 2,5,0'
+    #   Saturday afternoon games (December)
+    - cron: '7 16-19 * * 6'
   workflow_dispatch: {}      # manual trigger from the Actions tab
 
 permissions:
@@ -32,7 +43,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add nfl/data.json
+          git add nfl/data.json nfl/results.json
           git diff --staged --quiet && { echo "No changes to commit"; exit 0; }
           git commit -m "Update nfl/data.json"
           # nfl/data.json is a whole-file regenerate — same replay-onto-main
@@ -42,7 +53,7 @@ jobs:
             echo "Push rejected (attempt $attempt) — replaying onto latest main"
             git fetch origin main
             git reset FETCH_HEAD
-            git add nfl/data.json
+            git add nfl/data.json nfl/results.json
             git diff --staged --quiet && { echo "Already current with main"; exit 0; }
             git commit -m "Update nfl/data.json"
           done

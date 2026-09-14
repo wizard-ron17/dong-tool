@@ -1614,6 +1614,22 @@
   .cp-res-act { color: var(--text); font-size: 1rem; }
   .cp-res-tag { text-align: right; font-family: var(--font-d); font-weight: 700; font-size: 0.74rem; letter-spacing: 0.05em; color: var(--dim); }
   .cp-res.hit .cp-res-tag { color: var(--good); }
+  /* Live results — the same rows, plus the states a live week has */
+  .cp-res.void { opacity: 0.5; }
+  .cp-res.pend .cp-res-tag, .cp-res.live .cp-res-tag { color: var(--gold); }
+  .cp-res.live { border-color: rgba(240,192,64,0.35); }
+  .lr-pending { font-size: 0.8rem; color: var(--muted); text-align: center; margin: -0.2rem 0 0.6rem; }
+  .lr-more { display: block; width: 100%; margin: 0.4rem 0 0.2rem; }
+  .lr-bt { margin-top: 1.4rem; border-top: 1px solid var(--border); padding-top: 0.7rem; }
+  .lr-bt > summary { cursor: pointer; font-family: var(--font-d); font-weight: 700; color: var(--muted); letter-spacing: 0.04em; }
+  .lr-bt[open] > summary { margin-bottom: 0.7rem; }
+  .lr-note { font-size: 0.78rem; color: var(--muted); margin-top: 0.6rem; line-height: 1.45; }
+  /* A finished game's result, right on the board card */
+  .lv-chip { margin-left: 0.4rem; padding: 0.04rem 0.34rem; border-radius: 4px; white-space: nowrap;
+    font-family: var(--font-d); font-weight: 700; font-size: 0.78rem; border: 1px solid var(--border2);
+    color: var(--muted); background: var(--surface1); }
+  .lv-chip.hit { color: var(--good); border-color: rgba(51,208,124,0.45); background: rgba(51,208,124,0.08); }
+  .lv-chip.live { color: var(--gold); border-color: rgba(240,192,64,0.4); background: rgba(240,192,64,0.08); }
   .rc-proj { margin-left: 0.45rem; padding: 0.05rem 0.34rem; border-radius: 4px; background: var(--surface2);
     font-family: var(--font-d); font-weight: 700; color: var(--text); white-space: nowrap; }
   .rc-proj b { color: var(--accent); }
@@ -2836,7 +2852,7 @@
       <div class="pb-rank">${i}</div>${faceHtml(r.pid, r.name)}
       <div class="pb-info">
         <div class="pb-nm">${r.name}${posBadge(r.pos)}${rflag}${qflag}${flag}</div>
-        <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp} <img class="pb-logo" src="${teamLogo(r.opp)}" alt="" loading="lazy">${r.kick ? ' · ' + r.kick : ''}</div>
+        <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp} <img class="pb-logo" src="${teamLogo(r.opp)}" alt="" loading="lazy">${r.kick ? ' · ' + r.kick : ''}${liveChip(pbF.mkt, r)}</div>
       </div>
       <div class="pb-facts">${facts}</div>
       <div class="pb-price"><span class="pb-odds${dog ? ' dog' : ''}">${pbOdds(shown)}</span><span class="pb-pct">${(shown * 100).toFixed(shown < 0.1 ? 1 : 0)}% · ${other}</span></div>
@@ -3172,50 +3188,146 @@
   function renderPicksResults() {
     const el = document.getElementById('picks-results-wrap');
     if (!el) return;
-    const hist = (nflData?.picksHistory) || [];
-    const graded = hist.filter(w => w.graded);
-    if (!graded.length) {
-      const pend = hist.length
-        ? `<p style="font-size:0.766rem;color:var(--muted);margin:0.6rem 0 0">${hist.length} week${hist.length > 1 ? 's' : ''} logged and waiting to be graded — the board is frozen at its pre-kickoff state and scored once the games are played.</p>`
-        : '';
-      el.innerHTML = `<div class="empty">No graded results yet.<br>Every week's board is saved before kickoff, then scored after the games.</div>${pend}`;
-      return;
+    el.innerHTML = liveResults('td', 'setLr');
+  }
+
+  // ── Live results ────────────────────────────────────────────────────────
+  // nfl/results.json holds each game's board as it stood at kickoff and, once
+  // ESPN calls the game final, what happened. Loaded the first time a Results
+  // tab opens — the board never needs it.
+  let liveLog = null, liveLogState = 'idle';
+  const lrF = { wk: null, mkt: '1', all: false };
+  function setLr(k, v) {
+    lrF[k] = v;
+    if (k !== 'all') lrF.all = false;
+    renderPanel(activeNav);
+  }
+  window.setLr = setLr;
+  function ensureLiveLog() {
+    if (liveLogState !== 'idle') return;
+    liveLogState = 'loading';
+    fetch(APP_BASE + '/results.json', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { liveLog = j; liveLogState = 'ready'; })
+      .catch(() => { liveLogState = 'error'; })
+      .finally(() => renderPanel(activeNav));
+  }
+
+  const LR_TD_MKTS = [['1', 'Anytime'], ['2', '2+ TDs'], ['3', '1st TD'], ['4', 'Last TD'], ['5', 'Pass 2+ TD']];
+  // One market's rows for one game: what we said, and how it came out.
+  //   state: hit | miss | void (did not play) | live | pend
+  function lrRows(kind, g) {
+    const res = g.res, dnp = new Set(res?.dnp ?? []);
+    const state = (pid, hit) => !g.final ? (g.live ? 'live' : 'pend') : dnp.has(pid) ? 'void' : hit ? 'hit' : 'miss';
+    const vs = (team) => team === g.home ? `${team} vs ${g.away}` : `${team} @ ${g.home}`;
+    if (kind === 'td') {
+      if (lrF.mkt === '5') return (g.pass ?? []).map(([pid, name, team, proj, p1, p2]) => {
+        const got = res?.ptd?.[pid] ?? 0;
+        return { pid, name, team, game: vs(team), p: p2, line: 'o1.5', proj: proj?.toFixed(1), got: g.final ? got : '', st: state(pid, got >= 2) };
+      });
+      const col = { '1': 4, '2': 5, '3': 6, '4': 7 }[lrF.mkt];
+      return (g.td ?? []).map(r => {
+        const [pid, name, team] = r, n = res?.td?.[pid] ?? 0;
+        const hit = lrF.mkt === '1' ? n >= 1 : lrF.mkt === '2' ? n >= 2 : lrF.mkt === '3' ? res?.first === pid : res?.last === pid;
+        return { pid, name, team, game: vs(team), p: r[col], line: '', proj: r[col] != null ? Math.round(r[col] * 100) + '%' : '',
+                 got: g.final ? (lrF.mkt === '3' || lrF.mkt === '4' ? (hit ? '✓' : '') : n) : '', st: state(pid, hit) };
+      });
     }
-    const all = graded.flatMap(w => w.rows.map((r, i) => ({ ...r, rank: i + 1, week: w.week, season: w.season })));
-    const hit = all.filter(r => r.scored).length;
-    const exp = all.reduce((a, r) => a + r.p, 0);
+    if (kind === 'rec') return (g.rec ?? []).map(([pid, name, team, pos, mu, L, p]) => {
+      const got = res?.rec?.[pid] ?? 0;
+      return { pid, name, team, game: vs(team), p, line: 'o' + L, proj: mu?.toFixed(1), got: g.final ? got : '', st: state(pid, got > L) };
+    });
+    return (g.cmp ?? []).map(([pid, name, team, mu, L, p]) => {
+      const got = res?.cmp?.[pid] ?? 0;
+      return { pid, name, team, game: vs(team), p, line: 'o' + L, proj: mu?.toFixed(1), got: g.final ? got : '', st: state(pid, got > L) };
+    });
+  }
 
-    // Calibration is the honest scoreboard for a probability model: did the
-    // things we priced at 30% actually land 30% of the time?
-    const bands = [[0.40, 1], [0.30, 0.40], [0.25, 0.30], [0.20, 0.25], [0, 0.20]];
-    const calRows = bands.map(([lo, hi]) => {
-      const g = all.filter(r => r.p >= lo && r.p < hi);
-      if (!g.length) return '';
-      const pred = g.reduce((a, r) => a + r.p, 0) / g.length;
-      const act = g.filter(r => r.scored).length / g.length;
-      return `<tr><td class="lbl">${pbOdds(lo)}${hi < 1 ? ' to ' + pbOdds(hi) : ' or shorter'}</td>
-        <td>${g.length}</td><td>${(pred * 100).toFixed(1)}%</td><td>${(act * 100).toFixed(1)}%</td>
-        <td style="color:${Math.abs(act - pred) < 0.05 ? 'var(--good)' : 'var(--ok)'}">${act >= pred ? '+' : ''}${((act - pred) * 100).toFixed(1)}</td></tr>`;
-    }).join('');
+  function liveResults(kind, setFn) {
+    if (liveLogState === 'idle') ensureLiveLog();
+    if (liveLogState === 'loading' || liveLogState === 'idle') return '<div class="empty">Loading results…</div>';
+    if (liveLogState === 'error' || !liveLog) return '<div class="empty">Couldn\'t load results.</div>';
+    const games = Object.values(liveLog.games);
+    const key = (g) => g.season * 100 + g.week;
+    const weeks = [...new Set(games.map(key))].sort((a, b) => a - b);
+    if (!weeks.length) return '<div class="empty">No games logged yet — each game\'s board is saved at kickoff and graded when it ends.</div>';
+    // Default: the newest week with a finished game, else the newest week.
+    if (lrF.wk == null || !weeks.includes(lrF.wk)) {
+      const done = weeks.filter(w => games.some(g => key(g) === w && g.final));
+      lrF.wk = done.length ? done[done.length - 1] : weeks[weeks.length - 1];
+    }
+    const wi = weeks.indexOf(lrF.wk);
+    const wk = games.filter(g => key(g) === lrF.wk).sort((a, b) => a.kick.localeCompare(b.kick));
+    const nFinal = wk.filter(g => g.final).length;
+    const label = `${Math.floor(lrF.wk / 100)} · ${WK_LABEL(lrF.wk % 100)}`;
 
-    const tierRows = [3, 5, 10, 25].map(n => {
-      let h = 0, t = 0;
-      for (const w of graded) { const pool = w.rows.slice(0, n); t += pool.length; h += pool.filter(r => r.scored).length; }
-      return `<tr><td class="lbl">Top ${n}</td><td>${h}/${t}</td><td>${t ? (h / t * 100).toFixed(1) + '%' : '—'}</td></tr>`;
-    }).join('');
+    const rows = wk.flatMap(g => lrRows(kind, g)).filter(r => r.p != null);
+    const ORDER = { hit: 0, miss: 0, void: 1, live: 2, pend: 3 };
+    rows.sort((a, b) => ORDER[a.st] - ORDER[b.st] || b.p - a.p);
+    const graded = rows.filter(r => r.st === 'hit' || r.st === 'miss');
+    const byPrice = [...graded].sort((a, b) => b.p - a.p);
+    const hits = (list) => list.filter(r => r.st === 'hit').length;
+    const said = (list) => list.reduce((a, r) => a + r.p, 0);
+    const top = byPrice.slice(0, 20);
+    const logged = rows.length;
 
-    el.innerHTML = `
-      <div class="pb-res-tiles">
-        <div class="pb-res-tile"><div class="pb-res-val">${graded.length}</div><div class="pb-res-lbl">weeks graded</div></div>
-        <div class="pb-res-tile"><div class="pb-res-val">${all.length}</div><div class="pb-res-lbl">picks scored</div></div>
-        <div class="pb-res-tile"><div class="pb-res-val">${(hit / all.length * 100).toFixed(1)}%</div><div class="pb-res-lbl">actual hit rate</div></div>
-        <div class="pb-res-tile"><div class="pb-res-val">${(exp / all.length * 100).toFixed(1)}%</div><div class="pb-res-lbl">predicted</div></div>
+    const noun = kind === 'td' ? (lrF.mkt === '5' ? 'hit' : 'scored') : 'went over';
+    const tiles = graded.length ? `
+      <div class="hm-tiles" style="margin-bottom:0.6rem">
+        <div class="hm-tile"><b>${hits(top)}/${top.length}</b><span>Top ${top.length} ${noun}</span></div>
+        <div class="hm-tile"><b>${hits(graded)}</b><span>Hit · we said ${said(graded).toFixed(0)}</span></div>
+        <div class="hm-tile"><b>${nFinal}/${wk.length}</b><span>Games final</span></div>
+      </div>` : '';
+
+    const mktChips = kind === 'td' ? `<div class="pbf-chips" style="margin-bottom:0.6rem">${LR_TD_MKTS.map(([v, l]) =>
+      `<button class="pbf-chip${lrF.mkt === v ? ' on' : ''}" onclick="${setFn}('mkt','${v}')">${l}</button>`).join('')}</div>` : '';
+
+    const pending = wk.filter(g => !g.final);
+    const pendLine = pending.length ? `<div class="lr-pending">${pending.map(g =>
+      `${g.away} @ ${g.home} ${g.live ? '<b style="color:var(--gold)">live</b>' : new Date(g.kick).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}`).join(' · ')}</div>` : '';
+
+    const TAG = { hit: kind === 'td' ? (lrF.mkt === '5' ? 'HIT' : 'SCORED') : 'OVER', miss: kind === 'td' ? '—' : 'UNDER', void: 'DNP', live: 'LIVE', pend: 'PENDING' };
+    const LIMIT = 30;
+    const shown = lrF.all ? rows : rows.slice(0, LIMIT);
+    const head = kind === 'td'
+      ? `<div class="cp-res head"><span class="cp-res-nm">Player</span><span class="cp-res-line">Price</span><span class="cp-res-proj">${lrF.mkt === '5' ? 'Proj' : 'Chance'}</span><span class="cp-res-act">${lrF.mkt === '5' ? 'TD' : lrF.mkt === '3' || lrF.mkt === '4' ? '' : 'TD'}</span><span class="cp-res-tag"></span></div>`
+      : `<div class="cp-res head"><span class="cp-res-nm">${kind === 'cmp' ? 'QB' : 'Player'}</span><span class="cp-res-line">Line</span><span class="cp-res-proj">Proj</span><span class="cp-res-act">Got</span><span class="cp-res-tag"></span></div>`;
+    const list = shown.map(r => `<div class="cp-res ${r.st}">
+        <span class="cp-res-nm">${r.name}<span class="cp-res-tm">${r.game}</span></span>
+        <span class="cp-res-line">${r.line || pbOdds(r.p)}${r.line ? `<span class="cp-res-od">${pbOdds(r.p)}</span>` : ''}</span>
+        <span class="cp-res-proj">${r.proj ?? ''}</span>
+        <span class="cp-res-act">${r.got}</span>
+        <span class="cp-res-tag">${TAG[r.st]}</span></div>`).join('');
+    const more = rows.length > LIMIT ? `<button class="pbf-chip lr-more" onclick="${setFn}('all',${!lrF.all})">${lrF.all ? 'Show top ' + LIMIT : `Show all ${rows.length}`}</button>` : '';
+
+    return `
+      ${mktChips}
+      ${tiles}
+      <div class="cp-wknav">
+        <button class="due-filter-chip mode-chip" onclick="${setFn}('wk',${weeks[wi - 1] ?? lrF.wk})"${wi <= 0 ? ' disabled' : ''}>‹</button>
+        <span class="cp-wk">${label} · ${nFinal}/${wk.length} final</span>
+        <button class="due-filter-chip mode-chip" onclick="${setFn}('wk',${weeks[wi + 1] ?? lrF.wk})"${wi >= weeks.length - 1 ? ' disabled' : ''}>›</button>
       </div>
-      <div class="pb-sec">Calibration</div>
-      <p style="font-size:0.84rem;color:var(--muted);margin:0 0 0.5rem">The real test of a priced model: did each band land as often as it said it would?</p>
-      <table class="pb-cal"><thead><tr><th>Price band</th><th>Picks</th><th>Predicted</th><th>Actual</th><th>Diff</th></tr></thead><tbody>${calRows}</tbody></table>
-      <div class="pb-sec">If you had only played the top N</div>
-      <table class="pb-cal"><thead><tr><th>Slice</th><th>Hit / total</th><th>Rate</th></tr></thead><tbody>${tierRows}</tbody></table>`;
+      ${pendLine}
+      ${logged ? head + list + more : '<div class="empty">This market wasn\'t on the board for these games yet.</div>'}
+      <div class="lr-note">Each game is graded against the board as it stood at <b>kickoff</b> — the last build before it started — and scored from the box score as soon as it goes final. A player with no stats is checked against snap counts the next morning: no snaps means he didn't play, which books treat as a void (<b>DNP</b>).</div>`;
+  }
+
+  // A finished game's result on a board card. Only for the week on the board.
+  function liveChip(kind, r, line) {
+    const W = nflData?.liveWeek, g = W?.games?.[r.gameId];
+    if (!g || W.week !== nflData.picks?.week) return '';
+    if (g.live) return '<span class="lv-chip live">LIVE</span>';
+    if (!g.final) return '';
+    if ((W.dnp || []).includes(r.pid)) return '<span class="lv-chip">DNP</span>';
+    const chip = (hit, txt) => `<span class="lv-chip${hit ? ' hit' : ''}">${hit ? '✓ ' : ''}${txt}</span>`;
+    if (kind === 'rec') { const n = W.rec[r.pid] ?? 0; return chip(n > line, `${n} rec`); }
+    if (kind === 'cmp') { const n = W.cmp[r.pid] ?? 0; return chip(n > line, `${n} cmp`); }
+    if (kind === '5') { const n = W.ptd[r.pid] ?? 0; return chip(n >= 2, `${n} pass TD`); }
+    if (kind === '3') return chip(g.first === r.pid, g.first === r.pid ? '1st TD' : 'not 1st');
+    if (kind === '4') return chip(g.last === r.pid, g.last === r.pid ? 'last TD' : 'not last');
+    const n = W.td[r.pid] ?? 0;
+    return chip(kind === '2' ? n >= 2 : n >= 1, `${n} TD`);
   }
 
   // ── Birthdays ───────────────────────────────────────────────────────────
@@ -3937,7 +4049,11 @@ let pairStacks = false;
     const sortChips = [['proj', 'Projection'], ['odds', 'Shortest price']].map(([v, l]) =>
       chip('sort', v, l, rcF.sort)).join('');
 
-    if (rcF.tab === 'results') { el.innerHTML = rcTabs() + renderRecResults(); return; }
+    if (rcF.tab === 'results') {
+      el.innerHTML = rcTabs() + liveResults('rec', 'setLr')
+        + `<details class="lr-bt"${window.lrBtOpen ? ' open' : ''} ontoggle="window.lrBtOpen = this.open"><summary>2025 backtest — every past week replayed</summary>${renderRecResults()}</details>`;
+      return;
+    }
     const rows = rcRows();
     const controls = rcTabs() + `
       ${uiFilters('setRc', rcF.open, [['Line', lineChips], ['Position', posChips], ['Sort', sortChips]],
@@ -3994,7 +4110,7 @@ let pairStacks = false;
           <div class="pb-info">
             <div class="pb-nm">${r.name}<span class="pb-flag" title="Position">${r.pos}</span></div>
             <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
-              <span class="rc-proj" title="Projected receptions"><b>${r.mu.toFixed(1)}</b> proj</span>${
+              <span class="rc-proj" title="Projected receptions"><b>${r.mu.toFixed(1)}</b> proj</span>${liveChip('rec', r, r.L)}${
                 (nflData.wind?.[r.gameId] ?? 0) >= 12
                   ? `<span class="rc-wind" title="Forecast wind at kickoff — the projection already carries it">${Math.round(nflData.wind[r.gameId])} mph</span>` : ''}</div>
           </div>
@@ -4122,7 +4238,11 @@ let pairStacks = false;
     if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
     if (nflData === 'error') { el.innerHTML = `<div class="empty">Couldn't load NFL data. <a href="javascript:void(0)" onclick="loadNfl()">Retry</a></div>`; return; }
     const tabs = uiTabs('setCp', cpF.tab);
-    if (cpF.tab === 'results') { el.innerHTML = tabs + renderCmpResults(); return; }
+    if (cpF.tab === 'results') {
+      el.innerHTML = tabs + liveResults('cmp', 'setLr')
+        + `<details class="lr-bt"${window.lrBtOpen ? ' open' : ''} ontoggle="window.lrBtOpen = this.open"><summary>2025 backtest — every past start replayed</summary>${renderCmpResults()}</details>`;
+      return;
+    }
     const R = nflData.completions || [];
     if (!R.length) { el.innerHTML = tabs + '<div class="empty">No projections yet — they fill in once the slate has lines.</div>'; return; }
     const rows = cpRows();
@@ -4159,7 +4279,7 @@ let pairStacks = false;
           <div class="pb-info">
             <div class="pb-nm">${r.name}</div>
             <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
-              <span class="rc-proj" title="Projected completions"><b>${r.mu.toFixed(1)}</b> proj</span>${cpNotes(r)}</div>
+              <span class="rc-proj" title="Projected completions"><b>${r.mu.toFixed(1)}</b> proj</span>${liveChip('cmp', r, r.L)}${cpNotes(r)}</div>
           </div>
           <div class="pb-facts">
             <span class="pb-f" title="Completions per start, last two seasons"><b>${r.f.cmpPrior.toFixed(1)}</b> avg</span>
