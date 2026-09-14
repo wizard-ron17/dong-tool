@@ -110,12 +110,14 @@ export function snapshot(log, schedule, board, now = new Date()) {
   return wrote;
 }
 
+let lastFail = '';
 async function getJson(url) {
   for (let a = 0; a < 3; a++) {
     try {
-      const r = await fetch(url, { headers: { 'User-Agent': UA } });
+      const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' } });
       if (r.ok) return await r.json();
-    } catch (e) {}
+      lastFail = `HTTP ${r.status}`;
+    } catch (e) { lastFail = e.message; }
     await new Promise(r => setTimeout(r, 1200));
   }
   return null;
@@ -193,16 +195,18 @@ export async function grade(log, loadIds, now = new Date()) {
   for (const wk of weeks) {
     const [season, week] = wk.split('|').map(Number);
     const sb = await getJson(`${ESPN}/scoreboard?dates=${season}&seasontype=2&week=${week}`);
-    if (!sb?.events) { console.log(`  results: ESPN scoreboard unavailable for ${season} wk ${week}`); continue; }
+    if (!sb?.events) { console.log(`  results: ESPN scoreboard unavailable for ${season} wk ${week} (${lastFail})`); continue; }
+    let seen = 0, notDone = 0, failed = 0;
     for (const ev of sb.events) {
       const comp = ev.competitions?.[0];
       const teams = Object.fromEntries((comp?.competitors ?? []).map(c => [c.homeAway, ESPN_TEAM[c.team.abbreviation] ?? c.team.abbreviation]));
       const g = due.find(x => x.week === week && x.home === teams.home && x.away === teams.away);
       if (!g) continue;
-      if (!ev.status?.type?.completed) { g.live = ev.status?.type?.state === 'in'; continue; }
+      seen++;
+      if (!ev.status?.type?.completed) { notDone++; g.live = ev.status?.type?.state === 'in'; continue; }
       const keep = stale(g) ? { dnp: g.res.dnp, snapsChecked: g.res.snapsChecked, gradedAt: g.gradedAt } : null;
       const summary = await getJson(`${ESPN}/summary?event=${ev.id}`);
-      if (!summary?.boxscore) continue;
+      if (!summary?.boxscore) { failed++; continue; }
       ids ??= await loadIds();
       g.res = readBox(summary, ids.espnToGsis, ids.nameTeamToGsis);
       g.score = { away: +(comp.competitors.find(c => c.homeAway === 'away')?.score ?? 0),
@@ -214,6 +218,8 @@ export async function grade(log, loadIds, now = new Date()) {
       }
       graded++;
     }
+    console.log(`  results: ${season} wk ${week} — ${sb.events.length} ESPN events, ${seen} logged, ${notDone} not final, `
+      + `${failed} box scores failed${failed ? ` (${lastFail})` : ''}`);
   }
   return { graded };
 }
