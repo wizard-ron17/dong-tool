@@ -4223,7 +4223,7 @@
         T = tTake + dist(spot, endPt) / 11;
         const near = nearest([...D.dl, ...D.lb, ...D.cb, ...D.s], spot);
         scorer = kf([[0, near], [tTake, spot], [T, endPt]]);
-        actors.push({ ...thrower, pos: (time) => time < tTake ? qbKf(time) : chase(drop, scorer, tTake, 0.3, 0.2, 9)(time) });
+        actors.push({ ...thrower, pos: qbKf });
         [...D.dl, ...D.lb, ...D.cb, ...D.s].filter(p0 => p0 !== near).forEach(p0 => add('team', kf([[0, p0], [tThrow, lerp(p0, spot, 0.3)], [T, lerp(p0, endPt, 0.35)]])));
         ball = (time) => time < 0.2 ? { p: lerp([oLos, MID], qbKf(0.2), time / 0.2), own: 'hold' }
           : time < tThrow ? { p: qbKf(time), own: 'hold' }
@@ -4242,11 +4242,11 @@
         let holder;
         if (known && (sack || spot[0] > oLos)) {       // behind the line: the quarterback
           holder = kf([[0, O.qb], [tDrop, drop], [tHit, hitAt]]);
-          actors.push({ ...thrower, pos: (time) => time < tTake ? holder(time) : chase(hitAt, (tt) => scorer(tt), tTake, 0.3, 0.2, 9)(time) });
+          actors.push({ ...thrower, pos: holder });
         } else if (known) {                             // a runner or receiver downfield
           holder = kf([[0, O.rb], [0.5, [oLos + 3, MID]], [tHit, hitAt]]);
           add('opp', (time) => time < tTake ? holder(time) : chase(hitAt, (tt) => scorer(tt), tTake, 0.3)(time));
-          actors.push({ ...thrower, pos: kf([[0, O.qb], [0.5, [oLos + 3, MID + 2]], [T, [oLos + 1, MID + 4]]]) });
+          actors.push({ ...thrower, pos: kf([[0, O.qb], [0.5, [oLos + 3, MID + 2]]]) });
         } else {
           holder = still(hitAt);
         }
@@ -4284,7 +4284,8 @@
       }
       events.push({ t: T, label: 'TOUCHDOWN', cls: 'td', at: endPt });
     }
-    return { actors, events, ball, T, los, fd };
+    // only the players the play is about — the rest of the 22 were made up and read as noise
+    return { actors: actors.filter(a2 => a2.kind !== 'dot'), events, ball, T, los, fd };
   }
 
   // colours: the scoring team's primary; the opponent's primary unless the two
@@ -4313,6 +4314,8 @@
     const sc = tdScene(t, d);
     const xs = [];
     for (const a2 of sc.actors) for (const tt of [0, sc.T * 0.5, sc.T]) xs.push(a2.pos(tt)[0]);
+    for (const e of sc.events) xs.push(e.at[0]);
+    if (sc.los != null) xs.push(sc.los);
     const lo = Math.max(0, Math.min(65, (xs.length ? Math.min(...xs) : 60) - 8));
     const G = tfGeom(tdVertical(), lo);
     const col = tdColors(t.team, t.opp);
