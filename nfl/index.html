@@ -1736,10 +1736,16 @@
     .ydm-panel { padding: 0.85rem 0.8rem; min-width: 0; }
     .ydm-id h2 { font-size: 1.35rem; } .ydm-meta { font-size: 0.9rem; }
     .ydm-big strong { font-size: 2.4rem; }
-    #yd-back { padding-left: 2.1rem; padding-right: 2.1rem; }
+    #yd-back, #lc-back { padding-left: 2.1rem; padding-right: 2.1rem; }
     .ydl-row { padding: 0.5rem 0.65rem; font-size: 0.95rem; }
     .ydm-tip { font-size: 0.85rem; padding: 0.6rem 0.75rem; }
   }
+  /* ladder cards: count bars (over the selected line in green) */
+  .lcb { fill: var(--silver); opacity: 0.35; }
+  .lcb.over { fill: var(--good); opacity: 0.85; }
+  #lc-back .pk-side-prev { left: max(6px, calc(50% - 510px - 52px)); }
+  #lc-back .pk-side-next { right: max(6px, calc(50% - 510px - 52px)); }
+  .ydm-meta .rc-wind { margin-left: 0.3rem; }
   /* Yards: "your book's line" checker in the player card */
   .yd-check { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
   .yd-check input { width: 7rem; background: var(--surface1); border: 1px solid var(--border2); color: var(--text-strong);
@@ -4407,85 +4413,9 @@ let pairStacks = false;
   }
 
   // ── Receptions modal: the full ladder, plus the usage behind it ─────────
-  let rcOpen = null;
-  function openRec(pid) {
-    const R = nflData?.receptions || []; const M = nflData?.receptionModel;
-    const r = R.find(x => x.pid === pid); if (!r || !M) return;
-    rcOpen = pid;
-    const deck = rcRows();
-    const at = deck.findIndex(x => x.pid === pid);
-    const sel = rcPick(r);
-    const ladder = RC_LINES().map(L => {
-      const p = r.p[L] ?? r.p[String(L)];
-      if (p == null) return '';
-      return `<div class="pm-mkt${L === sel.L ? ' on' : ''}">
-        <div class="pm-mkt-lbl">o${L}</div>
-        <div class="pm-mkt-od">${pbOdds(p)}</div>
-        <div class="pm-mkt-pct">${(p * 100).toFixed(1)}%</div></div>`;
-    }).join('');
-    const f = r.f || {};
-    const stat = (v, l, pc, tip) => `<div class="pm-stat" title="${tip}">
-      <div class="pm-stat-v">${v}</div><div class="pm-stat-l">${l}</div>
-      <div class="pm-stat-bar"><i style="width:${Math.max(0, Math.min(100, pc))}%"></i></div></div>`;
-
-    document.body.insertAdjacentHTML('beforeend', `
-      <div class="pm-back" id="rc-back" onclick="if(event.target===this)closeRec()">
-        <button class="pk-side-nav pk-side-prev" onclick="rcStep(-1)" aria-label="Previous"${at <= 0 ? ' disabled' : ''}>‹</button>
-        <button class="pk-side-nav pk-side-next" onclick="rcStep(1)" aria-label="Next"${at < 0 || at >= deck.length - 1 ? ' disabled' : ''}>›</button>
-        <div class="pm" role="dialog" aria-modal="true">
-          <button class="pm-x" onclick="closeRec()" aria-label="Close">×</button>
-          ${at >= 0 ? `<div class="pk-deck-count" style="padding-top:0.6rem">${at + 1} / ${deck.length}</div>` : ''}
-          <div class="pm-hero">
-            ${faceHtml(r.pid, r.name)}
-            <div class="pm-id">
-              <div class="pm-nm">${r.name}</div>
-              <div class="pm-meta"><b>${r.pos}</b> · ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</div>
-            </div>
-            <div class="pm-hero-price">
-              <div class="pm-hero-od">${r.mu.toFixed(2)}</div>
-              <div class="pm-hero-lbl">proj catches</div>
-            </div>
-          </div>
-          <div class="pm-sec">The ladder</div>
-          <div class="pm-mkts">${ladder}</div>
-          <div class="pm-sec">The usage behind it</div>
-          <div class="pm-stats">
-            ${f.thinRole ? `${stat(Math.round(f.snapEst * 100) + '%', 'Expected snaps', f.snapEst * 100, 'Snap share the depth chart gives him — he has no NFL games to measure')}
-            ${stat('#' + (f.depth ?? '—'), 'Depth chart', Math.max(5, 100 - ((f.depth || 5) - 1) * 20), 'His rank at his position')}
-            </div><p class="pm-note" style="margin-top:0.7rem"><b>Rookie baseline.</b> No NFL history, so this is what rookies and newcomers at his position actually caught when they played ${THIN_TIER_LBL[f.tier]} of snaps (2017–2025). It sharpens as he plays.</p><div style="display:none">` : ''}
-            ${stat(Math.round((f.snapL3 || 0) * 100) + '%', 'Snap share L3', (f.snapL3 || 0) * 100, "Share of his offense's snaps over the last three games — the largest term in the model")}
-            ${stat(Math.round((f.shareL3 || 0) * 100) + '%', 'Target share L3', (f.shareL3 || 0) * 400, "His share of the team's targets over the last three games")}
-            ${stat((f.teamPass || 0).toFixed(0), 'Team pass att', (f.teamPass || 0) / 45 * 100, 'His team’s pass attempts per game')}
-            ${stat((f.recL3 ?? 0).toFixed(1), 'Catches L3', (f.recL3 || 0) / 9 * 100, 'His receptions per game over the last three')}
-            ${stat((f.recPrior ?? 0).toFixed(1), 'Catches career', (f.recPrior || 0) / 9 * 100, 'His longer-run receptions per game, shrunk toward his position')}
-            ${stat(Math.round((f.catch || 0) * 100) + '%', 'Catch rate', (f.catch || 0) * 100, 'Receptions per target over his career')}
-            ${(() => {
-              const w = nflData.wind?.[r.gameId];
-              if (w == null) return stat('indoor', 'Wind', 0, 'Dome or closed roof — wind cannot affect this game');
-              const f2 = rcWindFactor(w);
-              return stat(Math.round(w) + ' mph', 'Wind' + (f2 < 0.995 ? ` · ×${f2.toFixed(2)}` : ''),
-                Math.min(100, w / 30 * 100),
-                f2 < 0.995 ? `Forecast at kickoff — cuts the projection by ${(100 * (1 - f2)).toFixed(0)}%`
-                           : 'Forecast at kickoff — not enough to move the projection');
-            })()}
-          </div>
-          <p class="pm-note">Negative-binomial pricing off ${f.games} prior games — see <b>How Receptions Works</b> for why not Poisson.</p>
-        </div>
-      </div>`);
-    document.body.style.overflow = 'hidden';
-  }
-  window.openRec = openRec;
-  function closeRec() {
-    document.getElementById('rc-back')?.remove();
-    document.body.style.overflow = ''; rcOpen = null;
-  }
-  window.closeRec = closeRec;
-  function rcStep(d) {
-    const deck = rcRows(); const at = deck.findIndex(x => x.pid === rcOpen);
-    const nx = deck[at + d]; if (!nx) return;
-    closeRec(); openRec(nx.pid);
-  }
-  window.rcStep = rcStep;
+  // Receptions card: the shared ladder card (see "Ladder cards" below).
+  window.openRec = (pid) => openLc('rec', pid);
+  window.closeRec = () => closeLc();
 
   // ── Completions ─────────────────────────────────────────────────────────
   const cpF = { line: 'auto', sort: 'proj', view: 'cards', q: '', tab: 'board', wk: null, open: false };
@@ -4614,46 +4544,8 @@ let pairStacks = false;
       <div class="pt-meta" style="margin-top:0.5rem">Every past start rebuilt with only the data available that week and priced at the line nearest its projection.</div>`;
   }
 
-  let cpOpen = null;
-  function openCmp(pid) {
-    const r = (nflData?.completions || []).find(x => x.pid === pid); if (!r) return;
-    cpOpen = pid;
-    const deck = cpRows(), at = deck.findIndex(x => x.pid === pid), sel = cpPick(r);
-    const lines = CP_LINES().filter(L => Math.abs(L - r.mu) <= 4.5);
-    const ladder = lines.map(L => { const p = r.p[L] ?? r.p[String(L)];
-      return `<div class="pm-mkt${L === sel.L ? ' on' : ''}"><div class="pm-mkt-lbl">o${L}</div><div class="pm-mkt-od">${pbOdds(p)}</div><div class="pm-mkt-pct">${(p * 100).toFixed(1)}%</div></div>`; }).join('');
-    const f = r.f;
-    const stat = (v, l, pc, tip) => `<div class="pm-stat" title="${tip}"><div class="pm-stat-v">${v}</div><div class="pm-stat-l">${l}</div><div class="pm-stat-bar"><i style="width:${Math.max(0, Math.min(100, pc))}%"></i></div></div>`;
-    document.body.insertAdjacentHTML('beforeend', `
-      <div class="pm-back" id="cp-back" onclick="if(event.target===this)closeCmp()">
-        <button class="pk-side-nav pk-side-prev" onclick="cpStep(-1)"${at <= 0 ? ' disabled' : ''}>‹</button>
-        <button class="pk-side-nav pk-side-next" onclick="cpStep(1)"${at < 0 || at >= deck.length - 1 ? ' disabled' : ''}>›</button>
-        <div class="pm" role="dialog" aria-modal="true">
-          <button class="pm-x" onclick="closeCmp()" aria-label="Close">×</button>
-          ${at >= 0 ? `<div class="pk-deck-count" style="padding-top:0.6rem">${at + 1} / ${deck.length}</div>` : ''}
-          <div class="pm-hero">${faceHtml(r.pid, r.name)}
-            <div class="pm-id"><div class="pm-nm">${r.name}</div><div class="pm-meta"><b>QB</b> · ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</div></div>
-            <div class="pm-hero-price"><div class="pm-hero-od">${r.mu.toFixed(1)}</div><div class="pm-hero-lbl">proj completions</div></div>
-          </div>
-          <div class="pm-sec">The ladder</div><div class="pm-mkts">${ladder}</div>
-          <div class="pm-sec">What builds it</div>
-          <div class="pm-stats">
-            ${stat(f.cmpPrior.toFixed(1), 'Completions / start', f.cmpPrior / 30 * 100, 'His completions per start, last two seasons')}
-            ${stat(f.attPrior.toFixed(0), 'Attempts / start', f.attPrior / 45 * 100, 'His attempts per start')}
-            ${stat((f.rate * 100).toFixed(0) + '%', 'Completion rate', f.rate * 100, 'His completion rate')}
-            ${stat(f.l3.toFixed(1), 'Last 3 starts', f.l3 / 30 * 100, 'Shown for context — for a QB this is noisier than his longer average and is not in the projection')}
-            ${stat(f.implied.toFixed(1), 'Team total', f.implied / 35 * 100, 'Points his team is implied to score')}
-            ${stat((f.defRate * 100).toFixed(1) + '%' , 'Opp cmp% allowed' + (f.defX < 0.995 ? ` · ×${f.defX.toFixed(2)}` : ''), (f.defRate - 0.5) / 0.2 * 100, f.defX < 0.995 ? 'Elite pass defense — trims the projection' : 'Opponent pass defense — no measurable effect at this level')}
-            ${f.thinX < 0.999 ? stat(f.starts + ' of 3', 'Recent starts · ×' + f.thinX.toFixed(2), f.starts / 3 * 100, 'Thin history: starters with fewer than 3 recent starts complete measurably fewer than a league-average baseline, so the projection is discounted') : ''}
-            ${stat(f.windMph ? Math.round(f.windMph) + ' mph' : 'calm/indoor', 'Wind' + (f.windX < 0.995 ? ` · ×${f.windX.toFixed(2)}` : ''), Math.min(100, (f.windMph || 0) / 30 * 100), f.windX < 0.995 ? 'Forecast wind at kickoff — trims the projection' : 'Not enough wind to matter')}
-          </div>
-        </div>
-      </div>`);
-    document.body.style.overflow = 'hidden';
-  }
-  window.openCmp = openCmp;
-  window.closeCmp = () => { document.getElementById('cp-back')?.remove(); document.body.style.overflow = ''; cpOpen = null; };
-  window.cpStep = (d) => { const deck = cpRows(), at = deck.findIndex(x => x.pid === cpOpen), nx = deck[at + d]; if (!nx) return; closeCmp(); openCmp(nx.pid); };
+  window.openCmp = (pid) => openLc('cmp', pid);
+  window.closeCmp = () => closeLc();
 
   // ── Interceptions ───────────────────────────────────────────────────────
   const inF = { line: 0.5, sort: 'most', view: 'cards', q: '', tab: 'board', wk: null, open: false };
@@ -4764,50 +4656,8 @@ let pairStacks = false;
       ${rows}`;
   }
 
-  let inOpen = null;
-  function openInt(pid) {
-    const r = (nflData?.interceptions || []).find(x => x.pid === pid); if (!r) return;
-    inOpen = pid;
-    const deck = inRows(), at = deck.findIndex(x => x.pid === pid);
-    const f = r.f;
-    const ladder = (nflData.interceptionModel?.lines || [0.5, 1.5, 2.5]).map(L => {
-      const p = inP(r, L);
-      return `<div class="pm-mkt${L === inF.line ? ' on' : ''}"><div class="pm-mkt-lbl">o${L}</div><div class="pm-mkt-od">${pbOdds(p)}</div><div class="pm-mkt-pct">${(p * 100).toFixed(1)}% · u ${pbOdds(1 - p)}</div></div>`; }).join('');
-    const x = f.x || {};
-    const bar = (lab, mult, detail, tip) => {
-      const pct = (mult - 1) * 100;
-      return `<div class="pm-stat" title="${tip}"><div class="pm-stat-v">${pct >= 0 ? '+' : '−'}${Math.abs(pct).toFixed(0)}%</div><div class="pm-stat-l">${lab} · ${detail}</div><div class="pm-stat-bar"><i style="width:${Math.max(4, Math.min(100, 50 + pct * 2.5))}%"></i></div></div>`;
-    };
-    document.body.insertAdjacentHTML('beforeend', `
-      <div class="pm-back" id="in-back" onclick="if(event.target===this)closeInt()">
-        <button class="pk-side-nav pk-side-prev" onclick="inStep(-1)"${at <= 0 ? ' disabled' : ''}>‹</button>
-        <button class="pk-side-nav pk-side-next" onclick="inStep(1)"${at < 0 || at >= deck.length - 1 ? ' disabled' : ''}>›</button>
-        <div class="pm" role="dialog" aria-modal="true">
-          <button class="pm-x" onclick="closeInt()" aria-label="Close">×</button>
-          ${at >= 0 ? `<div class="pk-deck-count" style="padding-top:0.6rem">${at + 1} / ${deck.length}</div>` : ''}
-          <div class="pm-hero">${faceHtml(r.pid, r.name)}
-            <div class="pm-id"><div class="pm-nm">${r.name}</div><div class="pm-meta"><b>QB</b> · ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</div></div>
-            <div class="pm-hero-price"><div class="pm-hero-od">${pbOdds(inP(r, 0.5))}</div><div class="pm-hero-lbl">1+ INT · ${r.mu.toFixed(2)} proj</div></div>
-          </div>
-          <div class="pm-sec">The ladder</div><div class="pm-mkts">${ladder}</div>
-          <div class="pm-sec">What moves his price</div>
-          <p class="pm-note" style="margin:0 0 0.5rem">Each factor's pull on his expected interceptions, against an average starter in an average spot.</p>
-          <div class="pm-stats">
-            ${bar('Game script', x.fav ?? 1, spreadTxt(f.fav), 'Teams expected to trail throw riskier passes')}
-            ${bar('Bad balls', x.log_bad_rate ?? 1, (f.bad * 100).toFixed(1) + '% of passes', 'Intercepted or broken up, last two seasons, shrunk toward league average')}
-            ${bar('Defense', x.log_def_int ?? 1, (f.defInt * 100).toFixed(1) + '% INT rate', 'How often this defense intercepts, last two seasons')}
-            ${bar('Team total', x.implied ?? 1, f.implied.toFixed(1) + ' pts', 'Points his team is implied to score')}
-            ${bar('Volume', x.log_att ?? 1, f.att.toFixed(0) + ' att/start', 'His attempts per start')}
-            ${f.thinX > 1.001 ? bar('Limited history', f.thinX, f.starts + ' recent starts', 'Starters with fewer than 3 recent starts throw measurably more interceptions than their numbers suggest') : ''}
-          </div>
-          <p class="pm-foot">${f.attSum ? `Last two seasons: <b>${f.ints}</b> interceptions on <b>${f.attSum}</b> attempts. ` : ''}His raw interception rate isn't in the price &mdash; it swings too much game to game to predict the next one. Fair odds, no vig.</p>
-        </div>
-      </div>`);
-    document.body.style.overflow = 'hidden';
-  }
-  window.openInt = openInt;
-  window.closeInt = () => { document.getElementById('in-back')?.remove(); document.body.style.overflow = ''; inOpen = null; };
-  window.inStep = (d) => { const deck = inRows(), at = deck.findIndex(x => x.pid === inOpen), nx = deck[at + d]; if (!nx) return; closeInt(); openInt(nx.pid); };
+  window.openInt = (pid) => openLc('int', pid);
+  window.closeInt = () => closeLc();
 
   // Depth chart + injuries, sitewide: the build scales each player's recent role
   // by how far the resolved snap share moved (see "Role, sitewide" in picks.js).
@@ -5155,6 +5005,236 @@ let pairStacks = false;
   window.ydSetLine = (x) => { ydm.line = x; ydRefreshLine(); };
   window.closeYds = () => { document.getElementById('yd-back')?.remove(); document.removeEventListener('keydown', ydKey); document.body.style.overflow = ''; ydm.pid = null; };
   window.ydStepTo = (d) => { const deck = ydRows(), at = deck.findIndex(x => x.pid === ydm.pid), nx = deck[at + d]; if (!nx) return; Object.assign(ydm, { pid: nx.pid, m: nx.m, line: ydPick(nx) }); ydRender(); };
+
+  // ── Ladder cards: Receptions, Completions, Interceptions ────────────────
+  // The Yards card's layout for the count markets: a bar chart of the model's
+  // own distribution (negative binomial, or a rookie baseline's counts) with
+  // the selected line splitting over from under, over/under panels, key
+  // metrics, and an 8-rung ladder centred on the even-money line. Shares the
+  // Yards card's CSS (.ydm-*) and its phone layout.
+  const lc = { kind: null, pid: null, line: null };
+  const LC = {
+    rec: {
+      rows: () => rcRows(), all: () => nflData?.receptions || [],
+      alpha: () => nflData.receptionModel?.alpha, unit: 'receptions', big: (r) => [r.mu.toFixed(1), 'Projected receptions'],
+      lines: [0.5, 12.5],
+      metrics: (r) => {
+        const f = r.f, pct = (x) => Math.round((x || 0) * 100) + '%';
+        if (f.thinRole) return [['ball', pct(f.snapEst), 'Expected snaps'], ['bars', f.depth ? '#' + f.depth : '—', 'Depth chart'],
+          ['clock', String(f.games ?? 0), 'NFL games'], ['team', (f.implied ?? 0).toFixed(1), 'Team total']];
+        const w = nflData.wind?.[r.gameId];
+        const wf = w != null ? rcWindFactor(w) : 1;
+        return [['ball', pct(f.snapL3), 'Snaps, last 3'], ['target', pct(f.shareL3), 'Tgt share, last 3'], ['clock', (f.recL3 ?? 0).toFixed(1), 'Catches, last 3'],
+          ['bars', (f.recPrior ?? 0).toFixed(1), 'Catches, 2 seasons'], ['trend', pct(f.catch), 'Catch rate'], ['team', (f.teamPass || 0).toFixed(0), 'Team pass att'],
+          ['spread', w == null ? 'dome' : Math.round(w) + ' mph', 'Wind' + (wf < 0.995 ? ` ×${wf.toFixed(2)}` : '')]];
+      },
+      sub: (r) => r.f.thinRole ? `Rookie baseline: what ${r.pos}s playing ${THIN_TIER_LBL[r.f.tier]} of snaps with little or no history caught`
+        : 'Negative-binomial spread around his projection — catch counts vary more than a simple average suggests',
+      tip: (r) => r.f.thinRole ? 'No NFL history — this sharpens as he plays.' : `Priced off ${r.f.games} prior games${(r.f.roleX ?? 1) >= 1.15 || (r.f.roleX ?? 1) <= 0.87 ? `, with his recent role scaled ×${Math.sqrt(r.f.roleX).toFixed(2)} for the depth chart` : ''}.`,
+    },
+    cmp: {
+      rows: () => cpRows(), all: () => nflData?.completions || [],
+      alpha: () => nflData.completionModel?.alpha, unit: 'completions', big: (r) => [r.mu.toFixed(1), 'Projected completions'],
+      lines: [9.5, 34.5],
+      metrics: (r) => {
+        const f = r.f;
+        const out = [['bars', f.cmpPrior.toFixed(1), 'Cmp / start'], ['arm', f.attPrior.toFixed(0), 'Att / start'], ['trend', (f.rate * 100).toFixed(0) + '%', 'Cmp rate'],
+          ['clock', f.l3.toFixed(1), 'Last 3 starts'], ['team', f.implied.toFixed(1), 'Team total'],
+          ['target', (f.defRate * 100).toFixed(1) + '%', 'Opp cmp% allowed' + (f.defX < 0.995 ? ` ×${f.defX.toFixed(2)}` : '')],
+          ['spread', f.windMph ? Math.round(f.windMph) + ' mph' : 'calm', 'Wind' + (f.windX < 0.995 ? ` ×${f.windX.toFixed(2)}` : '')]];
+        if (f.thinX < 0.999) out.push(['run', `${f.starts} of 3`, `Recent starts ×${f.thinX.toFixed(2)}`]);
+        return out;
+      },
+      sub: () => 'Negative-binomial spread around his projection',
+      tip: (r) => `His last three games are shown for context only — for a quarterback they are noisier than his longer average.${r.f.thinX < 0.999 ? ' Fewer than 3 recent starts: projection discounted.' : ''}`,
+    },
+    int: {
+      rows: () => inRows(), all: () => nflData?.interceptions || [],
+      alpha: () => nflData.interceptionModel?.alpha, unit: 'interceptions',
+      big: (r) => [Math.round((r.p['0.5'] ?? r.p[0.5]) * 100) + '%', 'Chance of 1+ INT'],
+      lines: [0.5, 3.5], fixed: 0.5,
+      metrics: (r) => {
+        const f = r.f, x = f.x || {}, pull = (v) => v == null ? '' : ` ${v >= 1 ? '+' : '−'}${Math.abs((v - 1) * 100).toFixed(0)}%`;
+        const out = [['spread', spreadTxt(f.fav), 'Game script' + pull(x.fav)], ['target', (f.bad * 100).toFixed(1) + '%', 'Bad balls' + pull(x.log_bad_rate)],
+          ['bars', (f.defInt * 100).toFixed(1) + '%', 'Opp INT rate' + pull(x.log_def_int)], ['team', f.implied.toFixed(1), 'Team total' + pull(x.implied)],
+          ['arm', f.att.toFixed(0), 'Att / start' + pull(x.log_att)]];
+        if (f.thinX > 1.001) out.push(['run', `${f.starts} starts`, `Limited history ×${f.thinX.toFixed(2)}`]);
+        return out;
+      },
+      sub: () => 'Negative-binomial spread around his projection',
+      tip: (r) => `${r.f.attSum ? `Last two seasons: ${r.f.ints} INTs on ${r.f.attSum} attempts. ` : ''}His raw interception rate is not in the price — it swings too much to predict the next game.`,
+    },
+  };
+  const lcRow = () => LC[lc.kind]?.all().find(x => x.pid === lc.pid);
+
+  /** P(X = k) for k = 0..K. NB2 from the model, or a rookie baseline's counts. */
+  function lcPmf(r) {
+    const cfg = LC[lc.kind];
+    if (r.tq) {
+      const K = Math.max(6, Math.ceil(Math.max(...r.tq)) + 1), pmf = new Array(K + 1).fill(0);
+      for (const v of r.tq) pmf[Math.min(K, Math.max(0, Math.round(v)))] += 1 / r.tq.length;
+      return pmf;
+    }
+    const alpha = cfg.alpha() ?? 0.05, rr = 1 / alpha, pp = rr / (rr + r.mu);
+    const pmf = [Math.pow(pp, rr)];
+    let cdf = pmf[0], k = 0;
+    while ((cdf < 0.9985 || k < Math.ceil(r.mu) + 2) && k < 60) {
+      k++; pmf.push(pmf[k - 1] * (rr + k - 1) / k * (1 - pp)); cdf += pmf[k];
+    }
+    return pmf;
+  }
+  const lcOver = (pmf, L) => Math.min(0.995, Math.max(0.005, pmf.reduce((a, v, k) => a + (k > L ? v : 0), 0)));
+  function lcPick(r, pmf) {
+    const [lo, hi] = LC[lc.kind].lines;
+    if (LC[lc.kind].fixed != null) return LC[lc.kind].fixed;
+    let best = lo;
+    for (let L = lo; L <= hi; L++) if (Math.abs(lcOver(pmf, L) - 0.5) < Math.abs(lcOver(pmf, best) - 0.5)) best = L;
+    return best;
+  }
+
+  function lcChart(r, pmf) {
+    const W = 560, H = 270, L = 46, Rr = 14, T = 40, B = 34;
+    const K = pmf.length - 1, pct = pmf.map(v => v * 100);
+    const ymaxRaw = Math.max(...pct) * 1.15;
+    const ystep = ymaxRaw > 40 ? 20 : ymaxRaw > 20 ? 10 : ymaxRaw > 8 ? 5 : 2;
+    const ymax = Math.ceil(ymaxRaw / ystep) * ystep;
+    const bw = (W - L - Rr) / (K + 1);
+    const X = (k) => L + k * bw, Y = (y) => T + (1 - y / ymax) * (H - T - B);
+    let cdf = 0, med = 0;
+    for (let k = 0; k <= K; k++) { cdf += pmf[k]; if (cdf >= 0.5) { med = k; break; } }
+    let grid = '';
+    for (let y = 0; y <= ymax + 1e-9; y += ystep)
+      grid += `<line x1="${L}" x2="${W - Rr}" y1="${Y(y)}" y2="${Y(y)}" class="ydc-grid"/><text x="${L - 6}" y="${Y(y) + 4}" class="ydc-ax" text-anchor="end">${y}%</text>`;
+    const every = K > 24 ? 5 : K > 12 ? 2 : 1;
+    const bars = pct.map((v, k) => {
+      const over = k > lc.line, x = X(k) + bw * 0.12, w = bw * 0.76;
+      return `<rect x="${x.toFixed(1)}" y="${Y(v).toFixed(1)}" width="${w.toFixed(1)}" height="${(Y(0) - Y(v)).toFixed(1)}" rx="3" class="lcb${over ? ' over' : ''}"><title>${k}${k === K ? '+' : ''}: ${v.toFixed(1)}%</title></rect>`
+        + (k % every === 0 ? `<text x="${(X(k) + bw / 2).toFixed(1)}" y="${H - 10}" class="ydc-ax" text-anchor="middle">${k}${k === K && K > 3 ? '+' : ''}</text>` : '');
+    }).join('');
+    const mx = X(med) + bw / 2, my = Y(pct[med]);
+    const lx = X(Math.floor(lc.line) + 1);
+    // label at the foot of the line, on the side away from the median tag
+    const away = lx <= mx ? -1 : 1;
+    const lineMark = `<line x1="${lx}" x2="${lx}" y1="${T}" y2="${H - B}" class="ydc-line"/><text x="${lx + away * 6}" y="${H - B - 8}" class="ydc-linelbl" text-anchor="${away < 0 ? 'end' : 'start'}">o${lc.line}</text>`;
+    return `<svg viewBox="0 0 ${W} ${H}" class="ydc" role="img" aria-label="Distribution of ${LC[lc.kind].unit}">${grid}${bars}${lineMark}</svg>
+      <div class="ydc-tag" style="left:${(mx / W * 100).toFixed(2)}%;top:${Math.max(0, (my / H * 100) - 3).toFixed(2)}%"><span>Median</span><b>${med}</b></div>`;
+  }
+
+  function lcSide(r, pmf) {
+    const L = lc.line, p = lcOver(pmf, L), pick = lcPick(r, pmf);
+    const [lo, hi] = LC[lc.kind].lines;
+    let first = Math.max(lo, pick - 3);
+    const last = Math.min(hi, first + 7);
+    first = Math.max(lo, last - 7);
+    let rungs = []; for (let x = first; x <= last; x++) rungs.push(x);
+    // counts are lumpy, so the edges of the window can land on -700 / +5000
+    // lines nobody bets; drop anything past 97/3 unless it leaves under four
+    const sane = rungs.filter(x => { const px = lcOver(pmf, x); return (px > 0.03 && px < 0.97) || Math.abs(x - L) < 0.01; });
+    if (sane.length >= 4) rungs = sane;
+    const ladder = rungs.map(x => {
+      const px = lcOver(pmf, x), on = Math.abs(x - L) < 0.01;
+      return `<button class="ydl-row${on ? ' on' : ''}" onclick="lcSetLine(${x})" aria-pressed="${on}">
+        <span class="ydl-ln">${x}${Math.abs(x - pick) < 0.01 && LC[lc.kind].fixed == null ? '<small>even</small>' : ''}</span>
+        <span class="ydl-pc">${Math.round(px * 100)}%</span>
+        <span class="ydl-od ${px >= 0.5 ? 'goodc' : 'dogc'}">${pbOdds(px)}</span>
+        <span class="ydl-un">${pbOdds(1 - px)}</span></button>`;
+    }).join('');
+    return {
+      probs: `<div class="ydp"><span>Probability of going over ${L}</span><b>${Math.round(p * 100)}%</b><i><em style="width:${(p * 100).toFixed(1)}%"></em></i></div>
+              <div class="ydp under"><span>Probability of going under ${L}</span><b>${Math.round((1 - p) * 100)}%</b><i><em style="width:${((1 - p) * 100).toFixed(1)}%"></em></i></div>`,
+      ladder,
+    };
+  }
+
+  function lcRender() {
+    const r = lcRow(); if (!r) return;
+    const cfg = LC[lc.kind], pmf = lcPmf(r);
+    const deck = cfg.rows(), at = deck.findIndex(x => x.pid === r.pid);
+    const side = lcSide(r, pmf);
+    const [bigV, bigL] = cfg.big(r);
+    let c = 0, p10 = null, p90 = null;
+    pmf.forEach((v, k) => { c += v; if (p10 == null && c >= 0.1) p10 = k; if (p90 == null && c >= 0.9) p90 = k; });
+    const metrics = cfg.metrics(r).map(([ic, v, l]) => `<div class="ydk"><span class="ydk-ic">${ydIco(ic)}</span><b>${v}</b><span>${l}</span></div>`).join('');
+    const tags = (r.f?.thinRole ? '<span class="rc-wind">rookie baseline</span>' : '') + (typeof roleTag === 'function' && lc.kind === 'rec' ? roleTag(r.f) : '');
+    const html = `
+      <button class="pm-x" onclick="closeLc()" aria-label="Close">×</button>
+      <header class="ydm-hero">
+        ${faceHtml(r.pid, r.name)}
+        <div class="ydm-id"><h2>${r.name}</h2><div class="ydm-meta"><b>${r.pos || 'QB'}</b><span>•</span>${r.team} ${r.home ? 'vs' : '@'} ${r.opp}<img src="${teamLogo(r.team)}" alt="" loading="lazy">${at >= 0 ? `<span class="ydm-count">${at + 1} / ${deck.length}</span>` : ''}${tags}</div></div>
+        <div class="ydm-big"><div><span>${bigL}</span><span>${lc.kind === 'int' ? `Proj <b>${r.mu.toFixed(2)}</b>` : `Median <b>${pmf.reduce((a, v, k) => a.c >= 0.5 ? a : { c: a.c + v, k }, { c: 0, k: 0 }).k}</b>`}</span></div><strong>${bigV}</strong></div>
+      </header>
+      <div class="ydm-grid">
+        <div class="ydm-main">
+          <section class="ydm-panel">
+            <div class="ydm-chart-head"><div><h3>${cfg.unit} distribution</h3><p>${cfg.sub(r)}</p></div></div>
+            <div class="ydm-chart-row">
+              <div class="ydc-wrap" id="lc-chart">${lcChart(r, pmf)}</div>
+              <div class="ydm-probs" id="lc-probs">${side.probs}</div>
+            </div>
+            <div class="ydl-mob-wrap"><div class="ydl ydl-mob" id="lc-ladder-m">${side.ladder}</div></div>
+          </section>
+          <section class="ydm-panel ydm-keys"><h4>Key metrics</h4><div class="ydk-row">${metrics}</div></section>
+        </div>
+        <aside class="ydm-panel ydm-side"><div class="ydm-side-in">
+          <h4 class="accent">The ladder</h4>
+          <p class="ydl-help">Tap a line to see it on the chart. Fair odds, no vig.</p>
+          <div class="ydl-head"><span>Line</span><span>Chance</span><span>Over</span><span>Under</span></div>
+          <div class="ydl" id="lc-ladder">${side.ladder}</div>
+        </div></aside>
+      </div>
+      <footer class="ydm-tip">${ydIco('bulb')}<span>${p10 != null && p90 != null && lc.kind !== 'int' ? `Most games land between about <b>${p10}</b> and <b>${p90}</b>. ` : ''}${cfg.tip(r)} Fair odds, no vig.</span></footer>`;
+    document.querySelector('#lc-back .ydm').innerHTML = html;
+    const back = document.getElementById('lc-back');
+    back.querySelector('.pk-side-prev').disabled = at <= 0;
+    back.querySelector('.pk-side-next').disabled = at < 0 || at >= deck.length - 1;
+    lcCenter();
+  }
+  function lcCenter() {
+    const box = document.getElementById('lc-ladder-m'), on = box?.querySelector('.ydl-row.on');
+    if (!box || !on || box.scrollWidth <= box.clientWidth) return;
+    box.scrollLeft = on.offsetLeft - box.offsetLeft - (box.clientWidth - on.offsetWidth) / 2;
+  }
+  function lcRefresh() {
+    const r = lcRow(); if (!r) return;
+    const pmf = lcPmf(r), side = lcSide(r, pmf);
+    const set = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
+    set('lc-chart', lcChart(r, pmf)); set('lc-probs', side.probs); set('lc-ladder', side.ladder); set('lc-ladder-m', side.ladder);
+    lcCenter();
+  }
+  function openLc(kind, pid) {
+    lc.kind = kind; lc.pid = pid;
+    const r = lcRow(); if (!r) return;
+    lc.line = lcPick(r, lcPmf(r));
+    if (!document.getElementById('lc-back')) {
+      document.body.insertAdjacentHTML('beforeend', `
+        <div class="pm-back" id="lc-back" onclick="if(event.target===this)closeLc()">
+          <button class="pk-side-nav pk-side-prev" onclick="lcStep(-1)">‹</button>
+          <button class="pk-side-nav pk-side-next" onclick="lcStep(1)">›</button>
+          <div class="pm ydm" role="dialog" aria-modal="true"></div>
+        </div>`);
+      document.addEventListener('keydown', lcKey);
+    }
+    document.body.style.overflow = 'hidden';
+    lcRender();
+  }
+  function lcKey(e) {
+    if (!document.getElementById('lc-back')) return;
+    if (e.key === 'Escape') closeLc();
+    else if (e.key === 'ArrowLeft') lcStep(-1);
+    else if (e.key === 'ArrowRight') lcStep(1);
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      const [lo, hi] = LC[lc.kind].lines, x = lc.line + (e.key === 'ArrowUp' ? -1 : 1);
+      if (x >= lo && x <= hi) lcSetLine(x);
+    }
+  }
+  function closeLc() { document.getElementById('lc-back')?.remove(); document.removeEventListener('keydown', lcKey); document.body.style.overflow = ''; lc.pid = null; }
+  function lcStep(d) {
+    const deck = LC[lc.kind].rows(), at = deck.findIndex(x => x.pid === lc.pid), nx = deck[at + d]; if (!nx) return;
+    lc.pid = nx.pid; const r = lcRow(); lc.line = lcPick(r, lcPmf(r)); lcRender();
+  }
+  window.openLc = openLc; window.closeLc = closeLc; window.lcStep = lcStep;
+  window.lcSetLine = (x) => { lc.line = x; lcRefresh(); };
 
   function renderReturners() {
     const el = document.getElementById('returners-content'); if (!el) return;

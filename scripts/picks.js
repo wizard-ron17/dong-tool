@@ -1324,6 +1324,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
           pid, name: info.name, team: info.team, opp: ctx.opp, pos: info.position, gameId: ctx.gameId, home: ctx.home,
           mu: +qMean(tq).toFixed(4),
           p: Object.fromEntries(REC_LINES.map(L => [L, +thinOver(tq, L).toFixed(6)])),
+          tq,
           f: { thinRole: true, snapL3: +ro.snap.toFixed(4), snapEst: +ro.snap.toFixed(3), tier: thinTier(ro.snap), depth: ro.rank,
                implied: +ctx.implied.toFixed(2), games: row?._games ?? 0, q: questionable.has(pid) },
         });
