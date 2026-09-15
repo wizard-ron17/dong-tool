@@ -88,6 +88,28 @@ async function replayMeta(pathname, requestUrl) {
   return { title, desc: `▶ Watch the replay — Week ${week}. ${desc}`.slice(0, 300) };
 }
 
+// A shared player (/nfl/stats/<gsis id>) previews as his season line.
+let playersCache = { at: 0, data: null };
+async function playerMeta(pathname, requestUrl) {
+  const m = pathname.match(/^\/nfl\/stats\/(\d{2}-\d{7})\/?$/);
+  if (!m) return null;
+  if (!playersCache.data || Date.now() - playersCache.at > 10 * 60 * 1000) {
+    const r = await fetch(new URL('/nfl/players.json', requestUrl));
+    if (!r.ok) return null;
+    playersCache = { at: Date.now(), data: await r.json() };
+  }
+  const { cols, p } = playersCache.data, pl = p?.[m[1]];
+  if (!pl) return null;
+  const tot = {};
+  cols.slice(2).forEach((c, i) => { tot[c] = pl.g.reduce((n, g) => n + (g[i + 2] || 0), 0); });
+  const G = pl.g.length, tds = tot.rtd + tot.ctd + tot.dtd + tot.sttd;
+  const line = pl.pos === 'QB' ? `${tot.pyd} pass yds, ${tot.ptd} TD, ${tot.int} INT${tot.rtd ? `, ${tot.rtd} rush TD` : ''}`
+    : pl.pos === 'RB' || pl.pos === 'FB' ? `${tot.ryd} rush yds, ${tot.rec} catch${tot.rec === 1 ? "" : "es"} for ${tot.cyd}, ${tds} TD`
+    : pl.pos === 'WR' || pl.pos === 'TE' ? `${tot.rec} catch${tot.rec === 1 ? "" : "es"}, ${tot.cyd} yds, ${tds} TD`
+    : `${tot.tkl + tot.ast} tackles, ${tot.dsk} sacks, ${tot.dint} INT${tot.dtd ? `, ${tot.dtd} TD` : ''}`;
+  return { title: `${pl.n} · ${pl.pos} ${pl.tm} · Season stats · Ron's Tud Tool`, desc: `${G} game${G === 1 ? '' : 's'}: ${line}. Game log, every touchdown and its replay.` };
+}
+
 function inject(html, title, desc, url) {
   const t = esc(title), d = esc(desc), u = esc(url);
   return html
@@ -107,7 +129,8 @@ export default async (request, context) => {
     if (!ct.includes('text/html')) return res; // only touch HTML documents
     if (res.status === 404) return res;         // keep the 404 page's own title
     const url = new URL(request.url);
-    const m = (await replayMeta(url.pathname, request.url).catch(() => null)) || metaFor(url.pathname);
+    const m = (await replayMeta(url.pathname, request.url).catch(() => null))
+      || (await playerMeta(url.pathname, request.url).catch(() => null)) || metaFor(url.pathname);
     const html = await res.text();
     const out = inject(html, m.title, m.desc, SITE + url.pathname);
     const headers = new Headers(res.headers);

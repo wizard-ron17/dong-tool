@@ -246,9 +246,23 @@ async function main() {
   const agg = {}; // pid -> {name, pos, team, rushTd, recTd, tds, targets, carries, games}
   const qbAgg = {}; // pid -> passing line, for the Schedule matchup card
   const headshots = {}; // gsis pid -> headshot url (shared by recap + leaders)
+  // Every game line, for the Stats player modal (nfl/players.json, loaded on demand)
+  const PL_COLS = [['completions', 'cmp'], ['attempts', 'att'], ['passing_yards', 'pyd'], ['passing_tds', 'ptd'], ['passing_interceptions', 'int'], ['sacks_suffered', 'sk'],
+    ['carries', 'car'], ['rushing_yards', 'ryd'], ['rushing_tds', 'rtd'], ['targets', 'tgt'], ['receptions', 'rec'], ['receiving_yards', 'cyd'], ['receiving_tds', 'ctd'],
+    ['fumbles_lost_total', 'fl'], ['def_tackles_solo', 'tkl'], ['def_tackle_assists', 'ast'], ['def_sacks', 'dsk'], ['def_interceptions', 'dint'], ['def_pass_defended', 'pd'], ['def_tds', 'dtd'],
+    ['punt_returns', 'pr'], ['punt_return_yards', 'pry'], ['kickoff_returns', 'kr'], ['kickoff_return_yards', 'kry'], ['special_teams_tds', 'sttd'], ['target_share', 'tsh'], ['fantasy_points_ppr', 'ppr']];
+  const playerGames = {};
   for (const r of srows) {
     if (S(r, 'season_type') !== 'REG') continue;
     const pid = S(r, 'player_id'); if (!pid) continue;
+    {
+      const pg = playerGames[pid] ??= { n: S(r, 'player_display_name') || S(r, 'player_name'), pos: S(r, 'position'), tm: S(r, 'team'), g: [] };
+      pg.tm = S(r, 'team');
+      pg.g.push([S(r, 'game_id'), S(r, 'opponent_team'), ...PL_COLS.map(([k, s2]) => {
+        const v = num(S(r, k)) || 0;
+        return s2 === 'tsh' ? Math.round(v * 1000) / 1000 : Math.round(v * 10) / 10;
+      })]);
+    }
     const hs = S(r, 'headshot_url'); if (hs && !headshots[pid]) headshots[pid] = hs;
     const a = agg[pid] ??= { name: S(r, 'player_display_name') || S(r, 'player_name'), pos: S(r, 'position'), team: S(r, 'team'), rushTd: 0, recTd: 0, tds: 0, targets: 0, carries: 0, games: 0 };
     a.team = S(r, 'team'); // last team seen
@@ -595,6 +609,13 @@ async function main() {
   fs.writeFileSync(new URL('../nfl/data.json', import.meta.url), JSON.stringify(output));
   for (const [g, arr] of Object.entries(wpSeries)) if (Object.keys(playDetail).some(k => k.startsWith(g + '|'))) playDetail[`wp|${g}`] = arr;
   fs.writeFileSync(new URL('../nfl/plays.json', import.meta.url), JSON.stringify(playDetail));
+  {
+    const scorers = new Set(tdLeaders.map(l => l.pid));
+    const keep = Object.fromEntries(Object.entries(playerGames).filter(([pid, v]) => ['QB', 'RB', 'WR', 'TE', 'FB'].includes(v.pos) || scorers.has(pid))
+      .map(([pid, v]) => [pid, { ...v, g: v.g.sort((a, b) => a[0].localeCompare(b[0])) }]));
+    fs.writeFileSync(new URL('../nfl/players.json', import.meta.url), JSON.stringify({ cols: ['gid', 'opp', ...PL_COLS.map(c => c[1])], p: keep }));
+    console.log(`  player game logs: ${Object.keys(keep).length} players -> nfl/players.json`);
+  }
   console.log(`  play detail: ${Object.keys(playDetail).filter(k => !k.startsWith('wp|')).length} touchdowns + win-probability lines -> nfl/plays.json`);
   console.log(`Wrote nfl/data.json — ${schedule.length} ${UPCOMING_SEASON} games, ${tdTotal} TDs across ${weeks.length} weeks, ${tdLeaders.length} TD leaders, ${picks?.picks.length ?? 0} picks.`);
 }
