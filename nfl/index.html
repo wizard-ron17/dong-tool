@@ -1845,25 +1845,27 @@
   .tsb-foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.15rem 0.9rem; padding: 0.4rem 0.8rem; background: #111b2c; border-top: 1px solid #1f2b3d;
               font-size: 0.74rem; letter-spacing: 0.04em; text-transform: uppercase; color: #8d9bb0; }
   .tsb-foot b { color: #f3f6fb; font-weight: 700; }
-  .tdw2-legend { display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; font-family: var(--font-d); font-size: 0.85rem; color: var(--muted); margin-bottom: 0.3rem; }
-  .tdw2-legend i { display: inline-block; width: 0.8rem; height: 3px; border-radius: 2px; background: var(--c); vertical-align: middle; margin-right: 0.35rem; }
-  .tdw2-legend b { color: var(--text-strong); font-variant-numeric: tabular-nums; }
-  .tdw2 { display: block; width: 100%; height: 8.25rem; overflow: visible; }
-  .tdw2 path, .tdw2 line.tdw2-jump { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-  .tdw2 .inv { opacity: 0.55; stroke-width: 2; }
-  .tdw2-mid { stroke: var(--border); stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
-  .tdw2-q { stroke: var(--border); opacity: 0.6; vector-effect: non-scaling-stroke; }
-  .tdw2-wrap { position: relative; }
-  .tdw2-ql { position: relative; height: 1rem; font-family: var(--font-d); font-size: 0.66rem; color: var(--muted); }
-  .tdw2-ql span { position: absolute; transform: translateX(-50%); top: 0.1rem; }
-  .tdw2-pre, .tdw2-jump { stroke-dasharray: 1; stroke-dashoffset: 1; }
-  .tdw2.drawn .tdw2-pre { stroke-dashoffset: 0; transition: stroke-dashoffset 1.6s ease-out; }
-  .tdw2.scored .tdw2-jump { stroke-dashoffset: 0; transition: stroke-dashoffset 0.7s cubic-bezier(.2,.8,.2,1); }
-  .tdw2-rest { opacity: 0; } .tdw2.scored .tdw2-rest { opacity: 0.35; transition: opacity 0.8s 0.9s; }
-  .tdw2-rest path { stroke-width: 1.5; }
-  .tdw2-dot { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; opacity: 0; box-shadow: 0 0 0 2px var(--surface1), 0 0 12px rgba(242,201,76,0.7); }
-  .tdw2.scored + .tdw2-dot { opacity: 1; animation: tdwPulse 1.1s 0.55s ease-out both; }
-  @keyframes tdwPulse { 0% { transform: scale(0.3); opacity: 0; } 35% { transform: scale(2); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+  .td-layout { display: grid; gap: 1rem; min-width: 0; }
+  .td-row { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 1rem; align-items: stretch; }
+  .td-row.solo { grid-template-columns: minmax(0, 1fr); }
+  .td-row.solo .td-side:first-child { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 1.4rem; align-items: start; }
+  .td-row.solo .td-wpbox > h4:first-child { margin-top: 0; }
+  @media (max-width: 760px) { .td-row.solo .td-side:first-child { grid-template-columns: minmax(0, 1fr); } .td-row.solo .td-wpbox > h4:first-child { margin-top: 1rem; } }
+  .td-row .td-side > h4:first-child, .td-row .td-side > div:first-child > h4:first-child { margin-top: 0; }
+  @media (max-width: 760px) { .td-row { grid-template-columns: minmax(0, 1fr); } }
+  .td-play .tf:not(.v) { max-height: min(50vh, 440px); margin: 0 auto; }
+  .td-play .tf-wrap { background: #0b2417; }
+  .tdwb-ends { display: flex; justify-content: space-between; gap: 0.5rem; font-family: var(--font-d); font-weight: 700; font-size: 0.9rem; color: var(--silver); margin-bottom: 0.4rem; }
+  .tdwb-ends span { display: inline-flex; align-items: center; gap: 0.35rem; }
+  .tdwb-ends img { width: 1.2rem; height: 1.2rem; object-fit: contain; }
+  .tdwb-ends b { color: var(--text-strong); font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+  .tdwb-bar { position: relative; height: 16px; border-radius: 8px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -2px 4px rgba(0,0,0,0.3); }
+  .tdwb-bar::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(180deg, rgba(255,255,255,0.16), transparent 55%); }
+  .tdwb-split { position: absolute; top: -5px; bottom: -5px; width: 4px; margin-left: -2px; border-radius: 2px; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 0 10px rgba(255,255,255,0.7); z-index: 1; }
+  .tdwb-ghost { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: rgba(255,255,255,0.55); opacity: 0; transition: opacity 0.4s; }
+  .tdwb.scored .tdwb-ghost { opacity: 1; }
+  .tdwb.scored .tdwb-split { animation: tdwbPop 0.6s 1s ease-out; }
+  @keyframes tdwbPop { 40% { transform: scaleY(1.5); box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 0 18px #f2c94c; } }
   .tdw-note { margin: 0.35rem 0 0; font-size: 0.8rem; color: var(--muted); opacity: 0; transition: opacity 0.4s; }
   .tdw-note.on { opacity: 1; }
   .tdo { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.2rem, 1fr)); gap: 0.4rem; }
@@ -3657,7 +3659,12 @@
       .finally(() => {
         renderPanel(activeNav);
         const odds = document.getElementById('td-odds'), t = document.getElementById('td-back') && tdRow();
-        if (odds && t) odds.innerHTML = tdOdds(t);
+        if (odds && t) {
+          odds.innerHTML = tdOdds(t);
+          const panel = odds.closest('.td-side');
+          if (odds.innerHTML) document.getElementById('td-flags')?.remove();
+          if (panel?.hidden && odds.innerHTML) { panel.hidden = false; panel.parentElement.classList.remove('solo'); }
+        }
       });
   }
 
@@ -4321,7 +4328,7 @@
   // (phones), cropped to the part of the field the scene uses.
   function tfGeom(vertical, lo) {
     if (!vertical) return { v: false, P: (x, y) => [x * 10, y * 10], box: '0 0 1200 533' };
-    return { v: true, P: (x, y) => [y * 10, (120 - x) * 10], box: `0 0 533 ${(120 - lo) * 10}` };
+    return { v: true, lo, P: (x, y) => [y * 10, (120 - x) * 10], box: `0 0 533 ${(120 - lo) * 10}` };
   }
   const tdVertical = () => window.matchMedia('(max-width: 620px)').matches;
 
@@ -4420,6 +4427,7 @@
     svg.querySelectorAll('.tf-sp').forEach(g => {
       const tx = g.querySelector('.tf-sp-name'), r = g.querySelector('.tf-sp-badge');
       const w = (tx.getComputedTextLength?.() || 0) + 14; if (w > 20) { r.setAttribute('x', (-w / 2).toFixed(1)); r.setAttribute('width', w.toFixed(1)); }
+      g._hw = Math.max(28, w / 2);
     });
     const tdEv = sc.events.find(e => e.cls === 'td');
     let lastT = -1, wpShown = false;
@@ -4435,6 +4443,8 @@
           const nx = (x - sx) / W, ny = (y - sy) / H, dd = Math.hypot(nx, ny);
           if (dd < 1) { const [ux, uy] = dd < 1e-3 ? [0, 1] : [nx / dd, ny / dd]; x = sx + ux * W; y = sy + uy * H; }
         }
+        const hw = (actorEls[i]._hw || 40) * K, [bw, bh] = G.v ? [533, (120 - (G.lo || 0)) * 10] : [1200, 533];
+        x = Math.min(bw - hw - 4, Math.max(hw + 4, x)); y = Math.min(bh - 34 * K, Math.max(50 * K, y));
         actorEls[i].setAttribute('transform', `translate(${x.toFixed(1)},${y.toFixed(1)})`);
         actorEls[i].classList.toggle('faded', a2.done != null && time > a2.done + 0.35);
       });
@@ -4513,74 +4523,63 @@
     const f = lum < 0.45 ? Math.min(0.65, (0.45 - lum) * 1.6) : 0;
     return '#' + c.map(v => Math.round(v + (255 - v) * f).toString(16).padStart(2, '0')).join('');
   }
-  function tdWpChart(t, d) {
-    const wp = d.wp, series = playsLog?.[`wp|${t.gameId}`];
-    const c0 = tdColors(t.team, t.opp), col = { team: { fill: tdLineColor(c0.team.fill) }, opp: { fill: tdLineColor(c0.opp.fill) } };
-    const W = 300, H = 116, padB = 0, pct = (v) => Math.round(v * 100);
-    const head = `<div class="tdw2-legend">
-        <span style="--c:${col.team.fill}"><i></i>${t.team} <b id="td-wp-a">${pct(wp[0])}%</b></span>
-        <span style="--c:${col.opp.fill}"><i></i>${t.opp} <b id="td-wp-b">${100 - pct(wp[0])}%</b></span></div>`;
-    const note = `<p class="tdw-note" id="td-wp-note">${wp[1] >= wp[0] ? '+' : '−'}${Math.abs((wp[1] - wp[0]) * 100).toFixed(1)} points on this play${d.epa != null ? ` · ${d.epa >= 0 ? '+' : ''}${d.epa.toFixed(2)} EPA` : ''}</p>`;
-    if (!series || d.el == null) return `${head}${note}`;
-    const home = t.gameId.split('_')[3], mine = (v) => (t.team === home ? v : 100 - v) / 100;
-    const pts = [];
-    for (let i = 0; i < series.length; i += 2) pts.push([series[i], mine(series[i + 1])]);
-    const end = Math.max(3600, pts[pts.length - 1][0]);
-    const X = (el) => (el / end * W).toFixed(1), Y = (v) => ((1 - v) * (H - padB)).toFixed(1);
-    const pre = [...pts.filter(q => q[0] < d.el), [d.el, wp[0]]];
-    const postP = [[d.el, wp[1]], ...pts.filter(q => q[0] > d.el)];
-    const line = (arr, inv) => arr.map(([e, v], i) => `${i ? 'L' : 'M'}${X(e)},${Y(inv ? 1 - v : v)}`).join('');
-    const qs = [900, 1800, 2700].concat(end > 3600 ? [3600] : []);
-    const tx = X(d.el);
-    return `${head}
-      <div class="tdw2-wrap"><svg class="tdw2" id="td-wp" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" data-before="${wp[0]}" data-after="${wp[1]}">
-        <line x1="0" x2="${W}" y1="${Y(0.5)}" y2="${Y(0.5)}" class="tdw2-mid"/>
-        ${qs.map(q => `<line x1="${X(q)}" x2="${X(q)}" y1="0" y2="${H - padB}" class="tdw2-q"/>`).join('')}
-        <g class="tdw2-rest"><path d="${line(postP, true)}" stroke="${col.opp.fill}"/><path d="${line(postP)}" stroke="${col.team.fill}"/></g>
-        <path d="${line(pre, true)}" class="tdw2-pre inv" stroke="${col.opp.fill}" pathLength="1"/>
-        <path d="${line(pre)}" class="tdw2-pre" stroke="${col.team.fill}" pathLength="1"/>
-        <line x1="${tx}" x2="${tx}" y1="${Y(1 - wp[0])}" y2="${Y(1 - wp[1])}" class="tdw2-jump inv" stroke="${col.opp.fill}" pathLength="1"/>
-        <line x1="${tx}" x2="${tx}" y1="${Y(wp[0])}" y2="${Y(wp[1])}" class="tdw2-jump" stroke="${col.team.fill}" pathLength="1"/>
-      </svg>
-      <i class="tdw2-dot" style="left:${(d.el / end * 100).toFixed(2)}%;top:${((1 - wp[1]) * 100).toFixed(2)}%;background:${col.team.fill}"></i></div>
-      <div class="tdw2-ql">${['Q1', 'Q2', 'Q3', 'Q4'].concat(end > 3600 ? ['OT'] : []).map((q, i) => `<span style="left:${((i < 4 ? 450 + i * 900 : (3600 + end) / 2) / end * 100).toFixed(2)}%">${q}</span>`).join('')}</div>${note}`;
+  /** win probability as one bar shared by both teams: the scorer's colour
+   *  from the left, the opponent's from the right, blending where they meet */
+  function tdWpBar(t, d) {
+    const wp = d.wp, C = nflData.teamColors || {};
+    const rgb = (h) => { const n = parseInt((h || '#888888').slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+    const lum = (h) => { const [r, g, b2] = rgb(h); return (0.299 * r + 0.587 * g + 0.114 * b2) / 255; };
+    const far = (h1, h2) => Math.hypot(...rgb(h1).map((v, i) => v - rgb(h2)[i]));
+    const opts = (ab) => {
+      const [c1, c2] = C[ab] || ['#1f6feb', '#ffffff'];
+      return [lum(c1) >= 0.2 ? c1 : null, c2 && lum(c2) >= 0.2 && lum(c2) <= 0.85 ? c2 : null, tdLineColor(c1)].filter(Boolean);
+    };
+    // the most on-brand pair that still reads as two different teams
+    const oa = opts(t.team), ob = opts(t.opp);
+    const pairs = oa.flatMap((x, i) => ob.map((y, j) => [i + j, x, y])).sort((p1, p2) => p1[0] - p2[0]);
+    const [, A, B] = pairs.find(([, x, y]) => far(x, y) > 120) || [0, oa[0], '#c9d2e0'];
+    const pct = (v) => Math.round(v * 100);
+    return `<div class="tdwb" id="td-wp" data-before="${wp[0]}" data-after="${wp[1]}" data-a="${A}" data-b="${B}">
+        <div class="tdwb-ends">
+          <span><img src="${teamLogo(t.team)}" alt="" loading="lazy">${t.team} <b id="td-wp-a">${pct(wp[0])}%</b></span>
+          <span><b id="td-wp-b">${100 - pct(wp[0])}%</b> ${t.opp}<img src="${teamLogo(t.opp)}" alt="" loading="lazy"></span>
+        </div>
+        <div class="tdwb-bar"><i class="tdwb-ghost" style="left:${(wp[0] * 100).toFixed(1)}%"></i><i class="tdwb-split" style="left:${(wp[0] * 100).toFixed(1)}%"></i></div>
+      </div>
+      <p class="tdw-note" id="td-wp-note">${wp[1] >= wp[0] ? '+' : '−'}${Math.abs((wp[1] - wp[0]) * 100).toFixed(1)} points on this play${d.epa != null ? ` · ${d.epa >= 0 ? '+' : ''}${d.epa.toFixed(2)} EPA` : ''}</p>`;
   }
 
-  /** runs the chart: the game so far draws in with the play, the jump lands with the touchdown */
   function tdWinProb(scored) {
-    const svg = document.getElementById('td-wp'), a = document.getElementById('td-wp-a'), b = document.getElementById('td-wp-b');
-    const note = document.getElementById('td-wp-note'), pts = document.getElementById('td-pts');
-    const box = svg || a; if (!box) return;
-    const host = svg || a.closest('.td-side');
-    const b0 = svg ? +svg.dataset.before : null, a1 = svg ? +svg.dataset.after : null;
-    cancelAnimationFrame(host._raf);
-    if (!scored) {
-      svg?.classList.remove('scored'); svg?.classList.remove('drawn');
-      if (svg) { void svg.getBoundingClientRect(); requestAnimationFrame(() => svg.classList.add('drawn')); }
-      note?.classList.remove('on');
-      if (pts) { pts.textContent = Math.max(0, +pts.dataset.to - 6); pts.classList.remove('flip'); }
-      return;
-    }
-    svg?.classList.add('drawn', 'scored');
-    if (pts) { pts.textContent = pts.dataset.to; pts.classList.add('flip'); }
-    const from = b0 ?? +(a?.textContent.replace('%', '') || 0) / 100, to = a1 ?? from;
+    const box = document.getElementById('td-wp'), pts = document.getElementById('td-pts'), note = document.getElementById('td-wp-note');
+    if (pts) { pts.textContent = scored ? pts.dataset.to : Math.max(0, +pts.dataset.to - 6); pts.classList.toggle('flip', scored); }
+    if (!box) return;
+    const bar = box.querySelector('.tdwb-bar'), split = box.querySelector('.tdwb-split');
+    const a = document.getElementById('td-wp-a'), b = document.getElementById('td-wp-b');
+    const b0 = +box.dataset.before, a1 = +box.dataset.after, A = box.dataset.a, B = box.dataset.b;
+    const paint = (v) => {
+      const sp = v * 100, blend = 7;
+      bar.style.background = `linear-gradient(90deg, ${A} 0%, ${A} ${Math.max(0, sp - blend).toFixed(2)}%, ${B} ${Math.min(100, sp + blend).toFixed(2)}%, ${B} 100%)`;
+      split.style.left = sp.toFixed(2) + '%';
+      a.textContent = Math.round(sp) + '%'; b.textContent = (100 - Math.round(sp)) + '%';
+    };
+    cancelAnimationFrame(box._raf);
+    box.classList.toggle('scored', scored);
+    if (!scored) { paint(b0); note?.classList.remove('on'); return; }
     const t0 = performance.now();
     const tick = (now) => {
-      const f = Math.min(1, (now - t0) / 900), e = 1 - Math.pow(1 - f, 3), v = from + (to - from) * e;
-      if (a) a.textContent = Math.round(v * 100) + '%';
-      if (b) b.textContent = (100 - Math.round(v * 100)) + '%';
-      if (f < 1) host._raf = requestAnimationFrame(tick); else note?.classList.add('on');
+      const f = Math.min(1, (now - t0) / 1100), e = 1 - Math.pow(1 - f, 3);
+      paint(b0 + (a1 - b0) * e);
+      if (f < 1) box._raf = requestAnimationFrame(tick); else note?.classList.add('on');
     };
-    host._raf = requestAnimationFrame(tick);
+    box._raf = requestAnimationFrame(tick);
   }
 
   /** our pre-game prices on everything this touchdown cashed */
   function tdOdds(t) {
-    const flags = t.firstTd || t.lastTd || t.multi ? `<div class="td-flags">${t.firstTd ? '<span class="st-chip first">1st TD of the game</span>' : ''}${t.lastTd ? '<span class="st-chip last">Last TD of the game</span>' : ''}${t.multi ? '<span class="st-chip multi">2+ TD game</span>' : ''}</div>` : '';
     const row = liveLogState === 'ready' ? liveLog?.games?.[t.gameId]?.td?.find(r => r[0] === t.pid) : null;
     const mk = row ? [['Anytime TD', row[4], true], ['1st TD', row[6], t.firstTd], ['Last TD', row[7], t.lastTd], ['2+ TDs', row[5], t.multi]]
       .filter(([, p, hit]) => hit && p > 0) : [];
-    if (!mk.length) return flags;
+    if (!mk.length) return '';
     return `<h4>Our prices · cashed</h4><div class="tdo">${mk.map(([lab, p]) =>
       `<div class="tdo-tile"><span>${lab}</span><b>${pbOdds(p)}</b><small>${Math.round(p * 100)}% pre-game</small></div>`).join('')}</div>`;
   }
@@ -4598,21 +4597,23 @@
     if (playsState !== 'ready' && playsState !== 'error') body = '<div class="empty" style="padding:3rem 0">Loading the play…</div>';
     else {
       const wp = d?.wp;
+      const conn = t.passer ? `<h4>Connection</h4><p class="td-conn"><b>${t.passer}</b> → <b>${full}</b>${d?.air != null ? `<br><span>${d.air} yds in the air · ${d.yac ?? Math.max(0, (d.gain ?? 0) - d.air)} after the catch</span>` : ''}</p>` : '';
+      const extra = tdOdds(t) + conn;
       body = `
-      <div class="ydm-grid">
-        <div class="ydm-main">
-          <section class="ydm-panel td-play">
-            <div class="iv-head"><h4>The play</h4><button class="td-replay" onclick="tdAnimate()">↻ Replay</button></div>
-            <div class="tf-wrap">${tdField(t, d)}</div>
-            ${d?.desc ? `<p class="td-desc">${d.desc.replace(/</g, '&lt;')}</p>` : ''}
+      <div class="td-layout">
+        <section class="ydm-panel td-play">
+          <div class="iv-head"><h4>The play</h4><button class="td-replay" onclick="tdAnimate()">↻ Replay</button></div>
+          <div class="tf-wrap">${tdField(t, d)}</div>
+          ${d?.desc ? `<p class="td-desc">${d.desc.replace(/</g, '&lt;')}</p>` : ''}
+        </section>
+        <div class="td-row${extra.trim() ? '' : ' solo'}">
+          <section class="ydm-panel td-side">
+            ${tdScoreboard(t, d)}
+            <div class="td-wpbox">${wp ? `<h4>Win probability</h4>${tdWpBar(t, d)}` : ''}
+              ${!tdOdds(t) && (t.firstTd || t.lastTd || t.multi) ? `<div class="td-flags" id="td-flags">${t.firstTd ? '<span class="st-chip first">1st TD of the game</span>' : ''}${t.lastTd ? '<span class="st-chip last">Last TD of the game</span>' : ''}${t.multi ? '<span class="st-chip multi">2+ TD game</span>' : ''}</div>` : ''}</div>
           </section>
+          <section class="ydm-panel td-side"${extra ? '' : ' hidden'}><div id="td-odds">${tdOdds(t)}</div>${conn}</section>
         </div>
-        <aside class="ydm-panel td-side">
-          ${tdScoreboard(t, d)}
-          ${wp ? `<h4>Win probability</h4>${tdWpChart(t, d)}` : ''}
-          <div id="td-odds">${tdOdds(t)}</div>
-          ${t.passer ? `<h4>Connection</h4><p class="td-conn"><b>${t.passer}</b> → <b>${full}</b>${d?.air != null ? `<br><span>${d.air} yds in the air · ${d.yac ?? Math.max(0, (d.gain ?? 0) - d.air)} after the catch</span>` : ''}</p>` : ''}
-        </aside>
       </div>`;
     }
     document.querySelector('#td-back .ydm').innerHTML = `
@@ -4620,7 +4621,7 @@
       <header class="ydm-hero">
         ${faceHtml(t.pid, t.player)}
         <div class="ydm-id"><h2>${full}</h2><div class="ydm-meta">${pos ? `<b>${pos}</b><span>•</span>` : ''}${t.team} vs ${t.opp}<img src="${teamLogo(t.team)}" alt="" loading="lazy">${at >= 0 ? `<span class="ydm-count">${at + 1} / ${deck.length}</span>` : ''}</div></div>
-        <div class="ydm-big"><div><span>${typeLbl} touchdown</span><span>${WK_LABEL(recapWeek)}${t.weekday ? ' · ' + t.weekday.slice(0, 3) : ''}</span></div><strong>${t.yards != null ? t.yards : '—'}<small>yd</small></strong></div>
+        <div class="ydm-big"><div><span>${typeLbl} touchdown</span><span>${WK_LABEL(recapWeek)}${t.weekday ? ' · ' + t.weekday.slice(0, 3) : ''}</span></div><strong>${t.yards ?? [...(d?.desc || '').matchAll(/for (-?\d+) yards?, TOUCHDOWN/g)].pop()?.[1] ?? '—'}<small>yd</small></strong></div>
       </header>
       ${body}
       <footer class="ydm-tip">${ydIco('bulb')}<span>The route is drawn from the play-by-play — snap spot, direction, air yards and yards after the catch — not player tracking, which isn't free. The drive, score and win probability are exact.</span></footer>`;
