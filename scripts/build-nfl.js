@@ -63,6 +63,22 @@ async function main() {
   // captures return TDs (kick/punt/INT/fumble), which the offensive weekly
   // stats don't. pid -> {rush, rec, ret, first, tds, team, games:Set, name}.
   const tdAgg = {};
+  // Every scrimmage play by drive, for the Recap modal's drive chart:
+  // `${game}|${drive}` -> [[kind, yardline_100, yards_gained, down, togo, play_id, posteam]]
+  const drivePlays = new Map();
+  for (const r of prows) {
+    const pt = P(r, 'play_type');
+    if (!['run', 'pass', 'field_goal', 'punt', 'qb_kneel', 'qb_spike'].includes(pt) || !P(r, 'drive')) continue;
+    const k = `${P(r, 'game_id')}|${P(r, 'drive')}`;
+    const kind = pt === 'run' ? (P(r, 'qb_scramble') === '1' ? 's' : 'r') : pt === 'pass' ? (P(r, 'sack') === '1' ? 'k' : 'p') : 'o';
+    (drivePlays.get(k) ?? drivePlays.set(k, []).get(k)).push([kind, num(P(r, 'yardline_100')), num(P(r, 'yards_gained')) ?? 0,
+      num(P(r, 'down')), num(P(r, 'ydstogo')), +P(r, 'play_id'), P(r, 'posteam')]);
+  }
+  // Play detail for every touchdown, loaded by the Recap modal on demand
+  // (nfl/plays.json) — where it started, which way it went, the drive, the
+  // score and the win-probability swing. No tracking data exists for free, so
+  // the modal draws the route from these, and says so.
+  const playDetail = {};
   for (const r of prows) {
     if (P(r, 'touchdown') !== '1') continue;
     const scorer = cleanName(P(r, 'td_player_name'));
@@ -94,9 +110,33 @@ async function main() {
     // pbp rows are in play order within a game, so the first TD row we see for a
     // gameId is the game's opening touchdown.
     const firstTd = !gameHasTd.has(gameId); gameHasTd.add(gameId);
+    // A defense or return unit scoring is the DEFTEAM on that play, so the
+    // opponent is whichever side the scorer isn't.
+    const opp = team === P(r, 'posteam') ? P(r, 'defteam') : P(r, 'posteam');
+    const playId = +P(r, 'play_id');
+    {
+      const onOffense = team === P(r, 'posteam');
+      const dk = `${gameId}|${P(r, 'drive')}`;
+      const drive = onOffense ? (drivePlays.get(dk) ?? []).filter(d => d[6] === team && d[5] <= playId).map(d => d.slice(0, 5)) : [];
+      const wp = num(P(r, 'wp')), wpa = num(P(r, 'wpa'));
+      const r1 = (v) => (v == null ? null : Math.round(v * 1000) / 1000);
+      playDetail[`${gameId}|${playId}`] = {
+        pt: P(r, 'play_type'), yl: num(P(r, 'yardline_100')), gain: num(P(r, 'yards_gained')),
+        air: num(P(r, 'air_yards')), yac: num(P(r, 'yards_after_catch')), pl: P(r, 'pass_location') || null,
+        rl: P(r, 'run_location') || null, gap: P(r, 'run_gap') || null, kd: num(P(r, 'kick_distance')), ry: num(P(r, 'return_yards')),
+        dn: num(P(r, 'down')), tg: num(P(r, 'ydstogo')), clk: P(r, 'time') || null, sh: P(r, 'shotgun') === '1' ? 1 : 0,
+        scr: P(r, 'qb_scramble') === '1' ? 1 : 0, desc: (P(r, 'desc') || '').slice(0, 320),
+        // scores after the play from the scorer's side
+        sc: onOffense ? [num(P(r, 'posteam_score_post')), num(P(r, 'defteam_score_post'))] : [num(P(r, 'defteam_score_post')), num(P(r, 'posteam_score_post'))],
+        // win probability before and after, scorer's side
+        wp: wp == null ? null : onOffense ? [r1(wp), r1(wp + (wpa ?? 0))] : [r1(1 - wp), r1(1 - wp - (wpa ?? 0))],
+        epa: onOffense ? r1(num(P(r, 'epa'))) : null,
+        dr: onOffense ? { n: num(P(r, 'drive_play_count')), top: P(r, 'drive_time_of_possession') || null, start: P(r, 'drive_start_yard_line') || null, plays: drive } : null,
+      };
+    }
     (tdRecap[wk] ??= []).push({
-      player: scorer, pid,
-      team, opp: P(r, 'defteam'),
+      player: scorer, pid, k: playId,
+      team, opp,
       type, subtype, yards, qtr: num(P(r, 'qtr')),
       passer: type === 'rec' ? cleanName(P(r, 'passer_player_name')) : null,
       // The thrower's id, not just his name. A receiving TD IS the passing TD,
@@ -521,6 +561,8 @@ async function main() {
     returners: (picks?.returners?.length ? picks.returners : returners), returnModel,
   };
   fs.writeFileSync(new URL('../nfl/data.json', import.meta.url), JSON.stringify(output));
+  fs.writeFileSync(new URL('../nfl/plays.json', import.meta.url), JSON.stringify(playDetail));
+  console.log(`  play detail: ${Object.keys(playDetail).length} touchdowns -> nfl/plays.json`);
   console.log(`Wrote nfl/data.json — ${schedule.length} ${UPCOMING_SEASON} games, ${tdTotal} TDs across ${weeks.length} weeks, ${tdLeaders.length} TD leaders, ${picks?.picks.length ?? 0} picks.`);
 }
 main().catch(e => { console.error(e); process.exit(1); });

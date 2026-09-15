@@ -1760,6 +1760,55 @@
     .ydl-row { padding: 0.5rem 0.65rem; font-size: 0.95rem; }
     .ydm-tip { font-size: 0.85rem; padding: 0.6rem 0.75rem; }
   }
+
+  /* Recap: week nav without the extra pills, and the touchdown modal */
+  .rc-wknav:has(.rc-latest), .rc-wknav { justify-content: center; position: relative; }
+  .rc-latest { position: absolute; right: 0; background: none; border: none; color: var(--accent); font-family: var(--font-d); font-weight: 700; font-size: 0.9rem; cursor: pointer; }
+  .rc-card.td-open { cursor: pointer; transition: border-color 0.12s, background 0.12s; }
+  .rc-card.td-open:hover { border-color: var(--border2); background: var(--surface2); }
+  .td-replay { background: none; border: 1px solid var(--border2); color: var(--silver); border-radius: 999px; padding: 0.25rem 0.7rem; font-family: var(--font-d); font-weight: 700; cursor: pointer; }
+  .td-replay:hover { color: var(--accent); border-color: var(--accent); }
+  .tf-wrap { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+  .tf { display: block; width: 100%; height: auto; }
+  .tf-grass { fill: #123a26; }
+  :root[data-theme="light"] .tf-grass { fill: #2f7d4e; }
+  .tf-ez { fill: #0d2c1d; } .tf-ez.score { fill: color-mix(in srgb, var(--accent) 38%, #0d2c1d); }
+  .tf-eztext { fill: rgba(255,255,255,0.55); font-family: var(--font-d); font-weight: 700; font-size: 34px; letter-spacing: 6px; text-anchor: middle; dominant-baseline: middle; }
+  .tf-eztext.dim { fill: rgba(255,255,255,0.25); }
+  .tf-line { stroke: rgba(255,255,255,0.35); stroke-width: 2.4; } .tf-line.five { stroke: rgba(255,255,255,0.16); stroke-width: 1.6; }
+  .tf-hash { stroke: rgba(255,255,255,0.3); stroke-width: 1.4; }
+  .tf-num { fill: rgba(255,255,255,0.35); font-family: var(--font-d); font-weight: 700; font-size: 34px; text-anchor: middle; dominant-baseline: middle; }
+  .tf-los { stroke: #5aa9ff; stroke-width: 4; } .tf-fd { stroke: #f2c94c; stroke-width: 4; opacity: 0.85; }
+  .tf-trail { fill: none; stroke: #f2c94c; stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 6px rgba(242,201,76,0.5)); }
+  .tf-ball { fill: #fff; stroke: #7a3e12; stroke-width: 4; }
+  .tf.done .tf-ball { fill: #f2c94c; }
+  .td-desc { margin: 0.7rem 0 0; font-size: 0.9rem; line-height: 1.45; color: var(--silver); }
+  .tdc-legend { display: flex; gap: 0.8rem; align-items: center; font-size: 0.74rem; color: var(--muted); margin-bottom: 0.5rem; }
+  .tdc-legend i { display: inline-block; width: 12px; height: 8px; border-radius: 3px; margin-right: 0.25rem; vertical-align: middle; }
+  .tdc-row { display: grid; grid-template-columns: 5rem minmax(0, 1fr) 2.6rem; align-items: center; gap: 0.6rem; padding: 0.18rem 0; }
+  .tdc-dn { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+  .tdc-track { position: relative; height: 10px; border-radius: 5px; background: var(--surface2); }
+  .tdc-track em, .tdc-legend i { background: var(--silver); }
+  .tdc-track em { position: absolute; top: 0; bottom: 0; border-radius: 5px; }
+  .tdc-track em.run, .tdc-legend i.run { background: var(--pos-rb); } .tdc-track em.pass, .tdc-legend i.pass { background: var(--pos-wr); }
+  .tdc-track em.sack, .tdc-legend i.sack { background: var(--bad); } .tdc-track em.td, .tdc-legend i.td { background: var(--gold); }
+  .tdc-row b { text-align: right; font-family: var(--font-d); font-size: 0.9rem; color: var(--text); } .tdc-row b.neg { color: var(--bad); }
+  .tdc-row.td b { color: var(--gold); }
+  .td-side h4 { margin-top: 1rem; } .td-side h4.accent { margin-top: 0; }
+  .tds-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+  .tds { border: 1px solid var(--border); border-radius: 9px; background: var(--surface0); padding: 0.55rem 0.65rem; }
+  .tds b { display: block; font-family: var(--font-d); font-size: 1.05rem; color: var(--text-strong); text-transform: capitalize; }
+  .tds span { font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .tdw { display: grid; grid-template-columns: 2.6rem 1fr 2.6rem; align-items: center; gap: 0.5rem; font-family: var(--font-d); font-weight: 700; }
+  .tdw span:last-child { text-align: right; color: var(--accent); }
+  .tdw i { position: relative; height: 12px; border-radius: 6px; background: var(--surface2); overflow: hidden; }
+  .tdw em { position: absolute; top: 0; bottom: 0; } .tdw em.before { left: 0; background: var(--silver); opacity: 0.45; } .tdw em.after { background: var(--accent); }
+  .tdw-note { margin: 0.35rem 0 0; font-size: 0.8rem; color: var(--muted); }
+  .td-conn { margin: 0; font-size: 0.95rem; color: var(--text); line-height: 1.5; } .td-conn span { font-size: 0.8rem; color: var(--muted); }
+  .td-flags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 1rem; }
+  .ydm-big strong small { font-size: 0.4em; margin-left: 0.15rem; color: var(--muted); }
+  #td-back .pk-side-prev { left: max(6px, calc(50% - 510px - 52px)); }
+  #td-back .pk-side-next { right: max(6px, calc(50% - 510px - 52px)); }
   /* Interceptions card: slate strip, price build-up, price cards */
   .ydm-panel.iv { display: grid; gap: 1.2rem; }
   .iv-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.7rem; }
@@ -3935,15 +3984,233 @@
     return s ? `<img class="rc-photo" src="${s}" alt="" loading="lazy">` : `<div class="rc-photo rc-noface">${(name || '?').replace(/^[A-Z]\.\s*/, '')[0] || '?'}</div>`;
   }
   function tdCard(t) {
-    return `<div class="rc-card">${faceHtml(t.pid, t.player)}
+    return `<div class="rc-card${t.k ? ' td-open' : ''}"${t.k ? ` onclick="openTd('${t.gameId}',${t.k})" role="button" tabindex="0"` : ''}>${faceHtml(t.pid, t.player)}
       <div class="rc-info"><div class="rc-name">${t.player}${t.firstTd ? '<span class="rc-first" title="First TD of the game">1st</span>' : ''}${t.lastTd ? '<span class="rc-last" title="Last TD of the game">LAST</span>' : ''}${t.multi ? '<span class="rc-multi" title="He scored 2+ in this game">2+</span>' : ''}</div><div class="rc-sub">${t.team} vs ${t.opp} · Q${t.qtr || '?'}${t.weekday ? ' · ' + t.weekday.slice(0, 3) : ''}</div></div>
       <div class="rc-detail">${t.passer ? `<span class="rc-from">from ${t.passer}</span>` : ''}<span class="rc-badge ${TD_BCLASS[t.subtype] || ('rc-' + t.type)}">${TD_BADGE[t.subtype] || TD_LABEL[t.type] || 'TD'}</span><span class="rc-yd">${t.yards != null ? t.yards + ' yd' : ''}</span></div></div>`;
   }
+
+  // ── Recap: touchdown modal ─────────────────────────────────────────────
+  // There is no free player-tracking data, so the route is DRAWN from what the
+  // play-by-play records: where the ball was snapped, which side it went
+  // (pass_location / run_location + run_gap), how far it travelled in the air
+  // and after the catch, and kick / return distances. The drive chart and the
+  // numbers beside it are exact.
+  let playsLog = null, playsState = 'idle', tdAnim = null;
+  const tdOpen = { gid: null, k: null };
+  function loadPlays() {
+    if (playsState !== 'idle') return;
+    playsState = 'loading';
+    fetch(APP_BASE + '/plays.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { playsLog = j; playsState = 'ready'; }).catch(() => { playsState = 'error'; })
+      .finally(() => { if (tdOpen.gid) tdRender(); });
+  }
+  const tdRow = () => (nflData.tdRecap[recapWeek] || []).find(t => t.gameId === tdOpen.gid && t.k === tdOpen.k)
+    || Object.values(nflData.tdRecap).flat().find(t => t.gameId === tdOpen.gid && t.k === tdOpen.k);
+  function tdDeck() {
+    const all = nflData.tdRecap[recapWeek] || [], markFn = RC_MARK[rcFilt.mark];
+    let tds = all.filter(t => (rcFilt.type === 'all' || t.type === rcFilt.type) && (!markFn || markFn(t)) && t.k);
+    if (rcFilt.sort === 'long') tds = tds.slice().sort((a, b) => (b.yards ?? -1) - (a.yards ?? -1));
+    else if (rcFilt.sort === 'short') tds = tds.slice().sort((a, b) => (a.yards ?? 1e9) - (b.yards ?? 1e9));
+    return tds;
+  }
+
+  /** The route, in field yards: x 0-120 (scoring team attacks right, goal line at 110), y 0-53.3. */
+  function tdRoute(t, d) {
+    const mid = 26.65, endX = 112.5;
+    const side = { left: 12.5, middle: mid, right: 40.8 };
+    const gapY = { left: { end: 8.5, tackle: 19, guard: 23.5 }, right: { guard: 29.8, tackle: 34.3, end: 44.8 } };
+    const toward = (y, w) => y * (1 - w) + mid * w;
+    const segs = [];   // { kind: 'run'|'throw'|'kick', a: [x, y], b: [x, y] }
+    const seg = (kind, a, b) => { if (Math.hypot(b[0] - a[0], b[1] - a[1]) > 0.3) segs.push({ kind, a, b }); };
+    if (!d) return { segs, los: null };
+    if ((t.type === 'rec' || t.type === 'rush') && d.yl != null) {
+      const los = 110 - d.yl;
+      if (d.pt === 'pass' || t.type === 'rec') {
+        const qb = [los - (d.sh ? 5 : 7), mid];
+        const air = d.air ?? d.gain ?? d.yl;
+        const catchPt = [Math.min(118, los + air), side[d.pl] ?? mid];
+        seg('throw', qb, catchPt);
+        if (catchPt[0] < 110) seg('run', catchPt, [endX, toward(catchPt[1], 0.3)]);
+        return { segs, los };
+      }
+      if (d.scr) {
+        const pocket = [los - 6, mid];
+        const lane = [los + 1, side[d.rl] ?? mid];
+        seg('run', [los, mid], pocket); seg('run', pocket, lane); seg('run', lane, [endX, toward(lane[1], 0.3)]);
+        return { segs, los };
+      }
+      const hole = [los, (d.rl === 'middle' || !d.rl) ? mid : (gapY[d.rl]?.[d.gap] ?? side[d.rl])];
+      const hand = [los - 4, mid];
+      seg('run', [los, mid], hand); seg('run', hand, hole); seg('run', hole, [endX, toward(hole[1], 0.35)]);
+      return { segs, los };
+    }
+    const ret = d.ry ?? t.yards ?? 0;
+    const catchPt = [Math.max(10, 110 - ret), mid];
+    if (t.type === 'st') {
+      const origin = [Math.min(117, catchPt[0] + (d.kd ?? 45)), mid];
+      seg('kick', origin, catchPt); seg('run', catchPt, [endX, toward(mid + 6, 0.2)]);
+    } else if (t.subtype === 'pick6') {
+      const origin = [Math.min(117, catchPt[0] + 12), mid];
+      catchPt[1] = side[d.pl === 'left' ? 'right' : d.pl === 'right' ? 'left' : 'middle'];
+      seg('throw', origin, catchPt); seg('run', catchPt, [endX, toward(catchPt[1], 0.3)]);
+    } else {
+      seg('run', catchPt, [endX, mid]);
+    }
+    return { segs, los: null };
+  }
+
+  function tdField(t, d) {
+    const X = (yd) => yd * 10, Y = (yd) => yd * 10;
+    const { segs, los } = tdRoute(t, d);
+    let lines = '';
+    for (let yd = 10; yd <= 110; yd += 5) lines += `<line x1="${X(yd)}" x2="${X(yd)}" y1="0" y2="533" class="tf-line${yd % 10 ? ' five' : ''}"/>`;
+    for (let yd = 11; yd < 110; yd++) if (yd % 5) lines += `<line x1="${X(yd)}" x2="${X(yd)}" y1="${Y(22.9)}" y2="${Y(23.6)}" class="tf-hash"/><line x1="${X(yd)}" x2="${X(yd)}" y1="${Y(29.7)}" y2="${Y(30.4)}" class="tf-hash"/>`;
+    let nums = '';
+    for (let yd = 20; yd <= 100; yd += 10) { const n = yd <= 60 ? yd - 10 : 110 - yd; nums += `<text x="${X(yd)}" y="${Y(8)}" class="tf-num">${n}</text><text x="${X(yd)}" y="${Y(47.5)}" class="tf-num">${n}</text>`; }
+    const losLine = los != null ? `<line x1="${X(los)}" x2="${X(los)}" y1="0" y2="533" class="tf-los"/>` : '';
+    const fd = los != null && d?.tg && los + d.tg < 110 ? `<line x1="${X(los + d.tg)}" x2="${X(los + d.tg)}" y1="0" y2="533" class="tf-fd"/>` : '';
+    // the path as SVG: throws and kicks arc, runs are straight
+    const dPath = segs.map((sg, i) => {
+      const [ax, ay] = sg.a.map(v => v * 10), [bx, by] = sg.b.map(v => v * 10);
+      const move = i === 0 ? `M${ax},${ay}` : '';
+      if (sg.kind === 'run') return `${move} L${bx},${by}`;
+      const lift = Math.min(90, Math.hypot(bx - ax, by - ay) * 0.22);
+      return `${move} Q${(ax + bx) / 2},${Math.min(ay, by) - lift} ${bx},${by}`;
+    }).join(' ');
+    const team = t.team, teamName = team;
+    return `<svg viewBox="0 0 1200 533" class="tf" role="img" aria-label="Diagram of the touchdown">
+      <rect x="0" y="0" width="1200" height="533" class="tf-grass"/>
+      <rect x="0" y="0" width="100" height="533" class="tf-ez"/><rect x="1100" y="0" width="100" height="533" class="tf-ez score"/>
+      <text x="1150" y="266" class="tf-eztext" transform="rotate(90 1150 266)">${teamName} TOUCHDOWN</text>
+      <text x="50" y="266" class="tf-eztext dim" transform="rotate(-90 50 266)">${t.opp}</text>
+      ${lines}${nums}${losLine}${fd}
+      <path d="${dPath}" class="tf-trail" id="tf-trail"/>
+      <circle r="11" class="tf-ball" id="tf-ball" cx="${segs[0] ? segs[0].a[0] * 10 : 1100}" cy="${segs[0] ? segs[0].a[1] * 10 : 266}"/>
+    </svg>`;
+  }
+
+  function tdAnimate() {
+    cancelAnimationFrame(tdAnim);
+    const path = document.getElementById('tf-trail'), ball = document.getElementById('tf-ball');
+    if (!path || !ball || !path.getAttribute('d')) return;
+    const L = path.getTotalLength();
+    path.style.strokeDasharray = `${L}`; path.style.strokeDashoffset = `${L}`;
+    const dur = Math.max(1400, Math.min(3600, L * 3.2)), t0 = performance.now();
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const step = (now) => {
+      const f = reduce ? 1 : Math.min(1, (now - t0) / dur), e = f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
+      const pt = path.getPointAtLength(L * e);
+      ball.setAttribute('cx', pt.x); ball.setAttribute('cy', pt.y);
+      path.style.strokeDashoffset = `${L * (1 - e)}`;
+      if (f < 1) tdAnim = requestAnimationFrame(step);
+      else document.querySelector('#td-back .tf')?.classList.add('done');
+    };
+    document.querySelector('#td-back .tf')?.classList.remove('done');
+    tdAnim = requestAnimationFrame(step);
+  }
+
+  function tdDriveChart(t, d) {
+    const plays = d?.dr?.plays || [];
+    if (!plays.length) return '';
+    const col = { r: 'run', s: 'run', p: 'pass', k: 'sack', o: 'other' };
+    const ord = (n) => ['', '1st', '2nd', '3rd', '4th'][n] || '';
+    const rows = plays.map((pl, i) => {
+      const [kind, yl, gain, dn, tg] = pl;
+      if (yl == null) return '';
+      const a = 110 - yl, b = Math.min(110, a + gain), lo = Math.min(a, b), w = Math.max(0.6, Math.abs(b - a));
+      const last = i === plays.length - 1;
+      return `<div class="tdc-row${last ? ' td' : ''}"><span class="tdc-dn">${dn ? `${ord(dn)} & ${yl <= tg ? 'G' : tg}` : ''}</span>
+        <span class="tdc-track"><em class="${last ? 'td' : col[kind]}" style="left:${((lo - 10) / 100 * 100).toFixed(2)}%;width:${(w / 100 * 100).toFixed(2)}%"></em></span>
+        <b class="${gain < 0 ? 'neg' : ''}">${last ? 'TD' : (gain > 0 ? '+' : '') + gain}</b></div>`;
+    }).join('');
+    const yards = plays.reduce((a, pl) => a + (pl[2] || 0), 0);
+    return `<section class="ydm-panel tdc"><div class="iv-head"><h4>The drive</h4><span>${d.dr.n ?? plays.length} plays · ${yards} yds${d.dr.top ? ' · ' + d.dr.top : ''}${d.dr.start ? ' · from ' + d.dr.start : ''}</span></div>
+      <div class="tdc-legend"><i class="run"></i>run <i class="pass"></i>pass <i class="sack"></i>sack <i class="td"></i>touchdown</div>${rows}</section>`;
+  }
+
+  function tdRender() {
+    const t = tdRow(); if (!t) return;
+    const d = playsLog?.[`${t.gameId}|${t.k}`];
+    const deck = tdDeck(), at = deck.findIndex(x => x.gameId === t.gameId && x.k === t.k);
+    const full = (nflData.tdLeaders || []).find(l => l.pid === t.pid)?.name || t.player;
+    const pos = (nflData.tdLeaders || []).find(l => l.pid === t.pid)?.pos;
+    const typeLbl = TD_BADGE[t.subtype] || TD_LABEL[t.type] || 'TD';
+    const ord = (n) => ['', '1st', '2nd', '3rd', '4th'][n] || '';
+    let body;
+    if (playsState !== 'ready' && playsState !== 'error') body = '<div class="empty" style="padding:3rem 0">Loading the play…</div>';
+    else {
+      const wp = d?.wp;
+      const spot = d?.yl != null && (t.type === 'rush' || t.type === 'rec') ? (d.yl === 50 ? 'midfield' : d.yl > 50 ? `own ${100 - d.yl}` : `opp ${d.yl}`) : null;
+      body = `
+      <div class="ydm-grid">
+        <div class="ydm-main">
+          <section class="ydm-panel td-play">
+            <div class="iv-head"><h4>The play</h4><button class="td-replay" onclick="tdAnimate()">↻ Replay</button></div>
+            <div class="tf-wrap">${tdField(t, d)}</div>
+            ${d?.desc ? `<p class="td-desc">${d.desc.replace(/</g, '&lt;')}</p>` : ''}
+          </section>
+          ${tdDriveChart(t, d)}
+        </div>
+        <aside class="ydm-panel td-side">
+          <h4 class="accent">Situation</h4>
+          <div class="tds-grid">
+            ${d?.dn ? `<div class="tds"><b>${ord(d.dn)} & ${d.yl <= d.tg ? 'Goal' : d.tg}</b><span>Down</span></div>` : ''}
+            ${spot ? `<div class="tds"><b>${spot}</b><span>Snapped at</span></div>` : ''}
+            <div class="tds"><b>Q${t.qtr || '?'}${d?.clk ? ' ' + d.clk : ''}</b><span>Clock</span></div>
+            ${d?.sc?.[0] != null ? `<div class="tds"><b>${t.team} ${d.sc[0]}–${d.sc[1]}</b><span>Score after</span></div>` : ''}
+          </div>
+          ${wp ? `<h4>Win probability · ${t.team}</h4>
+            <div class="tdw"><span>${Math.round(wp[0] * 100)}%</span><i><em class="before" style="width:${(wp[0] * 100).toFixed(1)}%"></em><em class="after" style="left:${(Math.min(wp[0], wp[1]) * 100).toFixed(1)}%;width:${(Math.abs(wp[1] - wp[0]) * 100).toFixed(1)}%"></em></i><span>${Math.round(wp[1] * 100)}%</span></div>
+            <p class="tdw-note">${wp[1] >= wp[0] ? '+' : '−'}${Math.abs((wp[1] - wp[0]) * 100).toFixed(1)} points on this play${d.epa != null ? ` · ${d.epa >= 0 ? '+' : ''}${d.epa.toFixed(2)} EPA` : ''}</p>` : ''}
+          ${t.passer ? `<h4>Connection</h4><p class="td-conn"><b>${t.passer}</b> → <b>${full}</b>${d?.air != null ? `<br><span>${d.air} yds in the air · ${d.yac ?? Math.max(0, (d.gain ?? 0) - d.air)} after the catch</span>` : ''}</p>` : ''}
+          ${t.firstTd || t.lastTd || t.multi ? `<div class="td-flags">${t.firstTd ? '<span class="st-chip first">1st TD of the game</span>' : ''}${t.lastTd ? '<span class="st-chip last">Last TD of the game</span>' : ''}${t.multi ? '<span class="st-chip multi">2+ TD game</span>' : ''}</div>` : ''}
+        </aside>
+      </div>`;
+    }
+    document.querySelector('#td-back .ydm').innerHTML = `
+      <button class="pm-x" onclick="closeTd()" aria-label="Close">×</button>
+      <header class="ydm-hero">
+        ${faceHtml(t.pid, t.player)}
+        <div class="ydm-id"><h2>${full}</h2><div class="ydm-meta">${pos ? `<b>${pos}</b><span>•</span>` : ''}${t.team} vs ${t.opp}<img src="${teamLogo(t.team)}" alt="" loading="lazy">${at >= 0 ? `<span class="ydm-count">${at + 1} / ${deck.length}</span>` : ''}</div></div>
+        <div class="ydm-big"><div><span>${typeLbl} touchdown</span><span>${WK_LABEL(recapWeek)}${t.weekday ? ' · ' + t.weekday.slice(0, 3) : ''}</span></div><strong>${t.yards != null ? t.yards : '—'}<small>yd</small></strong></div>
+      </header>
+      ${body}
+      <footer class="ydm-tip">${ydIco('bulb')}<span>The route is drawn from the play-by-play — snap spot, direction, air yards and yards after the catch — not player tracking, which isn't free. The drive, score and win probability are exact.</span></footer>`;
+    const back = document.getElementById('td-back');
+    back.querySelector('.pk-side-prev').disabled = at <= 0;
+    back.querySelector('.pk-side-next').disabled = at < 0 || at >= deck.length - 1;
+    if (d) requestAnimationFrame(() => tdAnimate());
+  }
+  function openTd(gid, k) {
+    Object.assign(tdOpen, { gid, k });
+    if (!document.getElementById('td-back')) {
+      document.body.insertAdjacentHTML('beforeend', `
+        <div class="pm-back" id="td-back" onclick="if(event.target===this)closeTd()">
+          <button class="pk-side-nav pk-side-prev" onclick="tdStep(-1)">‹</button>
+          <button class="pk-side-nav pk-side-next" onclick="tdStep(1)">›</button>
+          <div class="pm ydm" role="dialog" aria-modal="true"></div>
+        </div>`);
+      document.addEventListener('keydown', tdKey);
+    }
+    document.body.style.overflow = 'hidden';
+    loadPlays();
+    tdRender();
+  }
+  function tdKey(e) {
+    if (!document.getElementById('td-back')) return;
+    if (e.key === 'Escape') closeTd(); else if (e.key === 'ArrowLeft') tdStep(-1); else if (e.key === 'ArrowRight') tdStep(1);
+  }
+  function closeTd() { cancelAnimationFrame(tdAnim); document.getElementById('td-back')?.remove(); document.removeEventListener('keydown', tdKey); document.body.style.overflow = ''; tdOpen.gid = null; }
+  function tdStep(dlt) {
+    const deck = tdDeck(), at = deck.findIndex(x => x.gameId === tdOpen.gid && x.k === tdOpen.k), nx = deck[at + dlt];
+    if (!nx) return; Object.assign(tdOpen, { gid: nx.gameId, k: nx.k }); tdRender();
+  }
+  window.openTd = openTd; window.closeTd = closeTd; window.tdStep = tdStep; window.tdAnimate = tdAnimate;
   // Recap filter/sort state.
   // 'mark' replaces the old firstOnly boolean now that a touchdown can be the
   // game's first, its last, or part of a multi-TD day — the three markets the
   // Picks board prices.
-  const rcFilt = { type: 'all', mark: 'all', sort: 'order' };
+  const rcFilt = { type: 'all', mark: 'all', sort: 'order', open: false };
   function setRcFilt(k, v) { rcFilt[k] = v; renderRecap(); }
   const RC_MARK = { first: t => t.firstTd, last: t => t.lastTd, multi: t => t.multi };
   const DAY_ORDER = { Thursday: 1, Friday: 2, Saturday: 3, Sunday: 4, Monday: 5 };
@@ -3965,35 +4232,35 @@
     if (rcFilt.sort === 'long') tds = tds.slice().sort((a, b) => (b.yards ?? -1) - (a.yards ?? -1));
     else if (rcFilt.sort === 'short') tds = tds.slice().sort((a, b) => (a.yards ?? 1e9) - (b.yards ?? 1e9));
     // Group the week's TDs by day so Thu/Sun/Mon each live under their own header.
-    const groups = {}; for (const t of tds) (groups[t.weekday || '—'] ??= []).push(t);
-    const dayKeys = Object.keys(groups).sort((a, b) => (DAY_ORDER[a] || 9) - (DAY_ORDER[b] || 9));
+    // Order days by the games' actual dates. A fixed weekday list had no
+    // Wednesday, so the two Wednesday games of 2026 sorted after Monday.
+    const groups = {}, dayDate = {};
+    for (const t of tds) {
+      const d = t.weekday || '—';
+      (groups[d] ??= []).push(t);
+      const gd = nflData.results?.[t.gameId]?.gameday || '9999';
+      if (!dayDate[d] || gd < dayDate[d]) dayDate[d] = gd;
+    }
+    const dayKeys = Object.keys(groups).sort((a, b) => dayDate[a].localeCompare(dayDate[b]) || (DAY_ORDER[a] || 9) - (DAY_ORDER[b] || 9));
     const body = !tds.length ? '<div class="empty">No touchdowns match these filters.</div>'
       : (dayKeys.length > 1 || (dayKeys[0] && dayKeys[0] !== '—'))
         ? dayKeys.map(d => `<div class="rc-daygroup"><div class="rc-dayhdr">${d === '—' ? 'Other' : d}<span class="rc-daycount">${groups[d].length}</span></div><div class="rc-list">${groups[d].map(tdCard).join('')}</div></div>`).join('')
         : `<div class="rc-list">${tds.map(tdCard).join('')}</div>`;
-    const typeChip = (v, lbl) => `<button class="due-filter-chip${rcFilt.type === v ? ' active' : ''}" onclick="setRcFilt('type','${v}')">${lbl}</button>`;
-    const sortChip = (v, lbl) => `<button class="due-filter-chip${rcFilt.sort === v ? ' active' : ''}" onclick="setRcFilt('sort','${v}')">${lbl}</button>`;
+    const chips = (k, list) => list.map(([v, l]) => uiChip('setRcFilt', k, v, l, rcFilt[k])).join('');
     el.innerHTML = `<div class="rc-wknav">
-        <button class="rc-jump" onclick="recapToFirst()" ${atFirst ? 'disabled' : ''} title="Jump to Week 1">Week 1</button>
         <div class="rc-wknav-center">
           <button class="rc-arrow" onclick="shiftRecapWeek(-1)" ${atFirst ? 'disabled' : ''} aria-label="Previous week">‹</button>
           <span class="rc-wklabel">${WK_LABEL(recapWeek)}</span>
           <button class="rc-arrow" onclick="shiftRecapWeek(1)" ${atLast ? 'disabled' : ''} aria-label="Next week">›</button>
         </div>
-        <button class="rc-jump" onclick="recapToLatest()" ${atLast ? 'disabled' : ''} title="Jump to the latest week">Latest</button>
+        ${atLast ? '' : `<button class="rc-latest" onclick="recapToLatest()">Latest week →</button>`}
       </div>
-      <div class="pairs-filter-row">
-        <span class="due-filter-label">Type</span>
-        ${typeChip('all', 'All')}${typeChip('rush', 'Rush')}${typeChip('rec', 'Rec')}${typeChip('def', 'Def')}${typeChip('st', 'ST')}
-      </div>
-      <div class="pairs-filter-row">
-        <span class="due-filter-label">Sort</span>
-        ${sortChip('order', 'Game order')}${sortChip('long', 'Longest')}${sortChip('short', 'Shortest')}
-        <span class="due-filter-label">Market</span>
-        ${[['all', 'All'], ['first', '1st TD'], ['last', 'Last TD'], ['multi', '2+ TD']]
-          .map(([v, l]) => `<button class="due-filter-chip${rcFilt.mark === v ? ' active' : ''}" onclick="setRcFilt('mark','${v}')">${l}</button>`).join('')}
-      </div>
-      <div class="result-meta"><b>${WK_LABEL(recapWeek)}</b> · ${tds.length} of ${all.length} touchdowns</div>
+      ${uiFilters('setRcFilt', rcFilt.open, [
+        ['Type', chips('type', [['all', 'All'], ['rush', 'Rush'], ['rec', 'Rec'], ['def', 'Defense'], ['st', 'Returns']])],
+        ['Market', chips('mark', [['all', 'All'], ['first', '1st TD'], ['last', 'Last TD'], ['multi', '2+ TD']])],
+        ['Sort', chips('sort', [['order', 'Game order'], ['long', 'Longest'], ['short', 'Shortest']])],
+      ], (rcFilt.type !== 'all') + (rcFilt.mark !== 'all') + (rcFilt.sort !== 'order'))}
+      <div class="result-meta"><b>${WK_LABEL(recapWeek)}</b> · ${tds.length} of ${all.length} touchdowns · tap one to replay it</div>
       ${body}`;
   }
   const stFilt = { pos: 'all', team: 'all', sort: 'tds' };
