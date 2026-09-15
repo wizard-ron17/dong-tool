@@ -1847,12 +1847,11 @@
   .tsb-foot b { color: #f3f6fb; font-weight: 700; }
   .td-layout { display: grid; gap: 1rem; min-width: 0; }
   .td-layout { gap: 0.75rem; }
-  .td-row { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr) minmax(0, 1fr); gap: 0.75rem; align-items: stretch; }
+  .td-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.75rem; align-items: stretch; }
   .td-row .td-side { padding: 0.8rem 0.9rem; }
   .td-row .td-side > h4:first-child, .td-row .td-side > div:first-child > h4:first-child { margin-top: 0; }
   .td-row .td-flags { margin-top: 0; }
-  @media (max-width: 860px) { .td-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .td-row .td-side:first-child { grid-column: 1 / -1; } }
-  @media (max-width: 560px) { .td-row { grid-template-columns: minmax(0, 1fr); } }
+
   .td-play { padding: 0.75rem; }
   .td-play .tf-wrap { position: relative; background: #0b2417; }
   .td-play .tf:not(.v) { max-height: max(260px, calc(100vh - 430px)); margin: 0 auto; }
@@ -1864,7 +1863,30 @@
   .pm.tdm .ydm-id h2 { font-size: clamp(1.4rem, 3vw, 1.9rem); }
   .pm.tdm .ydm-big strong { font-size: clamp(2.2rem, 5vw, 3rem); }
   .pm.tdm .tsb-row { padding-block: 0.35rem; } .pm.tdm .tsb-pts { font-size: 1.4rem; }
-  .tdwb-ends { display: flex; justify-content: space-between; gap: 0.5rem; font-family: var(--font-d); font-weight: 700; font-size: 0.9rem; color: var(--silver); margin-bottom: 0.4rem; }
+  .tdm-sub { display: none; }
+  @media (max-width: 620px) {
+    .td-row { grid-template-columns: minmax(0, 1fr); gap: 0.55rem; }
+    .td-layout { gap: 0.55rem; }
+    .pm.tdm .ydm-hero { grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.6rem; padding: 0 1.5rem 0.5rem 0; margin-bottom: 0.55rem; }
+    .pm.tdm .ydm-hero .rc-photo { width: 46px; height: 46px; }
+    .pm.tdm .ydm-id h2 { font-size: 1.12rem; }
+    .pm.tdm .ydm-meta { font-size: 0.76rem; gap: 0.3rem; margin-top: 0.15rem; }
+    .pm.tdm .ydm-meta img { width: 16px; height: 16px; margin-left: 0; }
+    .pm.tdm .tdm-sub { display: inline; font-style: normal; color: var(--muted); flex-basis: 100%; letter-spacing: 0.04em; }
+    .pm.tdm .ydm-meta .ydm-count { display: none; }
+    .pm.tdm .ydm-big { grid-column: auto; padding: 0; border: none; }
+    .pm.tdm .ydm-big div { display: none; }
+    .pm.tdm .ydm-big strong { font-size: 1.65rem; }
+    .td-play { padding: 0.5rem; }
+    .td-play .td-desc { font-size: 0.78rem; line-height: 1.35; margin-top: 0.4rem; }
+    .td-play .td-conn { font-size: 0.78rem; }
+    .td-row .td-side { padding: 0.6rem 0.65rem; }
+    .pm.tdm .tsb-row { padding-block: 0.25rem; } .pm.tdm .tsb-pts { font-size: 1.2rem; } .pm.tdm .tsb-abbr { font-size: 0.95rem; }
+    .pm.tdm .tsb-clock span { font-size: 1.15rem; } .pm.tdm .tsb-foot { font-size: 0.66rem; padding: 0.3rem 0.6rem; }
+    .pm.tdm .tdwb-ends { font-size: 0.8rem; } .pm.tdm .tdwb-ends b { font-size: 1rem; }
+    .tf.v { max-height: 50vh; }
+    .td-play .tf-wrap .td-replay { top: auto; left: auto; bottom: 0.45rem; right: 0.45rem; font-size: 0.72rem; padding: 0.2rem 0.55rem; }
+  }  .tdwb-ends { display: flex; justify-content: space-between; gap: 0.5rem; font-family: var(--font-d); font-weight: 700; font-size: 0.9rem; color: var(--silver); margin-bottom: 0.4rem; }
   .tdwb-ends span { display: inline-flex; align-items: center; gap: 0.35rem; }
   .tdwb-ends img { width: 1.2rem; height: 1.2rem; object-fit: contain; }
   .tdwb-ends b { color: var(--text-strong); font-size: 1.15rem; font-variant-numeric: tabular-nums; }
@@ -1877,11 +1899,14 @@
   @keyframes tdwbPop { 40% { transform: scaleY(1.5); box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 0 18px #f2c94c; } }
   .tdw-note { margin: 0.35rem 0 0; font-size: 0.8rem; color: var(--muted); opacity: 0; transition: opacity 0.4s; }
   .tdw-note.on { opacity: 1; }
-  .tdo { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.2rem, 1fr)); gap: 0.4rem; }
-  .tdo-tile { border: 1px solid color-mix(in srgb, var(--gold) 35%, var(--border)); background: color-mix(in srgb, var(--gold) 7%, var(--surface0)); border-radius: 9px; padding: 0.45rem 0.6rem; }
-  .tdo-tile span { display: block; font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-  .tdo-tile b { display: block; font-family: var(--font-d); font-size: 1.25rem; color: var(--gold); line-height: 1.2; }
-  .tdo-tile small { font-size: 0.7rem; color: var(--muted); }
+  .tdo { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-top: 0.5rem; }
+  .tdo:empty { display: none; }
+  .tdo-lbl { font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-right: 0.15rem; }
+  .tdo-b { display: inline-flex; align-items: baseline; gap: 0.35rem; font-family: var(--font-d); font-weight: 700; font-size: 0.8rem; line-height: 1;
+           padding: 0.3rem 0.55rem; border-radius: 999px; color: var(--gold);
+           border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent); background: color-mix(in srgb, var(--gold) 9%, var(--surface1)); }
+  .tdo-b i { font-style: normal; color: var(--text); font-weight: 600; }
+  .tdo-b b { font-size: 0.92rem; }
   .td-conn { margin: 0; font-size: 0.95rem; color: var(--text); line-height: 1.5; } .td-conn span { font-size: 0.8rem; color: var(--muted); }
   .td-flags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 1rem; }
   .ydm-big strong small { font-size: 0.4em; margin-left: 0.15rem; color: var(--muted); }
@@ -3707,9 +3732,7 @@
         renderPanel(activeNav);
         const odds = document.getElementById('td-odds'), t = document.getElementById('td-back') && tdRow();
         if (odds && t) {
-          odds.innerHTML = tdOdds(t);
-          const panel = odds.closest('.td-side');
-          if (odds.innerHTML) [...panel.children].forEach(c => { if (c !== odds) c.remove(); });
+          const o = tdOdds(t); if (o) odds.innerHTML = o;
         }
       });
   }
@@ -4225,8 +4248,9 @@
   const MID = 26.65, TDX = 112.5;
   const lerp = (a2, b2, f) => [a2[0] + (b2[0] - a2[0]) * f, a2[1] + (b2[1] - a2[1]) * f];
   const dist = (a2, b2) => Math.hypot(b2[0] - a2[0], b2[1] - a2[1]);
-  /** one pace per play — longer runs play a little faster so a 99-yarder doesn't drag */
-  const PACE = (len) => Math.min(12, Math.max(8, 7 + len * 0.05));
+  /** one pace per play — the longer the route, the faster it plays, so a
+   *  60-yarder takes ~6 s to watch rather than ~10 */
+  const PACE = (len) => Math.min(22, 8 + Math.max(0, len - 15) * 0.22);
   /**
    * A player moving along a smooth curve through the waypoints at one steady
    * pace: builds up over `ein` seconds, eases down over the last `eout`.
@@ -4462,7 +4486,7 @@
     for (const a2 of sc.actors) for (const tt of [0, sc.T * 0.5, sc.T]) xs.push(a2.pos(tt)[0]);
     for (const e of sc.events) xs.push(e.at[0]);
     if (sc.los != null) xs.push(sc.los);
-    const lo = Math.max(0, Math.min(65, (xs.length ? Math.min(...xs) : 60) - 8));
+    const lo = Math.max(0, Math.min(82, (xs.length ? Math.min(...xs) : 60) - 8));
     const G = tfGeom(tdVertical(), lo);
     const col = tdColors(t.team, t.opp);
     const line = (x1, y1, x2, y2, cls) => { const [a1, b1] = G.P(x1, y1), [a2, b2] = G.P(x2, y2); return `<line x1="${a1}" y1="${b1}" x2="${a2}" y2="${b2}" class="${cls}"/>`; };
@@ -4540,7 +4564,8 @@
     const pre = svg.querySelector('#tf-pre'), post = svg.querySelector('#tf-post');
     const evEls = [...svg.querySelectorAll('.tf-ev')];
     const prePts = [], postPts = [];
-    const SLOW = 1.4, total = sc.T * SLOW + 0.4;
+    // replay speed: 1.4x slower than the scene for short plays, closer to real time for long ones
+    const SLOW = Math.max(1.05, 1.4 - Math.max(0, sc.T - 3) * 0.1), total = sc.T * SLOW + 0.4;
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     evEls.forEach(e => e.classList.remove('on'));
     svg.classList.remove('done');
@@ -4709,8 +4734,8 @@
     const mk = row ? [['Anytime TD', row[4], true], ['1st TD', row[6], t.firstTd], ['Last TD', row[7], t.lastTd], ['2+ TDs', row[5], t.multi]]
       .filter(([, p, hit]) => hit && p > 0) : [];
     if (!mk.length) return '';
-    return `<h4>Our prices · cashed</h4><div class="tdo">${mk.map(([lab, p]) =>
-      `<div class="tdo-tile"><span>${lab}</span><b>${pbOdds(p)}</b><small>${Math.round(p * 100)}% pre-game</small></div>`).join('')}</div>`;
+    return `<div class="tdo"><span class="tdo-lbl">Cashed at our price</span>${mk.map(([lab, p]) =>
+      `<span class="tdo-b" title="${Math.round(p * 100)}% pre-game"><i>${lab}</i><b>${pbOdds(p)}</b></span>`).join('')}</div>`;
   }
 
 
@@ -4729,7 +4754,7 @@
       const conn = t.passer ? `<p class="td-conn"><b>${t.passer}</b> → <b>${full}</b>${d?.air != null ? `<span> · ${d.air} yds in the air · ${d.yac ?? Math.max(0, (d.gain ?? 0) - d.air)} after the catch</span>` : ''}</p>` : '';
       const wpBlock = wp && t.qtr > 4 ? `<h4>Win probability</h4><p class="tdw-note on">Not shown in overtime — nflverse's win-probability model doesn't handle the overtime rules (it had ${t.team} at ${Math.round(wp[0] * 100)}% before this play).</p>`
         : wp ? `<h4>Win probability</h4>${tdWpBar(t, d)}` : '';
-      const flags = t.firstTd || t.lastTd || t.multi ? `<div class="td-flags" id="td-flags">${t.firstTd ? '<span class="st-chip first">1st TD of the game</span>' : ''}${t.lastTd ? '<span class="st-chip last">Last TD of the game</span>' : ''}${t.multi ? '<span class="st-chip multi">2+ TD game</span>' : ''}</div>` : '';
+      const flags = t.firstTd || t.lastTd || t.multi ? `<div class="tdo">${t.firstTd ? '<span class="tdo-b"><i>1st TD of the game</i></span>' : ''}${t.lastTd ? '<span class="tdo-b"><i>Last TD of the game</i></span>' : ''}${t.multi ? '<span class="tdo-b"><i>2+ TD game</i></span>' : ''}</div>` : '';
       const odds = tdOdds(t);
       body = `
       <div class="td-layout">
@@ -4737,11 +4762,11 @@
           <div class="tf-wrap">${tdField(t, d)}<button class="td-replay" onclick="tdAnimate()">↻ Replay</button></div>
           ${d?.desc ? `<p class="td-desc">${d.desc.replace(/</g, '&lt;')}</p>` : ''}
           ${conn}
+          <div id="td-odds">${odds || flags}</div>
         </section>
         <div class="td-row">
           <section class="ydm-panel td-side">${tdScoreboard(t, d)}</section>
           <section class="ydm-panel td-side">${wpBlock || '<h4>Win probability</h4><p class="tdw-note on">Not available for this play.</p>'}</section>
-          <section class="ydm-panel td-side"><div id="td-odds">${odds}</div>${odds ? '' : flags || '<h4>Our prices</h4><p class="tdw-note on">This scorer wasn\'t on our board.</p>'}</section>
         </div>
       </div>`;
     }
@@ -4749,7 +4774,7 @@
       <button class="pm-x" onclick="closeTd()" aria-label="Close">×</button>
       <header class="ydm-hero">
         ${faceHtml(t.pid, t.player)}
-        <div class="ydm-id"><h2>${full}</h2><div class="ydm-meta">${pos ? `<b>${pos}</b><span>•</span>` : ''}${t.team} vs ${t.opp}<img src="${teamLogo(t.team)}" alt="" loading="lazy">${at >= 0 ? `<span class="ydm-count">${at + 1} / ${deck.length}</span>` : ''}</div></div>
+        <div class="ydm-id"><h2>${full}</h2><div class="ydm-meta">${pos ? `<b>${pos}</b><span>•</span>` : ''}${t.team} vs ${t.opp}<img src="${teamLogo(t.team)}" alt="" loading="lazy">${at >= 0 ? `<span class="ydm-count">${at + 1} / ${deck.length}</span>` : ''}<em class="tdm-sub">${typeLbl} TD · Wk ${+t.gameId.split('_')[1]}${t.weekday ? ' · ' + t.weekday.slice(0, 3) : ''}${at >= 0 ? ` · ${at + 1}/${deck.length}` : ''}</em></div></div>
         <div class="ydm-big"><div><span>${typeLbl} touchdown</span><span>${WK_LABEL(+t.gameId.split('_')[1])}${t.weekday ? ' · ' + t.weekday.slice(0, 3) : ''}</span></div><strong>${t.yards ?? [...(d?.desc || '').matchAll(/for (-?\d+) yards?, TOUCHDOWN/g)].pop()?.[1] ?? '—'}<small>yd</small></strong></div>
       </header>
       ${body}
