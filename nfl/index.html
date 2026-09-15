@@ -1794,6 +1794,15 @@
   .tf-seg.pre { stroke: rgba(255,255,255,0.7); stroke-width: 5; }
   .tf-seg.pre.throw, .tf-seg.pre.kick { stroke-dasharray: 14 12; }
   .tf-shadow { fill: rgba(0,0,0,0.35); }
+  .tf-seg { fill: none; }
+  .tf-dot circle { filter: drop-shadow(0 2px 2px rgba(0,0,0,0.35)); }
+  .tf-sp-shadow { fill: rgba(0,0,0,0.3); }
+  .tf-sp path { filter: drop-shadow(0 3px 3px rgba(0,0,0,0.35)); }
+  .tf-sp-num { font-family: var(--font-d); font-weight: 700; font-size: 25px; text-anchor: middle; dominant-baseline: middle; }
+  .tf-sp-badge { fill: rgba(8,14,26,0.88); stroke: rgba(255,255,255,0.35); stroke-width: 2; }
+  .tf-sp-name { fill: #fff; font-family: var(--font-d); font-weight: 700; font-size: 16px; text-anchor: middle; dominant-baseline: middle; }
+  .tf-sp.scorer .tf-sp-badge { fill: rgba(242,201,76,0.95); } .tf-sp.scorer .tf-sp-name { fill: #1d1400; }
+  .tf.v .tf-sp-num { font-size: 27px; } .tf.v .tf-sp-name { font-size: 18px; }
   .tf-pylon { fill: #ff7a1a; stroke: rgba(0,0,0,0.35); stroke-width: 2; }
   .tf-chain { stroke: #d9d9d9; stroke-width: 3; stroke-dasharray: 4 4; }
   .tf-pole { stroke: #222; stroke-width: 3; }
@@ -4036,96 +4045,279 @@
     return tds;
   }
 
-  /** The route, in field yards: x 0-120 (scoring team attacks right, goal line
-   *  at 110), y 0-53.3. Each segment is 'pre' (the ball is not yet the scorer's:
-   *  a throw or a kick in flight, a handoff) or 'post' (he has it), and events
-   *  mark what happens at segment boundaries. */
-  function tdRoute(t, d) {
-    const mid = 26.65, endX = 112.5;
-    const side = { left: 12.5, middle: mid, right: 40.8 };
+  // ── Touchdown scene ──────────────────────────────────────────────────────
+  // Every actor is a function of time, in field yards (x 0-120 along the field,
+  // y 0-53.3 across; the scoring team attacks toward x = 110). No formation or
+  // tracking data exists for free, so both teams line up in a base look — the
+  // play-by-play still decides shotgun vs under center, the ball's direction,
+  // the gap, air yards, yards after the catch, and kick / return distances.
+  // Only the scorer (and the QB where he matters) are drawn as players.
+  const MID = 26.65, TDX = 112.5;
+  const lerp = (a2, b2, f) => [a2[0] + (b2[0] - a2[0]) * f, a2[1] + (b2[1] - a2[1]) * f];
+  const dist = (a2, b2) => Math.hypot(b2[0] - a2[0], b2[1] - a2[1]);
+  /** keyframes [[t, [x, y]], ...] -> position at time */
+  const kf = (pts) => (time) => {
+    if (time <= pts[0][0]) return pts[0][1];
+    for (let i = 1; i < pts.length; i++) if (time <= pts[i][0]) {
+      const f = (time - pts[i - 1][0]) / Math.max(1e-6, pts[i][0] - pts[i - 1][0]);
+      return lerp(pts[i - 1][1], pts[i][1], f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2);
+    }
+    return pts[pts.length - 1][1];
+  };
+  /** close on a target from a start spot once `from` has passed, but stay a
+   *  couple of yards off him — the scorer is never actually caught */
+  const chase = (p0, target, from, rate = 0.42, lag = 0.2, gap = 3.5 + (Math.abs(Math.round(p0[0] * 7 + p0[1] * 3)) % 5) * 1.3) => (time) => {
+    if (time <= from) return p0;
+    const tg = target(Math.max(0, time - lag)), c = lerp(p0, tg, Math.min(0.92, (time - from) * rate)), dd = dist(c, tg);
+    if (dd >= gap) return c;
+    const u = dd < 1e-3 ? [-1, 0] : [(c[0] - tg[0]) / dd, (c[1] - tg[1]) / dd];
+    return [tg[0] + u[0] * gap, tg[1] + u[1] * gap];
+  };
+  const still = (p0) => () => p0;
+
+  function offenseLook(los, dir, sh) {
+    const at = (dx, y) => [los - dir * dx, y];
+    return {
+      ol: [-2, -1, 0, 1, 2].map(k => at(1.2, MID + k * 2.3)), te: at(1.2, MID + 7.2),
+      wr1: at(0.8, 6), wr2: at(0.8, 47.3), slotL: at(1, 15), slotR: at(1, 38.3),
+      rb: sh ? at(5, MID + 2.4) : at(7, MID), qb: sh ? at(5, MID) : at(1, MID),
+    };
+  }
+  function defenseLook(los, dir) {   // dir: which way the OFFENSE attacks
+    const at = (dx, y) => [los + dir * dx, y];
+    return { dl: [-4.4, -1.4, 1.4, 4.4].map(o => at(1.2, MID + o)), lb: [-7, 0, 7].map(o => at(5, MID + o)),
+             cb: [at(7, 6.5), at(7, 46.8)], s: [at(13, MID - 9), at(13, MID + 9)] };
+  }
+
+  function tdScene(t, d) {
+    const actors = [], events = [];
+    const pos = (nflData.tdLeaders || []).find(l => l.pid === t.pid)?.pos || (nflData.picks?.picks || []).find(x => x.pid === t.pid)?.pos
+      || (t.type === 'rec' ? 'WR' : t.type === 'rush' ? 'RB' : '');
+    const jn = d?.jn || {};
+    const scorerMeta = { side: 'team', kind: 'jersey', num: jn[t.player] ?? '', name: t.player, scorer: true };
+    const add = (side, fn, extra = {}) => { const a2 = { side, kind: 'dot', pos: fn, ...extra }; actors.push(a2); return a2; };
+    const sideY = { left: 12.5, middle: MID, right: 40.8 };
     const gapY = { left: { end: 8.5, tackle: 19, guard: 23.5 }, right: { guard: 29.8, tackle: 34.3, end: 44.8 } };
-    const toward = (y, w) => y * (1 - w) + mid * w;
-    const segs = [], events = [];
-    const seg = (kind, own, a, b2) => { if (Math.hypot(b2[0] - a[0], b2[1] - a[1]) > 0.3) segs.push({ kind, own, a, b: b2 }); };
-    const ev = (label, pt, cls = '') => events.push({ label, pt, cls, seg: segs.length });   // shown once segment `seg` begins
-    if (!d) return { segs, events, los: null };
-    if ((t.type === 'rec' || t.type === 'rush') && d.yl != null) {
-      const los = 110 - d.yl;
-      if (d.pt === 'pass' || t.type === 'rec') {
-        const qb = [los - (d.sh ? 5 : 7), mid];
+    const toward = (y, w) => y * (1 - w) + MID * w;
+    let ball, T, los = null, fd = null;
+
+    if ((t.type === 'rec' || t.type === 'rush') && d?.yl != null) {
+      los = 110 - d.yl; fd = d.tg && los + d.tg < 110 ? los + d.tg : null;
+      const sh = !!d.sh, O = offenseLook(los, 1, sh), D = defenseLook(los, 1);
+      const qbStart = O.qb;
+
+      if (t.type === 'rec' && !d.scr) {
+        const drop = [los - (sh ? 6.3 : 7), MID], tDrop = sh ? 0.8 : 1.2, tThrow = tDrop + 0.25;
         const air = d.air ?? d.gain ?? d.yl;
-        const catchPt = [Math.min(118, los + air), side[d.pl] ?? mid];
-        ev('Throw', qb, 'qb');
-        seg('throw', 'pre', qb, catchPt);
-        if (catchPt[0] < 110) ev('Catch', catchPt, 'catch');   // an end-zone catch IS the touchdown marker
-        if (catchPt[0] < 110) seg('run', 'post', catchPt, [endX, toward(catchPt[1], 0.3)]);
-      } else if (d.scr) {
-        const qb = [los - 6, mid], lane = [los + 1, side[d.rl] ?? mid];
-        ev('Scramble', qb, 'qb');
-        seg('run', 'post', qb, lane); seg('run', 'post', lane, [endX, toward(lane[1], 0.3)]);
+        const catchPt = [Math.min(118, los + air), sideY[d.pl] ?? MID];
+        const flight = 0.45 + dist(drop, catchPt) / 40, tCatch = tThrow + flight;
+        const align = pos === 'RB' ? O.rb : pos === 'TE' ? O.te
+          : d.pl === 'left' ? O.wr1 : d.pl === 'right' ? O.wr2 : (catchPt[1] < MID ? O.slotL : O.slotR);
+        const endPt = [TDX, toward(catchPt[1], 0.3)];
+        const yac = catchPt[0] < 110 ? Math.max(0.5, dist(catchPt, endPt) / 11) : 0.35;
+        T = tCatch + yac;
+        const stem = air >= 8 ? [[tCatch * 0.6, [Math.min(catchPt[0] - 3, align[0] + (catchPt[0] - align[0]) * 0.65), align[1]]]] : [];
+        const scorer = kf([[0, align], ...stem, [tCatch, catchPt], [T, catchPt[0] < 110 ? endPt : catchPt]]);
+        const qb = kf([[0, qbStart], [tDrop, drop]]);
+        actors.push({ ...scorerMeta, pos: scorer });
+        actors.push({ side: 'team', kind: 'jersey', num: jn[t.passer] ?? '', name: t.passer || 'QB', pos: qb });
+        O.ol.forEach(p0 => add('team', kf([[0, p0], [tDrop, [p0[0] - 1.3, p0[1]]]])));
+        for (const [key, p0] of [['te', O.te], ['wr1', O.wr1], ['wr2', O.wr2], ['rb', O.rb]]) {
+          if (p0 === align) continue;
+          add('team', key === 'rb' ? kf([[0, p0], [tDrop, [los - 3.5, MID + 1.5]]]) : kf([[0, p0], [T, [p0[0] + 15, p0[1]]]]));
+        }
+        D.dl.forEach(p0 => add('opp', (time) => time < tCatch ? kf([[0, p0], [tThrow, lerp(p0, drop, 0.55)]])(time) : chase(lerp(p0, drop, 0.55), scorer, tCatch, 0.3)(time)));
+        [...D.lb, ...D.cb, ...D.s].forEach(p0 => add('opp', (time) => {
+          const settle = [p0[0] + 3, p0[1]];
+          return time < tCatch ? kf([[0, p0], [tCatch, settle]])(time) : chase(settle, scorer, tCatch, 0.4)(time);
+        }));
+        ball = (time) => time < 0.2 ? { p: lerp([los, MID], qb(0.2), time / 0.2), own: 'hold' }
+          : time < tThrow ? { p: qb(time), own: 'hold' }
+          : time < tCatch ? { p: lerp(drop, catchPt, (time - tThrow) / flight), h: Math.sin(Math.PI * (time - tThrow) / flight) * Math.min(1, dist(drop, catchPt) / 22), own: 'pre', spiral: true }
+          : { p: scorer(time), own: 'post' };
+        events.push({ t: tThrow, label: 'Throw', cls: 'qb', at: drop });
+        if (catchPt[0] < 110) events.push({ t: tCatch, label: 'Catch', cls: 'catch', at: catchPt });
+        events.push({ t: T, label: 'TOUCHDOWN', cls: 'td', at: catchPt[0] < 110 ? endPt : catchPt });
       } else {
-        const hand = [los - 4, mid];
-        const hole = [los, (d.rl === 'middle' || !d.rl) ? mid : (gapY[d.rl]?.[d.gap] ?? side[d.rl])];
-        seg('run', 'pre', [los, mid], hand);
-        ev('Handoff', hand, 'catch');
-        seg('run', 'post', hand, hole);
-        ev(d.rl && d.rl !== 'middle' ? `${d.rl} ${d.gap || 'side'}` : 'up the middle', hole, 'note');
-        seg('run', 'post', hole, [endX, toward(hole[1], 0.35)]);
+        // runs (and QB scrambles, where the scorer IS the quarterback)
+        const scramble = !!d.scr || pos === 'QB';
+        const hole = [los, (d.rl === 'middle' || !d.rl) ? MID : (gapY[d.rl]?.[d.gap] ?? sideY[d.rl])];
+        const endPt = [TDX, toward(hole[1], 0.35)];
+        let scorer, qb, tHand;
+        if (scramble) {
+          const drop = [los - 6, MID]; tHand = 1.0;
+          const lane = [los + 1, sideY[d.rl] ?? MID];
+          const tLane = tHand + 0.55;
+          T = tLane + dist(lane, endPt) / 10;
+          scorer = kf([[0, qbStart], [tHand, drop], [tLane, lane], [T, [TDX, toward(lane[1], 0.3)]]]);
+          actors.push({ ...scorerMeta, pos: scorer });
+          add('team', kf([[0, O.rb], [tHand, [los - 3, MID + 2]]]));
+          events.push({ t: tHand, label: 'Scramble', cls: 'qb', at: drop });
+        } else {
+          const hand = sh ? [los - 5, MID + 1.2] : [los - 3.5, MID]; tHand = sh ? 0.55 : 0.75;
+          const tHole = tHand + 0.45;
+          T = tHole + dist(hole, endPt) / 11;
+          scorer = kf([[0, pos === 'WR' ? O.wr1 : O.rb], [tHand, hand], [tHole, hole], [T, endPt]]);
+          qb = kf([[0, qbStart], [tHand, sh ? qbStart : [los - 2.5, MID]], [tHand + 0.9, [los - 5.5, MID - 4]]]);
+          actors.push({ ...scorerMeta, pos: scorer });
+          add('team', qb);   // on a handoff the quarterback is just a dot
+          events.push({ t: tHand, label: 'Handoff', cls: 'catch', at: hand });
+          events.push({ t: tHole, label: d.rl && d.rl !== 'middle' ? `${d.rl} ${d.gap || 'side'}` : 'up the middle', cls: 'note', at: hole });
+        }
+        O.ol.forEach(p0 => add('team', kf([[0, p0], [tHand + 0.5, [p0[0] + 1.6, p0[1]]]])));
+        [O.te, O.wr1, O.wr2].forEach(p0 => add('team', kf([[0, p0], [T, [p0[0] + 7, p0[1]]]])));
+        D.dl.forEach(p0 => add('opp', (time) => time < tHand + 0.5 ? kf([[0, p0], [tHand + 0.5, [p0[0] - 0.6, p0[1]]]])(time) : chase([p0[0] - 0.6, p0[1]], scorer, tHand + 0.5, 0.25)(time)));
+        [...D.lb, ...D.cb, ...D.s].forEach(p0 => add('opp', chase(p0, scorer, tHand * 0.6, 0.45)));
+        const holder = scramble ? scorer : qb;
+        ball = (time) => time < 0.2 ? { p: lerp([los, MID], holder(0.2), time / 0.2), own: 'hold' }
+          : time < tHand ? { p: holder(time), own: 'hold' } : { p: scorer(time), own: 'post' };
+        events.push({ t: T, label: 'TOUCHDOWN', cls: 'td', at: [TDX, scorer(T)[1]] });
       }
-      events.push({ label: 'TOUCHDOWN', pt: [endX, segs.length ? segs[segs.length - 1].b[1] : mid], cls: 'td', seg: segs.length });
-      return { segs, events, los };
-    }
-    const ret = d.ry ?? t.yards ?? 0;
-    const catchPt = [Math.max(10, 110 - ret), mid];
-    if (t.type === 'st') {
-      const origin = [Math.min(117, catchPt[0] + (d.kd ?? 45)), mid];
-      ev(t.subtype === 'punt' ? 'Punt' : 'Kickoff', origin, 'qb');
-      seg('kick', 'pre', origin, catchPt);
-      ev('Fielded', catchPt, 'catch');
-      seg('run', 'post', catchPt, [endX, toward(mid + 6, 0.2)]);
-    } else if (t.subtype === 'pick6') {
-      catchPt[1] = side[d.pl === 'left' ? 'right' : d.pl === 'right' ? 'left' : 'middle'];
-      const origin = [Math.min(117, catchPt[0] + 12), mid];
-      ev('Pass', origin, 'qb');
-      seg('throw', 'pre', origin, catchPt);
-      ev('INTERCEPTED', catchPt, 'int');
-      seg('run', 'post', catchPt, [endX, toward(catchPt[1], 0.3)]);
+    } else if (t.type === 'st') {
+      const ret = [...(d?.desc || '').matchAll(/for (-?\d+) yards?, TOUCHDOWN/g)].pop();
+      const catchPt = [Math.max(10, 110 - (ret ? +ret[1] : (d?.ry ?? t.yards ?? 0))), MID];
+      const origin = [Math.min(117, catchPt[0] + (d?.kd ?? 45)), MID];
+      const flight = 1.0 + dist(origin, catchPt) / 55;
+      const endPt = [TDX, toward(MID + 6, 0.2)];
+      T = flight + dist(catchPt, endPt) / 11;
+      const scorer = kf([[0, [catchPt[0] - 1.5, MID]], [flight, catchPt], [T, endPt]]);
+      actors.push({ ...scorerMeta, pos: scorer });
+      const punt = t.subtype === 'punt';
+      const lineX = punt ? origin[0] - 12 : origin[0];
+      [6, 11, 16, 21, 25, 29, 33, 38, 43, 48].forEach(y => add('opp', (time) => {
+        const run = [lineX - (lineX - catchPt[0]) * 0.6, y + (MID - y) * 0.3];
+        return time < flight ? kf([[0, [lineX, y]], [flight, run]])(time) : chase(run, scorer, flight, 0.38)(time);
+      }));
+      add('opp', still([origin[0] + 1.5, MID]));
+      [10, 18, 26, 34, 42].forEach(y => add('team', kf([[0, [catchPt[0] + 20, y]], [flight + 0.6, [catchPt[0] + 24, toward(y, 0.2)]]])));
+      ball = (time) => time < flight ? { p: lerp(origin, catchPt, time / flight), h: Math.sin(Math.PI * time / flight) * 1.2, own: 'pre', tumble: true }
+        : { p: scorer(time), own: 'post' };
+      events.push({ t: 0, label: punt ? 'Punt' : 'Kickoff', cls: 'qb', at: origin });
+      events.push({ t: flight, label: 'Fielded', cls: 'catch', at: catchPt });
+      events.push({ t: T, label: 'TOUCHDOWN', cls: 'td', at: endPt });
     } else {
-      ev(t.subtype === 'fumble' ? 'Recovery' : t.subtype === 'blk' ? 'Blocked kick' : 'Takeaway', catchPt, 'int');
-      seg('run', 'post', catchPt, [endX, mid]);
+      // defense: the other team has the ball, attacking toward x = 10. The
+      // takeaway spot comes from the return ("for 27 yards, TOUCHDOWN") — the
+      // return-yards column is empty on some fumble recoveries.
+      const desc = d?.desc || '';
+      const ret = [...desc.matchAll(/for (-?\d+) yards?, TOUCHDOWN/g)].pop();
+      const retY = ret ? +ret[1] : (d?.ry || t.yards || 0);
+      const spot = [Math.max(10, Math.min(110, 110 - retY)), MID];
+      const known = d?.yl != null;
+      const oLos = known ? 10 + d.yl : Math.min(100, spot[0] - 6);
+      const sh = !!d?.sh, O = offenseLook(oLos, -1, sh), D = defenseLook(oLos, -1);
+      los = known ? oLos : null;
+      const thrower = { side: 'opp', kind: 'jersey', num: d?.thr?.[0] ?? '', name: d?.thr?.[1] ?? 'QB' };
+      const drop = [oLos + (sh ? 6.3 : 7), MID], tDrop = sh ? 0.8 : 1.2;
+      const qbKf = kf([[0, O.qb], [tDrop, drop]]);
+      const nearest = (arr, pt) => [...arr].sort((p1, p2) => dist(p1, pt) - dist(p2, pt))[0];
+      const pick6 = t.subtype === 'pick6';
+      const sack = /sacked/.test(desc);
+      let scorer, tTake, endPt;
+
+      if (pick6) {
+        spot[1] = sideY[d?.pl === 'left' ? 'right' : d?.pl === 'right' ? 'left' : 'middle'];
+        const tThrow = tDrop + 0.25, flight = 0.35 + dist(drop, spot) / 40;
+        tTake = tThrow + flight;
+        endPt = [TDX, toward(spot[1], 0.3)];
+        T = tTake + dist(spot, endPt) / 11;
+        const near = nearest([...D.dl, ...D.lb, ...D.cb, ...D.s], spot);
+        scorer = kf([[0, near], [tTake, spot], [T, endPt]]);
+        actors.push({ ...thrower, pos: (time) => time < tTake ? qbKf(time) : chase(drop, scorer, tTake, 0.3, 0.2, 9)(time) });
+        [...D.dl, ...D.lb, ...D.cb, ...D.s].filter(p0 => p0 !== near).forEach(p0 => add('team', kf([[0, p0], [tThrow, lerp(p0, spot, 0.3)], [T, lerp(p0, endPt, 0.35)]])));
+        ball = (time) => time < 0.2 ? { p: lerp([oLos, MID], qbKf(0.2), time / 0.2), own: 'hold' }
+          : time < tThrow ? { p: qbKf(time), own: 'hold' }
+          : time < tTake ? { p: lerp(drop, spot, (time - tThrow) / flight), h: Math.sin(Math.PI * (time - tThrow) / flight) * Math.min(1, dist(drop, spot) / 22), own: 'pre', spiral: true }
+          : { p: scorer(time), own: 'post' };
+        events.push({ t: tThrow, label: 'Pass', cls: 'qb', at: drop });
+        events.push({ t: tTake, label: 'INTERCEPTED', cls: 'int', at: spot });
+      } else {
+        // fumbles (strip-sacks included), blocked kicks and the rest: whoever
+        // has it gets to the spot, the ball comes loose, the scorer scoops it
+        const tHit = sack ? tDrop + 0.6 : known ? 1.5 : 0.4, tLoose = 0.45;
+        tTake = tHit + tLoose;
+        endPt = [TDX, MID];
+        T = tTake + dist(spot, endPt) / 10.5;
+        const hitAt = [spot[0] + 1.5, spot[1]];
+        let holder;
+        if (known && (sack || spot[0] > oLos)) {       // behind the line: the quarterback
+          holder = kf([[0, O.qb], [tDrop, drop], [tHit, hitAt]]);
+          actors.push({ ...thrower, pos: (time) => time < tTake ? holder(time) : chase(hitAt, (tt) => scorer(tt), tTake, 0.3, 0.2, 9)(time) });
+        } else if (known) {                             // a runner or receiver downfield
+          holder = kf([[0, O.rb], [0.5, [oLos + 3, MID]], [tHit, hitAt]]);
+          add('opp', (time) => time < tTake ? holder(time) : chase(hitAt, (tt) => scorer(tt), tTake, 0.3)(time));
+          actors.push({ ...thrower, pos: kf([[0, O.qb], [0.5, [oLos + 3, MID + 2]], [T, [oLos + 1, MID + 4]]]) });
+        } else {
+          holder = still(hitAt);
+        }
+        const start = known ? nearest([...D.lb, ...D.dl], spot) : [spot[0] - 3, spot[1] - 3];
+        scorer = kf([[0, start], [tHit, lerp(start, spot, 0.7)], [tTake, spot], [T, endPt]]);
+        if (known) {
+          const rushers = [...D.dl, ...D.lb].filter(p0 => p0 !== start);
+          rushers.forEach((p0, i) => add('team', (time) => time < tTake
+            ? kf([[0, p0], [tHit, lerp(p0, hitAt, i < 2 ? 0.85 : 0.45)]])(time)
+            : kf([[0, lerp(p0, hitAt, i < 2 ? 0.85 : 0.45)], [T, lerp(lerp(p0, hitAt, 0.6), endPt, 0.3)]])(time - tTake)));
+          [...D.cb, ...D.s].forEach(p0 => add('team', kf([[0, p0], [T, lerp(p0, endPt, 0.4)]])));
+        } else {
+          [[1, 2], [2.5, -1], [-1, 3], [3, 3.5], [0.5, -3]].forEach(([dx, dy]) => add('team', kf([[0, [spot[0] + dx, spot[1] + dy]], [T, lerp([spot[0] + dx, spot[1] + dy], endPt, 0.3)]])));
+        }
+        ball = (time) => time < 0.2 && known ? { p: lerp([oLos, MID], holder(0.2), time / 0.2), own: 'hold' }
+          : time < tHit ? { p: holder(time), own: 'hold' }
+          : time < tTake ? { p: lerp(holder(tHit), [spot[0] + Math.sin(time * 18) * 0.4, spot[1] + 0.6], Math.min(1, (time - tHit) / tLoose)), own: 'loose' }
+          : { p: scorer(time), own: 'post' };
+        const lab = t.subtype === 'blk' ? 'Blocked kick' : sack ? 'Strip sack' : /FUMBLE/.test(desc) ? 'Fumble' : 'Takeaway';
+        if (known && sack) events.push({ t: tHit, label: 'Sack', cls: 'qb', at: hitAt });
+        events.push({ t: tHit + 0.05, label: lab, cls: 'int', at: spot });
+        events.push({ t: tTake, label: 'Recovered', cls: 'catch', at: spot });
+      }
+      actors.push({ ...scorerMeta, pos: scorer });
+      // the offense turns and chases once the ball changes hands
+      if (known) {
+        const taken = new Set();
+        const offense = pick6 ? [...O.ol, O.te, O.wr1, O.wr2, O.rb] : [...O.ol, O.te, O.wr1, O.wr2, ...(spot[0] > oLos || sack ? [O.rb] : [])];
+        offense.forEach((p0, i) => add('opp', (time) => {
+          const block = pick6 ? (i < 5 ? [p0[0] + 1.3, p0[1]] : lerp(p0, spot, 0.75)) : (i < 5 ? [p0[0] + 1.2, p0[1]] : [p0[0] - 12, p0[1]]);
+          return time < tTake ? kf([[0, p0], [tTake, block]])(time) : chase(block, scorer, tTake, 0.35 + (i % 3) * 0.06)(time);
+        }));
+      } else {
+        [[1, 2], [2.5, -1], [-1, 3], [3, 3.5]].forEach(([dx, dy]) => add('opp', chase([spot[0] + dx, spot[1] + dy], scorer, tTake, 0.35)));
+      }
+      events.push({ t: T, label: 'TOUCHDOWN', cls: 'td', at: endPt });
     }
-    events.push({ label: 'TOUCHDOWN', pt: [endX, segs.length ? segs[segs.length - 1].b[1] : mid], cls: 'td', seg: segs.length });
-    return { segs, events, los: null };
+    return { actors, events, ball, T, los, fd };
+  }
+
+  // colours: the scoring team's primary; the opponent's primary unless the two
+  // are too alike (seven teams share a navy), then its secondary
+  function tdColors(team, opp) {
+    const C = nflData.teamColors || {};
+    const hex = (h) => { const n = parseInt((h || '#888').slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+    const far = (a2, b2) => Math.hypot(...hex(a2).map((v, i) => v - hex(b2)[i]));
+    const lum = (h) => { const [r, g, b2] = hex(h); return (0.299 * r + 0.587 * g + 0.114 * b2) / 255; };
+    const tc = C[team] || ['#1f6feb', '#ffffff'];
+    let oc = C[opp] || ['#c9d2e0', '#333333'];
+    if (far(tc[0], oc[0]) < 110) oc = far(tc[0], oc[1]) > far(tc[0], oc[0]) ? [oc[1], oc[0]] : ['#e8edf5', oc[0]];
+    const ink = (h) => lum(h) > 0.6 ? '#0b0f17' : '#ffffff';
+    return { team: { fill: tc[0], trim: tc[1], ink: ink(tc[0]) }, opp: { fill: oc[0], trim: oc[1], ink: ink(oc[0]) } };
   }
 
   // Field geometry in one place so the play can be drawn across (desktop) or up
-  // (phones, where a 1200x533 field is a sliver). Field yards in, SVG units out:
-  //   h: x along the length, y across            (1200 x 533)
-  //   v: attacking UP the screen, cropped to the part of the field the play
-  //      used, so a 5-yard score is big and a 99-yarder still fits
+  // (phones), cropped to the part of the field the scene uses.
   function tfGeom(vertical, lo) {
-    if (!vertical) return { v: false, P: (x, y) => [x * 10, y * 10], box: '0 0 1200 533', w: 1200, h: 533 };
-    const top = 0, bottom = (120 - lo) * 10;
-    return { v: true, P: (x, y) => [y * 10, (120 - x) * 10], box: `0 ${top} 533 ${bottom - top}`, w: 533, h: bottom - top };
+    if (!vertical) return { v: false, P: (x, y) => [x * 10, y * 10], box: '0 0 1200 533' };
+    return { v: true, P: (x, y) => [y * 10, (120 - x) * 10], box: `0 0 533 ${(120 - lo) * 10}` };
   }
-  const tfPathD = (sg, G) => {
-    const [ax, ay] = G.P(...sg.a), [bx, by] = G.P(...sg.b);
-    if (sg.kind === 'run') return `M${ax},${ay} L${bx},${by}`;
-    const lift = Math.min(110, Math.hypot(bx - ax, by - ay) * 0.26);
-    // throws and kicks arc toward the top of the screen (across) or the left (up)
-    return G.v ? `M${ax},${ay} Q${Math.min(ax, bx) - lift},${(ay + by) / 2} ${bx},${by}`
-               : `M${ax},${ay} Q${(ax + bx) / 2},${Math.min(ay, by) - lift} ${bx},${by}`;
-  };
   const tdVertical = () => window.matchMedia('(max-width: 620px)').matches;
 
   function tdField(t, d) {
-    const { segs, events, los } = tdRoute(t, d);
-    // crop (vertical only): a little behind the earliest point of the play, through the end zone
-    const xs = segs.flatMap(sg => [sg.a[0], sg.b[0]]).concat(los != null ? [los] : []);
-    const lo = Math.max(0, Math.min(65, (xs.length ? Math.min(...xs) : 60) - 6));
+    const sc = tdScene(t, d);
+    const xs = [];
+    for (const a2 of sc.actors) for (const tt of [0, sc.T * 0.5, sc.T]) xs.push(a2.pos(tt)[0]);
+    const lo = Math.max(0, Math.min(65, (xs.length ? Math.min(...xs) : 60) - 8));
     const G = tfGeom(tdVertical(), lo);
+    const col = tdColors(t.team, t.opp);
     const line = (x1, y1, x2, y2, cls) => { const [a1, b1] = G.P(x1, y1), [a2, b2] = G.P(x2, y2); return `<line x1="${a1}" y1="${b1}" x2="${a2}" y2="${b2}" class="${cls}"/>`; };
-    const rect = (x1, y1, x2, y2, cls) => { const [a1, b1] = G.P(x1, y1), [a2, b2] = G.P(x2, y2); return `<rect x="${Math.min(a1, a2)}" y="${Math.min(b1, b2)}" width="${Math.abs(a2 - a1)}" height="${Math.abs(b2 - b1)}" class="${cls}"/>`; };
+    const rect = (x1, y1, x2, y2, cls, style = '') => { const [a1, b1] = G.P(x1, y1), [a2, b2] = G.P(x2, y2); return `<rect x="${Math.min(a1, a2)}" y="${Math.min(b1, b2)}" width="${Math.abs(a2 - a1)}" height="${Math.abs(b2 - b1)}" class="${cls}" ${style}/>`; };
     let lines = '';
     for (let yd = 10; yd <= 110; yd += 5) lines += line(yd, 0, yd, 53.3, `tf-line${yd % 10 ? ' five' : ''}`);
     for (let yd = 11; yd < 110; yd++) if (yd % 5) lines += line(yd, 22.9, yd, 23.6, 'tf-hash') + line(yd, 29.7, yd, 30.4, 'tf-hash');
@@ -4134,111 +4326,116 @@
       const n = yd <= 60 ? yd - 10 : 110 - yd;
       for (const yy of [8, 45.3]) { const [nx, ny] = G.P(yd, yy); nums += `<text x="${nx}" y="${ny}" class="tf-num">${n}</text>`; }
     }
-    const losLine = los != null ? line(los, 0, los, 53.3, 'tf-los') : '';
-    const fd = los != null && d?.tg && los + d.tg < 110 ? line(los + d.tg, 0, los + d.tg, 53.3, 'tf-fd') : '';
+    const losLine = sc.los != null ? line(sc.los, 0, sc.los, 53.3, 'tf-los') : '';
+    const fdLine = sc.fd != null ? line(sc.fd, 0, sc.fd, 53.3, 'tf-fd') : '';
     const pylons = [0.7, 10, 110, 119.3].flatMap(x => [0.7, 52.6].map(y => { const [px, py] = G.P(x, y); return `<rect x="${px - 7}" y="${py - 7}" width="14" height="14" rx="2" class="tf-pylon"/>`; })).join('');
-    // chain crew on the sideline at y = 0 (top across, left edge up)
-    const chains = los != null && d?.dn && d?.tg ? (() => {
-      const goal = los + d.tg >= 110, [ax2, ay2] = G.P(los, 0), [bx2, by2] = G.P(Math.min(110, los + d.tg), 0);
+    const chains = sc.los != null && d?.dn && d?.tg ? (() => {
+      const goal = sc.los + d.tg >= 110, [ax2, ay2] = G.P(sc.los, 0), [bx2, by2] = G.P(Math.min(110, sc.los + d.tg), 0);
       const mk = (x, y, wide, label) => G.v
         ? `<rect x="2" y="${y - (wide ? 15 : 9)}" width="22" height="${wide ? 30 : 18}" rx="4" class="tf-marker"/>${label ? `<text x="13" y="${y}" class="tf-marker-num">${label}</text>` : ''}`
         : `<line x1="${x}" x2="${x}" y1="2" y2="30" class="tf-pole"/><rect x="${x - (wide ? 15 : 9)}" y="2" width="${wide ? 30 : 18}" height="22" rx="4" class="tf-marker"/>${label ? `<text x="${x}" y="14" class="tf-marker-num">${label}</text>` : ''}`;
       const chain = goal ? '' : G.v ? `<line x1="13" x2="13" y1="${ay2}" y2="${by2}" class="tf-chain"/>` : `<line x1="${ax2}" x2="${bx2}" y1="16" y2="16" class="tf-chain"/>`;
       return `<g class="tf-chains">${chain}${mk(ax2, ay2, true, d.dn)}${goal ? '' : mk(bx2, by2, false, '')}</g>`;
     })() : '';
-    const paths = segs.map((sg, i) => `<path d="${tfPathD(sg, G)}" class="tf-seg ${sg.own} ${sg.kind}" data-i="${i}"/>`).join('');
-    const evs = events.map((e, i) => {
-      if (G.v && e.cls === 'note') return '';   // the gap label crowds the handoff marker on a phone
-      const [x, y] = G.P(...e.pt);
-      const w = Math.max(70, e.label.length * 13 + 26);
-      let tx, ty;
-      if (G.v) {   // beside the path, on whichever side has room
-        tx = x > 266 ? Math.max(5 + w / 2, x - w / 2 - 22) : Math.min(528 - w / 2, x + w / 2 + 22); ty = y;
-      } else {
-        tx = Math.min(1195 - w / 2, Math.max(5 + w / 2, x)); ty = y > 120 ? y - 34 : y + 34;
-      }
-      return `<g class="tf-ev ${e.cls}" data-seg="${e.seg}" data-i="${i}">
-        <circle cx="${x}" cy="${y}" r="9" class="tf-ev-dot"/>
-        <g class="tf-ev-tag" transform="translate(${tx},${ty})"><rect x="${-w / 2}" y="-17" width="${w}" height="34" rx="17"/><text y="1">${e.label}</text></g>
-      </g>`;
-    }).join('');
     const ezText = (x, label, cls) => { const [cx, cy] = G.P(x, 26.65); return `<text x="${cx}" y="${cy}" class="tf-eztext ${cls}"${G.v ? '' : ` transform="rotate(${x > 60 ? 90 : -90} ${cx} ${cy})"`}>${label}</text>`; };
-    return `<svg viewBox="${G.box}" class="tf${G.v ? ' v' : ''}" role="img" aria-label="Diagram of the touchdown" preserveAspectRatio="xMidYMid meet">
+    const placed = [];
+    const evs = sc.events.map((e, i) => {
+      if (G.v && e.cls === 'note') return '';
+      const [x, y] = G.P(...e.at);
+      const w = Math.max(70, e.label.length * 13 + 26), h = 34;
+      const tries = G.v
+        ? [[x > 266 ? -1 : 1, 0], [x > 266 ? 1 : -1, 0], [x > 266 ? -1 : 1, -46], [x > 266 ? -1 : 1, 46], [x > 266 ? -1 : 1, -92], [x > 266 ? -1 : 1, 92]]
+            .map(([sd, dy]) => [Math.min(528 - w / 2, Math.max(5 + w / 2, x + sd * (w / 2 + 44))), y + dy])
+        : [y > 140 ? -1 : 1, y > 140 ? 1 : -1].flatMap(sd => [[0, sd * 96], [0, sd * 138]]).sort((p1, p2) => Math.abs(p1[1]) - Math.abs(p2[1]))
+            .map(([, dy]) => [Math.min(1195 - w / 2, Math.max(5 + w / 2, x)), Math.min(515, Math.max(18, y + dy))]);
+      const clear = ([cx, cy]) => placed.every(r => Math.abs(r[0] - cx) > (r[2] + w) / 2 + 6 || Math.abs(r[1] - cy) > h + 4);
+      const [tx, ty] = tries.find(clear) || tries[0];
+      placed.push([tx, ty, w]);
+      return `<g class="tf-ev ${e.cls}" data-i="${i}"><g class="tf-ev-tag" transform="translate(${tx},${ty})"><rect x="${-w / 2}" y="-17" width="${w}" height="${h}" rx="17"/><text y="1">${e.label}</text></g></g>`;
+    }).join('');
+    const k = G.v ? 1 : 1.45;   // the horizontal field is drawn smaller on screen
+    const order = sc.actors.map((a2, i) => i).sort((i, j) => (sc.actors[i].kind === 'jersey') - (sc.actors[j].kind === 'jersey') || !!sc.actors[i].scorer - !!sc.actors[j].scorer);
+    const actorsSvg = order.map(i => {
+      const a2 = sc.actors[i], c = col[a2.side];
+      if (a2.kind === 'dot') return `<g class="tf-dot" data-a="${i}" transform="translate(-99,-99)"><circle r="${10.5 * (G.v ? 1 : 1.25)}" fill="${c.fill}" stroke="${c.trim}" stroke-width="3"/></g>`;
+      const nm = (a2.name || '').slice(0, 14), w = Math.max(56, nm.length * 11 + 18);
+      return `<g class="tf-sp${a2.scorer ? ' scorer' : ''}" data-a="${i}" transform="translate(-99,-99)"><g transform="scale(${k})">
+        <ellipse cx="0" cy="6" rx="22" ry="7" class="tf-sp-shadow"/>
+        <path d="M-15,-44 L-6,-48 Q0,-42 6,-48 L15,-44 L27,-34 L21,-23 L15,-27 L15,2 L-15,2 L-15,-27 L-21,-23 L-27,-34 Z" fill="${c.fill}" stroke="${c.trim}" stroke-width="3" stroke-linejoin="round"/>
+        <text y="-15" class="tf-sp-num" fill="${c.ink}">${a2.num}</text>
+        <g transform="translate(0,20)"><rect x="${-w / 2}" y="-12" width="${w}" height="24" rx="12" class="tf-sp-badge"${a2.scorer ? ` style="stroke:${c.trim}"` : ''}/><text y="1" class="tf-sp-name">${nm}</text></g>
+      </g></g>`;
+    }).join('');
+    const svg = `<svg viewBox="${G.box}" class="tf${G.v ? ' v' : ''}" role="img" aria-label="Diagram of the touchdown" preserveAspectRatio="xMidYMid meet">
       ${rect(0, 0, 120, 53.3, 'tf-grass')}
-      ${rect(0, 0, 10, 53.3, 'tf-ez')}${rect(110, 0, 120, 53.3, 'tf-ez score')}
+      ${rect(0, 0, 10, 53.3, 'tf-ez')}${rect(110, 0, 120, 53.3, 'tf-ez score', `style="fill:${col.team.fill};fill-opacity:0.55"`)}
       ${ezText(115, `${t.team} TOUCHDOWN`, '')}${G.v ? '' : ezText(5, t.opp, 'dim')}
-      ${lines}${nums}${losLine}${fd}${pylons}${chains}
-      ${paths}
-      <ellipse id="tf-shadow" rx="15" ry="6" class="tf-shadow" cx="-50" cy="-50"/>
+      ${lines}${nums}${losLine}${fdLine}${pylons}${chains}
+      <polyline id="tf-pre" class="tf-seg pre" points=""/><polyline id="tf-post" class="tf-seg post" points=""/>
+      <g id="tf-actors">${actorsSvg}</g>
+      <ellipse id="tf-shadow" rx="15" ry="6" class="tf-shadow" cx="-99" cy="-99"/>
+      <g id="tf-ball" class="tf-ball" transform="translate(-99,-99)"><ellipse rx="15" ry="9.5"/><g class="tf-laces"><path d="M-6,0 H6 M-3.5,-2.8 V2.8 M0,-2.8 V2.8 M3.5,-2.8 V2.8"/></g></g>
       ${evs}
-      <g id="tf-ball" class="tf-ball" transform="translate(-50,-50)"><ellipse rx="17" ry="10.5"/><g class="tf-laces"><path d="M-7,0 H7 M-4,-3.2 V3.2 M0,-3.2 V3.2 M4,-3.2 V3.2"/></g></g>
     </svg>`;
+    tdSceneCache = { sc, G };
+    return svg;
   }
+  let tdSceneCache = null;
 
   function tdAnimate() {
     cancelAnimationFrame(tdAnim);
-    const svg = document.querySelector('#td-back .tf'); if (!svg) return;
-    const segEls = [...svg.querySelectorAll('.tf-seg')], ball = svg.querySelector('#tf-ball'), shadow = svg.querySelector('#tf-shadow');
-    const evEls = [...svg.querySelectorAll('.tf-ev')];
-    if (!segEls.length || !ball) return;
-    svg.classList.remove('done');
-    const segs = segEls.map(el => {
-      const L = el.getTotalLength(), kind = el.classList.contains('run') ? 'run' : 'air';
-      el.style.strokeDasharray = el.classList.contains('pre') && kind === 'air' ? '' : `${L}`;
-      el.style.strokeDashoffset = el.classList.contains('pre') && kind === 'air' ? '' : `${L}`;
-      el.style.opacity = el.classList.contains('pre') && kind === 'air' ? '0' : '1';
-      const kick = el.classList.contains('kick');
-      return { el, L, kind, kick, dur: 1.4 * (kind === 'air' ? 500 + L * 0.9 : Math.max(380, L * 2.2)) };
-    });
-    evEls.forEach(e => e.classList.remove('on'));
-    const total = segs.reduce((a, sg) => a + sg.dur, 0);
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    const show = (i) => evEls.forEach(e => { if (+e.dataset.seg <= i) e.classList.add('on'); });
+    const svg = document.querySelector('#td-back .tf'); if (!svg || !tdSceneCache) return;
+    const { sc, G } = tdSceneCache;
+    const actorEls = []; svg.querySelectorAll('#tf-actors > g').forEach(el => { actorEls[+el.dataset.a] = el; });
+    const ball = svg.querySelector('#tf-ball'), shadow = svg.querySelector('#tf-shadow');
     const shell = ball.querySelector('ellipse'), laces = ball.querySelector('.tf-laces');
-    const flat = () => { shell.setAttribute('ry', '10.5'); laces.setAttribute('transform', ''); laces.style.opacity = '1'; };
+    const pre = svg.querySelector('#tf-pre'), post = svg.querySelector('#tf-post');
+    const evEls = [...svg.querySelectorAll('.tf-ev')];
+    const prePts = [], postPts = [];
+    const SLOW = 1.4, total = sc.T * SLOW + 0.4;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    evEls.forEach(e => e.classList.remove('on'));
+    svg.classList.remove('done');
     tdWinProb(false);
+    const lift = (p2, h) => G.v ? [p2[0] - h * 30, p2[1]] : [p2[0], p2[1] - h * 30];
+    let lastT = -1;
+    const draw = (time) => {
+      sc.actors.forEach((a2, i) => { const [x, y] = G.P(...a2.pos(time)); actorEls[i].setAttribute('transform', `translate(${x.toFixed(1)},${y.toFixed(1)})`); });
+      const bs = sc.ball(time), ground = G.P(...bs.p);
+      let [bx, by] = ground, ang = 0, scale = 1;
+      if (bs.own === 'pre') {
+        [bx, by] = lift(ground, bs.h || 0); scale = 1 + 0.4 * (bs.h || 0);
+        shadow.setAttribute('cx', ground[0]); shadow.setAttribute('cy', ground[1]);
+        const nxt = sc.ball(Math.min(sc.T, time + 0.03)), ng = lift(G.P(...nxt.p), nxt.h || 0);
+        ang = Math.atan2(ng[1] - by, ng[0] - bx) * 180 / Math.PI;
+        if (bs.tumble) { ang += time * 900; shell.setAttribute('ry', '9.5'); laces.setAttribute('transform', ''); }
+        else { const spin = Math.cos(time * 40); shell.setAttribute('ry', (9.5 * (0.62 + 0.38 * Math.abs(spin))).toFixed(2)); laces.setAttribute('transform', `scale(1,${spin.toFixed(3)})`); laces.style.opacity = spin > 0 ? '1' : '0.25'; }
+        if (time > lastT) prePts.push(`${bx.toFixed(1)},${by.toFixed(1)}`);
+      } else {
+        shadow.setAttribute('cx', -99);
+        shell.setAttribute('ry', '9.5'); laces.setAttribute('transform', ''); laces.style.opacity = '1';
+        // carried: tucked beside the carrier, just off his jersey
+        if (bs.own === 'hold' || bs.own === 'post') { const k = G.v ? 1 : 1.45; bx += 25 * k; by -= 2 * k; }
+        if (bs.own === 'post' && time > lastT) postPts.push(`${ground[0].toFixed(1)},${ground[1].toFixed(1)}`);
+      }
+      ball.setAttribute('transform', `translate(${bx.toFixed(1)},${by.toFixed(1)}) rotate(${ang.toFixed(1)}) scale(${scale.toFixed(3)})`);
+      pre.setAttribute('points', prePts.join(' ')); post.setAttribute('points', postPts.join(' '));
+      evEls.forEach((e, i) => { if (time >= sc.events[i].t) e.classList.add('on'); });
+      lastT = time;
+    };
+    if (reduce) {
+      for (let tt = 0; tt <= sc.T; tt += 0.02) draw(tt);
+      svg.classList.add('done'); tdWinProb(true); return;
+    }
     const t0 = performance.now();
     const frame = (now) => {
-      let el = reduce ? total : now - t0, i = 0;
-      while (i < segs.length && el > segs[i].dur) { el -= segs[i].dur; const s0 = segs[i]; s0.el.style.strokeDashoffset = s0.el.style.strokeDasharray ? '0' : ''; s0.el.style.opacity = '1'; i++; }
-      show(i);
-      if (i >= segs.length) {
-        const last = segs[segs.length - 1], p2 = last.el.getPointAtLength(last.L);
-        ball.setAttribute('transform', `translate(${p2.x},${p2.y}) rotate(0) scale(1)`);
-        shadow.setAttribute('cx', -50); flat();
-        svg.classList.add('done'); show(segs.length); tdWinProb(true); return;
-      }
-      const sg = segs[i], f = Math.min(1, el / sg.dur);
-      const e = sg.kind === 'air' ? f : (f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2);
-      const pt = sg.el.getPointAtLength(sg.L * e), ahead = sg.el.getPointAtLength(Math.min(sg.L, sg.L * e + 2));
-      const ang = Math.atan2(ahead.y - pt.y, ahead.x - pt.x) * 180 / Math.PI;
-      if (sg.kind === 'air') {
-        // throw / kick: the ball climbs and grows toward the top of the arc, its
-        // shadow sliding along the ground below it
-        sg.el.style.opacity = String(Math.min(1, 0.25 + f));
-        const a = sg.el.getPointAtLength(0), b2 = sg.el.getPointAtLength(sg.L);
-        shadow.setAttribute('cx', a.x + (b2.x - a.x) * e); shadow.setAttribute('cy', a.y + (b2.y - a.y) * e);
-        const lift = 1 + 0.45 * Math.sin(Math.PI * f);
-        if (sg.kick) {
-          // kicks tumble end over end
-          flat();
-          ball.setAttribute('transform', `translate(${pt.x},${pt.y}) rotate(${ang + 900 * f}) scale(${lift})`);
-        } else {
-          // passes spiral: spinning about the long axis squashes the ball's
-          // outline and turns the laces toward and away from us
-          const spin = Math.cos(el * 0.028);
-          shell.setAttribute('ry', (10.5 * (0.62 + 0.38 * Math.abs(spin))).toFixed(2));
-          laces.setAttribute('transform', `scale(1,${spin.toFixed(3)})`);
-          laces.style.opacity = spin > 0 ? '1' : '0.25';
-          ball.setAttribute('transform', `translate(${pt.x},${pt.y}) rotate(${ang}) scale(${lift})`);
-        }
-      } else {
-        shadow.setAttribute('cx', -50); flat();
-        sg.el.style.strokeDashoffset = `${sg.L * (1 - e)}`;
-        ball.setAttribute('transform', `translate(${pt.x},${pt.y}) rotate(${ang}) scale(1)`);
-      }
-      tdAnim = requestAnimationFrame(frame);
+      const el = (now - t0) / 1000;
+      const time = Math.min(sc.T, Math.max(0, (el - 0.25) / SLOW));
+      draw(time);
+      if (el < total) tdAnim = requestAnimationFrame(frame);
+      else { svg.classList.add('done'); tdWinProb(true); }
     };
+    draw(0);
     tdAnim = requestAnimationFrame(frame);
   }
 

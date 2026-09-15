@@ -126,6 +126,10 @@ async function main() {
         rl: P(r, 'run_location') || null, gap: P(r, 'run_gap') || null, kd: num(P(r, 'kick_distance')), ry: num(P(r, 'return_yards')),
         dn: num(P(r, 'down')), tg: num(P(r, 'ydstogo')), clk: P(r, 'time') || null, sh: P(r, 'shotgun') === '1' ? 1 : 0,
         scr: P(r, 'qb_scramble') === '1' ? 1 : 0, desc: (P(r, 'desc') || '').slice(0, 320),
+        // jersey numbers for everyone the description names ("8-L.Jackson pass …
+        // to 4-Z.Flowers"), and the passer on a pick-six or strip-sack
+        jn: Object.fromEntries([...(P(r, 'desc') || '').matchAll(/(?:^|[\s(\[,])(?:[A-Z]{2,3}-)?(\d{1,2})-([A-Z][A-Za-z]*\.(?:St\. [A-Z][A-Za-z'\-]+|[A-Za-z'\-]+)(?: (?:Jr|Sr|II|III|IV)\.?)?)/g)].map(m => [m[2], m[1]])),
+        thr: (() => { const m = (P(r, 'desc') || '').match(/(\d{1,2})-([A-Z][A-Za-z]*\.(?:St\. [A-Z][A-Za-z'\-]+|[A-Za-z'\-]+)) (?:pass|sacked|scrambles)/); return m ? [m[1], m[2]] : null; })(),
         // scores after the play from the scorer's side
         sc: onOffense ? [num(P(r, 'posteam_score_post')), num(P(r, 'defteam_score_post'))] : [num(P(r, 'defteam_score_post')), num(P(r, 'posteam_score_post'))],
         // win probability before and after, scorer's side
@@ -543,6 +547,13 @@ async function main() {
   console.log(`  headshots: ${got}/${wanted} referenced players have one`);
 
 
+  // Team colours for the Recap play diagrams (nfldata teamcolors.csv).
+  let teamColors = {};
+  try {
+    const { idx: ci, rows: crows } = parseCsv(await fetchText('https://raw.githubusercontent.com/nflverse/nfldata/master/data/teamcolors.csv'));
+    for (const r of crows) teamColors[r[ci.team]] = [r[ci.color], r[ci.color2] || '#ffffff'];
+  } catch (e) { console.log('  team colours unavailable:', e.message); }
+
   const output = {
     generatedAt: new Date().toISOString(),
     historySeason: HISTORY_SEASON, upcomingSeason: UPCOMING_SEASON,
@@ -558,7 +569,7 @@ async function main() {
     interceptions: picks?.interceptions ?? [], interceptionsHistory: picks?.interceptionsHistory ?? [],
     interceptionModel: picks?.interceptionModel ?? null,
     yards: picks?.yards ?? null, yardsModel: picks?.yardsModel ?? null,
-    liveWeek, parlay, milestones, passerNames, connPos,
+    liveWeek, parlay, milestones, passerNames, connPos, teamColors,
     returners: (picks?.returners?.length ? picks.returners : returners), returnModel,
   };
   fs.writeFileSync(new URL('../nfl/data.json', import.meta.url), JSON.stringify(output));
