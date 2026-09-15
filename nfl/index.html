@@ -1770,6 +1770,14 @@
   .td-replay:hover { color: var(--accent); border-color: var(--accent); }
   .tf-wrap { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
   .tf { display: block; width: 100%; height: auto; }
+  /* phones: the field stands up the screen; a long play scales to fit */
+  .tf.v { max-height: 72vh; margin: 0 auto; }
+  .tf.v .tf-eztext { font-size: 30px; letter-spacing: 4px; }
+  .tf.v .tf-ev-tag text { font-size: 19px; }
+  @media (max-width: 620px) {
+    .td-play .tf-wrap { margin: 0 -0.35rem; }
+    .td-play .td-desc { font-size: 0.85rem; }
+  }
   .tf-grass { fill: #123a26; }
   :root[data-theme="light"] .tf-grass { fill: #2f7d4e; }
   .tf-ez { fill: #0d2c1d; } .tf-ez.score { fill: color-mix(in srgb, var(--accent) 38%, #0d2c1d); }
@@ -4049,7 +4057,7 @@
         const catchPt = [Math.min(118, los + air), side[d.pl] ?? mid];
         ev('Throw', qb, 'qb');
         seg('throw', 'pre', qb, catchPt);
-        ev(catchPt[0] >= 110 ? 'Caught in end zone' : 'Catch', catchPt, 'catch');
+        if (catchPt[0] < 110) ev('Catch', catchPt, 'catch');   // an end-zone catch IS the touchdown marker
         if (catchPt[0] < 110) seg('run', 'post', catchPt, [endX, toward(catchPt[1], 0.3)]);
       } else if (d.scr) {
         const qb = [los - 6, mid], lane = [los + 1, side[d.rl] ?? mid];
@@ -4090,50 +4098,75 @@
     return { segs, events, los: null };
   }
 
-  const tfPathD = (sg) => {
-    const [ax, ay] = sg.a.map(v => v * 10), [bx, by] = sg.b.map(v => v * 10);
+  // Field geometry in one place so the play can be drawn across (desktop) or up
+  // (phones, where a 1200x533 field is a sliver). Field yards in, SVG units out:
+  //   h: x along the length, y across            (1200 x 533)
+  //   v: attacking UP the screen, cropped to the part of the field the play
+  //      used, so a 5-yard score is big and a 99-yarder still fits
+  function tfGeom(vertical, lo) {
+    if (!vertical) return { v: false, P: (x, y) => [x * 10, y * 10], box: '0 0 1200 533', w: 1200, h: 533 };
+    const top = 0, bottom = (120 - lo) * 10;
+    return { v: true, P: (x, y) => [y * 10, (120 - x) * 10], box: `0 ${top} 533 ${bottom - top}`, w: 533, h: bottom - top };
+  }
+  const tfPathD = (sg, G) => {
+    const [ax, ay] = G.P(...sg.a), [bx, by] = G.P(...sg.b);
     if (sg.kind === 'run') return `M${ax},${ay} L${bx},${by}`;
     const lift = Math.min(110, Math.hypot(bx - ax, by - ay) * 0.26);
-    return `M${ax},${ay} Q${(ax + bx) / 2},${Math.min(ay, by) - lift} ${bx},${by}`;
+    // throws and kicks arc toward the top of the screen (across) or the left (up)
+    return G.v ? `M${ax},${ay} Q${Math.min(ax, bx) - lift},${(ay + by) / 2} ${bx},${by}`
+               : `M${ax},${ay} Q${(ax + bx) / 2},${Math.min(ay, by) - lift} ${bx},${by}`;
   };
+  const tdVertical = () => window.matchMedia('(max-width: 620px)').matches;
 
   function tdField(t, d) {
-    const X = (yd) => yd * 10, Y = (yd) => yd * 10;
     const { segs, events, los } = tdRoute(t, d);
+    // crop (vertical only): a little behind the earliest point of the play, through the end zone
+    const xs = segs.flatMap(sg => [sg.a[0], sg.b[0]]).concat(los != null ? [los] : []);
+    const lo = Math.max(0, Math.min(65, (xs.length ? Math.min(...xs) : 60) - 6));
+    const G = tfGeom(tdVertical(), lo);
+    const line = (x1, y1, x2, y2, cls) => { const [a1, b1] = G.P(x1, y1), [a2, b2] = G.P(x2, y2); return `<line x1="${a1}" y1="${b1}" x2="${a2}" y2="${b2}" class="${cls}"/>`; };
+    const rect = (x1, y1, x2, y2, cls) => { const [a1, b1] = G.P(x1, y1), [a2, b2] = G.P(x2, y2); return `<rect x="${Math.min(a1, a2)}" y="${Math.min(b1, b2)}" width="${Math.abs(a2 - a1)}" height="${Math.abs(b2 - b1)}" class="${cls}"/>`; };
     let lines = '';
-    for (let yd = 10; yd <= 110; yd += 5) lines += `<line x1="${X(yd)}" x2="${X(yd)}" y1="0" y2="533" class="tf-line${yd % 10 ? ' five' : ''}"/>`;
-    for (let yd = 11; yd < 110; yd++) if (yd % 5) lines += `<line x1="${X(yd)}" x2="${X(yd)}" y1="${Y(22.9)}" y2="${Y(23.6)}" class="tf-hash"/><line x1="${X(yd)}" x2="${X(yd)}" y1="${Y(29.7)}" y2="${Y(30.4)}" class="tf-hash"/>`;
+    for (let yd = 10; yd <= 110; yd += 5) lines += line(yd, 0, yd, 53.3, `tf-line${yd % 10 ? ' five' : ''}`);
+    for (let yd = 11; yd < 110; yd++) if (yd % 5) lines += line(yd, 22.9, yd, 23.6, 'tf-hash') + line(yd, 29.7, yd, 30.4, 'tf-hash');
     let nums = '';
-    for (let yd = 20; yd <= 100; yd += 10) { const n = yd <= 60 ? yd - 10 : 110 - yd; nums += `<text x="${X(yd)}" y="${Y(8)}" class="tf-num">${n}</text><text x="${X(yd)}" y="${Y(47.5)}" class="tf-num">${n}</text>`; }
-    const losLine = los != null ? `<line x1="${X(los)}" x2="${X(los)}" y1="0" y2="533" class="tf-los"/>` : '';
-    const fd = los != null && d?.tg && los + d.tg < 110 ? `<line x1="${X(los + d.tg)}" x2="${X(los + d.tg)}" y1="0" y2="533" class="tf-fd"/>` : '';
-    // pylons at the four corners of each end zone
-    const pylon = (x, y) => `<rect x="${x - 7}" y="${y - 7}" width="14" height="14" rx="2" class="tf-pylon"/>`;
-    const pylons = [100, 110, 1100, 1190].map(x => x === 100 ? 10 : x === 110 ? 100 : x).map(x => pylon(x === 10 ? 7 : x === 1190 ? 1193 : x, 7) + pylon(x === 10 ? 7 : x === 1190 ? 1193 : x, 526)).join('');
-    // the chain crew on the far sideline: down marker at the line of scrimmage,
-    // the stick at the line to gain, and the chain between them
+    for (let yd = 20; yd <= 100; yd += 10) {
+      const n = yd <= 60 ? yd - 10 : 110 - yd;
+      for (const yy of [8, 45.3]) { const [nx, ny] = G.P(yd, yy); nums += `<text x="${nx}" y="${ny}" class="tf-num">${n}</text>`; }
+    }
+    const losLine = los != null ? line(los, 0, los, 53.3, 'tf-los') : '';
+    const fd = los != null && d?.tg && los + d.tg < 110 ? line(los + d.tg, 0, los + d.tg, 53.3, 'tf-fd') : '';
+    const pylons = [0.7, 10, 110, 119.3].flatMap(x => [0.7, 52.6].map(y => { const [px, py] = G.P(x, y); return `<rect x="${px - 7}" y="${py - 7}" width="14" height="14" rx="2" class="tf-pylon"/>`; })).join('');
+    // chain crew on the sideline at y = 0 (top across, left edge up)
     const chains = los != null && d?.dn && d?.tg ? (() => {
-      const a2 = X(los), b2 = X(Math.min(110, los + d.tg)), goal = los + d.tg >= 110;
-      return `<g class="tf-chains">
-        ${goal ? '' : `<line x1="${a2}" x2="${b2}" y1="16" y2="16" class="tf-chain"/>`}
-        <line x1="${a2}" x2="${a2}" y1="2" y2="30" class="tf-pole"/><rect x="${a2 - 15}" y="2" width="30" height="22" rx="4" class="tf-marker"/><text x="${a2}" y="14" class="tf-marker-num">${d.dn}</text>
-        ${goal ? '' : `<line x1="${b2}" x2="${b2}" y1="2" y2="30" class="tf-pole"/><rect x="${b2 - 9}" y="2" width="18" height="22" rx="4" class="tf-marker"/>`}
-      </g>`;
+      const goal = los + d.tg >= 110, [ax2, ay2] = G.P(los, 0), [bx2, by2] = G.P(Math.min(110, los + d.tg), 0);
+      const mk = (x, y, wide, label) => G.v
+        ? `<rect x="2" y="${y - (wide ? 15 : 9)}" width="22" height="${wide ? 30 : 18}" rx="4" class="tf-marker"/>${label ? `<text x="13" y="${y}" class="tf-marker-num">${label}</text>` : ''}`
+        : `<line x1="${x}" x2="${x}" y1="2" y2="30" class="tf-pole"/><rect x="${x - (wide ? 15 : 9)}" y="2" width="${wide ? 30 : 18}" height="22" rx="4" class="tf-marker"/>${label ? `<text x="${x}" y="14" class="tf-marker-num">${label}</text>` : ''}`;
+      const chain = goal ? '' : G.v ? `<line x1="13" x2="13" y1="${ay2}" y2="${by2}" class="tf-chain"/>` : `<line x1="${ax2}" x2="${bx2}" y1="16" y2="16" class="tf-chain"/>`;
+      return `<g class="tf-chains">${chain}${mk(ax2, ay2, true, d.dn)}${goal ? '' : mk(bx2, by2, false, '')}</g>`;
     })() : '';
-    const paths = segs.map((sg, i) => `<path d="${tfPathD(sg)}" class="tf-seg ${sg.own} ${sg.kind}" data-i="${i}"/>`).join('');
+    const paths = segs.map((sg, i) => `<path d="${tfPathD(sg, G)}" class="tf-seg ${sg.own} ${sg.kind}" data-i="${i}"/>`).join('');
     const evs = events.map((e, i) => {
-      const x = e.pt[0] * 10, y = e.pt[1] * 10, up = y > 120;
-      const w = Math.max(70, e.label.length * 13 + 26), lx = Math.min(1195 - w / 2, Math.max(5 + w / 2, x));
+      if (G.v && e.cls === 'note') return '';   // the gap label crowds the handoff marker on a phone
+      const [x, y] = G.P(...e.pt);
+      const w = Math.max(70, e.label.length * 13 + 26);
+      let tx, ty;
+      if (G.v) {   // beside the path, on whichever side has room
+        tx = x > 266 ? Math.max(5 + w / 2, x - w / 2 - 22) : Math.min(528 - w / 2, x + w / 2 + 22); ty = y;
+      } else {
+        tx = Math.min(1195 - w / 2, Math.max(5 + w / 2, x)); ty = y > 120 ? y - 34 : y + 34;
+      }
       return `<g class="tf-ev ${e.cls}" data-seg="${e.seg}" data-i="${i}">
         <circle cx="${x}" cy="${y}" r="9" class="tf-ev-dot"/>
-        <g class="tf-ev-tag" transform="translate(${lx},${up ? y - 34 : y + 34})"><rect x="${-w / 2}" y="-17" width="${w}" height="34" rx="17"/><text y="1">${e.label}</text></g>
+        <g class="tf-ev-tag" transform="translate(${tx},${ty})"><rect x="${-w / 2}" y="-17" width="${w}" height="34" rx="17"/><text y="1">${e.label}</text></g>
       </g>`;
     }).join('');
-    return `<svg viewBox="0 0 1200 533" class="tf" role="img" aria-label="Diagram of the touchdown">
-      <rect x="0" y="0" width="1200" height="533" class="tf-grass"/>
-      <rect x="0" y="0" width="100" height="533" class="tf-ez"/><rect x="1100" y="0" width="100" height="533" class="tf-ez score"/>
-      <text x="1150" y="266" class="tf-eztext" transform="rotate(90 1150 266)">${t.team} TOUCHDOWN</text>
-      <text x="50" y="266" class="tf-eztext dim" transform="rotate(-90 50 266)">${t.opp}</text>
+    const ezText = (x, label, cls) => { const [cx, cy] = G.P(x, 26.65); return `<text x="${cx}" y="${cy}" class="tf-eztext ${cls}"${G.v ? '' : ` transform="rotate(${x > 60 ? 90 : -90} ${cx} ${cy})"`}>${label}</text>`; };
+    return `<svg viewBox="${G.box}" class="tf${G.v ? ' v' : ''}" role="img" aria-label="Diagram of the touchdown" preserveAspectRatio="xMidYMid meet">
+      ${rect(0, 0, 120, 53.3, 'tf-grass')}
+      ${rect(0, 0, 10, 53.3, 'tf-ez')}${rect(110, 0, 120, 53.3, 'tf-ez score')}
+      ${ezText(115, `${t.team} TOUCHDOWN`, '')}${G.v ? '' : ezText(5, t.opp, 'dim')}
       ${lines}${nums}${losLine}${fd}${pylons}${chains}
       ${paths}
       <ellipse id="tf-shadow" rx="15" ry="6" class="tf-shadow" cx="-50" cy="-50"/>
@@ -4288,7 +4321,14 @@
     back.querySelector('.pk-side-next').disabled = at < 0 || at >= deck.length - 1;
     if (d) requestAnimationFrame(() => { tdAnimate(); if (!document.querySelector('#td-back .tf-seg')) tdWinProb(true); });
   }
+  let tdMq = null;
+  function tdWatchOrientation() {
+    if (tdMq) return;
+    tdMq = window.matchMedia('(max-width: 620px)');
+    tdMq.addEventListener?.('change', () => { if (document.getElementById('td-back')) tdRender(); });
+  }
   function openTd(gid, k) {
+    tdWatchOrientation();
     Object.assign(tdOpen, { gid, k });
     if (!document.getElementById('td-back')) {
       document.body.insertAdjacentHTML('beforeend', `
