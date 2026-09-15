@@ -1864,6 +1864,44 @@
   .pm.tdm .ydm-big strong { font-size: clamp(2.2rem, 5vw, 3rem); }
   .pm.tdm .tsb-row { padding-block: 0.35rem; } .pm.tdm .tsb-pts { font-size: 1.4rem; }
   .tdm-sub { display: none; }
+  .tf-logo { opacity: 0; pointer-events: none; } .tf-logo.show { opacity: 0.28; }
+  .tf-ev .tf-ev-dot { stroke: rgba(8,14,26,0.8); stroke-width: 3; }
+  .tf-ticker { position: absolute; top: 2.1rem; left: 50%; transform: translateX(-50%); pointer-events: none; z-index: 3; }
+  .tf-ticker .tk { display: inline-block; font-family: var(--font-d); font-weight: 700; font-size: 0.9rem; letter-spacing: 0.08em; text-transform: uppercase;
+                   padding: 0.3rem 0.8rem; border-radius: 999px; color: #fff; background: rgba(8,14,26,0.85); border: 1px solid rgba(255,255,255,0.3);
+                   animation: tkIn 1.3s ease-out forwards; }
+  .tf-ticker .tk.catch { border-color: #5aa9ff; } .tf-ticker .tk.int { border-color: #ef4d64; background: rgba(60,10,20,0.9); }
+  @keyframes tkIn { 0% { opacity: 0; transform: translateY(-8px) scale(0.9); } 15% { opacity: 1; transform: none; } 75% { opacity: 1; } 100% { opacity: 0; } }
+  .tf-wrap.final .td-replay { display: none; }
+  .tf-final { position: absolute; inset: 0; display: grid; place-items: center; padding: 0.75rem; z-index: 4;
+              background: radial-gradient(ellipse at center, rgba(6,10,18,0.55), rgba(6,10,18,0.82)); backdrop-filter: blur(2px); }
+  .tf-final[hidden] { display: none; }
+  .tf-final.pop { animation: tffFade 0.35s ease-out; }
+  @keyframes tffFade { from { opacity: 0; } to { opacity: 1; } }
+  .tff-card { text-align: center; max-width: 34rem; }
+  .tf-final.pop .tff-card { animation: tffPop 0.55s cubic-bezier(.2,1.4,.4,1); }
+  @keyframes tffPop { 0% { transform: scale(0.6); opacity: 0; } 100% { transform: none; opacity: 1; } }
+  .tff-head { font-family: var(--font-d); font-weight: 700; font-size: clamp(1.9rem, 6vw, 3.4rem); line-height: 1; letter-spacing: 0.06em; text-transform: uppercase;
+              color: #fff; text-shadow: 0 0 22px var(--tc), 0 3px 0 rgba(0,0,0,0.5); }
+  .tff-sub { margin-top: 0.4rem; font-size: clamp(0.85rem, 2.2vw, 1.05rem); color: #d9e2ef; } .tff-sub b { color: #fff; }
+  .tff-long { margin-top: 0.5rem; font-family: var(--font-d); font-size: clamp(1rem, 3vw, 1.35rem); color: #f2c94c; } .tff-long b { font-size: 1.3em; text-shadow: 0 0 14px rgba(242,201,76,0.6); }
+  .tff-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.35rem; margin-top: 0.65rem; }
+  .tff-chip { font-family: var(--font-d); font-weight: 700; font-size: 0.78rem; padding: 0.28rem 0.6rem; border-radius: 999px; color: #e8eef7;
+              background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.25); }
+  .tff-chip.money { color: #f2c94c; border-color: rgba(242,201,76,0.55); background: rgba(242,201,76,0.12); } .tff-chip.money b { color: #fff; }
+  .tff-chip.money.huge { box-shadow: 0 0 14px rgba(242,201,76,0.45); }
+  .tff-chip.hot { color: #ffb36b; border-color: rgba(255,140,60,0.6); background: rgba(255,120,40,0.14); }
+  .tff-actions { display: flex; justify-content: center; gap: 0.5rem; margin-top: 0.8rem; }
+  .tff-btn { font-family: var(--font-d); font-weight: 700; font-size: 0.85rem; padding: 0.4rem 0.9rem; border-radius: 999px; cursor: pointer;
+             color: #0b0f17; background: #f2c94c; border: none; }
+  .tff-btn.ghost { color: #d9e2ef; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.3); }
+  .tf-fx { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 5; }
+  .tf-fx .fx { position: absolute; font-style: normal; line-height: 1; will-change: transform, opacity; animation-timing-function: cubic-bezier(.3,.1,.6,1); animation-fill-mode: both; }
+  .tf-fx .fx.rain { top: -2.5rem; animation-name: fxRain; }
+  .tf-fx .fx.rise { bottom: -2rem; animation-name: fxRise; }
+  @keyframes fxRain { 0% { transform: translate(0, 0) rotate(0); opacity: 0; } 10% { opacity: 1; } 100% { transform: translate(var(--sx), 115%) translateY(22rem) rotate(var(--rot)); opacity: 0.9; } }
+  @keyframes fxRise { 0% { transform: translate(0, 0) scale(0.6); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(var(--sx), -18rem) scale(1.2) rotate(var(--rot)); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .tf-fx { display: none; } }
   @media (max-width: 620px) {
     .td-row { grid-template-columns: minmax(0, 1fr); gap: 0.55rem; }
     .td-layout { gap: 0.55rem; }
@@ -1882,7 +1920,9 @@
     .td-play .td-conn { font-size: 0.78rem; }
     .td-row .td-side { padding: 0.6rem 0.65rem; }
     .pm.tdm .tsb-row { padding-block: 0.25rem; } .pm.tdm .tsb-pts { font-size: 1.2rem; } .pm.tdm .tsb-abbr { font-size: 0.95rem; }
-    .pm.tdm .tsb-clock span { font-size: 1.15rem; } .pm.tdm .tsb-foot { font-size: 0.66rem; padding: 0.3rem 0.6rem; }
+    .pm.tdm .tsb-clock span { font-size: 1.15rem; } .pm.tdm .tsb-foot { font-size: 0.66rem; padding: 0.3rem 0.6rem; } .pm.tdm .tsb-drive { display: none; }
+    .tff-chip { font-size: 0.68rem; padding: 0.22rem 0.45rem; } .tff-btn { font-size: 0.75rem; padding: 0.32rem 0.7rem; } .tff-actions { margin-top: 0.55rem; }
+    .tf-ticker .tk { font-size: 0.72rem; }
     .pm.tdm .tdwb-ends { font-size: 0.8rem; } .pm.tdm .tdwb-ends b { font-size: 1rem; }
     .tf.v { max-height: 50vh; }
     .td-play .tf-wrap .td-replay { top: auto; left: auto; bottom: 0.45rem; right: 0.45rem; font-size: 0.72rem; padding: 0.2rem 0.55rem; }
@@ -4511,21 +4551,14 @@
       return `<g class="tf-chains">${chain}${mk(ax2, ay2, true, d.dn)}${goal ? '' : mk(bx2, by2, false, '')}</g>`;
     })() : '';
     const ezText = (x, label, cls) => { const [cx, cy] = G.P(x, 26.65); return `<text x="${cx}" y="${cy}" class="tf-eztext ${cls}"${G.v ? '' : ` transform="rotate(${x > 60 ? 90 : -90} ${cx} ${cy})"`}>${label}</text>`; };
-    const placed = [];
+    // where each event happened: a small marker on the field; its label flashes
+    // in the ticker as it happens, so no tag ever sits on top of a player
     const evs = sc.events.map((e, i) => {
-      if (G.v && e.cls === 'note') return '';
+      if (e.cls === 'note' || e.cls === 'td') return '';
       const [x, y] = G.P(...e.at);
-      const w = Math.max(70, e.label.length * 13 + 26), h = 34;
-      const tries = G.v
-        ? [[x > 266 ? -1 : 1, 0], [x > 266 ? 1 : -1, 0], [x > 266 ? -1 : 1, -46], [x > 266 ? -1 : 1, 46], [x > 266 ? -1 : 1, -92], [x > 266 ? -1 : 1, 92]]
-            .map(([sd, dy]) => [Math.min(528 - w / 2, Math.max(5 + w / 2, x + sd * (w / 2 + 44))), y + dy])
-        : [y > 140 ? -1 : 1, y > 140 ? 1 : -1].flatMap(sd => [[0, sd * 96], [0, sd * 138]])
-            .map(([, dy]) => [Math.min(1195 - w / 2, Math.max(5 + w / 2, x)), Math.min(515, Math.max(18, y + dy))]);
-      const clear = ([cx, cy]) => placed.every(r => Math.abs(r[0] - cx) > (r[2] + w) / 2 + 6 || Math.abs(r[1] - cy) > h + 4);
-      const [tx, ty] = tries.find(clear) || tries[0];
-      placed.push([tx, ty, w]);
-      return `<g class="tf-ev ${e.cls}" data-i="${i}"><g class="tf-ev-tag" transform="translate(${tx},${ty})"><rect x="${-w / 2}" y="-17" width="${w}" height="${h}" rx="17"/><text y="1">${e.label}</text></g></g>`;
+      return `<g class="tf-ev ${e.cls}" data-i="${i}"><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${G.v ? 8 : 10}" class="tf-ev-dot"/></g>`;
     }).join('');
+    const home = t.gameId.split('_')[3], [mx, my] = G.P(60, MID), LS = 140;
     const k = G.v ? 1 : 1.45;   // the horizontal field is drawn smaller on screen
     const order = sc.actors.map((a2, i) => i).sort((i, j) => !!sc.actors[i].scorer - !!sc.actors[j].scorer);
     const actorsSvg = order.map(i => {
@@ -4542,7 +4575,7 @@
       ${rect(0, 0, 120, 53.3, 'tf-grass')}
       ${rect(0, 0, 10, 53.3, 'tf-ez')}${rect(110, 0, 120, 53.3, 'tf-ez score', `style="fill:${col.team.fill};fill-opacity:0.55"`)}
       ${ezText(115, `${t.team} TOUCHDOWN`, '')}${G.v ? '' : ezText(5, t.opp, 'dim')}
-      ${lines}${nums}${losLine}${fdLine}${pylons}${chains}
+      ${lines}${nums}<image href="${teamLogo(home)}" x="${mx - LS / 2}" y="${my - LS / 2}" width="${LS}" height="${LS}" class="tf-logo" preserveAspectRatio="xMidYMid meet"/>${losLine}${fdLine}${pylons}${chains}
       <polyline id="tf-pre" class="tf-seg pre" points=""/><polyline id="tf-post" class="tf-seg post" points=""/>
       <g id="tf-actors">${actorsSvg}</g>
       <ellipse id="tf-shadow" rx="15" ry="6" class="tf-shadow" cx="-99" cy="-99"/>
@@ -4568,6 +4601,9 @@
     const SLOW = Math.max(1.05, 1.4 - Math.max(0, sc.T - 3) * 0.1), total = sc.T * SLOW + 0.4;
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     evEls.forEach(e => e.classList.remove('on'));
+    const wrap = svg.closest('.tf-wrap'), ticker = wrap.querySelector('#tf-ticker');
+    tdHideFinal(); ticker.innerHTML = ''; wrap.querySelector('#tf-fx').innerHTML = '';
+    const fired = new Set();
     svg.classList.remove('done');
     tdWinProb(false);
     const lift = (p2, h) => G.v ? [p2[0] - h * 30, p2[1]] : [p2[0], p2[1] - h * 30];
@@ -4617,20 +4653,28 @@
       ball.setAttribute('transform', `translate(${bx.toFixed(1)},${by.toFixed(1)}) rotate(${ang.toFixed(1)}) scale(${scale.toFixed(3)})`);
       pre.setAttribute('points', prePts.join(' ')); post.setAttribute('points', postPts.join(' '));
       evEls.forEach(e => { if (time >= sc.events[+e.dataset.i].t) e.classList.add('on'); });
+      sc.events.forEach((ev, i) => {
+        if (fired.has(i) || time < ev.t || ev.cls === 'td' || (ev.cls === 'note' && G.v)) return;
+        fired.add(i);
+        if (!reduce) ticker.innerHTML = `<span class="tk ${ev.cls}">${ev.label}</span>`;
+      });
       if (!wpShown && tdEv && time >= tdEv.t && !reduce) { wpShown = true; tdWinProb(true); }
       lastT = time;
     };
     if (reduce) {
       for (let tt = 0; tt <= sc.T; tt += 0.02) draw(tt);
-      svg.classList.add('done'); tdWinProb(true); return;
+      svg.classList.add('done'); tdWinProb(true); tdShowFinal(false); return;
     }
+    // the midfield logo only when the field is drawn big enough for it to read
+    const logo = svg.querySelector('.tf-logo');
+    if (logo) { const r = svg.getBoundingClientRect(), pxPerYd = (G.v ? r.width / 53.3 : r.width / 120); logo.classList.toggle('show', pxPerYd >= 5); }
     const t0 = performance.now();
     const frame = (now) => {
       const el = (now - t0) / 1000;
       const time = Math.min(sc.T, Math.max(0, (el - 0.25) / SLOW));
       draw(time);
       if (el < total) tdAnim = requestAnimationFrame(frame);
-      else { svg.classList.add('done'); if (!wpShown) { wpShown = true; tdWinProb(true); } }
+      else { svg.classList.add('done'); if (!wpShown) { wpShown = true; tdWinProb(true); } tdShowFinal(true); }
     };
     draw(0);
     tdAnim = requestAnimationFrame(frame);
@@ -4656,7 +4700,7 @@
     const foot = [
       ord && d?.tg != null ? `<span><b>${ord} &amp; ${d.yl <= d.tg ? 'Goal' : d.tg}</b></span>` : '',
       spot ? `<span>Ball on <b>${spot}</b></span>` : '',
-      dr ? `<span>Drive <b>${dr.n ?? '?'} plays · ${dr.yds ?? 0} yds${dr.top ? ' · ' + dr.top : ''}</b></span>` : '',
+      dr ? `<span class="tsb-drive">Drive <b>${dr.n ?? '?'} plays · ${dr.yds ?? 0} yds${dr.top ? ' · ' + dr.top : ''}</b></span>` : '',
     ].filter(Boolean).join('');
     return `<div class="tsb">
       <div class="tsb-teams">${row(away)}${row(home)}</div>
@@ -4702,6 +4746,69 @@
       </div>
       <p class="tdw-note" id="td-wp-note">${wp[1] >= wp[0] ? '+' : '−'}${Math.abs((wp[1] - wp[0]) * 100).toFixed(1)} points on this play${d.epa != null ? ` · ${d.epa >= 0 ? '+' : ''}${d.epa.toFixed(2)} EPA` : ''}</p>`;
   }
+
+  // ── End of the replay: a card over the field, and a little celebration ──
+  const TD_HEADLINE = { pick6: 'Pick six', fumble: 'Scoop & score', kick: 'Kick return TD', punt: 'Punt return TD', blk: 'Blocked kick TD', def: 'Defensive TD' };
+  function tdMoments(t, d) {
+    const yds = t.yards ?? +([...(d?.desc || '').matchAll(/for (-?\d+) yards?, TOUCHDOWN/g)].pop()?.[1] ?? NaN);
+    const row = liveLogState === 'ready' ? liveLog?.games?.[t.gameId]?.td?.find(r => r[0] === t.pid) : null;
+    const cashed = row ? [['Anytime', row[4], true], ['1st TD', row[6], t.firstTd], ['Last TD', row[7], t.lastTd], ['2+ TDs', row[5], t.multi]]
+      .filter(([, p, hit]) => hit && p > 0) : [];
+    const longest = cashed.reduce((m, c) => (!m || c[1] < m[1] ? c : m), null);
+    return { yds, cashed, longest };
+  }
+  function tdHideFinal() {
+    const f = document.getElementById('tf-final'); if (!f) return;
+    f.hidden = true; f.closest('.tf-wrap')?.classList.remove('final');
+  }
+  function tdShowFinal(animate) {
+    const f = document.getElementById('tf-final'), t = tdRow(); if (!f || !t) return;
+    const d = playsLog?.[`${t.gameId}|${t.k}`], { yds, cashed, longest } = tdMoments(t, d);
+    const full = (nflData.tdLeaders || []).find(l => l.pid === t.pid)?.name || t.player;
+    const what = Number.isFinite(yds) ? `${yds}-yard ${t.type === 'rec' ? 'catch' : t.type === 'rush' ? 'run' : 'return'}` : '';
+    const chips = [
+      ...cashed.map(([lab, p]) => `<span class="tff-chip money${p <= 1 / 11 ? ' huge' : ''}">${lab} <b>${pbOdds(p)}</b></span>`),
+      t.firstTd && !cashed.some(c => c[0] === '1st TD') ? '<span class="tff-chip">1st TD of the game</span>' : '',
+      t.lastTd && !cashed.some(c => c[0] === 'Last TD') ? '<span class="tff-chip">Last TD of the game</span>' : '',
+      t.multi && !cashed.some(c => c[0] === '2+ TDs') ? '<span class="tff-chip">2+ TD game</span>' : '',
+      yds >= 50 ? `<span class="tff-chip hot">${yds >= 80 ? 'House call' : 'Long TD'} · ${yds} yds</span>` : '',
+      d?.wp && t.qtr <= 4 && Math.abs(d.wp[1] - d.wp[0]) >= 0.15 ? `<span class="tff-chip">Win prob ${d.wp[1] >= d.wp[0] ? '+' : '−'}${Math.round(Math.abs(d.wp[1] - d.wp[0]) * 100)}</span>` : '',
+    ].filter(Boolean).join('');
+    const col = tdColors(t.team, t.opp).team;
+    f.style.setProperty('--tc', tdLineColor(col.fill));
+    f.innerHTML = `<div class="tff-card">
+        <div class="tff-head">${TD_HEADLINE[t.subtype] || 'Touchdown'}</div>
+        <div class="tff-sub"><b>${full}</b>${what ? ` · ${what}` : ''}${t.passer ? ` from ${t.passer}` : ''}</div>
+        ${longest && longest[1] <= 0.2 ? `<div class="tff-long">Cashed at <b>${pbOdds(longest[1])}</b></div>` : ''}
+        ${chips ? `<div class="tff-chips">${chips}</div>` : ''}
+        <div class="tff-actions"><button class="tff-btn" onclick="event.stopPropagation();tdAnimate()">↻ Watch again</button><button class="tff-btn ghost" onclick="event.stopPropagation();tdHideFinal()">See the field</button></div>
+      </div>`;
+    f.hidden = false; f.closest('.tf-wrap').classList.add('final');
+    f.classList.toggle('pop', !!animate);
+    if (animate) tdCelebrate(t, yds, longest);
+  }
+  /** emoji that rain or burst over the field: money for a long price that
+   *  cashed, fire for a long touchdown, hands up for a defensive score */
+  function tdCelebrate(t, yds, longest) {
+    const fx = document.getElementById('tf-fx'); if (!fx) return;
+    const sets = [];
+    if (longest && longest[1] <= 1 / 11) sets.push(['rain', ['💸', '💰', '🤑', '💵'], 34]);
+    else if (longest && longest[1] <= 0.2) sets.push(['rain', ['💵', '💸'], 16]);
+    if (yds >= 50) sets.push(['rise', ['🔥', '💨', '🔥'], yds >= 80 ? 22 : 14]);
+    if (t.type === 'def') sets.push(['rise', ['🙌', '🛡️', '💥'], 14]);
+    if (t.type === 'st') sets.push(['rise', ['⚡', '💨'], 14]);
+    if (!sets.length) sets.push(['rise', ['🏈', '✨'], 8]);
+    // a phone-sized field gets fewer, smaller pieces so the card stays readable
+    const scale = Math.min(1, Math.max(0.45, fx.getBoundingClientRect().width / 900));
+    let html = '';
+    for (const [kind, em, n0] of sets) for (let i = 0, n = Math.round(n0 * scale); i < n; i++) {
+      const dur = (kind === 'rain' ? 1.7 : 1.3) + Math.random() * 0.9, delay = Math.random() * 0.8;
+      html += `<i class="fx ${kind}" style="left:${(Math.random() * 96 + 2).toFixed(1)}%;font-size:${((0.8 + Math.random() * 1.0) * (0.6 + 0.4 * scale)).toFixed(2)}rem;animation-duration:${dur.toFixed(2)}s;animation-delay:${delay.toFixed(2)}s;--sx:${(Math.random() * 60 - 30).toFixed(0)}px;--rot:${(Math.random() * 540 - 270).toFixed(0)}deg">${em[i % em.length]}</i>`;
+    }
+    fx.innerHTML = html;
+    clearTimeout(fx._t); fx._t = setTimeout(() => { fx.innerHTML = ''; }, 3600);
+  }
+  window.tdHideFinal = tdHideFinal;
 
   function tdWinProb(scored) {
     const box = document.getElementById('td-wp'), pts = document.getElementById('td-pts'), note = document.getElementById('td-wp-note');
@@ -4759,7 +4866,10 @@
       body = `
       <div class="td-layout">
         <section class="ydm-panel td-play">
-          <div class="tf-wrap">${tdField(t, d)}<button class="td-replay" onclick="tdAnimate()">↻ Replay</button></div>
+          <div class="tf-wrap">${tdField(t, d)}<button class="td-replay" onclick="tdAnimate()">↻ Replay</button>
+            <div class="tf-ticker" id="tf-ticker" aria-live="polite"></div>
+            <div class="tf-final" id="tf-final" hidden onclick="if (event.target === this) tdHideFinal()"></div>
+            <div class="tf-fx" id="tf-fx" aria-hidden="true"></div></div>
           ${d?.desc ? `<p class="td-desc">${d.desc.replace(/</g, '&lt;')}</p>` : ''}
           ${conn}
           <div id="td-odds">${odds || flags}</div>
