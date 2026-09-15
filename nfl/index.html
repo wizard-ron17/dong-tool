@@ -4053,19 +4053,32 @@ let pairStacks = false;
       const key = gran === 'week' ? ('W' + wk) : (nflData.results[t.gameId]?.gameday || (wk + '-' + (t.weekday || '')));
       (slates[t.pid] ??= new Set()).add(key);
     }
-    const pids = Object.keys(slates).filter(p => slates[p].size >= MIN).sort();
+    // Best-supported and best-priced players first, so that when a level has to
+    // be capped the groups kept are the ones anyone would look at.
+    const price = {};
+    for (const pk of (nflData.picks?.picks || [])) price[pk.pid] = pk.p || 0;
+    const pids = Object.keys(slates).filter(p => slates[p].size >= MIN)
+      .sort((a, b) => slates[b].size - slates[a].size || (price[b] || 0) - (price[a] || 0) || (a < b ? -1 : 1));
     const inter = (a, b) => { const [s, l] = a.size <= b.size ? [a, b] : [b, a]; const r = new Set(); for (const x of s) if (l.has(x)) r.add(x); return r; };
     const kcmp = gran === 'week' ? (a, b) => (+a.slice(1)) - (+b.slice(1)) : (a, b) => a < b ? -1 : a > b ? 1 : 0;
     const result = { 2: [], 3: [], 4: [], 5: [] };
-    let level = pids.map(p => ({ pids: [p], set: slates[p] }));
+    // Hard ceiling per group size. Early in a season the minimum co-occurrence
+    // is clamped to the weeks played, so with one week every scorer "pairs" with
+    // every other: 2.3K pairs, 52K trios, 865K quads and 11.2 MILLION quints.
+    // Desktop took 2.4 s; iPhones ran out of memory and killed the tab (the NFL
+    // home page crashed on opening Monday night). The cap keeps it bounded at
+    // any point in the season.
+    const MAX_GROUPS = 3000;
+    let level = pids.map((p, i) => ({ pids: [p], idx: i, set: slates[p] }));
     for (let k = 2; k <= 5; k++) {
       const next = [];
-      for (const g of level) {
-        const last = g.pids[g.pids.length - 1];
-        for (const p of pids) {
-          if (p <= last) continue;
-          const s = inter(g.set, slates[p]);
-          if (s.size >= MIN) next.push({ pids: [...g.pids, p], set: s });
+      outer: for (const g of level) {
+        for (let j = g.idx + 1; j < pids.length; j++) {
+          const s = inter(g.set, slates[pids[j]]);
+          if (s.size >= MIN) {
+            next.push({ pids: [...g.pids, pids[j]], idx: j, set: s });
+            if (next.length >= MAX_GROUPS) break outer;
+          }
         }
       }
       result[k] = next.map(g => ({ pids: g.pids, keys: [...g.set].sort(kcmp), count: g.set.size }))
