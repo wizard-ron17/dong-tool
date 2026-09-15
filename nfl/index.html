@@ -1865,6 +1865,7 @@
   .pm.tdm .ydm-big strong { font-size: clamp(2.2rem, 5vw, 3rem); }
   .pm.tdm .tsb-row { padding-block: 0.35rem; } .pm.tdm .tsb-pts { font-size: 1.4rem; }
   .tdm-sub { display: none; }
+  .kk-tabs { margin: -0.2rem 0 0.8rem; }
   .pm.plm { max-width: 820px; }
   .plm .pl-tabs { margin: 0 0 0.9rem; }
   .pl-body { display: grid; gap: 0.8rem; min-width: 0; }
@@ -2632,6 +2633,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="8" width="19" height="8" rx="1.5"/><path d="M6.5 8v3M10.5 8v4.5M14.5 8v3M18.5 8v4.5"/></svg>
         <span><span class="nm-name">Yards <span class="nm-new">NEW</span></span><span class="nm-desc">Passing, rushing, receiving</span></span>
       </button>
+      <button class="nav-menu-item" data-nav="kickers" onclick="switchNav('kickers')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V9M18 21V9M6 13h12M6 9V3M18 9V3"/><path d="M11 16.5l2-1.2"/></svg>
+        <span><span class="nm-name">Kickers <span class="nm-new">NEW</span></span><span class="nm-desc">FGs, PATs and kicker points</span></span>
+      </button>
       <button class="nav-menu-item" data-nav="returners" onclick="switchNav('returners')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="14.5" cy="4" r="2"/><path d="M13 7.6 L10 13"/><path d="M13.2 9 L17.5 11.2"/><path d="M11.6 9.8 L7.5 8.6"/><path d="M10 13 L13 16 L12.4 21"/><path d="M10 13 L6.2 16.8"/></svg>
         <span><span class="nm-name">Returners <span class="nm-new">NEW</span></span><span class="nm-desc">Punt and kick return volume</span></span>
@@ -2893,6 +2898,27 @@
     </div>
     <div id="interceptions-content"><div class="empty">Loading&hellip;</div></div>
   </div>
+  <div id="panel-kickers" class="panel">
+    <div class="due-explainer" id="kickers-explainer-toggle" onclick="toggleExplainer('kickers')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Kickers Works</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="kickers-explainer-chevron">&#9654;</span>
+      </div>
+      <div class="due-explainer-teaser">Field goals made, PATs made and kicker points for every team on the slate, priced from the game &mdash; not the kicker.</div>
+      <div class="due-explainer-body" id="kickers-explainer-body" style="display:none">
+        <ul>
+          <li><b>Kicker points</b> are 3 for every field goal made plus 1 for every PAT made. Two-point tries score him nothing.</li>
+          <li><b>PATs are touchdowns.</b> The team's implied points (from the spread and total) decide them, and nothing else we tested added anything &mdash; not the weather, not the kicker.</li>
+          <li><b>Field goals are the hard one.</b> The total alone tells you almost nothing. What moves them: being <b>favored</b> (+10% field goals for every touchdown of spread), <b>cold</b> (&minus;5% for every 6&deg; below 50&deg;F) and <b>wind</b> (&minus;3% for every 5 mph). Even so, most games price close to a coin flip at 1.5.</li>
+          <li><b>Underdogs don't kick more field goals &mdash; favorites do.</b> Teams that trail go for it on fourth down instead of kicking.</li>
+          <li><b>The kicker's accuracy isn't in the price.</b> A kicker's make rate over one half of a season barely predicts the other half (correlation 0.02), so it's shown for context only. Rain, snow, domes, altitude, red-zone scoring and the opposing defense all tested as noise too.</li>
+          <li><b>Weather</b> is the forecast at kickoff. Tested on 2019&ndash;2025, every game replayed with only what was known before it.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="kickers-content"><div class="empty">Loading&hellip;</div></div>
+  </div>
   <div id="panel-yards" class="panel">
     <div class="due-explainer" id="yards-explainer-toggle" onclick="toggleExplainer('yards')" aria-expanded="false">
       <div class="due-explainer-head">
@@ -3016,8 +3042,8 @@
   function closeSportMenu() { document.getElementById('sport-menu')?.classList.remove('open'); document.getElementById('sport-switch-btn')?.classList.remove('open'); }
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch')) closeSportMenu(); });
 
-  const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs', 'birthdays', 'due', 'milestones', 'returners', 'receptions', 'completions', 'interceptions', 'yards']; // tools added here as they ship
-  const PAGE_TITLES = { home: "Ron's Tud Tool", stats: "Stats · Ron's Tud Tool", recap: "Recap · Ron's Tud Tool", schedule: "Schedule · Ron's Tud Tool", pairs: "Pairs · Ron's Tud Tool", due: "Due · Ron's Tud Tool", milestones: "Milestones · Ron's Tud Tool", returners: "Returners · Ron's Tud Tool" };
+  const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs', 'birthdays', 'due', 'milestones', 'returners', 'receptions', 'completions', 'interceptions', 'yards', 'kickers']; // tools added here as they ship
+  const PAGE_TITLES = { home: "Ron's Tud Tool", stats: "Stats · Ron's Tud Tool", recap: "Recap · Ron's Tud Tool", schedule: "Schedule · Ron's Tud Tool", pairs: "Pairs · Ron's Tud Tool", due: "Due · Ron's Tud Tool", milestones: "Milestones · Ron's Tud Tool", returners: "Returners · Ron's Tud Tool", kickers: "Kickers · Ron's Tud Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
     activeNav = nav;
@@ -3857,6 +3883,15 @@
         return { pid, name, team, game: vs(team), p: ydPOver(m, L, mu), line: 'o' + L, proj: med.toFixed(0), got: g.final ? got : '', st: state(pid, got > L), miss: Math.abs(got - med) };
       });
     }
+    if (kind === 'kick') {
+      const mkt = kkF.mkt, L = kkF.line;
+      return (g.kicks ?? []).map(([team, pid, name, mf, mp, mt]) => {
+        const b = res?.kick?.[team] ?? [0, 0, 0, 0], mu = { fgm: mf, patm: mp, pts: mt }[mkt];
+        const got = mkt === 'fgm' ? b[0] : mkt === 'patm' ? b[2] : 3 * b[0] + b[2];
+        return { pid: pid || team, name, team, game: vs(team), p: kkOver(mkt, L, mu), line: 'o' + L, proj: mu?.toFixed(1),
+                 got: g.final ? got : '', st: !g.final ? (g.live ? 'live' : 'pend') : got > L ? 'hit' : 'miss' };
+      });
+    }
     if (kind === 'int') return (g.int ?? []).map(([pid, name, team, mu, p05, p15]) => {
       const got = res?.ints?.[pid] ?? 0, L = inF.line;
       return { pid, name, team, game: vs(team), p: L === 1.5 ? p15 : p05, line: 'o' + L, proj: mu?.toFixed(2), got: g.final ? got : '', st: state(pid, got > L) };
@@ -3921,7 +3956,7 @@
     const shown = lrF.all ? rows : rows.slice(0, LIMIT);
     const head = kind === 'td'
       ? `<div class="cp-res head"><span class="cp-res-nm">Player</span><span class="cp-res-line">Price</span><span class="cp-res-proj">${lrF.mkt === '5' ? 'Proj' : 'Chance'}</span><span class="cp-res-act">${lrF.mkt === '5' ? 'TD' : lrF.mkt === '3' || lrF.mkt === '4' ? '' : 'TD'}</span><span class="cp-res-tag"></span></div>`
-      : `<div class="cp-res head"><span class="cp-res-nm">${kind === 'cmp' || kind === 'int' ? 'QB' : 'Player'}</span><span class="cp-res-line">Line</span><span class="cp-res-proj">${kind === 'yds' ? 'Median' : 'Proj'}</span><span class="cp-res-act">Got</span><span class="cp-res-tag"></span></div>`;
+      : `<div class="cp-res head"><span class="cp-res-nm">${kind === 'cmp' || kind === 'int' ? 'QB' : kind === 'kick' ? 'Kicker' : 'Player'}</span><span class="cp-res-line">Line</span><span class="cp-res-proj">${kind === 'yds' ? 'Median' : 'Proj'}</span><span class="cp-res-act">Got</span><span class="cp-res-tag"></span></div>`;
     const list = shown.map(r => `<div class="cp-res ${r.st}">
         <span class="cp-res-nm">${r.name}<span class="cp-res-tm">${r.game}</span></span>
         <span class="cp-res-line">${r.line || pbOdds(r.p)}${r.line ? `<span class="cp-res-od">${pbOdds(r.p)}</span>` : ''}</span>
@@ -3955,6 +3990,11 @@
     if (kind === 'rec') { const n = W.rec[r.pid] ?? 0; return chip(n > line, `${n} rec`); }
     if (kind === 'cmp') { const n = W.cmp[r.pid] ?? 0; return chip(n > line, `${n} cmp`); }
     if (kind === 'int') { const n = W.ints?.[r.pid] ?? 0; return chip(n > line, `${n} INT`); }
+    if (kind === 'kick') {
+      const b = W.kick?.[r.team] ?? [0, 0, 0, 0], mkt = kkF.mkt;
+      const n = mkt === 'fgm' ? b[0] : mkt === 'patm' ? b[2] : 3 * b[0] + b[2];
+      return chip(n > line, mkt === 'pts' ? `${n} pts` : mkt === 'fgm' ? `${b[0]}/${b[1]} FG` : `${b[2]}/${b[3]} PAT`);
+    }
     if (kind === 'yds') {
       const n = r.m === 'pass' ? W.pyds?.[r.pid] : r.m === 'rec' ? W.ryds?.[r.pid] : r.m === 'rr' ? (W.rush?.[r.pid] ?? 0) + (W.ryds?.[r.pid] ?? 0) : W.rush?.[r.pid];
       return chip((n ?? 0) > line, `${n ?? 0} yds`);
@@ -4198,7 +4238,7 @@
     </div>`;
   }
 
-  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); else if (nav === 'birthdays') renderBirthdays(); else if (nav === 'due') renderDue(); else if (nav === 'receptions') renderReceptions(); else if (nav === 'completions') renderCompletions(); else if (nav === 'interceptions') renderInterceptions(); else if (nav === 'yards') renderYards(); else if (nav === 'milestones') renderMilestones(); else if (nav === 'returners') renderReturners(); }
+  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); else if (nav === 'birthdays') renderBirthdays(); else if (nav === 'due') renderDue(); else if (nav === 'receptions') renderReceptions(); else if (nav === 'completions') renderCompletions(); else if (nav === 'interceptions') renderInterceptions(); else if (nav === 'yards') renderYards(); else if (nav === 'kickers') renderKickers(); else if (nav === 'milestones') renderMilestones(); else if (nav === 'returners') renderReturners(); }
   // ESPN team-logo CDN (transparent PNGs). nflverse abbrs are ESPN slugs
   // lowercased, save two: LA(Rams)->lar, WAS->wsh.
   const LOGO_SLUG = { LA: 'lar', WAS: 'wsh' };
@@ -5990,6 +6030,135 @@ let pairStacks = false;
     el.innerHTML = controls + uiView('setIn', inF.view) + body;
   }
 
+  // ── Kickers ─────────────────────────────────────────────────────────────
+  // One row per team. research/kickers.py: PATs are the implied total; FGs
+  // come from being favoured plus cold and wind; the kicker's accuracy is
+  // noise and only shown. FGs and PATs are priced binomial (both under-
+  // dispersed); points from measured actual/projected ratios.
+  const KK_MKTS = {
+    pts: { lab: 'Kicker points', short: 'pts', unit: 'kicker points', lines: [4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5, 11.5], def: 7.5, kind: 'kpts' },
+    fgm: { lab: 'FG made', short: 'FG', unit: 'field goals made', lines: [0.5, 1.5, 2.5, 3.5], def: 1.5, kind: 'kfg' },
+    patm: { lab: 'PATs made', short: 'PAT', unit: 'PATs made', lines: [0.5, 1.5, 2.5, 3.5, 4.5], def: 2.5, kind: 'kpat' },
+  };
+  const kkF = { mkt: 'pts', line: 7.5, sort: 'most', view: 'cards', q: '', tab: 'board', open: false };
+  function setKk(k, v) {
+    kkF[k] = v;
+    if (k === 'mkt') kkF.line = KK_MKTS[v].def;
+    if (k === 'mkt' && kkF.tab === 'results') lrF.all = false;
+    renderKickers();
+  }
+  window.setKk = setKk;
+  window.onKkSearch = () => { kkF.q = document.getElementById('kk-search')?.value || ''; refocusSearch('kk-search', renderKickers); };
+  window.clearKkSearch = () => { kkF.q = ''; renderKickers(); };
+  const kkAll = () => (nflData?.kickers || []).map(r => ({ ...r, pid: r.pid || `K-${r.team}`, pos: 'K' }));
+  function kkPmf(mkt, mu) {
+    if (mkt === 'pts') {
+      const M = nflData.kickerModel?.pts; if (!M) return [1];
+      let b = 0; while (b < 4 && mu >= M.edges[b + 1]) b++;
+      // the table is 101 quantiles; reading it as a smooth CDF avoids gappy bars
+      const q = M.q[b], cdfAt = (x) => {                  // share of ratios * mu <= x
+        const t = x / mu; if (t <= q[0]) return 0; if (t >= q[100]) return 1;
+        let i = 0; while (q[i + 1] < t) i++;
+        return (i + (q[i + 1] > q[i] ? (t - q[i]) / (q[i + 1] - q[i]) : 1)) / 100;
+      };
+      const K = Math.max(12, Math.ceil(q[99] * mu) + 1), pmf = [];
+      for (let k = 0; k <= K; k++) pmf.push(Math.max(0, cdfAt(k + 0.5) - (k ? cdfAt(k - 0.5) : 0)));
+      pmf[K] += 1 - cdfAt(K + 0.5);
+      return pmf;
+    }
+    const disp = nflData.kickerModel?.disp?.[mkt] ?? 0.9;
+    const pr = Math.min(0.98, Math.max(0.02, 1 - disp)), n = Math.max(1, Math.round(mu / pr)), pp = Math.min(1 - 1e-6, mu / n);
+    const out = [];
+    let lc0 = 0;
+    let cum = 0;
+    for (let k = 0; k <= Math.min(n, 12); k++) {
+      if (k > 0) lc0 += Math.log((n - k + 1) / k);
+      const v = Math.exp(lc0 + k * Math.log(pp) + (n - k) * Math.log1p(-pp));
+      out.push(v); cum += v;
+      if (k >= 4 && cum > 0.998) break;
+    }
+    return out;
+  }
+  const kkOver = (mkt, L, mu) => Math.min(0.995, Math.max(0.005, kkPmf(mkt, mu).reduce((a, v, k) => a + (k > L ? v : 0), 0)));
+  // priced here from the same distribution the card draws, so board and card never disagree
+  const kkP = (r, mkt = kkF.mkt, L = kkF.line) => kkOver(mkt, L, r.mu[mkt]);
+  function kkRows() {
+    const q = pbNorm(kkF.q.trim());
+    return dayScope(kkAll().map(r => ({ ...r, L: kkF.line, pp: kkP(r) })))
+      .sort((a, b) => kkF.sort === 'most' ? b.pp - a.pp : a.pp - b.pp)
+      .map((r, i) => ({ ...r, rank: i + 1 }))
+      .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q) || pbNorm(r.opp).includes(q));
+  }
+  const kkWx = (f) => f.indoor ? 'dome' : [f.temp != null ? `${f.temp}°F` : null, f.windKnown ? `${Math.round(f.wind)} mph` : null].filter(Boolean).join(' · ') || 'outdoors';
+  const kkNotes = (r) => {
+    const n = [], x = r.f.x?.fgm || {};
+    if ((x.cold ?? 1) < 0.95) n.push(`<span class="rc-wind" title="Cold costs field goals — already in the price (×${x.cold.toFixed(2)})">cold</span>`);
+    if ((x.wind ?? 1) < 0.95) n.push(`<span class="rc-wind" title="Wind costs field goals — already in the price (×${x.wind.toFixed(2)})">windy</span>`);
+    if (r.f.fav >= 7) n.push(`<span class="rc-wind" title="Big favorites kick more field goals — already in the price">big fav</span>`);
+    return n.join('');
+  };
+  const kkProj = (r, mkt = kkF.mkt) => mkt === 'pts' ? r.mu.pts.toFixed(1) : r.mu[mkt].toFixed(1);
+
+  function renderKickers() {
+    const el = document.getElementById('kickers-content'); if (!el) return;
+    if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
+    if (nflData === 'error') { el.innerHTML = `<div class="empty">Couldn't load NFL data. <a href="javascript:void(0)" onclick="loadNfl()">Retry</a></div>`; return; }
+    const tabs = uiTabs('setKk', kkF.tab);
+    const M = KK_MKTS[kkF.mkt];
+    const mktChips = Object.entries(KK_MKTS).map(([k, m]) => uiChip('setKk', 'mkt', k, m.lab, kkF.mkt)).join('');
+    if (kkF.tab === 'results') {
+      el.innerHTML = tabs + `<div class="pbf-chips" style="margin-bottom:0.6rem">${mktChips}</div>` + liveResults('kick', 'setLr');
+      return;
+    }
+    if (!(nflData.kickers || []).length) { el.innerHTML = tabs + '<div class="empty">No prices yet — they fill in once the slate has lines.</div>'; return; }
+    const rows = kkRows();
+    const controls = tabs + `
+      <div class="pbf-chips" style="margin-bottom:0.6rem">${mktChips}</div>
+      ${uiFilters('setKk', kkF.open, [
+        ['Line', M.lines.map(L => uiChip('setKk', 'line', L, 'o' + L, kkF.line)).join('')],
+        ['Sort', uiChip('setKk', 'sort', 'most', 'Most likely', kkF.sort) + uiChip('setKk', 'sort', 'least', 'Least likely', kkF.sort)],
+      ], (kkF.line !== M.def) + (kkF.sort !== 'most'))}
+      <div class="pb-search">
+        <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        <input type="text" id="kk-search" placeholder="Search a kicker or team…" value="${kkF.q.replace(/"/g, '&quot;')}" oninput="onKkSearch()" autocomplete="off" spellcheck="false">
+        <button class="pb-search-x" onclick="clearKkSearch()" aria-label="Clear"${kkF.q ? ' style="display:flex"' : ''}>×</button>
+      </div>
+      <div class="pb-head"><span class="pb-week">${WK_LABEL(firstUpcomingWeek())}</span><span class="pb-meta">${rows.length} kickers · over ${kkF.line} ${M.unit} · fair odds, no vig</span></div>${dayBar()}`;
+    if (!rows.length) { el.innerHTML = controls + '<div class="empty">Nothing matches that search.</div>'; return; }
+    const under = (r) => pbOdds(1 - r.pp);
+    let body;
+    if (kkF.view === 'table') {
+      body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>Kicker</th><th>Game</th><th class="num">Team total</th><th class="num">Spread</th><th class="num">Weather</th><th class="num">Proj</th><th class="num">Over</th><th class="num">Under</th></tr></thead><tbody>${rows.map(r => `
+        <tr onclick="openKick('${r.pid}')"><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
+          <td class="num dim">${r.f.implied.toFixed(1)}</td><td class="num dim">${spreadTxt(r.f.fav)}</td><td class="num dim">${kkWx(r.f)}</td><td class="num">${kkProj(r)}</td>
+          <td class="num"><b class="${r.pp < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.pp)}</b></td><td class="num dim">${under(r)}</td></tr>`).join('')}</tbody></table></div>`;
+    } else if (kkF.view === 'compact') {
+      body = `<div class="rc-compact">${rows.map(r => `
+        <div class="rc-crow" onclick="openKick('${r.pid}')"><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
+          <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${kkProj(r)}</span>
+          <span class="rc-cod ${r.pp < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.pp)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
+    } else {
+      body = `<div class="pb-list">${rows.map(r => `
+        <div class="pb-card" onclick="openKick('${r.pid}')">
+          <div class="pb-rank">${r.rank}</div>${faceHtml(r.pid, r.name)}
+          <div class="pb-info">
+            <div class="pb-nm">${r.name}</div>
+            <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
+              ${liveChip('kick', r, r.L)}${kkNotes(r)}</div>
+          </div>
+          <div class="pb-facts">
+            <span class="pb-f" title="Points his team is expected to score, from the spread and total"><b>${r.f.implied.toFixed(1)}</b> team total</span>
+            <span class="pb-f" title="Point spread — favorites kick more field goals"><b>${spreadTxt(r.f.fav)}</b></span>
+            <span class="pb-f" title="Forecast at kickoff — cold and wind cost field goals"><b>${kkWx(r.f)}</b></span>
+          </div>
+          <div class="pb-price"><span class="pb-odds${r.pp < 0.5 ? ' dog' : ''}">${pbOdds(r.pp)}</span><span class="pb-pct">over ${r.L} · proj ${kkProj(r)}</span></div>
+        </div>`).join('')}</div>`;
+    }
+    el.innerHTML = controls + uiView('setKk', kkF.view) + body;
+  }
+  window.openKick = (pid) => openLc(KK_MKTS[kkF.mkt].kind, pid);
+  window.lcKind = (kind) => { const r = lcRow(); lc.kind = kind; if (r) lc.line = lcPick(lcRow(), lcPmf(lcRow())); lcRender(); };
+
   // 2025 backtest: the latest full week, every starter, what happened.
   function renderIntBacktest() {
     const H = nflData.interceptionsHistory || [];
@@ -6156,6 +6325,8 @@ let pairStacks = false;
     spread: '<path d="M4 8h16M4 16h16"/><path d="M8 5l-3 3 3 3M16 13l3 3-3 3"/>',
     run: '<circle cx="14.5" cy="4.5" r="2"/><path d="M13 8l-3 5.5 3 3-.6 4.5M10 13.5l-3.8 3.8M13.2 9.4l4.3 2.2M11.6 10.2l-4.1-1.2"/>',
     arm: '<path d="M4 15c3-1 5.5-3.8 7-7.5M11 7.5l4.5-3 3.5 2.5-3 4.5M8.5 18.5l2.5-4"/>',
+    wind: '<path d="M3 8.5h10.5a3 3 0 1 0-3-3M3 12.5h15a3 3 0 1 1-3 3M3 16.5h7"/>',
+    temp: '<path d="M10 14.2V5a2 2 0 0 1 4 0v9.2a4 4 0 1 1-4 0z"/><path d="M12 9.5v6.5"/>',
     bulb: '<path d="M9 17.5h6M10 20.5h4M12 3.5a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V17h5v-.6c0-.8.4-1.5 1-2A6 6 0 0 0 12 3.5z"/>',
   };
   const ydIco = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${YD_ICON[k]}</svg>`;
@@ -6427,11 +6598,37 @@ let pairStacks = false;
       tip: (r) => `${r.f.attSum ? `Last two seasons: ${r.f.ints} INTs on ${r.f.attSum} attempts. ` : ''}His raw interception rate is not in the price — it swings too much to predict the next game.`,
     },
   };
+  // Kickers: one card, three markets (switchable inside the card)
+  const kkCfg = (mkt) => ({
+    rows: () => kkRows(), all: () => kkAll(), unit: KK_MKTS[mkt].unit, market: mkt,
+    lines: [KK_MKTS[mkt].lines[0], KK_MKTS[mkt].lines[KK_MKTS[mkt].lines.length - 1] + (mkt === 'pts' ? 3 : 1)],
+    pmf: (r) => kkPmf(mkt, r.mu[mkt]),
+    big: (r) => [kkProj(r, mkt), mkt === 'pts' ? 'Projected kicker points' : mkt === 'fgm' ? 'Projected FGs made' : 'Projected PATs made'],
+    tabs: (r) => `<div class="sub-tabs u-tabs kk-tabs">${Object.entries(KK_MKTS).map(([k, m]) =>
+      `<button class="sub-btn${k === mkt ? ' active' : ''}" onclick="lcKind('${m.kind}')">${m.lab}</button>`).join('')}</div>`,
+    metrics: (r) => {
+      const f = r.f, x = mkt === 'patm' ? (f.x?.patm || {}) : (f.x?.fgm || {}), cur = r.s?.cur || {}, prev = r.s?.prev || {};
+      // pulls are on expected FGs (or PATs); points mix the two, so that tab shows none
+      const pull = (v) => mkt === 'pts' || v == null || Math.abs(v - 1) < 0.005 ? '' : ` ${v >= 1 ? '+' : '−'}${Math.abs((v - 1) * 100).toFixed(0)}%`;
+      const yr = nflData.upcomingSeason ?? nflData.historySeason;
+      const out = [['team', f.implied.toFixed(1), 'Team total' + pull(x.implied)]];
+      if (mkt !== 'patm') out.push(['spread', spreadTxt(f.fav), 'Spread' + pull(x.fav)],
+        ['wind', f.indoor ? 'dome' : f.windKnown ? Math.round(f.wind) + ' mph' : '—', 'Wind' + pull(x.wind)],
+        ['temp', f.indoor ? 'dome' : f.temp != null ? f.temp + '°F' : '—', 'Temperature' + pull(x.cold)]);
+      out.push(['target', cur.fga ? `${cur.fgm}/${cur.fga}` : '—', `FG ${yr}`], ['bars', prev.fga ? `${prev.fgm}/${prev.fga}` : '—', `FG ${yr - 1}`],
+        ['clock', Math.max(cur.long || 0, prev.long || 0) || '—', 'Long, 2 seasons'], ['ball', cur.pata ? `${cur.patm}/${cur.pata}` : prev.pata ? `${prev.patm}/${prev.pata}` : '—', `PAT ${cur.pata ? yr : yr - 1}`]);
+      return out;
+    },
+    sub: () => mkt === 'pts' ? 'How real kicker-point totals spread around projections like this one' : 'Spread around the projection — kicks vary less than a simple average suggests',
+    tip: () => `His make rate is shown for context only: a kicker's accuracy over half a season barely predicts the next half, so the price comes from the game — the total${mkt === 'patm' ? '' : ', the spread and the weather'}.`,
+  });
+  LC.kfg = kkCfg('fgm'); LC.kpat = kkCfg('patm'); LC.kpts = kkCfg('pts');
   const lcRow = () => LC[lc.kind]?.all().find(x => x.pid === lc.pid);
 
   /** P(X = k) for k = 0..K. NB2 from the model, or a rookie baseline's counts. */
   function lcPmf(r) {
     const cfg = LC[lc.kind];
+    if (cfg.pmf) return cfg.pmf(r);
     if (r.tq) {
       const K = Math.max(6, Math.ceil(Math.max(...r.tq)) + 1), pmf = new Array(K + 1).fill(0);
       for (const v of r.tq) pmf[Math.min(K, Math.max(0, Math.round(v)))] += 1 / r.tq.length;
@@ -6588,6 +6785,7 @@ let pairStacks = false;
         <div class="ydm-id"><h2>${r.name}</h2><div class="ydm-meta"><b>${r.pos || 'QB'}</b><span>•</span>${r.team} ${r.home ? 'vs' : '@'} ${r.opp}<img src="${teamLogo(r.team)}" alt="" loading="lazy">${at >= 0 ? `<span class="ydm-count">${at + 1} / ${deck.length}</span>` : ''}${tags}</div></div>
         <div class="ydm-big"><div><span>${bigL}</span><span>${lc.kind === 'int' ? `Proj <b>${r.mu.toFixed(2)}</b>` : `Median <b>${pmf.reduce((a, v, k) => a.c >= 0.5 ? a : { c: a.c + v, k }, { c: 0, k: 0 }).k}</b>`}</span></div><strong>${bigV}</strong></div>
       </header>
+      ${cfg.tabs ? cfg.tabs(r) : ''}
       <div class="ydm-grid">
         <div class="ydm-main">
           <section class="ydm-panel">
@@ -7100,6 +7298,10 @@ let pairStacks = false;
       <div class="hm-row">${faceHtml(r.pid, r.name)}
         <span class="hm-name">${r.name}<span class="hm-subtle">${r.pos} ${r.team} ${r.home ? 'vs' : '@'} ${r.opp} · receiving</span></span>
         <span class="hm-score hot">${r.med.toFixed(0)}<span class="hm-subtle" style="font-size:0.766rem"> yds</span></span></div>`).join('');
+    const kkHomeRows = upcoming(kkAll()).slice(0, 3).map(r => `
+      <div class="hm-row">${faceHtml(r.pid, r.name)}
+        <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} ${r.home ? 'vs' : '@'} ${r.opp} · ${pbOdds(kkP(r, 'pts', 7.5))} over 7.5</span></span>
+        <span class="hm-score hot">${r.mu.pts.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> pts</span></span></div>`).join('');
     const intHomeRows = upcoming(nflData.interceptions || []).slice(0, 3).map(r => `
       <div class="hm-row">${faceHtml(r.pid, r.name)}
         <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} ${r.home ? 'vs' : '@'} ${r.opp} · over 0.5</span></span>
@@ -7131,6 +7333,7 @@ let pairStacks = false;
           ${card('yards', 'Yards', 'Yards', ydHomeRows, 'Projections fill in once the slate has lines.')}
           ${card('completions', 'Completions', 'Completions', cmpHomeRows, 'Projections fill in once the slate has lines.')}
           ${card('interceptions', 'Interceptions', 'Interceptions', intHomeRows, 'Prices fill in once the slate has lines.')}
+          ${card('kickers', 'Kickers', 'Kickers', kkHomeRows, 'Prices fill in once the slate has lines.')}
         </div>
         <div class="hm-col">
           ${card('schedule', `Week ${w} · ${games.length} Games`, 'Schedule', gameRows, 'No games scheduled.')}

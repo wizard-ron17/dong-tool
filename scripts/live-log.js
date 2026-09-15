@@ -54,6 +54,8 @@ const nearest = (lines, mu) => lines.reduce((b, L) => (Math.abs(L - mu) < Math.a
  *   cmp  [pid, name, team, mu, line, p(over line)]
  *   int  [pid, name, team, mu, p(over 0.5), p(over 1.5)]
  *   yds  { pass|rush|rec|rr: [pid, name, team, pos, market, mean, median] }
+ *   kicks [team, pid, name, mu FG made, mu PAT made, mu kicker points] — graded by team
+ *         (not "kick": that is the entry's kickoff time)
  * rec/cmp keep the projection, so the app can price any other line from the
  * model's alpha without storing the whole ladder.
  */
@@ -82,6 +84,10 @@ function boardFor(gameId, b) {
     for (const [k, rows] of Object.entries(b.yards))
       out.yds[k] = rows.filter(r => r.gameId === gameId).map(r => [r.pid, r.name, r.team, r.pos, r.m, r.mu, r.med]);
   }
+  if (b.kickers?.length) {
+    out.kicks = b.kickers.filter(r => r.gameId === gameId)
+      .map(r => [r.team, r.pid, r.name, r3(r.mu.fgm), r3(r.mu.patm), r2(r.mu.pts)]);
+  }
   if (b.interceptions?.length) {
     out.int = b.interceptions.filter(r => r.gameId === gameId)
       .map(r => [r.pid, r.name, r.team, r3(r.mu), r3(r.p['0.5']), r3(r.p['1.5'])]);
@@ -108,7 +114,7 @@ export function snapshot(log, schedule, board, now = new Date()) {
       id: g.gameId, season: board.season, week: g.week, kick: kick.toISOString(),
       away: g.away, home: g.home, snapAt: board.generatedAt,
       td: rows.td ?? prev?.td, pass: rows.pass ?? prev?.pass,
-      rec: rows.rec ?? prev?.rec, cmp: rows.cmp ?? prev?.cmp, int: rows.int ?? prev?.int, yds: rows.yds ?? prev?.yds,
+      rec: rows.rec ?? prev?.rec, cmp: rows.cmp ?? prev?.cmp, int: rows.int ?? prev?.int, yds: rows.yds ?? prev?.yds, kicks: rows.kicks ?? prev?.kicks,
       final: false, res: null,
     };
     wrote++;
@@ -140,6 +146,7 @@ const statIdx = (cat, label) => cat.labels.indexOf(label);
  */
 function readBox(summary, espnToGsis, nameTeamToGsis) {
   const td = {}, ptd = {}, rec = {}, cmp = {}, att = {}, ints = {}, pyds = {}, rush = {}, ryds = {}, inBox = new Set();
+  const kick = {};                                   // team -> [FG made, FG att, XP made, XP att]
   const names = [];                                  // [displayName, gsis] for scoring-play text
   const gsisOf = (ath, team) => espnToGsis.get(String(ath.id))
     ?? nameTeamToGsis.get(`${(ath.displayName || '').toLowerCase()}|${team}`) ?? null;
@@ -147,6 +154,14 @@ function readBox(summary, espnToGsis, nameTeamToGsis) {
     const team = ESPN_TEAM[side.team.abbreviation] ?? side.team.abbreviation;
     for (const cat of side.statistics ?? []) {
       for (const a of cat.athletes ?? []) {
+        // kicking is graded by team, so it needs no id match
+        if (cat.name === 'kicking') {
+          const ks = a.stats || [];
+          const [fm, fa] = String(ks[statIdx(cat, 'FG')] || '0/0').split('/').map(Number);
+          const [xm, xa] = String(ks[statIdx(cat, 'XP')] || '0/0').split('/').map(Number);
+          const t2 = kick[team] ?? [0, 0, 0, 0];
+          kick[team] = [t2[0] + (fm || 0), t2[1] + (fa || 0), t2[2] + (xm || 0), t2[3] + (xa || 0)];
+        }
         const pid = gsisOf(a.athlete, team);
         if (!pid) continue;
         inBox.add(pid);
@@ -181,7 +196,7 @@ function readBox(summary, espnToGsis, nameTeamToGsis) {
   });
   const scorer = (p) => (names.find(([n]) => (p.text || '').startsWith(n)) || [])[1] ?? null;
   return {
-    td, ptd, rec, cmp, att, ints, pyds, rush, ryds, inBox: [...inBox],
+    td, ptd, rec, cmp, att, ints, pyds, rush, ryds, kick, inBox: [...inBox],
     first: tdPlays.length ? scorer(tdPlays[0]) : null,
     last: tdPlays.length ? scorer(tdPlays[tdPlays.length - 1]) : null,
   };
@@ -195,7 +210,7 @@ function readBox(summary, espnToGsis, nameTeamToGsis) {
 export async function grade(log, loadIds, now = new Date()) {
   // Also re-read a final game graded before a stat was tracked (interceptions
   // arrived after week 1 was already graded) — once, then it has the field.
-  const stale = (g) => g.final && g.res && (g.res.ints === undefined || g.res.ryds === undefined);
+  const stale = (g) => g.final && g.res && (g.res.ints === undefined || g.res.ryds === undefined || g.res.kick === undefined);
   const due = Object.values(log.games).filter(g => (!g.final && new Date(g.kick) <= now) || stale(g));
   if (!due.length) return { graded: 0 };
   let ids = null, graded = 0;

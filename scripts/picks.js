@@ -25,6 +25,8 @@ import { REL, fetchText, fetchOptional, parseCsv, num } from './nflverse.js';
 import { loadWind } from './wind.js';
 import { skillYardsFeatures, qbYardsFeatures, startKeys, scoreMu as ydsMu, quantile as ydsQ,
          YARDS_MODEL, thinQuantiles, thinTier, thinOver, qMean, qMedian, THIN_MIN_SNAP } from './yards.js';
+import { kickerFeatures, muFgm, muPat, pOverFgm, pOverPat, pOverPts, contributions as kickParts,
+         KICK_LINES, KICKERS_MODEL } from './kickers.js';
 import { interceptionFeatures, scoreMu as intMu, pOver as intOver, thinFactor as intThin,
          contributions as intParts, INT_LINES, INTERCEPTIONS_MODEL } from './interceptions.js';
 import { completionFeatures, scoreMu as cmpMu, pOver as cmpOver, CMP_LINES,
@@ -566,6 +568,8 @@ export async function loadPbpLogs(seasons) {
   const windLog = new Map();    // `${team}|${season}|${week}` -> wind mph as played
   const defLog = new Map();     // defteam -> [{season, week, att, cmp}] faced
   const rushLog = new Map();    // pid -> [{season, week, car, yds, team}]
+  const kickLog = new Map();    // kicker pid -> [{season, week, team, name, fga, fgm, fga50, fgm50, long, pata, patm}]
+  const tempLog = new Map();    // `${team}|${season}|${week}` -> temperature F as played (blank indoors)
   for (const y of seasons) {
     const txt = await fetchOptional(`${REL}/pbp/play_by_play_${y}.csv`);
     if (!txt) { console.log(`  pbp ${y}: not published yet`); continue; }
@@ -574,6 +578,7 @@ export async function loadPbpLogs(seasons) {
     const qb  = new Map();        // `${pid}|${week}` -> { att, ptd, cmp, team }
     const dfPass = new Map();     // `${defteam}|${week}` -> { att, cmp } faced
     const ru = new Map();         // `${pid}|${week}` -> { car, yds, team }
+    const kw = new Map();         // `${kicker}|${week}` -> kicking line
     const td  = new Map();        // `${pid}|${week}` -> { n, team }
     const rc  = new Map();        // `${pid}|${week}` -> { rec, tgt, air, n, team }
     const tmPass = new Map();     // `${team}|${week}` -> pass attempts
@@ -593,6 +598,28 @@ export async function loadPbpLogs(seasons) {
         if (!windLog.has(wk2)) {
           const w2 = num(r[idx.wind]);
           if (w2 != null) windLog.set(wk2, w2);
+        }
+        if (!tempLog.has(wk2)) {
+          const t2 = num(r[idx.temp]);
+          if (t2 != null) tempLog.set(wk2, t2);
+        }
+      }
+      // Kicking, for the Kickers board's season lines (display only — a
+      // kicker's accuracy is noise and is not in the price)
+      {
+        const isFg = r[idx.field_goal_attempt] === '1', isXp = r[idx.extra_point_attempt] === '1';
+        const kid = r[idx.kicker_player_id];
+        if ((isFg || isXp) && kid) {
+          const k = `${kid}|${r[idx.week]}`;
+          const e = kw.get(k) ?? { team: r[idx.posteam], name: r[idx.kicker_player_name] || '', fga: 0, fgm: 0, fga50: 0, fgm50: 0, long: 0, pata: 0, patm: 0 };
+          if (isFg) {
+            const dist = num(r[idx.kick_distance]) ?? 0, made = r[idx.field_goal_result] === 'made';
+            e.fga++; if (dist >= 50) e.fga50++;
+            if (made) { e.fgm++; if (dist >= 50) e.fgm50++; e.long = Math.max(e.long, dist); }
+          } else {
+            e.pata++; if (r[idx.extra_point_result] === 'good') e.patm++;
+          }
+          kw.set(k, e);
         }
       }
       // Returns. Kept per (pid, TEAM) rather than per pid: a returner who
@@ -703,6 +730,10 @@ export async function loadPbpLogs(seasons) {
       (passLog.get(pid) ?? passLog.set(pid, []).get(pid))
         .push({ season: y, week: +wk, att: v.att, ptd: v.ptd, cmp: v.cmp, int: v.int, bad: v.bad, pyds: v.pyds, team: v.team, name: v.name });
     }
+    for (const [k, v] of kw) {
+      const [pid, wk] = k.split('|');
+      (kickLog.get(pid) ?? kickLog.set(pid, []).get(pid)).push({ season: y, week: +wk, ...v });
+    }
     for (const [k, v] of ru) {
       const [pid, wk] = k.split('|');
       (rushLog.get(pid) ?? rushLog.set(pid, []).get(pid)).push({ season: y, week: +wk, car: v.car, yds: v.yds, team: v.team });
@@ -740,7 +771,7 @@ export async function loadPbpLogs(seasons) {
   for (const v of recLog.values()) v.sort(bySeasonWeek);
   for (const v of defLog.values()) v.sort(bySeasonWeek);
   for (const v of rushLog.values()) v.sort(bySeasonWeek);
-  return { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog, defLog, rushLog };
+  return { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog, defLog, rushLog, kickLog, tempLog };
 }
 
 /** Back-compat wrapper — dump-features.js only wants the red-zone half. */
@@ -808,13 +839,18 @@ async function loadRoster(season) {
 async function loadDepthChart(season) {
   const byId = new Map();
   const txt = await fetchOptional(`${REL}/depth_charts/depth_charts_${season}.csv`);
-  if (!txt) { console.log('  depth chart: not published'); return byId; }
+  if (!txt) { console.log('  depth chart: not published'); byId.kickers = new Map(); return byId; }
   const { idx, rows } = parseCsv(txt);
   if (idx.pos_rank == null || idx.dt == null) return byId;
   let latest = '';
   for (const r of rows) if (r[idx.dt] > latest) latest = r[idx.dt];
+  byId.kickers = new Map();     // team -> [{pid, name, rank}], for the Kickers board
   for (const r of rows) {
     if (r[idx.dt] !== latest) continue;
+    if (r[idx.pos_abb] === 'PK' && r[idx.gsis_id] && +r[idx.pos_rank]) {
+      const arr = byId.kickers.get(r[idx.team]) ?? byId.kickers.set(r[idx.team], []).get(r[idx.team]);
+      if (!arr.some(x => x.pid === r[idx.gsis_id])) arr.push({ pid: r[idx.gsis_id], name: r[idx.player_name], rank: +r[idx.pos_rank] });
+    }
     const pid = r[idx.gsis_id];
     const rank = +r[idx.pos_rank];
     if (!pid || !rank) continue;
@@ -910,7 +946,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
 
   const { xwalk, birth, shot } = await loadPlayers();
   const snapLog = await loadSnapLog(snapSeasons, xwalk);
-  const { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog, defLog, rushLog } = await loadPbpLogs(rzSeasons);
+  const { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog, defLog, rushLog, kickLog } = await loadPbpLogs(rzSeasons);
   const roster = await loadRoster(upcomingSeason);
   const depth = await loadDepthChart(upcomingSeason);
   const { byWeek, outIds, questionable = new Set() } = await loadInjuries(season, week);
@@ -1076,7 +1112,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
 
   // Wind for this week's games. Inert until now: the model has always carried
   // the feature and the build always passed 0.
-  const { wind: windByGame, skip: windSkip } = await loadWind(games);
+  const { wind: windByGame, temp: tempByGame = new Map(), skip: windSkip } = await loadWind(games);
   {
     const vals = [...windByGame.values()];
     const windy = vals.filter(v => v >= 15).length;
@@ -1224,6 +1260,53 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     const said = interceptionsHistory.reduce((a, x) => a + x.rows.reduce((b, r) => b + r[1], 0), 0);
     const hit = interceptionsHistory.reduce((a, x) => a + x.rows.filter(r => r[2] >= 1).length, 0);
     console.log(`  interceptions history: ${n} starts, said ${(100 * said / Math.max(n, 1)).toFixed(1)}% 1+ INT, hit ${(100 * hit / Math.max(n, 1)).toFixed(1)}%`);
+  }
+
+  // ── Kickers ─────────────────────────────────────────────────────────────
+  // One row per team. The price is the game — implied total, spread, the
+  // forecast cold and wind — since the kicker's own accuracy tested as noise.
+  // The kicker is the depth chart's first place-kicker not ruled out, else
+  // whoever kicked for the team most recently.
+  const kickers = [];
+  {
+    const lastKicker = new Map();               // team -> {pid, name, season, week}
+    for (const [pid, arr] of kickLog) for (const e of arr) {
+      const cur = lastKicker.get(e.team);
+      if (!cur || e.season > cur.season || (e.season === cur.season && e.week > cur.week)) lastKicker.set(e.team, { pid, name: e.name, season: e.season, week: e.week });
+    }
+    const gameOf = new Map(games.map(g => [g.gameId, g]));
+    for (const [team, ctx] of teamsInPlay) {
+      const g = gameOf.get(ctx.gameId);
+      const indoor = !(g?.roof === 'outdoors' || g?.roof === 'open');
+      const row = kickerFeatures({ implied: ctx.implied, fav: ctx.fav, indoor,
+                                   windMph: windByGame.get(ctx.gameId), tempF: tempByGame.get(ctx.gameId) });
+      const dk = (depth.kickers?.get(team) ?? []).sort((a, b) => a.rank - b.rank).find(k => !outIds.has(k.pid));
+      const k = dk ?? lastKicker.get(team) ?? null;
+      const mf = muFgm(row), mp = muPat(row), mt = 3 * mf + mp;
+      // his line this season and last, before this week
+      const line = (yy) => (kickLog.get(k?.pid) ?? []).filter(e => e.season === yy && (yy < season || e.week < week))
+        .reduce((a, e) => ({ g: a.g + 1, fga: a.fga + e.fga, fgm: a.fgm + e.fgm, fga50: a.fga50 + e.fga50, fgm50: a.fgm50 + e.fgm50,
+                              long: Math.max(a.long, e.long), pata: a.pata + e.pata, patm: a.patm + e.patm }),
+                { g: 0, fga: 0, fgm: 0, fga50: 0, fgm50: 0, long: 0, pata: 0, patm: 0 });
+      const parts = kickParts(row);
+      kickers.push({
+        team, opp: ctx.opp, gameId: ctx.gameId, home: ctx.home, pid: k?.pid ?? null, name: k?.name || `${team} kicker`,
+        mu: { fgm: +mf.toFixed(3), patm: +mp.toFixed(3), pts: +mt.toFixed(2) },
+        p: {
+          fgm: Object.fromEntries(KICK_LINES.fgm.map(L => [L, +pOverFgm(L, mf).toFixed(4)])),
+          patm: Object.fromEntries(KICK_LINES.patm.map(L => [L, +pOverPat(L, mp).toFixed(4)])),
+          pts: Object.fromEntries(KICK_LINES.pts.map(L => [L, +pOverPts(L, mt).toFixed(4)])),
+        },
+        f: { implied: +ctx.implied.toFixed(1), fav: +(ctx.fav ?? 0).toFixed(1), indoor: indoor ? 1 : 0, roof: g?.roof ?? null,
+             wind: +row.wind.toFixed(1), windKnown: row._windKnown, temp: tempByGame.get(ctx.gameId) ?? null, cold: +row.cold.toFixed(1),
+             x: { fgm: Object.fromEntries(Object.entries(parts.fgm).map(([a, v]) => [a, +v.toFixed(3)])),
+                  patm: Object.fromEntries(Object.entries(parts.patm).map(([a, v]) => [a, +v.toFixed(3)])) } },
+        s: { cur: line(season), prev: line(season - 1) },
+      });
+    }
+    kickers.sort((a, b) => b.mu.pts - a.mu.pts);
+    console.log(`  kickers: ${kickers.length} teams priced (${kickers.filter(r => r.pid).length} with a named kicker; `
+      + `temperature for ${tempByGame.size} outdoor games; top ${kickers[0]?.name ?? '—'} ${kickers[0]?.mu.pts ?? ''} pts)`);
   }
 
   // ── Yards ───────────────────────────────────────────────────────────────
@@ -1505,6 +1588,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   // the recap's own set.
   const shots = {};
   for (const p of picks) { const u = shot.get(p.pid); if (u) shots[p.pid] = u; }
+  for (const k of kickers) { const u = k.pid && shot.get(k.pid); if (u) shots[k.pid] = u; }
   for (const b of bdays) { const u = shot.get(b.pid); if (u) shots[b.pid] = u; }
 
   return {
@@ -1517,6 +1601,9 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     completions, completionsHistory,
     completionModel: { alpha: COMPLETIONS_MODEL.alpha, lines: CMP_LINES },
     interceptions, interceptionsHistory,
+    kickers,
+    kickerModel: { lines: KICK_LINES, disp: { fgm: KICKERS_MODEL.fgm.disp, patm: KICKERS_MODEL.patm.disp },
+                   pts: KICKERS_MODEL.pts, league: KICKERS_MODEL.league },
     yards,
     yardsModel: Object.fromEntries(Object.entries(YARDS_MODEL.markets).map(([k, m]) =>
       [k, { label: m.label, edges: m.ratio_edges, q: m.ratio_q }])),

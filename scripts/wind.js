@@ -29,6 +29,7 @@ const OUTDOOR = (roof) => roof === 'outdoors' || roof === 'open';
  */
 export async function loadWind(schedule, { threshold = 15 } = {}) {
   const out = new Map();
+  const temp = new Map();       // gameId -> temperature F at kickoff (the kicker model's cold term)
   const skip = { indoor: 0, noVenue: 0, noTime: 0, horizon: 0, failed: 0 };
   const byPoint = new Map();                  // `${lat},${lon}` -> [games]
 
@@ -40,7 +41,7 @@ export async function loadWind(schedule, { threshold = 15 } = {}) {
     const k = `${v.lat},${v.lon}`;
     (byPoint.get(k) ?? byPoint.set(k, []).get(k)).push(g);
   }
-  if (!byPoint.size) return { wind: out, skip, threshold };
+  if (!byPoint.size) return { wind: out, temp, skip, threshold };
 
   // One request per distinct venue covering the whole slate, not one per game.
   const days = [...new Set(schedule.map(g => g.gameday).filter(Boolean))].sort();
@@ -54,7 +55,7 @@ export async function loadWind(schedule, { threshold = 15 } = {}) {
   const lats = points.map(([k]) => k.split(',')[0]).join(',');
   const lons = points.map(([k]) => k.split(',')[1]).join(',');
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}`
-    + `&hourly=wind_speed_10m&wind_speed_unit=mph&timezone=UTC`
+    + `&hourly=wind_speed_10m,temperature_2m&wind_speed_unit=mph&temperature_unit=fahrenheit&timezone=UTC`
     + `&start_date=${start}&end_date=${end}`;
   let body;
   for (let attempt = 0; attempt < 3 && !body; attempt++) {
@@ -67,7 +68,7 @@ export async function loadWind(schedule, { threshold = 15 } = {}) {
   }
   if (!body) {
     for (const [, games] of points) skip.failed += games.length;
-    return { wind: out, skip, threshold };
+    return { wind: out, temp, skip, threshold };
   }
   const list = Array.isArray(body) ? body : [body];      // a single point returns an object
   points.forEach(([, games], i) => {
@@ -75,16 +76,20 @@ export async function loadWind(schedule, { threshold = 15 } = {}) {
     const times = j?.hourly?.time ?? [], speeds = j?.hourly?.wind_speed_10m ?? [];
     if (!times.length) { skip.failed += games.length; return; }
     const at = new Map(times.map((t, n) => [t.slice(0, 13), speeds[n]]));
+    const temps = j?.hourly?.temperature_2m ?? [];
+    const atT = new Map(times.map((t, n) => [t.slice(0, 13), temps[n]]));
     for (const g of games) {
       // gametime is venue-local wall clock; hour-of-day precision is all a
       // 15 mph-scale effect needs.
       const hh = String(g.gametime).slice(0, 2).padStart(2, '0');
       const w = at.get(`${g.gameday}T${hh}`) ?? at.get(`${g.gameday}T12`);
+      const tf = atT.get(`${g.gameday}T${hh}`) ?? atT.get(`${g.gameday}T12`);
+      if (tf != null) temp.set(g.gameId, Math.round(tf));
       if (w == null) { skip.horizon++; continue; }
       out.set(g.gameId, Math.round(w * 10) / 10);
     }
   });
-  return { wind: out, skip, threshold };
+  return { wind: out, temp, skip, threshold };
 }
 
 // No hinge helper any more: the model takes raw mph and applies a measured

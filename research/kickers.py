@@ -350,5 +350,44 @@ def main():
     return q
 
 
+FGM_FS = ["implied", "fav", "cold", "wind"]
+PAT_FS = ["implied"]
+
+
+def export():
+    """kickers_model.json: both count models fitted on 2017-2025, their
+    dispersion, and the points ratio tables (actual / projected kicker points
+    by projection quintile) that price any points line."""
+    import json
+    g = features(team_games(load()))
+    q = g[g.season >= 2017].copy()
+    out = {"note": ("Kickers (research/kickers.py). FG made: quasi-Poisson on implied team total, points favoured by, "
+                    "degrees below 50F outdoors, wind mph; priced binomial matched to its under-dispersion. PAT made: implied "
+                    "team total only. Kicker points = 3 FGM + PATM, priced from both means through actual/projected ratio "
+                    "quantiles by projection quintile. Kicker accuracy is noise (split-half r 0.02) and is not in the price."),
+           "lines": {"fgm": [0.5, 1.5, 2.5, 3.5], "patm": [0.5, 1.5, 2.5, 3.5, 4.5], "pts": [4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5, 11.5]}}
+    mus = {}
+    for y, fs in (("fgm", FGM_FS), ("patm", PAT_FS)):
+        X = design(q, fs, q); b = irls(X, q[y].to_numpy(float)); mu = np.exp(X @ b); mus[y] = mu
+        out[y] = {"features": fs, "coef": {"intercept": float(b[0]), **{f: float(c) for f, c in zip(fs, b[1:])}},
+                  "scale": {f: {"mean": float(q[f].mean()), "sd": float(q[f].std())} for f in fs},
+                  "disp": float(np.mean((q[y] - mu) ** 2) / np.mean(mu)), "mean": float(q[y].mean())}
+    pts_mu = 3 * mus["fgm"] + mus["patm"]
+    edges = np.quantile(pts_mu, [0, .2, .4, .6, .8, 1])
+    bi = np.clip(np.searchsorted(edges, pts_mu, side="right") - 1, 0, 4)
+    ratio = q.pts.to_numpy(float) / pts_mu
+    out["pts"] = {"edges": [float(e) for e in edges],
+                  "q": [[round(float(v), 4) for v in np.quantile(ratio[bi == i], np.linspace(0, 1, 101))] for i in range(5)]}
+    od = q[q.indoor == 0]
+    out["league"] = {"wind_outdoor_median": float(od.wind.median()), "fg_pct": float(q.fgm.sum() / q.fga.sum()), "pat_pct": float(q.patm.sum() / q.pata.sum()),
+                     "fgm": float(q.fgm.mean()), "patm": float(q.patm.mean()), "pts": float(q.pts.mean())}
+    json.dump(out, open(os.path.join(os.path.dirname(__file__), "kickers_model.json"), "w"), indent=1)
+    print("wrote kickers_model.json", {k: out[k]["coef"] for k in ("fgm", "patm")}, "disp", out["fgm"]["disp"], out["patm"]["disp"])
+    # sanity: the port's pricing on the training rows
+    for y in ("fgm", "patm"):
+        p = p_over_count(LINES[y], mus[y], out[y]["disp"])
+        print(f"  {y} over {LINES[y]}: said {p.mean():.3f} hit {(q[y] > LINES[y]).mean():.3f}")
+
+
 if __name__ == "__main__":
-    main()
+    export() if "--export" in sys.argv else main()
