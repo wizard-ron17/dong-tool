@@ -1740,6 +1740,44 @@
     .ydl-row { padding: 0.5rem 0.65rem; font-size: 0.95rem; }
     .ydm-tip { font-size: 0.85rem; padding: 0.6rem 0.75rem; }
   }
+  /* Interceptions card: slate strip, price build-up, price cards */
+  .ydm-panel.iv { display: grid; gap: 1.2rem; }
+  .iv-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.7rem; }
+  .iv-head h4 { margin: 0; } .iv-head span { font-size: 0.85rem; color: var(--muted); } .iv-head b { color: var(--good); font-family: var(--font-d); font-size: 1.05rem; }
+  .iv-strip { position: relative; height: 46px; border-radius: 10px; background: linear-gradient(90deg, color-mix(in srgb, var(--good) 6%, var(--surface0)), color-mix(in srgb, var(--gold) 12%, var(--surface0))); border: 1px solid var(--border); }
+  .iv-dot { position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--silver); opacity: 0.55; }
+  .iv-dot.me { width: 18px; height: 18px; margin: -9px 0 0 -9px; background: var(--gold); opacity: 1; box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 30%, transparent); z-index: 2; }
+  .iv-avg { position: absolute; top: 6px; bottom: 6px; width: 2px; margin-left: -1px; background: var(--text); opacity: 0.5; }
+  .iv-ticks { position: relative; height: 1.1rem; margin-top: 0.25rem; }
+  .iv-tick { position: absolute; transform: translateX(-50%); font-size: 0.72rem; color: var(--muted); }
+  .iv-row { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr) 3.4rem; align-items: center; gap: 0.8rem; padding: 0.32rem 0; border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+  .iv-row.base { border-top: none; } .iv-row.total { border-top: 1px solid var(--border2); }
+  .iv-lab { font-family: var(--font-d); font-weight: 700; color: var(--text); font-size: 0.95rem; line-height: 1.15; }
+  .iv-lab small { display: block; font-family: var(--font-b); font-weight: 500; font-size: 0.72rem; color: var(--muted); }
+  .iv-track { position: relative; height: 14px; border-radius: 7px; background: var(--surface2); }
+  .iv-track em { position: absolute; top: 0; bottom: 0; border-radius: 7px; }
+  .iv-track em.up { background: var(--gold); } .iv-track em.down { background: var(--good); }
+  .iv-track em.mark { width: 4px; margin-left: -2px; top: -4px; bottom: -4px; background: var(--silver); border-radius: 2px; }
+  .iv-track em.mark.me { background: var(--gold); width: 6px; margin-left: -3px; }
+  .iv-row b { text-align: right; font-family: var(--font-d); font-size: 1.05rem; color: var(--text-strong); }
+  .iv-row b.up { color: var(--gold); } .iv-row b.down { color: var(--good); }
+  .ivp-main { display: grid; gap: 0.6rem; margin-bottom: 0.8rem; }
+  .ivp { border: 1px solid var(--border); border-radius: 10px; background: var(--surface0); padding: 0.85rem 1rem; display: grid; grid-template-columns: 1fr auto; align-items: center; row-gap: 0.1rem; }
+  .ivp span { grid-column: 1 / -1; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--silver); }
+  .ivp b { font-family: var(--font-d); font-size: 2rem; line-height: 1.05; } .ivp small { font-family: var(--font-d); font-size: 1rem; color: var(--muted); }
+  .ivp-row { display: grid; grid-template-columns: 1.3fr 0.7fr 1fr 1fr; align-items: center; gap: 0.4rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface0);
+    padding: 0.55rem 0.8rem; margin-bottom: 0.4rem; font-family: var(--font-d); }
+  .ivp-row b { text-align: right; } .ivp-row span:last-child { text-align: right; font-size: 0.85rem; }
+  @media (max-width: 860px) {
+    .ydm-side.iv-side { display: block; min-height: 0; padding: 0.85rem 0.8rem; }
+    .ydm-side.iv-side .ydm-side-in { position: static; padding: 0; display: block; }
+    .ivp-main { grid-template-columns: 1fr 1fr; }
+    .ivp b { font-size: 1.55rem; }
+  }
+  @media (max-width: 620px) {
+    .iv-row { grid-template-columns: 6.6rem minmax(0, 1fr) 2.8rem; gap: 0.5rem; }
+    .iv-lab { font-size: 0.85rem; }
+  }
   /* ladder cards: count bars (over the selected line in green) */
   .lcb { fill: var(--silver); opacity: 0.35; }
   .lcb.over { fill: var(--good); opacity: 0.85; }
@@ -5146,8 +5184,71 @@ let pairStacks = false;
     };
   }
 
+  // ── Interceptions: a 0-1-2 market, so no bar chart and no ladder ────────
+  // Two things carry the information instead: where he sits among this week's
+  // starters (prices only run ~40-62%, so the ranking is the story), and how
+  // his price is built from an average starter, factor by factor — the model is
+  // multiplicative on expected INTs, so each step is exact, not a decomposition.
+  function intViz(r) {
+    const alpha = nflData.interceptionModel?.alpha ?? 0.06, rr = 1 / alpha;
+    const p1 = (mu) => 1 - Math.pow(rr / (rr + mu), rr);
+    const f = r.f, x = f.x || {};
+    const steps = [['Game script', x.fav, spreadTxt(f.fav)], ['Bad balls', x.log_bad_rate, (f.bad * 100).toFixed(1) + '%'],
+      ['Defense', x.log_def_int, (f.defInt * 100).toFixed(1) + '% INT rate'], ['Team total', x.implied, f.implied.toFixed(1) + ' pts'],
+      ['Volume', x.log_att, f.att.toFixed(0) + ' att'], ...(f.thinX > 1.001 ? [['Limited history', f.thinX, f.starts + ' starts']] : [])]
+      .filter(s2 => s2[1] != null);
+    const prod = steps.reduce((a, s2) => a * s2[1], 1);
+    let mu = r.mu / prod;
+    const start = p1(mu);
+    const rows = [];
+    for (const [lab, m, det] of steps) {
+      const before = p1(mu); mu *= m; const after = p1(mu);
+      rows.push({ lab, det, before, after });
+    }
+    const end = p1(r.mu);
+    // waterfall on a 30-75% scale — wide enough for every starter this week
+    const all = (nflData.interceptions || []).map(q => ({ pid: q.pid, name: q.name, team: q.team, p: q.p['0.5'] ?? q.p[0.5] }));
+    const lo = Math.min(0.3, ...all.map(q => q.p) , start) - 0.02, hi = Math.max(0.7, ...all.map(q => q.p), end) + 0.02;
+    const pos = (v) => ((v - lo) / (hi - lo) * 100).toFixed(2) + '%';
+    const wf = rows.map(s2 => {
+      const up = s2.after >= s2.before, l = Math.min(s2.before, s2.after), w = Math.abs(s2.after - s2.before);
+      const pts = (s2.after - s2.before) * 100;
+      return `<div class="iv-row"><span class="iv-lab">${s2.lab}<small>${s2.det}</small></span>
+        <span class="iv-track"><em class="${up ? 'up' : 'down'}" style="left:${pos(l)};width:${Math.max(0.6, w / (hi - lo) * 100).toFixed(2)}%"></em></span>
+        <b class="${up ? 'up' : 'down'}">${pts >= 0 ? '+' : '−'}${Math.abs(pts).toFixed(1)}</b></div>`;
+    }).join('');
+    const sorted = [...all].sort((a, b) => b.p - a.p), rank = sorted.findIndex(q => q.pid === r.pid) + 1;
+    const avgP = all.reduce((a, q) => a + q.p, 0) / Math.max(1, all.length);
+    const dots = all.map(q => `<i class="iv-dot${q.pid === r.pid ? ' me' : ''}" style="left:${pos(q.p)}" title="${q.name} ${q.team} · ${Math.round(q.p * 100)}%"></i>`).join('');
+    const ord = (n) => n + (['th', 'st', 'nd', 'rd'][(n % 100 - 20) % 10] || ['th', 'st', 'nd', 'rd'][n % 100] || 'th');
+    const ticks = [0.3, 0.4, 0.5, 0.6, 0.7].filter(t => t > lo && t < hi).map(t => `<span class="iv-tick" style="left:${pos(t)}">${Math.round(t * 100)}%</span>`).join('');
+    return `
+      <div class="iv-block">
+        <div class="iv-head"><h4>This week's starters</h4><span><b>${ord(rank)}</b> most likely of ${all.length}</span></div>
+        <div class="iv-strip">${dots}<span class="iv-avg" style="left:${pos(avgP)}" title="Average this week"></span>
+</div>
+        <div class="iv-ticks">${ticks}</div>
+      </div>
+      <div class="iv-block">
+        <div class="iv-head"><h4>How his price is built</h4><span>chance of 1+ INT</span></div>
+        <div class="iv-row base"><span class="iv-lab">Average starter<small>same league, neutral spot</small></span>
+          <span class="iv-track"><em class="mark" style="left:${pos(start)}"></em></span><b>${Math.round(start * 100)}%</b></div>
+        ${wf}
+        <div class="iv-row total"><span class="iv-lab">${r.name.split(' ').slice(-1)[0]}<small>this week</small></span>
+          <span class="iv-track"><em class="mark me" style="left:${pos(end)}"></em></span><b>${Math.round(end * 100)}%</b></div>
+      </div>`;
+  }
+  function intPrices(r) {
+    const card = (lab, p) => `<div class="ivp"><span>${lab}</span><b class="${p >= 0.5 ? 'goodc' : 'dogc'}">${pbOdds(p)}</b><small>${Math.round(p * 100)}%</small></div>`;
+    const row = (lab, p) => `<div class="ivp-row"><span>${lab}</span><span class="dim">${(p * 100).toFixed(0)}%</span><b class="${p >= 0.5 ? 'goodc' : 'dogc'}">${pbOdds(p)}</b><span class="dim">u ${pbOdds(1 - p)}</span></div>`;
+    const P = (L) => r.p[L] ?? r.p[String(L)];
+    return `<div class="ivp-main">${card('Over 0.5 · throws one', P(0.5))}${card('Under 0.5 · clean game', 1 - P(0.5))}</div>
+      ${P(1.5) != null ? row('2+ INTs', P(1.5)) : ''}${P(2.5) != null ? row('3+ INTs', P(2.5)) : ''}`;
+  }
+
   function lcRender() {
     const r = lcRow(); if (!r) return;
+    if (lc.kind === 'int') return intRender(r);
     const cfg = LC[lc.kind], pmf = lcPmf(r);
     const deck = cfg.rows(), at = deck.findIndex(x => x.pid === r.pid);
     const side = lcSide(r, pmf);
@@ -5189,6 +5290,33 @@ let pairStacks = false;
     back.querySelector('.pk-side-next').disabled = at < 0 || at >= deck.length - 1;
     lcCenter();
   }
+  function intRender(r) {
+    const cfg = LC.int, deck = cfg.rows(), at = deck.findIndex(x => x.pid === r.pid);
+    const [bigV, bigL] = cfg.big(r);
+    const metrics = cfg.metrics(r).map(([ic, v, l]) => `<div class="ydk"><span class="ydk-ic">${ydIco(ic)}</span><b>${v}</b><span>${l}</span></div>`).join('');
+    document.querySelector('#lc-back .ydm').innerHTML = `
+      <button class="pm-x" onclick="closeLc()" aria-label="Close">×</button>
+      <header class="ydm-hero">
+        ${faceHtml(r.pid, r.name)}
+        <div class="ydm-id"><h2>${r.name}</h2><div class="ydm-meta"><b>QB</b><span>•</span>${r.team} ${r.home ? 'vs' : '@'} ${r.opp}<img src="${teamLogo(r.team)}" alt="" loading="lazy">${at >= 0 ? `<span class="ydm-count">${at + 1} / ${deck.length}</span>` : ''}</div></div>
+        <div class="ydm-big"><div><span>${bigL}</span><span>Proj <b>${r.mu.toFixed(2)}</b> INTs</span></div><strong>${bigV}</strong></div>
+      </header>
+      <div class="ydm-grid">
+        <div class="ydm-main">
+          <section class="ydm-panel iv">${intViz(r)}</section>
+          <section class="ydm-panel ydm-keys"><h4>Key metrics</h4><div class="ydk-row">${metrics}</div></section>
+        </div>
+        <aside class="ydm-panel ydm-side iv-side"><div class="ydm-side-in">
+          <h4 class="accent">Prices</h4>
+          <p class="ydl-help">Fair odds, no vig — a book prices worse.</p>
+          ${intPrices(r)}
+        </div></aside>
+      </div>
+      <footer class="ydm-tip">${ydIco('bulb')}<span>${cfg.tip(r)}</span></footer>`;
+    const back = document.getElementById('lc-back');
+    back.querySelector('.pk-side-prev').disabled = at <= 0;
+    back.querySelector('.pk-side-next').disabled = at < 0 || at >= deck.length - 1;
+  }
   function lcCenter() {
     const box = document.getElementById('lc-ladder-m'), on = box?.querySelector('.ydl-row.on');
     if (!box || !on || box.scrollWidth <= box.clientWidth) return;
@@ -5222,7 +5350,7 @@ let pairStacks = false;
     if (e.key === 'Escape') closeLc();
     else if (e.key === 'ArrowLeft') lcStep(-1);
     else if (e.key === 'ArrowRight') lcStep(1);
-    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+    else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && lc.kind !== 'int') {
       e.preventDefault();
       const [lo, hi] = LC[lc.kind].lines, x = lc.line + (e.key === 'ArrowUp' ? -1 : 1);
       if (x >= lo && x <= hi) lcSetLine(x);
