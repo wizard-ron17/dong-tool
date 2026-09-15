@@ -1846,15 +1846,24 @@
               font-size: 0.74rem; letter-spacing: 0.04em; text-transform: uppercase; color: #8d9bb0; }
   .tsb-foot b { color: #f3f6fb; font-weight: 700; }
   .td-layout { display: grid; gap: 1rem; min-width: 0; }
-  .td-row { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 1rem; align-items: stretch; }
-  .td-row.solo { grid-template-columns: minmax(0, 1fr); }
-  .td-row.solo .td-side:first-child { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 1.4rem; align-items: start; }
-  .td-row.solo .td-wpbox > h4:first-child { margin-top: 0; }
-  @media (max-width: 760px) { .td-row.solo .td-side:first-child { grid-template-columns: minmax(0, 1fr); } .td-row.solo .td-wpbox > h4:first-child { margin-top: 1rem; } }
+  .td-layout { gap: 0.75rem; }
+  .td-row { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr) minmax(0, 1fr); gap: 0.75rem; align-items: stretch; }
+  .td-row .td-side { padding: 0.8rem 0.9rem; }
   .td-row .td-side > h4:first-child, .td-row .td-side > div:first-child > h4:first-child { margin-top: 0; }
-  @media (max-width: 760px) { .td-row { grid-template-columns: minmax(0, 1fr); } }
-  .td-play .tf:not(.v) { max-height: min(50vh, 440px); margin: 0 auto; }
-  .td-play .tf-wrap { background: #0b2417; }
+  .td-row .td-flags { margin-top: 0; }
+  @media (max-width: 860px) { .td-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .td-row .td-side:first-child { grid-column: 1 / -1; } }
+  @media (max-width: 560px) { .td-row { grid-template-columns: minmax(0, 1fr); } }
+  .td-play { padding: 0.75rem; }
+  .td-play .tf-wrap { position: relative; background: #0b2417; }
+  .td-play .tf:not(.v) { max-height: max(260px, calc(100vh - 430px)); margin: 0 auto; }
+  .td-play .tf-wrap .td-replay { position: absolute; top: 0.5rem; left: 0.5rem; background: rgba(8,14,26,0.78); backdrop-filter: blur(4px); font-size: 0.8rem; z-index: 2; }
+  .td-play .td-desc { margin-top: 0.55rem; }
+  .td-play .td-conn { margin-top: 0.25rem; font-size: 0.86rem; }
+  .pm.tdm .ydm-hero { padding-bottom: 0.65rem; margin-bottom: 0.75rem; }
+  .pm.tdm .ydm-hero .rc-photo { width: 68px; height: 68px; }
+  .pm.tdm .ydm-id h2 { font-size: clamp(1.4rem, 3vw, 1.9rem); }
+  .pm.tdm .ydm-big strong { font-size: clamp(2.2rem, 5vw, 3rem); }
+  .pm.tdm .tsb-row { padding-block: 0.35rem; } .pm.tdm .tsb-pts { font-size: 1.4rem; }
   .tdwb-ends { display: flex; justify-content: space-between; gap: 0.5rem; font-family: var(--font-d); font-weight: 700; font-size: 0.9rem; color: var(--silver); margin-bottom: 0.4rem; }
   .tdwb-ends span { display: inline-flex; align-items: center; gap: 0.35rem; }
   .tdwb-ends img { width: 1.2rem; height: 1.2rem; object-fit: contain; }
@@ -2311,6 +2320,7 @@
   .gf-plot svg { display: block; width: 100%; height: 100%; overflow: visible; }
   .gf-mid { stroke: var(--border2); stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
   .gf-q { stroke: var(--border); vector-effect: non-scaling-stroke; }
+  .gf-ot { fill: var(--surface2); opacity: 0.55; }
   .gf-line { fill: none; stroke-width: 2.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
   .gf-plot svg { animation: gfDraw 1.7s ease-out both; }
   .gf-line.away { stroke-width: 2; opacity: 0.75; }
@@ -3699,8 +3709,7 @@
         if (odds && t) {
           odds.innerHTML = tdOdds(t);
           const panel = odds.closest('.td-side');
-          if (odds.innerHTML) document.getElementById('td-flags')?.remove();
-          if (panel?.hidden && odds.innerHTML) { panel.hidden = false; panel.parentElement.classList.remove('solo'); }
+          if (odds.innerHTML) [...panel.children].forEach(c => { if (c !== odds) c.remove(); });
         }
       });
   }
@@ -3965,14 +3974,14 @@
       const d = playsLog[`${g.gameId}|${t.k}`];
       return d?.wp && d.el != null ? { t, el: d.el, v: d.wp[1], swing: d.wp[1] - d.wp[0], home: t.team === g.home } : null;
     }).filter(Boolean);
-    const big = tds.reduce((m, x) => (!m || Math.abs(x.swing) > Math.abs(m.swing) ? x : m), null);
+    const big = tds.filter(x => x.el < 3600).reduce((m, x) => (!m || Math.abs(x.swing) > Math.abs(m.swing) ? x : m), null);
     const qs = [900, 1800, 2700].concat(end > 3600 ? [3600] : []);
     const qLabels = ['Q1', 'Q2', 'Q3', 'Q4'].concat(end > 3600 ? ['OT'] : [])
       .map((q, i) => `<span style="left:${((i < 4 ? 450 + i * 900 : (3600 + end) / 2) / end * 100).toFixed(2)}%">${q}</span>`).join('');
     const marker = (x) => {
       const top = ((1 - x.v) * 100).toFixed(2), left = (x.el / end * 100).toFixed(2);
       return `<button class="gf-td${+left > 70 ? ' flip' : ''}" style="left:${left}%;top:${top}%;--c:${x.home ? HC : AC};--d:${(0.4 + x.el / end * 1.3).toFixed(2)}s"
-        onclick="event.stopPropagation();openTd('${g.gameId}',${x.t.k})" aria-label="${x.t.player} touchdown, ${gfClock(x.el)}">
+        onclick="event.stopPropagation();openTd('${g.gameId}',${x.t.k},true)" aria-label="${x.t.player} touchdown, ${gfClock(x.el)}">
         <span>${x.t.player} · ${TD_BADGE[x.t.subtype] || 'TD'} · ${gfClock(x.el)}</span></button>`;
     };
     const teamRow = (ab, c, score) => `<span class="gf-team${winner === ab ? ' won' : ''}" style="--c:${c}"><i></i><img src="${teamLogo(ab)}" alt="" loading="lazy">${ab}<b>${score}</b></span>`;
@@ -3983,6 +3992,7 @@
       </div>
       <div class="gf-plot" onpointermove="gfScrub(event,'${g.gameId}')" onpointerleave="gfScrub(null,'${g.gameId}')">
         <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Win probability through the game">
+          ${end > 3600 ? `<rect x="${X(3600)}" y="0" width="${(W - +X(3600)).toFixed(1)}" height="${H}" class="gf-ot"/>` : ''}
           <line x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}" class="gf-mid"/>
           ${qs.map(q => `<line x1="${X(q)}" x2="${X(q)}" y1="0" y2="${H}" class="gf-q"/>`).join('')}
           <path d="${line(true)}" stroke="${AC}" class="gf-line away"/>
@@ -3993,7 +4003,7 @@
         ${tds.map(marker).join('')}
       </div>
       <div class="gf-ql">${qLabels}</div>
-      <p class="gf-note">${big ? `Biggest swing: <b>${big.t.player}</b> ${TD_BADGE[big.t.subtype]?.toLowerCase() || ''} TD in ${gfClock(big.el)}, <b>${big.swing >= 0 ? '+' : '−'}${Math.abs(big.swing * 100).toFixed(0)}</b> for ${big.t.team}. ` : ''}Tap a touchdown for the play.</p>
+      <p class="gf-note">${end > 3600 ? 'Shaded: overtime, where the win-probability model is unreliable. ' : ''}${big ? `Biggest swing: <b>${big.t.player}</b> ${TD_BADGE[big.t.subtype]?.toLowerCase() || ''} TD in ${gfClock(big.el)}, <b>${big.swing >= 0 ? '+' : '−'}${Math.abs(big.swing * 100).toFixed(0)}</b> for ${big.t.team}. ` : ''}Tap a touchdown for the play.</p>
     </div>`;
   }
   function gfScrub(e, gid) {
@@ -4187,7 +4197,7 @@
   // and after the catch, and kick / return distances. The drive chart and the
   // numbers beside it are exact.
   let playsLog = null, playsState = 'idle', tdAnim = null;
-  const tdOpen = { gid: null, k: null };
+  const tdOpen = { gid: null, k: null, game: false };
   function loadPlays() {
     if (playsState !== 'idle') return;
     playsState = 'loading';
@@ -4198,6 +4208,7 @@
   const tdRow = () => (nflData.tdRecap[recapWeek] || []).find(t => t.gameId === tdOpen.gid && t.k === tdOpen.k)
     || Object.values(nflData.tdRecap).flat().find(t => t.gameId === tdOpen.gid && t.k === tdOpen.k);
   function tdDeck() {
+    if (tdOpen.game) return Object.values(nflData.tdRecap || {}).flat().filter(t => t.gameId === tdOpen.game && t.k);
     const all = nflData.tdRecap[recapWeek] || [], markFn = RC_MARK[rcFilt.mark];
     let tds = all.filter(t => (rcFilt.type === 'all' || t.type === rcFilt.type) && (!markFn || markFn(t)) && t.k);
     if (rcFilt.sort === 'long') tds = tds.slice().sort((a, b) => (b.yards ?? -1) - (a.yards ?? -1));
@@ -4715,22 +4726,22 @@
     if (playsState !== 'ready' && playsState !== 'error') body = '<div class="empty" style="padding:3rem 0">Loading the play…</div>';
     else {
       const wp = d?.wp;
-      const conn = t.passer ? `<h4>Connection</h4><p class="td-conn"><b>${t.passer}</b> → <b>${full}</b>${d?.air != null ? `<br><span>${d.air} yds in the air · ${d.yac ?? Math.max(0, (d.gain ?? 0) - d.air)} after the catch</span>` : ''}</p>` : '';
-      const extra = tdOdds(t) + conn;
+      const conn = t.passer ? `<p class="td-conn"><b>${t.passer}</b> → <b>${full}</b>${d?.air != null ? `<span> · ${d.air} yds in the air · ${d.yac ?? Math.max(0, (d.gain ?? 0) - d.air)} after the catch</span>` : ''}</p>` : '';
+      const wpBlock = wp && t.qtr > 4 ? `<h4>Win probability</h4><p class="tdw-note on">Not shown in overtime — nflverse's win-probability model doesn't handle the overtime rules (it had ${t.team} at ${Math.round(wp[0] * 100)}% before this play).</p>`
+        : wp ? `<h4>Win probability</h4>${tdWpBar(t, d)}` : '';
+      const flags = t.firstTd || t.lastTd || t.multi ? `<div class="td-flags" id="td-flags">${t.firstTd ? '<span class="st-chip first">1st TD of the game</span>' : ''}${t.lastTd ? '<span class="st-chip last">Last TD of the game</span>' : ''}${t.multi ? '<span class="st-chip multi">2+ TD game</span>' : ''}</div>` : '';
+      const odds = tdOdds(t);
       body = `
       <div class="td-layout">
         <section class="ydm-panel td-play">
-          <div class="iv-head"><h4>The play</h4><button class="td-replay" onclick="tdAnimate()">↻ Replay</button></div>
-          <div class="tf-wrap">${tdField(t, d)}</div>
+          <div class="tf-wrap">${tdField(t, d)}<button class="td-replay" onclick="tdAnimate()">↻ Replay</button></div>
           ${d?.desc ? `<p class="td-desc">${d.desc.replace(/</g, '&lt;')}</p>` : ''}
+          ${conn}
         </section>
-        <div class="td-row${extra.trim() ? '' : ' solo'}">
-          <section class="ydm-panel td-side">
-            ${tdScoreboard(t, d)}
-            <div class="td-wpbox">${wp ? `<h4>Win probability</h4>${tdWpBar(t, d)}` : ''}
-              ${!tdOdds(t) && (t.firstTd || t.lastTd || t.multi) ? `<div class="td-flags" id="td-flags">${t.firstTd ? '<span class="st-chip first">1st TD of the game</span>' : ''}${t.lastTd ? '<span class="st-chip last">Last TD of the game</span>' : ''}${t.multi ? '<span class="st-chip multi">2+ TD game</span>' : ''}</div>` : ''}</div>
-          </section>
-          <section class="ydm-panel td-side"${extra ? '' : ' hidden'}><div id="td-odds">${tdOdds(t)}</div>${conn}</section>
+        <div class="td-row">
+          <section class="ydm-panel td-side">${tdScoreboard(t, d)}</section>
+          <section class="ydm-panel td-side">${wpBlock || '<h4>Win probability</h4><p class="tdw-note on">Not available for this play.</p>'}</section>
+          <section class="ydm-panel td-side"><div id="td-odds">${odds}</div>${odds ? '' : flags || '<h4>Our prices</h4><p class="tdw-note on">This scorer wasn\'t on our board.</p>'}</section>
         </div>
       </div>`;
     }
@@ -4739,10 +4750,10 @@
       <header class="ydm-hero">
         ${faceHtml(t.pid, t.player)}
         <div class="ydm-id"><h2>${full}</h2><div class="ydm-meta">${pos ? `<b>${pos}</b><span>•</span>` : ''}${t.team} vs ${t.opp}<img src="${teamLogo(t.team)}" alt="" loading="lazy">${at >= 0 ? `<span class="ydm-count">${at + 1} / ${deck.length}</span>` : ''}</div></div>
-        <div class="ydm-big"><div><span>${typeLbl} touchdown</span><span>${WK_LABEL(recapWeek)}${t.weekday ? ' · ' + t.weekday.slice(0, 3) : ''}</span></div><strong>${t.yards ?? [...(d?.desc || '').matchAll(/for (-?\d+) yards?, TOUCHDOWN/g)].pop()?.[1] ?? '—'}<small>yd</small></strong></div>
+        <div class="ydm-big"><div><span>${typeLbl} touchdown</span><span>${WK_LABEL(+t.gameId.split('_')[1])}${t.weekday ? ' · ' + t.weekday.slice(0, 3) : ''}</span></div><strong>${t.yards ?? [...(d?.desc || '').matchAll(/for (-?\d+) yards?, TOUCHDOWN/g)].pop()?.[1] ?? '—'}<small>yd</small></strong></div>
       </header>
       ${body}
-      <footer class="ydm-tip">${ydIco('bulb')}<span>The route is drawn from the play-by-play — snap spot, direction, air yards and yards after the catch — not player tracking, which isn't free. The drive, score and win probability are exact.</span></footer>`;
+`;
     const back = document.getElementById('td-back');
     back.querySelector('.pk-side-prev').disabled = at <= 0;
     back.querySelector('.pk-side-next').disabled = at < 0 || at >= deck.length - 1;
@@ -4754,15 +4765,15 @@
     tdMq = window.matchMedia('(max-width: 620px)');
     tdMq.addEventListener?.('change', () => { if (document.getElementById('td-back')) tdRender(); });
   }
-  function openTd(gid, k) {
+  function openTd(gid, k, fromGame) {
     tdWatchOrientation();
-    Object.assign(tdOpen, { gid, k });
+    Object.assign(tdOpen, { gid, k, game: fromGame ? gid : false });
     if (!document.getElementById('td-back')) {
       document.body.insertAdjacentHTML('beforeend', `
         <div class="pm-back" id="td-back" onclick="if(event.target===this)closeTd()">
           <button class="pk-side-nav pk-side-prev" onclick="tdStep(-1)">‹</button>
           <button class="pk-side-nav pk-side-next" onclick="tdStep(1)">›</button>
-          <div class="pm ydm" role="dialog" aria-modal="true"></div>
+          <div class="pm ydm tdm" role="dialog" aria-modal="true"></div>
         </div>`);
       document.addEventListener('keydown', tdKey);
     }
