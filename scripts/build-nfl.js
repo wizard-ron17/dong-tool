@@ -131,7 +131,8 @@ async function main() {
         // win probability before and after, scorer's side
         wp: wp == null ? null : onOffense ? [r1(wp), r1(wp + (wpa ?? 0))] : [r1(1 - wp), r1(1 - wp - (wpa ?? 0))],
         epa: onOffense ? r1(num(P(r, 'epa'))) : null,
-        dr: onOffense ? { n: num(P(r, 'drive_play_count')), top: P(r, 'drive_time_of_possession') || null, start: P(r, 'drive_start_yard_line') || null, plays: drive } : null,
+        dr: onOffense ? { n: num(P(r, 'drive_play_count')), top: P(r, 'drive_time_of_possession') || null, start: P(r, 'drive_start_yard_line') || null,
+                          yds: drive.reduce((a, d2) => a + (d2[2] || 0), 0) } : null,
       };
     }
     (tdRecap[wk] ??= []).push({

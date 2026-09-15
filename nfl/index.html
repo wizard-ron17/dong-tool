@@ -1786,6 +1786,11 @@
   .tf-seg.pre { stroke: rgba(255,255,255,0.7); stroke-width: 5; }
   .tf-seg.pre.throw, .tf-seg.pre.kick { stroke-dasharray: 14 12; }
   .tf-shadow { fill: rgba(0,0,0,0.35); }
+  .tf-pylon { fill: #ff7a1a; stroke: rgba(0,0,0,0.35); stroke-width: 2; }
+  .tf-chain { stroke: #d9d9d9; stroke-width: 3; stroke-dasharray: 4 4; }
+  .tf-pole { stroke: #222; stroke-width: 3; }
+  .tf-marker { fill: #ff7a1a; stroke: rgba(0,0,0,0.4); stroke-width: 2; }
+  .tf-marker-num { fill: #1a0d00; font-family: var(--font-d); font-weight: 700; font-size: 17px; text-anchor: middle; dominant-baseline: middle; }
   .tf-ball ellipse { fill: #8a4b1e; stroke: #3d1f08; stroke-width: 2.5; }
   .tf-ball path { stroke: #fff; stroke-width: 2; stroke-linecap: round; }
   .tf-ev { opacity: 0; transition: opacity 0.2s; }
@@ -1801,27 +1806,18 @@
   .tf-ev.note .tf-ev-dot { display: none; } .tf-ev.note .tf-ev-tag rect { fill: rgba(8,14,26,0.6); stroke: none; } .tf-ev.note .tf-ev-tag text { font-size: 17px; fill: #cfe3d6; }
   .tf-ev.td .tf-ev-dot { fill: #f2c94c; } .tf-ev.td .tf-ev-tag rect { fill: #f2c94c; stroke: none; } .tf-ev.td .tf-ev-tag text { fill: #1d1400; }
   .td-desc { margin: 0.7rem 0 0; font-size: 0.9rem; line-height: 1.45; color: var(--silver); }
-  .tdc-legend { display: flex; gap: 0.8rem; align-items: center; font-size: 0.74rem; color: var(--muted); margin-bottom: 0.5rem; }
-  .tdc-legend i { display: inline-block; width: 12px; height: 8px; border-radius: 3px; margin-right: 0.25rem; vertical-align: middle; }
-  .tdc-row { display: grid; grid-template-columns: 5rem minmax(0, 1fr) 2.6rem; align-items: center; gap: 0.6rem; padding: 0.18rem 0; }
-  .tdc-dn { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
-  .tdc-track { position: relative; height: 10px; border-radius: 5px; background: var(--surface2); }
-  .tdc-track em, .tdc-legend i { background: var(--silver); }
-  .tdc-track em { position: absolute; top: 0; bottom: 0; border-radius: 5px; }
-  .tdc-track em.run, .tdc-legend i.run { background: var(--pos-rb); } .tdc-track em.pass, .tdc-legend i.pass { background: var(--pos-wr); }
-  .tdc-track em.sack, .tdc-legend i.sack { background: var(--bad); } .tdc-track em.td, .tdc-legend i.td { background: var(--gold); }
-  .tdc-row b { text-align: right; font-family: var(--font-d); font-size: 0.9rem; color: var(--text); } .tdc-row b.neg { color: var(--bad); }
-  .tdc-row.td b { color: var(--gold); }
   .td-side h4 { margin-top: 1rem; } .td-side h4.accent { margin-top: 0; }
   .tds-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
   .tds { border: 1px solid var(--border); border-radius: 9px; background: var(--surface0); padding: 0.55rem 0.65rem; }
+  .tds.wide { grid-column: 1 / -1; } .tds.wide b { text-transform: none; }
   .tds b { display: block; font-family: var(--font-d); font-size: 1.05rem; color: var(--text-strong); text-transform: capitalize; }
   .tds span { font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
   .tdw { display: grid; grid-template-columns: 2.6rem 1fr 2.6rem; align-items: center; gap: 0.5rem; font-family: var(--font-d); font-weight: 700; }
   .tdw span:last-child { text-align: right; color: var(--accent); }
   .tdw i { position: relative; height: 12px; border-radius: 6px; background: var(--surface2); overflow: hidden; }
   .tdw em { position: absolute; top: 0; bottom: 0; } .tdw em.before { left: 0; background: var(--silver); opacity: 0.45; } .tdw em.after { background: var(--accent); }
-  .tdw-note { margin: 0.35rem 0 0; font-size: 0.8rem; color: var(--muted); }
+  .tdw-note { margin: 0.35rem 0 0; font-size: 0.8rem; color: var(--muted); opacity: 0; transition: opacity 0.4s; }
+  .tdw-note.on { opacity: 1; }
   .td-conn { margin: 0; font-size: 0.95rem; color: var(--text); line-height: 1.5; } .td-conn span { font-size: 0.8rem; color: var(--muted); }
   .td-flags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 1rem; }
   .ydm-big strong small { font-size: 0.4em; margin-left: 0.15rem; color: var(--muted); }
@@ -4111,6 +4107,19 @@
     for (let yd = 20; yd <= 100; yd += 10) { const n = yd <= 60 ? yd - 10 : 110 - yd; nums += `<text x="${X(yd)}" y="${Y(8)}" class="tf-num">${n}</text><text x="${X(yd)}" y="${Y(47.5)}" class="tf-num">${n}</text>`; }
     const losLine = los != null ? `<line x1="${X(los)}" x2="${X(los)}" y1="0" y2="533" class="tf-los"/>` : '';
     const fd = los != null && d?.tg && los + d.tg < 110 ? `<line x1="${X(los + d.tg)}" x2="${X(los + d.tg)}" y1="0" y2="533" class="tf-fd"/>` : '';
+    // pylons at the four corners of each end zone
+    const pylon = (x, y) => `<rect x="${x - 7}" y="${y - 7}" width="14" height="14" rx="2" class="tf-pylon"/>`;
+    const pylons = [100, 110, 1100, 1190].map(x => x === 100 ? 10 : x === 110 ? 100 : x).map(x => pylon(x === 10 ? 7 : x === 1190 ? 1193 : x, 7) + pylon(x === 10 ? 7 : x === 1190 ? 1193 : x, 526)).join('');
+    // the chain crew on the far sideline: down marker at the line of scrimmage,
+    // the stick at the line to gain, and the chain between them
+    const chains = los != null && d?.dn && d?.tg ? (() => {
+      const a2 = X(los), b2 = X(Math.min(110, los + d.tg)), goal = los + d.tg >= 110;
+      return `<g class="tf-chains">
+        ${goal ? '' : `<line x1="${a2}" x2="${b2}" y1="16" y2="16" class="tf-chain"/>`}
+        <line x1="${a2}" x2="${a2}" y1="2" y2="30" class="tf-pole"/><rect x="${a2 - 15}" y="2" width="30" height="22" rx="4" class="tf-marker"/><text x="${a2}" y="14" class="tf-marker-num">${d.dn}</text>
+        ${goal ? '' : `<line x1="${b2}" x2="${b2}" y1="2" y2="30" class="tf-pole"/><rect x="${b2 - 9}" y="2" width="18" height="22" rx="4" class="tf-marker"/>`}
+      </g>`;
+    })() : '';
     const paths = segs.map((sg, i) => `<path d="${tfPathD(sg)}" class="tf-seg ${sg.own} ${sg.kind}" data-i="${i}"/>`).join('');
     const evs = events.map((e, i) => {
       const x = e.pt[0] * 10, y = e.pt[1] * 10, up = y > 120;
@@ -4125,11 +4134,11 @@
       <rect x="0" y="0" width="100" height="533" class="tf-ez"/><rect x="1100" y="0" width="100" height="533" class="tf-ez score"/>
       <text x="1150" y="266" class="tf-eztext" transform="rotate(90 1150 266)">${t.team} TOUCHDOWN</text>
       <text x="50" y="266" class="tf-eztext dim" transform="rotate(-90 50 266)">${t.opp}</text>
-      ${lines}${nums}${losLine}${fd}
+      ${lines}${nums}${losLine}${fd}${pylons}${chains}
       ${paths}
       <ellipse id="tf-shadow" rx="15" ry="6" class="tf-shadow" cx="-50" cy="-50"/>
       ${evs}
-      <g id="tf-ball" class="tf-ball" transform="translate(-50,-50)"><ellipse rx="17" ry="10.5"/><path d="M-7,0 H7 M-4,-3.2 V3.2 M0,-3.2 V3.2 M4,-3.2 V3.2"/></g>
+      <g id="tf-ball" class="tf-ball" transform="translate(-50,-50)"><ellipse rx="17" ry="10.5"/><g class="tf-laces"><path d="M-7,0 H7 M-4,-3.2 V3.2 M0,-3.2 V3.2 M4,-3.2 V3.2"/></g></g>
     </svg>`;
   }
 
@@ -4145,12 +4154,16 @@
       el.style.strokeDasharray = el.classList.contains('pre') && kind === 'air' ? '' : `${L}`;
       el.style.strokeDashoffset = el.classList.contains('pre') && kind === 'air' ? '' : `${L}`;
       el.style.opacity = el.classList.contains('pre') && kind === 'air' ? '0' : '1';
-      return { el, L, kind, dur: kind === 'air' ? 500 + L * 0.9 : Math.max(380, L * 2.2) };
+      const kick = el.classList.contains('kick');
+      return { el, L, kind, kick, dur: 1.4 * (kind === 'air' ? 500 + L * 0.9 : Math.max(380, L * 2.2)) };
     });
     evEls.forEach(e => e.classList.remove('on'));
     const total = segs.reduce((a, sg) => a + sg.dur, 0);
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const show = (i) => evEls.forEach(e => { if (+e.dataset.seg <= i) e.classList.add('on'); });
+    const shell = ball.querySelector('ellipse'), laces = ball.querySelector('.tf-laces');
+    const flat = () => { shell.setAttribute('ry', '10.5'); laces.setAttribute('transform', ''); laces.style.opacity = '1'; };
+    tdWinProb(false);
     const t0 = performance.now();
     const frame = (now) => {
       let el = reduce ? total : now - t0, i = 0;
@@ -4159,8 +4172,8 @@
       if (i >= segs.length) {
         const last = segs[segs.length - 1], p2 = last.el.getPointAtLength(last.L);
         ball.setAttribute('transform', `translate(${p2.x},${p2.y}) rotate(0) scale(1)`);
-        shadow.setAttribute('cx', -50);
-        svg.classList.add('done'); show(segs.length); return;
+        shadow.setAttribute('cx', -50); flat();
+        svg.classList.add('done'); show(segs.length); tdWinProb(true); return;
       }
       const sg = segs[i], f = Math.min(1, el / sg.dur);
       const e = sg.kind === 'air' ? f : (f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2);
@@ -4172,9 +4185,22 @@
         sg.el.style.opacity = String(Math.min(1, 0.25 + f));
         const a = sg.el.getPointAtLength(0), b2 = sg.el.getPointAtLength(sg.L);
         shadow.setAttribute('cx', a.x + (b2.x - a.x) * e); shadow.setAttribute('cy', a.y + (b2.y - a.y) * e);
-        ball.setAttribute('transform', `translate(${pt.x},${pt.y}) rotate(${ang}) scale(${1 + 0.45 * Math.sin(Math.PI * f)})`);
+        const lift = 1 + 0.45 * Math.sin(Math.PI * f);
+        if (sg.kick) {
+          // kicks tumble end over end
+          flat();
+          ball.setAttribute('transform', `translate(${pt.x},${pt.y}) rotate(${ang + 900 * f}) scale(${lift})`);
+        } else {
+          // passes spiral: spinning about the long axis squashes the ball's
+          // outline and turns the laces toward and away from us
+          const spin = Math.cos(el * 0.028);
+          shell.setAttribute('ry', (10.5 * (0.62 + 0.38 * Math.abs(spin))).toFixed(2));
+          laces.setAttribute('transform', `scale(1,${spin.toFixed(3)})`);
+          laces.style.opacity = spin > 0 ? '1' : '0.25';
+          ball.setAttribute('transform', `translate(${pt.x},${pt.y}) rotate(${ang}) scale(${lift})`);
+        }
       } else {
-        shadow.setAttribute('cx', -50);
+        shadow.setAttribute('cx', -50); flat();
         sg.el.style.strokeDashoffset = `${sg.L * (1 - e)}`;
         ball.setAttribute('transform', `translate(${pt.x},${pt.y}) rotate(${ang}) scale(1)`);
       }
@@ -4183,23 +4209,26 @@
     tdAnim = requestAnimationFrame(frame);
   }
 
-  function tdDriveChart(t, d) {
-    const plays = d?.dr?.plays || [];
-    if (!plays.length) return '';
-    const col = { r: 'run', s: 'run', p: 'pass', k: 'sack', o: 'other' };
-    const ord = (n) => ['', '1st', '2nd', '3rd', '4th'][n] || '';
-    const rows = plays.map((pl, i) => {
-      const [kind, yl, gain, dn, tg] = pl;
-      if (yl == null) return '';
-      const a = 110 - yl, b = Math.min(110, a + gain), lo = Math.min(a, b), w = Math.max(0.6, Math.abs(b - a));
-      const last = i === plays.length - 1;
-      return `<div class="tdc-row${last ? ' td' : ''}"><span class="tdc-dn">${dn ? `${ord(dn)} & ${yl <= tg ? 'G' : tg}` : ''}</span>
-        <span class="tdc-track"><em class="${last ? 'td' : col[kind]}" style="left:${((lo - 10) / 100 * 100).toFixed(2)}%;width:${(w / 100 * 100).toFixed(2)}%"></em></span>
-        <b class="${gain < 0 ? 'neg' : ''}">${last ? 'TD' : (gain > 0 ? '+' : '') + gain}</b></div>`;
-    }).join('');
-    const yards = plays.reduce((a, pl) => a + (pl[2] || 0), 0);
-    return `<section class="ydm-panel tdc"><div class="iv-head"><h4>The drive</h4><span>${d.dr.n ?? plays.length} plays · ${yards} yds${d.dr.top ? ' · ' + d.dr.top : ''}${d.dr.start ? ' · from ' + d.dr.start : ''}</span></div>
-      <div class="tdc-legend"><i class="run"></i>run <i class="pass"></i>pass <i class="sack"></i>sack <i class="td"></i>touchdown</div>${rows}</section>`;
+  function tdWinProb(scored) {
+    const bar = document.getElementById('td-wp'); if (!bar) return;
+    const b0 = +bar.dataset.before, a1 = +bar.dataset.after;
+    const em = bar.querySelector('em.after'), num = document.getElementById('td-wp-num'), note = document.getElementById('td-wp-note');
+    cancelAnimationFrame(bar._raf);
+    if (!scored) {
+      em.style.transition = 'none'; em.style.left = `${(Math.min(b0, a1) * 100).toFixed(1)}%`; em.style.width = '0%';
+      num.textContent = Math.round(b0 * 100) + '%'; note?.classList.remove('on'); return;
+    }
+    requestAnimationFrame(() => {
+      em.style.transition = 'width 0.9s cubic-bezier(.2,.8,.2,1)';
+      em.style.width = `${(Math.abs(a1 - b0) * 100).toFixed(1)}%`;
+    });
+    const t0 = performance.now();
+    const tick = (now) => {
+      const f = Math.min(1, (now - t0) / 900), e = 1 - Math.pow(1 - f, 3);
+      num.textContent = Math.round((b0 + (a1 - b0) * e) * 100) + '%';
+      if (f < 1) bar._raf = requestAnimationFrame(tick); else note?.classList.add('on');
+    };
+    bar._raf = requestAnimationFrame(tick);
   }
 
   function tdRender() {
@@ -4223,7 +4252,6 @@
             <div class="tf-wrap">${tdField(t, d)}</div>
             ${d?.desc ? `<p class="td-desc">${d.desc.replace(/</g, '&lt;')}</p>` : ''}
           </section>
-          ${tdDriveChart(t, d)}
         </div>
         <aside class="ydm-panel td-side">
           <h4 class="accent">Situation</h4>
@@ -4232,10 +4260,15 @@
             ${spot ? `<div class="tds"><b>${spot}</b><span>Snapped at</span></div>` : ''}
             <div class="tds"><b>Q${t.qtr || '?'}${d?.clk ? ' ' + d.clk : ''}</b><span>Clock</span></div>
             ${d?.sc?.[0] != null ? `<div class="tds"><b>${t.team} ${d.sc[0]}–${d.sc[1]}</b><span>Score after</span></div>` : ''}
+            ${(() => {
+              const dr = d?.dr; if (!dr) return '';
+              const yds = dr.yds ?? (dr.plays || []).reduce((a, pl) => a + (pl[2] || 0), 0);
+              return `<div class="tds wide"><b>${dr.n ?? (dr.plays || []).length} plays · ${yds} yds${dr.top ? ' · ' + dr.top : ''}</b><span>Drive${dr.start ? ' · from ' + dr.start : ''}</span></div>`;
+            })()}
           </div>
           ${wp ? `<h4>Win probability · ${t.team}</h4>
-            <div class="tdw"><span>${Math.round(wp[0] * 100)}%</span><i><em class="before" style="width:${(wp[0] * 100).toFixed(1)}%"></em><em class="after" style="left:${(Math.min(wp[0], wp[1]) * 100).toFixed(1)}%;width:${(Math.abs(wp[1] - wp[0]) * 100).toFixed(1)}%"></em></i><span>${Math.round(wp[1] * 100)}%</span></div>
-            <p class="tdw-note">${wp[1] >= wp[0] ? '+' : '−'}${Math.abs((wp[1] - wp[0]) * 100).toFixed(1)} points on this play${d.epa != null ? ` · ${d.epa >= 0 ? '+' : ''}${d.epa.toFixed(2)} EPA` : ''}</p>` : ''}
+            <div class="tdw" id="td-wp" data-before="${wp[0]}" data-after="${wp[1]}"><span>${Math.round(wp[0] * 100)}%</span><i><em class="before" style="width:${(Math.min(wp[0], wp[1]) * 100).toFixed(1)}%"></em><em class="after" style="left:${(Math.min(wp[0], wp[1]) * 100).toFixed(1)}%;width:0%"></em></i><span id="td-wp-num">${Math.round(wp[0] * 100)}%</span></div>
+            <p class="tdw-note" id="td-wp-note">${wp[1] >= wp[0] ? '+' : '−'}${Math.abs((wp[1] - wp[0]) * 100).toFixed(1)} points on this play${d.epa != null ? ` · ${d.epa >= 0 ? '+' : ''}${d.epa.toFixed(2)} EPA` : ''}</p>` : ''}
           ${t.passer ? `<h4>Connection</h4><p class="td-conn"><b>${t.passer}</b> → <b>${full}</b>${d?.air != null ? `<br><span>${d.air} yds in the air · ${d.yac ?? Math.max(0, (d.gain ?? 0) - d.air)} after the catch</span>` : ''}</p>` : ''}
           ${t.firstTd || t.lastTd || t.multi ? `<div class="td-flags">${t.firstTd ? '<span class="st-chip first">1st TD of the game</span>' : ''}${t.lastTd ? '<span class="st-chip last">Last TD of the game</span>' : ''}${t.multi ? '<span class="st-chip multi">2+ TD game</span>' : ''}</div>` : ''}
         </aside>
@@ -4253,7 +4286,7 @@
     const back = document.getElementById('td-back');
     back.querySelector('.pk-side-prev').disabled = at <= 0;
     back.querySelector('.pk-side-next').disabled = at < 0 || at >= deck.length - 1;
-    if (d) requestAnimationFrame(() => tdAnimate());
+    if (d) requestAnimationFrame(() => { tdAnimate(); if (!document.querySelector('#td-back .tf-seg')) tdWinProb(true); });
   }
   function openTd(gid, k) {
     Object.assign(tdOpen, { gid, k });
