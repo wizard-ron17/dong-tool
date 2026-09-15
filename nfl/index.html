@@ -4797,13 +4797,22 @@
 
   // ── End of the replay: a card over the field, and a little celebration ──
   const TD_HEADLINE = { pick6: 'Pick six', fumble: 'Scoop & score', kick: 'Kick return TD', punt: 'Punt return TD', blk: 'Blocked kick TD', def: 'Defensive TD' };
+  /** which of his touchdowns in that game this one was: anytime cashes on the
+   *  first, 2+ on the second, nothing new after that (bar last TD) */
+  function tdNth(t) {
+    const mine = Object.values(nflData.tdRecap || {}).flat().filter(x => x.pid && x.pid === t.pid && x.gameId === t.gameId).sort((a, b) => a.k - b.k);
+    const i = mine.findIndex(x => x.k === t.k);
+    return { n: i < 0 ? 1 : i + 1, of: Math.max(1, mine.length) };
+  }
+  const TD_ORD = ['', '1st', '2nd', '3rd', '4th', '5th'];
   function tdMoments(t, d) {
     const yds = t.yards ?? +([...(d?.desc || '').matchAll(/for (-?\d+) yards?, TOUCHDOWN/g)].pop()?.[1] ?? NaN);
     const row = liveLogState === 'ready' ? liveLog?.games?.[t.gameId]?.td?.find(r => r[0] === t.pid) : null;
-    const cashed = row ? [['Anytime', row[4], true], ['1st TD', row[6], t.firstTd], ['Last TD', row[7], t.lastTd], ['2+ TDs', row[5], t.multi]]
+    const { n, of } = tdNth(t);
+    const cashed = row ? [['Anytime', row[4], n === 1], ['1st TD', row[6], t.firstTd], ['Last TD', row[7], t.lastTd], ['2+ TDs', row[5], n === 2]]
       .filter(([, p, hit]) => hit && p > 0) : [];
     const longest = cashed.reduce((m, c) => (!m || c[1] < m[1] ? c : m), null);
-    return { yds, cashed, longest };
+    return { yds, cashed, longest, n, of };
   }
   function tdHideFinal() {
     const f = document.getElementById('tf-final'); if (!f) return;
@@ -4811,14 +4820,14 @@
   }
   function tdShowFinal(animate) {
     const f = document.getElementById('tf-final'), t = tdRow(); if (!f || !t) return;
-    const d = playsLog?.[`${t.gameId}|${t.k}`], { yds, cashed, longest } = tdMoments(t, d);
+    const d = playsLog?.[`${t.gameId}|${t.k}`], { yds, cashed, longest, n, of } = tdMoments(t, d);
     const full = (nflData.tdLeaders || []).find(l => l.pid === t.pid)?.name || t.player;
     const what = Number.isFinite(yds) ? `${yds}-yard ${t.type === 'rec' ? 'catch' : t.type === 'rush' ? 'run' : 'return'}` : '';
     const chips = [
       ...cashed.map(([lab, p]) => `<span class="tff-chip money${p <= 1 / 11 ? ' huge' : ''}">${lab} <b>${pbOdds(p)}</b></span>`),
       t.firstTd && !cashed.some(c => c[0] === '1st TD') ? '<span class="tff-chip">1st TD of the game</span>' : '',
       t.lastTd && !cashed.some(c => c[0] === 'Last TD') ? '<span class="tff-chip">Last TD of the game</span>' : '',
-      t.multi && !cashed.some(c => c[0] === '2+ TDs') ? '<span class="tff-chip">2+ TD game</span>' : '',
+      of > 1 ? `<span class="tff-chip">${TD_ORD[n] || n + 'th'} of his ${of} TDs</span>` : '',
       yds >= 50 ? `<span class="tff-chip hot">${yds >= 80 ? 'House call' : 'Long TD'} · ${yds} yds</span>` : '',
       d?.wp && t.qtr <= 4 && Math.abs(d.wp[1] - d.wp[0]) >= 0.15 ? `<span class="tff-chip">Win prob ${d.wp[1] >= d.wp[0] ? '+' : '−'}${Math.round(Math.abs(d.wp[1] - d.wp[0]) * 100)}</span>` : '',
     ].filter(Boolean).join('');
@@ -4886,7 +4895,8 @@
   /** our pre-game prices on everything this touchdown cashed */
   function tdOdds(t) {
     const row = liveLogState === 'ready' ? liveLog?.games?.[t.gameId]?.td?.find(r => r[0] === t.pid) : null;
-    const mk = row ? [['Anytime TD', row[4], true], ['1st TD', row[6], t.firstTd], ['Last TD', row[7], t.lastTd], ['2+ TDs', row[5], t.multi]]
+    const { n } = tdNth(t);
+    const mk = row ? [['Anytime TD', row[4], n === 1], ['1st TD', row[6], t.firstTd], ['Last TD', row[7], t.lastTd], ['2+ TDs', row[5], n === 2]]
       .filter(([, p, hit]) => hit && p > 0) : [];
     if (!mk.length) return '';
     return `<div class="tdo"><span class="tdo-lbl">Cashed at our price</span>${mk.map(([lab, p]) =>
@@ -4909,7 +4919,8 @@
       const conn = t.passer ? `<p class="td-conn"><b>${t.passer}</b> → <b>${full}</b>${d?.air != null ? `<span> · ${d.air} yds in the air · ${d.yac ?? Math.max(0, (d.gain ?? 0) - d.air)} after the catch</span>` : ''}</p>` : '';
       const wpBlock = wp && t.qtr > 4 ? `<h4>Win probability</h4><p class="tdw-note on">Not shown in overtime — nflverse's win-probability model doesn't handle the overtime rules (it had ${t.team} at ${Math.round(wp[0] * 100)}% before this play).</p>`
         : wp ? `<h4>Win probability</h4>${tdWpBar(t, d)}` : '';
-      const flags = t.firstTd || t.lastTd || t.multi ? `<div class="tdo">${t.firstTd ? '<span class="tdo-b"><i>1st TD of the game</i></span>' : ''}${t.lastTd ? '<span class="tdo-b"><i>Last TD of the game</i></span>' : ''}${t.multi ? '<span class="tdo-b"><i>2+ TD game</i></span>' : ''}</div>` : '';
+      const nth = tdNth(t);
+      const flags = t.firstTd || t.lastTd || nth.of > 1 ? `<div class="tdo">${t.firstTd ? '<span class="tdo-b"><i>1st TD of the game</i></span>' : ''}${t.lastTd ? '<span class="tdo-b"><i>Last TD of the game</i></span>' : ''}${nth.of > 1 ? `<span class="tdo-b"><i>${TD_ORD[nth.n] || nth.n + 'th'} of his ${nth.of} TDs</i></span>` : ''}</div>` : '';
       const odds = tdOdds(t);
       body = `
       <div class="td-layout">
