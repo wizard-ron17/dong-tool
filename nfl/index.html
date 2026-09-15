@@ -2214,6 +2214,18 @@
   /* Pairs count-block label sizing (reuses the cloned .card/.player-chip styles) */
   .count-label { align-self: center; }
   .st-td { font-family: var(--font-d); font-weight: 700; font-size: 1.2rem; color: var(--accent); }
+  /* Stats leaderboard card: the total and its label stacked tight on the right,
+     the touchdown breakdown as chips under the name */
+  .st-card { align-items: center; padding: 0.6rem 0.8rem; }
+  .st-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem; }
+  .st-chip { font-family: var(--font-d); font-weight: 700; font-size: 0.78rem; line-height: 1; padding: 0.24rem 0.5rem; border-radius: 999px;
+    color: var(--text); background: var(--surface2); border: 1px solid var(--border2); white-space: nowrap; }
+  .st-chip.rush { color: var(--pos-rb); border-color: color-mix(in srgb, var(--pos-rb) 40%, transparent); background: color-mix(in srgb, var(--pos-rb) 10%, var(--surface1)); }
+  .st-chip.rec { color: var(--pos-wr); border-color: color-mix(in srgb, var(--pos-wr) 40%, transparent); background: color-mix(in srgb, var(--pos-wr) 10%, var(--surface1)); }
+  .st-chip.first, .st-chip.last, .st-chip.multi { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 40%, transparent); background: color-mix(in srgb, var(--gold) 9%, var(--surface1)); }
+  .st-total { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 3.2rem; flex-shrink: 0; line-height: 1; }
+  .st-total b { font-family: var(--font-d); font-weight: 700; font-size: 1.9rem; color: var(--accent); }
+  .st-total span { margin-top: 0.2rem; font-family: var(--font-d); font-weight: 700; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
   .sc-wk { font-family: var(--font-d); font-size: 0.754rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0.85rem 0 0.35rem; }
   /* team logos + schedule game rows */
   .tm-logo { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
@@ -4020,9 +4032,19 @@
         <select class="fl-sel" onchange="setStFilt('team',this.value)">${teamOpts}</select>
       </div>
       <div class="result-meta">${rows.length} players · sorted by <b>${ST_SORT_LBL[stFilt.sort]}</b></div>
-      <div class="rc-list">${rows.length ? rows.map((l, i) => `<div class="rc-card"><span class="st-rank">${i + 1}</span>${faceHtml(l.pid, l.name)}
-        <div class="rc-info"><div class="rc-name">${l.name}</div><div class="rc-sub">${l.pos} · ${l.team} · ${l.games} G</div></div>
-        <div class="rc-detail"><span class="st-td">${val(l)}</span><span class="rc-yd">${ST_SORT_LBL[stFilt.sort]}</span><span class="rc-from">${[`${l.rushTd}ru`, `${l.recTd}rec`, l.stTd ? `${l.stTd}st` : '', l.defTd ? `${l.defTd}def` : '', l.firstTd ? `${l.firstTd} 1st` : '', l.lastTd ? `${l.lastTd} last` : '', l.multiTd ? `${l.multiTd}x 2+` : ''].filter(Boolean).join(' · ')}</span></div></div>`).join('') : '<div class="empty">No players match these filters.</div>'}</div>`;
+      <div class="rc-list">${rows.length ? rows.map((l, i) => {
+        // what each touchdown was, as chips — zeros left out
+        const chips = [
+          l.rushTd && [`${l.rushTd} rush`, 'rush'], l.recTd && [`${l.recTd} rec`, 'rec'],
+          l.stTd && [`${l.stTd} return`, 'st'], l.defTd && [`${l.defTd} defense`, 'def'],
+          l.firstTd && [`${l.firstTd > 1 ? l.firstTd + '× ' : ''}1st TD`, 'first'], l.lastTd && [`${l.lastTd > 1 ? l.lastTd + '× ' : ''}last TD`, 'last'],
+          l.multiTd && [`${l.multiTd > 1 ? l.multiTd + '× ' : ''}2+ game`, 'multi'],
+        ].filter(Boolean).map(([t, c]) => `<span class="st-chip ${c}">${t}</span>`).join('');
+        return `<div class="rc-card st-card"><span class="st-rank">${i + 1}</span>${faceHtml(l.pid, l.name)}
+        <div class="rc-info"><div class="rc-name">${l.name}</div><div class="rc-sub">${l.pos} · ${l.team} · ${l.games} G</div>
+          ${chips ? `<div class="st-chips">${chips}</div>` : ''}</div>
+        <div class="st-total"><b>${val(l)}</b><span>${ST_SORT_LBL[stFilt.sort]}</span></div></div>`;
+      }).join('') : '<div class="empty">No players match these filters.</div>'}</div>`;
   }
   // ── Pairs — correlated-TD lens. Which players score in the same window ──
   // (week or day). Groups of 2–5 are found by apriori: grow only groups that
