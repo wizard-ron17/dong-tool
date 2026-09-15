@@ -3884,9 +3884,9 @@
       });
     }
     if (kind === 'kick') {
-      const mkt = kkF.mkt, L = kkF.line;
+      const mkt = kkF.mkt;
       return (g.kicks ?? []).map(([team, pid, name, mf, mp, mt]) => {
-        const b = res?.kick?.[team] ?? [0, 0, 0, 0], mu = { fgm: mf, patm: mp, pts: mt }[mkt];
+        const b = res?.kick?.[team] ?? [0, 0, 0, 0], mu = { fgm: mf, patm: mp, pts: mt }[mkt], L = kkLine(mkt, mu);
         const got = mkt === 'fgm' ? b[0] : mkt === 'patm' ? b[2] : 3 * b[0] + b[2];
         return { pid: pid || team, name, team, game: vs(team), p: kkOver(mkt, L, mu), line: 'o' + L, proj: mu?.toFixed(1),
                  got: g.final ? got : '', st: !g.final ? (g.live ? 'live' : 'pend') : got > L ? 'hit' : 'miss' };
@@ -6040,10 +6040,11 @@ let pairStacks = false;
     fgm: { lab: 'FG made', short: 'FG', unit: 'field goals made', lines: [0.5, 1.5, 2.5, 3.5], def: 1.5, kind: 'kfg' },
     patm: { lab: 'PATs made', short: 'PAT', unit: 'PATs made', lines: [0.5, 1.5, 2.5, 3.5, 4.5], def: 2.5, kind: 'kpat' },
   };
-  const kkF = { mkt: 'pts', line: 7.5, sort: 'most', view: 'cards', q: '', tab: 'board', open: false };
+  // line 'even': each kicker at his own rung nearest even money (his median) — like Receptions and Yards
+  const kkF = { mkt: 'pts', line: 'even', sort: 'proj', view: 'cards', q: '', tab: 'board', open: false };
   function setKk(k, v) {
     kkF[k] = v;
-    if (k === 'mkt') kkF.line = KK_MKTS[v].def;
+    if (k === 'mkt' && kkF.line !== 'even') kkF.line = KK_MKTS[v].def;
     if (k === 'mkt' && kkF.tab === 'results') lrF.all = false;
     renderKickers();
   }
@@ -6081,11 +6082,19 @@ let pairStacks = false;
   }
   const kkOver = (mkt, L, mu) => Math.min(0.995, Math.max(0.005, kkPmf(mkt, mu).reduce((a, v, k) => a + (k > L ? v : 0), 0)));
   // priced here from the same distribution the card draws, so board and card never disagree
-  const kkP = (r, mkt = kkF.mkt, L = kkF.line) => kkOver(mkt, L, r.mu[mkt]);
+  /** the half-point line closest to a coin flip for this projection */
+  function kkEven(mkt, mu) {
+    const lo = mkt === 'pts' ? 2.5 : 0.5, hi = mkt === 'pts' ? 14.5 : mkt === 'fgm' ? 4.5 : 5.5;
+    let best = lo;
+    for (let L = lo; L <= hi; L++) if (Math.abs(kkOver(mkt, L, mu) - 0.5) < Math.abs(kkOver(mkt, best, mu) - 0.5)) best = L;
+    return best;
+  }
+  const kkLine = (mkt, mu, line = kkF.line) => line === 'even' ? kkEven(mkt, mu) : line;
+  const kkP = (r, mkt = kkF.mkt, L = kkLine(mkt, r.mu[mkt])) => kkOver(mkt, L, r.mu[mkt]);
   function kkRows() {
     const q = pbNorm(kkF.q.trim());
-    return dayScope(kkAll().map(r => ({ ...r, L: kkF.line, pp: kkP(r) })))
-      .sort((a, b) => kkF.sort === 'most' ? b.pp - a.pp : a.pp - b.pp)
+    return dayScope(kkAll().map(r => { const L = kkLine(kkF.mkt, r.mu[kkF.mkt]); return { ...r, L, pp: kkP(r, kkF.mkt, L) }; }))
+      .sort((a, b) => kkF.sort === 'proj' ? b.mu[kkF.mkt] - a.mu[kkF.mkt] || b.pp - a.pp : kkF.sort === 'most' ? b.pp - a.pp : a.pp - b.pp)
       .map((r, i) => ({ ...r, rank: i + 1 }))
       .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q) || pbNorm(r.opp).includes(q));
   }
@@ -6115,15 +6124,15 @@ let pairStacks = false;
     const controls = tabs + `
       <div class="pbf-chips" style="margin-bottom:0.6rem">${mktChips}</div>
       ${uiFilters('setKk', kkF.open, [
-        ['Line', M.lines.map(L => uiChip('setKk', 'line', L, 'o' + L, kkF.line)).join('')],
-        ['Sort', uiChip('setKk', 'sort', 'most', 'Most likely', kkF.sort) + uiChip('setKk', 'sort', 'least', 'Least likely', kkF.sort)],
-      ], (kkF.line !== M.def) + (kkF.sort !== 'most'))}
+        ['Line', uiChip('setKk', 'line', 'even', 'His median', kkF.line) + M.lines.map(L => uiChip('setKk', 'line', L, 'o' + L, kkF.line)).join('')],
+        ['Sort', uiChip('setKk', 'sort', 'proj', 'Projection', kkF.sort) + uiChip('setKk', 'sort', 'most', 'Most likely over', kkF.sort) + uiChip('setKk', 'sort', 'least', 'Least likely', kkF.sort)],
+      ], (kkF.line !== 'even') + (kkF.sort !== 'proj'))}
       <div class="pb-search">
         <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
         <input type="text" id="kk-search" placeholder="Search a kicker or team…" value="${kkF.q.replace(/"/g, '&quot;')}" oninput="onKkSearch()" autocomplete="off" spellcheck="false">
         <button class="pb-search-x" onclick="clearKkSearch()" aria-label="Clear"${kkF.q ? ' style="display:flex"' : ''}>×</button>
       </div>
-      <div class="pb-head"><span class="pb-week">${WK_LABEL(firstUpcomingWeek())}</span><span class="pb-meta">${rows.length} kickers · over ${kkF.line} ${M.unit} · fair odds, no vig</span></div>${dayBar()}`;
+      <div class="pb-head"><span class="pb-week">${WK_LABEL(firstUpcomingWeek())}</span><span class="pb-meta">${rows.length} kickers · ${kkF.line === 'even' ? `${M.unit} at each kicker's median line` : `over ${kkF.line} ${M.unit}`} · fair odds, no vig</span></div>${dayBar()}`;
     if (!rows.length) { el.innerHTML = controls + '<div class="empty">Nothing matches that search.</div>'; return; }
     const under = (r) => pbOdds(1 - r.pp);
     let body;
