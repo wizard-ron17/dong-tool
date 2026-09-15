@@ -59,6 +59,35 @@ function metaFor(pathname) {
   return LANDING; // "/" and anything else -> the sport picker
 }
 
+// A shared replay (/nfl/recap/<gameId>-<playId>) previews as that touchdown.
+// plays.json is small and on the same deploy; cached per edge instance.
+const TD_KIND = { rec: 'receiving', rush: 'rushing', pick6: 'pick-six', fumble: 'fumble-return', kick: 'kick-return', punt: 'punt-return', blk: 'blocked-kick' };
+let playsCache = { at: 0, data: null };
+async function replayMeta(pathname, requestUrl) {
+  const m = pathname.match(/^\/nfl\/recap\/(\d{4}_(\d{2})_[A-Z]{2,3}_[A-Z]{2,3})-(\d+)\/?$/);
+  if (!m) return null;
+  if (!playsCache.data || Date.now() - playsCache.at > 10 * 60 * 1000) {
+    const r = await fetch(new URL('/nfl/plays.json', requestUrl));
+    if (!r.ok) return null;
+    playsCache = { at: Date.now(), data: await r.json() };
+  }
+  const d = playsCache.data[`${m[1]}|${m[3]}`];
+  if (!d) return null;
+  const desc = (d.desc || '')
+    .replace(/^\(\d+:\d+\)\s*/, '')
+    .replace(/(?:\d+-[A-Z][\w.'-]+(?:,\s*|\s+and\s+)?)+\s*reported in as eligible\.\s*/g, '')   // "73-J.Ezeudu and 77-J.Moore reported in as eligible."
+    .replace(/\([^)]*\)\s*/g, '')                    // (Shotgun), tacklers
+    .replace(/\[[^\]]*\]\s*/g, '')
+    .replace(/\b(?:[A-Z]{2,3}-)?\d{1,2}-(?=[A-Z])/g, '')  // jersey numbers
+    .replace(/\s+([.,])/g, '$1').trim();
+  const yd = d.yd ?? +((d.desc || '').match(/for (-?\d+) yards?, TOUCHDOWN/)?.[1] ?? NaN);
+  const week = +m[2];
+  const title = d.nm
+    ? `${d.nm} ${Number.isFinite(yd) ? yd + '-yd ' : ''}${TD_KIND[d.ty] || ''} TD${d.tm ? ` · ${d.tm} vs ${d.op}` : ''} · Ron's Tud Tool`.replace(/\s+/g, ' ')
+    : "Touchdown replay · Ron's Tud Tool";
+  return { title, desc: `▶ Watch the replay — Week ${week}. ${desc}`.slice(0, 300) };
+}
+
 function inject(html, title, desc, url) {
   const t = esc(title), d = esc(desc), u = esc(url);
   return html
@@ -78,7 +107,7 @@ export default async (request, context) => {
     if (!ct.includes('text/html')) return res; // only touch HTML documents
     if (res.status === 404) return res;         // keep the 404 page's own title
     const url = new URL(request.url);
-    const m = metaFor(url.pathname);
+    const m = (await replayMeta(url.pathname, request.url).catch(() => null)) || metaFor(url.pathname);
     const html = await res.text();
     const out = inject(html, m.title, m.desc, SITE + url.pathname);
     const headers = new Headers(res.headers);

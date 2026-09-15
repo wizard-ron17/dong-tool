@@ -138,6 +138,8 @@ async function main() {
       const wp = num(P(r, 'wp')), wpa = num(P(r, 'wpa'));
       const r1 = (v) => (v == null ? null : Math.round(v * 1000) / 1000);
       playDetail[`${gameId}|${playId}`] = {
+        // who / what, so a shared replay link can preview without the whole data.json
+        nm: scorer, tm: team, op: opp, ty: subtype, yd: yards,
         pt: P(r, 'play_type'), yl: num(P(r, 'yardline_100')), gain: num(P(r, 'yards_gained')),
         air: num(P(r, 'air_yards')), yac: num(P(r, 'yards_after_catch')), pl: P(r, 'pass_location') || null,
         rl: P(r, 'run_location') || null, gap: P(r, 'run_gap') || null, kd: num(P(r, 'kick_distance')), ry: num(P(r, 'return_yards')),

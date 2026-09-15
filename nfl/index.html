@@ -1855,7 +1855,8 @@
   .td-play { padding: 0.75rem; }
   .td-play .tf-wrap { position: relative; background: #0b2417; }
   .td-play .tf:not(.v) { max-height: max(260px, calc(100vh - 430px)); margin: 0 auto; }
-  .td-play .tf-wrap .td-replay { position: absolute; top: 0.5rem; left: 0.5rem; background: rgba(8,14,26,0.78); backdrop-filter: blur(4px); font-size: 0.8rem; z-index: 2; }
+  .td-play .tf-wrap .td-corner { position: absolute; top: 0.5rem; left: 0.5rem; display: flex; gap: 0.35rem; z-index: 2; }
+  .td-play .tf-wrap .td-replay { background: rgba(8,14,26,0.78); backdrop-filter: blur(4px); font-size: 0.8rem; }
   .td-play .td-desc { margin-top: 0.55rem; }
   .td-play .td-conn { margin-top: 0.25rem; font-size: 0.86rem; }
   .pm.tdm .ydm-hero { padding-bottom: 0.65rem; margin-bottom: 0.75rem; }
@@ -1872,7 +1873,7 @@
                    animation: tkIn 1.3s ease-out forwards; }
   .tf-ticker .tk.catch { border-color: #5aa9ff; } .tf-ticker .tk.int { border-color: #ef4d64; background: rgba(60,10,20,0.9); }
   @keyframes tkIn { 0% { opacity: 0; transform: translateY(-8px) scale(0.9); } 15% { opacity: 1; transform: none; } 75% { opacity: 1; } 100% { opacity: 0; } }
-  .tf-wrap.final .td-replay { display: none; }
+  .tf-wrap.final .td-corner { display: none; }
   .tf-final { position: absolute; inset: 0; display: grid; place-items: center; padding: 0.75rem; z-index: 4;
               background: radial-gradient(ellipse at center, rgba(6,10,18,0.55), rgba(6,10,18,0.82)); backdrop-filter: blur(2px); }
   .tf-final[hidden] { display: none; }
@@ -1925,7 +1926,8 @@
     .tf-ticker .tk { font-size: 0.72rem; }
     .pm.tdm .tdwb-ends { font-size: 0.8rem; } .pm.tdm .tdwb-ends b { font-size: 1rem; }
     .tf.v { max-height: 50vh; }
-    .td-play .tf-wrap .td-replay { top: auto; left: auto; bottom: 0.45rem; right: 0.45rem; font-size: 0.72rem; padding: 0.2rem 0.55rem; }
+    .td-play .tf-wrap .td-corner { top: auto; left: auto; bottom: 0.45rem; right: 0.45rem; }
+    .td-play .tf-wrap .td-replay { font-size: 0.72rem; padding: 0.2rem 0.55rem; }
   }  .tdwb-ends { display: flex; justify-content: space-between; gap: 0.5rem; font-family: var(--font-d); font-weight: 700; font-size: 0.9rem; color: var(--silver); margin-bottom: 0.4rem; }
   .tdwb-ends span { display: inline-flex; align-items: center; gap: 0.35rem; }
   .tdwb-ends img { width: 1.2rem; height: 1.2rem; object-fit: contain; }
@@ -3018,6 +3020,7 @@
     }
     catch (e) { nflData = 'error'; setStatus('error'); }
     renderPanel(activeNav);
+    tdOpenPending();
   }
   // Coverage · volume · freshness, mirroring the MLB badge's "147d · 4481 HR".
   function statusSummary(d) {
@@ -4781,7 +4784,7 @@
         <div class="tff-sub"><b>${full}</b>${what ? ` · ${what}` : ''}${t.passer ? ` from ${t.passer}` : ''}</div>
         ${longest && longest[1] <= 0.2 ? `<div class="tff-long">Cashed at <b>${pbOdds(longest[1])}</b></div>` : ''}
         ${chips ? `<div class="tff-chips">${chips}</div>` : ''}
-        <div class="tff-actions"><button class="tff-btn" onclick="event.stopPropagation();tdAnimate()">↻ Watch again</button><button class="tff-btn ghost" onclick="event.stopPropagation();tdHideFinal()">See the field</button></div>
+        <div class="tff-actions"><button class="tff-btn" onclick="event.stopPropagation();tdAnimate()">↻ Watch again</button><button class="tff-btn ghost" onclick="event.stopPropagation();tdShare(this)">🔗 Share</button><button class="tff-btn ghost" onclick="event.stopPropagation();tdHideFinal()">See the field</button></div>
       </div>`;
     f.hidden = false; f.closest('.tf-wrap').classList.add('final');
     f.classList.toggle('pop', !!animate);
@@ -4866,7 +4869,7 @@
       body = `
       <div class="td-layout">
         <section class="ydm-panel td-play">
-          <div class="tf-wrap">${tdField(t, d)}<button class="td-replay" onclick="tdAnimate()">↻ Replay</button>
+          <div class="tf-wrap">${tdField(t, d)}<div class="td-corner"><button class="td-replay" onclick="tdAnimate()">↻ Replay</button><button class="td-replay" onclick="tdShare(this)">🔗 Share</button></div>
             <div class="tf-ticker" id="tf-ticker" aria-live="polite"></div>
             <div class="tf-final" id="tf-final" hidden onclick="if (event.target === this) tdHideFinal()"></div>
             <div class="tf-fx" id="tf-fx" aria-hidden="true"></div></div>
@@ -4900,9 +4903,10 @@
     tdMq = window.matchMedia('(max-width: 620px)');
     tdMq.addEventListener?.('change', () => { if (document.getElementById('td-back')) tdRender(); });
   }
-  function openTd(gid, k, fromGame) {
+  function openTd(gid, k, fromGame, fromRoute) {
     tdWatchOrientation();
     Object.assign(tdOpen, { gid, k, game: fromGame ? gid : false });
+    if (!fromRoute && location.pathname !== tdPathOf(gid, k)) { history.pushState({ td: 1 }, '', tdPathOf(gid, k)); tdPushed = true; }
     if (!document.getElementById('td-back')) {
       document.body.insertAdjacentHTML('beforeend', `
         <div class="pm-back" id="td-back" onclick="if(event.target===this)closeTd()">
@@ -4920,10 +4924,30 @@
     if (!document.getElementById('td-back')) return;
     if (e.key === 'Escape') closeTd(); else if (e.key === 'ArrowLeft') tdStep(-1); else if (e.key === 'ArrowRight') tdStep(1);
   }
-  function closeTd() { cancelAnimationFrame(tdAnim); document.getElementById('td-back')?.remove(); document.removeEventListener('keydown', tdKey); document.body.style.overflow = ''; tdOpen.gid = null; }
+  function closeTd(fromRoute) {
+    cancelAnimationFrame(tdAnim); document.getElementById('td-back')?.remove(); document.removeEventListener('keydown', tdKey); document.body.style.overflow = ''; tdOpen.gid = null;
+    if (fromRoute === true || !tdFromPath()) return;
+    // opened here: step back to the page it was opened from; arrived by link: drop the play from the URL
+    if (tdPushed && history.state?.td) { tdPushed = false; history.back(); }
+    else history.replaceState(null, '', currentPath());
+  }
+  /** share the replay: the phone's share sheet, or copy the link */
+  async function tdShare(btn) {
+    const t = tdRow(); if (!t) return;
+    const url = location.origin + tdPathOf(t.gameId, t.k);
+    const title = `${t.player} touchdown · ${t.team} vs ${t.opp}`;
+    if (navigator.share && window.matchMedia('(pointer: coarse)').matches) {
+      try { await navigator.share({ title, url }); return; } catch (e) { if (e.name === 'AbortError') return; }
+    }
+    try { await navigator.clipboard.writeText(url); } catch (e) { window.prompt('Copy this link', url); return; }
+    if (btn) { const was = btn.innerHTML; btn.innerHTML = '✓ Link copied'; setTimeout(() => { btn.innerHTML = was; }, 1600); }
+  }
+  window.tdShare = tdShare;
   function tdStep(dlt) {
     const deck = tdDeck(), at = deck.findIndex(x => x.gameId === tdOpen.gid && x.k === tdOpen.k), nx = deck[at + dlt];
-    if (!nx) return; Object.assign(tdOpen, { gid: nx.gameId, k: nx.k }); tdRender();
+    if (!nx) return; Object.assign(tdOpen, { gid: nx.gameId, k: nx.k });
+    history.replaceState(history.state, '', tdPathOf(nx.gameId, nx.k));
+    tdRender();
   }
   window.openTd = openTd; window.closeTd = closeTd; window.tdStep = tdStep; window.tdAnimate = tdAnimate;
   // Recap filter/sort state.
@@ -6862,10 +6886,36 @@ let pairStacks = false;
       </div>`;
   }
 
+  // Replays deep-link as /nfl/recap/<gameId>-<playId>, e.g. /nfl/recap/2026_01_DEN_KC-2252
+  let tdPushed = false, tdPending = null;
+  const tdPathOf = (gid, k) => `${APP_BASE}/recap/${gid}-${k}`;
+  function tdFromPath() {
+    const m = location.pathname.match(/\/recap\/(\d{4}_\d{2}_[A-Z]{2,3}_[A-Z]{2,3})-(\d+)\/?$/);
+    return m ? { gid: m[1], k: +m[2] } : null;
+  }
+  function tdOpenPending() {
+    if (!tdPending || !nflData || nflData === 'error') return;
+    const { gid, k } = tdPending; tdPending = null;
+    const t = Object.values(nflData.tdRecap || {}).flat().find(x => x.gameId === gid && x.k === k);
+    if (!t) { history.replaceState(null, '', currentPath()); return; }   // unknown play: just the recap
+    if (tdOpen.gid === gid && tdOpen.k === k && document.getElementById('td-back')) return;
+    recapWeek = +gid.split('_')[1];
+    if (activeNav === 'recap') renderRecap();
+    openTd(gid, k, false, true);
+  }
   function currentPath() { return activeNav === 'home' ? APP_BASE + '/' : APP_BASE + '/' + activeNav; }
   function commitRoute() { const p = currentPath(); if (location.pathname !== p) history.pushState(null, '', p); }
   function parsePath() { const rel = location.pathname.startsWith(APP_BASE) ? location.pathname.slice(APP_BASE.length) : location.pathname; return rel.replace(/^\/+|\/+$/g, '').split('/')[0] || 'home'; }
-  function applyRouteState() { applyingRoute = true; const nav = parsePath(); switchNav(NFL_NAVS.includes(nav) ? nav : 'home'); history.replaceState(null, '', currentPath()); applyingRoute = false; }
+  function applyRouteState() {
+    applyingRoute = true;
+    const nav = parsePath(), td = tdFromPath();
+    switchNav(td ? 'recap' : NFL_NAVS.includes(nav) ? nav : 'home');
+    if (td) tdPending = td;
+    else if (document.getElementById('td-back')) closeTd(true);
+    history.replaceState(history.state, '', td ? tdPathOf(td.gid, td.k) : currentPath());
+    applyingRoute = false;
+    tdOpenPending();
+  }
   window.addEventListener('popstate', applyRouteState);
   document.addEventListener('click', (e) => { if (navToolsOpen && !e.target.closest('#nav-tools-menu') && !e.target.closest('#nav-tools-btn')) closeNavTools(); });
 
