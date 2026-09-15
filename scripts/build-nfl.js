@@ -74,6 +74,23 @@ async function main() {
     (drivePlays.get(k) ?? drivePlays.set(k, []).get(k)).push([kind, num(P(r, 'yardline_100')), num(P(r, 'yards_gained')) ?? 0,
       num(P(r, 'down')), num(P(r, 'ydstogo')), +P(r, 'play_id'), P(r, 'posteam')]);
   }
+  // Win probability through each game, home side, for the Recap modal's chart:
+  // flattened [seconds elapsed, home win %, ...], thinned to a point every 40 s
+  // of game clock or 3-point move (touchdowns always kept).
+  const clockOf = (r) => {
+    const q = num(P(r, 'qtr')), qs = num(P(r, 'quarter_seconds_remaining'));
+    return q == null || qs == null ? null : q <= 4 ? (q - 1) * 900 + 900 - qs : 3600 + 600 - qs;
+  };
+  const wpSeries = {};
+  for (const r of prows) {
+    const el = clockOf(r), hw = num(P(r, 'home_wp_post')) ?? num(P(r, 'home_wp'));
+    if (el == null || hw == null) continue;
+    const arr = wpSeries[P(r, 'game_id')] ??= [0, Math.round((num(P(r, 'home_wp')) ?? hw) * 100)];
+    const pct = Math.round(hw * 100), n = arr.length;
+    if (P(r, 'touchdown') !== '1' && el - arr[n - 2] < 40 && Math.abs(pct - arr[n - 1]) < 3) continue;
+    if (el < arr[n - 2]) continue;
+    arr.push(el, pct);
+  }
   // Play detail for every touchdown, loaded by the Recap modal on demand
   // (nfl/plays.json) — where it started, which way it went, the drive, the
   // score and the win-probability swing. No tracking data exists for free, so
@@ -135,6 +152,7 @@ async function main() {
         // win probability before and after, scorer's side
         wp: wp == null ? null : onOffense ? [r1(wp), r1(wp + (wpa ?? 0))] : [r1(1 - wp), r1(1 - wp - (wpa ?? 0))],
         epa: onOffense ? r1(num(P(r, 'epa'))) : null,
+        el: clockOf(r),
         dr: onOffense ? { n: num(P(r, 'drive_play_count')), top: P(r, 'drive_time_of_possession') || null, start: P(r, 'drive_start_yard_line') || null,
                           yds: drive.reduce((a, d2) => a + (d2[2] || 0), 0) } : null,
       };
@@ -573,8 +591,9 @@ async function main() {
     returners: (picks?.returners?.length ? picks.returners : returners), returnModel,
   };
   fs.writeFileSync(new URL('../nfl/data.json', import.meta.url), JSON.stringify(output));
+  for (const [g, arr] of Object.entries(wpSeries)) if (Object.keys(playDetail).some(k => k.startsWith(g + '|'))) playDetail[`wp|${g}`] = arr;
   fs.writeFileSync(new URL('../nfl/plays.json', import.meta.url), JSON.stringify(playDetail));
-  console.log(`  play detail: ${Object.keys(playDetail).length} touchdowns -> nfl/plays.json`);
+  console.log(`  play detail: ${Object.keys(playDetail).filter(k => !k.startsWith('wp|')).length} touchdowns + win-probability lines -> nfl/plays.json`);
   console.log(`Wrote nfl/data.json — ${schedule.length} ${UPCOMING_SEASON} games, ${tdTotal} TDs across ${weeks.length} weeks, ${tdLeaders.length} TD leaders, ${picks?.picks.length ?? 0} picks.`);
 }
 main().catch(e => { console.error(e); process.exit(1); });

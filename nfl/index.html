@@ -1801,6 +1801,7 @@
   .tf-sp-num { font-family: var(--font-d); font-weight: 700; font-size: 25px; text-anchor: middle; dominant-baseline: middle; }
   .tf-sp-badge { fill: rgba(8,14,26,0.88); stroke: rgba(255,255,255,0.35); stroke-width: 2; }
   .tf-sp-name { fill: #fff; font-family: var(--font-d); font-weight: 700; font-size: 16px; text-anchor: middle; dominant-baseline: middle; }
+  .tf-sp { transition: opacity 0.4s; } .tf-sp.faded { opacity: 0.5; }
   .tf-sp.scorer .tf-sp-badge { fill: rgba(242,201,76,0.95); } .tf-sp.scorer .tf-sp-name { fill: #1d1400; }
   .tf.v .tf-sp-num { font-size: 27px; } .tf.v .tf-sp-name { font-size: 18px; }
   .tf-pylon { fill: #ff7a1a; stroke: rgba(0,0,0,0.35); stroke-width: 2; }
@@ -1823,18 +1824,53 @@
   .tf-ev.note .tf-ev-dot { display: none; } .tf-ev.note .tf-ev-tag rect { fill: rgba(8,14,26,0.6); stroke: none; } .tf-ev.note .tf-ev-tag text { font-size: 17px; fill: #cfe3d6; }
   .tf-ev.td .tf-ev-dot { fill: #f2c94c; } .tf-ev.td .tf-ev-tag rect { fill: #f2c94c; stroke: none; } .tf-ev.td .tf-ev-tag text { fill: #1d1400; }
   .td-desc { margin: 0.7rem 0 0; font-size: 0.9rem; line-height: 1.45; color: var(--silver); }
-  .td-side h4 { margin-top: 1rem; } .td-side h4.accent { margin-top: 0; }
-  .tds-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
-  .tds { border: 1px solid var(--border); border-radius: 9px; background: var(--surface0); padding: 0.55rem 0.65rem; }
-  .tds.wide { grid-column: 1 / -1; } .tds.wide b { text-transform: none; }
-  .tds b { display: block; font-family: var(--font-d); font-size: 1.05rem; color: var(--text-strong); text-transform: capitalize; }
-  .tds span { font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-  .tdw { display: grid; grid-template-columns: 2.6rem 1fr 2.6rem; align-items: center; gap: 0.5rem; font-family: var(--font-d); font-weight: 700; }
-  .tdw span:last-child { text-align: right; color: var(--accent); }
-  .tdw i { position: relative; height: 12px; border-radius: 6px; background: var(--surface2); overflow: hidden; }
-  .tdw em { position: absolute; top: 0; bottom: 0; } .tdw em.before { left: 0; background: var(--silver); opacity: 0.45; } .tdw em.after { background: var(--accent); }
+  .td-side h4 { margin-top: 1rem; }
+  .tsb { display: grid; grid-template-columns: 1fr auto; border-radius: 12px; overflow: hidden; background: #0a111d; color: #f3f6fb;
+         border: 1px solid #1f2b3d; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); font-family: var(--font-d); }
+  .tsb-teams { display: grid; }
+  .tsb-row { position: relative; display: grid; grid-template-columns: 1.55rem auto auto 1fr; align-items: center; gap: 0.45rem; padding: 0.45rem 0.7rem 0.45rem 0.85rem;
+             background: linear-gradient(90deg, color-mix(in srgb, var(--tc) 30%, transparent), transparent 75%); }
+  .tsb-row + .tsb-row { border-top: 1px solid #1a2536; }
+  .tsb-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--tc); }
+  .tsb-row img { width: 1.55rem; height: 1.55rem; object-fit: contain; }
+  .tsb-abbr { font-size: 1.05rem; letter-spacing: 0.04em; }
+  .tsb-ball { width: 0.62rem; height: 0.4rem; border-radius: 50%; background: #9a5a2c; box-shadow: 0 0 0 1px rgba(255,255,255,0.35); }
+  .tsb-pts { grid-column: 4; justify-self: end; font-size: 1.6rem; line-height: 1; font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; }
+  .tsb-row:not(.scoring) .tsb-pts { color: #aab6c8; }
+  .tsb-pts.flip { animation: tsbFlip 0.6s cubic-bezier(.2,.8,.2,1); color: #f2c94c; text-shadow: 0 0 14px rgba(242,201,76,0.45); }
+  @keyframes tsbFlip { 0% { transform: translateY(-40%) scale(1.2); opacity: 0; } 60% { transform: translateY(4%) scale(1.05); opacity: 1; } 100% { transform: none; } }
+  .tsb-clock { display: grid; place-content: center; text-align: center; padding: 0 0.95rem; border-left: 1px solid #1f2b3d; background: #0d1626; min-width: 4.6rem; }
+  .tsb-clock b { font-size: 1.05rem; color: #f2c94c; letter-spacing: 0.06em; }
+  .tsb-clock span { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+  .tsb-foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.15rem 0.9rem; padding: 0.4rem 0.8rem; background: #111b2c; border-top: 1px solid #1f2b3d;
+              font-size: 0.74rem; letter-spacing: 0.04em; text-transform: uppercase; color: #8d9bb0; }
+  .tsb-foot b { color: #f3f6fb; font-weight: 700; }
+  .tdw2-legend { display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; font-family: var(--font-d); font-size: 0.85rem; color: var(--muted); margin-bottom: 0.3rem; }
+  .tdw2-legend i { display: inline-block; width: 0.8rem; height: 3px; border-radius: 2px; background: var(--c); vertical-align: middle; margin-right: 0.35rem; }
+  .tdw2-legend b { color: var(--text-strong); font-variant-numeric: tabular-nums; }
+  .tdw2 { display: block; width: 100%; height: 8.25rem; overflow: visible; }
+  .tdw2 path, .tdw2 line.tdw2-jump { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+  .tdw2 .inv { opacity: 0.55; stroke-width: 2; }
+  .tdw2-mid { stroke: var(--border); stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+  .tdw2-q { stroke: var(--border); opacity: 0.6; vector-effect: non-scaling-stroke; }
+  .tdw2-wrap { position: relative; }
+  .tdw2-ql { position: relative; height: 1rem; font-family: var(--font-d); font-size: 0.66rem; color: var(--muted); }
+  .tdw2-ql span { position: absolute; transform: translateX(-50%); top: 0.1rem; }
+  .tdw2-pre, .tdw2-jump { stroke-dasharray: 1; stroke-dashoffset: 1; }
+  .tdw2.drawn .tdw2-pre { stroke-dashoffset: 0; transition: stroke-dashoffset 1.6s ease-out; }
+  .tdw2.scored .tdw2-jump { stroke-dashoffset: 0; transition: stroke-dashoffset 0.7s cubic-bezier(.2,.8,.2,1); }
+  .tdw2-rest { opacity: 0; } .tdw2.scored .tdw2-rest { opacity: 0.35; transition: opacity 0.8s 0.9s; }
+  .tdw2-rest path { stroke-width: 1.5; }
+  .tdw2-dot { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; opacity: 0; box-shadow: 0 0 0 2px var(--surface1), 0 0 12px rgba(242,201,76,0.7); }
+  .tdw2.scored + .tdw2-dot { opacity: 1; animation: tdwPulse 1.1s 0.55s ease-out both; }
+  @keyframes tdwPulse { 0% { transform: scale(0.3); opacity: 0; } 35% { transform: scale(2); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
   .tdw-note { margin: 0.35rem 0 0; font-size: 0.8rem; color: var(--muted); opacity: 0; transition: opacity 0.4s; }
   .tdw-note.on { opacity: 1; }
+  .tdo { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.2rem, 1fr)); gap: 0.4rem; }
+  .tdo-tile { border: 1px solid color-mix(in srgb, var(--gold) 35%, var(--border)); background: color-mix(in srgb, var(--gold) 7%, var(--surface0)); border-radius: 9px; padding: 0.45rem 0.6rem; }
+  .tdo-tile span { display: block; font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .tdo-tile b { display: block; font-family: var(--font-d); font-size: 1.25rem; color: var(--gold); line-height: 1.2; }
+  .tdo-tile small { font-size: 0.7rem; color: var(--muted); }
   .td-conn { margin: 0; font-size: 0.95rem; color: var(--text); line-height: 1.5; } .td-conn span { font-size: 0.8rem; color: var(--muted); }
   .td-flags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 1rem; }
   .ydm-big strong small { font-size: 0.4em; margin-left: 0.15rem; color: var(--muted); }
@@ -3618,7 +3654,11 @@
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(j => { liveLog = j; liveLogState = 'ready'; })
       .catch(() => { liveLogState = 'error'; })
-      .finally(() => renderPanel(activeNav));
+      .finally(() => {
+        renderPanel(activeNav);
+        const odds = document.getElementById('td-odds'), t = document.getElementById('td-back') && tdRow();
+        if (odds && t) odds.innerHTML = tdOdds(t);
+      });
   }
 
   const LR_TD_MKTS = [['1', 'Anytime'], ['2', '2+ TDs'], ['3', '1st TD'], ['4', 'Last TD'], ['5', 'Pass 2+ TD']];
@@ -4046,246 +4086,221 @@
   }
 
   // ── Touchdown scene ──────────────────────────────────────────────────────
-  // Every actor is a function of time, in field yards (x 0-120 along the field,
-  // y 0-53.3 across; the scoring team attacks toward x = 110). No formation or
-  // tracking data exists for free, so both teams line up in a base look — the
-  // play-by-play still decides shotgun vs under center, the ball's direction,
-  // the gap, air yards, yards after the catch, and kick / return distances.
-  // Only the scorer (and the QB where he matters) are drawn as players.
+  // Every player is a function of time, in field yards (x 0-120 along the
+  // field, y 0-53.3 across; the scoring team attacks toward x = 110). No
+  // tracking data exists for free: the play-by-play decides shotgun vs under
+  // center, direction, gap, air yards, yards after the catch and kick / return
+  // distances, and only the scorer and the quarterback are drawn.
   const MID = 26.65, TDX = 112.5;
   const lerp = (a2, b2, f) => [a2[0] + (b2[0] - a2[0]) * f, a2[1] + (b2[1] - a2[1]) * f];
   const dist = (a2, b2) => Math.hypot(b2[0] - a2[0], b2[1] - a2[1]);
-  /** keyframes [[t, [x, y]], ...] -> position at time */
-  const kf = (pts) => (time) => {
-    if (time <= pts[0][0]) return pts[0][1];
-    for (let i = 1; i < pts.length; i++) if (time <= pts[i][0]) {
-      const f = (time - pts[i - 1][0]) / Math.max(1e-6, pts[i][0] - pts[i - 1][0]);
-      return lerp(pts[i - 1][1], pts[i][1], f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2);
+  /** one pace per play — longer runs play a little faster so a 99-yarder doesn't drag */
+  const PACE = (len) => Math.min(12, Math.max(8, 7 + len * 0.05));
+  /**
+   * A player moving along a smooth curve through the waypoints at one steady
+   * pace: builds up over `ein` seconds, eases down over the last `eout`.
+   * Waypoints shape the route — nobody stops at them.
+   */
+  function run(pts, t0, pace, ein = 0.35, eout = 0.45) {
+    // centripetal Catmull-Rom: bends through every waypoint without the loops
+    // and overshoots the uniform kind makes at sharp cuts
+    const P = [], SUB = 14, n = pts.length, marks = [0];
+    const ext = (a2, b2) => [2 * a2[0] - b2[0], 2 * a2[1] - b2[1]];
+    const knot = (tv, a2, b2) => tv + Math.max(1e-3, Math.sqrt(dist(a2, b2)));
+    const mix = (a2, b2, ta, tb, tv) => lerp(a2, b2, (tv - ta) / (tb - ta));
+    for (let i = 0; i < n - 1; i++) {
+      const p1 = pts[i], p2 = pts[i + 1], p0 = i ? pts[i - 1] : ext(p1, p2), p3 = i + 2 < n ? pts[i + 2] : ext(p2, p1);
+      const t1 = knot(0, p0, p1), t2 = knot(t1, p1, p2), t3 = knot(t2, p2, p3);
+      for (let k = 0; k < SUB; k++) {
+        const tv = t1 + (t2 - t1) * k / SUB;
+        const A1 = mix(p0, p1, 0, t1, tv), A2 = mix(p1, p2, t1, t2, tv), A3 = mix(p2, p3, t2, t3, tv);
+        P.push(mix(mix(A1, A2, 0, t2, tv), mix(A2, A3, t1, t3, tv), t1, t2, tv));
+      }
+      marks.push((i + 1) * SUB);
     }
-    return pts[pts.length - 1][1];
-  };
-  /** close on a target from a start spot once `from` has passed, but stay a
-   *  couple of yards off him — the scorer is never actually caught */
-  const chase = (p0, target, from, rate = 0.42, lag = 0.2, gap = 3.5 + (Math.abs(Math.round(p0[0] * 7 + p0[1] * 3)) % 5) * 1.3) => (time) => {
-    if (time <= from) return p0;
-    const tg = target(Math.max(0, time - lag)), c = lerp(p0, tg, Math.min(0.92, (time - from) * rate)), dd = dist(c, tg);
-    if (dd >= gap) return c;
-    const u = dd < 1e-3 ? [-1, 0] : [(c[0] - tg[0]) / dd, (c[1] - tg[1]) / dd];
-    return [tg[0] + u[0] * gap, tg[1] + u[1] * gap];
-  };
-  const still = (p0) => () => p0;
-
-  function offenseLook(los, dir, sh) {
-    const at = (dx, y) => [los - dir * dx, y];
-    return {
-      ol: [-2, -1, 0, 1, 2].map(k => at(1.2, MID + k * 2.3)), te: at(1.2, MID + 7.2),
-      wr1: at(0.8, 6), wr2: at(0.8, 47.3), slotL: at(1, 15), slotR: at(1, 38.3),
-      rb: sh ? at(5, MID + 2.4) : at(7, MID), qb: sh ? at(5, MID) : at(1, MID),
+    P.push(pts[n - 1]);
+    const cum = [0];
+    for (let i = 1; i < P.length; i++) cum.push(cum[i - 1] + dist(P[i - 1], P[i]));
+    const L = cum[cum.length - 1];
+    let v = pace, ea = Math.max(0.05, ein), eb = Math.max(0.05, eout);
+    if (v * (ea + eb) / 2 > L) { const f = Math.sqrt(Math.max(L, 1e-3) / (v * (ea + eb) / 2)); ea *= f; eb *= f; v *= f; }
+    const D = ea + eb + Math.max(0, L - v * (ea + eb) / 2) / v;
+    const sAt = (tt) => tt <= 0 ? 0 : tt >= D ? L : tt < ea ? 0.5 * v * tt * tt / ea
+      : tt <= D - eb ? 0.5 * v * ea + v * (tt - ea) : L - 0.5 * v * (D - tt) ** 2 / eb;
+    const at = (sv) => {
+      let lo = 0, hi = cum.length - 1;
+      while (hi - lo > 1) { const m = (lo + hi) >> 1; if (cum[m] <= sv) lo = m; else hi = m; }
+      const seg = cum[hi] - cum[lo];
+      return lerp(P[lo], P[hi], seg > 0 ? Math.min(1, Math.max(0, (sv - cum[lo]) / seg)) : 0);
     };
+    const tAtS = (sv) => { let lo = 0, hi = D; for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (sAt(m) < sv) lo = m; else hi = m; } return hi; };
+    const r = {
+      t0, len: L, dur: D, get end() { return r.t0 + D; },
+      pos: (time) => at(sAt(time - r.t0)),
+      /** seconds from the start to waypoint i */
+      to: (i) => tAtS(cum[marks[i]]),
+    };
+    return r;
   }
-  function defenseLook(los, dir) {   // dir: which way the OFFENSE attacks
-    const at = (dx, y) => [los + dir * dx, y];
-    return { dl: [-4.4, -1.4, 1.4, 4.4].map(o => at(1.2, MID + o)), lb: [-7, 0, 7].map(o => at(5, MID + o)),
-             cb: [at(7, 6.5), at(7, 46.8)], s: [at(13, MID - 9), at(13, MID + 9)] };
-  }
+  /** a player's motion over several runs, holding still in between */
+  const seq = (...rs) => (time) => { let cur = rs[0]; for (const r of rs) if (time >= r.t0) cur = r; return cur.pos(time); };
+  /** a route at the right pace for its own length */
+  const route = (pts, t0, ein, eout) => run(pts, t0, PACE(run(pts, 0, 8).len), ein, eout);
+  /** when a mover first reaches the goal line */
+  const goalT = (fn, from, to) => { for (let tt = from; tt <= to; tt += 0.01) if (fn(tt)[0] >= 110) return tt; return to; };
 
   function tdScene(t, d) {
     const actors = [], events = [];
     const pos = (nflData.tdLeaders || []).find(l => l.pid === t.pid)?.pos || (nflData.picks?.picks || []).find(x => x.pid === t.pid)?.pos
       || (t.type === 'rec' ? 'WR' : t.type === 'rush' ? 'RB' : '');
     const jn = d?.jn || {};
-    const scorerMeta = { side: 'team', kind: 'jersey', num: jn[t.player] ?? '', name: t.player, scorer: true };
-    const add = (side, fn, extra = {}) => { const a2 = { side, kind: 'dot', pos: fn, ...extra }; actors.push(a2); return a2; };
+    const scorerMeta = { side: 'team', num: jn[t.player] ?? '', name: t.player, scorer: true };
     const sideY = { left: 12.5, middle: MID, right: 40.8 };
-    const gapY = { left: { end: 8.5, tackle: 19, guard: 23.5 }, right: { guard: 29.8, tackle: 34.3, end: 44.8 } };
+    const gapY = { left: { end: 10, tackle: 19, guard: 23.5 }, right: { guard: 29.8, tackle: 34.3, end: 43.3 } };
     const toward = (y, w) => y * (1 - w) + MID * w;
-    let ball, T, los = null, fd = null;
+    const arc = (from, to, f) => Math.sin(Math.PI * f) * Math.min(1, dist(from, to) / 22);
+    let ball, T, los = null, fd = null, tdAt;
 
     if ((t.type === 'rec' || t.type === 'rush') && d?.yl != null) {
       los = 110 - d.yl; fd = d.tg && los + d.tg < 110 ? los + d.tg : null;
-      const sh = !!d.sh, O = offenseLook(los, 1, sh), D = defenseLook(los, 1);
-      const qbStart = O.qb;
+      const sh = !!d.sh, qbStart = sh ? [los - 5, MID] : [los - 1, MID];
 
-      if (t.type === 'rec' && !d.scr) {
-        const drop = [los - (sh ? 6.3 : 7), MID], tDrop = sh ? 0.8 : 1.2, tThrow = tDrop + 0.25;
-        const air = d.air ?? d.gain ?? d.yl;
-        const catchPt = [Math.min(118, los + air), sideY[d.pl] ?? MID];
-        const flight = 0.45 + dist(drop, catchPt) / 40, tCatch = tThrow + flight;
-        const align = pos === 'RB' ? O.rb : pos === 'TE' ? O.te
-          : d.pl === 'left' ? O.wr1 : d.pl === 'right' ? O.wr2 : (catchPt[1] < MID ? O.slotL : O.slotR);
-        const endPt = [TDX, toward(catchPt[1], 0.3)];
-        const yac = catchPt[0] < 110 ? Math.max(0.5, dist(catchPt, endPt) / 11) : 0.35;
-        T = tCatch + yac;
-        const stem = air >= 8 ? [[tCatch * 0.6, [Math.min(catchPt[0] - 3, align[0] + (catchPt[0] - align[0]) * 0.65), align[1]]]] : [];
-        const scorer = kf([[0, align], ...stem, [tCatch, catchPt], [T, catchPt[0] < 110 ? endPt : catchPt]]);
-        const qb = kf([[0, qbStart], [tDrop, drop]]);
-        actors.push({ ...scorerMeta, pos: scorer });
-        actors.push({ side: 'team', kind: 'jersey', num: jn[t.passer] ?? '', name: t.passer || 'QB', pos: qb });
-        O.ol.forEach(p0 => add('team', kf([[0, p0], [tDrop, [p0[0] - 1.3, p0[1]]]])));
-        for (const [key, p0] of [['te', O.te], ['wr1', O.wr1], ['wr2', O.wr2], ['rb', O.rb]]) {
-          if (p0 === align) continue;
-          add('team', key === 'rb' ? kf([[0, p0], [tDrop, [los - 3.5, MID + 1.5]]]) : kf([[0, p0], [T, [p0[0] + 15, p0[1]]]]));
-        }
-        D.dl.forEach(p0 => add('opp', (time) => time < tCatch ? kf([[0, p0], [tThrow, lerp(p0, drop, 0.55)]])(time) : chase(lerp(p0, drop, 0.55), scorer, tCatch, 0.3)(time)));
-        [...D.lb, ...D.cb, ...D.s].forEach(p0 => add('opp', (time) => {
-          const settle = [p0[0] + 3, p0[1]];
-          return time < tCatch ? kf([[0, p0], [tCatch, settle]])(time) : chase(settle, scorer, tCatch, 0.4)(time);
-        }));
-        ball = (time) => time < 0.2 ? { p: lerp([los, MID], qb(0.2), time / 0.2), own: 'hold' }
-          : time < tThrow ? { p: qb(time), own: 'hold' }
-          : time < tCatch ? { p: lerp(drop, catchPt, (time - tThrow) / flight), h: Math.sin(Math.PI * (time - tThrow) / flight) * Math.min(1, dist(drop, catchPt) / 22), own: 'pre', spiral: true }
-          : { p: scorer(time), own: 'post' };
+      if (t.type === 'rec') {
+        const air = d.air ?? d.gain ?? d.yl, quick = air < 5;
+        const catchPt = [Math.min(117, los + air), sideY[d.pl] ?? MID], inEz = catchPt[0] >= 110;
+        const align = pos === 'RB' ? (sh ? [los - 5, MID + 2.4] : [los - 7, MID]) : pos === 'TE' ? [los - 1.2, MID + (catchPt[1] < MID ? -7.2 : 7.2)]
+          : d.pl === 'left' ? [los - 0.8, 6] : d.pl === 'right' ? [los - 0.8, 47.3] : [los - 1, catchPt[1] < MID ? 15 : 38.3];
+        const drop = quick ? (sh ? [los - 5.8, MID] : [los - 4, MID]) : [los - (sh ? 6.5 : 7.5), MID];
+        const qb = run([qbStart, drop], 0.15, 5, 0.2, 0.35);
+        const stem = air >= 8 ? [[Math.max(align[0] + 3, catchPt[0] - Math.min(7, air * 0.35)), align[1] + (catchPt[1] - align[1]) * 0.35]] : [];
+        const endPt = inEz ? [Math.min(118, catchPt[0] + 3), toward(catchPt[1], 0.1)] : [TDX, toward(catchPt[1], 0.3)];
+        const pts = [align, ...stem, catchPt, endPt];
+        const rt = route(pts, 0, 0.4, 0.5), toCatch = rt.to(pts.length - 2);
+        const flight = 0.3 + dist(drop, catchPt) / 42;
+        rt.t0 = Math.max(0.1, qb.end + (quick ? 0.05 : 0.3) + flight - toCatch);
+        const tCatch = rt.t0 + toCatch, tThrow = tCatch - flight;
+        T = rt.end;
+        actors.push({ ...scorerMeta, pos: rt.pos });
+        actors.push({ side: 'team', num: jn[t.passer] ?? '', name: t.passer || 'QB', pos: qb.pos, done: tThrow });
+        ball = (time) => time < 0.15 ? { p: lerp([los, MID], qbStart, time / 0.15), own: 'hold' }
+          : time < tThrow ? { p: qb.pos(time), own: 'hold' }
+          : time < tCatch ? { p: lerp(drop, catchPt, (time - tThrow) / flight), h: arc(drop, catchPt, (time - tThrow) / flight), own: 'pre', spiral: true }
+          : { p: rt.pos(time), own: 'post' };
         events.push({ t: tThrow, label: 'Throw', cls: 'qb', at: drop });
-        if (catchPt[0] < 110) events.push({ t: tCatch, label: 'Catch', cls: 'catch', at: catchPt });
-        events.push({ t: T, label: 'TOUCHDOWN', cls: 'td', at: catchPt[0] < 110 ? endPt : catchPt });
-      } else {
-        // runs (and QB scrambles, where the scorer IS the quarterback)
-        const scramble = !!d.scr || pos === 'QB';
-        const hole = [los, (d.rl === 'middle' || !d.rl) ? MID : (gapY[d.rl]?.[d.gap] ?? sideY[d.rl])];
-        const endPt = [TDX, toward(hole[1], 0.35)];
-        let scorer, qb, tHand;
-        if (scramble) {
-          const drop = [los - 6, MID]; tHand = 1.0;
-          const lane = [los + 1, sideY[d.rl] ?? MID];
-          const tLane = tHand + 0.55;
-          T = tLane + dist(lane, endPt) / 10;
-          scorer = kf([[0, qbStart], [tHand, drop], [tLane, lane], [T, [TDX, toward(lane[1], 0.3)]]]);
-          actors.push({ ...scorerMeta, pos: scorer });
-          add('team', kf([[0, O.rb], [tHand, [los - 3, MID + 2]]]));
-          events.push({ t: tHand, label: 'Scramble', cls: 'qb', at: drop });
+        if (!inEz) events.push({ t: tCatch, label: 'Catch', cls: 'catch', at: catchPt });
+        tdAt = inEz ? tCatch : goalT(rt.pos, tCatch, T);
+      } else if (d.scr || pos === 'QB') {
+        // the scorer IS the quarterback: scrambles drop first, designed runs go
+        const laneY = d.rl && d.rl !== 'middle' ? (gapY[d.rl]?.[d.gap] ?? sideY[d.rl]) : MID;
+        if (d.scr) {
+          const drop = [los - 6, MID], r1 = run([qbStart, drop], 0.15, 5, 0.2, 0.4), tGo = r1.end + 0.35;
+          const pts = [drop, [los - 2.5, toward(laneY, 0.5)], [Math.min(los + 3, 109), laneY], [TDX, toward(laneY, 0.3)]];
+          const r2 = route(pts, tGo, 0.55, 0.5);
+          const fn = seq(r1, r2);
+          actors.push({ ...scorerMeta, pos: fn });
+          ball = (time) => time < 0.15 ? { p: lerp([los, MID], qbStart, time / 0.15), own: 'hold' } : { p: fn(time), own: time < tGo ? 'hold' : 'post' };
+          events.push({ t: tGo, label: 'Scramble', cls: 'qb', at: drop });
+          T = r2.end; tdAt = goalT(fn, tGo, T);
         } else {
-          const hand = sh ? [los - 5, MID + 1.2] : [los - 3.5, MID]; tHand = sh ? 0.55 : 0.75;
-          const tHole = tHand + 0.45;
-          T = tHole + dist(hole, endPt) / 11;
-          scorer = kf([[0, pos === 'WR' ? O.wr1 : O.rb], [tHand, hand], [tHole, hole], [T, endPt]]);
-          qb = kf([[0, qbStart], [tHand, sh ? qbStart : [los - 2.5, MID]], [tHand + 0.9, [los - 5.5, MID - 4]]]);
-          actors.push({ ...scorerMeta, pos: scorer });
-          add('team', qb);   // on a handoff the quarterback is just a dot
-          events.push({ t: tHand, label: 'Handoff', cls: 'catch', at: hand });
-          events.push({ t: tHole, label: d.rl && d.rl !== 'middle' ? `${d.rl} ${d.gap || 'side'}` : 'up the middle', cls: 'note', at: hole });
+          const pts = [qbStart, [Math.min(los + 1, 109.5), toward(laneY, 0.4)], [TDX, toward(laneY, 0.2)]];
+          const r1 = route(pts, 0.2, 0.4, 0.5);
+          actors.push({ ...scorerMeta, pos: r1.pos });
+          ball = (time) => time < 0.2 ? { p: lerp([los, MID], qbStart, time / 0.2), own: 'hold' } : { p: r1.pos(time), own: 'post' };
+          T = r1.end; tdAt = goalT(r1.pos, 0.2, T);
         }
-        O.ol.forEach(p0 => add('team', kf([[0, p0], [tHand + 0.5, [p0[0] + 1.6, p0[1]]]])));
-        [O.te, O.wr1, O.wr2].forEach(p0 => add('team', kf([[0, p0], [T, [p0[0] + 7, p0[1]]]])));
-        D.dl.forEach(p0 => add('opp', (time) => time < tHand + 0.5 ? kf([[0, p0], [tHand + 0.5, [p0[0] - 0.6, p0[1]]]])(time) : chase([p0[0] - 0.6, p0[1]], scorer, tHand + 0.5, 0.25)(time)));
-        [...D.lb, ...D.cb, ...D.s].forEach(p0 => add('opp', chase(p0, scorer, tHand * 0.6, 0.45)));
-        const holder = scramble ? scorer : qb;
-        ball = (time) => time < 0.2 ? { p: lerp([los, MID], holder(0.2), time / 0.2), own: 'hold' }
-          : time < tHand ? { p: holder(time), own: 'hold' } : { p: scorer(time), own: 'post' };
-        events.push({ t: T, label: 'TOUCHDOWN', cls: 'td', at: [TDX, scorer(T)[1]] });
+      } else {
+        // handoff: the back takes it at the mesh and bends to the hole without breaking stride
+        const holeY = d.rl && d.rl !== 'middle' ? (gapY[d.rl]?.[d.gap] ?? sideY[d.rl]) : MID;
+        const align = pos === 'WR' ? [los - 1, holeY < MID ? 44 : 9] : sh ? [los - 5, MID + 2.4] : [los - 7, MID];
+        const hand = pos === 'WR' ? [los - 1.5, MID] : sh ? [los - 4.4, MID + 0.8] : [los - 3.8, MID];
+        const pts = [align, hand];
+        if (Math.abs(holeY - MID) > 5) pts.push([los - 1, toward(holeY, 0.4)]);
+        pts.push([Math.min(los + 2.5, 109.5), holeY]);
+        pts.push([TDX, toward(holeY, 0.3)]);
+        const rt = route(pts, 0.2, 0.45, 0.5), tHand = rt.t0 + rt.to(1);
+        actors.push({ ...scorerMeta, pos: rt.pos });
+        ball = (time) => time < tHand ? { p: lerp([los, MID], hand, Math.min(1, time / tHand)), own: 'hold' } : { p: rt.pos(time), own: 'post' };
+        events.push({ t: tHand, label: 'Handoff', cls: 'catch', at: hand });
+        if (d.rl) events.push({ t: rt.t0 + rt.to(pts.findIndex(q => q[0] >= los)), label: d.rl !== 'middle' ? `${d.rl} ${d.gap || 'side'}` : 'up the middle', cls: 'note', at: [los, holeY] });
+        T = rt.end; tdAt = goalT(rt.pos, tHand, T);
       }
     } else if (t.type === 'st') {
       const ret = [...(d?.desc || '').matchAll(/for (-?\d+) yards?, TOUCHDOWN/g)].pop();
       const catchPt = [Math.max(10, 110 - (ret ? +ret[1] : (d?.ry ?? t.yards ?? 0))), MID];
       const origin = [Math.min(117, catchPt[0] + (d?.kd ?? 45)), MID];
       const flight = 1.0 + dist(origin, catchPt) / 55;
-      const endPt = [TDX, toward(MID + 6, 0.2)];
-      T = flight + dist(catchPt, endPt) / 11;
-      const scorer = kf([[0, [catchPt[0] - 1.5, MID]], [flight, catchPt], [T, endPt]]);
-      actors.push({ ...scorerMeta, pos: scorer });
-      const punt = t.subtype === 'punt';
-      const lineX = punt ? origin[0] - 12 : origin[0];
-      [6, 11, 16, 21, 25, 29, 33, 38, 43, 48].forEach(y => add('opp', (time) => {
-        const run = [lineX - (lineX - catchPt[0]) * 0.6, y + (MID - y) * 0.3];
-        return time < flight ? kf([[0, [lineX, y]], [flight, run]])(time) : chase(run, scorer, flight, 0.38)(time);
-      }));
-      add('opp', still([origin[0] + 1.5, MID]));
-      [10, 18, 26, 34, 42].forEach(y => add('team', kf([[0, [catchPt[0] + 20, y]], [flight + 0.6, [catchPt[0] + 24, toward(y, 0.2)]]])));
+      const pts = [[catchPt[0] - 2.5, MID], catchPt];
+      if (catchPt[0] + 14 < 105) pts.push([catchPt[0] + 14, MID + 5]);
+      pts.push([TDX, MID + 3]);
+      const rt = route(pts, 0, 0.4, 0.5), toCatch = rt.to(1);
+      rt.t0 = flight - toCatch;
+      actors.push({ ...scorerMeta, pos: rt.pos });
       ball = (time) => time < flight ? { p: lerp(origin, catchPt, time / flight), h: Math.sin(Math.PI * time / flight) * 1.2, own: 'pre', tumble: true }
-        : { p: scorer(time), own: 'post' };
-      events.push({ t: 0, label: punt ? 'Punt' : 'Kickoff', cls: 'qb', at: origin });
+        : { p: rt.pos(time), own: 'post' };
+      events.push({ t: 0, label: t.subtype === 'punt' ? 'Punt' : 'Kickoff', cls: 'qb', at: origin });
       events.push({ t: flight, label: 'Fielded', cls: 'catch', at: catchPt });
-      events.push({ t: T, label: 'TOUCHDOWN', cls: 'td', at: endPt });
+      T = rt.end; tdAt = goalT(rt.pos, flight, T);
     } else {
       // defense: the other team has the ball, attacking toward x = 10. The
       // takeaway spot comes from the return ("for 27 yards, TOUCHDOWN") — the
       // return-yards column is empty on some fumble recoveries.
       const desc = d?.desc || '';
       const ret = [...desc.matchAll(/for (-?\d+) yards?, TOUCHDOWN/g)].pop();
-      const retY = ret ? +ret[1] : (d?.ry || t.yards || 0);
-      const spot = [Math.max(10, Math.min(110, 110 - retY)), MID];
-      const known = d?.yl != null;
-      const oLos = known ? 10 + d.yl : Math.min(100, spot[0] - 6);
-      const sh = !!d?.sh, O = offenseLook(oLos, -1, sh), D = defenseLook(oLos, -1);
+      const spot = [Math.max(10, Math.min(110, 110 - (ret ? +ret[1] : (d?.ry || t.yards || 0)))), MID];
+      const known = d?.yl != null, oLos = known ? 10 + d.yl : Math.min(100, spot[0] - 6), sh = !!d?.sh;
       los = known ? oLos : null;
-      const thrower = { side: 'opp', kind: 'jersey', num: d?.thr?.[0] ?? '', name: d?.thr?.[1] ?? 'QB' };
-      const drop = [oLos + (sh ? 6.3 : 7), MID], tDrop = sh ? 0.8 : 1.2;
-      const qbKf = kf([[0, O.qb], [tDrop, drop]]);
-      const nearest = (arr, pt) => [...arr].sort((p1, p2) => dist(p1, pt) - dist(p2, pt))[0];
-      const pick6 = t.subtype === 'pick6';
-      const sack = /sacked/.test(desc);
-      let scorer, tTake, endPt;
-
+      const thrower = { side: 'opp', num: d?.thr?.[0] ?? '', name: d?.thr?.[1] ?? 'QB' };
+      const qbStart = sh ? [oLos + 5, MID] : [oLos + 1, MID], drop = [oLos + (sh ? 6.5 : 7.5), MID];
+      const qb = run([qbStart, drop], 0.15, 5, 0.2, 0.35);
+      const snap = (time) => ({ p: lerp([oLos, MID], qbStart, time / 0.15), own: 'hold' });
+      // where the scorer lines up: a linebacker's depth, on the ball's side
+      const pick6 = t.subtype === 'pick6', sack = /sacked/.test(desc);
+      if (pick6) spot[1] = sideY[d?.pl === 'left' ? 'right' : d?.pl === 'right' ? 'left' : 'middle'];
+      const start = known ? [spot[0] > oLos ? oLos - 1.2 : Math.max(10.5, oLos - 6), toward(spot[1], 0.5)] : [spot[0] - 3, spot[1] - 3];
+      const pts = [start, spot];
+      if (spot[0] + 8 < 106) pts.push([spot[0] + 8, toward(spot[1], 0.2)]);
+      pts.push([TDX, toward(spot[1], 0.3)]);
+      const rt = route(pts, 0, 0.35, 0.5), toSpot = rt.to(1);
+      let tTake;
       if (pick6) {
-        spot[1] = sideY[d?.pl === 'left' ? 'right' : d?.pl === 'right' ? 'left' : 'middle'];
-        const tThrow = tDrop + 0.25, flight = 0.35 + dist(drop, spot) / 40;
-        tTake = tThrow + flight;
-        endPt = [TDX, toward(spot[1], 0.3)];
-        T = tTake + dist(spot, endPt) / 11;
-        const near = nearest([...D.dl, ...D.lb, ...D.cb, ...D.s], spot);
-        scorer = kf([[0, near], [tTake, spot], [T, endPt]]);
-        actors.push({ ...thrower, pos: qbKf });
-        [...D.dl, ...D.lb, ...D.cb, ...D.s].filter(p0 => p0 !== near).forEach(p0 => add('team', kf([[0, p0], [tThrow, lerp(p0, spot, 0.3)], [T, lerp(p0, endPt, 0.35)]])));
-        ball = (time) => time < 0.2 ? { p: lerp([oLos, MID], qbKf(0.2), time / 0.2), own: 'hold' }
-          : time < tThrow ? { p: qbKf(time), own: 'hold' }
-          : time < tTake ? { p: lerp(drop, spot, (time - tThrow) / flight), h: Math.sin(Math.PI * (time - tThrow) / flight) * Math.min(1, dist(drop, spot) / 22), own: 'pre', spiral: true }
-          : { p: scorer(time), own: 'post' };
+        const flight = 0.3 + dist(drop, spot) / 42;
+        rt.t0 = Math.max(0.1, qb.end + 0.3 + flight - toSpot);
+        tTake = rt.t0 + toSpot;
+        const tThrow = tTake - flight;
+        actors.push({ ...thrower, pos: qb.pos, done: tThrow });
+        ball = (time) => time < 0.15 ? snap(time) : time < tThrow ? { p: qb.pos(time), own: 'hold' }
+          : time < tTake ? { p: lerp(drop, spot, (time - tThrow) / flight), h: arc(drop, spot, (time - tThrow) / flight), own: 'pre', spiral: true }
+          : { p: rt.pos(time), own: 'post' };
         events.push({ t: tThrow, label: 'Pass', cls: 'qb', at: drop });
         events.push({ t: tTake, label: 'INTERCEPTED', cls: 'int', at: spot });
       } else {
         // fumbles (strip-sacks included), blocked kicks and the rest: whoever
-        // has it gets to the spot, the ball comes loose, the scorer scoops it
-        const tHit = sack ? tDrop + 0.6 : known ? 1.5 : 0.4, tLoose = 0.45;
-        tTake = tHit + tLoose;
-        endPt = [TDX, MID];
-        T = tTake + dist(spot, endPt) / 10.5;
-        const hitAt = [spot[0] + 1.5, spot[1]];
-        let holder;
-        if (known && (sack || spot[0] > oLos)) {       // behind the line: the quarterback
-          holder = kf([[0, O.qb], [tDrop, drop], [tHit, hitAt]]);
-          actors.push({ ...thrower, pos: holder });
-        } else if (known) {                             // a runner or receiver downfield
-          holder = kf([[0, O.rb], [0.5, [oLos + 3, MID]], [tHit, hitAt]]);
-          add('opp', (time) => time < tTake ? holder(time) : chase(hitAt, (tt) => scorer(tt), tTake, 0.3)(time));
-          actors.push({ ...thrower, pos: kf([[0, O.qb], [0.5, [oLos + 3, MID + 2]]]) });
+        // has it reaches the spot, the ball comes loose, the scorer scoops it
+        const hitAt = [spot[0] + 1.2, spot[1]];
+        let holder, tHit;
+        if (known && (sack || spot[0] > oLos)) {
+          const r2 = run([drop, hitAt], qb.end + 0.25, 4, 0.25, 0.3);
+          holder = seq(qb, r2); tHit = r2.end;
+          actors.push({ ...thrower, pos: holder, done: tHit + 0.3 });
         } else {
-          holder = still(hitAt);
+          holder = known ? run([qbStart, [oLos - 3, MID], hitAt], 0.15, 7).pos : () => hitAt;
+          tHit = known ? 1.6 : 0.4;
         }
-        const start = known ? nearest([...D.lb, ...D.dl], spot) : [spot[0] - 3, spot[1] - 3];
-        scorer = kf([[0, start], [tHit, lerp(start, spot, 0.7)], [tTake, spot], [T, endPt]]);
-        if (known) {
-          const rushers = [...D.dl, ...D.lb].filter(p0 => p0 !== start);
-          rushers.forEach((p0, i) => add('team', (time) => time < tTake
-            ? kf([[0, p0], [tHit, lerp(p0, hitAt, i < 2 ? 0.85 : 0.45)]])(time)
-            : kf([[0, lerp(p0, hitAt, i < 2 ? 0.85 : 0.45)], [T, lerp(lerp(p0, hitAt, 0.6), endPt, 0.3)]])(time - tTake)));
-          [...D.cb, ...D.s].forEach(p0 => add('team', kf([[0, p0], [T, lerp(p0, endPt, 0.4)]])));
-        } else {
-          [[1, 2], [2.5, -1], [-1, 3], [3, 3.5], [0.5, -3]].forEach(([dx, dy]) => add('team', kf([[0, [spot[0] + dx, spot[1] + dy]], [T, lerp([spot[0] + dx, spot[1] + dy], endPt, 0.3)]])));
-        }
-        ball = (time) => time < 0.2 && known ? { p: lerp([oLos, MID], holder(0.2), time / 0.2), own: 'hold' }
-          : time < tHit ? { p: holder(time), own: 'hold' }
-          : time < tTake ? { p: lerp(holder(tHit), [spot[0] + Math.sin(time * 18) * 0.4, spot[1] + 0.6], Math.min(1, (time - tHit) / tLoose)), own: 'loose' }
-          : { p: scorer(time), own: 'post' };
+        tTake = tHit + 0.45;
+        rt.t0 = Math.max(0, tTake - toSpot);
+        ball = (time) => time < 0.15 && known ? snap(time) : time < tHit ? { p: holder(time), own: 'hold' }
+          : time < rt.t0 + toSpot ? { p: lerp(holder(tHit), [spot[0] + Math.sin(time * 18) * 0.4, spot[1] + 0.6], Math.min(1, (time - tHit) / 0.45)), own: 'loose' }
+          : { p: rt.pos(time), own: 'post' };
+        tTake = rt.t0 + toSpot;
         const lab = t.subtype === 'blk' ? 'Blocked kick' : sack ? 'Strip sack' : /FUMBLE/.test(desc) ? 'Fumble' : 'Takeaway';
-        if (known && sack) events.push({ t: tHit, label: 'Sack', cls: 'qb', at: hitAt });
-        events.push({ t: tHit + 0.05, label: lab, cls: 'int', at: spot });
+        events.push({ t: tHit, label: lab, cls: 'int', at: hitAt });
         events.push({ t: tTake, label: 'Recovered', cls: 'catch', at: spot });
       }
-      actors.push({ ...scorerMeta, pos: scorer });
-      // the offense turns and chases once the ball changes hands
-      if (known) {
-        const taken = new Set();
-        const offense = pick6 ? [...O.ol, O.te, O.wr1, O.wr2, O.rb] : [...O.ol, O.te, O.wr1, O.wr2, ...(spot[0] > oLos || sack ? [O.rb] : [])];
-        offense.forEach((p0, i) => add('opp', (time) => {
-          const block = pick6 ? (i < 5 ? [p0[0] + 1.3, p0[1]] : lerp(p0, spot, 0.75)) : (i < 5 ? [p0[0] + 1.2, p0[1]] : [p0[0] - 12, p0[1]]);
-          return time < tTake ? kf([[0, p0], [tTake, block]])(time) : chase(block, scorer, tTake, 0.35 + (i % 3) * 0.06)(time);
-        }));
-      } else {
-        [[1, 2], [2.5, -1], [-1, 3], [3, 3.5]].forEach(([dx, dy]) => add('opp', chase([spot[0] + dx, spot[1] + dy], scorer, tTake, 0.35)));
-      }
-      events.push({ t: T, label: 'TOUCHDOWN', cls: 'td', at: endPt });
+      actors.push({ ...scorerMeta, pos: rt.pos });
+      T = rt.end; tdAt = goalT(rt.pos, tTake, T);
     }
-    // only the players the play is about — the rest of the 22 were made up and read as noise
-    return { actors: actors.filter(a2 => a2.kind !== 'dot'), events, ball, T, los, fd };
+    events.push({ t: tdAt, label: 'TOUCHDOWN', cls: 'td', at: [Math.max(110, actors.find(x => x.scorer).pos(T)[0]), actors.find(x => x.scorer).pos(T)[1]] });
+    return { actors, events, ball, T, los, fd };
   }
 
   // colours: the scoring team's primary; the opponent's primary unless the two
@@ -4349,7 +4364,7 @@
       const tries = G.v
         ? [[x > 266 ? -1 : 1, 0], [x > 266 ? 1 : -1, 0], [x > 266 ? -1 : 1, -46], [x > 266 ? -1 : 1, 46], [x > 266 ? -1 : 1, -92], [x > 266 ? -1 : 1, 92]]
             .map(([sd, dy]) => [Math.min(528 - w / 2, Math.max(5 + w / 2, x + sd * (w / 2 + 44))), y + dy])
-        : [y > 140 ? -1 : 1, y > 140 ? 1 : -1].flatMap(sd => [[0, sd * 96], [0, sd * 138]]).sort((p1, p2) => Math.abs(p1[1]) - Math.abs(p2[1]))
+        : [y > 140 ? -1 : 1, y > 140 ? 1 : -1].flatMap(sd => [[0, sd * 96], [0, sd * 138]])
             .map(([, dy]) => [Math.min(1195 - w / 2, Math.max(5 + w / 2, x)), Math.min(515, Math.max(18, y + dy))]);
       const clear = ([cx, cy]) => placed.every(r => Math.abs(r[0] - cx) > (r[2] + w) / 2 + 6 || Math.abs(r[1] - cy) > h + 4);
       const [tx, ty] = tries.find(clear) || tries[0];
@@ -4357,10 +4372,9 @@
       return `<g class="tf-ev ${e.cls}" data-i="${i}"><g class="tf-ev-tag" transform="translate(${tx},${ty})"><rect x="${-w / 2}" y="-17" width="${w}" height="${h}" rx="17"/><text y="1">${e.label}</text></g></g>`;
     }).join('');
     const k = G.v ? 1 : 1.45;   // the horizontal field is drawn smaller on screen
-    const order = sc.actors.map((a2, i) => i).sort((i, j) => (sc.actors[i].kind === 'jersey') - (sc.actors[j].kind === 'jersey') || !!sc.actors[i].scorer - !!sc.actors[j].scorer);
+    const order = sc.actors.map((a2, i) => i).sort((i, j) => !!sc.actors[i].scorer - !!sc.actors[j].scorer);
     const actorsSvg = order.map(i => {
       const a2 = sc.actors[i], c = col[a2.side];
-      if (a2.kind === 'dot') return `<g class="tf-dot" data-a="${i}" transform="translate(-99,-99)"><circle r="${10.5 * (G.v ? 1 : 1.25)}" fill="${c.fill}" stroke="${c.trim}" stroke-width="3"/></g>`;
       const nm = (a2.name || '').slice(0, 14), w = Math.max(56, nm.length * 11 + 18);
       return `<g class="tf-sp${a2.scorer ? ' scorer' : ''}" data-a="${i}" transform="translate(-99,-99)"><g transform="scale(${k})">
         <ellipse cx="0" cy="6" rx="22" ry="7" class="tf-sp-shadow"/>
@@ -4401,9 +4415,29 @@
     svg.classList.remove('done');
     tdWinProb(false);
     const lift = (p2, h) => G.v ? [p2[0] - h * 30, p2[1]] : [p2[0], p2[1] - h * 30];
-    let lastT = -1;
+    const K = G.v ? 1 : 1.45;
+    // name badges hug the name
+    svg.querySelectorAll('.tf-sp').forEach(g => {
+      const tx = g.querySelector('.tf-sp-name'), r = g.querySelector('.tf-sp-badge');
+      const w = (tx.getComputedTextLength?.() || 0) + 14; if (w > 20) { r.setAttribute('x', (-w / 2).toFixed(1)); r.setAttribute('width', w.toFixed(1)); }
+    });
+    const tdEv = sc.events.find(e => e.cls === 'td');
+    let lastT = -1, wpShown = false;
     const draw = (time) => {
-      sc.actors.forEach((a2, i) => { const [x, y] = G.P(...a2.pos(time)); actorEls[i].setAttribute('transform', `translate(${x.toFixed(1)},${y.toFixed(1)})`); });
+      // players who would overlap the scorer step aside, measured in sprite
+      // widths and heights so a jersey and its name badge both stay readable
+      const pts = sc.actors.map(a2 => G.P(...a2.pos(time)));
+      const si = sc.actors.findIndex(a2 => a2.scorer), W = 64 * K, H = 84 * K;
+      sc.actors.forEach((a2, i) => {
+        let [x, y] = pts[i];
+        if (i !== si && si >= 0) {
+          const [sx, sy] = pts[si];
+          const nx = (x - sx) / W, ny = (y - sy) / H, dd = Math.hypot(nx, ny);
+          if (dd < 1) { const [ux, uy] = dd < 1e-3 ? [0, 1] : [nx / dd, ny / dd]; x = sx + ux * W; y = sy + uy * H; }
+        }
+        actorEls[i].setAttribute('transform', `translate(${x.toFixed(1)},${y.toFixed(1)})`);
+        actorEls[i].classList.toggle('faded', a2.done != null && time > a2.done + 0.35);
+      });
       const bs = sc.ball(time), ground = G.P(...bs.p);
       let [bx, by] = ground, ang = 0, scale = 1;
       if (bs.own === 'pre') {
@@ -4418,12 +4452,13 @@
         shadow.setAttribute('cx', -99);
         shell.setAttribute('ry', '9.5'); laces.setAttribute('transform', ''); laces.style.opacity = '1';
         // carried: tucked beside the carrier, just off his jersey
-        if (bs.own === 'hold' || bs.own === 'post') { const k = G.v ? 1 : 1.45; bx += 25 * k; by -= 2 * k; }
+        if (bs.own === 'hold' || bs.own === 'post') { bx += 25 * K; by -= 2 * K; }
         if (bs.own === 'post' && time > lastT) postPts.push(`${ground[0].toFixed(1)},${ground[1].toFixed(1)}`);
       }
       ball.setAttribute('transform', `translate(${bx.toFixed(1)},${by.toFixed(1)}) rotate(${ang.toFixed(1)}) scale(${scale.toFixed(3)})`);
       pre.setAttribute('points', prePts.join(' ')); post.setAttribute('points', postPts.join(' '));
-      evEls.forEach((e, i) => { if (time >= sc.events[i].t) e.classList.add('on'); });
+      evEls.forEach(e => { if (time >= sc.events[+e.dataset.i].t) e.classList.add('on'); });
+      if (!wpShown && tdEv && time >= tdEv.t && !reduce) { wpShown = true; tdWinProb(true); }
       lastT = time;
     };
     if (reduce) {
@@ -4436,33 +4471,120 @@
       const time = Math.min(sc.T, Math.max(0, (el - 0.25) / SLOW));
       draw(time);
       if (el < total) tdAnim = requestAnimationFrame(frame);
-      else { svg.classList.add('done'); tdWinProb(true); }
+      else { svg.classList.add('done'); if (!wpShown) { wpShown = true; tdWinProb(true); } }
     };
     draw(0);
     tdAnim = requestAnimationFrame(frame);
   }
 
+  // ── Situation: a scoreboard, the game's win-probability lines, our prices ──
+  function tdScoreboard(t, d) {
+    const [, , away, home] = t.gameId.split('_');
+    const col = tdColors(t.team, t.opp);
+    const after = d?.sc?.[0] != null ? { [t.team]: d.sc[0], [t.opp]: d.sc[1] } : null;
+    const offense = t.type === 'rush' || t.type === 'rec' ? t.team : t.type === 'def' ? t.opp : null;
+    const row = (ab) => {
+      const scorer = ab === t.team, c = scorer ? col.team : col.opp;
+      const pts = after ? after[ab] : null, before = pts != null && scorer ? Math.max(0, pts - 6) : pts;
+      return `<div class="tsb-row${scorer ? ' scoring' : ''}" style="--tc:${scorer ? c.fill : (nflData.teamColors?.[ab]?.[0] || c.fill)}">
+        <i class="tsb-bar"></i><img src="${teamLogo(ab)}" alt="" loading="lazy"><b class="tsb-abbr">${ab}</b>
+        ${offense === ab ? '<span class="tsb-ball" title="Had the ball"></span>' : ''}
+        <strong class="tsb-pts"${scorer && pts != null ? ` id="td-pts" data-to="${pts}"` : ''}>${before ?? '–'}</strong></div>`;
+    };
+    const ord = ['', '1st', '2nd', '3rd', '4th'][d?.dn] || '';
+    const spot = d?.yl != null && offense ? (d.yl === 50 ? 'Midfield' : `${d.yl > 50 ? offense : offense === t.team ? t.opp : t.team} ${d.yl > 50 ? 100 - d.yl : d.yl}`) : null;
+    const dr = d?.dr;
+    const foot = [
+      ord && d?.tg != null ? `<span><b>${ord} &amp; ${d.yl <= d.tg ? 'Goal' : d.tg}</b></span>` : '',
+      spot ? `<span>Ball on <b>${spot}</b></span>` : '',
+      dr ? `<span>Drive <b>${dr.n ?? '?'} plays · ${dr.yds ?? 0} yds${dr.top ? ' · ' + dr.top : ''}</b></span>` : '',
+    ].filter(Boolean).join('');
+    return `<div class="tsb">
+      <div class="tsb-teams">${row(away)}${row(home)}</div>
+      <div class="tsb-clock"><b>${t.qtr > 4 ? 'OT' : 'Q' + (t.qtr || '?')}</b><span>${d?.clk || '--:--'}</span></div>
+      ${foot ? `<div class="tsb-foot">${foot}</div>` : ''}
+    </div>`;
+  }
+
+  /** a team colour bright enough to read as a thin line on the dark card */
+  function tdLineColor(hex) {
+    const n = parseInt((hex || '#888888').slice(1), 16), c = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    const lum = (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255;
+    const f = lum < 0.45 ? Math.min(0.65, (0.45 - lum) * 1.6) : 0;
+    return '#' + c.map(v => Math.round(v + (255 - v) * f).toString(16).padStart(2, '0')).join('');
+  }
+  function tdWpChart(t, d) {
+    const wp = d.wp, series = playsLog?.[`wp|${t.gameId}`];
+    const c0 = tdColors(t.team, t.opp), col = { team: { fill: tdLineColor(c0.team.fill) }, opp: { fill: tdLineColor(c0.opp.fill) } };
+    const W = 300, H = 116, padB = 0, pct = (v) => Math.round(v * 100);
+    const head = `<div class="tdw2-legend">
+        <span style="--c:${col.team.fill}"><i></i>${t.team} <b id="td-wp-a">${pct(wp[0])}%</b></span>
+        <span style="--c:${col.opp.fill}"><i></i>${t.opp} <b id="td-wp-b">${100 - pct(wp[0])}%</b></span></div>`;
+    const note = `<p class="tdw-note" id="td-wp-note">${wp[1] >= wp[0] ? '+' : '−'}${Math.abs((wp[1] - wp[0]) * 100).toFixed(1)} points on this play${d.epa != null ? ` · ${d.epa >= 0 ? '+' : ''}${d.epa.toFixed(2)} EPA` : ''}</p>`;
+    if (!series || d.el == null) return `${head}${note}`;
+    const home = t.gameId.split('_')[3], mine = (v) => (t.team === home ? v : 100 - v) / 100;
+    const pts = [];
+    for (let i = 0; i < series.length; i += 2) pts.push([series[i], mine(series[i + 1])]);
+    const end = Math.max(3600, pts[pts.length - 1][0]);
+    const X = (el) => (el / end * W).toFixed(1), Y = (v) => ((1 - v) * (H - padB)).toFixed(1);
+    const pre = [...pts.filter(q => q[0] < d.el), [d.el, wp[0]]];
+    const postP = [[d.el, wp[1]], ...pts.filter(q => q[0] > d.el)];
+    const line = (arr, inv) => arr.map(([e, v], i) => `${i ? 'L' : 'M'}${X(e)},${Y(inv ? 1 - v : v)}`).join('');
+    const qs = [900, 1800, 2700].concat(end > 3600 ? [3600] : []);
+    const tx = X(d.el);
+    return `${head}
+      <div class="tdw2-wrap"><svg class="tdw2" id="td-wp" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" data-before="${wp[0]}" data-after="${wp[1]}">
+        <line x1="0" x2="${W}" y1="${Y(0.5)}" y2="${Y(0.5)}" class="tdw2-mid"/>
+        ${qs.map(q => `<line x1="${X(q)}" x2="${X(q)}" y1="0" y2="${H - padB}" class="tdw2-q"/>`).join('')}
+        <g class="tdw2-rest"><path d="${line(postP, true)}" stroke="${col.opp.fill}"/><path d="${line(postP)}" stroke="${col.team.fill}"/></g>
+        <path d="${line(pre, true)}" class="tdw2-pre inv" stroke="${col.opp.fill}" pathLength="1"/>
+        <path d="${line(pre)}" class="tdw2-pre" stroke="${col.team.fill}" pathLength="1"/>
+        <line x1="${tx}" x2="${tx}" y1="${Y(1 - wp[0])}" y2="${Y(1 - wp[1])}" class="tdw2-jump inv" stroke="${col.opp.fill}" pathLength="1"/>
+        <line x1="${tx}" x2="${tx}" y1="${Y(wp[0])}" y2="${Y(wp[1])}" class="tdw2-jump" stroke="${col.team.fill}" pathLength="1"/>
+      </svg>
+      <i class="tdw2-dot" style="left:${(d.el / end * 100).toFixed(2)}%;top:${((1 - wp[1]) * 100).toFixed(2)}%;background:${col.team.fill}"></i></div>
+      <div class="tdw2-ql">${['Q1', 'Q2', 'Q3', 'Q4'].concat(end > 3600 ? ['OT'] : []).map((q, i) => `<span style="left:${((i < 4 ? 450 + i * 900 : (3600 + end) / 2) / end * 100).toFixed(2)}%">${q}</span>`).join('')}</div>${note}`;
+  }
+
+  /** runs the chart: the game so far draws in with the play, the jump lands with the touchdown */
   function tdWinProb(scored) {
-    const bar = document.getElementById('td-wp'); if (!bar) return;
-    const b0 = +bar.dataset.before, a1 = +bar.dataset.after;
-    const em = bar.querySelector('em.after'), num = document.getElementById('td-wp-num'), note = document.getElementById('td-wp-note');
-    cancelAnimationFrame(bar._raf);
+    const svg = document.getElementById('td-wp'), a = document.getElementById('td-wp-a'), b = document.getElementById('td-wp-b');
+    const note = document.getElementById('td-wp-note'), pts = document.getElementById('td-pts');
+    const box = svg || a; if (!box) return;
+    const host = svg || a.closest('.td-side');
+    const b0 = svg ? +svg.dataset.before : null, a1 = svg ? +svg.dataset.after : null;
+    cancelAnimationFrame(host._raf);
     if (!scored) {
-      em.style.transition = 'none'; em.style.left = `${(Math.min(b0, a1) * 100).toFixed(1)}%`; em.style.width = '0%';
-      num.textContent = Math.round(b0 * 100) + '%'; note?.classList.remove('on'); return;
+      svg?.classList.remove('scored'); svg?.classList.remove('drawn');
+      if (svg) { void svg.getBoundingClientRect(); requestAnimationFrame(() => svg.classList.add('drawn')); }
+      note?.classList.remove('on');
+      if (pts) { pts.textContent = Math.max(0, +pts.dataset.to - 6); pts.classList.remove('flip'); }
+      return;
     }
-    requestAnimationFrame(() => {
-      em.style.transition = 'width 0.9s cubic-bezier(.2,.8,.2,1)';
-      em.style.width = `${(Math.abs(a1 - b0) * 100).toFixed(1)}%`;
-    });
+    svg?.classList.add('drawn', 'scored');
+    if (pts) { pts.textContent = pts.dataset.to; pts.classList.add('flip'); }
+    const from = b0 ?? +(a?.textContent.replace('%', '') || 0) / 100, to = a1 ?? from;
     const t0 = performance.now();
     const tick = (now) => {
-      const f = Math.min(1, (now - t0) / 900), e = 1 - Math.pow(1 - f, 3);
-      num.textContent = Math.round((b0 + (a1 - b0) * e) * 100) + '%';
-      if (f < 1) bar._raf = requestAnimationFrame(tick); else note?.classList.add('on');
+      const f = Math.min(1, (now - t0) / 900), e = 1 - Math.pow(1 - f, 3), v = from + (to - from) * e;
+      if (a) a.textContent = Math.round(v * 100) + '%';
+      if (b) b.textContent = (100 - Math.round(v * 100)) + '%';
+      if (f < 1) host._raf = requestAnimationFrame(tick); else note?.classList.add('on');
     };
-    bar._raf = requestAnimationFrame(tick);
+    host._raf = requestAnimationFrame(tick);
   }
+
+  /** our pre-game prices on everything this touchdown cashed */
+  function tdOdds(t) {
+    const flags = t.firstTd || t.lastTd || t.multi ? `<div class="td-flags">${t.firstTd ? '<span class="st-chip first">1st TD of the game</span>' : ''}${t.lastTd ? '<span class="st-chip last">Last TD of the game</span>' : ''}${t.multi ? '<span class="st-chip multi">2+ TD game</span>' : ''}</div>` : '';
+    const row = liveLogState === 'ready' ? liveLog?.games?.[t.gameId]?.td?.find(r => r[0] === t.pid) : null;
+    const mk = row ? [['Anytime TD', row[4], true], ['1st TD', row[6], t.firstTd], ['Last TD', row[7], t.lastTd], ['2+ TDs', row[5], t.multi]]
+      .filter(([, p, hit]) => hit && p > 0) : [];
+    if (!mk.length) return flags;
+    return `<h4>Our prices · cashed</h4><div class="tdo">${mk.map(([lab, p]) =>
+      `<div class="tdo-tile"><span>${lab}</span><b>${pbOdds(p)}</b><small>${Math.round(p * 100)}% pre-game</small></div>`).join('')}</div>`;
+  }
+
 
   function tdRender() {
     const t = tdRow(); if (!t) return;
@@ -4476,7 +4598,6 @@
     if (playsState !== 'ready' && playsState !== 'error') body = '<div class="empty" style="padding:3rem 0">Loading the play…</div>';
     else {
       const wp = d?.wp;
-      const spot = d?.yl != null && (t.type === 'rush' || t.type === 'rec') ? (d.yl === 50 ? 'midfield' : d.yl > 50 ? `own ${100 - d.yl}` : `opp ${d.yl}`) : null;
       body = `
       <div class="ydm-grid">
         <div class="ydm-main">
@@ -4487,23 +4608,10 @@
           </section>
         </div>
         <aside class="ydm-panel td-side">
-          <h4 class="accent">Situation</h4>
-          <div class="tds-grid">
-            ${d?.dn ? `<div class="tds"><b>${ord(d.dn)} & ${d.yl <= d.tg ? 'Goal' : d.tg}</b><span>Down</span></div>` : ''}
-            ${spot ? `<div class="tds"><b>${spot}</b><span>Snapped at</span></div>` : ''}
-            <div class="tds"><b>Q${t.qtr || '?'}${d?.clk ? ' ' + d.clk : ''}</b><span>Clock</span></div>
-            ${d?.sc?.[0] != null ? `<div class="tds"><b>${t.team} ${d.sc[0]}–${d.sc[1]}</b><span>Score after</span></div>` : ''}
-            ${(() => {
-              const dr = d?.dr; if (!dr) return '';
-              const yds = dr.yds ?? (dr.plays || []).reduce((a, pl) => a + (pl[2] || 0), 0);
-              return `<div class="tds wide"><b>${dr.n ?? (dr.plays || []).length} plays · ${yds} yds${dr.top ? ' · ' + dr.top : ''}</b><span>Drive${dr.start ? ' · from ' + dr.start : ''}</span></div>`;
-            })()}
-          </div>
-          ${wp ? `<h4>Win probability · ${t.team}</h4>
-            <div class="tdw" id="td-wp" data-before="${wp[0]}" data-after="${wp[1]}"><span>${Math.round(wp[0] * 100)}%</span><i><em class="before" style="width:${(Math.min(wp[0], wp[1]) * 100).toFixed(1)}%"></em><em class="after" style="left:${(Math.min(wp[0], wp[1]) * 100).toFixed(1)}%;width:0%"></em></i><span id="td-wp-num">${Math.round(wp[0] * 100)}%</span></div>
-            <p class="tdw-note" id="td-wp-note">${wp[1] >= wp[0] ? '+' : '−'}${Math.abs((wp[1] - wp[0]) * 100).toFixed(1)} points on this play${d.epa != null ? ` · ${d.epa >= 0 ? '+' : ''}${d.epa.toFixed(2)} EPA` : ''}</p>` : ''}
+          ${tdScoreboard(t, d)}
+          ${wp ? `<h4>Win probability</h4>${tdWpChart(t, d)}` : ''}
+          <div id="td-odds">${tdOdds(t)}</div>
           ${t.passer ? `<h4>Connection</h4><p class="td-conn"><b>${t.passer}</b> → <b>${full}</b>${d?.air != null ? `<br><span>${d.air} yds in the air · ${d.yac ?? Math.max(0, (d.gain ?? 0) - d.air)} after the catch</span>` : ''}</p>` : ''}
-          ${t.firstTd || t.lastTd || t.multi ? `<div class="td-flags">${t.firstTd ? '<span class="st-chip first">1st TD of the game</span>' : ''}${t.lastTd ? '<span class="st-chip last">Last TD of the game</span>' : ''}${t.multi ? '<span class="st-chip multi">2+ TD game</span>' : ''}</div>` : ''}
         </aside>
       </div>`;
     }
@@ -4519,7 +4627,7 @@
     const back = document.getElementById('td-back');
     back.querySelector('.pk-side-prev').disabled = at <= 0;
     back.querySelector('.pk-side-next').disabled = at < 0 || at >= deck.length - 1;
-    if (d) requestAnimationFrame(() => { tdAnimate(); if (!document.querySelector('#td-back .tf-seg')) tdWinProb(true); });
+    if (d) requestAnimationFrame(() => { tdAnimate(); if (!document.querySelector('#td-back .tf-seg')) { tdWinProb(false); tdWinProb(true); } });
   }
   let tdMq = null;
   function tdWatchOrientation() {
@@ -4540,7 +4648,7 @@
       document.addEventListener('keydown', tdKey);
     }
     document.body.style.overflow = 'hidden';
-    loadPlays();
+    loadPlays(); ensureLiveLog();
     tdRender();
   }
   function tdKey(e) {
