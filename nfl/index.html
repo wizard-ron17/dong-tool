@@ -2296,6 +2296,43 @@
   .mx-sc-row:hover { background: var(--surface1); }
   .mx-sc-nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-strong); font-weight: 600; }
   .mx-sc-td { font-family: var(--font-m); color: var(--silver); white-space: nowrap; font-size: 0.692rem; }
+  .gf { background: var(--surface0); border: 1px solid var(--border2); border-top: none; padding: 0.85rem 1rem 0.7rem; }
+  .gf + .mx { border-top: 1px dashed var(--border); }
+  .gf-empty { padding: 1rem 0; color: var(--muted); font-size: 0.85rem; }
+  .gf-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem 1rem; margin-bottom: 0.55rem; }
+  .gf-head h4 { margin: 0; font-family: var(--font-d); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--silver); }
+  .gf-teams { display: flex; gap: 1rem; }
+  .gf-team { display: inline-flex; align-items: center; gap: 0.35rem; font-family: var(--font-d); font-weight: 700; font-size: 0.9rem; color: var(--muted); }
+  .gf-team i { width: 0.9rem; height: 3px; border-radius: 2px; background: var(--c); }
+  .gf-team img { width: 1.1rem; height: 1.1rem; object-fit: contain; }
+  .gf-team b { font-size: 1.05rem; color: var(--text); font-variant-numeric: tabular-nums; }
+  .gf-team.won b { color: var(--text-strong); } .gf-team.won { color: var(--text-strong); }
+  .gf-plot { position: relative; height: 10.5rem; margin: 0 0.2rem; touch-action: pan-y; cursor: crosshair; }
+  .gf-plot svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .gf-mid { stroke: var(--border2); stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+  .gf-q { stroke: var(--border); vector-effect: non-scaling-stroke; }
+  .gf-line { fill: none; stroke-width: 2.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+  .gf-plot svg { animation: gfDraw 1.7s ease-out both; }
+  .gf-line.away { stroke-width: 2; opacity: 0.75; }
+  @keyframes gfDraw { from { clip-path: inset(-10px 100% -10px 0); } to { clip-path: inset(-10px -10px -10px 0); } }
+  .gf-pct { position: absolute; left: 0.2rem; font-size: 0.6rem; color: var(--dim); font-family: var(--font-d); pointer-events: none; }
+  .gf-pct.top { top: 0.1rem; } .gf-pct.mid { top: calc(50% - 0.95rem); }
+  .gf-cursor { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--silver); opacity: 0.6; pointer-events: none; }
+  .gf-read { position: absolute; top: -0.35rem; transform: translate(-50%, -100%); white-space: nowrap; font-size: 0.72rem; font-family: var(--font-d); color: var(--text);
+             background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px; padding: 0.15rem 0.45rem; pointer-events: none; z-index: 3; }
+  .gf-read b { color: var(--gold); margin-right: 0.2rem; }
+  .gf-td { position: absolute; width: 13px; height: 13px; margin: -6.5px 0 0 -6.5px; padding: 0; border-radius: 50%; border: 2px solid var(--surface0); background: var(--c);
+           box-shadow: 0 0 0 1px var(--c), 0 0 8px color-mix(in srgb, var(--c) 70%, transparent); cursor: pointer; z-index: 2;
+           opacity: 0; animation: gfPop 0.35s var(--d) ease-out forwards; }
+  .gf-td::before { content: ''; position: absolute; inset: -9px; }
+  .gf-td span { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 0.7rem; font-family: var(--font-d); font-weight: 700;
+                color: var(--text-strong); background: var(--surface2); border: 1px solid var(--c); border-radius: 6px; padding: 0.12rem 0.4rem; opacity: 0; pointer-events: none; transition: opacity 0.15s; }
+  .gf-td.flip span { left: auto; right: -6px; transform: none; }
+  .gf-td:hover, .gf-td:focus-visible { transform: scale(1.35); } .gf-td:hover span, .gf-td:focus-visible span { opacity: 1; }
+  @keyframes gfPop { 0% { opacity: 0; transform: scale(0.2); } 70% { opacity: 1; transform: scale(1.4); } 100% { opacity: 1; transform: scale(1); } }
+  .gf-ql { position: relative; height: 1.1rem; margin: 0.2rem 0.2rem 0; font-size: 0.66rem; color: var(--muted); font-family: var(--font-d); }
+  .gf-ql span { position: absolute; transform: translateX(-50%); }
+  .gf-note { margin: 0.35rem 0 0; font-size: 0.8rem; color: var(--muted); } .gf-note b { color: var(--text); }
   .mx-legend { display: flex; align-items: center; gap: 0.3rem; font-size: 0.642rem; color: var(--dim); margin-top: 0.7rem; padding-top: 0.55rem; border-top: 1px solid var(--border); }
   .mx-legend i { display: inline-block; width: 42px; height: 4px; border-radius: 2px;
                  background: linear-gradient(90deg, var(--bad), var(--warn), var(--gold), var(--good-2), var(--accent)); }
@@ -3897,6 +3934,82 @@
     return Math.max(2, Math.min(98, higherBetter ? p : 100 - p));
   };
 
+  // ── Schedule: how a finished game swung ───────────────────────────────────
+  // nflverse win probability through the game (plays.json, thinned to a point
+  // every 40 s of clock or 3-point move) as mirrored team lines, with every
+  // touchdown pinned where it landed — tap one for the play.
+  const gfData = {};
+  const gfClock = (el) => {
+    const q = el < 3600 ? Math.floor(el / 900) + 1 : 5;
+    const left = q <= 4 ? q * 900 - el : Math.max(0, 4200 - el);
+    return `${q <= 4 ? 'Q' + Math.min(4, q) : 'OT'} ${Math.floor(left / 60)}:${String(Math.round(left % 60)).padStart(2, '0')}`;
+  };
+  function gameFlow(g) {
+    if (playsState !== 'ready') {
+      loadPlays();
+      return playsState === 'error' ? '' : `<div class="gf"><div class="gf-empty">Loading the game flow…</div></div>`;
+    }
+    const series = playsLog?.[`wp|${g.gameId}`];
+    if (!series || series.length < 6) return '';
+    const [HC, AC] = tdTeamPair(g.home, g.away);
+    const pts = [];
+    for (let i = 0; i < series.length; i += 2) pts.push([series[i], series[i + 1] / 100]);
+    const winner = g.homeScore > g.awayScore ? g.home : g.awayScore > g.homeScore ? g.away : null;
+    pts.push([pts[pts.length - 1][0] + 1, winner === g.home ? 1 : winner === g.away ? 0 : 0.5]);
+    const end = Math.max(3600, pts[pts.length - 1][0]);
+    gfData[g.gameId] = { pts, end, home: g.home, away: g.away };
+    const W = 600, H = 170;
+    const X = (el) => (el / end * W).toFixed(1), Y = (v) => ((1 - v) * H).toFixed(1);
+    const line = (inv) => pts.map(([e, v], i) => `${i ? 'L' : 'M'}${X(e)},${Y(inv ? 1 - v : v)}`).join('');
+    const tds = Object.values(nflData.tdRecap || {}).flat().filter(t => t.gameId === g.gameId && t.k).map(t => {
+      const d = playsLog[`${g.gameId}|${t.k}`];
+      return d?.wp && d.el != null ? { t, el: d.el, v: d.wp[1], swing: d.wp[1] - d.wp[0], home: t.team === g.home } : null;
+    }).filter(Boolean);
+    const big = tds.reduce((m, x) => (!m || Math.abs(x.swing) > Math.abs(m.swing) ? x : m), null);
+    const qs = [900, 1800, 2700].concat(end > 3600 ? [3600] : []);
+    const qLabels = ['Q1', 'Q2', 'Q3', 'Q4'].concat(end > 3600 ? ['OT'] : [])
+      .map((q, i) => `<span style="left:${((i < 4 ? 450 + i * 900 : (3600 + end) / 2) / end * 100).toFixed(2)}%">${q}</span>`).join('');
+    const marker = (x) => {
+      const top = ((1 - x.v) * 100).toFixed(2), left = (x.el / end * 100).toFixed(2);
+      return `<button class="gf-td${+left > 70 ? ' flip' : ''}" style="left:${left}%;top:${top}%;--c:${x.home ? HC : AC};--d:${(0.4 + x.el / end * 1.3).toFixed(2)}s"
+        onclick="event.stopPropagation();openTd('${g.gameId}',${x.t.k})" aria-label="${x.t.player} touchdown, ${gfClock(x.el)}">
+        <span>${x.t.player} · ${TD_BADGE[x.t.subtype] || 'TD'} · ${gfClock(x.el)}</span></button>`;
+    };
+    const teamRow = (ab, c, score) => `<span class="gf-team${winner === ab ? ' won' : ''}" style="--c:${c}"><i></i><img src="${teamLogo(ab)}" alt="" loading="lazy">${ab}<b>${score}</b></span>`;
+    return `<div class="gf" onclick="event.stopPropagation()">
+      <div class="gf-head">
+        <h4>Game flow</h4>
+        <div class="gf-teams">${teamRow(g.away, AC, g.awayScore)}${teamRow(g.home, HC, g.homeScore)}</div>
+      </div>
+      <div class="gf-plot" onpointermove="gfScrub(event,'${g.gameId}')" onpointerleave="gfScrub(null,'${g.gameId}')">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Win probability through the game">
+          <line x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}" class="gf-mid"/>
+          ${qs.map(q => `<line x1="${X(q)}" x2="${X(q)}" y1="0" y2="${H}" class="gf-q"/>`).join('')}
+          <path d="${line(true)}" stroke="${AC}" class="gf-line away"/>
+          <path d="${line(false)}" stroke="${HC}" class="gf-line"/>
+        </svg>
+        <span class="gf-pct top">100%</span><span class="gf-pct mid">50%</span>
+        <i class="gf-cursor" hidden></i><div class="gf-read" hidden></div>
+        ${tds.map(marker).join('')}
+      </div>
+      <div class="gf-ql">${qLabels}</div>
+      <p class="gf-note">${big ? `Biggest swing: <b>${big.t.player}</b> ${TD_BADGE[big.t.subtype]?.toLowerCase() || ''} TD in ${gfClock(big.el)}, <b>${big.swing >= 0 ? '+' : '−'}${Math.abs(big.swing * 100).toFixed(0)}</b> for ${big.t.team}. ` : ''}Tap a touchdown for the play.</p>
+    </div>`;
+  }
+  function gfScrub(e, gid) {
+    const box = e?.currentTarget || document.querySelector('.gf .gf-plot'); if (!box) return;
+    const cur = box.querySelector('.gf-cursor'), read = box.querySelector('.gf-read'), G = gfData[gid];
+    if (!e || !G || (e.target.closest && e.target.closest('.gf-td'))) { cur.hidden = read.hidden = true; return; }
+    const r = box.getBoundingClientRect(), f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), el = f * G.end;
+    let lo = 0; while (lo < G.pts.length - 1 && G.pts[lo + 1][0] <= el) lo++;
+    const v = G.pts[lo][1], hp = Math.round(v * 100);
+    cur.hidden = read.hidden = false;
+    cur.style.left = (f * 100).toFixed(2) + '%';
+    read.style.left = (Math.min(0.82, Math.max(0.18, f)) * 100).toFixed(2) + '%';
+    read.innerHTML = `<b>${gfClock(el)}</b> ${G.home} ${hp}% · ${G.away} ${100 - hp}%`;
+  }
+  window.gfScrub = gfScrub;
+
   function matchupPanel(g) {
     const S = nflData?.teamStats || {}, SC = nflData?.teamScorers || {}, QB = nflData?.teamQB || {};
     const yr = nflData.historySeason;
@@ -4038,7 +4151,7 @@
         <span class="sc-chev">▶</span>
       </div>
       ${pick}
-    </div>${open ? matchupPanel(g) : ''}`;
+    </div>${open ? (played ? gameFlow(g) : '') + matchupPanel(g) : ''}`;
   }
 
   function dataGate(id) {
@@ -4080,7 +4193,7 @@
     playsState = 'loading';
     fetch(APP_BASE + '/plays.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
       .then(j => { playsLog = j; playsState = 'ready'; }).catch(() => { playsState = 'error'; })
-      .finally(() => { if (tdOpen.gid) tdRender(); });
+      .finally(() => { if (tdOpen.gid) tdRender(); if (activeNav === 'schedule' && mxOpen) renderSchedule(); });
   }
   const tdRow = () => (nflData.tdRecap[recapWeek] || []).find(t => t.gameId === tdOpen.gid && t.k === tdOpen.k)
     || Object.values(nflData.tdRecap).flat().find(t => t.gameId === tdOpen.gid && t.k === tdOpen.k);
@@ -4523,10 +4636,10 @@
     const f = lum < 0.45 ? Math.min(0.65, (0.45 - lum) * 1.6) : 0;
     return '#' + c.map(v => Math.round(v + (255 - v) * f).toString(16).padStart(2, '0')).join('');
   }
-  /** win probability as one bar shared by both teams: the scorer's colour
-   *  from the left, the opponent's from the right, blending where they meet */
-  function tdWpBar(t, d) {
-    const wp = d.wp, C = nflData.teamColors || {};
+  /** the most on-brand pair of team colours that still reads as two teams on
+   *  the dark card — a primary, else the brighter secondary, else a lightened primary */
+  function tdTeamPair(ta, tb) {
+    const C = nflData.teamColors || {};
     const rgb = (h) => { const n = parseInt((h || '#888888').slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
     const lum = (h) => { const [r, g, b2] = rgb(h); return (0.299 * r + 0.587 * g + 0.114 * b2) / 255; };
     const far = (h1, h2) => Math.hypot(...rgb(h1).map((v, i) => v - rgb(h2)[i]));
@@ -4534,10 +4647,15 @@
       const [c1, c2] = C[ab] || ['#1f6feb', '#ffffff'];
       return [lum(c1) >= 0.2 ? c1 : null, c2 && lum(c2) >= 0.2 && lum(c2) <= 0.85 ? c2 : null, tdLineColor(c1)].filter(Boolean);
     };
-    // the most on-brand pair that still reads as two different teams
-    const oa = opts(t.team), ob = opts(t.opp);
+    const oa = opts(ta), ob = opts(tb);
     const pairs = oa.flatMap((x, i) => ob.map((y, j) => [i + j, x, y])).sort((p1, p2) => p1[0] - p2[0]);
-    const [, A, B] = pairs.find(([, x, y]) => far(x, y) > 120) || [0, oa[0], '#c9d2e0'];
+    const hit = pairs.find(([, x, y]) => far(x, y) > 120);
+    return hit ? [hit[1], hit[2]] : [oa[0], '#c9d2e0'];
+  }
+  /** win probability as one bar shared by both teams: the scorer's colour
+   *  from the left, the opponent's from the right, blending where they meet */
+  function tdWpBar(t, d) {
+    const wp = d.wp, [A, B] = tdTeamPair(t.team, t.opp);
     const pct = (v) => Math.round(v * 100);
     return `<div class="tdwb" id="td-wp" data-before="${wp[0]}" data-after="${wp[1]}" data-a="${A}" data-b="${B}">
         <div class="tdwb-ends">
