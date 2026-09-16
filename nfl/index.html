@@ -2417,6 +2417,60 @@
   .mx-sc-row:hover { background: var(--surface1); }
   .mx-sc-nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-strong); font-weight: 600; }
   .mx-sc-td { font-family: var(--font-m); color: var(--silver); white-space: nowrap; font-size: 0.692rem; }
+  .pm.gmm { max-width: 1000px; }
+  .gm-hero { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 0.8rem; padding: 0.1rem 2rem 0.8rem 0.2rem; border-bottom: 1px solid var(--border); margin-bottom: 0.85rem; }
+  .gm-team { display: flex; align-items: center; gap: 0.6rem; font-family: var(--font-d); font-size: 1.5rem; color: var(--text-strong); }
+  .gm-team.end { justify-content: flex-end; }
+  .gm-team img { width: 2.6rem; height: 2.6rem; object-fit: contain; }
+  .gm-mid { text-align: center; font-family: var(--font-d); }
+  .gm-lines { display: flex; gap: 0.4rem; justify-content: center; }
+  .gm-lines span { font-size: 0.8rem; padding: 0.15rem 0.5rem; border-radius: 6px; border: 1px solid var(--border2); color: var(--silver); }
+  .gm-score { font-size: 2rem; line-height: 1; display: flex; gap: 0.4rem; justify-content: center; color: var(--muted); }
+  .gm-score .win { color: var(--text-strong); } .gm-score i { font-style: normal; opacity: 0.4; }
+  .gm-when { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+  .gm-live { color: var(--gold); }
+  .gm-wx { font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); margin-top: 0.2rem; }
+  .gm-tabs { margin: 0 0 0.9rem; }
+  .gm-tiles { margin-bottom: 0.8rem; }
+  .gm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 0.6rem; }
+  .gmc { border: 1px solid var(--border); border-radius: 12px; background: var(--surface0); padding: 0.6rem 0.7rem 0.5rem; min-width: 0; }
+  .gmc.void { opacity: 0.55; }
+  .gmc-top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.5rem; cursor: pointer; }
+  .gmc-top .rc-photo { width: 34px; height: 34px; margin: 0; }
+  .gmc-id { display: flex; flex-direction: column; min-width: 0; }
+  .gmc-id b { font-family: var(--font-d); font-size: 0.95rem; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gmc-id > span { display: flex; align-items: center; gap: 0.3rem; font-size: 0.7rem; color: var(--muted); }
+  .gmc-id .posb { font-style: normal; }
+  .gmc-td { text-align: right; font-family: var(--font-d); line-height: 1.1; }
+  .gmc-td b { font-size: 0.95rem; color: var(--gold); } .gmc-td.hit b { color: var(--accent); }
+  .gmc-td small { display: block; font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+  .gmc-stats { margin-top: 0.45rem; display: grid; gap: 0.1rem; }
+  .gmc-void { margin: 0.5rem 0 0.2rem; font-size: 0.8rem; color: var(--muted); }
+  .gms { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "k v" "bar od"; align-items: center; column-gap: 0.5rem; row-gap: 0.1rem;
+         padding: 0.3rem 0.35rem; border-radius: 8px; cursor: pointer; }
+  .gms:hover { background: var(--surface2); }
+  .gms + .gms { border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent); }
+  .gms-k { grid-area: k; font-size: 0.74rem; color: var(--muted); }
+  .gms-v { grid-area: v; font-family: var(--font-d); font-size: 0.95rem; color: var(--text); }
+  .gms-v em { font-style: normal; margin-left: 0.35rem; color: var(--text-strong); }
+  .gms.hit .gms-v em { color: var(--accent); } .gms.miss .gms-v em { color: var(--muted); }
+  .gms-bar { grid-area: bar; height: 4px; border-radius: 2px; background: var(--surface2); overflow: hidden; }
+  .gms-bar em { display: block; height: 100%; background: var(--silver); }
+  .gms.hit .gms-bar em { background: var(--accent); }
+  .gms-od { grid-area: od; font-size: 0.7rem; color: var(--muted); font-family: var(--font-d); white-space: nowrap; }
+  .gms-od b { margin-left: 0.3rem; }
+  .mx.flat, .gf.flat { border: none; background: transparent; padding: 0; }
+  @media (max-width: 620px) {
+    .pm.gmm { padding-left: 0.7rem; padding-right: 0.7rem; }
+    /* phones: the two teams on one line, everything else under them */
+    .gm-hero { grid-template-columns: auto auto; justify-content: space-between; align-items: center; gap: 0.3rem 0.5rem; padding: 0 1.8rem 0.6rem 0; }
+    .gm-mid { grid-column: 1 / -1; order: 3; }
+    .gm-lines { gap: 0.3rem; } .gm-lines span { font-size: 0.72rem; }
+    .gm-when, .gm-wx { font-size: 0.7rem; }
+    .gm-team { font-size: 1.25rem; gap: 0.4rem; } .gm-team img { width: 2rem; height: 2rem; }
+    .gm-score { font-size: 1.5rem; } .gm-grid { grid-template-columns: minmax(0, 1fr); }
+    #gm-back { padding-left: 2.1rem; padding-right: 2.1rem; }
+  }
   .gb { background: var(--surface0); border: 1px solid var(--border2); border-top: none; padding: 0.85rem 1rem 0.8rem; }
   .gb + .mx { border-top: 1px dashed var(--border); }
   .gb-h { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.3rem 0.8rem; margin-bottom: 0.6rem;
@@ -3110,7 +3164,7 @@
     }
     catch (e) { nflData = 'error'; setStatus('error'); }
     renderPanel(activeNav);
-    tdOpenPending(); plOpenPending();
+    tdOpenPending(); plOpenPending(); gmOpenPending();
   }
   // Coverage · volume · freshness, mirroring the MLB badge's "147d · 4481 HR".
   function statusSummary(d) {
@@ -3867,6 +3921,8 @@
         if (odds && t) {
           const o = tdOdds(t); if (o) odds.innerHTML = o;
         }
+        if (gm.gid) gmRender();
+        if (plOpen.pid) plRender();
       });
   }
 
@@ -4088,8 +4144,6 @@
   // here is gone — it measured at a split-half correlation of -0.06 for
   // receivers and -0.03 for tight ends, and showing noise in a decision tool is
   // worse than showing nothing.
-  let mxOpen = null;
-  function toggleMatchup(gid) { mxOpen = mxOpen === gid ? null : gid; renderSchedule(); }
 
   // Quintile ramp against the league, reusing the palette's semantic classes:
   // great → accent, good → good-2, avg → gold, below → warn, bad → bad.
@@ -4190,109 +4244,227 @@
   }
   window.gfScrub = gfScrub;
 
-  // ── Schedule: our board for one game ──────────────────────────────────────
-  // Three states. Before kickoff: what every tool says about this game, live
-  // from the current boards. In progress: the board as it was locked at
-  // kickoff. Final: the same rows with what actually happened.
-  const GB_MKT = { td: 'Anytime TD', rec: 'Receptions', cmp: 'Completions', int: 'INT', kick: 'Kicker pts',
-                   pass: 'Pass yds', rush: 'Rush yds', recy: 'Rec yds', rr: 'Rush+rec' };
-  /** rows the log kept at kickoff, with the result when the game is graded */
-  function gbGraded(ge) {
-    const res = ge.res, dnp = new Set(res?.dnp ?? []), out = [];
-    const add = (mkt, pid, name, team, line, p, got, hit, proj) =>
-      out.push({ mkt, pid, name, team, line, p, got, proj, st: !res ? (ge.live ? 'live' : 'pend') : dnp.has(pid) ? 'void' : hit ? 'hit' : 'miss' });
-    for (const [pid, name, team, pos, p1] of ge.td ?? []) {
-      const n = res?.td?.[pid] ?? 0;
-      add('td', pid, name, team, '', p1, res ? `${n} TD` : '', n >= 1, '');
+  // ── Schedule: the game card ───────────────────────────────────────────────
+  // One card per game with three tabs. Projections leads: a projected stat line
+  // per player, the way a box score reads, rather than one row per market —
+  // before kickoff from the live boards, after it from what was logged at
+  // kickoff, with what he actually got beside it.
+  const gm = { gid: null, tab: 'proj' };
+  let gmPushed = false, gmPending = null;
+  const gmPathOf = (gid) => `${APP_BASE}/schedule/${gid}`;
+  function gmFromPath() { const m = location.pathname.match(/\/schedule\/(\d{4}_\d{2}_[A-Z]{2,3}_[A-Z]{2,3})\/?$/); return m ? m[1] : null; }
+  function gmOpenPending() {
+    if (!gmPending || !nflData || nflData === 'error') return;
+    const gid = gmPending; gmPending = null;
+    if (!(nflData.schedule || []).some(x => x.gameId === gid)) { history.replaceState(null, '', currentPath()); return; }
+    if (gm.gid === gid && document.getElementById('gm-back')) return;
+    scheduleWeek = (nflData.schedule || []).find(x => x.gameId === gid)?.week ?? scheduleWeek;
+    if (activeNav === 'schedule') renderSchedule();
+    openGame(gid, true);
+  }
+  function openGame(gid, fromRoute) {
+    gm.gid = gid; gm.tab = 'proj';
+    if (!fromRoute && location.pathname !== gmPathOf(gid)) { history.pushState({ gm: 1 }, '', gmPathOf(gid)); gmPushed = true; }
+    if (!document.getElementById('gm-back')) {
+      document.body.insertAdjacentHTML('beforeend', `
+        <div class="pm-back" id="gm-back" onclick="if(event.target===this)closeGame()">
+          <button class="pk-side-nav pk-side-prev" onclick="gmStep(-1)">‹</button>
+          <button class="pk-side-nav pk-side-next" onclick="gmStep(1)">›</button>
+          <div class="pm ydm gmm" role="dialog" aria-modal="true"></div>
+        </div>`);
+      document.addEventListener('keydown', gmKey);
     }
-    for (const [pid, name, team, , mu, L, p] of ge.rec ?? []) {
-      const n = res?.rec?.[pid] ?? 0; add('rec', pid, name, team, 'o' + L, p, res ? `${n}` : '', n > L, mu?.toFixed(1));
-    }
-    for (const [pid, name, team, mu, L, p] of ge.cmp ?? []) {
-      const n = res?.cmp?.[pid] ?? 0; add('cmp', pid, name, team, 'o' + L, p, res ? `${n}` : '', n > L, mu?.toFixed(1));
-    }
-    for (const [pid, name, team, mu, p05] of ge.int ?? []) {
-      const n = res?.ints?.[pid] ?? 0; add('int', pid, name, team, 'o0.5', p05, res ? `${n}` : '', n >= 1, mu?.toFixed(2));
-    }
-    for (const [mk, rows] of Object.entries(ge.yds ?? {})) {
-      const key = { pass: 'pass', rush: 'rush', rec: 'recy', rr: 'rr' }[mk];
-      for (const [pid, name, team, , m, mu, med] of rows) {
-        const L = Math.floor(med) + 0.5;
-        const n = !res ? 0 : mk === 'pass' ? (res.pyds?.[pid] ?? 0) : mk === 'rush' ? (res.rush?.[pid] ?? 0)
-          : mk === 'rec' ? (res.ryds?.[pid] ?? 0) : (res.rush?.[pid] ?? 0) + (res.ryds?.[pid] ?? 0);
-        add(key, pid, name, team, 'o' + L, ydPOver(m, L, mu), res ? `${n}` : '', n > L, med.toFixed(0));
+    document.body.style.overflow = 'hidden';
+    ensureLiveLog(); loadPlays();
+    gmRender();
+  }
+  function gmKey(e) {
+    if (!document.getElementById('gm-back') || document.getElementById('lc-back') || document.getElementById('td-back')) return;
+    if (e.key === 'Escape') closeGame(); else if (e.key === 'ArrowLeft') gmStep(-1); else if (e.key === 'ArrowRight') gmStep(1);
+  }
+  function closeGame(fromRoute) {
+    document.getElementById('gm-back')?.remove(); document.removeEventListener('keydown', gmKey);
+    if (!document.getElementById('lc-back') && !document.getElementById('td-back')) document.body.style.overflow = '';
+    gm.gid = null;
+    if (fromRoute === true || !gmFromPath()) return;
+    if (gmPushed && history.state?.gm) { gmPushed = false; history.back(); }
+    else history.replaceState(null, '', currentPath());
+  }
+  function gmDeck() {
+    const g = gmGame(); if (!g) return [];
+    return (nflData.schedule || []).filter(x => x.week === g.week && x.type === g.type)
+      .sort((a, b) => (a.gameday || '').localeCompare(b.gameday || '') || (a.gametime || '').localeCompare(b.gametime || ''));
+  }
+  function gmStep(d) {
+    const deck = gmDeck(), at = deck.findIndex(x => x.gameId === gm.gid), nx = deck[at + d];
+    if (!nx) return;
+    gm.gid = nx.gameId;
+    history.replaceState(history.state, '', gmPathOf(nx.gameId));
+    gmRender();
+  }
+  function setGmTab(t) { gm.tab = t; gmRender(); }
+  window.openGame = openGame; window.closeGame = closeGame; window.gmStep = gmStep; window.setGmTab = setGmTab;
+  const gmGame = () => (nflData?.schedule || []).find(x => x.gameId === gm.gid);
+
+  /** the line nearest a coin flip for a negative-binomial count — the same one the player's card opens on */
+  function nbEven(mu, alpha, lines) {
+    const r = 1 / (alpha || 0.05), q = r / (r + mu);
+    const over = (L) => { let term = Math.pow(q, r), cdf = term; for (let i = 1; i <= Math.floor(L); i++) { term = term * ((r + i - 1) / i) * (1 - q); cdf += term; } return 1 - cdf; };
+    let best = lines[0];
+    for (const L of lines) if (Math.abs(over(L) - 0.5) < Math.abs(over(best) - 0.5)) best = L;
+    return { L: best, p: over(best) };
+  }
+  const gmFmt = (v, dp = 1) => v == null ? '—' : (+v).toFixed(dp).replace(/\.0$/, '');
+
+  /**
+   * Every player we price in one game, as a stat line.
+   *   before kickoff  the live boards
+   *   after kickoff   what the results log kept at kickoff, plus the box score
+   */
+  function gmPlayers(g, ge, state) {
+    const M = new Map();
+    const row = (pid, name, team, pos) => {
+      const e = M.get(pid) ?? { pid, name, team, pos, stats: [] };
+      if (!M.has(pid)) M.set(pid, e);
+      return e;
+    };
+    const st = (e, k, lab, proj, line, p, got, open) => e.stats.push({ k, lab, proj, line, p, got, open });
+    const res = ge?.res;
+    const graded = !!res;
+    if (state === 'pre') {
+      const P = nflData.picks, inG = (arr) => (arr || []).filter(x => x.gameId === g.gameId);
+      if (!P || P.week !== g.week) return [];
+      for (const r of inG(P.picks)) { const e = row(r.pid, r.name, r.team, r.pos); e.td = r.p; e.open = `openPick('${r.pid}')`; }
+      for (const r of inG(nflData.completions)) {
+        const { L, p } = nbEven(r.mu, nflData.completionModel?.alpha, nflData.completionModel?.lines || [20.5]);
+        const e = row(r.pid, r.name, r.team, 'QB'); st(e, 'cmp', 'Completions', r.mu, L, p, null, `openCmp('${r.pid}')`);
+      }
+      for (const r of inG(nflData.interceptions)) {
+        const e = row(r.pid, r.name, r.team, 'QB'); st(e, 'int', 'Interceptions', r.mu, 0.5, r.p['0.5'] ?? r.p[0.5], null, `openInt('${r.pid}')`);
+      }
+      for (const r of inG(nflData.receptions)) {
+        const { L, p } = nbEven(r.mu, nflData.receptionModel?.alpha, nflData.receptionModel?.lines || [2.5]);
+        const e = row(r.pid, r.name, r.team, r.pos); st(e, 'rec', 'Receptions', r.mu, L, p, null, `openRec('${r.pid}')`);
+      }
+      for (const [mk, lab] of [['pass', 'Pass yds'], ['rush', 'Rush yds'], ['rec', 'Rec yds'], ['rr', 'Rush + rec']])
+        for (const r of inG(nflData.yards?.[mk])) {
+          const e = row(r.pid, r.name, r.team, r.pos), L = Math.floor(r.med) + 0.5;
+          st(e, mk === 'rec' ? 'recy' : mk, lab, r.med, L, ydPOver(r.m, L, r.mu), null, `openYds('${r.pid}','${r.m}')`);
+        }
+      for (const r of inG(kkAll())) {
+        const e = row(r.pid, r.name, r.team, 'K'); e.open = `openKick('${r.pid}')`;
+        const L = kkLine('pts', r.mu.pts);
+        st(e, 'kpts', 'Kicker pts', r.mu.pts, L, kkOver('pts', L, r.mu.pts), null, `openKick('${r.pid}')`);
+        st(e, 'kfg', 'FG made', r.mu.fgm, kkLine('fgm', r.mu.fgm), kkOver('fgm', kkLine('fgm', r.mu.fgm), r.mu.fgm), null, `openKick('${r.pid}')`);
+      }
+    } else if (ge) {
+      for (const [pid, name, team, pos, p1] of ge.td ?? []) { const e = row(pid, name, team, pos); e.td = p1; e.tdGot = graded ? (res.td?.[pid] ?? 0) : null; e.open = `openPick('${pid}')`; }
+      for (const [pid, name, team, mu, L, p] of ge.cmp ?? []) st(row(pid, name, team, 'QB'), 'cmp', 'Completions', mu, L, p, graded ? (res.cmp?.[pid] ?? 0) : null, `openCmp('${pid}')`);
+      for (const [pid, name, team, mu, p05] of ge.int ?? []) st(row(pid, name, team, 'QB'), 'int', 'Interceptions', mu, 0.5, p05, graded ? (res.ints?.[pid] ?? 0) : null, `openInt('${pid}')`);
+      for (const [pid, name, team, pos, mu, L, p] of ge.rec ?? []) st(row(pid, name, team, pos), 'rec', 'Receptions', mu, L, p, graded ? (res.rec?.[pid] ?? 0) : null, `openRec('${pid}')`);
+      for (const [mk, rows] of Object.entries(ge.yds ?? {})) {
+        const lab = { pass: 'Pass yds', rush: 'Rush yds', rec: 'Rec yds', rr: 'Rush + rec' }[mk];
+        for (const [pid, name, team, pos, m, mu, med] of rows) {
+          const L = Math.floor(med) + 0.5;
+          const got = !graded ? null : mk === 'pass' ? (res.pyds?.[pid] ?? 0) : mk === 'rush' ? (res.rush?.[pid] ?? 0)
+            : mk === 'rec' ? (res.ryds?.[pid] ?? 0) : (res.rush?.[pid] ?? 0) + (res.ryds?.[pid] ?? 0);
+          st(row(pid, name, team, pos), mk === 'rec' ? 'recy' : mk, lab, med, L, ydPOver(m, L, mu), got, `openYds('${pid}','${m}')`);
+        }
+      }
+      for (const [team, pid, name, mf, , mt] of ge.kicks ?? []) {
+        const e = row(pid || team, name, team, 'K'), b = graded ? (res.kick?.[team] ?? [0, 0, 0, 0]) : null;
+        const L = kkLine('pts', mt);
+        st(e, 'kpts', 'Kicker pts', mt, L, kkOver('pts', L, mt), b ? 3 * b[0] + b[2] : null, `openKick('${pid || team}')`);
+        st(e, 'kfg', 'FG made', mf, kkLine('fgm', mf), kkOver('fgm', kkLine('fgm', mf), mf), b ? b[0] : null, `openKick('${pid || team}')`);
       }
     }
-    for (const [team, pid, name, , , mt] of ge.kicks ?? []) {
-      const L = kkLine('pts', mt), b = res?.kick?.[team] ?? [0, 0, 0, 0], n = 3 * b[0] + b[2];
-      add('kick', pid || team, name, team, 'o' + L, kkOver('pts', L, mt), res ? `${n}` : '', n > L, mt?.toFixed(1));
-    }
-    return out;
+    const dnp = new Set(res?.dnp ?? []);
+    const POS_ORDER = { QB: 0, RB: 1, WR: 2, TE: 3, K: 9 };
+    return [...M.values()].map(e => ({ ...e, dnp: dnp.has(e.pid) }))
+      // a backup with no projected line and a 20-1 touchdown price is just an empty card
+      .filter(e => e.stats.length || e.dnp || (e.td ?? 0) >= 0.09)
+      .sort((a, b) => (POS_ORDER[a.pos] ?? 5) - (POS_ORDER[b.pos] ?? 5) || (b.td ?? 0) - (a.td ?? 0) || (b.stats[0]?.proj ?? 0) - (a.stats[0]?.proj ?? 0));
   }
-  function gameBoardPanel(g, played) {
+
+  function gmProjections(g, ge, state) {
+    const rows = gmPlayers(g, ge, state);
+    if (!rows.length) return `<div class="empty" style="padding:2rem 0">${state === 'pre'
+      ? 'Prices post once this week has lines — usually a week out.'
+      : liveLogState === 'loading' || liveLogState === 'idle' ? 'Loading what we had at kickoff…' : 'No board was logged for this game.'}</div>`;
+    const graded = state === 'post';
+    const tiles = (() => {
+      if (!graded) return '';
+      const all = rows.flatMap(r => [...r.stats.filter(s2 => s2.got != null).map(s2 => ({ p: s2.p, hit: s2.got > s2.line })),
+                                     ...(r.td != null && r.tdGot != null ? [{ p: r.td, hit: r.tdGot >= 1 }] : [])]);
+      if (!all.length) return '';
+      const hits = all.filter(x => x.hit).length;
+      return `<div class="hm-tiles gm-tiles">
+        <div class="hm-tile"><b>${hits}/${all.length}</b><span>Calls landed</span></div>
+        <div class="hm-tile"><b>${all.reduce((a, x) => a + x.p, 0).toFixed(0)}</b><span>We expected</span></div>
+        <div class="hm-tile"><b>${g.awayScore}–${g.homeScore}</b><span>Final score</span></div></div>`;
+    })();
+    const card = (r) => {
+      const teamCls = r.team === g.home ? 'home' : 'away';
+      const stat = (s2) => {
+        const hit = s2.got != null && s2.got > s2.line, done = s2.got != null;
+        const pctv = done ? Math.min(100, s2.got / Math.max(+s2.proj, 0.001) * 100) : 0;
+        return `<div class="gms${done ? (hit ? ' hit' : ' miss') : ''}" onclick="event.stopPropagation();${s2.open}">
+          <span class="gms-k">${s2.lab}</span>
+          <span class="gms-v">${gmFmt(s2.proj, ['cmp', 'int', 'rec', 'kpts', 'kfg'].includes(s2.k) ? 1 : 0)}${done ? `<em>${gmFmt(s2.got, 0)}</em>` : ''}</span>
+          ${done ? `<i class="gms-bar"><em style="width:${pctv.toFixed(0)}%"></em></i>` : ''}
+          <span class="gms-od ${s2.p >= 0.5 ? 'goodc' : 'dogc'}">o${s2.line}<b>${pbOdds(s2.p)}</b></span>
+        </div>`;
+      };
+      return `<div class="gmc ${teamCls}${r.dnp ? ' void' : ''}">
+        <div class="gmc-top"${r.open ? ` onclick="event.stopPropagation();${r.open}"` : ''}>
+          ${faceHtml(r.pid, r.name)}
+          <span class="gmc-id"><b>${r.name}</b><span>${r.pos ? `<i class="posb ${r.pos}">${r.pos}</i>` : ''}${r.team}</span></span>
+          ${r.td != null ? `<span class="gmc-td${r.tdGot ? ' hit' : ''}"><b>${pbOdds(r.td)}</b><small>${r.tdGot != null ? (r.tdGot ? `${r.tdGot} TD` : 'no TD') : 'anytime TD'}</small></span>` : ''}
+        </div>
+        ${r.dnp ? '<div class="gmc-void">Did not play</div>' : `<div class="gmc-stats">${r.stats.map(stat).join('')}</div>`}
+      </div>`;
+    };
+    const note = state === 'pre' ? 'Projections and fair odds at each market\'s even-money line. Tap a line for the full card.'
+      : state === 'live' ? 'The board as it was locked at kickoff. Results fill in when the game goes final.'
+      : 'What we had at kickoff, and what each player actually did.';
+    return `${tiles}<div class="gm-grid">${rows.map(card).join('')}</div><p class="gb-note">${note}</p>`;
+  }
+
+  function gmRender() {
+    const g = gmGame(); if (!g) return;
+    const box = document.querySelector('#gm-back .gmm'); if (!box) return;
     const ge = liveLog?.games?.[g.gameId];
-    if (liveLogState === 'idle') ensureLiveLog();
-    const P = nflData.picks;
-    const live = ge && !ge.final && new Date(ge.kick) <= new Date();
-    // before kickoff: read the live boards; after: the log's kickoff snapshot
-    if (!played && !live) {
-      if (!P || P.week !== g.week) return `<div class="gb"><div class="gb-h">Our board for this game</div>
-        <div class="gb-empty">Prices post once this week has lines — usually a week out.</div></div>`;
-      const inGame = (arr) => (arr || []).filter(r => r.gameId === g.gameId);
-      const card = (title, rows, empty) => `<div class="gb-card"><div class="gb-card-h">${title}</div>${rows || `<div class="gb-none">${empty}</div>`}</div>`;
-      const row = (nm, team, meta, price, fn) => `<div class="gb-row" onclick="event.stopPropagation();${fn}">
-        <span class="gb-nm">${nm}<small>${team}${meta ? ' · ' + meta : ''}</small></span><b class="${price.startsWith('+') ? 'dogc' : 'goodc'}">${price}</b></div>`;
-      const tds = inGame(P.picks).sort((a, b) => b.p - a.p).slice(0, 5)
-        .map(r => row(r.name, `${r.pos} ${r.team}`, '', pbOdds(r.p), `openPick('${r.pid}')`)).join('');
-      const recs = inGame(nflData.receptions).sort((a, b) => b.mu - a.mu).slice(0, 4).map(r => {
-        const L = (nflData.receptionModel?.lines || []).reduce((b2, x) => Math.abs(x - r.mu) < Math.abs(b2 - r.mu) ? x : b2, 2.5);
-        return row(r.name, r.team, `${r.mu.toFixed(1)} proj`, pbOdds(r.p[L] ?? r.p[String(L)]) + ` o${L}`, `openRec('${r.pid}')`);
-      }).join('');
-      const yds = ['pass', 'rush', 'rec'].flatMap(m => inGame(nflData.yards?.[m]).sort((a, b) => b.med - a.med).slice(0, m === 'pass' ? 2 : 2)
-        .map(r => row(r.name, `${r.pos} ${r.team}`, ydMktName(r.m), `${r.med.toFixed(0)} yds`, `openYds('${r.pid}','${r.m}')`))).join('');
-      const cmpL = (mu) => (nflData.completionModel?.lines || []).reduce((b2, x) => Math.abs(x - mu) < Math.abs(b2 - mu) ? x : b2, 20.5);
-      const qbs = inGame(nflData.completions).map(r => { const L = cmpL(r.mu);
-        return row(r.name, r.team, `${r.mu.toFixed(1)} cmp`, pbOdds(r.p[L] ?? r.p[String(L)]) + ` o${L}`, `openCmp('${r.pid}')`); }).join('')
-        + inGame(nflData.interceptions).map(r => row(r.name, r.team, 'interception', pbOdds(r.p['0.5'] ?? r.p[0.5]), `openInt('${r.pid}')`)).join('');
-      const ks = inGame(kkAll()).map(r => row(r.name, r.team, `${r.mu.pts.toFixed(1)} pts proj`,
-        pbOdds(kkP(r, 'pts', kkLine('pts', r.mu.pts))) + ` o${kkLine('pts', r.mu.pts)}`, `openKick('${r.pid}')`)).join('');
-      return `<div class="gb"><div class="gb-h">Our board for this game<span>${WK_LABEL(g.week)} · tap a name for the full card</span></div>
-        <div class="gb-grid">
-          ${card('Most likely to score', tds, 'No prices yet.')}
-          ${card('Receptions', recs, 'No pass-catchers priced.')}
-          ${card('Yards', yds, 'No projections yet.')}
-          ${card('Quarterbacks', qbs, 'No starter priced.')}
-          ${card('Kickers', ks, 'No kicker priced.')}
-        </div></div>`;
-    }
-    if (!ge) return '';
-    const rows = gbGraded(ge).filter(r => r.p != null);
-    if (!rows.length) return '';
-    const byMkt = {};
-    for (const r of rows) (byMkt[r.mkt] ??= []).push(r);
-    const graded = rows.filter(r => r.st === 'hit' || r.st === 'miss');
-    const tiles = Object.entries(byMkt).map(([mkt, list]) => {
-      const gd = list.filter(r => r.st === 'hit' || r.st === 'miss');
-      return `<div class="hm-tile"><b>${gd.length ? `${gd.filter(r => r.st === 'hit').length}/${gd.length}` : list.length}</b><span>${GB_MKT[mkt]}${gd.length ? '' : ' priced'}</span></div>`;
-    }).join('');
-    // straight price order fills the list with yards rows (their lines sit at the
-    // median, so they all price near even) — take each market's best two instead
-    const top = Object.values(byMkt).flatMap(list => [...list].sort((a, b) => b.p - a.p).slice(0, 2))
-      .sort((a, b) => b.p - a.p).slice(0, 10);
-    const TAG = { hit: 'HIT', miss: '—', void: 'DNP', live: 'LIVE', pend: 'PENDING' };
-    const list = top.map(r => `<div class="cp-res ${r.st}">
-        <span class="cp-res-nm">${r.name}<span class="cp-res-tm">${r.team} · ${GB_MKT[r.mkt]}</span></span>
-        <span class="cp-res-line">${r.line || pbOdds(r.p)}${r.line ? `<span class="cp-res-od">${pbOdds(r.p)}</span>` : ''}</span>
-        <span class="cp-res-proj">${r.proj ?? ''}</span>
-        <span class="cp-res-act">${r.got}</span>
-        <span class="cp-res-tag">${TAG[r.st]}</span></div>`).join('');
-    return `<div class="gb"><div class="gb-h">${played ? 'How our board did' : 'Our board at kickoff'}
-        <span>${played ? `${graded.filter(r => r.st === 'hit').length} of ${graded.length} landed · we said ${graded.reduce((a, r) => a + r.p, 0).toFixed(0)}` : 'locked when the game started · graded when it ends'}</span></div>
-      <div class="hm-tiles gb-tiles">${tiles}</div>
-      <div class="cp-res head"><span class="cp-res-nm">Player</span><span class="cp-res-line">Line</span><span class="cp-res-proj">Proj</span><span class="cp-res-act">Got</span><span class="cp-res-tag"></span></div>
-      ${list}
-      <div class="gb-note">Our most confident calls in this game, two per market${played ? ', graded from the box score' : ''}. Every market is on its own board's Results tab.</div>
-    </div>`;
+    const played = g.homeScore != null && g.awayScore != null;
+    const live = !played && ge && new Date(ge.kick) <= new Date();
+    const state = played ? 'post' : live ? 'live' : 'pre';
+    const deck = gmDeck(), at = deck.findIndex(x => x.gameId === g.gameId);
+    const wx = (() => {
+      const indoor = !(g.roof === 'outdoors' || g.roof === 'open');
+      if (indoor) return 'dome';
+      const w = nflData.wind?.[g.gameId], k = (nflData.kickers || []).find(x => x.gameId === g.gameId);
+      return [k?.f?.temp != null ? `${k.f.temp}°F` : null, w != null ? `${Math.round(w)} mph` : null].filter(Boolean).join(' · ') || g.roof;
+    })();
+    const tabs = [['proj', state === 'pre' ? 'Projections' : 'Our board'], ['matchup', 'Matchup']].concat(played ? [['flow', 'Game flow']] : []);
+    const body = gm.tab === 'matchup' ? matchupPanel(g).replace('<div class="mx"', '<div class="mx flat"')
+      : gm.tab === 'flow' ? (gameFlow(g) || '<div class="empty">No win-probability line for this game.</div>').replace('<div class="gf"', '<div class="gf flat"')
+      : gmProjections(g, ge, state);
+    box.innerHTML = `
+      <button class="pm-x" onclick="closeGame()" aria-label="Close">×</button>
+      <header class="gm-hero">
+        <div class="gm-team"><img src="${teamLogo(g.away)}" alt="" loading="lazy"><b>${g.away}</b></div>
+        <div class="gm-mid">
+          ${played ? `<div class="gm-score"><span${g.awayScore > g.homeScore ? ' class="win"' : ''}>${g.awayScore}</span><i>–</i><span${g.homeScore > g.awayScore ? ' class="win"' : ''}>${g.homeScore}</span></div><div class="gm-when">Final</div>`
+            : `<div class="gm-lines">${g.spread != null ? `<span>${spreadLabel(g)}</span>` : ''}${g.total != null ? `<span>O/U ${g.total}</span>` : ''}</div>
+               <div class="gm-when">${live ? '<b class="gm-live">In progress</b>' : `${g.weekday || ''} ${g.gameday ? g.gameday.slice(5) : ''}${g.gametime ? ' · ' + g.gametime.slice(0, 5) : ''}`}</div>`}
+          <div class="gm-wx">${WK_LABEL(g.week)} · ${wx}${at >= 0 ? ` · ${at + 1} / ${deck.length}` : ''}</div>
+        </div>
+        <div class="gm-team end"><b>${g.home}</b><img src="${teamLogo(g.home)}" alt="" loading="lazy"></div>
+      </header>
+      <div class="sub-tabs u-tabs gm-tabs">${tabs.map(([v, l]) => `<button class="sub-btn${gm.tab === v ? ' active' : ''}" onclick="setGmTab('${v}')">${l}</button>`).join('')}</div>
+      ${body}`;
+    const back = document.getElementById('gm-back');
+    back.querySelector('.pk-side-prev').disabled = at <= 0;
+    back.querySelector('.pk-side-next').disabled = at < 0 || at >= deck.length - 1;
   }
 
   function matchupPanel(g) {
@@ -4429,14 +4601,13 @@
       }
     }
 
-    const open = mxOpen === g.gameId;
-    return `<div class="sc-game${open ? ' open' : ''}" onclick="toggleMatchup('${g.gameId}')">
+    return `<div class="sc-game" onclick="openGame('${g.gameId}')">
       <div class="sc-top">
         ${side(g.away, false)}${mid}${side(g.home, true)}
         <span class="sc-chev">▶</span>
       </div>
       ${pick}
-    </div>${open ? (played ? gameFlow(g) : '') + gameBoardPanel(g, played) + matchupPanel(g) : ''}`;
+    </div>`;
   }
 
   function dataGate(id) {
@@ -4478,7 +4649,7 @@
     playsState = 'loading';
     fetch(APP_BASE + '/plays.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
       .then(j => { playsLog = j; playsState = 'ready'; }).catch(() => { playsState = 'error'; })
-      .finally(() => { if (tdOpen.gid) tdRender(); if (activeNav === 'schedule' && mxOpen) renderSchedule(); });
+      .finally(() => { if (tdOpen.gid) tdRender(); if (gm.gid) gmRender(); });
   }
   const tdRow = () => (nflData.tdRecap[recapWeek] || []).find(t => t.gameId === tdOpen.gid && t.k === tdOpen.k)
     || Object.values(nflData.tdRecap).flat().find(t => t.gameId === tdOpen.gid && t.k === tdOpen.k);
@@ -5146,7 +5317,7 @@
     if (e.key === 'Escape') closeTd(); else if (e.key === 'ArrowLeft') tdStep(-1); else if (e.key === 'ArrowRight') tdStep(1);
   }
   function closeTd(fromRoute) {
-    cancelAnimationFrame(tdAnim); document.getElementById('td-back')?.remove(); document.removeEventListener('keydown', tdKey); if (!document.getElementById('pl-back')) document.body.style.overflow = ''; tdOpen.gid = null;
+    cancelAnimationFrame(tdAnim); document.getElementById('td-back')?.remove(); document.removeEventListener('keydown', tdKey); if (!document.getElementById('pl-back') && !document.getElementById('gm-back')) document.body.style.overflow = ''; tdOpen.gid = null;
     if (fromRoute === true || !tdFromPath()) return;
     // opened here: step back to the page it was opened from; arrived by link: drop the play from the URL
     if (tdPushed && history.state?.td) { tdPushed = false; history.back(); }
@@ -7003,6 +7174,7 @@ let pairStacks = false;
   }
   function lcKey(e) {
     if (!document.getElementById('lc-back')) return;
+    e.stopPropagation();
     if (e.key === 'Escape') closeLc();
     else if (e.key === 'ArrowLeft') lcStep(-1);
     else if (e.key === 'ArrowRight') lcStep(1);
@@ -7012,7 +7184,7 @@ let pairStacks = false;
       if (x >= lo && x <= hi) lcSetLine(x);
     }
   }
-  function closeLc() { document.getElementById('lc-back')?.remove(); document.removeEventListener('keydown', lcKey); document.body.style.overflow = ''; lc.pid = null; }
+  function closeLc() { document.getElementById('lc-back')?.remove(); document.removeEventListener('keydown', lcKey); if (!document.getElementById('gm-back')) document.body.style.overflow = ''; lc.pid = null; }
   function lcStep(d) {
     const deck = LC[lc.kind].rows(), at = deck.findIndex(x => x.pid === lc.pid), nx = deck[at + d]; if (!nx) return;
     lc.pid = nx.pid; const r = lcRow(); lc.line = lcPick(r, lcPmf(r)); lcRender();
@@ -7308,7 +7480,7 @@ let pairStacks = false;
   function shiftScheduleWeek(d) {
     const { wks } = scheduleWeeks();
     const i = wks.indexOf(scheduleWeek);
-    if (i >= 0 && wks[i + d] != null) { scheduleWeek = wks[i + d]; mxOpen = null; renderSchedule(); }
+    if (i >= 0 && wks[i + d] != null) { scheduleWeek = wks[i + d]; renderSchedule(); }
   }
   function renderSchedule() {
     const el = dataGate('schedule-content'); if (!el) return;
@@ -7503,15 +7675,18 @@ let pairStacks = false;
   function parsePath() { const rel = location.pathname.startsWith(APP_BASE) ? location.pathname.slice(APP_BASE.length) : location.pathname; return rel.replace(/^\/+|\/+$/g, '').split('/')[0] || 'home'; }
   function applyRouteState() {
     applyingRoute = true;
-    const nav = parsePath(), td = tdFromPath(), pl = plFromPath();
-    switchNav(td ? (document.getElementById('pl-back') ? 'stats' : 'recap') : pl ? 'stats' : NFL_NAVS.includes(nav) ? nav : 'home');
+    const nav = parsePath(), td = tdFromPath(), pl = plFromPath(), gmp = gmFromPath();
+    switchNav(td ? (document.getElementById('pl-back') ? 'stats' : document.getElementById('gm-back') ? 'schedule' : 'recap')
+      : pl ? 'stats' : gmp ? 'schedule' : NFL_NAVS.includes(nav) ? nav : 'home');
     if (td) tdPending = td;
     else if (document.getElementById('td-back')) closeTd(true);
     if (pl) plPending = pl;
     else if (!td && document.getElementById('pl-back')) closePlayer(true);
-    history.replaceState(history.state, '', td ? tdPathOf(td.gid, td.k) : pl ? plPathOf(pl) : currentPath());
+    if (gmp) gmPending = gmp;
+    else if (!td && document.getElementById('gm-back')) closeGame(true);
+    history.replaceState(history.state, '', td ? tdPathOf(td.gid, td.k) : pl ? plPathOf(pl) : gmp ? gmPathOf(gmp) : currentPath());
     applyingRoute = false;
-    tdOpenPending(); plOpenPending();
+    tdOpenPending(); plOpenPending(); gmOpenPending();
   }
   window.addEventListener('popstate', applyRouteState);
   document.addEventListener('click', (e) => { if (navToolsOpen && !e.target.closest('#nav-tools-menu') && !e.target.closest('#nav-tools-btn')) closeNavTools(); });
