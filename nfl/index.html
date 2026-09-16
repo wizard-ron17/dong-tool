@@ -2417,6 +2417,24 @@
   .mx-sc-row:hover { background: var(--surface1); }
   .mx-sc-nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-strong); font-weight: 600; }
   .mx-sc-td { font-family: var(--font-m); color: var(--silver); white-space: nowrap; font-size: 0.692rem; }
+  .gb { background: var(--surface0); border: 1px solid var(--border2); border-top: none; padding: 0.85rem 1rem 0.8rem; }
+  .gb + .mx { border-top: 1px dashed var(--border); }
+  .gb-h { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.3rem 0.8rem; margin-bottom: 0.6rem;
+          font-family: var(--font-d); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--silver); }
+  .gb-h span { font-size: 0.68rem; letter-spacing: 0.04em; text-transform: none; color: var(--muted); }
+  .gb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.55rem; }
+  .gb-card { border: 1px solid var(--border); border-radius: 10px; background: var(--surface1); padding: 0.5rem 0.6rem; min-width: 0; }
+  .gb-card-h { font-size: 0.64rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.35rem; }
+  .gb-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.28rem 0; cursor: pointer; border-radius: 6px; }
+  .gb-row:hover { background: var(--surface2); }
+  .gb-row + .gb-row { border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
+  .gb-nm { display: flex; flex-direction: column; min-width: 0; font-size: 0.86rem; color: var(--text); }
+  .gb-nm small { font-size: 0.68rem; color: var(--muted); }
+  .gb-row b { font-family: var(--font-d); font-size: 0.86rem; white-space: nowrap; }
+  .gb-none, .gb-empty { font-size: 0.8rem; color: var(--dim); padding: 0.2rem 0; }
+  .gb-tiles { margin-bottom: 0.6rem; }
+  .gb-tiles .hm-tile b { font-size: 1.15rem; }
+  .gb-note { margin-top: 0.5rem; font-size: 0.75rem; color: var(--muted); }
   .gf { background: var(--surface0); border: 1px solid var(--border2); border-top: none; padding: 0.85rem 1rem 0.7rem; }
   .gf + .mx { border-top: 1px dashed var(--border); }
   .gf-empty { padding: 1rem 0; color: var(--muted); font-size: 0.85rem; }
@@ -4172,6 +4190,111 @@
   }
   window.gfScrub = gfScrub;
 
+  // ── Schedule: our board for one game ──────────────────────────────────────
+  // Three states. Before kickoff: what every tool says about this game, live
+  // from the current boards. In progress: the board as it was locked at
+  // kickoff. Final: the same rows with what actually happened.
+  const GB_MKT = { td: 'Anytime TD', rec: 'Receptions', cmp: 'Completions', int: 'INT', kick: 'Kicker pts',
+                   pass: 'Pass yds', rush: 'Rush yds', recy: 'Rec yds', rr: 'Rush+rec' };
+  /** rows the log kept at kickoff, with the result when the game is graded */
+  function gbGraded(ge) {
+    const res = ge.res, dnp = new Set(res?.dnp ?? []), out = [];
+    const add = (mkt, pid, name, team, line, p, got, hit, proj) =>
+      out.push({ mkt, pid, name, team, line, p, got, proj, st: !res ? (ge.live ? 'live' : 'pend') : dnp.has(pid) ? 'void' : hit ? 'hit' : 'miss' });
+    for (const [pid, name, team, pos, p1] of ge.td ?? []) {
+      const n = res?.td?.[pid] ?? 0;
+      add('td', pid, name, team, '', p1, res ? `${n} TD` : '', n >= 1, '');
+    }
+    for (const [pid, name, team, , mu, L, p] of ge.rec ?? []) {
+      const n = res?.rec?.[pid] ?? 0; add('rec', pid, name, team, 'o' + L, p, res ? `${n}` : '', n > L, mu?.toFixed(1));
+    }
+    for (const [pid, name, team, mu, L, p] of ge.cmp ?? []) {
+      const n = res?.cmp?.[pid] ?? 0; add('cmp', pid, name, team, 'o' + L, p, res ? `${n}` : '', n > L, mu?.toFixed(1));
+    }
+    for (const [pid, name, team, mu, p05] of ge.int ?? []) {
+      const n = res?.ints?.[pid] ?? 0; add('int', pid, name, team, 'o0.5', p05, res ? `${n}` : '', n >= 1, mu?.toFixed(2));
+    }
+    for (const [mk, rows] of Object.entries(ge.yds ?? {})) {
+      const key = { pass: 'pass', rush: 'rush', rec: 'recy', rr: 'rr' }[mk];
+      for (const [pid, name, team, , m, mu, med] of rows) {
+        const L = Math.floor(med) + 0.5;
+        const n = !res ? 0 : mk === 'pass' ? (res.pyds?.[pid] ?? 0) : mk === 'rush' ? (res.rush?.[pid] ?? 0)
+          : mk === 'rec' ? (res.ryds?.[pid] ?? 0) : (res.rush?.[pid] ?? 0) + (res.ryds?.[pid] ?? 0);
+        add(key, pid, name, team, 'o' + L, ydPOver(m, L, mu), res ? `${n}` : '', n > L, med.toFixed(0));
+      }
+    }
+    for (const [team, pid, name, , , mt] of ge.kicks ?? []) {
+      const L = kkLine('pts', mt), b = res?.kick?.[team] ?? [0, 0, 0, 0], n = 3 * b[0] + b[2];
+      add('kick', pid || team, name, team, 'o' + L, kkOver('pts', L, mt), res ? `${n}` : '', n > L, mt?.toFixed(1));
+    }
+    return out;
+  }
+  function gameBoardPanel(g, played) {
+    const ge = liveLog?.games?.[g.gameId];
+    if (liveLogState === 'idle') ensureLiveLog();
+    const P = nflData.picks;
+    const live = ge && !ge.final && new Date(ge.kick) <= new Date();
+    // before kickoff: read the live boards; after: the log's kickoff snapshot
+    if (!played && !live) {
+      if (!P || P.week !== g.week) return `<div class="gb"><div class="gb-h">Our board for this game</div>
+        <div class="gb-empty">Prices post once this week has lines — usually a week out.</div></div>`;
+      const inGame = (arr) => (arr || []).filter(r => r.gameId === g.gameId);
+      const card = (title, rows, empty) => `<div class="gb-card"><div class="gb-card-h">${title}</div>${rows || `<div class="gb-none">${empty}</div>`}</div>`;
+      const row = (nm, team, meta, price, fn) => `<div class="gb-row" onclick="event.stopPropagation();${fn}">
+        <span class="gb-nm">${nm}<small>${team}${meta ? ' · ' + meta : ''}</small></span><b class="${price.startsWith('+') ? 'dogc' : 'goodc'}">${price}</b></div>`;
+      const tds = inGame(P.picks).sort((a, b) => b.p - a.p).slice(0, 5)
+        .map(r => row(r.name, `${r.pos} ${r.team}`, '', pbOdds(r.p), `openPick('${r.pid}')`)).join('');
+      const recs = inGame(nflData.receptions).sort((a, b) => b.mu - a.mu).slice(0, 4).map(r => {
+        const L = (nflData.receptionModel?.lines || []).reduce((b2, x) => Math.abs(x - r.mu) < Math.abs(b2 - r.mu) ? x : b2, 2.5);
+        return row(r.name, r.team, `${r.mu.toFixed(1)} proj`, pbOdds(r.p[L] ?? r.p[String(L)]) + ` o${L}`, `openRec('${r.pid}')`);
+      }).join('');
+      const yds = ['pass', 'rush', 'rec'].flatMap(m => inGame(nflData.yards?.[m]).sort((a, b) => b.med - a.med).slice(0, m === 'pass' ? 2 : 2)
+        .map(r => row(r.name, `${r.pos} ${r.team}`, ydMktName(r.m), `${r.med.toFixed(0)} yds`, `openYds('${r.pid}','${r.m}')`))).join('');
+      const cmpL = (mu) => (nflData.completionModel?.lines || []).reduce((b2, x) => Math.abs(x - mu) < Math.abs(b2 - mu) ? x : b2, 20.5);
+      const qbs = inGame(nflData.completions).map(r => { const L = cmpL(r.mu);
+        return row(r.name, r.team, `${r.mu.toFixed(1)} cmp`, pbOdds(r.p[L] ?? r.p[String(L)]) + ` o${L}`, `openCmp('${r.pid}')`); }).join('')
+        + inGame(nflData.interceptions).map(r => row(r.name, r.team, 'interception', pbOdds(r.p['0.5'] ?? r.p[0.5]), `openInt('${r.pid}')`)).join('');
+      const ks = inGame(kkAll()).map(r => row(r.name, r.team, `${r.mu.pts.toFixed(1)} pts proj`,
+        pbOdds(kkP(r, 'pts', kkLine('pts', r.mu.pts))) + ` o${kkLine('pts', r.mu.pts)}`, `openKick('${r.pid}')`)).join('');
+      return `<div class="gb"><div class="gb-h">Our board for this game<span>${WK_LABEL(g.week)} · tap a name for the full card</span></div>
+        <div class="gb-grid">
+          ${card('Most likely to score', tds, 'No prices yet.')}
+          ${card('Receptions', recs, 'No pass-catchers priced.')}
+          ${card('Yards', yds, 'No projections yet.')}
+          ${card('Quarterbacks', qbs, 'No starter priced.')}
+          ${card('Kickers', ks, 'No kicker priced.')}
+        </div></div>`;
+    }
+    if (!ge) return '';
+    const rows = gbGraded(ge).filter(r => r.p != null);
+    if (!rows.length) return '';
+    const byMkt = {};
+    for (const r of rows) (byMkt[r.mkt] ??= []).push(r);
+    const graded = rows.filter(r => r.st === 'hit' || r.st === 'miss');
+    const tiles = Object.entries(byMkt).map(([mkt, list]) => {
+      const gd = list.filter(r => r.st === 'hit' || r.st === 'miss');
+      return `<div class="hm-tile"><b>${gd.length ? `${gd.filter(r => r.st === 'hit').length}/${gd.length}` : list.length}</b><span>${GB_MKT[mkt]}${gd.length ? '' : ' priced'}</span></div>`;
+    }).join('');
+    // straight price order fills the list with yards rows (their lines sit at the
+    // median, so they all price near even) — take each market's best two instead
+    const top = Object.values(byMkt).flatMap(list => [...list].sort((a, b) => b.p - a.p).slice(0, 2))
+      .sort((a, b) => b.p - a.p).slice(0, 10);
+    const TAG = { hit: 'HIT', miss: '—', void: 'DNP', live: 'LIVE', pend: 'PENDING' };
+    const list = top.map(r => `<div class="cp-res ${r.st}">
+        <span class="cp-res-nm">${r.name}<span class="cp-res-tm">${r.team} · ${GB_MKT[r.mkt]}</span></span>
+        <span class="cp-res-line">${r.line || pbOdds(r.p)}${r.line ? `<span class="cp-res-od">${pbOdds(r.p)}</span>` : ''}</span>
+        <span class="cp-res-proj">${r.proj ?? ''}</span>
+        <span class="cp-res-act">${r.got}</span>
+        <span class="cp-res-tag">${TAG[r.st]}</span></div>`).join('');
+    return `<div class="gb"><div class="gb-h">${played ? 'How our board did' : 'Our board at kickoff'}
+        <span>${played ? `${graded.filter(r => r.st === 'hit').length} of ${graded.length} landed · we said ${graded.reduce((a, r) => a + r.p, 0).toFixed(0)}` : 'locked when the game started · graded when it ends'}</span></div>
+      <div class="hm-tiles gb-tiles">${tiles}</div>
+      <div class="cp-res head"><span class="cp-res-nm">Player</span><span class="cp-res-line">Line</span><span class="cp-res-proj">Proj</span><span class="cp-res-act">Got</span><span class="cp-res-tag"></span></div>
+      ${list}
+      <div class="gb-note">Our most confident calls in this game, two per market${played ? ', graded from the box score' : ''}. Every market is on its own board's Results tab.</div>
+    </div>`;
+  }
+
   function matchupPanel(g) {
     const S = nflData?.teamStats || {}, SC = nflData?.teamScorers || {}, QB = nflData?.teamQB || {};
     const yr = nflData.historySeason;
@@ -4313,7 +4436,7 @@
         <span class="sc-chev">▶</span>
       </div>
       ${pick}
-    </div>${open ? (played ? gameFlow(g) : '') + matchupPanel(g) : ''}`;
+    </div>${open ? (played ? gameFlow(g) : '') + gameBoardPanel(g, played) + matchupPanel(g) : ''}`;
   }
 
   function dataGate(id) {
