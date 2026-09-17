@@ -264,12 +264,13 @@ function lastN(values, n) {
  * thing that proves the port applies the coefficients to the same quantities.
  */
 export function playerFeatures({ pid, position, season, week, snapLog, rzLog,
-                                 tdLog = new Map(),
+                                 tdLog = new Map(), touchLog = new Map(),
                                  impliedTotal, matesOut = 0, newAbsence = 0 }) {
   const before = (s) => s.season < season || (s.season === season && s.week < week);
   const snaps = (snapLog.get(pid) ?? []).filter(before);
   const rz = (rzLog.get(pid) ?? []).filter(before);
   const tdh = (tdLog.get(pid) ?? []).filter(before);
+  const tch = (touchLog.get(pid) ?? []).filter(before);
   // No history at all (a rookie in week 1) is not a reason to skip a player —
   // build_dataset.py keeps those rows, shrinking them to the position prior,
   // so the model was trained on them and can score them. A rookie RB1 is
@@ -323,6 +324,14 @@ export function playerFeatures({ pid, position, season, week, snapLog, rzLog,
         ? tdh.filter(s => s.season === prevSeason).reduce((a, b) => a + b.share, 0) / prevGames
         : null,
       priorFor('td_share', position, season)),
+    // touches (carries + targets) per game, same 2-season window as red-zone
+    // touches — and the same denominator discipline: games come from the snap
+    // log, since the touch log has no row for a game he never touched the ball
+    touches_prior2: shrunkPrior(
+      rzGames ? tch.filter(s => s.season >= rzFrom).reduce((a, b) => a + b.touches, 0) : 0,
+      rzGames,
+      prevGames ? tch.filter(s => s.season === prevSeason).reduce((a, b) => a + b.touches, 0) / prevGames : null,
+      priorFor('touches', position, season)),
     // a debut has no window; build_dataset.py fills it with the shrunk prior
     snap_last3: lastN(snapVals, 3) ?? shrunkPrior(
       0, 0, null, priorFor('snap_share', position, season)),
@@ -341,6 +350,7 @@ export function playerFeatures({ pid, position, season, week, snapLog, rzLog,
 function addLogScale(row) {
   row.rz_touches_log = Math.log1p(row.rz_touches_prior);
   row.td_share_log = Math.log1p(row.td_share_prior);
+  row.touches_log2 = Math.log1p(row.touches_prior2);
   return row;
 }
 
@@ -562,7 +572,7 @@ export async function loadSnapLog(seasons, xwalk) {
  * loaders would double the build's network cost for no reason.
  */
 export async function loadPbpLogs(seasons) {
-  const rzLog = new Map(), passLog = new Map(), tdLog = new Map();
+  const rzLog = new Map(), passLog = new Map(), tdLog = new Map(), touchLog = new Map();
   const recLog = new Map(), teamPassLog = new Map();
   const retAgg = new Map();     // `${pid}|${team}` -> return counts, both seasons
   const windLog = new Map();    // `${team}|${season}|${week}` -> wind mph as played
@@ -575,6 +585,7 @@ export async function loadPbpLogs(seasons) {
     if (!txt) { console.log(`  pbp ${y}: not published yet`); continue; }
     const { idx, rows } = parseCsv(txt);
     const per = new Map();        // `${pid}|${week}` -> rz touches
+    const tch = new Map();        // `${pid}|${week}` -> touches (carries + targets)
     const qb  = new Map();        // `${pid}|${week}` -> { att, ptd, cmp, team }
     const dfPass = new Map();     // `${defteam}|${week}` -> { att, cmp } faced
     const ru = new Map();         // `${pid}|${week}` -> { car, yds, team }
@@ -711,11 +722,17 @@ export async function loadPbpLogs(seasons) {
           tmTd.set(tk, (tmTd.get(tk) ?? 0) + 1);
         }
       }
-      const yl = num(r[idx.yardline_100]);
-      if (yl == null || yl > 20) continue;
       const ids = [];
       if (r[idx.rush_attempt] === '1' && r[idx.rusher_player_id]) ids.push(r[idx.rusher_player_id]);
       if (isPass && r[idx.receiver_player_id]) ids.push(r[idx.receiver_player_id]);
+      // every touch, then the red-zone subset (build_dataset.py counts both off
+      // the same rows: a carry or a target, rz when yardline_100 <= 20)
+      for (const pid of ids) {
+        const k = `${pid}|${r[idx.week]}`;
+        tch.set(k, (tch.get(k) ?? 0) + 1);
+      }
+      const yl = num(r[idx.yardline_100]);
+      if (yl == null || yl > 20) continue;
       for (const pid of ids) {
         const k = `${pid}|${r[idx.week]}`;
         per.set(k, (per.get(k) ?? 0) + 1);
@@ -724,6 +741,10 @@ export async function loadPbpLogs(seasons) {
     for (const [k, rz] of per) {
       const [pid, wk] = k.split('|');
       (rzLog.get(pid) ?? rzLog.set(pid, []).get(pid)).push({ season: y, week: +wk, rz });
+    }
+    for (const [k, n] of tch) {
+      const [pid, wk] = k.split('|');
+      (touchLog.get(pid) ?? touchLog.set(pid, []).get(pid)).push({ season: y, week: +wk, touches: n });
     }
     for (const [k, v] of qb) {
       const [pid, wk] = k.split('|');
@@ -771,7 +792,7 @@ export async function loadPbpLogs(seasons) {
   for (const v of recLog.values()) v.sort(bySeasonWeek);
   for (const v of defLog.values()) v.sort(bySeasonWeek);
   for (const v of rushLog.values()) v.sort(bySeasonWeek);
-  return { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog, defLog, rushLog, kickLog, tempLog };
+  return { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog, defLog, rushLog, kickLog, tempLog, touchLog };
 }
 
 /** Back-compat wrapper — dump-features.js only wants the red-zone half. */
@@ -946,7 +967,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
 
   const { xwalk, birth, shot } = await loadPlayers();
   const snapLog = await loadSnapLog(snapSeasons, xwalk);
-  const { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog, defLog, rushLog, kickLog } = await loadPbpLogs(rzSeasons);
+  const { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog, defLog, rushLog, kickLog, touchLog } = await loadPbpLogs(rzSeasons);
   const roster = await loadRoster(upcomingSeason);
   const depth = await loadDepthChart(upcomingSeason);
   const { byWeek, outIds, questionable = new Set() } = await loadInjuries(season, week);
@@ -976,7 +997,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     const { matesOut, newAbsence } = absenceFeatures({
       byWeek, snapLog, pid, team: info.team, position: pos, season, week });
     const row = addLogScale(playerFeatures({
-      pid, position: pos, season, week, snapLog, rzLog, tdLog,
+      pid, position: pos, season, week, snapLog, rzLog, tdLog, touchLog,
       impliedTotal: ctx.implied, matesOut, newAbsence,
     }));
     if (!row) continue;                                 // no usage history at all
@@ -1491,6 +1512,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
         snapPrior: +row.snap_share_prior.toFixed(6),
         tdShare: +row.td_share_prior.toFixed(6),
         rz: +row.rz_touches_prior.toFixed(6),
+        touches: +row.touches_prior2.toFixed(6),
         implied: +row.implied_total.toFixed(4),
         matesOut: row.mates_out, newAbsence: row.new_absence,
       },

@@ -43,10 +43,28 @@ Pooled out-of-sample, 2017–2025:
 | M4 + RZ touches | 0.4117 | −10.54% | 0.730 |
 | M5 + defense/team env | 0.4117 | −10.54% | 0.730 |
 | M6 + last-3 snap share | 0.4055 | −11.88% | 0.743 |
-| **M7 + injury (teammates out)** | **0.4053** | **−11.92%** | **0.744** |
+| M7 + injury (teammates out) | 0.4053 | −11.92% | 0.744 |
+| M8 + TD share | 0.4023 | −11.39%¹ | 0.739 |
+| M9 log-scale (RZ + TD share) | 0.4012 | −11.63%¹ | 0.741 |
+| **M10 + touches (2 seasons, logged)** | **0.3992** | **−12.06%**¹ | **0.744** |
 
-M7 calibration ECE 0.0067; top decile scores 44.3% against a 17.3% base
-(2.57x), bottom decile 3.0% (0.17x). Negative control returns AUC 0.498.
+¹ M8 on are re-run against a rebuilt dataset, so the "vs base" column restarts
+from its own M0 (0.4540) — compare within a run, not across.
+
+M10 calibration ECE 0.0026 by decile; the 200 shortest prices a season hit
+53.3%, against 52.2% for M9. Negative control returns AUC 0.498.
+
+**Stage 7 (touches) is what xgboost was good for.** `research/gbm.py` fits
+boosted trees under the same walk-forward rule. As a model it is not worth
+shipping — on the same features it does not clear the bar, a 50/50 blend is
+worth only ~0.5% log loss, and it is worse on the thinner markets. But the
+trees spent 44% of their gain on touches per game, which the ladder did not
+carry. Adding it to the logistic beat the blend outright. Raw touches had been
+tested and written off (t −2.0, correctly); it only works on the log1p scale,
+for the same leverage reason as M9 — skew 1.65, and 0.90 correlated with
+red-zone touches, so the workhorses crush the ordinary-usage players it is
+meant to separate. The lesson generalises: every feature written off before M9
+was judged on the raw scale.
 
 ### Four findings that should drive scope
 

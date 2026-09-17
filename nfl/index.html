@@ -3615,11 +3615,12 @@
   const PM_LABELS = {
     snap_last3:       ['Recent snaps',  r => Math.round((r.f?.snap3 ?? 0) * 100) + '% of plays', 'Share of his offense\'s snaps over the last three games. About 87% of the model\'s signal lives here.'],
     snap_share_prior: ['Career snaps',  r => Math.round((r.f?.snapPrior ?? 0) * 100) + '%',      'His longer-run snap share, shrunk toward his position when the sample is thin. A correction on the recent window.'],
-    rz_touches_prior: ['Red zone',      r => (r.f?.rz ?? 0).toFixed(2) + ' touches/g',           'Rushes plus targets inside the 20, per game. For a quarterback this is the whole story — it is what separates a runner from a pocket passer.'],
+    rz_touches_log:   ['Red zone',      r => (r.f?.rz ?? 0).toFixed(2) + ' touches/g',           'Rushes plus targets inside the 20, per game. For a quarterback this is the whole story — it is what separates a runner from a pocket passer.'],
+    touches_log2:     ['Touches',       r => (r.f?.touches ?? 0).toFixed(1) + ' /g',              'Carries plus targets per game over the last two seasons — how much of the offense runs through him at all, not just near the goal line.'],
     implied_total:    ['Team total',    r => (r.f?.implied ?? 0).toFixed(1) + ' pts',            'Points his team is implied to score, from the game total and spread. The only market input, and it prices the matchup better than any defensive stat tested.'],
     mates_out:        ['Mates out',     r => String(r.f?.matesOut ?? 0),                          'Same-position teammates ruled out or doubtful this week.'],
     new_absence:      ['Role opened',   r => (r.f?.newAbsence ? 'yes' : 'no'),                    'Whether that absence is new this week — the case where recent snaps have not yet caught up to a vacated role.'],
-    td_share_prior:   ['TD share',      r => Math.round((r.f?.tdShare ?? 0) * 100) + '% of team',  'Of the touchdowns his team scored, how many were his. Everything else here measures opportunity; this is the only thing that measures conversion — and it is what separates the players who actually find the end zone from the ones who merely play a lot.'],
+    td_share_log:     ['TD share',      r => Math.round((r.f?.tdShare ?? 0) * 100) + '% of team',  'Of the touchdowns his team scored, how many were his. Everything else here measures opportunity; this is the only thing that measures conversion — and it is what separates the players who actually find the end zone from the ones who merely play a lot.'],
   };
   const pmLogit = (p) => Math.log(Math.min(Math.max(p, 1e-9), 1 - 1e-9) / (1 - Math.min(Math.max(p, 1e-9), 1 - 1e-9)));
   let pmOpen = null;
@@ -3630,11 +3631,15 @@
     const posC = r.pos === M.reference_position ? 0 : (c['pos_' + r.pos] ?? 0);
     z += posC;
     const base = z;                                     // intercept + position
+    // the model's skewed inputs are fitted on a log1p scale, so the waterfall
+    // has to standardise the LOGGED value — feeding the raw one made those
+    // terms read as if the player had none
+    const l1p = (v) => Math.log1p(Math.max(0, v ?? 0));
     const raw = {
       snap_last3: r.f?.snap3, snap_share_prior: r.f?.snapPrior,
-      rz_touches_prior: r.f?.rz, implied_total: r.f?.implied,
+      rz_touches_log: l1p(r.f?.rz), implied_total: r.f?.implied,
       mates_out: r.f?.matesOut, new_absence: r.f?.newAbsence,
-      td_share_prior: r.f?.tdShare,
+      td_share_log: l1p(r.f?.tdShare), touches_log2: l1p(r.f?.touches),
     };
     for (const f of M.features) {
       const sc = M.scale[f];

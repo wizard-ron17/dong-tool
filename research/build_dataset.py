@@ -364,6 +364,14 @@ def main():
     df = add_form(df, "snap_pct", "snap_share_prior")
     df = add_form(df, "rz_touches", "rz_touches_prior", window_seasons=2)
     df = add_form(df, "touches", "touches_prior")
+    # Touches (carries + targets) per game, bounded to 2 seasons so the Node
+    # build can reproduce it from the play-by-play it already loads. On a log
+    # scale this is the single biggest feature the ladder had left: xgboost
+    # (research/gbm.py) spent 44% of its gain on it while the model carried
+    # nothing like it. Raw it is a null (t -2.0) for the same reason raw
+    # rz_touches was: skew 1.65, so a few 20-touch workhorses dominate a linear
+    # term. Logged, walk-forward 2017-2025, better in 8 of 9 seasons.
+    df = add_form(df, "touches", "touches_prior2", window_seasons=2)
     df = add_form(df, "td_share", "td_share_prior", window_seasons=2)
 
     # Both of these are heavily right-skewed — rz_touches_prior has skew 2.05 and
@@ -378,12 +386,13 @@ def main():
     # for display — the UI shows touches per game, not a logarithm.
     df["rz_touches_log"] = np.log1p(df["rz_touches_prior"])
     df["td_share_log"] = np.log1p(df["td_share_prior"])
+    df["touches_log2"] = np.log1p(df["touches_prior2"])
 
     # Snapshot the position priors as add_form saw them (pre-filter frame), so
     # the Node build reproduces the rookie fallback exactly.
     snap = {}
     for col, label in (("snap_pct", "snap_share"), ("rz_touches", "rz_touches"),
-                       ("td_share", "td_share")):
+                       ("td_share", "td_share"), ("touches", "touches")):
         t = position_prior(df, col)
         by = {}
         for _, r in t.iterrows():
@@ -481,7 +490,7 @@ def main():
             "team_tds", "td_share", "td_share_prior",
             "rz_touches_log", "td_share_log",
             "first_td", "last_td",
-            "snap_share_prior", "rz_touches_prior", "touches_prior",
+            "snap_share_prior", "rz_touches_prior", "touches_prior", "touches_prior2", "touches_log2",
             "implied_total", "total_line", "spread_line",
             "snap_last3", "snap_last5", "snap_trend", "td_per_touch_prior",
             "mates_out", "new_absence",

@@ -143,8 +143,24 @@ MODELS = {
     "M9 log-scale":  ["snap_share_prior", "implied_total", "rz_touches_log",
                       "snap_last3", "mates_out", "new_absence",
                       "td_share_log"],
+    # stage 7: touches (carries + targets) per game, 2-season window, logged.
+    # Found by pointing xgboost at the dataset (research/gbm.py): the trees put
+    # 44% of their total gain on it while the ladder carried nothing like it —
+    # and once it is in, boosting adds nothing worth shipping. RAW touches is a
+    # null (t -2.0), which is why an earlier pass wrote it off; the feature only
+    # works on the log1p scale, for the same leverage reason as stage 6 (skew
+    # 1.65, and it correlates 0.90 with red-zone touches, so the workhorses
+    # crush the ordinary-usage players it is meant to separate).
+    # Walk-forward 2017-2025, better in 9 of 9 seasons: log loss 0.40116 ->
+    # 0.39923, AUC 0.7407 -> 0.7442, and the 200 shortest prices a season went
+    # from 52.2% to 53.3% hit. The career-window version is worth another
+    # 0.001 but needs touches for 10 seasons; this one the Node build can
+    # reproduce from the 2 seasons of play-by-play it already loads.
+    "M10 +touches":  ["snap_share_prior", "implied_total", "rz_touches_log",
+                      "snap_last3", "mates_out", "new_absence",
+                      "td_share_log", "touches_log2"],
 }
-FINAL = "M9 log-scale"
+FINAL = "M10 +touches"
 
 
 def run():
