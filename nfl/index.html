@@ -4091,6 +4091,10 @@
   }
 
   // ── Birthdays ───────────────────────────────────────────────────────────
+  const bdF = { tab: 'board' };
+  function setBd(k, v) { bdF[k] = v; renderBirthdays(); }
+  window.setBd = setBd;
+
   function renderBirthdays() {
     const el = document.getElementById('birthdays-content');
     if (!el) return;
@@ -4098,11 +4102,13 @@
     if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
     const P = nflData.picks;
     const list = P?.birthdays || [];
+    const tabs = uiTabs('setBd', bdF.tab);
     if (!list.length) {
-      el.innerHTML = `<div class="empty">Nobody on this week's slate has a birthday within six days of kickoff.</div>`;
+      el.innerHTML = tabs + `<div class="empty">Nobody on this week's slate has a birthday within six days of kickoff.</div>`;
       return;
     }
-    const st = P.birthdayStats || {};
+    if (bdF.tab === 'results') { el.innerHTML = tabs + bdResults(P, list); return; }
+
     const offLbl = (o) => o === 0 ? 'on game day'
       : o > 0 ? `${o} day${o > 1 ? 's' : ''} after` : `${-o} day${-o > 1 ? 's' : ''} before`;
     const rec = (r) => {
@@ -4110,29 +4116,62 @@
       const bits = [];
       if (r.on) bits.push(`<b>${r.on[1]}</b>/${r.on[0]} on his day`);
       if (r.near) bits.push(`${r.near[1]}/${r.near[0]} near it`);
-      return `<span class="bd-rec" title="Games played on his birthday (and within ${P.birthdaySeasons ? 'a few days' : ''}) since 2016, and touchdowns in them">${bits.join(' · ')}</span>`;
+      return `<span class="bd-rec" title="Games played on his birthday (and within a few days) since 2016, and touchdowns in them">${bits.join(' · ')}</span>`;
     };
     const card = (b) => `<div class="bd-card${b.off === 0 ? ' today' : ''}" onclick="openPick('${b.pid}')">
       <span class="bd-cake">${b.off === 0 ? '🎂' : '🎈'}</span>
       <img class="bd-logo" src="${teamLogo(b.team)}" alt="" loading="lazy">
       <div class="bd-info">
         <div class="bd-nm">${b.name}<span class="posb ${b.pos}">${b.pos}</span></div>
-        <div class="bd-sub">${b.team} ${b.home ? 'vs' : '@'} ${b.opp} · ${offLbl(b.off)}</div>
+        <div class="bd-sub">${b.team} ${b.home ? 'vs' : '@'} ${b.opp} · ${offLbl(b.off)}${liveChip('1', b, 0)}</div>
       </div>
       ${rec(b)}
       <div class="bd-age">${b.turning}<small>turning</small></div>
       <div class="bd-price${b.p < 0.5 ? ' dog' : ''}">${pbOdds(b.p)}</div>
     </div>`;
 
-    const onDay = list.filter(b => b.off === 0);
-    const near = list.filter(b => b.off !== 0);
-    el.innerHTML = `
+    // same day selector as every other board: today's games first, and players
+    // whose game has already kicked off drop off unless you ask for them
+    const rows = dayScope(list);
+    const onDay = rows.filter(b => b.off === 0);
+    const near = rows.filter(b => b.off !== 0);
+    el.innerHTML = tabs + `
       <div class="bd-hero"><span class="bd-week">${WK_LABEL(P.week)}</span>
         <span class="bd-meta">${P.season} · ${list.length} birthday${list.length > 1 ? 's' : ''} within six days of kickoff</span></div>
+      ${dayBar()}
+      ${!rows.length ? '<div class="empty">No birthdays on this day of the slate.</div>' : ''}
       ${onDay.length ? `<div class="bd-sec">🎂 On game day<span>${onDay.length}</span></div>
         <div class="bd-list">${onDay.map(card).join('')}</div>` : ''}
       ${near.length ? `<div class="bd-sec">Around the slate<span>${near.length}</span></div>
-        <div class="bd-list">${near.map(card).join('')}</div>` : ''}
+        <div class="bd-list">${near.map(card).join('')}</div>` : ''}`;
+  }
+
+  /** Results: this week's birthday boys once their games are final, then the
+   *  standing question of whether any of it matters. */
+  function bdResults(P, list) {
+    const st = P.birthdayStats || {};
+    const W = nflData.liveWeek, sameWeek = W && W.week === P.week;
+    const graded = sameWeek ? list.filter(b => W.games?.[b.gameId]?.final) : [];
+    const scored = graded.filter(b => (W.td?.[b.pid] ?? 0) >= 1);
+    const said = graded.reduce((a, b) => a + b.p, 0);
+    const rows = sameWeek ? [...list].sort((a, b) => Math.abs(a.off) - Math.abs(b.off) || b.p - a.p).map(b => {
+      const g = W.games?.[b.gameId], n = W.td?.[b.pid] ?? 0;
+      const state = !g?.final ? (g?.live ? 'live' : 'pend') : (W.dnp || []).includes(b.pid) ? 'void' : n >= 1 ? 'hit' : 'miss';
+      return `<div class="cp-res ${state}">
+        <span class="cp-res-nm">${b.name}${b.off === 0 ? ' 🎂' : ''}<span class="cp-res-tm">${b.team} ${b.home ? 'vs' : '@'} ${b.opp} · turning ${b.turning}</span></span>
+        <span class="cp-res-line">${pbOdds(b.p)}</span>
+        <span class="cp-res-proj">${Math.round(b.p * 100)}%</span>
+        <span class="cp-res-act">${g?.final ? n : ''}</span>
+        <span class="cp-res-tag">${{ hit: 'SCORED', miss: '—', void: 'DNP', live: 'LIVE', pend: 'PENDING' }[state]}</span></div>`;
+    }).join('') : '';
+    return `
+      ${graded.length ? `<div class="hm-tiles" style="margin-bottom:0.6rem">
+        <div class="hm-tile"><b>${scored.length}/${graded.length}</b><span>Scored this week</span></div>
+        <div class="hm-tile"><b>${said.toFixed(1)}</b><span>We expected</span></div>
+        <div class="hm-tile"><b>${graded.filter(b => b.off === 0).length}</b><span>On the actual day</span></div>
+      </div>` : ''}
+      ${rows ? `<div class="cp-res head"><span class="cp-res-nm">Player</span><span class="cp-res-line">Price</span><span class="cp-res-proj">Chance</span><span class="cp-res-act">TD</span><span class="cp-res-tag"></span></div>${rows}`
+        : '<div class="empty">This week\'s birthday boys will grade here once their games finish.</div>'}
       <div class="bd-sec">Do birthday boys score?<span>${P.birthdaySeasons || ''}</span></div>
       <div class="bd-stat">
         <div class="bd-tile"><div class="bd-tile-v">${((st.on?.rate ?? 0) * 100).toFixed(1)}%</div><div class="bd-tile-l">on his birthday</div></div>

@@ -1596,7 +1596,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     const rec = BDAY.players[p.pid];
     bdays.push({
       pid: p.pid, name: p.name, team: p.team, opp: p.opp, pos: p.pos, home: p.home,
-      gameday: gd, birth: b, turning: g.getUTCFullYear() - by, off, p: p.p,
+      gameId: p.gameId, gameday: gd, birth: b, turning: g.getUTCFullYear() - by, off, p: p.p,
       // [games, TDs] on his birthday and within a few days of it, since 2016
       on: rec?.on || null, near: rec?.near || null,
     });
