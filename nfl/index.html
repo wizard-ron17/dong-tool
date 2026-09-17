@@ -2327,7 +2327,8 @@
   .bd-card { display: flex; align-items: center; gap: 0.6rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.7rem; }
   .bd-card.today { border-color: rgba(242,201,76,0.5); background: rgba(242,201,76,0.06); }
   .bd-cake { font-size: 1.1rem; flex-shrink: 0; width: 1.5rem; text-align: center; }
-  .bd-logo { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
+  .bd-logo { width: 15px; height: 15px; object-fit: contain; flex-shrink: 0; vertical-align: -3px; margin-right: 0.25rem; }
+  .bd-card .rc-photo { width: 34px; height: 34px; margin: 0; flex-shrink: 0; }
   .bd-info { flex: 1; min-width: 0; }
   .bd-nm { font-weight: 700; font-size: 0.85rem; color: var(--text-strong); display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
   .bd-sub { font-size: 0.723rem; color: var(--muted); margin-top: 0.12rem; }
@@ -4120,10 +4121,10 @@
     };
     const card = (b) => `<div class="bd-card${b.off === 0 ? ' today' : ''}" onclick="openPick('${b.pid}')">
       <span class="bd-cake">${b.off === 0 ? '🎂' : '🎈'}</span>
-      <img class="bd-logo" src="${teamLogo(b.team)}" alt="" loading="lazy">
+      ${faceHtml(b.pid, b.name)}
       <div class="bd-info">
         <div class="bd-nm">${b.name}<span class="posb ${b.pos}">${b.pos}</span></div>
-        <div class="bd-sub">${b.team} ${b.home ? 'vs' : '@'} ${b.opp} · ${offLbl(b.off)}${liveChip('1', b, 0)}</div>
+        <div class="bd-sub"><img class="bd-logo" src="${teamLogo(b.team)}" alt="" loading="lazy">${b.team} ${b.home ? 'vs' : '@'} ${b.opp} · ${offLbl(b.off)}${liveChip('1', b, 0)}</div>
       </div>
       ${rec(b)}
       <div class="bd-age">${b.turning}<small>turning</small></div>
