@@ -90,14 +90,38 @@
   body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(115% 70% at 50% -12%, var(--glow), transparent 58%); pointer-events: none; z-index: 0; }
   .wrap { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; }
 
+  /* One bar across the top: brand, the nav itself, then search + theme. The
+     old stack (data line, big wordmark, tagline, then a separate pill nav) ate
+     ~180px before any content and pushed the boards below the fold. */
+  .topbar { display: flex; align-items: center; gap: 1.1rem; margin-bottom: 1.2rem; padding-bottom: 0.7rem; border-bottom: 1px solid var(--border); }
+  .tb-brand { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+  .tb-right { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
+  .tb-search { position: relative; display: flex; align-items: center; gap: 0.45rem; width: clamp(150px, 20vw, 260px);
+               background: var(--surface1); border: 1px solid var(--border2); border-radius: 10px; padding: 0.34rem 0.6rem; color: var(--muted); }
+  .tb-search:focus-within { border-color: var(--accent); color: var(--accent); }
+  .tb-search svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .tb-search input { flex: 1 1 0; width: 100%; min-width: 0; background: none; border: none; outline: none; color: var(--text); font: inherit; font-size: 0.86rem; }
+  .tb-search input::placeholder { color: var(--dim); }
+  .tb-results { position: absolute; top: calc(100% + 0.4rem); right: 0; left: 0; min-width: 240px; z-index: 300; background: var(--surface1);
+                border: 1px solid var(--border2); border-radius: 12px; box-shadow: 0 16px 40px rgba(0,0,0,0.5); padding: 0.25rem; max-height: 60vh; overflow-y: auto; }
+  .tb-results[hidden] { display: none; }
+  .tb-res { display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.4rem 0.5rem; border: none; background: none; border-radius: 8px;
+            color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+  .tb-res:hover, .tb-res.on { background: var(--surface2); }
+  .tb-res b { font-family: var(--font-d); font-size: 0.9rem; }
+  .tb-res small { margin-left: auto; color: var(--muted); font-size: 0.72rem; white-space: nowrap; }
+  .tb-res .rc-photo { width: 24px; height: 24px; margin: 0; }
+  .site-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem;
+               margin: 2.2rem 0 0; padding: 0.9rem 0 0.4rem; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--muted); }
+  .foot-data { font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; display: flex; align-items: center; gap: 0.5rem; }
   header { margin-bottom: 1rem; }
   .eyebrow { font-size: 0.692rem; letter-spacing: 0.4em; color: var(--muted); margin-bottom: 0.4rem; text-transform: uppercase; display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; }
-  h1 { font-family: var(--font-d); font-size: clamp(1.6rem, 5vw, 2.8rem); font-weight: 700; line-height: 1; color: var(--text-strong); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.5rem; }
+  h1 { font-family: var(--font-d); font-size: clamp(1.15rem, 1.9vw, 1.5rem); font-weight: 700; line-height: 1; color: var(--text-strong); margin: 0; display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; }
   h1 em { color: var(--accent); font-style: normal; }
   .brand-logo { width: 1.5em; height: 1.5em; border-radius: 50%; flex-shrink: 0; }
   /* NFL football mark — white body, green laces. Light-mode gets a grey outline
      baked onto the body path (like the baseball's border) so it stays visible. */
-  .brand-football { width: 1.8em; height: 1.8em; flex-shrink: 0; }
+  .brand-football { width: 1.9em; height: 1.9em; flex-shrink: 0; }
   /* Light mode: a tight dark halo traces the football silhouette so the white
      body stays visible on a light header (the oval's answer to the baseball's border). */
   :root[data-theme="light"] .brand-football { filter: drop-shadow(0 0 1px rgba(5,8,15,0.6)); }
@@ -110,12 +134,8 @@
   .status-badge.fetching { color: var(--gold); border-color: #5a5000; background: #1e1a00; }
   .status-badge.ready    { color: var(--green); border-color: #1a6020; background: #0a2a10; }
   .status-badge.error    { color: #f05050; border-color: #5a1010; background: #2a0a0a; }
-  @media (max-width: 600px) {
-    .status-badge { width: 8px; height: 8px; padding: 0; border: none; border-radius: 50%; font-size: 0; background: var(--muted); }
-    .status-badge.fetching { background: var(--gold); }
-    .status-badge.ready    { background: var(--green); }
-    .status-badge.error    { background: #f05050; }
-  }
+  /* the status badge shows its numbers everywhere now that it lives in the
+     footer — the phone header used to shrink it to a coloured dot for room */
 
   .social-links { display: inline-flex; align-items: center; gap: 0.55rem; margin-left: 0.5rem; vertical-align: middle; }
   .social-links a { color: var(--muted); display: inline-flex; transition: color 0.15s; }
@@ -127,26 +147,41 @@
   /* Shell wraps the bar + dropdown as siblings so the opaque bar can paint a
      layer above the menu — letting the menu slide out from *behind* the bar
      (a child could never render behind its own parent's background). */
-  .nav-shell { position: relative; z-index: 210; margin-bottom: 1.3rem; }
-  nav { position: relative; z-index: 2; display: flex; gap: 0.15rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 13px; padding: 0.28rem; }
-  .nav-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.35rem; background: transparent; border: none; border-radius: 9px; color: var(--muted); font-family: var(--font-d); font-size: 1.02rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.5rem 0.6rem; cursor: pointer; transition: color 0.15s, background 0.15s; white-space: nowrap; }
-  .nav-btn:hover:not(.active):not(:disabled) { color: var(--text); background: var(--surface2); }
-  .nav-btn.active { color: #04170f; background: var(--accent); box-shadow: 0 1px 10px rgba(51,208,124,0.28); }
+  .nav-shell { position: relative; z-index: 210; }
+  nav { position: relative; z-index: 2; display: flex; gap: 0.2rem; }
+  .nav-btn { position: relative; display: flex; align-items: center; justify-content: center; gap: 0.35rem; background: transparent; border: none; border-radius: 8px; color: var(--muted); font-family: var(--font-d); font-size: 1.02rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.45rem 0.7rem; cursor: pointer; transition: color 0.15s; white-space: nowrap; }
+  .nav-btn:hover:not(.active):not(:disabled) { color: var(--text); }
+  .nav-btn.active { color: var(--text-strong); }
+  .nav-btn.active::after { content: ''; position: absolute; left: 0.7rem; right: 0.7rem; bottom: -0.1rem; height: 2px; border-radius: 2px; background: var(--accent); }
   .nav-btn:disabled { opacity: 0.32; cursor: not-allowed; }
   .nav-btn svg { display: none; width: 20px; height: 20px; }
   .nav-caret { display: inline-block; font-size: 0.766rem; font-weight: 900; line-height: 1; transition: transform 0.18s ease; }
   nav.tools-open .nav-caret { transform: rotate(90deg); }
 
   /* Tools menu: dropdown card on desktop, slide-up sheet on mobile. */
-  .nav-tools-backdrop { position: fixed; inset: 0; z-index: 200; background: transparent; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .nav-tools-backdrop { position: fixed; inset: 0; backdrop-filter: blur(3px); z-index: 200; background: transparent; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
   .nav-tools-backdrop.open { opacity: 1; pointer-events: auto; }
   /* z-index 1 (below the bar's z-index 2, both inside .nav-shell) + a top that
      tucks under the bar's bottom edge = the card is hidden behind the bar and
      slides down out from under it. */
   /* 2-column tile grid on desktop too (mobile refines sizing below). Group
      headers span both columns; descriptions are dropped for a compact grid. */
-  .nav-tools-menu { position: absolute; top: calc(100% - 10px); right: 0; z-index: 1; min-width: 336px; background: var(--surface1); border: 1px solid var(--border2); border-radius: 14px; padding: 0.5rem; box-shadow: 0 14px 40px rgba(0,0,0,0.45); opacity: 0; transform: translateY(-8px); pointer-events: none; transition: opacity 0.16s, transform 0.16s; display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; max-height: 80vh; overflow-y: auto; }
-  .nav-tools-menu.open { opacity: 1; transform: none; pointer-events: auto; }
+  /* Desktop only — phones keep the bottom sheet defined further down. */
+  @media (min-width: 601px) {
+    /* A panel in the middle of the screen rather than a dropdown pinned to the
+       bar — the tools list is 11 items and the page has the room. */
+    .nav-tools-menu { position: fixed; top: 50%; left: 50%; z-index: 240; width: min(880px, 92vw); max-height: min(80vh, 760px); overflow-y: auto;
+                      background: var(--surface1); border: 1px solid var(--border2); border-radius: 20px; padding: 1.1rem 1.2rem 1.3rem;
+                      box-shadow: 0 30px 90px rgba(0,0,0,0.6); opacity: 0; transform: translate(-50%, -46%) scale(0.94); pointer-events: none;
+                      transition: opacity 0.18s ease, transform 0.22s cubic-bezier(.2,.9,.3,1.1);
+                      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.55rem; }
+    .nav-tools-menu.open { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
+    .nav-tools-menu .nav-menu-item { flex-direction: column; align-items: flex-start; gap: 0.45rem; padding: 0.85rem 0.9rem; border-radius: 14px; background: var(--surface0); border: 1px solid var(--border); }
+    .nav-tools-menu .nav-menu-item:hover:not(:disabled) { border-color: var(--accent); background: var(--surface2); transform: translateY(-1px); }
+    .nav-tools-menu .nav-menu-item svg { width: 26px; height: 26px; color: var(--accent); }
+    .nav-menu-group { grid-column: 1 / -1; }
+    @media (prefers-reduced-motion: reduce) { .nav-tools-menu { transition: opacity 0.18s ease; transform: translate(-50%, -50%) scale(1); } }
+  }
   .nav-menu-group { grid-column: 1 / -1; font-size: 0.655rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); padding: 0.4rem 0.3rem 0.1rem; opacity: 0.75; }
   .nav-menu-group:first-child { padding-top: 0.15rem; }
   /* A single-column list: three tools do not need a tile grid, and a row can
@@ -160,7 +195,23 @@
   .nav-menu-item.active svg, .nav-menu-item.active .nm-name { color: var(--accent); }
 
   /* Mobile: app-style bottom tab bar — icon over label, roomy touch targets. */
+  /* the bar wraps before the nav does: brand + search + theme on one row */
+  @media (max-width: 980px) {
+    .topbar { flex-wrap: wrap; gap: 0.45rem 0.6rem; padding-bottom: 0.5rem; margin-bottom: 0.9rem; }
+    .tb-search { width: auto; flex: 1 1 0; min-width: 0; }
+    h1 { font-size: clamp(1.05rem, 4.4vw, 1.35rem); }
+  }
   @media (max-width: 600px) {
+    /* everything stays on one row: brand, then search and theme to its right */
+    .topbar { flex-wrap: nowrap; gap: 0.4rem; }
+    .tb-brand { gap: 0.25rem; min-width: 0; }
+    h1 { font-size: 1.02rem; }
+    .brand-football { width: 1.6em; height: 1.6em; }
+    .tb-search { flex: 1 1 0; min-width: 0; width: auto; padding: 0.3rem 0.45rem; gap: 0.3rem; }
+    .tb-search input { font-size: 0.8rem; }
+    .tb-results { left: auto; right: 0; width: min(78vw, 300px); }
+    .theme-toggle { width: 30px; height: 30px; }
+    .topbar { border-bottom: none; padding-bottom: 0; }
     /* z-index 230 keeps the whole bar (and the sheet inside it) above the
        page-dimming backdrop at 210. */
     /* Floating pill: detached from the screen edges with side + bottom gaps,
@@ -1428,7 +1479,7 @@
   .hm-tip-cash:hover { border-color: var(--accent); }
   .hm-tip-copy { font-size: 0.680rem; color: var(--muted); }
 
-  .theme-toggle { position: absolute; top: 0; right: 0; z-index: 5; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 9px; border: 1px solid var(--border2); background: var(--surface1); color: var(--muted); cursor: pointer; transition: color 0.15s, background 0.15s, border-color 0.15s; }
+  .theme-toggle { flex-shrink: 0; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 9px; border: 1px solid var(--border2); background: var(--surface1); color: var(--muted); cursor: pointer; transition: color 0.15s, background 0.15s, border-color 0.15s; }
   .theme-toggle:hover { color: var(--accent); border-color: var(--accent); background: var(--surface2); }
   .theme-toggle svg { width: 18px; height: 18px; display: block; }
 
@@ -2650,22 +2701,14 @@
 <body>
 <div class="wrap">
 
-  <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light or dark mode" title="Toggle light/dark"></button>
-  <header>
-    <p class="eyebrow">NFL · <span id="eyebrow-season">2026</span> · <span id="status-badge" class="status-badge fetching">Loading</span></p>
-    <h1><a href="/" class="brand-home" aria-label="Back to all sports"><svg class="brand-football" viewBox="0 0 500 500" aria-hidden="true"><path d="M330.19 85.46C330.78 85.42 331.37 85.37 331.96 85.33C344.9 85.33 357.84 85.33 370.78 85.33C371.37 85.38 371.97 85.42 372.57 85.46C375.02 87.18 380.64 86.55 383.56 86.25C388.88 87.05 394.19 87.86 399.5 88.66C401.18 90.25 406.78 90.4 409.13 90.32C414.67 90.76 419.59 92.9 424.97 93.98C429.48 94.88 435.14 95.66 438.86 98.63C439.83 100.32 442.61 101.34 444.15 102.66C445.87 104.13 446.94 106.56 448.86 107.72C449.49 108.65 450.12 109.58 450.75 110.5C450.68 113.66 453.49 118.91 453.62 123.06C453.93 133.73 451.66 144.68 452.54 155.25C452.5 155.39 452.47 155.52 452.44 155.66C451.87 159.78 451.31 163.91 450.75 168.04C450.73 168.87 450.71 169.71 450.68 170.55C450.53 171.46 450.38 172.37 450.23 173.29C450.08 173.37 449.92 173.45 449.77 173.53C448.73 178.55 447.68 183.57 446.64 188.58C446.59 188.73 446.55 188.88 446.5 189.03C444.95 190.44 444.55 194.34 444.78 196.35C444.75 196.49 444.71 196.64 444.67 196.78C443.09 197.97 440.53 208.36 440.65 210.5C440.39 213.25 438.73 215.53 437.99 218.12C435.87 225.45 432.24 232.14 429.45 239.27C421.98 258.35 410.03 275.72 397.96 292.25C393.98 297.71 386.01 309.12 380.82 312.82C378.76 313.44 375.2 317.54 374.52 319.63C367.86 328.01 356.05 337.84 347.5 344.08C326.99 359.05 306.4 373.17 282.51 382.28C276.99 384.38 271.51 387.05 265.75 388.6C263.48 388.48 257.6 389.98 256.2 391.88C253.89 392.2 251.7 393.33 249.46 393.98C242.64 395.95 235.42 397.61 228.45 399C216.38 401.42 204.14 402.94 191.78 403.73C187.99 403.83 184.21 403.93 180.42 404.03C180.02 404.06 179.62 404.08 179.22 404.11C177.63 404.27 176.03 404.43 174.43 404.59C169.86 404.6 165.3 404.6 160.73 404.61C158.52 404.44 156.32 404.28 154.11 404.11C153.4 404.08 152.7 404.06 151.99 404.03C148.21 403.94 144.42 403.84 140.64 403.74C133.39 403.18 126.11 402.93 118.96 401.81C114.37 401.09 109.83 399.82 105.24 399.1C96.41 397.72 87.02 396.41 78.68 393.24C70.27 390.03 60.46 382.92 59.32 373.06C59.31 364.84 59.3 356.62 59.29 348.4C59.56 343.96 60.07 332.65 62.1 329.16C62.54 326.14 62.99 323.12 63.43 320.09C64.85 307.96 69.61 296.74 72.97 285.07C82.01 253.75 101.59 221.24 120.76 194.96C125.25 188.81 130.5 183.27 134.95 177.18C136.14 175.55 138.01 174.42 139.27 172.83C142.02 169.37 145.61 165.05 149.32 162.55C151.59 160.42 153.87 158.29 156.15 156.16C159.36 151.48 165.33 148.38 169.55 144.66C180.44 135.05 193.51 126.52 206.54 120.01C211.58 117.48 216.38 113.84 221.92 112.3C224.89 111.19 227.85 110.08 230.82 108.97C230.92 108.68 231.02 108.4 231.12 108.11C232.24 107.69 233.36 107.27 234.47 106.85C234.86 106.69 235.24 106.53 235.62 106.38C237.68 106.46 243.16 104.88 244.28 103.2C247.75 100.93 256.57 98.69 260.87 97.63C270.91 95.15 280.98 91.18 291.32 90.32C293.98 90.44 299.33 90.29 301.41 88.66C306.87 87.86 312.34 87.06 317.81 86.26C321.93 86 326.06 85.73 330.19 85.46ZM322.6 140.3C318.56 134.96 314.52 122.38 306.08 126.38C298.48 129.97 308.69 140.33 309.92 144.52C302.73 147.22 295.54 149.91 288.36 152.61C282.94 149.32 280.82 134.28 271.87 138.3C262.52 142.5 273.94 152.56 275.47 157.76C274.07 159.72 271.49 160.28 269.4 161.32C264.57 163.74 258.93 167.65 253.65 168.7C249.63 164.5 244.74 149.13 236.66 155.15C229.12 160.78 241.05 169.71 242.18 175.57C235.2 179.63 228.22 183.7 221.23 187.76C216.31 184.32 213.74 170.4 205.27 175.34C196.67 180.36 208.98 190.12 210.27 195.66C203.72 200.52 197.18 205.37 190.64 210.23C187.12 206.2 183.33 193.98 175.88 198.48C167.97 203.25 177.61 213.5 180.69 218.49C179.9 220.97 177.17 222.71 175.22 224.3C171.28 227.52 167.82 232.67 163.24 234.88C159.42 231.72 155.29 219.07 148.11 224.59C139.24 231.39 154.21 239.16 153.2 245.21C148.51 250.71 142.48 255.36 138.29 261.34C136.5 263.9 136.72 267.6 139.31 269.64C147.42 276.04 154.89 258.76 160.96 255.72C166.26 258.1 168.09 272.78 176.68 267.77C185.75 262.48 172.59 252.07 170.83 246.35C171.98 243.31 184.83 231.58 187.9 230.34C192.78 232.96 196.02 249.49 204.73 242.87C212.82 236.71 199.21 227.46 198.27 221.23C200.64 218.42 214.36 207.75 217.58 206.99C222.8 210.46 225.99 226.73 234.9 220.95C243.29 215.5 230.28 205.23 228.81 199.32C229.75 197.64 232.02 196.51 233.65 195.51C237.63 193.07 245.11 186.85 249.54 186.51C253.24 190.93 259.03 206.13 266.67 201.15C275.11 195.64 262.5 185.94 261.16 180.14C263.58 176.92 273.46 173.48 277.41 171.73C279.24 170.91 280.87 169.69 282.93 169.63C287.88 173.25 289.86 186.65 298.25 183.82C307.75 180.62 298.14 169.11 295.29 164.61C296.75 162.76 298.72 162.6 300.83 161.81C305.26 160.14 313.07 155.98 317.58 156.36C320.24 160.66 326.55 173.91 332.63 171.68C342.44 168.08 333.11 157.96 330.37 152.7C334.18 148.88 345.67 148.67 351.02 146.89C354.04 145.88 356.02 142.04 354.92 138.97C353.35 134.59 348.78 134.24 344.89 135.32C340.87 136.44 325.77 140.73 322.6 140.3Z" fill="#ffffff" fill-rule="evenodd"/><path d="M322.6 140.3C325.77 140.73 340.87 136.44 344.89 135.32C348.78 134.24 353.35 134.59 354.92 138.97C356.02 142.04 354.04 145.88 351.02 146.89C345.67 148.67 334.18 148.88 330.37 152.7C333.11 157.96 342.44 168.08 332.63 171.68C326.55 173.91 320.24 160.66 317.58 156.36C313.07 155.98 305.26 160.14 300.83 161.81C298.72 162.6 296.75 162.76 295.29 164.61C298.14 169.11 307.75 180.62 298.25 183.82C289.86 186.65 287.88 173.25 282.93 169.63C280.87 169.69 279.24 170.91 277.41 171.73C273.46 173.48 263.58 176.92 261.16 180.14C262.5 185.94 275.11 195.64 266.67 201.15C259.03 206.13 253.24 190.93 249.54 186.51C245.11 186.85 237.63 193.07 233.65 195.51C232.02 196.51 229.75 197.64 228.81 199.32C230.28 205.23 243.29 215.5 234.9 220.95C225.99 226.73 222.8 210.46 217.58 206.99C214.36 207.75 200.64 218.42 198.27 221.23C199.21 227.46 212.82 236.71 204.73 242.87C196.02 249.49 192.78 232.96 187.9 230.34C184.83 231.58 171.98 243.31 170.83 246.35C172.59 252.07 185.75 262.48 176.68 267.77C168.09 272.78 166.26 258.1 160.96 255.72C154.89 258.76 147.42 276.04 139.31 269.64C136.72 267.6 136.5 263.9 138.29 261.34C142.48 255.36 148.51 250.71 153.2 245.21C154.21 239.16 139.24 231.39 148.11 224.59C155.29 219.07 159.42 231.72 163.24 234.88C167.82 232.67 171.28 227.52 175.22 224.3C177.17 222.71 179.9 220.97 180.69 218.49C177.61 213.5 167.97 203.25 175.88 198.48C183.33 193.98 187.12 206.2 190.64 210.23C197.18 205.37 203.72 200.52 210.27 195.66C208.98 190.12 196.67 180.36 205.27 175.34C213.74 170.4 216.31 184.32 221.23 187.76C228.22 183.7 235.2 179.63 242.18 175.57C241.05 169.71 229.12 160.78 236.66 155.15C244.74 149.13 249.63 164.5 253.65 168.7C258.93 167.65 264.57 163.74 269.4 161.32C271.49 160.28 274.07 159.72 275.47 157.76C273.94 152.56 262.52 142.5 271.87 138.3C280.82 134.28 282.94 149.32 288.36 152.61C295.54 149.91 302.73 147.22 309.92 144.52C308.69 140.33 298.48 129.97 306.08 126.38C314.52 122.38 318.56 134.96 322.6 140.3Z" fill="#72d907" fill-rule="evenodd"/></svg></a>Ron's <em>Tud</em> Tool<span class="sport-switch"><button class="sport-switch-btn" id="sport-switch-btn" onclick="toggleSportMenu(event)" aria-label="Switch sport" title="Switch sport">▾</button><div class="sport-menu" id="sport-menu"><a class="sport-item" href="/mlb/"><span class="sport-ico">⚾</span><span class="sport-name">Ron's Dong Tool</span><span class="sport-sub">MLB</span></a><a class="sport-item current" href="/nfl/"><span class="sport-ico">🏈</span><span class="sport-name">Ron's Tud Tool</span><span class="sport-sub">NFL</span></a><span class="sport-item soon"><span class="sport-ico">🏀</span><span class="sport-name">Ron's Hoop Tool</span><span class="sport-sub">Soon</span></span><span class="sport-item soon"><span class="sport-ico">🏒</span><span class="sport-name">Ron's Goal Tool</span><span class="sport-sub">Soon</span></span></div></span></h1>
-    <div class="meta-row">
-      <span>A touchdown tool inspired by Green Means Go
-        <span class="social-links">
-          <a href="https://www.youtube.com/@greenmeansgosports" target="_blank" rel="noopener" aria-label="YouTube"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2s-.2-1.6-.9-2.3c-.8-.9-1.8-.9-2.2-1C17.6 2.6 12 2.6 12 2.6h0s-5.6 0-8.4.3c-.4.1-1.4.1-2.2 1-.7.7-.9 2.3-.9 2.3S0 8.1 0 10v1.9c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.8.9 1.9.8 2.4.9 1.7.2 7.5.3 7.5.3s5.6 0 8.4-.3c.4 0 1.4-.1 2.2-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V10c0-1.9-.2-3.8-.2-3.8zM9.5 14.7V7.3l6.4 3.7-6.4 3.7z"/></svg></a>
-          <a href="https://x.com/GMGoBetting" target="_blank" rel="noopener" aria-label="X"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7.6 8.7L23 22h-6.6l-5.2-6.8L5 22H2l8.1-9.3L1.5 2h6.8l4.7 6.2L18.9 2z"/></svg></a>
-        </span>
-      </span>
+  <header class="topbar">
+    <div class="tb-brand">
+      <a href="/" class="brand-home" aria-label="Back to all sports"><svg class="brand-football" viewBox="0 0 500 500" aria-hidden="true"><path d="M330.19 85.46C330.78 85.42 331.37 85.37 331.96 85.33C344.9 85.33 357.84 85.33 370.78 85.33C371.37 85.38 371.97 85.42 372.57 85.46C375.02 87.18 380.64 86.55 383.56 86.25C388.88 87.05 394.19 87.86 399.5 88.66C401.18 90.25 406.78 90.4 409.13 90.32C414.67 90.76 419.59 92.9 424.97 93.98C429.48 94.88 435.14 95.66 438.86 98.63C439.83 100.32 442.61 101.34 444.15 102.66C445.87 104.13 446.94 106.56 448.86 107.72C449.49 108.65 450.12 109.58 450.75 110.5C450.68 113.66 453.49 118.91 453.62 123.06C453.93 133.73 451.66 144.68 452.54 155.25C452.5 155.39 452.47 155.52 452.44 155.66C451.87 159.78 451.31 163.91 450.75 168.04C450.73 168.87 450.71 169.71 450.68 170.55C450.53 171.46 450.38 172.37 450.23 173.29C450.08 173.37 449.92 173.45 449.77 173.53C448.73 178.55 447.68 183.57 446.64 188.58C446.59 188.73 446.55 188.88 446.5 189.03C444.95 190.44 444.55 194.34 444.78 196.35C444.75 196.49 444.71 196.64 444.67 196.78C443.09 197.97 440.53 208.36 440.65 210.5C440.39 213.25 438.73 215.53 437.99 218.12C435.87 225.45 432.24 232.14 429.45 239.27C421.98 258.35 410.03 275.72 397.96 292.25C393.98 297.71 386.01 309.12 380.82 312.82C378.76 313.44 375.2 317.54 374.52 319.63C367.86 328.01 356.05 337.84 347.5 344.08C326.99 359.05 306.4 373.17 282.51 382.28C276.99 384.38 271.51 387.05 265.75 388.6C263.48 388.48 257.6 389.98 256.2 391.88C253.89 392.2 251.7 393.33 249.46 393.98C242.64 395.95 235.42 397.61 228.45 399C216.38 401.42 204.14 402.94 191.78 403.73C187.99 403.83 184.21 403.93 180.42 404.03C180.02 404.06 179.62 404.08 179.22 404.11C177.63 404.27 176.03 404.43 174.43 404.59C169.86 404.6 165.3 404.6 160.73 404.61C158.52 404.44 156.32 404.28 154.11 404.11C153.4 404.08 152.7 404.06 151.99 404.03C148.21 403.94 144.42 403.84 140.64 403.74C133.39 403.18 126.11 402.93 118.96 401.81C114.37 401.09 109.83 399.82 105.24 399.1C96.41 397.72 87.02 396.41 78.68 393.24C70.27 390.03 60.46 382.92 59.32 373.06C59.31 364.84 59.3 356.62 59.29 348.4C59.56 343.96 60.07 332.65 62.1 329.16C62.54 326.14 62.99 323.12 63.43 320.09C64.85 307.96 69.61 296.74 72.97 285.07C82.01 253.75 101.59 221.24 120.76 194.96C125.25 188.81 130.5 183.27 134.95 177.18C136.14 175.55 138.01 174.42 139.27 172.83C142.02 169.37 145.61 165.05 149.32 162.55C151.59 160.42 153.87 158.29 156.15 156.16C159.36 151.48 165.33 148.38 169.55 144.66C180.44 135.05 193.51 126.52 206.54 120.01C211.58 117.48 216.38 113.84 221.92 112.3C224.89 111.19 227.85 110.08 230.82 108.97C230.92 108.68 231.02 108.4 231.12 108.11C232.24 107.69 233.36 107.27 234.47 106.85C234.86 106.69 235.24 106.53 235.62 106.38C237.68 106.46 243.16 104.88 244.28 103.2C247.75 100.93 256.57 98.69 260.87 97.63C270.91 95.15 280.98 91.18 291.32 90.32C293.98 90.44 299.33 90.29 301.41 88.66C306.87 87.86 312.34 87.06 317.81 86.26C321.93 86 326.06 85.73 330.19 85.46ZM322.6 140.3C318.56 134.96 314.52 122.38 306.08 126.38C298.48 129.97 308.69 140.33 309.92 144.52C302.73 147.22 295.54 149.91 288.36 152.61C282.94 149.32 280.82 134.28 271.87 138.3C262.52 142.5 273.94 152.56 275.47 157.76C274.07 159.72 271.49 160.28 269.4 161.32C264.57 163.74 258.93 167.65 253.65 168.7C249.63 164.5 244.74 149.13 236.66 155.15C229.12 160.78 241.05 169.71 242.18 175.57C235.2 179.63 228.22 183.7 221.23 187.76C216.31 184.32 213.74 170.4 205.27 175.34C196.67 180.36 208.98 190.12 210.27 195.66C203.72 200.52 197.18 205.37 190.64 210.23C187.12 206.2 183.33 193.98 175.88 198.48C167.97 203.25 177.61 213.5 180.69 218.49C179.9 220.97 177.17 222.71 175.22 224.3C171.28 227.52 167.82 232.67 163.24 234.88C159.42 231.72 155.29 219.07 148.11 224.59C139.24 231.39 154.21 239.16 153.2 245.21C148.51 250.71 142.48 255.36 138.29 261.34C136.5 263.9 136.72 267.6 139.31 269.64C147.42 276.04 154.89 258.76 160.96 255.72C166.26 258.1 168.09 272.78 176.68 267.77C185.75 262.48 172.59 252.07 170.83 246.35C171.98 243.31 184.83 231.58 187.9 230.34C192.78 232.96 196.02 249.49 204.73 242.87C212.82 236.71 199.21 227.46 198.27 221.23C200.64 218.42 214.36 207.75 217.58 206.99C222.8 210.46 225.99 226.73 234.9 220.95C243.29 215.5 230.28 205.23 228.81 199.32C229.75 197.64 232.02 196.51 233.65 195.51C237.63 193.07 245.11 186.85 249.54 186.51C253.24 190.93 259.03 206.13 266.67 201.15C275.11 195.64 262.5 185.94 261.16 180.14C263.58 176.92 273.46 173.48 277.41 171.73C279.24 170.91 280.87 169.69 282.93 169.63C287.88 173.25 289.86 186.65 298.25 183.82C307.75 180.62 298.14 169.11 295.29 164.61C296.75 162.76 298.72 162.6 300.83 161.81C305.26 160.14 313.07 155.98 317.58 156.36C320.24 160.66 326.55 173.91 332.63 171.68C342.44 168.08 333.11 157.96 330.37 152.7C334.18 148.88 345.67 148.67 351.02 146.89C354.04 145.88 356.02 142.04 354.92 138.97C353.35 134.59 348.78 134.24 344.89 135.32C340.87 136.44 325.77 140.73 322.6 140.3Z" fill="#ffffff" fill-rule="evenodd"/><path d="M322.6 140.3C325.77 140.73 340.87 136.44 344.89 135.32C348.78 134.24 353.35 134.59 354.92 138.97C356.02 142.04 354.04 145.88 351.02 146.89C345.67 148.67 334.18 148.88 330.37 152.7C333.11 157.96 342.44 168.08 332.63 171.68C326.55 173.91 320.24 160.66 317.58 156.36C313.07 155.98 305.26 160.14 300.83 161.81C298.72 162.6 296.75 162.76 295.29 164.61C298.14 169.11 307.75 180.62 298.25 183.82C289.86 186.65 287.88 173.25 282.93 169.63C280.87 169.69 279.24 170.91 277.41 171.73C273.46 173.48 263.58 176.92 261.16 180.14C262.5 185.94 275.11 195.64 266.67 201.15C259.03 206.13 253.24 190.93 249.54 186.51C245.11 186.85 237.63 193.07 233.65 195.51C232.02 196.51 229.75 197.64 228.81 199.32C230.28 205.23 243.29 215.5 234.9 220.95C225.99 226.73 222.8 210.46 217.58 206.99C214.36 207.75 200.64 218.42 198.27 221.23C199.21 227.46 212.82 236.71 204.73 242.87C196.02 249.49 192.78 232.96 187.9 230.34C184.83 231.58 171.98 243.31 170.83 246.35C172.59 252.07 185.75 262.48 176.68 267.77C168.09 272.78 166.26 258.1 160.96 255.72C154.89 258.76 147.42 276.04 139.31 269.64C136.72 267.6 136.5 263.9 138.29 261.34C142.48 255.36 148.51 250.71 153.2 245.21C154.21 239.16 139.24 231.39 148.11 224.59C155.29 219.07 159.42 231.72 163.24 234.88C167.82 232.67 171.28 227.52 175.22 224.3C177.17 222.71 179.9 220.97 180.69 218.49C177.61 213.5 167.97 203.25 175.88 198.48C183.33 193.98 187.12 206.2 190.64 210.23C197.18 205.37 203.72 200.52 210.27 195.66C208.98 190.12 196.67 180.36 205.27 175.34C213.74 170.4 216.31 184.32 221.23 187.76C228.22 183.7 235.2 179.63 242.18 175.57C241.05 169.71 229.12 160.78 236.66 155.15C244.74 149.13 249.63 164.5 253.65 168.7C258.93 167.65 264.57 163.74 269.4 161.32C271.49 160.28 274.07 159.72 275.47 157.76C273.94 152.56 262.52 142.5 271.87 138.3C280.82 134.28 282.94 149.32 288.36 152.61C295.54 149.91 302.73 147.22 309.92 144.52C308.69 140.33 298.48 129.97 306.08 126.38C314.52 122.38 318.56 134.96 322.6 140.3Z" fill="#72d907" fill-rule="evenodd"/></svg></a>
+      <h1>Ron's <em>Tud</em> Tool</h1>
+      <span class="sport-switch"><button class="sport-switch-btn" id="sport-switch-btn" onclick="toggleSportMenu(event)" aria-label="Switch sport" title="Switch sport">▾</button><div class="sport-menu" id="sport-menu"><a class="sport-item" href="/mlb/"><span class="sport-ico">⚾</span><span class="sport-name">Ron's Dong Tool</span><span class="sport-sub">MLB</span></a><a class="sport-item current" href="/nfl/"><span class="sport-ico">🏈</span><span class="sport-name">Ron's Tud Tool</span><span class="sport-sub">NFL</span></a><span class="sport-item soon"><span class="sport-ico">🏀</span><span class="sport-name">Ron's Hoop Tool</span><span class="sport-sub">Soon</span></span><span class="sport-item soon"><span class="sport-ico">🏒</span><span class="sport-name">Ron's Goal Tool</span><span class="sport-sub">Soon</span></span></div></span>
     </div>
-  </header>
-
-  <div class="nav-shell">
-  <nav id="main-nav">
+    <div class="nav-shell">
+    <nav id="main-nav">
     <button class="nav-btn active" data-nav="home" onclick="switchNav('home')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.2 12 4l9 7.2M5.5 9.4V20h13V9.4"/></svg>
       <span>Home</span>
@@ -2738,6 +2781,16 @@
     
     </div>
   </div>
+    <div class="tb-right">
+      <div class="tb-search" id="tb-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+        <input type="text" id="site-search" placeholder="Player, team, prop…" autocomplete="off" spellcheck="false"
+               oninput="siteSearch()" onfocus="siteSearch()" onkeydown="siteSearchKey(event)" aria-label="Search players and tools">
+        <div class="tb-results" id="tb-results" hidden></div>
+      </div>
+      <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light or dark mode" title="Toggle light/dark"></button>
+    </div>
+  </header>
   <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
 
   <div id="panel-home" class="panel visible"><div id="home-content"><div class="empty">Loading…</div></div></div>
@@ -3108,6 +3161,61 @@
   function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
   function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
   function toggleNavTools(e) { e.stopPropagation(); navToolsOpen ? closeNavTools() : openNavTools(); }
+
+  // ── Top-bar search ────────────────────────────────────────────────────────
+  // Deliberately simple for now: every player this week's boards price, plus
+  // the tools themselves. A player opens his card, a tool opens its page.
+  let tbSel = -1;
+  function tbIndex() {
+    const out = new Map();
+    const add = (pid, name, team, pos, how) => {
+      if (!pid || out.has(pid)) return;
+      out.set(pid, { pid, name, team, pos, how });
+    };
+    for (const r of (nflData?.picks?.picks || [])) add(r.pid, r.name, r.team, r.pos, `openPick('${r.pid}')`);
+    for (const r of (nflData?.kickers || [])) add(r.pid || 'K-' + r.team, r.name, r.team, 'K', `openKick('${r.pid || 'K-' + r.team}')`);
+    for (const l of (nflData?.tdLeaders || [])) add(l.pid, l.name, l.team, l.pos, `openPlayer('${l.pid}')`);
+    return [...out.values()];
+  }
+  const TB_TOOLS = [['picks', 'Picks'], ['kickers', 'Kickers'], ['returners', 'Returners'], ['pairs', 'Pairs'], ['yards', 'Yards'],
+                    ['receptions', 'Receptions'], ['completions', 'Completions'], ['interceptions', 'Interceptions'],
+                    ['due', 'Due'], ['milestones', 'Milestones'], ['birthdays', 'Birthdays'],
+                    ['stats', 'Stats'], ['recap', 'Recap'], ['schedule', 'Schedule'], ['home', 'Home']];
+  function siteSearch() {
+    const box = document.getElementById('tb-results'), input = document.getElementById('site-search');
+    if (!box || !input) return;
+    const q = pbNorm(input.value.trim());
+    if (!q) { box.hidden = true; box.innerHTML = ''; tbSel = -1; return; }
+    const players = tbIndex().filter(r => pbNorm(r.name).includes(q) || pbNorm(r.team) === q).slice(0, 6);
+    const tools = TB_TOOLS.filter(([, lab]) => pbNorm(lab).includes(q)).slice(0, 3);
+    if (!players.length && !tools.length) {
+      box.hidden = false; box.innerHTML = '<div class="tb-res" style="color:var(--muted)">No player or tool by that name</div>'; return;
+    }
+    box.hidden = false; tbSel = -1;
+    box.innerHTML = players.map(r => `<button class="tb-res" onclick="tbGo(&quot;${r.how}&quot;)">${faceHtml(r.pid, r.name)}<b>${r.name}</b><small>${r.pos || ''} ${r.team}</small></button>`).join('')
+      + tools.map(([nav, lab]) => `<button class="tb-res" onclick="tbGo(&quot;switchNav('${nav}')&quot;)"><b>${lab}</b><small>tool</small></button>`).join('');
+  }
+  function tbGo(code) {
+    const input = document.getElementById('site-search');
+    document.getElementById('tb-results').hidden = true;
+    if (input) input.value = '';
+    try { (new Function(code))(); } catch (e) { /* a player the board dropped since the index was built */ }
+  }
+  function siteSearchKey(e) {
+    const box = document.getElementById('tb-results');
+    const items = box && !box.hidden ? [...box.querySelectorAll('.tb-res')] : [];
+    if (e.key === 'Escape') { box.hidden = true; e.target.blur(); return; }
+    if (!items.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      tbSel = Math.max(0, Math.min(items.length - 1, tbSel + (e.key === 'ArrowDown' ? 1 : -1)));
+      items.forEach((el, i) => el.classList.toggle('on', i === tbSel));
+    } else if (e.key === 'Enter') {
+      e.preventDefault(); (items[Math.max(0, tbSel)] || items[0]).click();
+    }
+  }
+  window.siteSearch = siteSearch; window.siteSearchKey = siteSearchKey; window.tbGo = tbGo;
+  document.addEventListener('click', (e) => { if (!e.target.closest('#tb-search')) { const b = document.getElementById('tb-results'); if (b) b.hidden = true; } });
 
   // Sport switcher: jump straight to another live app, or click the logo for
   // the full landing/picker (incl. coming-soon sports).
@@ -7797,5 +7905,14 @@ let pairStacks = false;
   }
   paintToolBadges();
 </script>
+  <footer class="site-foot">
+    <span class="foot-data">NFL · <span id="eyebrow-season">2026</span> · <span id="status-badge" class="status-badge fetching">Loading</span></span>
+    <span class="foot-credit">A touchdown tool inspired by Green Means Go
+      <span class="social-links">
+        <a href="https://www.youtube.com/@greenmeansgosports" target="_blank" rel="noopener" aria-label="YouTube"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2s-.2-1.6-.9-2.3c-.8-.9-1.8-.9-2.2-1C17.6 2.6 12 2.6 12 2.6h0s-5.6 0-8.4.3c-.4.1-1.4.1-2.2 1-.7.7-.9 2.3-.9 2.3S0 8.1 0 10v1.9c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.8.9 1.9.8 2.4.9 1.7.2 7.5.3 7.5.3s5.6 0 8.4-.3c.4 0 1.4-.1 2.2-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V10c0-1.9-.2-3.8-.2-3.8zM9.5 14.7V7.3l6.4 3.7-6.4 3.7z"/></svg></a>
+        <a href="https://x.com/GMGoBetting" target="_blank" rel="noopener" aria-label="X"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7.6 8.7L23 22h-6.6l-5.2-6.8L5 22H2l8.1-9.3L1.5 2h6.8l4.7 6.2L18.9 2z"/></svg></a>
+      </span>
+    </span>
+  </footer>
 </body>
 </html>
