@@ -148,6 +148,7 @@
   .nav-btn:hover:not(.active):not(:disabled) { color: var(--text); background: var(--surface2); }
   .nav-btn.active { color: var(--text-strong); background: transparent; box-shadow: none; }
   .nav-btn.active::after { content: ''; position: absolute; left: 0.7rem; right: 0.7rem; bottom: -0.1rem; height: 2px; border-radius: 2px; background: var(--accent); }
+  #nav-tools-btn.active::after { display: none; }
   .nav-btn:disabled { opacity: 0.32; cursor: not-allowed; }
   .nav-btn svg { display: none; width: 20px; height: 20px; }
   .nav-caret { display: inline-block; font-size: 0.766rem; font-weight: 900; line-height: 1; transition: transform 0.18s ease; }
@@ -227,7 +228,7 @@
        instead of a tall list that runs off the top of the screen. Group
        headers span both columns; descriptions are dropped for density; a
        max-height scroll is the safety net if the tool count keeps growing. */
-    .nav-tools-menu { position: fixed; top: auto; left: var(--nav-side); right: var(--nav-side); bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.5rem); min-width: 0; border: 1px solid var(--border2); border-radius: 20px; padding: 0.55rem 0.6rem 0.65rem; opacity: 1; transform: translateY(135%); visibility: hidden; transition: transform 0.24s ease, visibility 0s linear 0.24s; box-shadow: 0 10px 34px rgba(0,0,0,0.5);
+    .nav-tools-menu { position: fixed; z-index: 240; background: var(--surface1); box-shadow: 0 10px 34px rgba(0,0,0,0.5); top: auto; left: var(--nav-side); right: var(--nav-side); bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.5rem); min-width: 0; width: auto; border: 1px solid var(--border2); border-radius: 20px; padding: 0.55rem 0.6rem 0.65rem; opacity: 1; transform: translateY(135%); visibility: hidden; transition: transform 0.24s ease, visibility 0s linear 0.24s; box-shadow: 0 10px 34px rgba(0,0,0,0.5);
       display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 0.45rem; max-height: calc(100dvh - var(--nav-bottom) - var(--nav-h) - 2rem); overflow-y: auto; -webkit-overflow-scrolling: touch; }
     .nav-tools-menu.open { transform: none; visibility: visible; transition: transform 0.24s ease; }
     .nav-menu-group { grid-column: 1 / -1; padding: 0.4rem 0.25rem 0.05rem; }
@@ -1626,6 +1627,21 @@
       <span>Tools</span><span class="nav-caret">▶</span>
     </button>
   </nav>
+  </div>
+  <!-- Backdrop sits OUTSIDE nav: the nav's backdrop-filter makes it the
+       containing block for its fixed children, so a backdrop inside could
+       only ever cover the bar's own box, never the page. The mobile nav gets
+       a z-index above this layer so the bar and sheet stay clear of the dim. -->
+    <div class="tb-right">
+      <div class="tb-search" id="tb-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+        <input type="text" id="site-search" placeholder="Player, team, prop…" autocomplete="off" spellcheck="false"
+               oninput="siteSearch()" onfocus="siteSearch()" onkeydown="siteSearchKey(event)" aria-label="Search players and tools">
+        <div class="tb-results" id="tb-results" hidden></div>
+      </div>
+      <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light or dark mode" title="Toggle light/dark"></button>
+    </div>
+  </header>
     <div class="nav-tools-menu" id="nav-tools-menu">
       <div class="nav-menu-group">Today's Boards</div>
       <button class="nav-menu-item" data-nav="picks" onclick="switchNav('picks')" disabled>
@@ -1687,21 +1703,6 @@
         <span><span class="nm-name">Birthdays</span><span class="nm-desc">Who's celebrating today 🎂</span></span>
       </button>
     </div>
-  </div>
-  <!-- Backdrop sits OUTSIDE nav: the nav's backdrop-filter makes it the
-       containing block for its fixed children, so a backdrop inside could
-       only ever cover the bar's own box, never the page. The mobile nav gets
-       a z-index above this layer so the bar and sheet stay clear of the dim. -->
-    <div class="tb-right">
-      <div class="tb-search" id="tb-search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
-        <input type="text" id="site-search" placeholder="Player, team, prop…" autocomplete="off" spellcheck="false"
-               oninput="siteSearch()" onfocus="siteSearch()" onkeydown="siteSearchKey(event)" aria-label="Search players and tools">
-        <div class="tb-results" id="tb-results" hidden></div>
-      </div>
-      <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light or dark mode" title="Toggle light/dark"></button>
-    </div>
-  </header>
   <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
 
   <div id="offday-banner" class="offday-banner" style="display:none"></div>

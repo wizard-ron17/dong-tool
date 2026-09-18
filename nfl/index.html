@@ -153,13 +153,14 @@
   .nav-btn:hover:not(.active):not(:disabled) { color: var(--text); }
   .nav-btn.active { color: var(--text-strong); }
   .nav-btn.active::after { content: ''; position: absolute; left: 0.7rem; right: 0.7rem; bottom: -0.1rem; height: 2px; border-radius: 2px; background: var(--accent); }
+  #nav-tools-btn.active::after { display: none; }
   .nav-btn:disabled { opacity: 0.32; cursor: not-allowed; }
   .nav-btn svg { display: none; width: 20px; height: 20px; }
   .nav-caret { display: inline-block; font-size: 0.766rem; font-weight: 900; line-height: 1; transition: transform 0.18s ease; }
   nav.tools-open .nav-caret { transform: rotate(90deg); }
 
   /* Tools menu: dropdown card on desktop, slide-up sheet on mobile. */
-  .nav-tools-backdrop { position: fixed; inset: 0; backdrop-filter: blur(3px); z-index: 200; background: transparent; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .nav-tools-backdrop { position: fixed; inset: 0; backdrop-filter: blur(3px); z-index: 235; background: rgba(4,8,16,0.55); opacity: 0; pointer-events: none; transition: opacity 0.2s; }
   .nav-tools-backdrop.open { opacity: 1; pointer-events: auto; }
   /* z-index 1 (below the bar's z-index 2, both inside .nav-shell) + a top that
      tucks under the bar's bottom edge = the card is hidden behind the bar and
@@ -237,7 +238,7 @@
        fit ~12 tools above the nav bar; this one has a handful, and a list reads
        better until that changes. Group headers span the row; a max-height
        scroll is the safety net if the tool count grows. */
-    .nav-tools-menu { position: fixed; top: auto; left: var(--nav-side); right: var(--nav-side); bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.5rem); min-width: 0; border: 1px solid var(--border2); border-radius: 20px; padding: 0.55rem 0.6rem 0.65rem; opacity: 1; transform: translateY(135%); visibility: hidden; transition: transform 0.24s ease, visibility 0s linear 0.24s; box-shadow: 0 10px 34px rgba(0,0,0,0.5);
+    .nav-tools-menu { position: fixed; z-index: 240; background: var(--surface1); box-shadow: 0 10px 34px rgba(0,0,0,0.5); top: auto; left: var(--nav-side); right: var(--nav-side); bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.5rem); min-width: 0; width: auto; border: 1px solid var(--border2); border-radius: 20px; padding: 0.55rem 0.6rem 0.65rem; opacity: 1; transform: translateY(135%); visibility: hidden; transition: transform 0.24s ease, visibility 0s linear 0.24s; box-shadow: 0 10px 34px rgba(0,0,0,0.5);
       display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; max-height: calc(100dvh - var(--nav-bottom) - var(--nav-h) - 2rem); overflow-y: auto; -webkit-overflow-scrolling: touch; }
     .nav-tools-menu.open { transform: none; visibility: visible; transition: transform 0.24s ease; }
     .nav-menu-group { grid-column: 1 / -1; padding: 0.4rem 0.25rem 0.05rem; }
@@ -2730,6 +2731,17 @@
       <span>Tools</span><span class="nav-caret">▶</span>
     </button>
   </nav>
+  </div>
+    <div class="tb-right">
+      <div class="tb-search" id="tb-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+        <input type="text" id="site-search" placeholder="Player, team, prop…" autocomplete="off" spellcheck="false"
+               oninput="siteSearch()" onfocus="siteSearch()" onkeydown="siteSearchKey(event)" aria-label="Search players and tools">
+        <div class="tb-results" id="tb-results" hidden></div>
+      </div>
+      <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light or dark mode" title="Toggle light/dark"></button>
+    </div>
+  </header>
     <div class="nav-tools-menu" id="nav-tools-menu">
       <div class="nav-menu-group">Scoring</div>
       <button class="nav-menu-item" data-nav="picks" onclick="switchNav('picks')">
@@ -2780,17 +2792,6 @@
       </button>
     
     </div>
-  </div>
-    <div class="tb-right">
-      <div class="tb-search" id="tb-search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
-        <input type="text" id="site-search" placeholder="Player, team, prop…" autocomplete="off" spellcheck="false"
-               oninput="siteSearch()" onfocus="siteSearch()" onkeydown="siteSearchKey(event)" aria-label="Search players and tools">
-        <div class="tb-results" id="tb-results" hidden></div>
-      </div>
-      <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light or dark mode" title="Toggle light/dark"></button>
-    </div>
-  </header>
   <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
 
   <div id="panel-home" class="panel visible"><div id="home-content"><div class="empty">Loading…</div></div></div>
