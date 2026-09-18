@@ -2273,6 +2273,20 @@ let venueGameDays  = {}; // venue name -> date -> gameCount
 let venueHRsByDate = {}; // venue name -> date -> total HRs (both teams)
 let totalsFilterMode = 'team'; // 'team' | 'venue'
 let groups       = {};  // size -> [{pids, count, dates}], pre-filtered & sorted
+let groupSummary = {};  // size -> {max, atMax, n} for the home card
+// The full co-occurrence groups are 7.7MB — most of what data.json used to be —
+// for one tool. They load when the Pairs page is opened, like the NFL tool's
+// play and player files.
+let groupsState  = 'idle';
+function loadGroups() {
+  if (groupsState !== 'idle') return;
+  groupsState = 'loading';
+  fetch(APP_BASE + '/groups.json', { cache: 'no-store' })
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(j => { groups = j; groupsState = 'ready'; })
+    .catch(() => { groupsState = 'error'; })
+    .finally(() => { if (activeNav === 'pairs') _render(activePairSize); });
+}
 let dueRows      = [];
 let prospects    = { justCalledUp: [], history: [] };
 let birthdays    = []; // hitters celebrating a birthday today 🎂
@@ -2747,7 +2761,7 @@ function applyData(data) {
   playerGames = data.playerGames; playerLastHR = data.playerLastHR; teamGameDays = data.teamGameDays;
   playerLastGame = data.playerLastGame ?? {};
   venueGameDays = data.venueGameDays ?? {}; venueHRsByDate = data.venueHRsByDate ?? {};
-  groups = data.groups; dueRows = data.dueRows; prospects = data.prospects ?? prospects;
+  groupSummary = data.groupSummary ?? {}; dueRows = data.dueRows; prospects = data.prospects ?? prospects;
   birthdays = data.birthdays ?? [];
   birthdayHistory = data.birthdayHistory ?? [];
   birthdayById = {}; for (const b of birthdays) birthdayById[b.pid] = b;
@@ -3078,11 +3092,9 @@ function renderHome() {
   // = five different 2-man combos each homered together on 9 separate days.
   const sizeWord = { 2: 'pair', 3: 'trio', 4: 'quad', 5: 'quint' };
   const topDuos = [2, 3, 4, 5].map(size => {
-    const arr = groups[size] ?? [];
-    if (!arr.length) return '';
-    let max = 0;
-    for (const g of arr) if (g.count > max) max = g.count;
-    const atMax = arr.filter(g => g.count === max).length;
+    const s = groupSummary[size] ?? groupSummary[String(size)];
+    if (!s || !s.n) return '';
+    const { max, atMax } = s;
     const word = sizeWord[size] + (atMax === 1 ? '' : 's');
     return `<div class="hm-row" title="${atMax} ${word} each homered together on ${max} separate days — the most of any ${size}-man group this season">
       <span class="hm-combo-tag">${size}<span class="hm-tag-sub">-man</span></span>
@@ -3356,6 +3368,14 @@ function _render(size) {
   // groups[size] is already filtered & sorted server-side (≥3 occurrences for
   // pairs and quints, ≥2 for trios/quads) — one-off coincidences are dropped
   // before they ever reach the browser.
+  if (groupsState !== 'ready') {
+    loadGroups();
+    const box = document.getElementById('cards');
+    if (box) box.innerHTML = groupsState === 'error'
+      ? '<div class="empty">Couldn\'t load the pairings. <a href="javascript:void(0)" onclick="groupsState=\'idle\';loadGroups()">Retry</a></div>'
+      : '<div class="empty">Loading pairings…</div>';
+    if (groupsState !== 'ready') return;
+  }
   let groupList = groups[size] ?? [];
   const sizeNames = { 2:'pairs', 3:'trios', 4:'quads', 5:'quints' };
 

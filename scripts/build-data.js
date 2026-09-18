@@ -3066,6 +3066,13 @@ async function main() {
   await fetchAll();
 
   const groups = computeAllGroups(dailyHRs);
+  // what the home page's "Top Pairings" card shows: per size, how many distinct
+  // groups tie the highest co-occurrence, and what that peak is
+  const groupSummary = Object.fromEntries([2, 3, 4, 5].map(size => {
+    const arr = groups[size] ?? [];
+    const max = arr.reduce((m, g) => Math.max(m, g.count), 0);
+    return [size, { max, atMax: arr.filter(g => g.count === max).length, n: arr.length }];
+  }));
   let dueRows = computeDueRows();
 
   console.log("Fetching Statcast contact-quality data for Due candidates...");
@@ -3486,12 +3493,17 @@ async function main() {
     daysWithData: allDates.length,
     totalHRCount,
     dailyHRs, hrTypes, hrDetails, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR, playerLastGame,
-    teamGameDays, venueGameDays, venueHRsByDate, groups, dueRows, prospects, injuryStatus, dtdStatus,
+    teamGameDays, venueGameDays, venueHRsByDate, groupSummary, dueRows, prospects, injuryStatus, dtdStatus,
     todayDate: todayET(), todaySchedule, teamIds, pitcherStats, teamOffense, batterDiscipline, bullpens, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, birthdays, birthdayHistory,
     dueStreaks, dueHistory, returningInjured, justBack, returningHistory, milestones, steals, stealsHistory, kbbHistory,
   };
 
   const fs = await import('node:fs');
+  // Pairs co-occurrence groups ship as their own file: 7.7MB of the 9.5MB
+  // data.json, redeployed every build and downloaded by every visitor on page
+  // load, for a tool most of them never open. The home card needs only the
+  // one-line summary, which stays in data.json.
+  fs.writeFileSync(new URL('../mlb/groups.json', import.meta.url), JSON.stringify(groups));
   fs.writeFileSync(new URL('../mlb/data.json', import.meta.url), JSON.stringify(output));
   console.log(`Wrote data.json — ${allDates.length} game days, ${totalHRCount} HRs, ${dueRows.length} due rows, ${prospects.history.length} callup graduations, ${prospects.justCalledUp.length} on watch, ${todaySchedule.length} games today, ${picks.length} picks`);
 
