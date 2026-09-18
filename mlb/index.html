@@ -1581,6 +1581,111 @@
   .sport-name { font-family: var(--font-d); font-weight: 700; font-size: 0.92rem; }
   .sport-sub { margin-left: auto; font-size: 0.692rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
   .sport-item.current .sport-sub { color: var(--accent); }
+  /* ── Parlay mode ──────────────────────────────────────────────────────────
+     Every priced row on the site carries a data-leg payload. Turning the mode
+     on swaps the row's click from "open the card" to "add this leg", so the
+     selector needs no per-board code — one capture-phase listener and this
+     stylesheet cover every board in both apps.
+
+     The checkbox lives in a gutter opened on the LEFT of the row rather than
+     floating over the top-right corner: every board already puts its price
+     there, and a box over the odds is a box over the thing you are reading. */
+  .pl-fab { position: fixed; right: 1rem; bottom: 1.15rem; z-index: 225; display: none; align-items: center; gap: 0.4rem;
+            font-family: var(--font-d); font-size: 0.82rem; font-weight: 700; letter-spacing: 0.03em;
+            color: #04210f; background: var(--accent); border: none; border-radius: 999px; padding: 0.6rem 1rem 0.6rem 0.85rem;
+            cursor: pointer; box-shadow: 0 8px 26px rgba(0,0,0,0.45); transition: transform 0.12s ease, filter 0.15s; }
+  .pl-fab:hover { transform: translateY(-1px); filter: brightness(1.06); }
+  .pl-fab svg { width: 16px; height: 16px; }
+  .pl-fab .pl-fab-n { background: rgba(0,0,0,0.22); border-radius: 999px; padding: 0.05rem 0.4rem; font-size: 0.75rem; }
+  body.pl-has .pl-fab { display: inline-flex; }
+  body.pl-mode .pl-fab { display: none; }
+
+  /* the row selector */
+  body.pl-mode [data-leg] { position: relative; cursor: pointer; }
+  body.pl-mode div[data-leg], body.pl-mode a[data-leg] { padding-left: 2.15rem; }
+  body.pl-mode tr[data-leg] td:first-child { position: relative; padding-left: 1.9rem; }
+  body.pl-mode [data-leg]::after,
+  body.pl-mode tr[data-leg] td:first-child::after {
+    content: ''; position: absolute; left: 0.62rem; top: 50%; transform: translateY(-50%);
+    width: 17px; height: 17px; border-radius: 6px; border: 1.5px solid var(--border2);
+    background: var(--surface0); box-sizing: border-box; pointer-events: none; transition: background 0.12s, border-color 0.12s; }
+  body.pl-mode tr[data-leg]::after { content: none; }
+  body.pl-mode [data-leg].pl-pick::after,
+  body.pl-mode tr[data-leg].pl-pick td:first-child::after {
+    border-color: var(--accent);
+    background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2304210f' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12.5l5.5 5.5L20 6.5'/%3E%3C/svg%3E") center / 11px no-repeat; }
+  body.pl-mode div[data-leg].pl-pick { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  body.pl-mode tr[data-leg].pl-pick td { background: rgba(51,208,124,0.09); }
+
+  /* Small price chips (the pitcher boards quote an over and an under side by
+     side) get the selected state without the checkbox — a 17px box inside a
+     60px chip is all box. */
+  body.pl-mode .pl-inline::after { content: none; }
+  body.pl-mode .pl-inline { padding-left: 0; border-radius: 7px; box-shadow: inset 0 0 0 1px var(--border2); }
+  body.pl-mode .pl-inline.pl-pick { box-shadow: inset 0 0 0 1.5px var(--accent); background: rgba(51,208,124,0.14); }
+
+  /* the slip */
+  .pl-slip { position: fixed; left: 50%; transform: translateX(-50%); bottom: 1rem; z-index: 232; width: min(440px, calc(100vw - 1.5rem));
+             background: var(--surface1); border: 1px solid var(--border2); border-radius: 18px; box-shadow: 0 14px 44px rgba(0,0,0,0.55);
+             display: none; overflow: hidden; }
+  body.pl-mode .pl-slip { display: block; }
+  .pl-head { display: flex; align-items: center; gap: 0.6rem; padding: 0.62rem 0.7rem 0.62rem 0.85rem; cursor: pointer; }
+  .pl-head-n { font-family: var(--font-d); font-size: 0.83rem; font-weight: 700; color: var(--text-strong); }
+  .pl-head-n span { color: var(--dim); font-weight: 600; }
+  .pl-head-od { margin-left: auto; font-family: var(--font-d); font-size: 1.12rem; font-weight: 700; color: var(--accent); }
+  .pl-head-od.pl-none { color: var(--dim); font-size: 0.78rem; font-weight: 600; font-family: var(--font-b); }
+  .pl-x { background: none; border: none; color: var(--dim); font-size: 1.25rem; line-height: 1; padding: 0 0.15rem; cursor: pointer; }
+  .pl-x:hover { color: var(--text); }
+  .pl-caret { color: var(--dim); transition: transform 0.18s ease; width: 14px; height: 14px; }
+  .pl-slip.open .pl-caret { transform: rotate(180deg); }
+  .pl-body { display: none; border-top: 1px solid var(--border); padding: 0.6rem 0.85rem 0.8rem; max-height: min(58vh, 460px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .pl-slip.open .pl-body { display: block; }
+  .pl-leg { display: flex; align-items: center; gap: 0.5rem; padding: 0.36rem 0; border-bottom: 1px solid var(--border); font-size: 0.766rem; }
+  .pl-leg:last-of-type { border-bottom: none; }
+  .pl-leg-nm { font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pl-leg-sel { color: var(--dim); font-size: 0.692rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 0; min-width: 0; }
+  .pl-leg-od { font-family: var(--font-d); font-weight: 700; color: var(--muted); margin-left: auto; }
+  .pl-leg-x { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 0.1rem; }
+  .pl-leg-x:hover { color: var(--bad); }
+  .pl-empty { color: var(--dim); font-size: 0.766rem; text-align: center; padding: 0.8rem 0.4rem; line-height: 1.5; }
+  .pl-lbl2 { font-family: var(--font-d); font-size: 0.642rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); margin: 0.75rem 0 0.35rem; }
+  .pl-chips { display: flex; flex-wrap: wrap; gap: 0.32rem; }
+  .pl-chip { background: var(--surface0); border: 1px solid var(--border2); color: var(--muted); font-family: var(--font-b); font-size: 0.723rem; font-weight: 700;
+             padding: 0.26rem 0.6rem; border-radius: 999px; cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s; }
+  .pl-chip:hover { color: var(--text); border-color: var(--dim); }
+  .pl-chip.on { background: rgba(51,208,124,0.14); border-color: var(--accent); color: var(--accent); }
+  .pl-chip input { width: 2.6rem; background: none; border: none; color: inherit; font: inherit; text-align: right; outline: none; padding: 0; -moz-appearance: textfield; }
+  .pl-chip input::-webkit-outer-spin-button, .pl-chip input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .pl-nums { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-top: 0.7rem; }
+  .pl-num { background: var(--surface0); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.55rem; }
+  .pl-num b { display: block; font-family: var(--font-d); font-size: 1.22rem; font-weight: 700; color: var(--text-strong); line-height: 1.1; }
+  .pl-num.acc b { color: var(--accent); }
+  .pl-num span { display: block; font-size: 0.642rem; color: var(--dim); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 0.2rem; }
+  .pl-note { font-size: 0.692rem; color: var(--dim); line-height: 1.5; margin-top: 0.55rem; }
+  .pl-note b { color: var(--muted); }
+  .pl-warn { color: var(--ok); }
+  .pl-ev { display: flex; align-items: center; gap: 0.45rem; margin-top: 0.6rem; font-size: 0.723rem; color: var(--dim); flex-wrap: wrap; }
+  .pl-ev input { width: 5.2rem; background: var(--surface0); border: 1px solid var(--border2); border-radius: 8px; color: var(--text);
+                 font-family: var(--font-d); font-size: 0.8rem; font-weight: 700; padding: 0.3rem 0.45rem; outline: none; }
+  .pl-ev input:focus { border-color: var(--accent); }
+  .pl-ev-out { font-family: var(--font-d); font-weight: 700; }
+  .pl-ev-out.good { color: var(--good); }
+  .pl-ev-out.bad { color: var(--bad); }
+  .pl-clear { background: none; border: none; color: var(--dim); font-size: 0.692rem; text-decoration: underline; cursor: pointer; padding: 0; margin-top: 0.6rem; }
+  .pl-clear:hover { color: var(--bad); }
+  .pl-add { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--surface1); border: 1px solid var(--border2); color: var(--muted);
+            font-family: var(--font-b); font-size: 0.754rem; font-weight: 700; padding: 0.38rem 0.8rem; border-radius: 999px; cursor: pointer;
+            transition: background 0.12s, color 0.12s, border-color 0.12s; }
+  .pl-add:hover { color: var(--text); border-color: var(--dim); }
+  .pl-add.on { background: rgba(51,208,124,0.14); border-color: var(--accent); color: var(--accent); }
+  /* On a phone the slip has to clear the floating bottom nav, and the FAB sits
+     above it too — both anchor off the same measured bar height the nav uses. */
+  @media (max-width: 600px) {
+    .pl-slip { bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.5rem); left: var(--nav-side); right: var(--nav-side); transform: none; width: auto; }
+    .pl-fab { bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.6rem); right: var(--nav-side); }
+    .pl-body { max-height: 46vh; }
+    .pl-nums { grid-template-columns: 1fr 1fr; }
+  }
 </style>
 <script>
   // Set the theme before first paint to avoid a flash: saved choice wins,
@@ -8147,8 +8252,13 @@ function renderPitcherProp(kind) {
           const p = kbbWinProb(r.proj, need);
           const tip = `On a ${r.proj.toFixed(1)} projection: ${(p * 100).toFixed(0)}% to reach ${need}+ ${lbl}, `
             + `${((1 - p) * 100).toFixed(0)}% to stay under. Fair odds, no vig — a book prices worse on both sides.`;
-          return mtr(`O/U ${need - 0.5}`,
-            `<span class="pv-ou" title="${tip}"><span class="pv-price">${kbbOdds(p)}</span><span class="pv-ou-sep">/</span><span class="pv-price under">${kbbOdds(1 - p)}</span></span>`);
+          // Both sides are their own bet, so both are their own parlay leg.
+          const L = need - 0.5, unit = isK ? 'strikeouts' : 'walks';
+          const g = [r.team, r.oppTeam].sort().join(' vs ');
+          const side = (over) => plAttr({ k: `p${lbl}|${r.pid}|${L}|${over ? 'o' : 'u'}`, n: compactPlayerName(r.name), t: r.team, g,
+                                          m: `p${lbl}`, s: `${over ? 'Over' : 'Under'} ${L} ${unit}`, p: over ? p : 1 - p, i: r.pid });
+          return mtr(`O/U ${L}`,
+            `<span class="pv-ou" title="${tip}"><span class="pv-price pl-inline"${side(true)}>${kbbOdds(p)}</span><span class="pv-ou-sep">/</span><span class="pv-price under pl-inline"${side(false)}>${kbbOdds(1 - p)}</span></span>`);
         }).join('')}
         ${mtr(`Pitcher ${lbl}%`, `${(r.raw * 100).toFixed(1)}%`)}
         ${mtr(`${r.oppTeam} ${lbl}%`, `${(r.tRate * 100).toFixed(1)}%`)}
@@ -8720,7 +8830,224 @@ if ('serviceWorker' in navigator) {
       btn.querySelector('.nav-new-badge')?.remove();
     }, { once: true });
   })();
+
+// ── Parlay slip ───────────────────────────────────────────────────────────
+// Every priced row on the site tags itself with plAttr({...}), a small JSON
+// payload naming the bet. Parlay mode then works by interception: one
+// capture-phase listener swallows the click before the row's own onclick can
+// open a card, and adds the leg instead. No board knows the slip exists.
+//
+// The maths is deliberately the honest version. A parlay's fair price is the
+// product of its legs ONLY if the legs are independent, which legs from the
+// same game are not — so the slip multiplies, says so, and flags same-game
+// legs rather than quietly pretending. The one case we have measured numbers
+// for is a board full of anytime touchdowns (research/pair_correlation.py,
+// shipped in data.json), and there the slip uses them.
+const PL_KEY = 'mlbParlay';
+const PLY = { on: false, open: false, legs: [], boost: 0, book: '' };
+const PL_BOOSTS = [0, 0.25, 0.5, 1];
+
+const plEsc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+/** Attribute for a priced row. Keys are short because this ships on every row. */
+const plAttr = (leg) => ` data-leg="${plEsc(JSON.stringify(leg))}"`;
+/** Canonical away@home key, so two legs in the same game always collide. */
+const plGame = (r) => r.home ? `${r.opp}@${r.team}` : `${r.team}@${r.opp}`;
+
+const plDecAm = (d) => !(d > 1) ? '—' : d >= 2 ? '+' + Math.round((d - 1) * 100) : '-' + Math.round(100 / (d - 1));
+/** "+1400", "1400" and "-110" all parse; anything else is null. */
+function plAmDec(s) {
+  const v = parseFloat(String(s).replace(/[^0-9.+-]/g, ''));
+  if (!isFinite(v) || Math.abs(v) < 100) return null;
+  return v > 0 ? 1 + v / 100 : 1 + 100 / -v;
+}
+
+function plSave() {
+  try { localStorage.setItem(PL_KEY, JSON.stringify({ on: PLY.on, open: PLY.open, legs: PLY.legs, boost: PLY.boost })); } catch (e) {}
+}
+function plLoad() {
+  try {
+    const s = JSON.parse(localStorage.getItem(PL_KEY) || '{}');
+    if (Array.isArray(s.legs)) PLY.legs = s.legs.filter(l => l && l.k && l.p > 0);
+    PLY.on = !!s.on; PLY.open = !!s.open; PLY.boost = +s.boost || 0;
+  } catch (e) {}
+}
+
+/**
+ * What the slip is worth. Independent product by default; the measured
+ * touchdown correlation when every leg is an anytime touchdown and the whole
+ * group is on this week's Picks board (priceGroup returns null otherwise).
+ */
+function plPrice() {
+  const legs = PLY.legs;
+  const naive = legs.reduce((a, l) => a * l.p, 1);
+  const games = {};
+  for (const l of legs) if (l.g) (games[l.g] ??= []).push(l);
+  const shared = Object.values(games).filter(v => v.length > 1);
+  const teams = {};
+  for (const l of legs) if (l.t) teams[l.t] = (teams[l.t] || 0) + 1;
+  const mates = Object.values(teams).some(n => n > 1);
+  const who = {};
+  for (const l of legs) if (l.i) (who[l.i] ??= []).push(l);
+  const samePlayer = Object.values(who).filter(v => v.length > 1).map(v => v[0].n);
+  // No measured correlation on this side — the pitcher markets are the only
+  // priced ones, and two rungs off the same arm are the same event, not a
+  // parlay. The slip multiplies and says so.
+  return { p: naive, naive, corr: false, shared, mates, samePlayer };
+}
+
+function plMode(on) {
+  PLY.on = on;
+  if (!on) PLY.open = false;
+  document.body.classList.toggle('pl-mode', on);
+  plRender(); plPaint(); plSave();
+}
+function plToggleOpen(e) {
+  if (e && e.target.closest('.pl-x')) return;
+  PLY.open = !PLY.open;
+  document.getElementById('pl-slip').classList.toggle('open', PLY.open);
+  plRender(); plSave();
+}
+function plToggleLeg(leg) {
+  const i = PLY.legs.findIndex(l => l.k === leg.k);
+  if (i >= 0) PLY.legs.splice(i, 1);
+  else {
+    // Two lines in one player's market are not a parlay: over 7.5 and under
+    // 7.5 can never both land, and over 7.5 with over 8.5 is one bet priced
+    // twice. A new selection replaces the old one, like any bet slip.
+    const clash = PLY.legs.findIndex(l => l.i && l.i === leg.i && l.m === leg.m);
+    if (clash >= 0) PLY.legs.splice(clash, 1);
+    PLY.legs.push(leg);
+  }
+  if (PLY.legs.length === 1 && i < 0) PLY.open = true;
+  document.getElementById('pl-slip').classList.toggle('open', PLY.open);
+  plRender(); plPaint(); plSave();
+}
+function plRemove(k) {
+  PLY.legs = PLY.legs.filter(l => l.k !== k);
+  plRender(); plPaint(); plSave();
+}
+function plClear() { PLY.legs = []; plRender(); plPaint(); plSave(); }
+function plSetBoost(v) { PLY.boost = +v || 0; plRender(); plSave(); }
+function plCustomBoost(el) { PLY.boost = Math.max(0, Math.min(10, (parseFloat(el.value) || 0) / 100)); plRender(); plSave(); }
+function plBook(el) { PLY.book = el.value; plRenderEv(); }
+
+/** Mark selected rows, and show the button only where there is something to pick. */
+function plPaint() {
+  const keys = new Set(PLY.legs.map(l => l.k));
+  for (const el of document.querySelectorAll('[data-leg]')) {
+    let k = el._plk;
+    if (k === undefined) { try { k = JSON.parse(el.dataset.leg).k; } catch (e) { k = null; } el._plk = k; }
+    el.classList.toggle('pl-pick', keys.has(k));
+  }
+  // Panels are hidden, not destroyed, so "is there anything to pick here"
+  // has to mean the visible one — otherwise the button follows you onto
+  // boards that price nothing.
+  document.body.classList.toggle('pl-has', !!document.querySelector('.panel.visible [data-leg]'));
+  const n = document.getElementById('pl-fab-n');
+  if (n) { n.hidden = !PLY.legs.length; n.textContent = PLY.legs.length; }
+}
+
+function plRenderEv() {
+  const out = document.getElementById('pl-ev-out'); if (!out) return;
+  const { p } = plPrice(), d = plAmDec(PLY.book);
+  if (!d || !(p > 0) || !PLY.legs.length) { out.textContent = ''; out.className = 'pl-ev-out'; return; }
+  const boosted = 1 + (d - 1) * (1 + PLY.boost);
+  const ev = p * boosted - 1;
+  out.textContent = `${plDecAm(boosted)} after the boost · ${ev >= 0 ? '+' : '−'}${Math.abs(ev * 100).toFixed(1)}% EV`;
+  out.className = 'pl-ev-out ' + (ev >= 0 ? 'good' : 'bad');
+}
+
+function plRender() {
+  const slip = document.getElementById('pl-slip'); if (!slip) return;
+  slip.classList.toggle('open', PLY.open);
+  const legs = PLY.legs, { p, naive, corr, shared, mates, samePlayer } = plPrice();
+  const hn = document.getElementById('pl-head-n'), ho = document.getElementById('pl-head-od');
+  hn.innerHTML = legs.length ? `${legs.length} leg${legs.length === 1 ? '' : 's'} <span>· fair</span>` : 'Parlay mode <span>· tap picks to add</span>';
+  ho.className = 'pl-head-od' + (legs.length ? '' : ' pl-none');
+  ho.textContent = legs.length ? kbbOdds(p) : '0 legs';
+
+  const body = document.getElementById('pl-body');
+  if (!legs.length) {
+    body.innerHTML = `<div class="pl-empty">Tap any priced row to add it.<br>Legs from different tools combine — a touchdown, a kicker line and a yards line all go in the same slip.</div>`;
+    return;
+  }
+  const boostPct = Math.round(PLY.boost * 100);
+  const custom = !PL_BOOSTS.includes(PLY.boost);
+  // The number that actually decides a bet: with a boost, the worst book
+  // price that still beats fair. Boosts lift profit, not stake, so
+  // 1 + (d-1)(1+b) >= 1/p solves to this.
+  const need = 1 + (1 / p - 1) / (1 + PLY.boost);
+  body.innerHTML =
+    legs.map(l => `<div class="pl-leg">
+      <span class="pl-leg-nm">${l.n}</span>
+      <span class="pl-leg-sel">${l.s}${l.t ? ` · ${l.t}` : ''}</span>
+      <span class="pl-leg-od">${kbbOdds(l.p)}</span>
+      <button class="pl-leg-x" onclick="plRemove('${l.k.replace(/'/g, "\\'")}')" aria-label="Remove">×</button>
+    </div>`).join('')
+    + `<div class="pl-lbl2">Profit boost</div>
+    <div class="pl-chips">
+      ${PL_BOOSTS.map(b => `<button class="pl-chip${!custom && PLY.boost === b ? ' on' : ''}" onclick="plSetBoost(${b})">${b ? Math.round(b * 100) + '%' : 'None'}</button>`).join('')}
+      <span class="pl-chip${custom ? ' on' : ''}"><input type="number" min="0" max="500" step="5" placeholder="custom" value="${custom ? boostPct : ''}" oninput="plCustomBoost(this)">%</span>
+    </div>
+    <div class="pl-nums">
+      <div class="pl-num acc"><b>${kbbOdds(p)}</b><span>Fair odds</span></div>
+      <div class="pl-num"><b>${(p * 100).toFixed(p < 0.1 ? 2 : 1)}%</b><span>True chance</span></div>
+    </div>
+    <p class="pl-note">${PLY.boost
+      ? `With a <b>${boostPct}%</b> profit boost, take it at <b>${plDecAm(need)}</b> or better and you have the best of it.`
+      : `Anything longer than <b>${kbbOdds(p)}</b> at your book beats fair.`}</p>
+    ${corr ? `<p class="pl-note">Priced with the measured touchdown correlation rather than by multiplying${mates ? ' — teammates compete for the same end-zone trips' : ''}. Straight multiplication says <b>${kbbOdds(naive)}</b>.</p>` : ''}
+    ${samePlayer.length ? `<p class="pl-note pl-warn">Two markets on ${samePlayer.join(' and ')} — one player's lines move together, so multiplying them overstates the price.</p>` : ''}
+    ${!corr && shared.length ? `<p class="pl-note pl-warn">${shared.map(v => `${v.length} legs in ${v[0].g}`).join(', ')} — same-game legs aren't independent, so this is a multiplied estimate, not a fair same-game price.</p>` : ''}
+    <div class="pl-ev">
+      <label for="pl-book">Your book's price</label>
+      <input type="text" id="pl-book" inputmode="text" placeholder="+1400" value="${plEsc(PLY.book)}" oninput="plBook(this)">
+      <span class="pl-ev-out" id="pl-ev-out"></span>
+    </div>
+    <button class="pl-clear" onclick="plClear()">Clear all ${legs.length} legs</button>`;
+  plRenderEv();
+}
+
+function plInit() {
+  plLoad();
+  document.body.classList.toggle('pl-mode', PLY.on);
+  // Capture phase: the click has to die before it reaches the row's own
+  // onclick, which would open a card on top of the board.
+  document.addEventListener('click', (e) => {
+    if (!PLY.on) return;
+    const el = e.target.closest?.('[data-leg]');
+    if (!el) return;
+    e.preventDefault(); e.stopPropagation();
+    let leg; try { leg = JSON.parse(el.dataset.leg); } catch (err) { return; }
+    if (leg && leg.k && leg.p > 0) plToggleLeg(leg);
+  }, true);
+  // Boards re-render on every filter, search and tab change, so rather than
+  // teach each one to repaint, watch the tree they all write into.
+  let raf = 0;
+  new MutationObserver(() => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => { raf = 0; plPaint(); });
+  }).observe(document.querySelector('.wrap') || document.body, { childList: true, subtree: true });
+  plRender(); plPaint();
+}
+window.plMode = plMode; window.plToggleOpen = plToggleOpen; window.plRemove = plRemove;
+window.plClear = plClear; window.plSetBoost = plSetBoost; window.plCustomBoost = plCustomBoost; window.plBook = plBook;
+
+plInit();
 </script>
+<button class="pl-fab" id="pl-fab" onclick="plMode(true)" aria-label="Build a parlay">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13.5H11l-1 8.5 8.5-11.5H12l1-8.5z"/></svg>
+  Parlay<span class="pl-fab-n" id="pl-fab-n" hidden></span>
+</button>
+<div class="pl-slip" id="pl-slip">
+  <div class="pl-head" onclick="plToggleOpen(event)">
+    <span class="pl-head-n" id="pl-head-n">Parlay mode <span>· tap prices to add</span></span>
+    <span class="pl-head-od pl-none" id="pl-head-od">0 legs</span>
+    <svg class="pl-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
+    <button class="pl-x" onclick="plMode(false)" aria-label="Exit parlay mode">×</button>
+  </div>
+  <div class="pl-body" id="pl-body"></div>
+</div>
   <footer class="site-foot">
     <span class="foot-data">MLB · <span id="eyebrow-season">2026</span> · Stats API · <span id="status-badge" class="status-badge fetching">Loading</span></span>
     <span class="foot-credit"><span>A home run tool inspired by Green Means Go

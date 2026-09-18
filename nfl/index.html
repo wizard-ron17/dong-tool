@@ -2685,6 +2685,105 @@
   .sport-name { font-family: var(--font-d); font-weight: 700; font-size: 0.92rem; }
   .sport-sub { margin-left: auto; font-size: 0.692rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
   .sport-item.current .sport-sub { color: var(--accent); }
+
+  /* ── Parlay mode ──────────────────────────────────────────────────────────
+     Every priced row on the site carries a data-leg payload. Turning the mode
+     on swaps the row's click from "open the card" to "add this leg", so the
+     selector needs no per-board code — one capture-phase listener and this
+     stylesheet cover every board in both apps.
+
+     The checkbox lives in a gutter opened on the LEFT of the row rather than
+     floating over the top-right corner: every board already puts its price
+     there, and a box over the odds is a box over the thing you are reading. */
+  .pl-fab { position: fixed; right: 1rem; bottom: 1.15rem; z-index: 225; display: none; align-items: center; gap: 0.4rem;
+            font-family: var(--font-d); font-size: 0.82rem; font-weight: 700; letter-spacing: 0.03em;
+            color: #04210f; background: var(--accent); border: none; border-radius: 999px; padding: 0.6rem 1rem 0.6rem 0.85rem;
+            cursor: pointer; box-shadow: 0 8px 26px rgba(0,0,0,0.45); transition: transform 0.12s ease, filter 0.15s; }
+  .pl-fab:hover { transform: translateY(-1px); filter: brightness(1.06); }
+  .pl-fab svg { width: 16px; height: 16px; }
+  .pl-fab .pl-fab-n { background: rgba(0,0,0,0.22); border-radius: 999px; padding: 0.05rem 0.4rem; font-size: 0.75rem; }
+  body.pl-has .pl-fab { display: inline-flex; }
+  body.pl-mode .pl-fab { display: none; }
+
+  /* the row selector */
+  body.pl-mode [data-leg] { position: relative; cursor: pointer; }
+  body.pl-mode div[data-leg], body.pl-mode a[data-leg] { padding-left: 2.15rem; }
+  body.pl-mode tr[data-leg] td:first-child { position: relative; padding-left: 1.9rem; }
+  body.pl-mode [data-leg]::after,
+  body.pl-mode tr[data-leg] td:first-child::after {
+    content: ''; position: absolute; left: 0.62rem; top: 50%; transform: translateY(-50%);
+    width: 17px; height: 17px; border-radius: 6px; border: 1.5px solid var(--border2);
+    background: var(--surface0); box-sizing: border-box; pointer-events: none; transition: background 0.12s, border-color 0.12s; }
+  body.pl-mode tr[data-leg]::after { content: none; }
+  body.pl-mode [data-leg].pl-pick::after,
+  body.pl-mode tr[data-leg].pl-pick td:first-child::after {
+    border-color: var(--accent);
+    background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2304210f' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12.5l5.5 5.5L20 6.5'/%3E%3C/svg%3E") center / 11px no-repeat; }
+  body.pl-mode div[data-leg].pl-pick { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  body.pl-mode tr[data-leg].pl-pick td { background: rgba(51,208,124,0.09); }
+
+  /* the slip */
+  .pl-slip { position: fixed; left: 50%; transform: translateX(-50%); bottom: 1rem; z-index: 232; width: min(440px, calc(100vw - 1.5rem));
+             background: var(--surface1); border: 1px solid var(--border2); border-radius: 18px; box-shadow: 0 14px 44px rgba(0,0,0,0.55);
+             display: none; overflow: hidden; }
+  body.pl-mode .pl-slip { display: block; }
+  .pl-head { display: flex; align-items: center; gap: 0.6rem; padding: 0.62rem 0.7rem 0.62rem 0.85rem; cursor: pointer; }
+  .pl-head-n { font-family: var(--font-d); font-size: 0.83rem; font-weight: 700; color: var(--text-strong); }
+  .pl-head-n span { color: var(--dim); font-weight: 600; }
+  .pl-head-od { margin-left: auto; font-family: var(--font-d); font-size: 1.12rem; font-weight: 700; color: var(--accent); }
+  .pl-head-od.pl-none { color: var(--dim); font-size: 0.78rem; font-weight: 600; font-family: var(--font-b); }
+  .pl-x { background: none; border: none; color: var(--dim); font-size: 1.25rem; line-height: 1; padding: 0 0.15rem; cursor: pointer; }
+  .pl-x:hover { color: var(--text); }
+  .pl-caret { color: var(--dim); transition: transform 0.18s ease; width: 14px; height: 14px; }
+  .pl-slip.open .pl-caret { transform: rotate(180deg); }
+  .pl-body { display: none; border-top: 1px solid var(--border); padding: 0.6rem 0.85rem 0.8rem; max-height: min(58vh, 460px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .pl-slip.open .pl-body { display: block; }
+  .pl-leg { display: flex; align-items: center; gap: 0.5rem; padding: 0.36rem 0; border-bottom: 1px solid var(--border); font-size: 0.766rem; }
+  .pl-leg:last-of-type { border-bottom: none; }
+  .pl-leg-nm { font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pl-leg-sel { color: var(--dim); font-size: 0.692rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 0; min-width: 0; }
+  .pl-leg-od { font-family: var(--font-d); font-weight: 700; color: var(--muted); margin-left: auto; }
+  .pl-leg-x { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 0.1rem; }
+  .pl-leg-x:hover { color: var(--bad); }
+  .pl-empty { color: var(--dim); font-size: 0.766rem; text-align: center; padding: 0.8rem 0.4rem; line-height: 1.5; }
+  .pl-lbl2 { font-family: var(--font-d); font-size: 0.642rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); margin: 0.75rem 0 0.35rem; }
+  .pl-chips { display: flex; flex-wrap: wrap; gap: 0.32rem; }
+  .pl-chip { background: var(--surface0); border: 1px solid var(--border2); color: var(--muted); font-family: var(--font-b); font-size: 0.723rem; font-weight: 700;
+             padding: 0.26rem 0.6rem; border-radius: 999px; cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s; }
+  .pl-chip:hover { color: var(--text); border-color: var(--dim); }
+  .pl-chip.on { background: rgba(51,208,124,0.14); border-color: var(--accent); color: var(--accent); }
+  .pl-chip input { width: 2.6rem; background: none; border: none; color: inherit; font: inherit; text-align: right; outline: none; padding: 0; -moz-appearance: textfield; }
+  .pl-chip input::-webkit-outer-spin-button, .pl-chip input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .pl-nums { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-top: 0.7rem; }
+  .pl-num { background: var(--surface0); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.55rem; }
+  .pl-num b { display: block; font-family: var(--font-d); font-size: 1.22rem; font-weight: 700; color: var(--text-strong); line-height: 1.1; }
+  .pl-num.acc b { color: var(--accent); }
+  .pl-num span { display: block; font-size: 0.642rem; color: var(--dim); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 0.2rem; }
+  .pl-note { font-size: 0.692rem; color: var(--dim); line-height: 1.5; margin-top: 0.55rem; }
+  .pl-note b { color: var(--muted); }
+  .pl-warn { color: var(--ok); }
+  .pl-ev { display: flex; align-items: center; gap: 0.45rem; margin-top: 0.6rem; font-size: 0.723rem; color: var(--dim); flex-wrap: wrap; }
+  .pl-ev input { width: 5.2rem; background: var(--surface0); border: 1px solid var(--border2); border-radius: 8px; color: var(--text);
+                 font-family: var(--font-d); font-size: 0.8rem; font-weight: 700; padding: 0.3rem 0.45rem; outline: none; }
+  .pl-ev input:focus { border-color: var(--accent); }
+  .pl-ev-out { font-family: var(--font-d); font-weight: 700; }
+  .pl-ev-out.good { color: var(--good); }
+  .pl-ev-out.bad { color: var(--bad); }
+  .pl-clear { background: none; border: none; color: var(--dim); font-size: 0.692rem; text-decoration: underline; cursor: pointer; padding: 0; margin-top: 0.6rem; }
+  .pl-clear:hover { color: var(--bad); }
+  .pl-add { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--surface1); border: 1px solid var(--border2); color: var(--muted);
+            font-family: var(--font-b); font-size: 0.754rem; font-weight: 700; padding: 0.38rem 0.8rem; border-radius: 999px; cursor: pointer;
+            transition: background 0.12s, color 0.12s, border-color 0.12s; }
+  .pl-add:hover { color: var(--text); border-color: var(--dim); }
+  .pl-add.on { background: rgba(51,208,124,0.14); border-color: var(--accent); color: var(--accent); }
+  /* On a phone the slip has to clear the floating bottom nav, and the FAB sits
+     above it too — both anchor off the same measured bar height the nav uses. */
+  @media (max-width: 600px) {
+    .pl-slip { bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.5rem); left: var(--nav-side); right: var(--nav-side); transform: none; width: auto; }
+    .pl-fab { bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.6rem); right: var(--nav-side); }
+    .pl-body { max-height: 46vh; }
+    .pl-nums { grid-template-columns: 1fr 1fr; }
+  }
 </style>
 <script>
   // Set the theme before first paint to avoid a flash: saved choice wins,
@@ -3645,6 +3744,14 @@
 
   const posBadge = (pos) => `<span class="posb ${pos}">${pos}</span>`;
 
+  // Parlay leg for a Picks row, in whichever of the five markets is showing.
+  const PB_LEGM = { '1': 'td1', '2': 'td2', '3': 'tdf', '4': 'tdl', '5': 'ptd' };
+  const pbLeg = (r) => {
+    const M = pbMkt(), m = PB_LEGM[pbF.mkt] || 'td1';
+    return { k: `${m}|${r.pid}`, n: r.name, t: r.team, g: plGame(r), m,
+             s: M.qbOnly ? 'Over 1.5 pass TD' : M.lab, p: pbP(r), i: r.pid };
+  };
+
   function pbCard(r, i) {
     const M = pbMkt(); const shown = pbP(r);
     const dog = shown < 0.5;
@@ -3665,7 +3772,7 @@
     // shaded 12%. The badge says why it looks shorter than his usage implies.
     const rflag = r.pRet ? `<span class="pb-ret" title="Includes his return-game chance — a return TD pays as an anytime TD">RET</span>` : '';
     const qflag = r.q ? `<span class="pb-q" title="Listed Questionable. His price is already shaded 12% — across 2016-2025 Questionable players scored 0.187 against a 0.213 model price, while unlisted players landed dead on.">Q</span>` : '';
-    return `<div class="pb-card p-${r.pos}" onclick="openPick('${r.pid}')">
+    return `<div class="pb-card p-${r.pos}" onclick="openPick('${r.pid}')"${plAttr(pbLeg(r))}>
       <div class="pb-rank">${i}</div>${faceHtml(r.pid, r.name)}
       <div class="pb-info">
         <div class="pb-nm">${r.name}${posBadge(r.pos)}${rflag}${qflag}${flag}</div>
@@ -3680,7 +3787,7 @@
     const th = (v, lab, cls = '') => `<th class="${cls}${pbF.sort === v ? ' on' : ''}" onclick="setPbSort('${v}')">${lab}${pbF.sort === v ? `<span class="ar">${pbF.dir === 'desc' ? '▼' : '▲'}</span>` : ''}</th>`;
     return `<div class="pb-tablewrap"><table class="pb-table">
       <thead><tr><th class="static">#</th>${th('name', 'Player')}${th('pos', 'Pos')}${th('time', 'Game')}${th('p', 'Price', 'num')}${th('pct', 'Chance', 'num')}${th('alt', pbF.mkt === '1' ? '2+ TD' : '1+ TD', 'num')}${th('first', '1st TD', 'num')}${th('last', 'Last TD', 'num')}${th('snap3', 'Snap%', 'num')}${th('rz', 'RZ/g', 'num')}${th('imp', 'Total', 'num')}</tr></thead>
-      <tbody>${rows.map((r, i) => `<tr onclick="openPick('${r.pid}')">
+      <tbody>${rows.map((r, i) => `<tr onclick="openPick('${r.pid}')"${plAttr(pbLeg(r))}>
         <td class="num">${r.rank ?? i + 1}</td>
         <td class="nm">${r.name}${r.f?.newAbsence ? ' <span class="pb-flag">ROLE OPEN</span>' : ''}</td>
         <td>${posBadge(r.pos)}</td>
@@ -3706,7 +3813,7 @@
         <span class="pbc-brand">Ron's <em>Tud</em> Tool</span>
         <span class="pbc-sub">${WK_LABEL(P.week)} · ${pbMkt().lab}${posLbl}</span>
       </div>
-      ${rows.map((r, i) => `<div class="pbc-row" onclick="openPick('${r.pid}')">
+      ${rows.map((r, i) => `<div class="pbc-row" onclick="openPick('${r.pid}')"${plAttr(pbLeg(r))}>
         <span class="pbc-rank">${r.rank ?? i + 1}</span>
         <img class="pbc-logo" src="${teamLogo(r.team)}" alt="${r.team}" loading="lazy">
         <span class="pbc-nm">${r.name}</span>
@@ -3798,6 +3905,22 @@
         efficiency, weapon quality and opposing defense were all tested and all added nothing once it was in —
         they're real, stable traits, which is exactly why the market has already priced them.</div>`;
   }
+
+  // The card shows five touchdown markets; the button adds whichever one the
+  // board is on, which is the price the hero quotes.
+  function pmAddBtn(r) {
+    const leg = pbLeg(r);
+    if (!(leg.p > 0)) return '';
+    const on = PLY.legs.some(l => l.k === leg.k);
+    return `<button class="pl-add${on ? ' on' : ''}" onclick="pmAddLeg('${r.pid}')">${on ? '✓ In your parlay' : `+ Add ${pbMkt().lab} to parlay`}</button>`;
+  }
+  window.pmAddLeg = (pid) => {
+    const raw = nflData?.picks?.picks.find(x => x.pid === pid); if (!raw) return;
+    const r = pbEnrich(raw, pbGameMap()), leg = pbLeg(r);
+    if (!PLY.on) plMode(true);
+    plToggleLeg(leg);
+    const b = document.getElementById('pm-pl-add'); if (b) b.innerHTML = pmAddBtn(r);
+  };
 
   function openPick(pid) {
     const P = nflData?.picks; if (!P) return;
@@ -3893,6 +4016,7 @@
             <span class="pm-ret-v">${pbOdds(r.pOff)} <span class="pm-ret-arrow">→</span> <b>${pbOdds(r.p)}</b></span>
             <span class="pm-ret-add">+${(r.pRet * 100).toFixed(1)}%</span>
           </div>` : ''}
+          <div class="pm-pl" id="pm-pl-add" style="text-align:center;margin:0.15rem 0 0.1rem">${pmAddBtn(r)}</div>
           <div class="pm-link">${mkt === '5'
             ? `we project <b>${(r.pass.proj).toFixed(2)}</b> passing TDs for him — the whole ladder below comes off that one number`
             : mkt === '3' || mkt === '4'
@@ -6098,6 +6222,9 @@ let pairStacks = false;
     return { L, p: r.p[L] ?? r.p[String(L)] };
   };
 
+  const rcLeg = (r) => ({ k: `rec|${r.pid}|${r.L}`, n: r.name, t: r.team, g: plGame(r), m: 'rec',
+                          s: `Over ${r.L} receptions`, p: r.p, i: r.pid });
+
   /** The filtered, sorted board — shared by the view and the modal's arrows. */
   function rcRows() {
     const R = nflData?.receptions || [];
@@ -6239,7 +6366,7 @@ let pairStacks = false;
         <thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Proj</th>
           <th class="num">Snap</th><th class="num">Tgt</th><th class="num">Line</th><th class="num">Price</th></tr></thead>
         <tbody>${rows.map((r, i) => `
-          <tr onclick="openRec('${r.pid}')">
+          <tr onclick="openRec('${r.pid}')"${plAttr(rcLeg(r))}>
             <td class="num dim">${r.rank}</td>
             <td><b>${r.name}</b> <span class="dim">${r.pos}</span></td>
             <td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
@@ -6251,7 +6378,7 @@ let pairStacks = false;
           </tr>`).join('')}</tbody></table></div>`;
     } else if (rcF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map((r, i) => `
-        <div class="rc-crow" onclick="openRec('${r.pid}')">
+        <div class="rc-crow" onclick="openRec('${r.pid}')"${plAttr(rcLeg(r))}>
           <span class="rc-crank">${r.rank}</span>
           <span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span>
@@ -6261,7 +6388,7 @@ let pairStacks = false;
         </div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map((r, i) => `
-        <div class="pb-card" onclick="openRec('${r.pid}')">
+        <div class="pb-card" onclick="openRec('${r.pid}')"${plAttr(rcLeg(r))}>
           <div class="pb-rank">${r.rank}</div>${faceHtml(r.pid, r.name)}
           <div class="pb-info">
             <div class="pb-nm">${r.name}<span class="pb-flag" title="Position">${r.pos}</span></div>
@@ -6307,6 +6434,8 @@ let pairStacks = false;
       .map((r, i) => ({ ...r, rank: i + 1 }))
       .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q));
   }
+  const cpLeg = (r) => ({ k: `cmp|${r.pid}|${r.L}`, n: r.name, t: r.team, g: plGame(r), m: 'cmp',
+                          s: `Over ${r.L} completions`, p: r.p, i: r.pid });
   const cpChip = (k, v, lab, cur) =>
     uiChip('setCp', k, v, lab, cur);
   const cpNotes = (r) => {
@@ -6348,17 +6477,17 @@ let pairStacks = false;
     let body;
     if (cpF.view === 'table') {
       body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>QB</th><th>Game</th><th class="num">Proj</th><th class="num">Att</th><th class="num">Cmp%</th><th class="num">Line</th><th class="num">Price</th></tr></thead><tbody>${rows.map((r, i) => `
-        <tr onclick="openCmp('${r.pid}')"><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
+        <tr onclick="openCmp('${r.pid}')"${plAttr(cpLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
           <td class="num"><b>${r.mu.toFixed(1)}</b></td><td class="num dim">${r.f.attPrior.toFixed(0)}</td><td class="num dim">${(r.f.rate * 100).toFixed(0)}%</td>
           <td class="num dim">o${r.L}</td><td class="num"><b class="${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</b></td></tr>`).join('')}</tbody></table></div>`;
     } else if (cpF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map((r, i) => `
-        <div class="rc-crow" onclick="openCmp('${r.pid}')"><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
+        <div class="rc-crow" onclick="openCmp('${r.pid}')"${plAttr(cpLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${r.mu.toFixed(1)}</span>
           <span class="rc-cod ${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map((r, i) => `
-        <div class="pb-card" onclick="openCmp('${r.pid}')">
+        <div class="pb-card" onclick="openCmp('${r.pid}')"${plAttr(cpLeg(r))}>
           <div class="pb-rank">${r.rank}</div>${faceHtml(r.pid, r.name)}
           <div class="pb-info">
             <div class="pb-nm">${r.name}</div>
@@ -6435,6 +6564,8 @@ let pairStacks = false;
       .map((r, i) => ({ ...r, rank: i + 1 }))
       .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q));
   }
+  const inLeg = (r) => ({ k: `int|${r.pid}|${r.L}`, n: r.name, t: r.team, g: plGame(r), m: 'int',
+                          s: `Over ${r.L} interceptions`, p: r.p, i: r.pid });
   const spreadTxt = (fav) => fav === 0 ? 'pick’em' : fav > 0 ? `−${fav} fav` : `+${-fav} dog`;
   const inNotes = (r) => {
     const n = [];
@@ -6473,17 +6604,17 @@ let pairStacks = false;
     let body;
     if (inF.view === 'table') {
       body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>QB</th><th>Game</th><th class="num">Spread</th><th class="num">Bad balls</th><th class="num">Opp INT%</th><th class="num">Over</th><th class="num">Under</th></tr></thead><tbody>${rows.map(r => `
-        <tr onclick="openInt('${r.pid}')"><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
+        <tr onclick="openInt('${r.pid}')"${plAttr(inLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
           <td class="num dim">${spreadTxt(r.f.fav)}</td><td class="num dim">${(r.f.bad * 100).toFixed(1)}%</td><td class="num dim">${(r.f.defInt * 100).toFixed(1)}%</td>
           <td class="num"><b class="${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</b></td><td class="num dim">${under(r)}</td></tr>`).join('')}</tbody></table></div>`;
     } else if (inF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
-        <div class="rc-crow" onclick="openInt('${r.pid}')"><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
+        <div class="rc-crow" onclick="openInt('${r.pid}')"${plAttr(inLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${Math.round(r.p * 100)}%</span>
           <span class="rc-cod ${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
-        <div class="pb-card" onclick="openInt('${r.pid}')">
+        <div class="pb-card" onclick="openInt('${r.pid}')"${plAttr(inLeg(r))}>
           <div class="pb-rank">${r.rank}</div>${faceHtml(r.pid, r.name)}
           <div class="pb-info">
             <div class="pb-nm">${r.name}</div>
@@ -6578,6 +6709,8 @@ let pairStacks = false;
     return n.join('');
   };
   const kkProj = (r, mkt = kkF.mkt) => mkt === 'pts' ? r.mu.pts.toFixed(1) : r.mu[mkt].toFixed(1);
+  const kkLeg = (r) => ({ k: `k${kkF.mkt}|${r.pid}|${r.L}`, n: r.name, t: r.team, g: plGame(r),
+                          m: 'k' + kkF.mkt, s: `Over ${r.L} ${KK_MKTS[kkF.mkt].unit}`, p: r.pp, i: r.pid });
 
   function renderKickers() {
     const el = document.getElementById('kickers-content'); if (!el) return;
@@ -6609,17 +6742,17 @@ let pairStacks = false;
     let body;
     if (kkF.view === 'table') {
       body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>Kicker</th><th>Game</th><th class="num">Team total</th><th class="num">Spread</th><th class="num">Weather</th><th class="num">Proj</th><th class="num">Over</th><th class="num">Under</th></tr></thead><tbody>${rows.map(r => `
-        <tr onclick="openKick('${r.pid}')"><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
+        <tr onclick="openKick('${r.pid}')"${plAttr(kkLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
           <td class="num dim">${r.f.implied.toFixed(1)}</td><td class="num dim">${spreadTxt(r.f.fav)}</td><td class="num dim">${kkWx(r.f)}</td><td class="num">${kkProj(r)}</td>
           <td class="num"><b class="${r.pp < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.pp)}</b></td><td class="num dim">${under(r)}</td></tr>`).join('')}</tbody></table></div>`;
     } else if (kkF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
-        <div class="rc-crow" onclick="openKick('${r.pid}')"><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
+        <div class="rc-crow" onclick="openKick('${r.pid}')"${plAttr(kkLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${kkProj(r)}</span>
           <span class="rc-cod ${r.pp < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.pp)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
-        <div class="pb-card" onclick="openKick('${r.pid}')">
+        <div class="pb-card" onclick="openKick('${r.pid}')"${plAttr(kkLeg(r))}>
           <div class="pb-rank">${r.rank}</div>${faceHtml(r.pid, r.name)}
           <div class="pb-info">
             <div class="pb-nm">${r.name}</div>
@@ -6684,6 +6817,8 @@ let pairStacks = false;
   // ── Yards ───────────────────────────────────────────────────────────────
   const YD_MKTS = [['pass', 'Passing'], ['rush', 'Rushing'], ['rec', 'Receiving'], ['rr', 'Rush + Rec']];
   const YD_POS = { pass: [], rush: ['QB', 'RB'], rec: ['WR', 'TE', 'RB'], rr: ['RB', 'WR', 'TE'] };
+  const ydLeg = (r) => ({ k: `y${r.m}|${r.pid}|${r.L}`, n: r.name, t: r.team, g: plGame(r), m: 'y' + r.m,
+                          s: `Over ${r.L} ${(YD_MKTS.find(x => x[0] === r.m)?.[1] || '').toLowerCase()} yards`, p: r.p, i: r.pid });
   const ydF = { mkt: 'rec', pos: 'ALL', sort: 'high', view: 'cards', q: '', tab: 'board', open: false };
   function setYd(k, v) { ydF[k] = v; if (k === 'mkt') ydF.pos = 'ALL'; renderYards(); }
   window.setYd = setYd;
@@ -6765,17 +6900,17 @@ let pairStacks = false;
     let body;
     if (ydF.view === 'table') {
       body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Median</th><th class="num">Avg</th><th class="num">Last 3</th><th class="num">Line</th><th class="num">Over</th><th class="num">Under</th></tr></thead><tbody>${rows.map(r => `
-        <tr onclick="openYds('${r.pid}','${r.m}')"><td class="num dim">${r.rank}</td><td><b>${r.name}</b> <span class="dim">${r.pos}</span></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
+        <tr onclick="openYds('${r.pid}','${r.m}')"${plAttr(ydLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b> <span class="dim">${r.pos}</span></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
           <td class="num"><b>${r.med.toFixed(0)}</b></td><td class="num dim">${r.f.avg != null ? r.f.avg.toFixed(0) : '—'}</td><td class="num dim">${r.f.l3 != null ? r.f.l3.toFixed(0) : '—'}</td>
           <td class="num dim">o${r.L}</td><td class="num"><b class="${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</b></td><td class="num dim">${pbOdds(1 - r.p)}</td></tr>`).join('')}</tbody></table></div>`;
     } else if (ydF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
-        <div class="rc-crow" onclick="openYds('${r.pid}','${r.m}')"><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
+        <div class="rc-crow" onclick="openYds('${r.pid}','${r.m}')"${plAttr(ydLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${r.med.toFixed(0)}</span>
           <span class="rc-cod ${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
-        <div class="pb-card p-${r.pos}" onclick="openYds('${r.pid}','${r.m}')">
+        <div class="pb-card p-${r.pos}" onclick="openYds('${r.pid}','${r.m}')"${plAttr(ydLeg(r))}>
           <div class="pb-rank">${r.rank}</div>${faceHtml(r.pid, r.name)}
           <div class="pb-info">
             <div class="pb-nm">${r.name}${pos(r)}</div>
@@ -6928,6 +7063,25 @@ let pairStacks = false;
     };
   }
 
+  function ydmLeg() {
+    const r = ydRow(); if (!r) return null;
+    const L = ydm.line, p = ydPOver(r.m, L, r.mu, r.tq);
+    if (!(p > 0)) return null;
+    return { k: `y${r.m}|${r.pid}|${L}`, n: r.name, t: r.team, g: plGame(r), m: 'y' + r.m,
+             s: `Over ${L} ${(YD_MKTS.find(x => x[0] === r.m)?.[1] || '').toLowerCase()} yards`, p, i: r.pid };
+  }
+  function ydAddBtn() {
+    const leg = ydmLeg(); if (!leg) return '';
+    const on = PLY.legs.some(l => l.k === leg.k);
+    return `<button class="pl-add${on ? ' on' : ''}" onclick="ydAddLeg()">${on ? '✓ In your parlay' : `+ Add o${ydm.line} to parlay`}</button>`;
+  }
+  window.ydAddLeg = () => {
+    const leg = ydmLeg(); if (!leg) return;
+    if (!PLY.on) plMode(true);
+    plToggleLeg(leg);
+    const b = document.getElementById('yd-pl-add'); if (b) b.innerHTML = ydAddBtn();
+  };
+
   function ydRender() {
     const r = ydRow(); if (!r) return;
     const deck = ydRows(), at = deck.findIndex(x => x.pid === r.pid);
@@ -6955,6 +7109,7 @@ let pairStacks = false;
           <p class="ydl-help">Tap a line to see it on the chart. Fair odds, no vig.</p>
           <div class="ydl-head"><span>Line</span><span>Chance</span><span>Over</span><span>Under</span></div>
           <div class="ydl" id="ydm-ladder">${side.ladder}</div>
+          <div id="yd-pl-add">${ydAddBtn()}</div>
         </div></aside>
       </div>`;
     const pm = document.querySelector('#yd-back .ydm');
@@ -7005,7 +7160,7 @@ let pairStacks = false;
     const r = ydRow(); if (!r) return;
     const side = ydSide(r);
     const set = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
-    set('ydm-probs', side.probs); set('ydm-ladder', side.ladder); set('ydm-ladder-m', side.ladder);
+    set('ydm-probs', side.probs); set('ydm-ladder', side.ladder); set('ydm-ladder-m', side.ladder); set('yd-pl-add', ydAddBtn());
     ydCenterRung();
     const wrap = document.querySelector('#yd-back .ydc-wrap'); if (wrap) wrap.innerHTML = ydChart(r, ydDist(r));
   }
@@ -7185,6 +7340,30 @@ let pairStacks = false;
     };
   }
 
+  // The card prices every rung on the ladder, not just the board's default
+  // line, so it is the one place a parlay leg can be built at any number.
+  const LC_MKT = { rec: ['rec', 'receptions'], cmp: ['cmp', 'completions'], int: ['int', 'interceptions'],
+                   kfg: ['kfgm', 'field goals made'], kpat: ['kpatm', 'PATs made'], kpts: ['kpts', 'kicker points'] };
+  function lcLeg() {
+    const r = lcRow(); if (!r) return null;
+    const [m, unit] = LC_MKT[lc.kind] || [lc.kind, LC[lc.kind]?.unit || ''];
+    const L = lc.line, p = lc.kind === 'int' ? inP(r, L) : lcOver(lcPmf(r), L);
+    if (!(p > 0)) return null;
+    return { k: `${m}|${r.pid}|${L}`, n: r.name, t: r.team, g: plGame(r), m, s: `Over ${L} ${unit}`, p, i: r.pid };
+  }
+  function lcAddBtn() {
+    const leg = lcLeg(); if (!leg) return '';
+    const on = PLY.legs.some(l => l.k === leg.k);
+    return `<button class="pl-add${on ? ' on' : ''}" onclick="lcAddLeg()">${on ? '✓ In your parlay' : `+ Add o${lc.line} to parlay`}</button>`;
+  }
+  function lcAddLeg() {
+    const leg = lcLeg(); if (!leg) return;
+    if (!PLY.on) plMode(true);
+    plToggleLeg(leg);
+    const b = document.getElementById('lc-pl-add'); if (b) b.innerHTML = lcAddBtn();
+  }
+  window.lcAddLeg = lcAddLeg;
+
   // ── Interceptions: a 0-1-2 market, so no bar chart and no ladder ────────
   // Two things carry the information instead: where he sits among this week's
   // starters (prices only run ~40-62%, so the ranking is the story), and how
@@ -7283,6 +7462,7 @@ let pairStacks = false;
           <p class="ydl-help">Tap a line to see it on the chart. Fair odds, no vig.</p>
           <div class="ydl-head"><span>Line</span><span>Chance</span><span>Over</span><span>Under</span></div>
           <div class="ydl" id="lc-ladder">${side.ladder}</div>
+          <div id="lc-pl-add">${lcAddBtn()}</div>
         </div></aside>
       </div>
       <footer class="ydm-tip">${ydIco('bulb')}<span>${p10 != null && p90 != null && lc.kind !== 'int' ? `Most games land between about <b>${p10}</b> and <b>${p90}</b>. ` : ''}${cfg.tip(r)} Fair odds, no vig.</span></footer>`;
@@ -7312,6 +7492,7 @@ let pairStacks = false;
           <h4 class="accent">Prices</h4>
           <p class="ydl-help">Fair odds, no vig — a book prices worse.</p>
           ${intPrices(r)}
+          <div id="lc-pl-add">${lcAddBtn()}</div>
         </div></aside>
       </div>
       <footer class="ydm-tip">${ydIco('bulb')}<span>${cfg.tip(r)}</span></footer>`;
@@ -7329,6 +7510,7 @@ let pairStacks = false;
     const pmf = lcPmf(r), side = lcSide(r, pmf);
     const set = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
     set('lc-chart', lcChart(r, pmf)); set('lc-probs', side.probs); set('lc-ladder', side.ladder); set('lc-ladder-m', side.ladder);
+    set('lc-pl-add', lcAddBtn());
     lcCenter();
   }
   function openLc(kind, pid) {
@@ -7504,7 +7686,7 @@ let pairStacks = false;
 
     const meta = `<div class="pt-meta">${DUE_MIN_RZ}+ red-zone touches/g, no recent score · ordered by <b>workload</b>, not drought.</div>`;
     const cards = rows.slice(0, 40).map((r, i) => `
-      <div class="pb-card p-${r.pos}" onclick="openPick('${r.pid}')">
+      <div class="pb-card p-${r.pos}" onclick="openPick('${r.pid}')"${plAttr({ k: `td1|${r.pid}`, n: r.name, t: r.team, g: plGame(r), m: 'td1', s: 'Anytime TD', p: r.p, i: r.pid })}>
         <div class="pb-rank">${i + 1}</div>${faceHtml(r.pid, r.name)}
         <div class="pb-info">
           <div class="pb-nm">${r.name}${posBadge(r.pos)}</div>
@@ -7905,7 +8087,226 @@ let pairStacks = false;
     if (n) btn.insertAdjacentHTML('beforeend', `<span class="nav-new-badge">${n} NEW</span>`);
   }
   paintToolBadges();
+
+  // ── Parlay slip ───────────────────────────────────────────────────────────
+  // Every priced row on the site tags itself with plAttr({...}), a small JSON
+  // payload naming the bet. Parlay mode then works by interception: one
+  // capture-phase listener swallows the click before the row's own onclick can
+  // open a card, and adds the leg instead. No board knows the slip exists.
+  //
+  // The maths is deliberately the honest version. A parlay's fair price is the
+  // product of its legs ONLY if the legs are independent, which legs from the
+  // same game are not — so the slip multiplies, says so, and flags same-game
+  // legs rather than quietly pretending. The one case we have measured numbers
+  // for is a board full of anytime touchdowns (research/pair_correlation.py,
+  // shipped in data.json), and there the slip uses them.
+  const PL_KEY = 'nflParlay';
+  const PLY = { on: false, open: false, legs: [], boost: 0, book: '' };
+  const PL_BOOSTS = [0, 0.25, 0.5, 1];
+
+  const plEsc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  /** Attribute for a priced row. Keys are short because this ships on every row. */
+  const plAttr = (leg) => ` data-leg="${plEsc(JSON.stringify(leg))}"`;
+  /** Canonical away@home key, so two legs in the same game always collide. */
+  const plGame = (r) => r.home ? `${r.opp}@${r.team}` : `${r.team}@${r.opp}`;
+
+  const plDecAm = (d) => !(d > 1) ? '—' : d >= 2 ? '+' + Math.round((d - 1) * 100) : '-' + Math.round(100 / (d - 1));
+  /** "+1400", "1400" and "-110" all parse; anything else is null. */
+  function plAmDec(s) {
+    const v = parseFloat(String(s).replace(/[^0-9.+-]/g, ''));
+    if (!isFinite(v) || Math.abs(v) < 100) return null;
+    return v > 0 ? 1 + v / 100 : 1 + 100 / -v;
+  }
+
+  function plSave() {
+    try { localStorage.setItem(PL_KEY, JSON.stringify({ on: PLY.on, open: PLY.open, legs: PLY.legs, boost: PLY.boost })); } catch (e) {}
+  }
+  function plLoad() {
+    try {
+      const s = JSON.parse(localStorage.getItem(PL_KEY) || '{}');
+      if (Array.isArray(s.legs)) PLY.legs = s.legs.filter(l => l && l.k && l.p > 0);
+      PLY.on = !!s.on; PLY.open = !!s.open; PLY.boost = +s.boost || 0;
+    } catch (e) {}
+  }
+
+  /**
+   * What the slip is worth. Independent product by default; the measured
+   * touchdown correlation when every leg is an anytime touchdown and the whole
+   * group is on this week's Picks board (priceGroup returns null otherwise).
+   */
+  function plPrice() {
+    const legs = PLY.legs;
+    const naive = legs.reduce((a, l) => a * l.p, 1);
+    const games = {};
+    for (const l of legs) if (l.g) (games[l.g] ??= []).push(l);
+    const shared = Object.values(games).filter(v => v.length > 1);
+    const teams = {};
+    for (const l of legs) if (l.t) teams[l.t] = (teams[l.t] || 0) + 1;
+    const mates = Object.values(teams).some(n => n > 1);
+    const who = {};
+    for (const l of legs) if (l.i) (who[l.i] ??= []).push(l);
+    const samePlayer = Object.values(who).filter(v => v.length > 1).map(v => v[0].n);
+    let p = naive, corr = false;
+    if (legs.length > 1 && legs.every(l => l.m === 'td1' && l.i)) {
+      const g = priceGroup(legs.map(l => l.i));
+      if (g) { p = g.fair; corr = true; }
+    }
+    return { p, naive, corr, shared, mates, samePlayer };
+  }
+
+  function plMode(on) {
+    PLY.on = on;
+    if (!on) PLY.open = false;
+    document.body.classList.toggle('pl-mode', on);
+    plRender(); plPaint(); plSave();
+  }
+  function plToggleOpen(e) {
+    if (e && e.target.closest('.pl-x')) return;
+    PLY.open = !PLY.open;
+    document.getElementById('pl-slip').classList.toggle('open', PLY.open);
+    plRender(); plSave();
+  }
+  function plToggleLeg(leg) {
+    const i = PLY.legs.findIndex(l => l.k === leg.k);
+    if (i >= 0) PLY.legs.splice(i, 1);
+    else {
+      // Two lines in one player's market are not a parlay: over 7.5 and under
+      // 7.5 can never both land, and over 7.5 with over 8.5 is one bet priced
+      // twice. A new selection replaces the old one, like any bet slip.
+      const clash = PLY.legs.findIndex(l => l.i && l.i === leg.i && l.m === leg.m);
+      if (clash >= 0) PLY.legs.splice(clash, 1);
+      PLY.legs.push(leg);
+    }
+    if (PLY.legs.length === 1 && i < 0) PLY.open = true;
+    document.getElementById('pl-slip').classList.toggle('open', PLY.open);
+    plRender(); plPaint(); plSave();
+  }
+  function plRemove(k) {
+    PLY.legs = PLY.legs.filter(l => l.k !== k);
+    plRender(); plPaint(); plSave();
+  }
+  function plClear() { PLY.legs = []; plRender(); plPaint(); plSave(); }
+  function plSetBoost(v) { PLY.boost = +v || 0; plRender(); plSave(); }
+  function plCustomBoost(el) { PLY.boost = Math.max(0, Math.min(10, (parseFloat(el.value) || 0) / 100)); plRender(); plSave(); }
+  function plBook(el) { PLY.book = el.value; plRenderEv(); }
+
+  /** Mark selected rows, and show the button only where there is something to pick. */
+  function plPaint() {
+    const keys = new Set(PLY.legs.map(l => l.k));
+    for (const el of document.querySelectorAll('[data-leg]')) {
+      let k = el._plk;
+      if (k === undefined) { try { k = JSON.parse(el.dataset.leg).k; } catch (e) { k = null; } el._plk = k; }
+      el.classList.toggle('pl-pick', keys.has(k));
+    }
+    // Panels are hidden, not destroyed, so "is there anything to pick here"
+    // has to mean the visible one — otherwise the button follows you onto
+    // boards that price nothing.
+    document.body.classList.toggle('pl-has', !!document.querySelector('.panel.visible [data-leg]'));
+    const n = document.getElementById('pl-fab-n');
+    if (n) { n.hidden = !PLY.legs.length; n.textContent = PLY.legs.length; }
+  }
+
+  function plRenderEv() {
+    const out = document.getElementById('pl-ev-out'); if (!out) return;
+    const { p } = plPrice(), d = plAmDec(PLY.book);
+    if (!d || !(p > 0) || !PLY.legs.length) { out.textContent = ''; out.className = 'pl-ev-out'; return; }
+    const boosted = 1 + (d - 1) * (1 + PLY.boost);
+    const ev = p * boosted - 1;
+    out.textContent = `${plDecAm(boosted)} after the boost · ${ev >= 0 ? '+' : '−'}${Math.abs(ev * 100).toFixed(1)}% EV`;
+    out.className = 'pl-ev-out ' + (ev >= 0 ? 'good' : 'bad');
+  }
+
+  function plRender() {
+    const slip = document.getElementById('pl-slip'); if (!slip) return;
+    slip.classList.toggle('open', PLY.open);
+    const legs = PLY.legs, { p, naive, corr, shared, mates, samePlayer } = plPrice();
+    const hn = document.getElementById('pl-head-n'), ho = document.getElementById('pl-head-od');
+    hn.innerHTML = legs.length ? `${legs.length} leg${legs.length === 1 ? '' : 's'} <span>· fair</span>` : 'Parlay mode <span>· tap picks to add</span>';
+    ho.className = 'pl-head-od' + (legs.length ? '' : ' pl-none');
+    ho.textContent = legs.length ? pbOdds(p) : '0 legs';
+
+    const body = document.getElementById('pl-body');
+    if (!legs.length) {
+      body.innerHTML = `<div class="pl-empty">Tap any priced row to add it.<br>Legs from different tools combine — a touchdown, a kicker line and a yards line all go in the same slip.</div>`;
+      return;
+    }
+    const boostPct = Math.round(PLY.boost * 100);
+    const custom = !PL_BOOSTS.includes(PLY.boost);
+    // The number that actually decides a bet: with a boost, the worst book
+    // price that still beats fair. Boosts lift profit, not stake, so
+    // 1 + (d-1)(1+b) >= 1/p solves to this.
+    const need = 1 + (1 / p - 1) / (1 + PLY.boost);
+    body.innerHTML =
+      legs.map(l => `<div class="pl-leg">
+        <span class="pl-leg-nm">${l.n}</span>
+        <span class="pl-leg-sel">${l.s}${l.t ? ` · ${l.t}` : ''}</span>
+        <span class="pl-leg-od">${pbOdds(l.p)}</span>
+        <button class="pl-leg-x" onclick="plRemove('${l.k.replace(/'/g, "\\'")}')" aria-label="Remove">×</button>
+      </div>`).join('')
+      + `<div class="pl-lbl2">Profit boost</div>
+      <div class="pl-chips">
+        ${PL_BOOSTS.map(b => `<button class="pl-chip${!custom && PLY.boost === b ? ' on' : ''}" onclick="plSetBoost(${b})">${b ? Math.round(b * 100) + '%' : 'None'}</button>`).join('')}
+        <span class="pl-chip${custom ? ' on' : ''}"><input type="number" min="0" max="500" step="5" placeholder="custom" value="${custom ? boostPct : ''}" oninput="plCustomBoost(this)">%</span>
+      </div>
+      <div class="pl-nums">
+        <div class="pl-num acc"><b>${pbOdds(p)}</b><span>Fair odds</span></div>
+        <div class="pl-num"><b>${(p * 100).toFixed(p < 0.1 ? 2 : 1)}%</b><span>True chance</span></div>
+      </div>
+      <p class="pl-note">${PLY.boost
+        ? `With a <b>${boostPct}%</b> profit boost, take it at <b>${plDecAm(need)}</b> or better and you have the best of it.`
+        : `Anything longer than <b>${pbOdds(p)}</b> at your book beats fair.`}</p>
+      ${corr ? `<p class="pl-note">Priced with the measured touchdown correlation rather than by multiplying${mates ? ' — teammates compete for the same end-zone trips' : ''}. Straight multiplication says <b>${pbOdds(naive)}</b>.</p>` : ''}
+      ${samePlayer.length ? `<p class="pl-note pl-warn">Two markets on ${samePlayer.join(' and ')} — one player's lines move together, so multiplying them overstates the price.</p>` : ''}
+      ${!corr && shared.length ? `<p class="pl-note pl-warn">${shared.map(v => `${v.length} legs in ${v[0].g}`).join(', ')} — same-game legs aren't independent, so this is a multiplied estimate, not a fair same-game price.</p>` : ''}
+      <div class="pl-ev">
+        <label for="pl-book">Your book's price</label>
+        <input type="text" id="pl-book" inputmode="text" placeholder="+1400" value="${plEsc(PLY.book)}" oninput="plBook(this)">
+        <span class="pl-ev-out" id="pl-ev-out"></span>
+      </div>
+      <button class="pl-clear" onclick="plClear()">Clear all ${legs.length} legs</button>`;
+    plRenderEv();
+  }
+
+  function plInit() {
+    plLoad();
+    document.body.classList.toggle('pl-mode', PLY.on);
+    // Capture phase: the click has to die before it reaches the row's own
+    // onclick, which would open a card on top of the board.
+    document.addEventListener('click', (e) => {
+      if (!PLY.on) return;
+      const el = e.target.closest?.('[data-leg]');
+      if (!el) return;
+      e.preventDefault(); e.stopPropagation();
+      let leg; try { leg = JSON.parse(el.dataset.leg); } catch (err) { return; }
+      if (leg && leg.k && leg.p > 0) plToggleLeg(leg);
+    }, true);
+    // Boards re-render on every filter, search and tab change, so rather than
+    // teach each one to repaint, watch the tree they all write into.
+    let raf = 0;
+    new MutationObserver(() => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => { raf = 0; plPaint(); });
+    }).observe(document.querySelector('.wrap') || document.body, { childList: true, subtree: true });
+    plRender(); plPaint();
+  }
+  window.plMode = plMode; window.plToggleOpen = plToggleOpen; window.plRemove = plRemove;
+  window.plClear = plClear; window.plSetBoost = plSetBoost; window.plCustomBoost = plCustomBoost; window.plBook = plBook;
+
+  plInit();
 </script>
+  <button class="pl-fab" id="pl-fab" onclick="plMode(true)" aria-label="Build a parlay">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13.5H11l-1 8.5 8.5-11.5H12l1-8.5z"/></svg>
+    Parlay<span class="pl-fab-n" id="pl-fab-n" hidden></span>
+  </button>
+  <div class="pl-slip" id="pl-slip">
+    <div class="pl-head" onclick="plToggleOpen(event)">
+      <span class="pl-head-n" id="pl-head-n">Parlay mode <span>· tap picks to add</span></span>
+      <span class="pl-head-od pl-none" id="pl-head-od">0 legs</span>
+      <svg class="pl-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
+      <button class="pl-x" onclick="plMode(false)" aria-label="Exit parlay mode">×</button>
+    </div>
+    <div class="pl-body" id="pl-body"></div>
+  </div>
   <footer class="site-foot">
     <span class="foot-data">NFL · <span id="eyebrow-season">2026</span> · <span id="status-badge" class="status-badge fetching">Loading</span></span>
     <span class="foot-credit">A touchdown tool inspired by Green Means Go
