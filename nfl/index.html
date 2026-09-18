@@ -2779,6 +2779,10 @@
   /* On a phone the slip has to clear the floating bottom nav, and the FAB sits
      above it too — both anchor off the same measured bar height the nav uses. */
   @media (max-width: 600px) {
+    /* The gutter costs 34px of a 320px row, which is enough to wrap a name
+       onto two lines — narrow it rather than let the card come apart. */
+    body.pl-mode div[data-leg] { padding-left: 1.75rem; }
+    body.pl-mode [data-leg]::after { left: 0.4rem; width: 15px; height: 15px; }
     .pl-slip { bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.5rem); left: var(--nav-side); right: var(--nav-side); transform: none; width: auto; }
     .pl-fab { bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.6rem); right: var(--nav-side); }
     .pl-body { max-height: 46vh; }
@@ -8177,7 +8181,10 @@ let pairStacks = false;
       if (clash >= 0) PLY.legs.splice(clash, 1);
       PLY.legs.push(leg);
     }
-    if (PLY.legs.length === 1 && i < 0) PLY.open = true;
+    // Opening the slip on the first leg shows the boost controls exist, but on
+    // a phone the expanded sheet covers the board you are picking from — so
+    // there it stays collapsed and the header carries the price.
+    if (PLY.legs.length === 1 && i < 0 && window.innerWidth > 600) PLY.open = true;
     document.getElementById('pl-slip').classList.toggle('open', PLY.open);
     plRender(); plPaint(); plSave();
   }

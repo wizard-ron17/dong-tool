@@ -1267,6 +1267,37 @@
   .pv-caret { color: var(--muted); font-size: 0.754rem; transition: transform 0.18s; flex-shrink: 0; margin-left: 0.15rem; }
   .pv-card.open .pv-caret { transform: rotate(90deg); color: var(--accent); }
   .pv-status { font-size: 0.630rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); background: var(--surface0); border-radius: 4px; padding: 0.06rem 0.28rem; }
+  /* Facts chips, the way the NFL boards carry them: the two or three numbers
+     behind the price, inline before it on a desktop and dropped on a phone
+     where the price and the matchup are all that fit. */
+  .pv-facts { display: flex; gap: 0.3rem; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
+  .pv-f { font-family: var(--font-m); font-size: 0.692rem; color: var(--silver); background: var(--surface2);
+          border: 1px solid var(--border); border-radius: 5px; padding: 0.1rem 0.34rem; white-space: nowrap; }
+  .pv-f b { color: var(--text-strong); font-weight: 700; }
+  .pv-score .goodc { color: var(--good); font-size: 1.45rem; }
+  .pv-score .dogc { color: var(--silver); font-size: 1.45rem; }
+  .pv-score .pv-juice-lbl { text-transform: none; letter-spacing: 0.02em; font-family: var(--font-m); color: var(--dim); }
+  /* Narrow screens: the price and who is pitching are what fit. The venue,
+     the projection half of the price label and some of the photo go first —
+     in parlay mode the checkbox gutter costs another 34px, which is what
+     broke this row before. */
+  @media (max-width: 620px) {
+    .pv-score .goodc, .pv-score .dogc { font-size: 1.28rem; }
+    .pv-venue, .pv-lbl-x { display: none; }
+    .pv-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pv-score { max-width: 45%; }
+    .pv-juice-lbl { white-space: nowrap; }
+  }
+  @media (max-width: 600px) {
+    body.pl-mode div[data-leg] { padding-left: 1.75rem; }
+    body.pl-mode [data-leg]::after { left: 0.4rem; width: 15px; height: 15px; }
+  }
+  @media (max-width: 400px) {
+    .pv-main { gap: 0.4rem; }
+    .pv-main .mu-photo { width: 34px; height: 34px; }
+    .pv-brank { min-width: 0.9rem; }
+  }
+  @media (max-width: 620px) { .pv-facts { display: none; } }
   .pv-metrics { display: flex; flex-wrap: wrap; gap: 0.3rem 0.5rem; margin-top: 0.5rem; padding-left: 0.1rem; }
   .pv-mtr { display: inline-flex; align-items: baseline; gap: 0.25rem; font-size: 0.717rem; }
   .pv-mtr-lbl { color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.642rem; font-weight: 700; }
@@ -1616,13 +1647,6 @@
     background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2304210f' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12.5l5.5 5.5L20 6.5'/%3E%3C/svg%3E") center / 11px no-repeat; }
   body.pl-mode div[data-leg].pl-pick { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
   body.pl-mode tr[data-leg].pl-pick td { background: rgba(51,208,124,0.09); }
-
-  /* Small price chips (the pitcher boards quote an over and an under side by
-     side) get the selected state without the checkbox — a 17px box inside a
-     60px chip is all box. */
-  body.pl-mode .pl-inline::after { content: none; }
-  body.pl-mode .pl-inline { padding-left: 0; border-radius: 7px; box-shadow: inset 0 0 0 1px var(--border2); }
-  body.pl-mode .pl-inline.pl-pick { box-shadow: inset 0 0 0 1.5px var(--accent); background: rgba(51,208,124,0.14); }
 
   /* the slip */
   .pl-slip { position: fixed; left: 50%; transform: translateX(-50%); bottom: 1rem; z-index: 232; width: min(440px, calc(100vw - 1.5rem));
@@ -2466,6 +2490,7 @@ let ppView = 'pitcher';  // Pitcher Ks/Walks scope: 'pitcher' (rank arms) | 'bat
 // coherence call rather than an accuracy one. Rate stays one tap away: it
 // answers a different question — how wild is the SPOT, regardless of workload.
 let ppSort = 'proj';     // 'proj' (odds) | 'exp' (rate)
+let ppSide = 'over';     // which side of the line the board quotes and adds to a parlay
 // How deep the Results tab grades. Mirrors KBB_TOP in scripts/build-data.js —
 // if that changes this has to, or the board's marker lies about what's logged.
 const PP_TRACKED = 8;
@@ -7888,6 +7913,7 @@ function renderPitcherVuln() {
 // small samples are lightly regressed toward league. Shares Pitcher Vuln's card CSS.
 function ppToggle(pid) { ppOpenPid = (ppOpenPid === pid) ? null : pid; if (activeNav === 'pitcherks') renderPitcherKs(); else renderPitcherWalks(); }
 function ppSetSort(v) { ppSort = v; ppOpenPid = null; if (activeNav === 'pitcherks') renderPitcherKs(); else renderPitcherWalks(); }
+function ppSetSide(v) { ppSide = v; if (activeNav === 'pitcherks') renderPitcherKs(); else renderPitcherWalks(); }
 function ppSetView(v) { ppView = v; ppOpenPid = null; if (activeNav === 'pitcherks') renderPitcherKs(); else renderPitcherWalks(); }
 function renderPitcherKs() { renderPitcherProp('k'); }
 function renderPitcherWalks() { renderPitcherProp('bb'); }
@@ -7905,6 +7931,13 @@ function renderPitcherWalks() { renderPitcherProp('bb'); }
 // exactly, so the middle of the board looks unchanged.
 const kbbNeeds = proj => { const n = Math.max(1, Math.floor(proj)); return [n, n + 1]; };
 const KBB_TIERS = ['low', 'high'];
+// Which of the two graded rungs to lead with: the one priced nearest even
+// money, the way every NFL board picks its line. Quoting a -450 favourite as
+// the headline told you nothing — the number worth reading is the one the
+// projection actually sits on. Restricted to the rungs Results grades, so the
+// board and the history can never drift apart.
+const ppEven = (proj) => kbbNeeds(proj).reduce((best, n) =>
+  Math.abs(kbbWinProb(proj, n) - 0.5) < Math.abs(kbbWinProb(proj, best) - 0.5) ? n : best);
 // Books only post half numbers, so a push cannot happen: "Over 1.5" is cleared
 // by 2. (An earlier version graded act > proj, which made a 2.1 projection need
 // 3 and called an exact 2.0 a push — both wrong.)
@@ -8199,12 +8232,16 @@ function renderPitcherProp(kind) {
   </div>${ppView === 'pitcher' ? `<div class="view-switch">
     <button class="view-btn${ppSort === 'proj' ? ' active' : ''}" onclick="ppSetSort('proj')" title="Order by projected ${lbl} — the number the prices are built from">Odds</button>
     <button class="view-btn${ppSort === 'exp' ? ' active' : ''}" onclick="ppSetSort('exp')" title="Order by Exp ${lbl}% — how wild the spot is, regardless of how deep he goes">Rate</button>
+  </div>` : ''}${ppView === 'pitcher' ? `<div class="view-switch">
+    <button class="view-btn${ppSide === 'over' ? ' active' : ''}" onclick="ppSetSide('over')" title="Quote and add the over">Over</button>
+    <button class="view-btn${ppSide === 'under' ? ' active' : ''}" onclick="ppSetSide('under')" title="Quote and add the under">Under</button>
   </div>` : ''}</div>`;
   if (ppView === 'batter') { el.innerHTML = toggle + ppBatterBoard(isK, lg, K0, log5, lbl, word); return; }
   if (!rows.length) { el.innerHTML = toggle + '<div class="empty">No probable starters with data posted yet — check back closer to game time.</div>'; return; }
   const meta = `<div class="pt-meta">Today's starters by <b>${ppSort === 'proj' ? `~Proj ${lbl}` : `Exp ${lbl}%`}</b>${ppSort === 'proj'
       ? ` — the projected count for his start, which is what the prices are built from.`
       : ` — a log5 blend of the pitcher's ${lbl}% and the opponent lineup's ${word} rate vs league, ignoring how deep he goes.`}
+    Each arm is quoted at <b>his own line</b> — whichever graded rung sits nearest even money — so the price you read is the one worth reading.
     Ranked <b>1-${rows.length}</b>; the <b>Results</b> tab grades the top <b>${PP_TRACKED}</b>, marked below. The ordering keeps
     working past that line — ranks 9-12 still ${isK ? 'strike out' : 'walk'} more than 13+ — it just isn't what we log.</div>`;
   const cards = rows.map((r, i) => {
@@ -8231,37 +8268,50 @@ function renderPitcherProp(kind) {
         </div>`).join('') : `<div class="pv-bat-empty">No lineup posted yet — check back closer to game time.</div>`}
       </div>`;
     }
+    // His own line: the graded rung nearest even money, quoted on the side the
+    // board is set to. That price is the card's headline when the board is
+    // ordered by odds, and the whole card is the parlay leg — a row-sized
+    // checkbox rather than a price you have to hit.
+    const unit = isK ? 'strikeouts' : 'walks', over = ppSide === 'over';
+    const need = r.proj == null ? null : ppEven(r.proj);
+    const L = need == null ? null : need - 0.5;
+    const pOver = need == null ? null : kbbWinProb(r.proj, need);
+    const p = pOver == null ? null : (over ? pOver : 1 - pOver);
+    const alt = r.proj == null ? null : kbbNeeds(r.proj).find(n => n !== need);
+    const pAlt = alt == null ? null : (() => { const q = kbbWinProb(r.proj, alt); return over ? q : 1 - q; })();
+    const leg = p == null ? '' : plAttr({ k: `p${lbl}|${r.pid}|${L}|${over ? 'o' : 'u'}`, n: compactPlayerName(r.name),
+      t: r.team, g: [r.team, r.oppTeam].sort().join(' vs '), m: `p${lbl}`,
+      s: `${over ? 'Over' : 'Under'} ${L} ${unit}`, p, i: r.pid });
+    const byOdds = ppSort === 'proj' && p != null;
+    const priceTip = `On a ${r.proj?.toFixed(1)} projection: ${((pOver ?? 0) * 100).toFixed(0)}% to reach ${need}+ ${lbl}, `
+      + `${((1 - (pOver ?? 0)) * 100).toFixed(0)}% to stay under. Fair odds, no vig — a book prices worse on both sides.`;
     return `${i === PP_TRACKED ? `<div class="pp-cut"><span>tracked set ends — ${PP_TRACKED} deep is what Results grades</span></div>` : ''}
-    <div class="pv-card${open ? ' open' : ''}" onclick="ppToggle('${r.pid}')">
+    <div class="pv-card${open ? ' open' : ''}" onclick="ppToggle('${r.pid}')"${leg}>
       <div class="pv-main">
         <span class="pv-brank${i < PP_TRACKED ? ' on' : ''}">${i + 1}</span>
         ${muPhotoTag(r.pid, r.team)}
         <div class="pv-id">
           <div class="pv-name">${compactPlayerName(r.name)} ${hand}${statusChip}</div>
-          <div class="pv-sub">${teamLogoImg(r.team, 'team-logo')}${r.team} vs ${r.oppTeam}${r.venue ? ` · ${r.venue}` : ''}</div>
+          <div class="pv-sub">${teamLogoImg(r.team, 'team-logo')}${r.team} vs ${r.oppTeam}${r.venue ? `<span class="pv-venue"> · ${r.venue}</span>` : ''}</div>
+        </div>
+        <div class="pv-facts">
+          ${r.proj == null ? '' : `<span class="pv-f" title="Projected ${word}s for his start — every price is built from this one number"><b>${r.proj.toFixed(1)}</b> proj</span>`}
+          <span class="pv-f" title="His own ${lbl}% this season, before the matchup"><b>${(r.raw * 100).toFixed(1)}%</b> his ${lbl}%</span>
+          <span class="pv-f" title="The lineup he faces — their ${word} rate, against a ${(lg * 100).toFixed(1)}% league average"><b>${(r.tRate * 100).toFixed(1)}%</b> ${r.oppTeam} ${lbl}%</span>
         </div>
         <div class="pv-score">
-          <span class="pv-juice hrg-val ${cls}">${(r.exp * 100).toFixed(1)}%</span>
-          <span class="pv-juice-lbl">Exp ${lbl}%</span>
+          ${byOdds
+            ? `<span class="pv-juice ${p < 0.5 ? 'dogc' : 'goodc'}" title="${priceTip}">${kbbOdds(p)}</span>
+               <span class="pv-juice-lbl">${over ? 'over' : 'under'} ${L}<span class="pv-lbl-x"> · proj ${r.proj.toFixed(1)}</span></span>`
+            : `<span class="pv-juice hrg-val ${cls}">${(r.exp * 100).toFixed(1)}%</span>
+               <span class="pv-juice-lbl">Exp ${lbl}%${p == null ? '' : ` · ${kbbOdds(p)} ${over ? 'o' : 'u'}${L}`}</span>`}
         </div>
         <span class="pv-caret">▶</span>
       </div>
       <div class="pv-metrics">
-        ${mtr(`~Proj ${lbl}`, r.proj != null ? r.proj.toFixed(1) : '—')}
-        ${r.proj == null ? '' : kbbNeeds(r.proj).map(need => {
-          const p = kbbWinProb(r.proj, need);
-          const tip = `On a ${r.proj.toFixed(1)} projection: ${(p * 100).toFixed(0)}% to reach ${need}+ ${lbl}, `
-            + `${((1 - p) * 100).toFixed(0)}% to stay under. Fair odds, no vig — a book prices worse on both sides.`;
-          // Both sides are their own bet, so both are their own parlay leg.
-          const L = need - 0.5, unit = isK ? 'strikeouts' : 'walks';
-          const g = [r.team, r.oppTeam].sort().join(' vs ');
-          const side = (over) => plAttr({ k: `p${lbl}|${r.pid}|${L}|${over ? 'o' : 'u'}`, n: compactPlayerName(r.name), t: r.team, g,
-                                          m: `p${lbl}`, s: `${over ? 'Over' : 'Under'} ${L} ${unit}`, p: over ? p : 1 - p, i: r.pid });
-          return mtr(`O/U ${L}`,
-            `<span class="pv-ou" title="${tip}"><span class="pv-price pl-inline"${side(true)}>${kbbOdds(p)}</span><span class="pv-ou-sep">/</span><span class="pv-price under pl-inline"${side(false)}>${kbbOdds(1 - p)}</span></span>`);
-        }).join('')}
-        ${mtr(`Pitcher ${lbl}%`, `${(r.raw * 100).toFixed(1)}%`)}
-        ${mtr(`${r.oppTeam} ${lbl}%`, `${(r.tRate * 100).toFixed(1)}%`)}
+        ${byOdds ? mtr(`Exp ${lbl}%`, `${(r.exp * 100).toFixed(1)}%`) : mtr(`~Proj ${lbl}`, r.proj != null ? r.proj.toFixed(1) : '—')}
+        ${p == null ? '' : mtr(`${over ? 'Under' : 'Over'} ${L}`, `<span class="pv-price${over ? ' under' : ''}">${kbbOdds(1 - p)}</span>`)}
+        ${pAlt == null ? '' : mtr(`${over ? 'Over' : 'Under'} ${alt - 0.5}`, `<span class="pv-price${over ? '' : ' under'}">${kbbOdds(pAlt)}</span>`)}
         ${mtr('Lg', `${(lg * 100).toFixed(1)}%`)}
       </div>
       ${drill}
@@ -8918,7 +8968,10 @@ function plToggleLeg(leg) {
     if (clash >= 0) PLY.legs.splice(clash, 1);
     PLY.legs.push(leg);
   }
-  if (PLY.legs.length === 1 && i < 0) PLY.open = true;
+  // Opening the slip on the first leg shows the boost controls exist, but on
+  // a phone the expanded sheet covers the board you are picking from — so
+  // there it stays collapsed and the header carries the price.
+  if (PLY.legs.length === 1 && i < 0 && window.innerWidth > 600) PLY.open = true;
   document.getElementById('pl-slip').classList.toggle('open', PLY.open);
   plRender(); plPaint(); plSave();
 }
