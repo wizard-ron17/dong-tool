@@ -1602,6 +1602,12 @@
      and the max-width keeps it inside the screen even on the narrowest phone. */
   .sport-menu { position: absolute; top: calc(100% + 8px); right: 0; left: auto; z-index: 260; min-width: 230px; max-width: calc(100vw - 1.5rem); background: var(--surface0); border: 1px solid var(--border2); border-radius: 14px; padding: 0.4rem; box-shadow: 0 18px 48px rgba(0,0,0,0.55); display: none; }
   .sport-menu.open { display: block; animation: sportMenuIn 0.14s ease; }
+  /* The header redesign moved the switch from the right edge to just after the
+     title, which left the right-anchored menu hanging off the LEFT of a phone.
+     On a phone it spans the screen instead, so neither edge can overflow. */
+  @media (max-width: 600px) {
+    .sport-menu { position: fixed; top: auto; left: 0.75rem; right: 0.75rem; min-width: 0; max-width: none; width: auto; }
+  }
   @keyframes sportMenuIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
   .sport-item { display: flex; align-items: center; gap: 0.65rem; padding: 0.55rem 0.6rem; border-radius: 10px; text-decoration: none; color: var(--text); min-width: 0; }
   .sport-item .sport-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1627,9 +1633,10 @@
             cursor: pointer; box-shadow: 0 8px 26px rgba(0,0,0,0.45); transition: transform 0.12s ease, filter 0.15s; }
   .pl-fab:hover { transform: translateY(-1px); filter: brightness(1.06); }
   .pl-fab svg { width: 16px; height: 16px; }
-  .pl-fab .pl-fab-n { background: rgba(0,0,0,0.22); border-radius: 999px; padding: 0.05rem 0.4rem; font-size: 0.75rem; }
   body.pl-has .pl-fab { display: inline-flex; }
-  body.pl-mode .pl-fab { display: none; }
+  /* Once the slip holds anything it stays on screen as the mini-bar — a button
+     that only counts your legs tells you nothing and hides the price. */
+  body.pl-mode .pl-fab, body.pl-legs .pl-fab { display: none; }
 
   /* the row selector */
   body.pl-mode [data-leg] { position: relative; cursor: pointer; }
@@ -1652,8 +1659,14 @@
   .pl-slip { position: fixed; left: 50%; transform: translateX(-50%); bottom: 1rem; z-index: 232; width: min(440px, calc(100vw - 1.5rem));
              background: var(--surface1); border: 1px solid var(--border2); border-radius: 18px; box-shadow: 0 14px 44px rgba(0,0,0,0.55);
              display: none; overflow: hidden; }
-  body.pl-mode .pl-slip { display: block; }
+  body.pl-mode .pl-slip, body.pl-legs .pl-slip { display: block; }
   .pl-head { display: flex; align-items: center; gap: 0.6rem; padding: 0.62rem 0.7rem 0.62rem 0.85rem; cursor: pointer; }
+  .pl-mode-btn { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+                 border-radius: 999px; border: 1px solid var(--border2); background: var(--surface0); color: var(--dim); cursor: pointer; padding: 0;
+                 transition: background 0.14s, color 0.14s, border-color 0.14s; }
+  .pl-mode-btn svg { width: 14px; height: 14px; }
+  .pl-mode-btn.on { background: var(--accent); border-color: var(--accent); color: #04210f; }
+  body.pl-legs:not(.pl-mode) .pl-mode-btn { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
   .pl-head-n { font-family: var(--font-d); font-size: 0.83rem; font-weight: 700; color: var(--text-strong); }
   .pl-head-n span { color: var(--dim); font-weight: 600; }
   .pl-head-od { margin-left: auto; font-family: var(--font-d); font-size: 1.12rem; font-weight: 700; color: var(--accent); }
@@ -1697,8 +1710,13 @@
   .pl-ev-out { font-family: var(--font-d); font-weight: 700; }
   .pl-ev-out.good { color: var(--good); }
   .pl-ev-out.bad { color: var(--bad); }
-  .pl-clear { background: none; border: none; color: var(--dim); font-size: 0.692rem; text-decoration: underline; cursor: pointer; padding: 0; margin-top: 0.6rem; }
-  .pl-clear:hover { color: var(--bad); }
+  .pl-legs-hd { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.1rem; }
+  .pl-legs-hd .pl-lbl2 { margin: 0; }
+  .pl-clear { display: inline-flex; align-items: center; gap: 0.25rem; background: none; border: 1px solid transparent; border-radius: 999px;
+              color: var(--bad); font-family: var(--font-b); font-size: 0.667rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+              cursor: pointer; padding: 0.14rem 0.45rem; transition: background 0.14s, border-color 0.14s; }
+  .pl-clear:hover { background: color-mix(in srgb, var(--bad) 13%, transparent); border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
+  .pl-clear svg { width: 11px; height: 11px; }
   .pl-add { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--surface1); border: 1px solid var(--border2); color: var(--muted);
             font-family: var(--font-b); font-size: 0.754rem; font-weight: 700; padding: 0.38rem 0.8rem; border-radius: 999px; cursor: pointer;
             transition: background 0.12s, color 0.12s, border-color 0.12s; }
@@ -8984,7 +9002,7 @@ function plMode(on) {
   plRender(); plPaint(); plSave();
 }
 function plToggleOpen(e) {
-  if (e && e.target.closest('.pl-x')) return;
+  if (e && e.target.closest('.pl-x, .pl-mode-btn')) return;
   PLY.open = !PLY.open;
   document.getElementById('pl-slip').classList.toggle('open', PLY.open);
   plRender(); plSave();
@@ -9029,8 +9047,6 @@ function plPaint() {
   // has to mean the visible one — otherwise the button follows you onto
   // boards that price nothing.
   document.body.classList.toggle('pl-has', !!document.querySelector('.panel.visible [data-leg]'));
-  const n = document.getElementById('pl-fab-n');
-  if (n) { n.hidden = !PLY.legs.length; n.textContent = PLY.legs.length; }
 }
 
 function plRenderEv() {
@@ -9046,9 +9062,13 @@ function plRenderEv() {
 function plRender() {
   const slip = document.getElementById('pl-slip'); if (!slip) return;
   slip.classList.toggle('open', PLY.open);
+  document.body.classList.toggle('pl-legs', PLY.legs.length > 0);
+  document.getElementById('pl-mode-btn')?.classList.toggle('on', PLY.on);
   const legs = PLY.legs, { p, naive, corr, shared, mates, samePlayer } = plPrice();
   const hn = document.getElementById('pl-head-n'), ho = document.getElementById('pl-head-od');
-  hn.innerHTML = legs.length ? `${legs.length} leg${legs.length === 1 ? '' : 's'} <span>· fair</span>` : 'Parlay mode <span>· tap picks to add</span>';
+  hn.innerHTML = legs.length
+    ? `${legs.length} leg${legs.length === 1 ? '' : 's'} <span>· ${PLY.on ? 'fair' : 'selection off'}</span>`
+    : 'Parlay mode <span>· tap picks to add</span>';
   ho.className = 'pl-head-od' + (legs.length ? '' : ' pl-none');
   ho.textContent = legs.length ? kbbOdds(p) : '0 legs';
 
@@ -9065,7 +9085,8 @@ function plRender() {
   // 1 + (d-1)(1+b) >= 1/p solves to this.
   const need = 1 + (1 / p - 1) / (1 + PLY.boost);
   body.innerHTML =
-    legs.map(l => `<div class="pl-leg">
+    `<div class="pl-legs-hd"><span class="pl-lbl2">${legs.length} leg${legs.length === 1 ? '' : 's'}</span><button class="pl-clear" onclick="plClear()" title="Remove every leg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg> Clear all</button></div>`
+    + legs.map(l => `<div class="pl-leg">
       <span class="pl-leg-nm">${mixed ? `<span class="pl-sp">${PL_SPORT_LBL[l.sp] || ''}</span>` : ''}${l.n}</span>
       <span class="pl-leg-sel">${l.s}${l.t ? ` · ${l.t}` : ''}</span>
       <span class="pl-leg-od">${kbbOdds(l.p)}</span>
@@ -9091,7 +9112,7 @@ function plRender() {
       <input type="text" id="pl-book" inputmode="text" placeholder="+1400" value="${plEsc(PLY.book)}" oninput="plBook(this)">
       <span class="pl-ev-out" id="pl-ev-out"></span>
     </div>
-    <button class="pl-clear" onclick="plClear()">Clear all ${legs.length} legs</button>`;
+    `;
   plRenderEv();
 }
 
@@ -9128,10 +9149,11 @@ else plInit();
 </script>
 <button class="pl-fab" id="pl-fab" onclick="plMode(true)" aria-label="Build a parlay">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13.5H11l-1 8.5 8.5-11.5H12l1-8.5z"/></svg>
-  Parlay<span class="pl-fab-n" id="pl-fab-n" hidden></span>
+  Parlay
 </button>
 <div class="pl-slip" id="pl-slip">
   <div class="pl-head" onclick="plToggleOpen(event)">
+    <button class="pl-mode-btn" id="pl-mode-btn" onclick="plMode(!PLY.on)" aria-label="Select picks" title="Tap rows on the board to add them"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13.5H11l-1 8.5 8.5-11.5H12l1-8.5z"/></svg></button>
     <span class="pl-head-n" id="pl-head-n">Parlay mode <span>· tap prices to add</span></span>
     <span class="pl-head-od pl-none" id="pl-head-od">0 legs</span>
     <svg class="pl-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
