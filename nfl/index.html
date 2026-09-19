@@ -1953,6 +1953,12 @@
              transition: background 0.12s, color 0.12s; }
   .plw-add:hover { background: var(--surface2); color: var(--text); }
   .plw-add.on { color: var(--accent); }
+  .plw-res { flex: 0 0 3.8rem; display: flex; align-items: center; justify-content: center;
+             border-left: 1px solid var(--border); padding: 0 0.2rem; }
+  .plw-res .lv-chip { margin: 0; }
+  .plw-dash { color: var(--dim); font-family: var(--font-m); font-size: 0.8rem; }
+  .plw.done .plw-hd-add, .plw.done .plw-res { flex-basis: 5.2rem; }
+  .plw-note { margin: 0.55rem 0 0; font-size: 0.72rem; line-height: 1.5; color: var(--dim); }
   .plt-short { display: none; }
   @media (max-width: 560px) {
     .plw-go { grid-template-columns: minmax(0, 1fr) 2.7rem 4rem; padding-left: 0.6rem; }
@@ -2017,10 +2023,17 @@
     .plw-go { grid-template-columns: minmax(0, 1fr) 3.5rem; grid-template-areas: "m o" "l o";
               row-gap: 0.05rem; column-gap: 0.35rem; padding-left: 0.55rem; }
     .plw-mkt { font-size: 0.81rem; }
+    .plw-mkt .plt-long { display: none; }
+    .plw-mkt .plt-short { display: inline; }
     .plw-mkt { grid-area: m; }
     .plw-line { grid-area: l; text-align: left; min-height: 0.9rem; }
     .plw-od { grid-area: o; align-self: center; }
     .plw-add, .plw-hd-add { flex-basis: 3.3rem; width: 3.3rem; }
+    /* the result column is wider than the + it replaces, so the graded state
+       claws the space back from the odds column and the chip's own type */
+    .plw.done .plw-hd-add, .plw.done .plw-res { flex-basis: 4rem; width: 4rem; }
+    .plw.done .plw-go { grid-template-columns: minmax(0, 1fr) 3.2rem; }
+    .plw-res .lv-chip { font-size: 0.6rem; padding: 0.1rem 0.28rem; }
     .plw-hd { padding-left: 0.55rem; }
   }
   .tf-logo { opacity: 0; pointer-events: none; } .tf-logo.show { opacity: 0.28; }
@@ -6035,21 +6048,34 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
   // market, so the destination is this: every line we hang on him, each one a
   // leg you can add here or a door into that tool's full card.
   const PLW_YD = { pass: 'Passing yards', rush: 'Rushing yards', rec: 'Receiving yards', rr: 'Rush + rec yards' };
+  // "yards" is four characters too many at 320px; the stylesheet swaps these in
+  const PLW_SHORT = { 'Passing yards': 'Passing yds', 'Rushing yards': 'Rushing yds',
+                      'Receiving yards': 'Receiving yds', 'Rush + rec yards': 'Rush + rec yds',
+                      'Interceptions': 'INTs' };
+  /** pre | live | final for one game, from the live layer, else the scoreline. */
+  function plGameState(gameId) {
+    const W = nflData?.liveWeek, g = W?.games?.[gameId];
+    if (g && W.week === nflData.picks?.week) return g.live ? 'live' : g.final ? 'final' : 'pre';
+    const sg = (nflData?.schedule || []).find(x => x.gameId === gameId);
+    return sg && sg.homeScore != null ? 'final' : 'pre';
+  }
   function plWeek(pid) {
     const rows = [];
-    let who = null;
-    const see = (r) => { if (!who && r) who = { name: r.name, pos: r.pos, team: r.team, opp: r.opp, home: r.home }; return r; };
-    const add = (lab, line, p, open, leg) => { if (p > 0 && p < 1) rows.push({ lab, line, p, open, leg }); };
+    let who = null, gameId = null;
+    const see = (r) => { if (!who && r) { who = { name: r.name, pos: r.pos, team: r.team, opp: r.opp, home: r.home }; gameId = r.gameId; } return r; };
+    // The board carries the whole week, played games included, so a market has
+    // to say whether it is still a bet or already a result.
+    const add = (lab, line, p, open, leg, res) => { if (p > 0 && p < 1) rows.push({ lab, line, p, open, leg, res: res || '' }); };
 
     const raw = (nflData?.picks?.picks || []).find(x => x.pid === pid);
     if (raw) {
       const r = see(pbEnrich(raw, pbGameMap()));
       const base = { n: r.name, t: r.team, g: parGame(r), i: pid };
-      for (const [m, lab, p, line] of [['td1', 'Anytime TD', r.p, ''], ['td2', '2+ TD', r.p2, ''],
-                                       ['tdf', 'First TD', r.pFirst, ''], ['tdl', 'Last TD', r.pLast, ''],
-                                       ['ptd', 'Passing TD', r.pPass, 'o1.5']])
+      for (const [m, lab, p, line, kind] of [['td1', 'Anytime TD', r.p, '', '1'], ['td2', '2+ TD', r.p2, '', '2'],
+                                             ['tdf', 'First TD', r.pFirst, '', '3'], ['tdl', 'Last TD', r.pLast, '', '4'],
+                                             ['ptd', 'Passing TD', r.pPass, 'o1.5', '5']])
         add(lab, line, p, `openPick('${pid}')`,
-            { ...base, k: `${m}|${pid}`, m, s: m === 'ptd' ? 'Over 1.5 pass TD' : lab, p });
+            { ...base, k: `${m}|${pid}`, m, s: m === 'ptd' ? 'Over 1.5 pass TD' : lab, p }, liveChip(kind, r, 1.5));
     }
     for (const m of ['pass', 'rush', 'rec', 'rr']) {
       const r = (nflData?.yards?.[m] || []).find(x => x.pid === pid);
@@ -6058,71 +6084,87 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
       const L = ydPick(r, m), p = ydPOver(r.m, L, r.mu, r.tq);
       add(PLW_YD[m], 'o' + L, p, `openYds('${pid}','${m}')`,
           { k: `y${m}|${pid}|${L}`, n: r.name, t: r.team, g: parGame(r), m: 'y' + m,
-            s: `Over ${L} ${PLW_YD[m].toLowerCase()}`, p, i: pid });
+            s: `Over ${L} ${PLW_YD[m].toLowerCase()}`, p, i: pid }, liveChip('yds', r, L));
     }
     const rc = (nflData?.receptions || []).find(x => x.pid === pid);
     if (rc) {
       see(rc);
       const { L, p } = rcPick(rc);
       add('Receptions', 'o' + L, p, `openRec('${pid}')`,
-          { k: `rec|${pid}|${L}`, n: rc.name, t: rc.team, g: parGame(rc), m: 'rec', s: `Over ${L} receptions`, p, i: pid });
+          { k: `rec|${pid}|${L}`, n: rc.name, t: rc.team, g: parGame(rc), m: 'rec', s: `Over ${L} receptions`, p, i: pid }, liveChip('rec', rc, L));
     }
     const cp = (nflData?.completions || []).find(x => x.pid === pid);
     if (cp) {
       see(cp);
       const { L, p } = cpPick(cp);
       add('Completions', 'o' + L, p, `openCmp('${pid}')`,
-          { k: `cmp|${pid}|${L}`, n: cp.name, t: cp.team, g: parGame(cp), m: 'cmp', s: `Over ${L} completions`, p, i: pid });
+          { k: `cmp|${pid}|${L}`, n: cp.name, t: cp.team, g: parGame(cp), m: 'cmp', s: `Over ${L} completions`, p, i: pid }, liveChip('cmp', cp, L));
     }
     const it = (nflData?.interceptions || []).find(x => x.pid === pid);
     if (it) {
       see(it);
       const L = (nflData.interceptionModel?.lines || [0.5])[0], p = inP(it, L);
       add('Interceptions', 'o' + L, p, `openInt('${pid}')`,
-          { k: `int|${pid}|${L}`, n: it.name, t: it.team, g: parGame(it), m: 'int', s: `Over ${L} interceptions`, p, i: pid });
+          { k: `int|${pid}|${L}`, n: it.name, t: it.team, g: parGame(it), m: 'int', s: `Over ${L} interceptions`, p, i: pid }, liveChip('int', it, L));
     }
     const kk = (typeof kkAll === 'function' ? kkAll() : []).find(x => x.pid === pid);
     if (kk) {
       see(kk);
       for (const [mkt, M] of Object.entries(KK_MKTS)) {
         const L = kkEven(mkt, kk.mu[mkt]), p = kkOver(mkt, L, kk.mu[mkt]);
+        // liveChip reads the kicker board's own market chip, so lend it this one
+        const was = kkF.mkt; kkF.mkt = mkt;
+        const res = liveChip('kick', kk, L);
+        kkF.mkt = was;
         add(M.lab, 'o' + L, p, `openLc('${M.kind}','${pid}')`,
             { k: `k${mkt}|${pid}|${L}`, n: kk.name, t: kk.team, g: parGame(kk), m: 'k' + mkt,
-              s: `Over ${L} ${M.unit}`, p, i: pid });
+              s: `Over ${L} ${M.unit}`, p, i: pid }, res);
       }
     }
-    return { who, rows };
+    return { who, rows, state: gameId ? plGameState(gameId) : 'pre' };
   }
 
   /** The tab body: one row per market, priced, with a + straight into the slip. */
   function plWeekPanel(pid) {
-    const { who, rows } = plWeek(pid);
+    const { who, rows, state } = plWeek(pid);
     if (!rows.length)
       return `<div class="plm-body"><div class="empty">Nothing priced for him on this slate — he's off the board, on bye, or ruled out.</div></div>`;
     const keys = new Set(PARLAY.legs.map(l => l.k));
     const game = who ? `${who.team} ${who.home ? 'vs' : '@'} ${who.opp}` : '';
-    return `<div class="plm-body"><div class="plw">
+    // Once his game kicks off these stop being bets. The prices stay — they are
+    // what we said beforehand, and that is the interesting part next to the
+    // result — but the + goes away rather than letting you add a settled leg.
+    const done = state !== 'pre';
+    const note = state === 'final'
+      ? `His game is final, so these are graded, not offered. Next week's prices arrive with the next slate.`
+      : state === 'live' ? `His game is underway. These are the prices we posted before kickoff — they are not live numbers.` : '';
+    return `<div class="plm-body"><div class="plw${done ? ' done' : ''}">
       <div class="plw-hd">
         <span class="plw-hd-l">${rows.length} market${rows.length === 1 ? '' : 's'}${game ? ` · ${game}` : ''}</span>
-        <span class="plw-hd-r">fair odds, no vig</span>
-        <span class="plw-hd-add">Add leg</span>
+        <span class="plw-hd-r">${done ? 'our price' : 'fair odds, no vig'}</span>
+        <span class="plw-hd-add">${state === 'final' ? 'Result' : state === 'live' ? 'Live' : 'Add leg'}</span>
       </div>
       ${rows.map((r, i) => {
-        const on = keys.has(parLeg(r.leg).k);
+        const on = !done && keys.has(parLeg(r.leg).k);
         return `<div class="plw-row${on ? ' on' : ''}">
           <button class="plw-go" onclick="${r.open.replace(/"/g, '&quot;')}">
-            <span class="plw-mkt">${r.lab}</span>
+            <span class="plw-mkt">${PLW_SHORT[r.lab]
+              ? `<span class="plt-long">${r.lab}</span><span class="plt-short">${PLW_SHORT[r.lab]}</span>` : r.lab}</span>
             <span class="plw-line">${r.line || ''}</span>
             <span class="plw-od ${r.p >= 0.5 ? 'goodc' : 'dogc'}">${pbOdds(r.p)}</span>
             <span class="plw-pc">${(r.p * 100).toFixed(r.p < 0.1 ? 1 : 0)}%</span>
           </button>
-          <button class="plw-add${on ? ' on' : ''}" onclick="plwAdd('${pid}',${i})" aria-label="${on ? 'Remove from parlay' : 'Add to parlay'}" title="${on ? 'In your parlay' : 'Add to parlay'}">${on ? '✓' : '+'}</button>
+          ${done
+            ? `<span class="plw-res">${r.res || '<span class="plw-dash">—</span>'}</span>`
+            : `<button class="plw-add${on ? ' on' : ''}" onclick="plwAdd('${pid}',${i})" aria-label="${on ? 'Remove from parlay' : 'Add to parlay'}" title="${on ? 'In your parlay' : 'Add to parlay'}">${on ? '✓' : '+'}</button>`}
         </div>`;
       }).join('')}
-    </div></div>`;
+    </div>${note ? `<p class="plw-note">${note}</p>` : ''}</div>`;
   }
   window.plwAdd = (pid, i) => {
-    const leg = plWeek(pid).rows[i]?.leg; if (!leg) return;
+    const w = plWeek(pid);
+    if (w.state !== 'pre') return;
+    const leg = w.rows[i]?.leg; if (!leg) return;
     if (!PARLAY.on) parMode(true);
     parToggleLeg(leg);
     plRender();
