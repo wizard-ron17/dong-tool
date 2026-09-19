@@ -1774,6 +1774,10 @@
   .ydm-tip svg { width: 22px; height: 22px; color: var(--gold); flex: none; }
   /* Phones: the ladder moves INTO the distribution box, under the over/under
      panels — it drives that chart — as a thin row of swipeable chips. */
+  /* The ladder's sidebar is hidden below 860px, so the parlay button needs a
+     home inside the chart panel on a phone — one of the two is always shown. */
+  .lc-add.mob, .yd-add.mob { display: none; }
+  @media (max-width: 860px) { .lc-add.mob, .yd-add.mob { display: block; margin-top: 0.7rem; } }
   .ydl-mob-wrap { display: none; }
   @media (max-width: 860px) {
     .ydm-grid { grid-template-columns: minmax(0, 1fr); }
@@ -7145,7 +7149,7 @@ let pairStacks = false;
     const leg = ydmLeg(); if (!leg) return;
     if (!PLY.on) plMode(true);
     plToggleLeg(leg);
-    const b = document.getElementById('yd-pl-add'); if (b) b.innerHTML = ydAddBtn();
+    document.querySelectorAll('.yd-add').forEach(el => { el.innerHTML = ydAddBtn(); });
   };
 
   function ydRender() {
@@ -7167,6 +7171,7 @@ let pairStacks = false;
             <div class="ydl-mob-wrap" aria-label="Line ladder">
               <div class="ydl ydl-mob" id="ydm-ladder-m">${side.ladder}</div>
             </div>
+            <div class="yd-add mob">${ydAddBtn()}</div>
           </section>
           <section class="ydm-panel ydm-keys"><h4>Key metrics</h4><div class="ydk-row">${ydMetrics(r)}</div></section>
         </div>
@@ -7175,7 +7180,7 @@ let pairStacks = false;
           <p class="ydl-help">Tap a line to see it on the chart. Fair odds, no vig.</p>
           <div class="ydl-head"><span>Line</span><span>Chance</span><span>Over</span><span>Under</span></div>
           <div class="ydl" id="ydm-ladder">${side.ladder}</div>
-          <div id="yd-pl-add">${ydAddBtn()}</div>
+          <div class="yd-add desk">${ydAddBtn()}</div>
         </div></aside>
       </div>`;
     const pm = document.querySelector('#yd-back .ydm');
@@ -7226,7 +7231,8 @@ let pairStacks = false;
     const r = ydRow(); if (!r) return;
     const side = ydSide(r);
     const set = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
-    set('ydm-probs', side.probs); set('ydm-ladder', side.ladder); set('ydm-ladder-m', side.ladder); set('yd-pl-add', ydAddBtn());
+    set('ydm-probs', side.probs); set('ydm-ladder', side.ladder); set('ydm-ladder-m', side.ladder);
+    document.querySelectorAll('.yd-add').forEach(el => { el.innerHTML = ydAddBtn(); });
     ydCenterRung();
     const wrap = document.querySelector('#yd-back .ydc-wrap'); if (wrap) wrap.innerHTML = ydChart(r, ydDist(r));
   }
@@ -7426,7 +7432,7 @@ let pairStacks = false;
     const leg = lcLeg(); if (!leg) return;
     if (!PLY.on) plMode(true);
     plToggleLeg(leg);
-    const b = document.getElementById('lc-pl-add'); if (b) b.innerHTML = lcAddBtn();
+    document.querySelectorAll('.lc-add').forEach(el => { el.innerHTML = lcAddBtn(); });
   }
   window.lcAddLeg = lcAddLeg;
 
@@ -7520,6 +7526,7 @@ let pairStacks = false;
               <div class="ydm-probs" id="lc-probs">${side.probs}</div>
             </div>
             <div class="ydl-mob-wrap"><div class="ydl ydl-mob" id="lc-ladder-m">${side.ladder}</div></div>
+            <div class="lc-add mob">${lcAddBtn()}</div>
           </section>
           <section class="ydm-panel ydm-keys"><h4>Key metrics</h4><div class="ydk-row">${metrics}</div></section>
         </div>
@@ -7528,7 +7535,7 @@ let pairStacks = false;
           <p class="ydl-help">Tap a line to see it on the chart. Fair odds, no vig.</p>
           <div class="ydl-head"><span>Line</span><span>Chance</span><span>Over</span><span>Under</span></div>
           <div class="ydl" id="lc-ladder">${side.ladder}</div>
-          <div id="lc-pl-add">${lcAddBtn()}</div>
+          <div class="lc-add desk">${lcAddBtn()}</div>
         </div></aside>
       </div>
       <footer class="ydm-tip">${ydIco('bulb')}<span>${p10 != null && p90 != null && lc.kind !== 'int' ? `Most games land between about <b>${p10}</b> and <b>${p90}</b>. ` : ''}${cfg.tip(r)} Fair odds, no vig.</span></footer>`;
@@ -7558,7 +7565,7 @@ let pairStacks = false;
           <h4 class="accent">Prices</h4>
           <p class="ydl-help">Fair odds, no vig — a book prices worse.</p>
           ${intPrices(r)}
-          <div id="lc-pl-add">${lcAddBtn()}</div>
+          <div class="lc-add desk">${lcAddBtn()}</div>
         </div></aside>
       </div>
       <footer class="ydm-tip">${ydIco('bulb')}<span>${cfg.tip(r)}</span></footer>`;
@@ -7576,7 +7583,7 @@ let pairStacks = false;
     const pmf = lcPmf(r), side = lcSide(r, pmf);
     const set = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
     set('lc-chart', lcChart(r, pmf)); set('lc-probs', side.probs); set('lc-ladder', side.ladder); set('lc-ladder-m', side.ladder);
-    set('lc-pl-add', lcAddBtn());
+    document.querySelectorAll('.lc-add').forEach(el => { el.innerHTML = lcAddBtn(); });
     lcCenter();
   }
   function openLc(kind, pid) {
