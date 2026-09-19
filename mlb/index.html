@@ -1600,7 +1600,13 @@
      it past the viewport, which widens the document and lets the page pan and
      zoom. Anchoring the menu's right edge to the button's makes it open inward,
      and the max-width keeps it inside the screen even on the narrowest phone. */
-  .sport-menu { position: absolute; top: calc(100% + 8px); right: 0; left: auto; z-index: 260; min-width: 230px; max-width: calc(100vw - 1.5rem); background: var(--surface0); border: 1px solid var(--border2); border-radius: 14px; padding: 0.4rem; box-shadow: 0 18px 48px rgba(0,0,0,0.55); display: none; }
+  /* Body-level and fixed, NOT anchored inside the header: .wrap carries
+     z-index 1, which scopes every z-index inside it — a menu at 260 in there
+     still paints under a backdrop at 255 out here, and gets blurred with the
+     page. Same trap the Tools panel fell into. placeSportMenu() sets top/left
+     from the arrow's rect, so it stays tied to the button without living in
+     its stacking context. */
+  .sport-menu { position: fixed; top: 0; left: 0; z-index: 260; min-width: 230px; width: max-content; max-width: calc(100vw - 1.5rem); background: var(--surface0); border: 1px solid var(--border2); border-radius: 14px; padding: 0.4rem; box-shadow: 0 18px 48px rgba(0,0,0,0.55); display: none; }
   .sport-menu.open { display: block; animation: sportMenuIn 0.14s ease; }
   /* Dim and blur behind the menu so it reads as a modal and nothing behind it
      is clickable — the same treatment the Tools panel gets. The menu itself is
@@ -1614,9 +1620,9 @@
      narrow card as the desktop, in the left gutter, and toggleSportMenu sets
      its top from the arrow's own rect so it always clears the button. */
   @media (max-width: 600px) {
-    .sport-menu { position: fixed; left: 0.75rem; right: auto; min-width: 0; max-width: none; width: min(260px, calc(100vw - 1.5rem)); }
-    body.sport-open { overflow: hidden; }
+    .sport-menu { min-width: 0; width: min(260px, calc(100vw - 1.5rem)); }
   }
+  body.sport-open { overflow: hidden; }
   @keyframes sportMenuIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
   .sport-item { display: flex; align-items: center; gap: 0.65rem; padding: 0.55rem 0.6rem; border-radius: 10px; text-decoration: none; color: var(--text); min-width: 0; }
   .sport-item .sport-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1760,7 +1766,7 @@
     <div class="tb-brand">
       <a href="/" class="brand-home" aria-label="Back to all sports"><img src="/icons/logo.svg" alt="" class="brand-logo"></a>
       <h1>Ron's <em>Dong</em> Tool</h1>
-      <span class="sport-switch"><button class="sport-switch-btn" id="sport-switch-btn" onclick="toggleSportMenu(event)" aria-label="Switch sport" title="Switch sport">▾</button><div class="sport-menu" id="sport-menu"><a class="sport-item current" href="/mlb/"><span class="sport-ico">⚾</span><span class="sport-name">Ron's Dong Tool</span><span class="sport-sub">MLB</span></a><a class="sport-item" href="/nfl/"><span class="sport-ico">🏈</span><span class="sport-name">Ron's Tud Tool</span><span class="sport-sub">NFL</span></a><span class="sport-item soon"><span class="sport-ico">🏀</span><span class="sport-name">Ron's Hoop Tool</span><span class="sport-sub">Soon</span></span><span class="sport-item soon"><span class="sport-ico">🏒</span><span class="sport-name">Ron's Goal Tool</span><span class="sport-sub">Soon</span></span></div></span>
+      <span class="sport-switch"><button class="sport-switch-btn" id="sport-switch-btn" onclick="toggleSportMenu(event)" aria-label="Switch sport" title="Switch sport">▾</button></span>
     </div>
     <div class="nav-shell">
     <nav id="main-nav">
@@ -3218,23 +3224,28 @@ function sportBackdrop(on) {
   el.classList.toggle('open', on);
   document.body.classList.toggle('sport-open', on);
 }
+/** Hang the menu under the arrow, right-aligned to it, clamped to the screen. */
+function placeSportMenu(menu, btn) {
+  const r = btn.getBoundingClientRect(), w = menu.offsetWidth, pad = 12;
+  menu.style.top = Math.round(r.bottom + 8) + 'px';
+  menu.style.left = Math.round(Math.max(pad, Math.min(r.right - w, window.innerWidth - w - pad))) + 'px';
+}
 function toggleSportMenu(e) {
   e.stopPropagation();
   const menu = document.getElementById('sport-menu'), btn = document.getElementById('sport-switch-btn');
   const open = menu.classList.toggle('open');
   btn.classList.toggle('open', open);
   sportBackdrop(open);
-  // On a phone the menu is placed against the viewport, so its top has to be
-  // measured from the arrow that opened it — otherwise it lands on top of it.
-  menu.style.top = open && window.matchMedia('(max-width: 600px)').matches
-    ? Math.round(btn.getBoundingClientRect().bottom + 8) + 'px' : '';
+  if (open) placeSportMenu(menu, btn);   // after .open, so offsetWidth is real
 }
 function closeSportMenu() {
   document.getElementById('sport-menu')?.classList.remove('open');
   document.getElementById('sport-switch-btn')?.classList.remove('open');
   sportBackdrop(false);
 }
-document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch')) closeSportMenu(); });
+// The menu no longer lives inside .sport-switch, so it has to be named here
+// too or clicking one of its own items would close it out from under the tap.
+document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch, .sport-menu')) closeSportMenu(); });
 
 // Browser-tab titles per page (the edge function sets the same for shared/deep
 // links + crawlers; this keeps the tab in sync during client-side navigation).
@@ -9178,7 +9189,8 @@ window.plClear = plClear; window.plSetBoost = plSetBoost; window.plCustomBoost =
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', plInit);
 else plInit();
 </script>
-<button class="pl-fab" id="pl-fab" onclick="plMode(true)" aria-label="Build a parlay">
+<div class="sport-menu" id="sport-menu"><a class="sport-item current" href="/mlb/"><span class="sport-ico">⚾</span><span class="sport-name">Ron's Dong Tool</span><span class="sport-sub">MLB</span></a><a class="sport-item" href="/nfl/"><span class="sport-ico">🏈</span><span class="sport-name">Ron's Tud Tool</span><span class="sport-sub">NFL</span></a><span class="sport-item soon"><span class="sport-ico">🏀</span><span class="sport-name">Ron's Hoop Tool</span><span class="sport-sub">Soon</span></span><span class="sport-item soon"><span class="sport-ico">🏒</span><span class="sport-name">Ron's Goal Tool</span><span class="sport-sub">Soon</span></span></div>
+  <button class="pl-fab" id="pl-fab" onclick="plMode(true)" aria-label="Build a parlay">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13.5H11l-1 8.5 8.5-11.5H12l1-8.5z"/></svg>
   Parlay
 </button>
