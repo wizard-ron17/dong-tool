@@ -1667,6 +1667,8 @@
   .pl-leg { display: flex; align-items: center; gap: 0.5rem; padding: 0.36rem 0; border-bottom: 1px solid var(--border); font-size: 0.766rem; }
   .pl-leg:last-of-type { border-bottom: none; }
   .pl-leg-nm { font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pl-sp { font-family: var(--font-m); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em; color: var(--dim);
+           background: var(--surface0); border: 1px solid var(--border2); border-radius: 4px; padding: 0.05rem 0.26rem; margin-right: 0.35rem; }
   .pl-leg-sel { color: var(--dim); font-size: 0.692rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 0; min-width: 0; }
   .pl-leg-od { font-family: var(--font-d); font-weight: 700; color: var(--muted); margin-left: auto; }
   .pl-leg-x { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 0.1rem; }
@@ -2491,6 +2493,7 @@ let ppView = 'pitcher';  // Pitcher Ks/Walks scope: 'pitcher' (rank arms) | 'bat
 // answers a different question — how wild is the SPOT, regardless of workload.
 let ppSort = 'proj';     // 'proj' (odds) | 'exp' (rate)
 let ppSide = 'over';     // which side of the line the board quotes and adds to a parlay
+let ppLine = 'even';     // 'even' = each arm at his own nearest-even rung, or a fixed half-line for the whole board
 // How deep the Results tab grades. Mirrors KBB_TOP in scripts/build-data.js —
 // if that changes this has to, or the board's marker lies about what's logged.
 const PP_TRACKED = 8;
@@ -7914,6 +7917,19 @@ function renderPitcherVuln() {
 function ppToggle(pid) { ppOpenPid = (ppOpenPid === pid) ? null : pid; if (activeNav === 'pitcherks') renderPitcherKs(); else renderPitcherWalks(); }
 function ppSetSort(v) { ppSort = v; ppOpenPid = null; if (activeNav === 'pitcherks') renderPitcherKs(); else renderPitcherWalks(); }
 function ppSetSide(v) { ppSide = v; if (activeNav === 'pitcherks') renderPitcherKs(); else renderPitcherWalks(); }
+function ppSetLine(v) { ppLine = v === 'even' ? 'even' : +v; if (activeNav === 'pitcherks') renderPitcherKs(); else renderPitcherWalks(); }
+// Rungs worth offering on this slate: one either side of the projections
+// actually on the board, so the chips are lines these arms could plausibly
+// land on rather than a fixed list that is mostly dead on any given day.
+function ppRungs(rows) {
+  const projs = rows.filter(r => r.proj != null).map(r => r.proj);
+  if (!projs.length) return [];
+  const lo = Math.max(0.5, Math.floor(Math.min(...projs)) - 0.5);
+  const hi = Math.floor(Math.max(...projs)) + 1.5;
+  const out = [];
+  for (let L = lo; L <= hi && out.length < 7; L += 1) out.push(L);
+  return out;
+}
 function ppSetView(v) { ppView = v; ppOpenPid = null; if (activeNav === 'pitcherks') renderPitcherKs(); else renderPitcherWalks(); }
 function renderPitcherKs() { renderPitcherProp('k'); }
 function renderPitcherWalks() { renderPitcherProp('bb'); }
@@ -8235,13 +8251,18 @@ function renderPitcherProp(kind) {
   </div>` : ''}${ppView === 'pitcher' ? `<div class="view-switch">
     <button class="view-btn${ppSide === 'over' ? ' active' : ''}" onclick="ppSetSide('over')" title="Quote and add the over">Over</button>
     <button class="view-btn${ppSide === 'under' ? ' active' : ''}" onclick="ppSetSide('under')" title="Quote and add the under">Under</button>
+  </div>` : ''}${ppView === 'pitcher' ? `<div class="view-switch pp-lines">
+    <button class="view-btn${ppLine === 'even' ? ' active' : ''}" onclick="ppSetLine('even')" title="Each arm at whichever graded rung sits nearest even money">His line</button>
+    ${ppRungs(rows).map(L => `<button class="view-btn${ppLine === L ? ' active' : ''}" onclick="ppSetLine(${L})" title="Price every arm at ${L}">${L}</button>`).join('')}
   </div>` : ''}</div>`;
   if (ppView === 'batter') { el.innerHTML = toggle + ppBatterBoard(isK, lg, K0, log5, lbl, word); return; }
   if (!rows.length) { el.innerHTML = toggle + '<div class="empty">No probable starters with data posted yet — check back closer to game time.</div>'; return; }
   const meta = `<div class="pt-meta">Today's starters by <b>${ppSort === 'proj' ? `~Proj ${lbl}` : `Exp ${lbl}%`}</b>${ppSort === 'proj'
       ? ` — the projected count for his start, which is what the prices are built from.`
       : ` — a log5 blend of the pitcher's ${lbl}% and the opponent lineup's ${word} rate vs league, ignoring how deep he goes.`}
-    Each arm is quoted at <b>his own line</b> — whichever graded rung sits nearest even money — so the price you read is the one worth reading.
+    ${ppLine === 'even'
+      ? `Each arm is quoted at <b>his own line</b> — whichever graded rung sits nearest even money — so the price you read is the one worth reading.`
+      : `Every arm priced at <b>${ppSide === 'over' ? 'over' : 'under'} ${ppLine}</b>. Tap <b>His line</b> to put each back on his own nearest-even rung.`}
     Ranked <b>1-${rows.length}</b>; the <b>Results</b> tab grades the top <b>${PP_TRACKED}</b>, marked below. The ordering keeps
     working past that line — ranks 9-12 still ${isK ? 'strike out' : 'walk'} more than 13+ — it just isn't what we log.</div>`;
   const cards = rows.map((r, i) => {
@@ -8273,11 +8294,15 @@ function renderPitcherProp(kind) {
     // ordered by odds, and the whole card is the parlay leg — a row-sized
     // checkbox rather than a price you have to hit.
     const unit = isK ? 'strikeouts' : 'walks', over = ppSide === 'over';
-    const need = r.proj == null ? null : ppEven(r.proj);
+    const need = r.proj == null ? null : (ppLine === 'even' ? ppEven(r.proj) : ppLine + 0.5);
     const L = need == null ? null : need - 0.5;
     const pOver = need == null ? null : kbbWinProb(r.proj, need);
     const p = pOver == null ? null : (over ? pOver : 1 - pOver);
-    const alt = r.proj == null ? null : kbbNeeds(r.proj).find(n => n !== need);
+    // The companion price: on his own line, the other graded rung; on a fixed
+    // line, his own line — so the card always says what you are giving up.
+    const alt = r.proj == null ? null
+      : ppLine === 'even' ? kbbNeeds(r.proj).find(n => n !== need)
+      : (ppEven(r.proj) === need ? null : ppEven(r.proj));
     const pAlt = alt == null ? null : (() => { const q = kbbWinProb(r.proj, alt); return over ? q : 1 - q; })();
     const leg = p == null ? '' : plAttr({ k: `p${lbl}|${r.pid}|${L}|${over ? 'o' : 'u'}`, n: compactPlayerName(r.name),
       t: r.team, g: [r.team, r.oppTeam].sort().join(' vs '), m: `p${lbl}`,
@@ -8893,13 +8918,20 @@ if ('serviceWorker' in navigator) {
 // legs rather than quietly pretending. The one case we have measured numbers
 // for is a board full of anytime touchdowns (research/pair_correlation.py,
 // shipped in data.json), and there the slip uses them.
-const PL_KEY = 'mlbParlay';
+// One slip for the whole site: a real parlay can mix sports, so the two apps
+// share a storage key and stamp each leg with where it came from. Keys are
+// namespaced by sport so an NFL and an MLB id can never collide.
+const PL_KEY = 'dtParlay';
+const PL_SPORT = 'mlb';
+const PL_SPORT_LBL = { nfl: 'NFL', mlb: 'MLB' };
+/** Stamp a leg with its sport. Idempotent — a payload read back off a row already carries it. */
+const plLeg = (leg) => leg.sp ? leg : { ...leg, sp: PL_SPORT, k: PL_SPORT + ':' + leg.k };
 const PLY = { on: false, open: false, legs: [], boost: 0, book: '' };
 const PL_BOOSTS = [0, 0.25, 0.5, 1];
 
 const plEsc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 /** Attribute for a priced row. Keys are short because this ships on every row. */
-const plAttr = (leg) => ` data-leg="${plEsc(JSON.stringify(leg))}"`;
+const plAttr = (leg) => ` data-leg="${plEsc(JSON.stringify(plLeg(leg)))}"`;
 /** Canonical away@home key, so two legs in the same game always collide. */
 const plGame = (r) => r.home ? `${r.opp}@${r.team}` : `${r.team}@${r.opp}`;
 
@@ -8937,7 +8969,7 @@ function plPrice() {
   for (const l of legs) if (l.t) teams[l.t] = (teams[l.t] || 0) + 1;
   const mates = Object.values(teams).some(n => n > 1);
   const who = {};
-  for (const l of legs) if (l.i) (who[l.i] ??= []).push(l);
+  for (const l of legs) if (l.i) (who[l.sp + l.i] ??= []).push(l);
   const samePlayer = Object.values(who).filter(v => v.length > 1).map(v => v[0].n);
   // No measured correlation on this side — the pitcher markets are the only
   // priced ones, and two rungs off the same arm are the same event, not a
@@ -8958,6 +8990,7 @@ function plToggleOpen(e) {
   plRender(); plSave();
 }
 function plToggleLeg(leg) {
+  leg = plLeg(leg);
   const i = PLY.legs.findIndex(l => l.k === leg.k);
   if (i >= 0) PLY.legs.splice(i, 1);
   else {
@@ -9021,9 +9054,10 @@ function plRender() {
 
   const body = document.getElementById('pl-body');
   if (!legs.length) {
-    body.innerHTML = `<div class="pl-empty">Tap any priced row to add it.<br>Legs from different tools combine — a touchdown, a kicker line and a yards line all go in the same slip.</div>`;
+    body.innerHTML = `<div class="pl-empty">Tap any priced row to add it.<br>One slip for the whole site: legs from every tool — and from both sports — combine here.</div>`;
     return;
   }
+  const mixed = new Set(legs.map(l => l.sp)).size > 1;
   const boostPct = Math.round(PLY.boost * 100);
   const custom = !PL_BOOSTS.includes(PLY.boost);
   // The number that actually decides a bet: with a boost, the worst book
@@ -9032,7 +9066,7 @@ function plRender() {
   const need = 1 + (1 / p - 1) / (1 + PLY.boost);
   body.innerHTML =
     legs.map(l => `<div class="pl-leg">
-      <span class="pl-leg-nm">${l.n}</span>
+      <span class="pl-leg-nm">${mixed ? `<span class="pl-sp">${PL_SPORT_LBL[l.sp] || ''}</span>` : ''}${l.n}</span>
       <span class="pl-leg-sel">${l.s}${l.t ? ` · ${l.t}` : ''}</span>
       <span class="pl-leg-od">${kbbOdds(l.p)}</span>
       <button class="pl-leg-x" onclick="plRemove('${l.k.replace(/'/g, "\\'")}')" aria-label="Remove">×</button>
@@ -9086,7 +9120,11 @@ function plInit() {
 window.plMode = plMode; window.plToggleOpen = plToggleOpen; window.plRemove = plRemove;
 window.plClear = plClear; window.plSetBoost = plSetBoost; window.plCustomBoost = plCustomBoost; window.plBook = plBook;
 
-plInit();
+// The slip's markup sits after this script, so on a cold load the elements
+// plRender() writes into do not exist yet — without this the restored slip
+// stayed invisible until the first click.
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', plInit);
+else plInit();
 </script>
 <button class="pl-fab" id="pl-fab" onclick="plMode(true)" aria-label="Build a parlay">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13.5H11l-1 8.5 8.5-11.5H12l1-8.5z"/></svg>
