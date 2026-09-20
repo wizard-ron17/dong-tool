@@ -743,6 +743,10 @@
             font-family: var(--font-d); font-size: 0.85rem; font-weight: 700; letter-spacing: 0.02em;
             padding: 0.5rem 1.1rem; border-radius: 999px; cursor: pointer; transition: background 0.14s; }
   .mp-cta:hover { background: rgba(53,201,110,0.2); }
+  /* In the hero under his name, so it's reachable from every tab. Smaller than
+     the panel version it replaced — it sits beside the identity, not under a
+     list, and must not out-shout the season number on the other side. */
+  .mp-cta-hero { margin-top: 0.4rem; padding: 0.3rem 0.7rem; font-size: 0.76rem; }
   /* Door from a market card back to the man — small enough to sit in the meta
      line under his name without competing with the number he came for. */
   .mp-hub { margin-left: 0.4rem; background: none; border: 1px solid var(--border); color: var(--dim);
@@ -2870,6 +2874,7 @@ let pitcherStats = {}; // pid -> { hr, hr9, ip, era } for today's probable pitch
 let teamOffense = { teams: {}, lg: { kPct: 0.22, bbPct: 0.083 } }; // team K%/BB% for the Pitcher Ks/Walks tools
 let batterDiscipline = {}; // pid -> { k, bb, pa } for the Ks/Walks drill-down (bats most likely to whiff/walk)
 let bullpens = {}; // team abbr -> [{ pid, name, hand, era, saves, holds, gamesPitched, lastOuting, pitchMix }]
+let weatherByVenue = {}; // venue -> { carry, windForL, windForR } — raw forecast, so any batter's wind can be resolved
 let picks    = []; // today's HR pick candidates, pre-scored server-side (Chalk)
 let value    = []; // the Value board — same pool re-ranked by Blast% × matchup
 let batMeta  = {}; // pid -> { b: batSide, p: position } for projected-lineup bats
@@ -3286,7 +3291,7 @@ function applyData(data) {
   dataMeta = { generatedAt: data.generatedAt, daysWithData: data.daysWithData, totalHRCount: data.totalHRCount, seasonStart: data.seasonStart, dateRangeEnd: data.dateRangeEnd };
   dailyHRs = data.dailyHRs; hrTypes = data.hrTypes || {}; hrDetails = data.hrDetails || {}; dailyGames = data.dailyGames; hrTotals = data.hrTotals;
   playerNames = data.playerNames; playerTeams = data.playerTeams; playerABs = data.playerABs;
-  mpAllowedIdx = null; hrNameToPid = null;   // both are indexes over the data we just replaced
+  mpAllowedIdx = null; hrNameToPid = null; muWxBorrow = null;   // indexes over the data we just replaced
   playerGames = data.playerGames; playerLastHR = data.playerLastHR; teamGameDays = data.teamGameDays;
   playerLastGame = data.playerLastGame ?? {};
   venueGameDays = data.venueGameDays ?? {}; venueHRsByDate = data.venueHRsByDate ?? {};
@@ -3311,6 +3316,7 @@ function applyData(data) {
   teamOffense  = data.teamOffense  ?? teamOffense;
   batterDiscipline = data.batterDiscipline ?? {};
   bullpens = data.bullpens ?? {};
+  weatherByVenue = data.weatherByVenue ?? {};
   picks        = data.picks        ?? [];
   value        = data.value        ?? [];
   valueHistory = data.valueHistory ?? [];
@@ -6993,23 +6999,110 @@ function muGameRow(b, p) {
 }
 // Per-field overrides. undefined = follow the default for this pairing.
 let muOv = { pa: undefined, wx: undefined, pen: undefined };
-/** Resolve the environment: today's game if this is one, else neutral. */
+// ── Today's game, for anyone ───────────────────────────────────────────────
+// The picks rows carry a fully-resolved environment, but only for the two dozen
+// bats that made those boards. Everyone else used to fall straight to neutral —
+// so opening a hitter from his player card scored him in a vacuum even though
+// we know exactly who he faces, where, and where he hits in the order.
+//
+// We already project every lineup and carry the schedule, so the game is
+// reconstructible for any batter in one: the opposing probable starter, the
+// park, his slot, and the forecast. Two pieces are genuinely ours to compute
+// (the PA factor and the wind along his pull gap) and one is the pitcher's own
+// (how much of the game he works). The bullpen's platoon split is the only
+// thing we can't rebuild here — it stays league-average, which is what the
+// Gameday control already defaults to.
+
+/** The game he's actually in today, with his slot — or null. */
+function muSchedGame(bpid, ppid) {
+  for (const g of (todaySchedule || []))
+    for (const [me, opp] of [[g.home, g.away], [g.away, g.home]]) {
+      if (String(opp.probablePitcherId || '') !== String(ppid)) continue;
+      const spot = (me.lineup || []).find(x => String(x.pid) === String(bpid));
+      if (spot) return { g, order: spot.order };
+    }
+  return null;
+}
+/**
+ * Wind helps the pull gap the batter actually swings to, so a switch hitter
+ * takes the side he'll bat from against this arm — the build's rule, applied
+ * to the same per-venue numbers it used.
+ */
+const MU_WX_CLAMP = [0.85, 1.20], MU_WX_PER_MPH = 0.010;
+function muWeatherRatio(venue, bHand, pHand) {
+  const wx = (weatherByVenue || {})[venue];
+  if (!wx || typeof wx !== 'object') return muBorrowedWx(venue, bHand, pHand);
+  const eff = bHand === 'S' ? (pHand === 'L' ? 'R' : 'L') : bHand;
+  const pull = eff === 'L' ? wx.windForL : eff === 'R' ? wx.windForR : (wx.windForL + wx.windForR) / 2;
+  const v = wx.carry * (1 + MU_WX_PER_MPH * pull);
+  return Math.round(Math.max(MU_WX_CLAMP[0], Math.min(MU_WX_CLAMP[1], v)) * 1000) / 1000;
+}
+/**
+ * weatherRatio is a pure function of (venue, the side he swings from), so a
+ * value already computed for one batter is the RIGHT value for any other in the
+ * same park on the same side — not an approximation. That makes the picks rows
+ * a usable source while weatherByVenue has yet to reach this browser: the HTML
+ * deploys ahead of data.json, and the service worker can hold an older copy
+ * longer still. Covers only the parks with a board bat in them; elsewhere the
+ * forecast is simply unknown and the control says so.
+ */
+let muWxBorrow = null;
+function muBorrowedWx(venue, bHand, pHand) {
+  if (!muWxBorrow) {
+    muWxBorrow = new Map();
+    for (const r of [...(picks || []), ...(value || [])]) {
+      if (r.weatherRatio == null || !r.venue) continue;
+      const eff = r.bHand === 'S' ? (r.oppHand === 'L' ? 'R' : 'L') : r.bHand;
+      muWxBorrow.set(`${r.venue}|${eff}`, r.weatherRatio);
+    }
+  }
+  const eff = bHand === 'S' ? (pHand === 'L' ? 'R' : 'L') : bHand;
+  return muWxBorrow.get(`${venue}|${eff}`) ?? null;
+}
+/** Same share of the game the Picks board gives this arm (starterShareFor). */
+function muStarterShare(ppid) {
+  const ip = pitcherStats?.[ppid]?.avgStartIP;
+  return ip == null ? null : Math.max(0.45, Math.min(0.85, ip / 9));
+}
+/** A real-game environment built from the schedule, for a batter off the boards. */
+function muSchedEnv(b, p) {
+  const hit = muSchedGame(b.pid, p.pid);
+  if (!hit) return null;
+  const { g, order } = hit;
+  return {
+    venue: g.venue, order,
+    sW: muStarterShare(p.pid) ?? 1,
+    pen: null,                                   // not reconstructible client-side
+    pa: muPaFactor(order),
+    wx: muWeatherRatio(g.venue, b.hand, p.hand) ?? 1,
+  };
+}
+/**
+ * Resolve the environment, best source first: the Picks board's own row, then
+ * today's schedule, then neutral. `src` says which, because the difference is
+ * a claim the UI makes — only a board row can promise the same number Picks has.
+ */
 function muEnvFor(b, p) {
   const row = muGameRow(b, p);
+  const sch = row ? null : muSchedEnv(b, p);
   const base = row
     ? { sW: row.starterShare ?? 1, pen: row.bullpenPlatoonFactor ?? null,
         pa: row.lineupPAFactor ?? 1, wx: row.weatherRatio ?? 1,
         pin: { base: row.basePower, form: row.recentFormRatio, batP: row.batterPlatoonRatio,
                pitP: row.pitcherPlatoonRatio, stuff: row.pitcherStuffRatio } }
+    : sch
+    ? { sW: sch.sW, pen: sch.pen, pa: sch.pa, wx: sch.wx }
     : { ...MU_NEUTRAL_ENV };
   const env = { ...base };
   if (muOv.pa !== undefined) env.pa = muOv.pa;
   if (muOv.wx !== undefined) env.wx = muOv.wx;
   if (muOv.pen !== undefined) { env.pen = muOv.pen.pen; env.sW = muOv.pen.sW; }
   const touched = muOv.pa !== undefined || muOv.wx !== undefined || muOv.pen !== undefined;
-  const live = !!row && !touched && (!muVenue || muVenue === row.venue);
+  const venueOk = v => !muVenue || muVenue === v;
+  const live = !!row && !touched && venueOk(row.venue);
+  const onSched = !!sch && !touched && venueOk(sch.venue);
   if (live && row.matchupFactor != null) env.exactMF = row.matchupFactor;
-  return { env, row, live, touched };
+  return { env, row, sch, live, onSched, src: live ? 'board' : onSched ? 'sched' : 'neutral', touched };
 }
 function setMuEnv(key, val) { muOv[key] = val; renderMatchups(); }
 function muResetEnv() { muOv = { pa: undefined, wx: undefined, pen: undefined }; renderMatchups(); }
@@ -7021,13 +7114,17 @@ const MU_PEN_MODES = [
   { k: 'starter', lbl: 'Starter only', sW: 1, tip: 'Score his innings alone — no bullpen in the number' },
   { k: 'game', lbl: 'Full game', sW: 0.55, tip: 'Blend the starter with the bullpen over a typical start' },
 ];
-function muGamedayHtml(b, p, env, row, live, touched) {
+function muGamedayHtml(b, p, env, row, live, touched, sch, onSched) {
+  // The slot comes from the board row when he's on one and from the projected
+  // lineup otherwise, so "Auto" names a real number either way.
+  const order = row?.lineupOrder ?? sch?.order ?? null;
   const paOpts = ['auto', '', 1, 2, 3, 4, 5, 6, 7, 8, 9].map(v => {
-    if (v === 'auto') return `<option value="auto"${muOv.pa === undefined ? ' selected' : ''}>${row && row.lineupOrder ? `Auto · ${row.lineupOrder}th` : 'Auto · unknown'}</option>`;
+    if (v === 'auto') return `<option value="auto"${muOv.pa === undefined ? ' selected' : ''}>${order ? `Auto · ${ordinal(order)}` : 'Auto · unknown'}</option>`;
     if (v === '') return '<option disabled>──────</option>';
-    return `<option value="${v}"${muOv.pa === muPaFactor(v) ? ' selected' : ''}>${v}${['st','nd','rd'][v-1] || 'th'} — ${muPaFactor(v).toFixed(3)}×</option>`;
+    return `<option value="${v}"${muOv.pa === muPaFactor(v) ? ' selected' : ''}>${ordinal(v)} — ${muPaFactor(v).toFixed(3)}×</option>`;
   }).join('');
-  const wxKnown = row && row.weatherRatio != null && row.weatherRatio !== 1;
+  const wxAuto = row ? row.weatherRatio : sch ? sch.wx : null;
+  const wxKnown = wxAuto != null && wxAuto !== 1;
   const penOn = (env.sW ?? 1) < 1;
   const chip = (on, lbl, onclick, tip) =>
     `<button class="mu-gd-chip${on ? ' on' : ''}" onclick="${onclick}" title="${tip}">${lbl}</button>`;
@@ -7036,6 +7133,7 @@ function muGamedayHtml(b, p, env, row, live, touched) {
       <div class="mu-gd-hd">
         <span class="mu-parkline-lbl">Gameday</span>
         ${live ? '<span class="mu-gd-live">matches the Picks board</span>'
+               : onSched ? "<span class=\"mu-gd-live\">today's real game</span>"
                : touched ? `<button class="mu-gd-reset" onclick="muResetEnv()">Reset to auto</button>`
                : '<span class="mu-gd-neutral">neutral — not a game today</span>'}
       </div>
@@ -7047,7 +7145,7 @@ function muGamedayHtml(b, p, env, row, live, touched) {
         <div class="mu-gd-cell">
           <span class="mu-gd-lbl">Weather</span>
           <div class="mu-gd-chips">
-            ${chip(muOv.wx === undefined, wxKnown ? `Auto · ${row.weatherRatio.toFixed(2)}×` : 'Auto', "setMuEnv('wx', undefined)",
+            ${chip(muOv.wx === undefined, wxKnown ? `Auto · ${wxAuto.toFixed(2)}×` : 'Auto', "setMuEnv('wx', undefined)",
                    wxKnown ? 'Air density and the wind along his pull gap, from the forecast' : 'No forecast for this pairing — sits at league average')}
             ${chip(muOv.wx === 1, 'Neutral', "setMuEnv('wx', 1)", 'Take the weather out of the number')}
           </div>
@@ -7157,6 +7255,9 @@ function mpRender() {
   const hr = hrTotals?.[pid] ?? C?.hrs ?? 0;
   const hand = C?.hand ? `<span class="pk-hand ${C.hand.toLowerCase()}">${C.hand}</span>` : '';
   const n = dongs.length ? ` · ${dongs.length}` : '';
+  // Lives in the hero rather than inside Today, so it's one tap from Season and
+  // Dongs too — the question "what is he worth tonight" doesn't belong to a tab.
+  const mu = mpMatchupTarget(pid);
   const tabs = [['today', `Today${today.length ? ` · ${today.length}` : ''}`, `Today${today.length ? ` · ${today.length}` : ''}`],
                 ['season', 'Season', 'Season'],
                 ['dongs', `${isP ? 'Dongs allowed' : 'Dongs'}${n}`, `${isP ? 'HRA' : 'HR'}${n}`]];
@@ -7169,7 +7270,8 @@ function mpRender() {
     <header class="ydm-hero">
       ${muPhotoTag(pid, team)}
       <div class="ydm-id"><h2>${compactPlayerName(name)}</h2>
-        <div class="ydm-meta">${hand}${team ? `<span>•</span>${team}${teamLogoImg(team, 'team-logo')}` : ''}${isP ? `<span>•</span>${C?.role || 'P'}` : ''}</div></div>
+        <div class="ydm-meta">${hand}${team ? `<span>•</span>${team}${teamLogoImg(team, 'team-logo')}` : ''}${isP ? `<span>•</span>${C?.role || 'P'}` : ''}</div>
+        ${mu ? `<button class="mp-cta mp-cta-hero" onclick="${mu.code}">${mu.label}</button>` : ''}</div>
       <div class="ydm-big"><div><span>${new Date().getFullYear()} season</span><span>${isP && C?.ip != null ? `${C.ip} IP` : `${C?.abs ?? 0} AB`}</span></div>
         <strong>${isP ? dongs.length : hr}<small>${isP ? 'HR allowed' : 'HR'}</small></strong></div>
     </header>
@@ -7179,10 +7281,8 @@ function mpRender() {
 }
 
 function mpTodayPanel(pid, rows, isP) {
-  const open = mpMatchupTarget(pid);
-  const cta = open ? `<button class="mp-cta" onclick="${open.code}">${open.label}</button>` : '';
   if (!rows.length)
-    return `<div class="plm-body"><div class="empty">He isn't on any of today's boards — no lineup, no start, or below every cut.</div>${cta ? `<div class="mp-cta-wrap">${cta}</div>` : ''}</div>`;
+    return `<div class="plm-body"><div class="empty">He isn't on any of today's boards — no lineup, no start, or below every cut.</div></div>`;
   return `<div class="plm-body"><div class="plw">
     <div class="plw-hd"><span class="plw-hd-l">${rows.length} board${rows.length === 1 ? '' : 's'} today</span><span class="plw-hd-r">tap to open</span></div>
     ${rows.map(r => `<div class="plw-row">
@@ -7192,7 +7292,7 @@ function mpTodayPanel(pid, rows, isP) {
         ${r.foot ? `<span class="plw-pc">${r.foot}</span>` : '<span class="plw-pc"></span>'}
       </button>
     </div>`).join('')}
-  </div>${cta ? `<div class="mp-cta-wrap">${cta}</div>` : ''}</div>`;
+  </div></div>`;
 }
 
 function mpSeasonPanel(pid, C, isP, dongs = []) {
@@ -7270,17 +7370,42 @@ function mpDongsPanel(pid, dongs, isP) {
   </div></div>`;
 }
 
+/**
+ * Who he actually plays today, from the schedule rather than from the two dozen
+ * rows on the Picks board — that's the difference between opening the Matchup
+ * tool on his real game and opening it on whatever pair was last loaded.
+ *
+ * For a bat: the opposing probable starter, and the park. For an arm: the most
+ * dangerous bat in the lineup he faces, since a pitcher's "matchup" is a lineup
+ * and the tool takes one hitter — start him on the one worth worrying about.
+ */
+function mpGameToday(pid) {
+  const C = matchupCards; if (!C || C === 'error') return null;
+  for (const g of (todaySchedule || []))
+    for (const [me, opp] of [[g.home, g.away], [g.away, g.home]]) {
+      const isBat = (me.lineup || []).some(x => String(x.pid) === String(pid));
+      const isArm = String(me.probablePitcherId || '') === String(pid);
+      if (!isBat && !isArm) continue;
+      if (isBat) {
+        const oppPid = String(opp.probablePitcherId || '');
+        if (!C._pIdx?.[oppPid]) return null;
+        return { bPid: String(pid), pPid: oppPid, venue: g.venue, oppName: opp.probablePitcher };
+      }
+      // His opponents are the other lineup; lead with its biggest power threat.
+      const bats = (opp.lineup || []).map(x => C._bIdx?.[String(x.pid)]).filter(Boolean);
+      if (!bats.length) return null;
+      const top = bats.reduce((a, b) => (b.basePower ?? 0) > (a.basePower ?? 0) ? b : a);
+      return { bPid: top.pid, pPid: String(pid), venue: g.venue, oppName: top.name };
+    }
+  return null;
+}
 /** "Open in Matchups" — against today's opponent when he has one. */
 function mpMatchupTarget(pid) {
   const C = matchupCards; if (!C || C === 'error') return null;
-  const row = (picks || []).find(r => r.pid === pid) || (value || []).find(r => r.pid === pid);
-  if (C._bIdx?.[pid]) {
-    const opp = row && C._pIdx?.[row.oppPid] ? row.oppPid : null;
-    return { label: opp ? `Open in Matchups vs ${compactPlayerName(row.oppName || '')} →` : 'Open in Matchups →',
-             code: `mpToMatchup('${pid}')` };
-  }
-  if (C._pIdx?.[pid]) return { label: 'Open in Matchups →', code: `mpToMatchup('${pid}')` };
-  return null;
+  if (!C._bIdx?.[pid] && !C._pIdx?.[pid]) return null;
+  const g = mpGameToday(pid);
+  return { label: g ? `Matchups vs ${compactPlayerName(g.oppName || '')} →` : 'Matchups →',
+           code: `mpToMatchup('${pid}')` };
 }
 /** Close this card, then open the tool's own card for the same player. */
 window.mpOpenTool = (kind, pid, arg) => {
@@ -7292,11 +7417,13 @@ window.mpOpenTool = (kind, pid, arg) => {
 };
 window.mpToMatchup = (pid) => {
   const C = matchupCards; if (!C || C === 'error') return;
-  const row = (picks || []).find(r => r.pid === pid) || (value || []).find(r => r.pid === pid);
   closeMlbPlayer();
   switchNav('matchups');
-  muOv = { pa: undefined, wx: undefined, pen: undefined };
-  if (C._bIdx?.[pid]) muLoadMatchup(pid, (row && C._pIdx?.[row.oppPid]) ? row.oppPid : muPitcherPid, row?.venue);
+  muOv = { pa: undefined, wx: undefined, pen: undefined };   // his game, not the last what-if
+  const g = mpGameToday(pid);
+  if (g) { muLoadMatchup(g.bPid, g.pPid, g.venue); return; }
+  // Not playing today — keep the other half of whatever is loaded.
+  if (C._bIdx?.[pid]) muLoadMatchup(pid, muPitcherPid, muVenue === '__neutral__' ? null : muVenue);
   else muLoadMatchup(muBatterPid, pid, muVenue === '__neutral__' ? null : muVenue);
 };
 function setMpTab(t) { mp.tab = t; mpRender(); }
@@ -7304,7 +7431,10 @@ function mpKey(e) { if (e.key === 'Escape') closeMlbPlayer(); }
 async function openMlbPlayer(pid) {
   if (!matchupCards || matchupCards === 'error') await ensureMatchupCards();
   mp.pid = String(pid);
-  mp.tab = mpToday(mp.pid).length ? 'today' : (mpDongs(mp.pid).length ? 'dongs' : 'season');
+  // Opens on who he is. Today is situational and Dongs is a highlight reel;
+  // the season card is the thing you came to a player's page to read, and the
+  // matchup button in the hero covers the actionable path from any tab.
+  mp.tab = 'season';
   if (!document.getElementById('mp-back')) {
     document.body.insertAdjacentHTML('beforeend', `
       <div class="pm-back" id="mp-back" onclick="if(event.target===this)closeMlbPlayer()">
@@ -7504,7 +7634,7 @@ function muSuggestHtml() {
 }
 function matchupBreakdownHtml(b, p) {
   const C = matchupCards;
-  const { env, row, live, touched } = muEnvFor(b, p);
+  const { env, row, sch, live, onSched, touched } = muEnvFor(b, p);
   const s = scoreMatchup(b, p, muVenue, env), f = s.factors, cls = pickScoreClass(s.pickScore);
   const parkOpts = `<option value="__neutral__"${muVenue === '__neutral__' ? ' selected' : ''}>Neutral park</option>`
     + Object.keys(C.parkFactors).sort((a, c) => a.localeCompare(c, undefined, { sensitivity: 'base' })).map(v => `<option value="${v}"${v === muVenue ? ' selected' : ''}>${v} (${C.parkFactors[v].toFixed(2)}×)</option>`).join('');
@@ -7558,7 +7688,7 @@ function matchupBreakdownHtml(b, p) {
       <select class="mu-select" onchange="setMatchupVenue(this.value)">${parkOpts}</select>
       <button class="mu-neutral-btn${muVenue === '__neutral__' ? ' active' : ''}" onclick="setMatchupVenue('__neutral__')" title="Reset to a neutral park (no park factor applied)">Neutral</button>
     </div>
-    ${muGamedayHtml(b, p, env, row, live, touched)}
+    ${muGamedayHtml(b, p, env, row, live, touched, sch, onSched)}
     <div class="pick-section-title pm-title">Pitch Matchup</div>
     ${pitchMatchupHtml(b.hrProfile, s.mix, s.mixSplit ? s.stand : null)}
     <div class="pick-section-title pm-title">Matchup Factors</div>
@@ -7574,6 +7704,8 @@ function matchupBreakdownHtml(b, p) {
     ${p.ip != null && p.ip < 10 ? `<div class="mu-note mu-thin">⚠︎ Thin sample — only ~${p.ip} IP for ${p.name.split(' ').pop()}, so his stuff, splits, and arsenal are pulled toward league average. Read it as a near-neutral matchup (no book on him yet), not a real edge either way.</div>` : ''}
     <div class="mu-note">${live
       ? `Scored in today's real environment, so this is the same number the <a href="javascript:void(0)" onclick="switchNav('picks')">Picks</a> board has for him${row && row.pickScore != null ? ` (<b>${row.pickScore.toFixed(1)}</b>)` : ''} — his lineup spot, the forecast, and ${p.name.split(' ').pop()}'s share of the game against that bullpen.`
+      : onSched
+      ? `Scored in today's real game — he bats <b>${ordinal(sch.order)}</b> against ${p.name.split(' ').pop()} at <b>${sch.venue}</b>, with ${sch.wx !== 1 ? 'the forecast and ' : ''}that arm's share of the game already in the number. He isn't on the <a href="javascript:void(0)" onclick="switchNav('picks')">Picks</a> board, so ${sch.wx !== 1 ? 'the opposing bullpen\'s platoon split is the one piece' : 'the forecast and the opposing bullpen\'s platoon split are the pieces'} left at league average.`
       : touched
       ? 'Scored in the environment set above — change any control back to Auto to return to the real game.'
       : p.role === 'RP' || p.role === 'CL'

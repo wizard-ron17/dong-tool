@@ -3500,6 +3500,11 @@ async function main() {
     dailyHRs, hrTypes, hrDetails, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR, playerLastGame,
     teamGameDays, venueGameDays, venueHRsByDate, groupSummary, dueRows, prospects, injuryStatus, dtdStatus,
     todayDate: todayET(), todaySchedule, teamIds, pitcherStats, teamOffense, batterDiscipline, bullpens, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, birthdays, birthdayHistory,
+    // { venue -> { carry, windForL, windForR } }. The picks rows already bake
+    // this into weatherRatio, but only for the two dozen bats on those boards —
+    // the Matchup tool has to score anyone in a posted lineup, so it needs the
+    // raw per-venue numbers to apply the same hand-aware formula itself.
+    weatherByVenue,
     dueStreaks, dueHistory, returningInjured, justBack, returningHistory, milestones, steals, stealsHistory, kbbHistory,
   };
 
