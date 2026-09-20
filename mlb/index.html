@@ -4924,12 +4924,15 @@ function seasonHRNumberThrough(pid, date) {
   for (const d in dailyHRs) if (d <= date) n += dailyHRs[d][pid] ?? 0;
   return n;
 }
-function recapClipPlaylist(date) {
+function recapClipPlaylist(date, only) {
   // One entry per homer that day, in recap-board order (multi-HR games first,
-  // then season power) — each a real clip or a "no video" placeholder.
+  // then season power) — each a real clip or a "no video" placeholder. `only`
+  // narrows it to a single player, for the feed opened from his card.
   const clipsByPid = recapClipsCache[date];
   const dayData = dailyHRs[date] ?? {};
-  const order = Object.entries(dayData).sort((a,b)=>
+  const order = Object.entries(dayData)
+    .filter(([pid]) => !only || pid === only)
+    .sort((a,b)=>
     b[1]-a[1] || (hrTotals[b[0]]||0)-(hrTotals[a[0]]||0) || (playerNames[a[0]]||'').localeCompare(playerNames[b[0]]||''));
   const list = [];
   for (const [pid, hrs] of order) {
@@ -4961,6 +4964,20 @@ function closeReels() {
   reels = null;
   document.body.style.overflow = '';
   document.removeEventListener('keydown', reelsEscHandler);
+}
+/**
+ * One player's homers, newest first, instead of the whole slate's. Opened from
+ * his card, where scrolling into other people's dongs is wrong — and it waits
+ * for the clips before mounting, or the first slide claims MLB has no video
+ * when really nothing has been fetched yet.
+ */
+async function openPlayerReels(pid, date, clipIdx = 0) {
+  const days = Object.keys(hrDetails || {})
+    .filter(d => (hrDetails[d]?.[pid] || []).length)
+    .sort().reverse();
+  if (!days.length) return;
+  await ensureRecapClips(date);
+  openReels(date, pid, clipIdx, { days, scopePid: String(pid) });
 }
 function reelsEscHandler(e) { if (e.key === 'Escape') closeReels(); }
 function reelsToggleMute() {
@@ -4994,9 +5011,9 @@ function startReelsNext(slide, nextEl) {
   }, 1000);
 }
 
-function buildDaySlidesHtml(date) {
+function buildDaySlidesHtml(date, only) {
   const st = computeRecapDayStats(date);
-  const list = recapClipPlaylist(date);
+  const list = recapClipPlaylist(date, only);
   const nextOverlay = `<div class="reels-next">Up next in <b>3</b></div>`;
   const intro = `<div class="reels-slide reels-intro" data-date="${date}" data-kind="intro">
       <div class="reels-intro-inner">
@@ -5008,7 +5025,10 @@ function buildDaySlidesHtml(date) {
     </div>`;
   const homers = list.map((x, i) => {
     const name = `${compactPlayerName(playerNames[x.pid] || x.pid)} · ${playerTeams[x.pid] || ''}`;
-    const countLbl = `${fmtDateLong(date)} · ${i + 1}/${list.length}`;
+    // A one-player feed counts his season, not that day's slate.
+    const countLbl = only
+      ? `${fmtDateLong(date)} · #${seasonHRNumberThrough(x.pid, date) - (list.length - 1 - i)}`
+      : `${fmtDateLong(date)} · ${i + 1}/${list.length}`;
     if (x.placeholder) {
       const upto = seasonHRNumberThrough(x.pid, date);
       const which = x.hrs > 1
@@ -5039,7 +5059,7 @@ function buildDaySlidesHtml(date) {
       <div class="reels-count">${countLbl}</div>
     </div>`;
   }).join('');
-  return intro + homers;
+  return (only ? '' : intro) + homers;
 }
 // Attach play/pause-flash listeners to a freshly mounted day's videos, and put
 // every new slide under the intersection observer.
@@ -5063,7 +5083,7 @@ function reelsMountDay(date) {
   const dayEl = document.createElement('div');
   dayEl.className = 'reels-day';
   dayEl.dataset.date = date;
-  dayEl.innerHTML = buildDaySlidesHtml(date);
+  dayEl.innerHTML = buildDaySlidesHtml(date, reels.scopePid);
   reels.track.appendChild(dayEl);
   reelsWireDay(dayEl);
 }
@@ -5088,9 +5108,9 @@ function reelsMaybeLoadEdges(slide) {
   if (daySlides.indexOf(slide) >= daySlides.length - 2) reelsLoadOlder(idx + 1);
 }
 
-function openReels(date, pid, clipIdx = 0) {
+function openReels(date, pid, clipIdx = 0, scope) {
   closeHRVideo(); closeReels();
-  const days = recapAvailableDates().slice().reverse(); // newest-first
+  const days = scope?.days || recapAvailableDates().slice().reverse(); // newest-first
   const openIdx = days.indexOf(date);
   if (openIdx === -1) return;
   document.body.insertAdjacentHTML('beforeend', `
@@ -5100,7 +5120,8 @@ function openReels(date, pid, clipIdx = 0) {
       <div class="reels-track" id="reels-track"></div>
     </div>`);
   reels = { el: document.getElementById('hr-reels'), track: document.getElementById('reels-track'),
-            days, loaded: new Set(), loading: new Set(), topIdx: openIdx, botIdx: openIdx, observer: null };
+            days, loaded: new Set(), loading: new Set(), topIdx: openIdx, botIdx: openIdx, observer: null,
+            scopePid: scope?.scopePid || null };
   reels.observer = new IntersectionObserver(entries => {
     for (const e of entries) {
       const s = e.target;
@@ -7014,7 +7035,7 @@ function mpDongsPanel(pid, dongs) {
     ${dongs.map(({ date, idx, dt }) => {
       const cap = hrDetailCaption(date, pid, idx);
       return `<div class="plw-row">
-        <button class="plw-go mp-go" onclick="openReels('${date}','${pid}',${idx})">
+        <button class="plw-go mp-go" onclick="openPlayerReels('${pid}','${date}',${idx})">
           <span class="plw-mkt">${fmtDate(date)}<small class="mp-sub">${cap || 'no detail'}</small></span>
           <span class="plw-od mp-dist">${dt.dist != null && !dt.itp ? Math.round(dt.dist) : '—'}<small class="mp-ft">${dt.dist != null && !dt.itp ? 'ft' : ''}</small></span>
           <span class="plw-pc">▶ watch</span>
