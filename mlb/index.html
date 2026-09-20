@@ -564,7 +564,12 @@
              font-family: var(--font-b); font-size: 0.66rem; font-weight: 700; line-height: 1; cursor: pointer;
              transition: color 0.14s, border-color 0.14s; }
   .mf-help:hover { color: var(--accent); border-color: var(--accent); }
-  .mf-modal { max-width: 620px; }
+  /* .pm carries no padding of its own — the modals that use it wrap their
+     content in a padded body. This one puts content straight in, so the gutter
+     has to live here or the text runs into the border. Right side is wider to
+     clear the close button on the title line. */
+  .mf-modal { max-width: 620px; padding: 1rem 1.3rem 1.3rem; }
+  @media (max-width: 560px) { .mf-modal { padding: 0.85rem 1rem 1.05rem; } }
   /* base × factors = score, as an actual equation — the sentence under it says
      what base power is, but seeing the three numbers multiply is the point. */
   .mf-eq { display: flex; align-items: flex-end; justify-content: center; gap: 0.5rem; flex-wrap: wrap;
