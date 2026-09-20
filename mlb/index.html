@@ -557,6 +557,34 @@
      center 1.0× baseline: right/green helps the batter, left/red hurts. */
   .fbars { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.1rem; position: relative; }
   .fbar-legend { font-size: 0.667rem; color: var(--dim); margin: 0.1rem 0 0.75rem; letter-spacing: 0.02em; text-align: center; }
+  /* The ? beside a Matchup Factors heading. Baseline-aligned with the uppercase
+     label rather than centred on it, so it reads as part of the heading. */
+  .mf-help { margin-left: 0.4rem; width: 1.05rem; height: 1.05rem; padding: 0; vertical-align: -0.1rem;
+             border: 1px solid var(--border2); border-radius: 50%; background: none; color: var(--dim);
+             font-family: var(--font-b); font-size: 0.66rem; font-weight: 700; line-height: 1; cursor: pointer;
+             transition: color 0.14s, border-color 0.14s; }
+  .mf-help:hover { color: var(--accent); border-color: var(--accent); }
+  .mf-modal { max-width: 620px; }
+  /* base × factors = score, as an actual equation — the sentence under it says
+     what base power is, but seeing the three numbers multiply is the point. */
+  .mf-eq { display: flex; align-items: flex-end; justify-content: center; gap: 0.5rem; flex-wrap: wrap;
+           margin: 0.2rem 0 0.8rem; padding: 0.6rem; border: 1px solid var(--border); border-radius: 10px; background: var(--surface0); }
+  .mf-eq span { display: flex; flex-direction: column; align-items: center; }
+  .mf-eq b { font-family: var(--font-d); font-size: 1.05rem; color: var(--text-strong); }
+  .mf-eq small { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dim); margin-top: 0.1rem; }
+  .mf-eq-op { font-family: var(--font-d); font-size: 0.95rem; color: var(--dim); padding-bottom: 0.9rem; }
+  .mf-eq-score { color: var(--accent) !important; }
+  .mf-intro { margin: 0 0 0.9rem; color: var(--dim); font-size: 0.8rem; line-height: 1.5; }
+  .mf-intro b, .mf-read b, .mf-foot b { color: var(--text); }
+  .mf-row { border-top: 1px solid var(--border); padding: 0.6rem 0 0.1rem; }
+  .mf-row-hd { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+  .mf-row-name { font-family: var(--font-d); font-weight: 700; font-size: 0.88rem; color: var(--text-strong); }
+  .mf-row-val { font-family: var(--font-d); font-weight: 700; font-size: 0.88rem; }
+  /* The reading of THIS number leads; the definition is reference behind it. */
+  .mf-read { margin: 0.25rem 0 0.2rem; font-size: 0.82rem; line-height: 1.45; color: var(--text); }
+  .mf-def { margin: 0 0 0.35rem; font-size: 0.75rem; line-height: 1.45; color: var(--dim); }
+  .mf-foot { margin: 0.9rem 0 0; padding-top: 0.7rem; border-top: 1px solid var(--border);
+             font-size: 0.75rem; line-height: 1.45; color: var(--dim); }
   /* Fixed side columns so the track center (the 1.0× baseline) lands at a known
      x — calc(50% + (6rem - 3.2rem)/2) = calc(50% + 1.4rem) — for the full-height
      white baseline below to line up through every bar's neutral point. */
@@ -2207,12 +2235,13 @@
         <span class="due-explainer-cta"></span>
         <span class="due-explainer-chevron" id="matchups-explainer-chevron">▶</span>
       </div>
-      <div class="due-explainer-teaser">Break down any batter vs any pitcher — power, platoons, arm stuff &amp; park, scored like our Picks board.</div>
+      <div class="due-explainer-teaser">Break down any batter vs any pitcher — in tonight's real game, or in any what-if you set.</div>
       <div class="due-explainer-body" id="matchups-explainer-body" style="display:none">
         <ul>
-          <li>Pick <b>any</b> hitter and <b>any</b> starter → the same breakdown the Picks board runs: base power, Blast%, both platoon edges, arm stuff, and park, combined into a matchup score. (The Pitch Matchup chart is shown for context — it's no longer part of the score.)</li>
-          <li><b>Starter-only view</b> — bullpen, lineup spot, and game-time weather are live-game factors, so they stay neutral here (you'll see those on the real <a href="javascript:void(0)" onclick="switchNav('picks')">Picks</a> board).</li>
-          <li>Defaults to today's top Chalk pick vs the arm he's facing. <b>Tap either name</b> (🔍) to search a different batter or pitcher.</li>
+          <li>Pick <b>any</b> hitter and <b>any</b> arm → the same breakdown the Picks board runs: base power, both platoon edges, arm stuff, lineup slot, bullpen, park and weather, combined into a matchup score. Tap the <b>?</b> beside <b>Matchup Factors</b> for what every multiplier means <em>on the pairing in front of you</em>. (The Pitch Matchup chart is context only — it hasn't been part of the score since August.)</li>
+          <li><b>It scores the real game when there is one.</b> The Gameday strip says which: <b>matches the Picks board</b> means this exact pairing is on today's board and the number is identical to it; <b>today's real game</b> means he's in a lineup we project but off the board, so his slot, the park, the forecast and that arm's share of the game are all live — only the opposing bullpen's platoon split sits at league average. <b>Neutral</b> means these two aren't matched up today.</li>
+          <li><b>Every lever is yours.</b> Lineup spot, weather and bullpen can each be overridden to ask "what if he hit leadoff", "what if the wind died", "starter only". Any change flips the strip to a <b>Reset to auto</b> button — that's how you know you've left the real game.</li>
+          <li>Defaults to today's top Chalk pick vs the arm he's facing. <b>Tap either name</b> (🔍) to search another player, or type a <b>team code</b> like <b>STL</b> in the batter box to see that whole lineup ranked against the loaded arm — which is where a pitcher's player card sends you.</li>
         </ul>
       </div>
     </div>
@@ -6662,6 +6691,132 @@ function togglePenList() {
 // [{label, value}] where value is a ratio around 1.0 (null = skip). Each bar
 // grows from a center 1.0× baseline: right/green helps the batter, left/red
 // hurts, length ∝ distance from neutral. Sorted biggest-mover first.
+// ── "How this score was built" ─────────────────────────────────────────────
+// The tornado bars show WHAT each multiplier is; this says where it comes from
+// and — the part a static glossary can't do — what this particular number means
+// for this particular pairing. Definitions are the Picks explainer's, condensed;
+// the reading is generated from the value in front of you.
+//
+// Every factor is a multiplier on base power, so the plain-English version of
+// any of them is "x% more/fewer homers than neutral". Say that once, in the
+// header, then let each row add only what's specific to it.
+const MF_PCT = (v) => `${Math.abs(Math.round((v - 1) * 100))}%`;
+// Anything that rounds to 1.00× must READ as neutral too. A 1.004 calling
+// itself "helps" next to a bar labelled +1.00× is the tool contradicting itself
+// on screen, and at that size it isn't a real edge anyway.
+const MF_TRI = (v, up, down, flat) => Math.abs(v - 1) < 0.005 ? flat : v > 1 ? up : down;
+// Same threshold for the glyph: 0.998 printed "−1.00×", which reads as minus one
+// rather than as the neutral it rounds to.
+const mfSign = (v) => MF_TRI(v, '+', '−', '≈');
+const MF_DEFS = {
+  form: {
+    def: `Statcast's 1–6 contact-quality grade (weak contact → barrel — exit velo and launch angle read together) over his last ~15 game dates, against his own season baseline.`,
+    read: (v) => v > 1.02 ? `He's squaring the ball up <b>better than his own season norm</b> right now.`
+               : v < 0.98 ? `His contact has been <b>below his own baseline</b> lately — the bat is cold, not just unlucky.`
+               : `He's making contact right about at his season norm.`,
+  },
+  batP: {
+    def: `His HR rate against this pitcher's handedness vs his rate against the other side, shrunk hard toward the league-average platoon split — one season of HR splits is far too thin to take at face value.`,
+    read: (v, c) => {
+      const side = c.stand === 'L' ? 'lefty' : 'righty', opp = c.pHand === 'L' ? 'left' : 'right';
+      const edge = `<b>${MF_TRI(v, MF_PCT(v) + ' better', MF_PCT(v) + ' worse', 'no different')}</b> against ${opp}-handers than against the other side`;
+      return c.bHand === 'S'
+        ? `A switch hitter, he turns around to bat ${side} here — and he is ${edge}.`
+        : `As a ${side} bat he is ${edge}.`;
+    },
+  },
+  pitP: {
+    def: `The mirror image: how homer-prone this arm is to hitters of this side vs the opposite side. Also shrunk toward league.`,
+    read: (v, c) => `${c.pLast} gives up ${MF_TRI(v, '<b>more</b>', '<b>fewer</b>', 'about as many')} homers to ${c.stand === 'L' ? 'left' : 'right'}-handed bats as to the other side.`,
+  },
+  effPlat: {
+    def: `The platoon vulnerability of everyone who'll actually pitch to him — the starter over his share of the game, the bullpen over the rest, weighted and renormalised.`,
+    read: (v, c) => c.sW < 1
+      ? `Blended over the arms he'll really face: <b>${Math.round(c.sW * 100)}%</b> ${c.pLast}, <b>${Math.round((1 - c.sW) * 100)}%</b> bullpen.`
+      : `${c.pLast}'s own platoon split — the bullpen is switched off in this view.`,
+  },
+  effStuff: {
+    def: `The arm's homer-vulnerability from <b>4-seam velocity</b> and <b>barrel%-allowed</b> — both beat raw HR/9 as predictors, and barrel beats hard-hit% because it ignores scorched grounders that never leave the park.`,
+    read: (v, c) => `${MF_TRI(v, `Hittable — it pushes the score <b>up</b>.`, `Real stuff — it pulls the score <b>down</b>.`, `League-average stuff.`)}${c.sW < 1 ? ` Counted only over ${c.pLast}'s own innings (${Math.round(c.sW * 100)}%).` : ''}`,
+  },
+  pen: {
+    def: `The opposing bullpen's platoon HR-proneness to this batter's side — the rested arms likely to relieve, so the middle innings are priced in too.`,
+    read: (v) => `The pen behind him is ${MF_TRI(v, '<b>homer-prone</b>', '<b>tough</b>', '<b>league-average</b>')} to this side of the plate.`,
+  },
+  pa: {
+    def: `His slot in the order → how many plate appearances he projects to get. Leadoff is worth about +9% over a middle-of-the-order bat; the bottom third costs you.`,
+    read: (v, c) => c.order ? `Batting <b>${ordinal(c.order)}</b> — ${MF_TRI(v, 'more', 'fewer', 'about as many')} trips to the plate as a neutral slot.` : `More swings is more chances; that's the whole factor.`,
+  },
+  park: {
+    def: `The venue's HR/game rate against league average — the same park signal the Schedule tab shows.`,
+    read: (v, c) => `${c.venue || 'This park'} ${MF_TRI(v, 'plays <b>small</b>', 'plays <b>big</b>', 'plays <b>neutral</b>')} for homers.`,
+  },
+  wx: {
+    def: `Game-time air density (temperature, humidity, pressure, altitude) plus the wind projected onto the gap he pulls to. Hot thin air and a wind blowing out carry the ball; cold dense air and a wind in kill it. Roofed parks are neutral.`,
+    read: (v) => `Conditions at first pitch ${MF_TRI(v, '<b>help</b> the ball carry', '<b>hold</b> the ball up', 'are <b>neutral</b>')}.`,
+  },
+};
+let mfOpenCtx = null;
+/** The ? next to a Matchup Factors heading. */
+function mfHelpBtn() {
+  return `<button class="mf-help" onclick="openMfHelp()" aria-label="How these factors are calculated" title="How these factors are calculated">?</button>`;
+}
+/**
+ * Stash what the open card is showing, so the explainer can speak about it, and
+ * hand the items straight back to factorBarsHtml — the two must never describe
+ * different numbers, so they read from one literal.
+ */
+function mfSetCtx(ctx) { mfOpenCtx = ctx; return ctx.items; }
+function openMfHelp() {
+  const c = mfOpenCtx;
+  if (!c) return;
+  const rows = c.items.filter(it => it.value != null && MF_DEFS[it.key]);
+  // NEVER the product of the rows. The pick modal lists Starter Vuln. and
+  // Bullpen Vuln. separately, but the score blends them over their shares of the
+  // game rather than multiplying them — recomputing here read 2.43× against a
+  // real 2.22×, i.e. an equation that didn't equal its own answer. Use the
+  // factor the score was actually built from and say why it won't multiply out.
+  const product = c.mf ?? rows.reduce((a, it) => a * it.value, 1);
+  const blended = rows.some(it => it.key === 'pen') && rows.some(it => it.key === 'pitP');
+  const body = rows.sort((a, b) => Math.abs(b.value - 1) - Math.abs(a.value - 1)).map(it => {
+    const d = MF_DEFS[it.key], v = it.value;
+    const cls = v >= 1.05 ? 'great' : v <= 0.95 ? 'bad' : v >= 1.02 ? 'good' : 'avg';
+    return `<div class="mf-row">
+      <div class="mf-row-hd"><span class="mf-row-name">${it.label}</span>
+        <span class="mf-row-val hrg-val ${cls}">${mfSign(v)}${v.toFixed(2)}×</span></div>
+      <p class="mf-read">${d.read(v, c)}</p>
+      <p class="mf-def">${d.def}</p>
+    </div>`;
+  }).join('');
+  const sc = c.score != null ? c.score.toFixed(1) : null;
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="pm-back" id="mf-back" onclick="if(event.target===this)closeMfHelp()">
+      <div class="pm plm mf-modal" role="dialog" aria-modal="true">
+        <button class="pm-x" onclick="closeMfHelp()" aria-label="Close">×</button>
+        <div class="pick-section-title pm-title" style="margin-top:0">How this score was built</div>
+        <div class="mf-eq">
+          <span><b>${c.basePower != null ? (c.basePower * 100).toFixed(2) : '—'}</b><small>base power</small></span>
+          <span class="mf-eq-op">×</span>
+          <span><b>${product.toFixed(2)}×</b><small>all factors</small></span>
+          ${sc ? `<span class="mf-eq-op">=</span><span><b class="mf-eq-score">${sc}</b><small>score</small></span>` : ''}
+        </div>
+        <p class="mf-intro"><b>Base power</b> is his season HR rate (HR/AB) blended toward the rate his <b>Blast%</b> implies, then regressed toward league average while the sample is thin — 4 homers in 51 at-bats won't hold up, so it's pulled back until it grows. Everything below is a <b>multiplier</b> on it: <b>1.00× is neutral</b>, above is juicier, below is tougher. A 1.10× is simply <b>10% more homers</b> than neutral.</p>
+        ${body}
+        ${blended ? `<p class="mf-foot"><b>Why these don't multiply out by hand.</b> <b>Starter Vuln.</b> and <b>Bullpen Vuln.</b> are two readings of the same job, so they're <em>blended</em> over who actually pitches to him — ${Math.round((c.sW ?? 1) * 100)}% ${c.pLast}, ${Math.round((1 - (c.sW ?? 1)) * 100)}% pen — not multiplied together. <b>Arm Stuff</b> likewise only applies over ${c.pLast}'s own innings. The <b>${product.toFixed(2)}×</b> above is the blended product the score was built from.</p>` : ''}
+        <p class="mf-foot"><b>Not in the number:</b> the Pitch Matchup chart above. We used to score the overlap between what a hitter homers off and what an arm throws; a leak-free backtest over ~1,700 out-of-sample homers showed it adds nothing beyond base power — a masher mashes everything — so it came out of the score in August and stayed as context.</p>
+      </div>
+    </div>`);
+  document.addEventListener('keydown', mfKey);
+  document.body.style.overflow = 'hidden';
+}
+function mfKey(e) { if (e.key === 'Escape') closeMfHelp(); }
+function closeMfHelp() {
+  document.getElementById('mf-back')?.remove();
+  document.removeEventListener('keydown', mfKey);
+  // The player card and pick modal also lock scroll; only release if none is up.
+  if (!document.getElementById('mp-back') && !document.getElementById('pick-modal-backdrop') && !document.getElementById('pc-back'))
+    document.body.style.overflow = '';
+}
 function factorBarsHtml(items) {
   const rows = items.filter(it => it.value != null);
   if (!rows.length) return '';
@@ -6672,7 +6827,7 @@ function factorBarsHtml(items) {
     const w = Math.min(Math.abs(d) / MAXDEV, 1) * 50; // % of full track (half = 50%)
     const dir = d >= 0 ? 'pos' : 'neg';
     const vcls = it.value >= 1.05 ? 'great' : it.value <= 0.95 ? 'bad' : it.value >= 1.02 ? 'good' : 'avg';
-    const sign = it.value > 1 ? '+' : it.value < 1 ? '−' : '≈';
+    const sign = mfSign(it.value);
     const fill = d >= 0 ? `left:50%;width:${w}%` : `right:50%;width:${w}%`;
     return `<div class="fbar">
       <span class="fbar-label">${it.label}</span>
@@ -6794,17 +6949,23 @@ function pickModalInner(r, board = 'chalk') {
 
       ${bullpenModalHtml(r)}
 
-      <div class="pick-section-title pm-title">Matchup Factors</div>
-      ${factorBarsHtml([
-        { label: 'Recent Contact', value: r.recentFormRatio },
-        { label: 'Batter Platoon', value: r.batterPlatoonRatio },
-        { label: 'Lineup PA', value: (r.lineupPAFactor && r.lineupPAFactor !== 1) ? r.lineupPAFactor : null },
-        { label: 'Starter Vuln.', value: r.pitcherPlatoonRatio },
-        { label: 'Arm Stuff', value: r.pitcherStuffRatio },
-        { label: 'Bullpen Vuln.', value: r.bullpenPlatoonFactor },
-        { label: 'Park', value: r.parkRatio },
-        { label: 'Weather', value: (r.weatherRatio && r.weatherRatio !== 1) ? r.weatherRatio : null },
-      ])}
+      <div class="pick-section-title pm-title">Matchup Factors${mfHelpBtn()}</div>
+      ${factorBarsHtml(mfSetCtx({
+        basePower: r.basePower, score: r.pickScore, mf: r.matchupFactor, venue: r.venue,
+        bHand: r.bHand, pHand: r.oppHand, stand: r.bHand === 'S' ? (r.oppHand === 'L' ? 'R' : 'L') : r.bHand,
+        pLast: r.oppName ? r.oppName.split(' ').pop() : 'the starter',
+        order: r.lineupOrder, sW: r.starterShare ?? 1,
+        items: [
+          { key: 'form',     label: 'Recent Contact', value: r.recentFormRatio },
+          { key: 'batP',     label: 'Batter Platoon', value: r.batterPlatoonRatio },
+          { key: 'pa',       label: 'Lineup PA', value: (r.lineupPAFactor && r.lineupPAFactor !== 1) ? r.lineupPAFactor : null },
+          { key: 'pitP',     label: 'Starter Vuln.', value: r.pitcherPlatoonRatio },
+          { key: 'effStuff', label: 'Arm Stuff', value: r.pitcherStuffRatio },
+          { key: 'pen',      label: 'Bullpen Vuln.', value: r.bullpenPlatoonFactor },
+          { key: 'park',     label: 'Park', value: r.parkRatio },
+          { key: 'wx',       label: 'Weather', value: (r.weatherRatio && r.weatherRatio !== 1) ? r.weatherRatio : null },
+        ],
+      }))}
       <div class="fbar-note">Venue: <span class="hrg-val ${venueCls}">${venueHRG.toFixed(2)} HR/G</span> at ${r.venue}</div>
     </div>`;
 }
@@ -7733,16 +7894,23 @@ function matchupBreakdownHtml(b, p) {
     ${muGamedayHtml(b, p, env, row, live, touched, sch, onSched)}
     <div class="pick-section-title pm-title">Pitch Matchup</div>
     ${pitchMatchupHtml(b.hrProfile, s.mix, s.mixSplit ? s.stand : null)}
-    <div class="pick-section-title pm-title">Matchup Factors</div>
-    ${factorBarsHtml([
-      { label: 'Recent Contact', value: f.form },
-      { label: 'Batter Platoon', value: f.batP },
-      { label: 'Lineup PA', value: f.pa !== 1 ? f.pa : null },
-      { label: f.sW < 1 ? 'Pitching Vuln.' : 'Starter Vuln.', value: f.effPlat },
-      { label: 'Arm Stuff', value: f.effStuff },
-      { label: 'Park', value: f.park },
-      { label: 'Weather', value: f.wx !== 1 ? f.wx : null },
-    ])}
+    <div class="pick-section-title pm-title">Matchup Factors${mfHelpBtn()}</div>
+    ${factorBarsHtml(mfSetCtx({
+      basePower: b.basePower, score: s.pickScore, mf: s.matchupFactor,
+      venue: muVenue === '__neutral__' ? 'A neutral park' : muVenue,
+      bHand: b.hand, pHand: p.hand, stand: s.stand,
+      pLast: p.name ? p.name.split(' ').pop() : 'this arm',
+      order: row?.lineupOrder ?? sch?.order ?? null, sW: f.sW ?? 1,
+      items: [
+        { key: 'form',     label: 'Recent Contact', value: f.form },
+        { key: 'batP',     label: 'Batter Platoon', value: f.batP },
+        { key: 'pa',       label: 'Lineup PA', value: f.pa !== 1 ? f.pa : null },
+        { key: 'effPlat',  label: f.sW < 1 ? 'Pitching Vuln.' : 'Starter Vuln.', value: f.effPlat },
+        { key: 'effStuff', label: 'Arm Stuff', value: f.effStuff },
+        { key: 'park',     label: 'Park', value: f.park },
+        { key: 'wx',       label: 'Weather', value: f.wx !== 1 ? f.wx : null },
+      ],
+    }))}
     ${p.ip != null && p.ip < 10 ? `<div class="mu-note mu-thin">⚠︎ Thin sample — only ~${p.ip} IP for ${p.name.split(' ').pop()}, so his stuff, splits, and arsenal are pulled toward league average. Read it as a near-neutral matchup (no book on him yet), not a real edge either way.</div>` : ''}
     <div class="mu-note">${live
       ? `Scored in today's real environment, so this is the same number the <a href="javascript:void(0)" onclick="switchNav('picks')">Picks</a> board has for him${row && row.pickScore != null ? ` (<b>${row.pickScore.toFixed(1)}</b>)` : ''} — his lineup spot, the forecast, and ${p.name.split(' ').pop()}'s share of the game against that bullpen.`
