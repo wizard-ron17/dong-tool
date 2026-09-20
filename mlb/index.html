@@ -743,6 +743,12 @@
             font-family: var(--font-d); font-size: 0.85rem; font-weight: 700; letter-spacing: 0.02em;
             padding: 0.5rem 1.1rem; border-radius: 999px; cursor: pointer; transition: background 0.14s; }
   .mp-cta:hover { background: rgba(53,201,110,0.2); }
+  /* Door from a market card back to the man — small enough to sit in the meta
+     line under his name without competing with the number he came for. */
+  .mp-hub { margin-left: 0.4rem; background: none; border: 1px solid var(--border); color: var(--dim);
+            font-family: var(--font-b); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em;
+            padding: 0.1rem 0.45rem; border-radius: 999px; cursor: pointer; transition: color 0.14s, border-color 0.14s; }
+  .mp-hub:hover { color: var(--accent); border-color: var(--accent); }
   .mu-gd { border: 1px solid var(--border); border-radius: 10px; background: var(--surface0); padding: 0.55rem 0.7rem 0.65rem; margin: 0 0 0.7rem; }
   .mu-gd-hd { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.45rem; }
   .mu-gd-live { font-size: 0.667rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent);
@@ -2098,7 +2104,7 @@
       <div class="tb-search" id="tb-search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
         <input type="text" id="site-search" placeholder="Player, team, prop…" autocomplete="off" spellcheck="false"
-               oninput="siteSearch()" onfocus="siteSearch()" onkeydown="siteSearchKey(event)" aria-label="Search players and tools">
+               oninput="siteSearch()" onfocus="tbWarm();siteSearch()" onkeydown="siteSearchKey(event)" aria-label="Search players and tools">
         <div class="tb-results" id="tb-results" hidden></div>
       </div>
       <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light or dark mode" title="Toggle light/dark"></button>
@@ -3266,6 +3272,7 @@ function applyData(data) {
   dataMeta = { generatedAt: data.generatedAt, daysWithData: data.daysWithData, totalHRCount: data.totalHRCount, seasonStart: data.seasonStart, dateRangeEnd: data.dateRangeEnd };
   dailyHRs = data.dailyHRs; hrTypes = data.hrTypes || {}; hrDetails = data.hrDetails || {}; dailyGames = data.dailyGames; hrTotals = data.hrTotals;
   playerNames = data.playerNames; playerTeams = data.playerTeams; playerABs = data.playerABs;
+  mpAllowedIdx = null; hrNameToPid = null;   // both are indexes over the data we just replaced
   playerGames = data.playerGames; playerLastHR = data.playerLastHR; teamGameDays = data.teamGameDays;
   playerLastGame = data.playerLastGame ?? {};
   venueGameDays = data.venueGameDays ?? {}; venueHRsByDate = data.venueHRsByDate ?? {};
@@ -3455,16 +3462,48 @@ function migrateLegacyHash() {
 const TOOLS_NAVS = ['matchups', 'milestones', 'steals', 'pitchtypes', 'pitchervuln', 'pitcherks', 'pitcherwalks', 'picks', 'due', 'pairs', 'prospects', 'daylate', 'returning', 'birthdays'];
 let navToolsOpen = false;
 // ── Top-bar search ──────────────────────────────────────────────────────────
-// Deliberately simple for now: today's priced hitters plus the tools. A player
-// opens his pick card, a tool opens its page.
+// Every man we carry — both sides of the ball — opening his player card. Today's
+// boards go in first and rank first, but the base is the matchup cards, so a
+// hitter on a bye and the reliever who gave up a 450-footer in May are both
+// findable. A tool opens its page.
 let tbSel = -1;
 function tbIndex() {
   const out = new Map();
-  const add = (pid) => { if (pid && !out.has(pid)) out.set(pid, { pid, name: playerNames[pid] || pid, team: playerTeams[pid] || '' }); };
-  for (const r of (picks || [])) add(r.pid);          // Chalk board
-  for (const r of (value || [])) add(r.pid);          // Value board
-  for (const r of (dueRows || [])) add(r.pid);
+  const add = (pid, extra) => {
+    if (!pid) return;
+    const cur = out.get(pid);
+    if (cur) { Object.assign(cur, extra); return; }   // a board player also gets his role
+    out.set(pid, { pid, name: playerNames[pid] || pid, team: playerTeams[pid] || '', ...extra });
+  };
+  for (const r of (picks || []))   add(r.pid, { today: true });   // Chalk board
+  for (const r of (value || []))   add(r.pid, { today: true });   // Value board
+  for (const r of (dueRows || [])) add(r.pid, { today: true });
+  // matchup-cards.json is lazy — see tbWarm(). Until it lands the base is just
+  // today's boards, which is the behaviour this search has always had.
+  const C = matchupCards;
+  if (C && C !== 'error') {
+    for (const b of C.batters)  add(b.pid, { name: b.name, team: b.team });
+    for (const p of C.pitchers) add(p.pid, { name: p.name, team: p.team, role: p.role || 'P' });
+  }
   return [...out.values()];
+}
+// 668 KB the home page deliberately doesn't pull on load. Focusing the search
+// box is the first moment we know it will be wanted.
+function tbWarm() { if (!matchupCards) ensureMatchupCards(); }
+/**
+ * How well a name answers the query. A thousand-odd names means a bare substring
+ * test buries the man you typed under everyone who happens to contain those
+ * letters, so: the surname you typed beats the first name, which beats a hit
+ * buried mid-word. Ties break toward whoever is playing today.
+ */
+function tbScore(r, q) {
+  const n = normClipText(r.name);
+  if (!n.includes(q)) return normClipText(r.team) === q ? 1 : 0;
+  const last = n.slice((n.lastIndexOf(' ') + 1) || 0);
+  let s = last.startsWith(q) ? 5 : n.startsWith(q) ? 4 : n.includes(' ' + q) ? 3 : 2;
+  if (r.today) s += 3;                                    // on a board right now
+  else if (r.role && r.role !== 'RP') s += 1;             // a starter over a middle arm
+  return s;
 }
 const TB_TOOLS = [['picks', 'Picks'], ['due', 'Due'], ['pairs', 'Pairs'], ['matchups', 'Matchups'], ['pitchtypes', 'Pitch Types'],
                   ['steals', 'Steals'], ['pitchervuln', 'Pitcher Vuln'], ['pitcherks', 'Strikeouts'], ['pitcherwalks', 'Walks'],
@@ -3475,15 +3514,20 @@ function siteSearch() {
   if (!box || !input) return;
   const q = normClipText(input.value.trim());
   if (!q) { box.hidden = true; box.innerHTML = ''; tbSel = -1; return; }
-  const players = tbIndex().filter(r => normClipText(r.name).includes(q) || normClipText(r.team) === q).slice(0, 6);
+  const players = tbIndex().map(r => ({ r, s: tbScore(r, q) })).filter(x => x.s > 0)
+    .sort((a, b) => b.s - a.s || (hrTotals[b.r.pid] || 0) - (hrTotals[a.r.pid] || 0)
+                 || a.r.name.localeCompare(b.r.name))
+    .slice(0, 8).map(x => x.r);
   const tools = TB_TOOLS.filter(([, lab]) => normClipText(lab).includes(q)).slice(0, 3);
   if (!players.length && !tools.length) {
     box.hidden = false; box.innerHTML = '<div class="tb-res" style="color:var(--muted)">No player or tool by that name</div>'; return;
   }
   box.hidden = false; tbSel = -1;
-  box.innerHTML = players.map(r => `<button class="tb-res" onclick="tbGo(&quot;tbOpenPlayer('${r.pid}')&quot;)"><b>${r.name}</b><small>${r.team}${tbIsPitcher(r.pid) ? ' · P' : ''}</small></button>`).join('')
+  box.innerHTML = players.map(r => `<button class="tb-res" onclick="tbGo(&quot;tbOpenPlayer('${r.pid}')&quot;)"><b>${r.name}</b><small>${r.team}${tbRole(r) ? ' · ' + tbRole(r) : ''}</small></button>`).join('')
     + tools.map(([nav, lab]) => `<button class="tb-res" onclick="tbGo(&quot;switchNav('${nav}')&quot;)"><b>${lab}</b><small>tool</small></button>`).join('');
 }
+/** SP / RP / CL on an arm, nothing on a hitter. */
+const tbRole = (r) => tbIsPitcher(r.pid) ? (r.role || matchupCards?._pIdx?.[r.pid]?.role || 'P') : '';
 const tbIsPitcher = (pid) => !!(matchupCards && matchupCards !== 'error' && matchupCards._pIdx?.[pid] && !matchupCards._bIdx?.[pid]);
 /**
  * A batter's question is "what is he worth in this matchup", so he opens the
@@ -4826,6 +4870,53 @@ function hrDetailCaption(date, pid, idx = 0) {
   if (dt.pitcher) parts.push(`off ${compactPlayerName(dt.pitcher)}`);
   return parts.join(' · ');
 }
+// The same homer read from the mound: who took him deep, not who he took deep.
+function hrAllowedCaption(bpid, dt) {
+  const parts = [];
+  if (dt.dist != null && !dt.itp) parts.push(`${Math.round(dt.dist)} ft`);
+  if (dt.pitch) parts.push(`${shortPitch(dt.pitch)}${dt.mph != null ? ` ${(+dt.mph).toFixed(1)} mph` : ''}`);
+  const bat = playerNames[bpid];
+  if (bat) parts.push(`to ${compactPlayerName(bat)}`);
+  return parts.join(' · ');
+}
+// ── Homers from the pitcher's side ─────────────────────────────────────────
+// hrDetails is keyed by the batter, so an arm's damage has to be inverted out
+// of it. Built once, lazily, and thrown away when a data refresh lands.
+//
+// The build now stamps each homer with `ppid`. Until that data reaches a given
+// browser — the HTML deploys ahead of data.json, and the service worker can
+// hold an older copy longer still — fall back to the pitcher's NAME. Every one
+// of the season's HR-allowing pitchers resolves that way; the handful of names
+// two men share resolve to neither, rather than to the wrong one.
+let mpAllowedIdx = null;
+let hrNameToPid = null;
+function nameToPid(name) {
+  if (!hrNameToPid) {
+    const seen = new Map();
+    for (const [pid, n] of Object.entries(playerNames || {})) {
+      const k = normClipText(n);
+      seen.set(k, seen.has(k) ? null : pid);   // a shared name resolves to nobody
+    }
+    hrNameToPid = seen;
+  }
+  return hrNameToPid.get(normClipText(name || '')) || null;
+}
+/** The pid of the arm that gave up this homer, however the data spells it. */
+function hrPitcherPid(dt) {
+  return dt?.ppid || (dt?.pitcher ? nameToPid(dt.pitcher) : null);
+}
+/** ppid -> [{ date, bpid, idx, dt }], newest day first. */
+function mpAllowedIndex() {
+  if (mpAllowedIdx) return mpAllowedIdx;
+  const out = {};
+  for (const date of Object.keys(hrDetails || {}).sort().reverse())
+    for (const [bpid, list] of Object.entries(hrDetails[date] || {}))
+      list.forEach((dt, idx) => {
+        const ppid = hrPitcherPid(dt);
+        if (ppid) (out[ppid] ??= []).push({ date, bpid, idx, dt });
+      });
+  return (mpAllowedIdx = out);
+}
 // MLB's clips for a multi-HR day don't come in game order, but hrDetails does —
 // so indexing a detail by clip position mis-tags a 448-ft clip with the 378-ft
 // homer's pitch/distance. The clip title carries the distance ("…448-foot home
@@ -4926,21 +5017,47 @@ function seasonHRNumberThrough(pid, date) {
 }
 function recapClipPlaylist(date, only) {
   // One entry per homer that day, in recap-board order (multi-HR games first,
-  // then season power) — each a real clip or a "no video" placeholder. `only`
-  // narrows it to a single player, for the feed opened from his card.
+  // then season power) — each a real clip or a "no video" placeholder.
+  //
+  // `only` narrows the day: a pid string for one hitter's feed, or { ppid } for
+  // one arm's — every homer hit off him, which is a slice THROUGH the hitters
+  // rather than one of them.
   const clipsByPid = recapClipsCache[date];
   const dayData = dailyHRs[date] ?? {};
+  const ppid = only && typeof only === 'object' ? only.ppid : null;
+  const onePid = typeof only === 'string' ? only : null;
   const order = Object.entries(dayData)
-    .filter(([pid]) => !only || pid === only)
+    .filter(([pid]) => onePid ? pid === onePid
+                     : ppid  ? (hrDetails[date]?.[pid] || []).some(dt => hrPitcherPid(dt) === ppid)
+                     : true)
     .sort((a,b)=>
     b[1]-a[1] || (hrTotals[b[0]]||0)-(hrTotals[a[0]]||0) || (playerNames[a[0]]||'').localeCompare(playerNames[b[0]]||''));
   const list = [];
   for (const [pid, hrs] of order) {
     const clips = (clipsByPid && typeof clipsByPid === 'object') ? (clipsByPid[pid] ?? []) : [];
-    if (clips.length) clips.forEach((clip, clipIdx) => list.push({ pid, hrs, clip, clipIdx }));
+    const keep = ppid ? clipKeepsFor(date, pid, clips, ppid) : null;
+    if (clips.length) clips.forEach((clip, clipIdx) => { if (!keep || keep[clipIdx]) list.push({ pid, hrs, clip, clipIdx }); });
     else list.push({ pid, hrs, clipIdx: 0, placeholder: true });
   }
   return list;
+}
+/**
+ * Which of a hitter's clips that day belong to one arm. A man can homer twice
+ * in a day off two different pitchers, so the filter has to be per clip — and
+ * MLB's clips don't arrive in game order, which is exactly what
+ * assignClipDetails already untangles. A clip we can't tie to one homer (a
+ * both-homers cut) is kept when any of that day's homers off him are this arm's.
+ */
+function clipKeepsFor(date, pid, clips, ppid) {
+  const list = hrDetails[date]?.[pid] || [];
+  const mine = list.map(dt => hrPitcherPid(dt) === ppid);
+  if (!mine.some(Boolean)) return clips.map(() => false);
+  if (mine.every(Boolean)) return clips.map(() => true);
+  const assigned = assignClipDetails(date, pid);
+  return clips.map((_, ci) => {
+    const a = assigned[ci];
+    return typeof a === 'number' ? !!mine[a] : true;   // unassignable → keep
+  });
 }
 
 // ── Cross-day reels feed ───────────────────────────────────────────────
@@ -4979,6 +5096,23 @@ async function openPlayerReels(pid, date, clipIdx = 0) {
   await ensureRecapClips(date);
   openReels(date, pid, clipIdx, { days, scopePid: String(pid) });
 }
+/**
+ * The same feed from the mound: every homer this arm has given up, newest
+ * first. It opens on the one you tapped — which is a slide belonging to the
+ * BATTER, since that's whose clip it is — so the jump target is his pid.
+ */
+async function openAllowedReels(ppid, date, bpid, idx = 0) {
+  const mine = mpAllowedIndex()[ppid] || [];
+  if (!mine.length) return;
+  const days = [...new Set(mine.map(d => d.date))].sort().reverse();
+  await ensureRecapClips(date);
+  // hrDetails order is game order; the clips are not. Land on the clip that
+  // actually belongs to this homer rather than on the same ordinal.
+  const clips = recapClipsFor(date, bpid) || [];
+  const at = assignClipDetails(date, bpid).findIndex(a => a === idx);
+  openReels(date, String(bpid), at >= 0 ? at : Math.min(idx, Math.max(0, clips.length - 1)),
+            { days, scopePid: null, ppid: String(ppid) });
+}
 function reelsEscHandler(e) { if (e.key === 'Escape') closeReels(); }
 function reelsToggleMute() {
   if (!reels) return;
@@ -5011,6 +5145,10 @@ function startReelsNext(slide, nextEl) {
   }, 1000);
 }
 
+/** How many homers this arm had allowed through `date`, inclusive. */
+function allowedNumberThrough(ppid, date) {
+  return (mpAllowedIndex()[ppid] || []).filter(d => d.date <= date).length;
+}
 function buildDaySlidesHtml(date, only) {
   const st = computeRecapDayStats(date);
   const list = recapClipPlaylist(date, only);
@@ -5023,10 +5161,14 @@ function buildDaySlidesHtml(date, only) {
       </div>
       ${nextOverlay}
     </div>`;
+  const ppid = only && typeof only === 'object' ? only.ppid : null;
   const homers = list.map((x, i) => {
     const name = `${compactPlayerName(playerNames[x.pid] || x.pid)} · ${playerTeams[x.pid] || ''}`;
-    // A one-player feed counts his season, not that day's slate.
-    const countLbl = only
+    // A one-player feed counts his season, not that day's slate. An arm's feed
+    // counts the damage against HIM, so it numbers off his allowed total.
+    const countLbl = ppid
+      ? `${fmtDateLong(date)} · ${allowedNumberThrough(ppid, date) - (list.length - 1 - i)} allowed`
+      : only
       ? `${fmtDateLong(date)} · #${seasonHRNumberThrough(x.pid, date) - (list.length - 1 - i)}`
       : `${fmtDateLong(date)} · ${i + 1}/${list.length}`;
     if (x.placeholder) {
@@ -5083,7 +5225,7 @@ function reelsMountDay(date) {
   const dayEl = document.createElement('div');
   dayEl.className = 'reels-day';
   dayEl.dataset.date = date;
-  dayEl.innerHTML = buildDaySlidesHtml(date, reels.scopePid);
+  dayEl.innerHTML = buildDaySlidesHtml(date, reels.ppid ? { ppid: reels.ppid } : reels.scopePid);
   reels.track.appendChild(dayEl);
   reelsWireDay(dayEl);
 }
@@ -5121,7 +5263,7 @@ function openReels(date, pid, clipIdx = 0, scope) {
     </div>`);
   reels = { el: document.getElementById('hr-reels'), track: document.getElementById('reels-track'),
             days, loaded: new Set(), loading: new Set(), topIdx: openIdx, botIdx: openIdx, observer: null,
-            scopePid: scope?.scopePid || null };
+            scopePid: scope?.scopePid || null, ppid: scope?.ppid || null };
   reels.observer = new IntersectionObserver(entries => {
     for (const e of entries) {
       const s = e.target;
@@ -5399,6 +5541,9 @@ function schedPitcherHtml(side) {
 // in the map displays as-is (Cutter, Sinker, Slider, Sweeper, Changeup…).
 const PITCH_ABBR = {
   '4-Seam Fastball': '4-Seam', 'Split-Finger': 'Splitter', 'Curveball': 'Curve',
+  // Play-by-play spells the fastballs out where the arsenal data uses digits.
+  // Both land here so the same pitch is named the same way wherever it shows.
+  'Four-Seam Fastball': '4-Seam', 'Two-Seam Fastball': '2-Seam',
 };
 // Role is computed server-side relative to each team's pen (see
 // assignBullpenRoles in build-data.js). Middle is the common default, so we
@@ -6738,6 +6883,9 @@ async function ensureMatchupCards() {
   // Re-render whichever matchup-card-backed tool is open now that data has arrived.
   if (activeNav === 'matchups') renderMatchups();
   else if (activeNav === 'pitchervuln') renderPitcherVuln();
+  // Search is one of them: it warms this file on focus, so someone may already
+  // be typing against the thin today's-boards base while it lands.
+  if (!document.getElementById('tb-results')?.hidden) siteSearch();
 }
 // Pitcher's arsenal for the side a batter stands on (mirrors build's pitcherMixVs).
 // Returns { mix, split } — split=true only when a REAL handedness split was used
@@ -6919,8 +7067,13 @@ const mpIsPitcher = (pid) => !!(matchupCards && matchupCards !== 'error'
 const mpCard = (pid) => (matchupCards && matchupCards !== 'error')
   ? (matchupCards._bIdx?.[pid] || matchupCards._pIdx?.[pid] || null) : null;
 
-/** Every homer we have on him, newest first, with the clip index for openReels. */
-function mpDongs(pid) {
+/**
+ * Every homer we have on him, newest first, with the clip index for openReels.
+ * A hitter's are the ones he hit; an arm's are the ones he gave up — same tab,
+ * opposite side of the same pitch.
+ */
+function mpDongs(pid, isP = mpIsPitcher(pid)) {
+  if (isP) return mpAllowedIndex()[pid] || [];
   const out = [];
   for (const date of Object.keys(hrDetails || {}).sort().reverse())
     (hrDetails[date]?.[pid] || []).forEach((dt, idx) => out.push({ date, idx, dt }));
@@ -6954,7 +7107,31 @@ function mpToday(pid) {
                 foot: need != null ? `over ${need - 0.5}` : `exp ${M.lbl}%`,
                 cls: 'avg', open: `mpOpenTool('pitcher','${pid}','${kind}')` });
   }
+  // Pitcher Vuln: his homer-proneness in the park he throws in tonight, scored
+  // exactly as the board scores it (stuff × park — see the home-page card).
+  const vuln = mpVulnToday(pid);
+  if (vuln) rows.push({ tool: 'pitchervuln', lab: 'Pitcher Vuln', sub: `vs ${vuln.opp} · ${vuln.park !== 1 ? `${vuln.park.toFixed(2)}× park` : 'neutral park'}`,
+                        val: vuln.juice.toFixed(2) + '×', foot: 'juice', cls: MP_VULN[pvClass(vuln.juice)] || 'avg',
+                        open: `mpOpenTool('vuln','${pid}')` });
   return rows;
+}
+// pvClass speaks the pitcher-vuln ramp, where HIGH is juicy; the .hrg-val ramp
+// this list paints with speaks good-for-the-player. For an arm those are
+// opposites, but on a homer board a juicy arm IS the good row, so they agree.
+const MP_VULN = { great: 'great', good: 'good', avg: 'avg', below: 'below', bad: 'bad' };
+/** His juice on today's Pitcher Vuln board, or null if he isn't starting. */
+function mpVulnToday(pid) {
+  const C = matchupCards;
+  if (!C || C === 'error') return null;
+  const pc = C._pIdx?.[pid];
+  if (!pc || pc.stuffRatio == null) return null;
+  for (const g of (todaySchedule || []))
+    for (const [me, opp] of [[g.home, g.away], [g.away, g.home]]) {
+      if (String(me.probablePitcherId || '') !== String(pid)) continue;
+      const park = (g.venue && C.parkFactors[g.venue] != null) ? C.parkFactors[g.venue] : 1;
+      return { opp: opp.teamAbbr, park, juice: pc.stuffRatio * park };
+    }
+  return null;
 }
 
 function mpRender() {
@@ -6962,24 +7139,25 @@ function mpRender() {
   const pid = mp.pid, C = mpCard(pid), isP = mpIsPitcher(pid);
   const name = playerNames[pid] || C?.name || pid;
   const team = C?.team || playerTeams[pid] || '';
-  const dongs = mpDongs(pid), today = mpToday(pid);
+  const dongs = mpDongs(pid, isP), today = mpToday(pid);
   const hr = hrTotals?.[pid] ?? C?.hrs ?? 0;
   const hand = C?.hand ? `<span class="pk-hand ${C.hand.toLowerCase()}">${C.hand}</span>` : '';
+  const n = dongs.length ? ` · ${dongs.length}` : '';
   const tabs = [['today', `Today${today.length ? ` · ${today.length}` : ''}`, `Today${today.length ? ` · ${today.length}` : ''}`],
                 ['season', 'Season', 'Season'],
-                ['dongs', `Dongs${dongs.length ? ` · ${dongs.length}` : ''}`, `HR${dongs.length ? ` · ${dongs.length}` : ''}`]];
+                ['dongs', `${isP ? 'Dongs allowed' : 'Dongs'}${n}`, `${isP ? 'HRA' : 'HR'}${n}`]];
   let body;
-  if (mp.tab === 'dongs') body = mpDongsPanel(pid, dongs);
-  else if (mp.tab === 'season') body = mpSeasonPanel(pid, C, isP);
+  if (mp.tab === 'dongs') body = mpDongsPanel(pid, dongs, isP);
+  else if (mp.tab === 'season') body = mpSeasonPanel(pid, C, isP, dongs);
   else body = mpTodayPanel(pid, today, isP);
   box.innerHTML = `
     <button class="pm-x" onclick="closeMlbPlayer()" aria-label="Close">×</button>
     <header class="ydm-hero">
       ${muPhotoTag(pid, team)}
       <div class="ydm-id"><h2>${compactPlayerName(name)}</h2>
-        <div class="ydm-meta">${hand}${team ? `<span>•</span>${team}${teamLogoImg(team, 'team-logo')}` : ''}${isP ? '<span>•</span>P' : ''}</div></div>
+        <div class="ydm-meta">${hand}${team ? `<span>•</span>${team}${teamLogoImg(team, 'team-logo')}` : ''}${isP ? `<span>•</span>${C?.role || 'P'}` : ''}</div></div>
       <div class="ydm-big"><div><span>${new Date().getFullYear()} season</span><span>${isP && C?.ip != null ? `${C.ip} IP` : `${C?.abs ?? 0} AB`}</span></div>
-        <strong>${isP ? (C?.fbVelo != null ? C.fbVelo : '—') : hr}<small>${isP ? 'mph FB' : 'HR'}</small></strong></div>
+        <strong>${isP ? dongs.length : hr}<small>${isP ? 'HR allowed' : 'HR'}</small></strong></div>
     </header>
     <div class="sub-tabs u-tabs pl-tabs">${tabs.map(([v, l, sh]) =>
       `<button class="sub-btn${mp.tab === v ? ' active' : ''}" onclick="setMpTab('${v}')"><span class="plt-long">${l}</span><span class="plt-short">${sh}</span></button>`).join('')}</div>
@@ -7003,20 +7181,33 @@ function mpTodayPanel(pid, rows, isP) {
   </div>${cta ? `<div class="mp-cta-wrap">${cta}</div>` : ''}</div>`;
 }
 
-function mpSeasonPanel(pid, C, isP) {
+function mpSeasonPanel(pid, C, isP, dongs = []) {
   if (!C) return `<div class="plm-body"><div class="empty">No season card for him yet — he shows up here once he's in the matchup data.</div></div>`;
   const pct = (v) => v == null ? '—' : (v * 100).toFixed(1) + '%';
   const rat = (v) => v == null ? '—' : v.toFixed(2) + '×';
+  // The homers he's allowed lead the card — it's the one number here this site
+  // owns outright. Their average distance is deliberately NOT a tile: every arm
+  // in the league sits within a few feet of 395, so it looks like a stat and
+  // separates nobody. The pitch they came off, below, actually varies.
+  //
+  // Icons mirror the hitter's card, one per tile — a repeated glyph on adjacent
+  // tiles reads as a bug.
   const tiles = isP
-    ? [['target', rat(C.stuffRatio), 'Arm stuff'], ['trend', C.fbVelo != null ? C.fbVelo : '—', 'FB velo'],
-       ['bars', C.barrelPct != null ? C.barrelPct + '%' : '—', 'Barrel%'], ['clock', C.ip != null ? C.ip : '—', 'Innings'],
+    ? [['bars', String(dongs.length), 'HR allowed'], ['target', rat(C.stuffRatio), 'Arm stuff'],
+       ['trend', C.fbVelo != null ? C.fbVelo : '—', 'FB velo'], ['bulb', C.barrelPct != null ? C.barrelPct + '%' : '—', 'Barrel%'],
+       ['clock', C.ip != null ? C.ip : '—', 'Innings'],
        ['team', rat(C.platoonVsL), 'vs LHB'], ['ball', rat(C.platoonVsR), 'vs RHB']]
     : [['bars', String(C.hrs ?? 0), 'Home runs'], ['clock', String(C.abs ?? 0), 'At bats'],
        ['target', C.hrs ? (C.abs / C.hrs).toFixed(1) : '—', 'AB / HR'], ['trend', pct(C.blastPct), 'Blast%'],
        ['team', rat(C.platoonVsL), 'vs LHP'], ['ball', rat(C.platoonVsR), 'vs RHP'],
        ['bulb', rat(C.form), 'Recent form']];
-  const mixRows = (C.mix || []).slice(0, 6).map(m => `<div class="pv-bat"><span class="pv-bat-name">${pitchAbbrClient(m.name)}</span><span class="pc-rate">${m.pct}%</span></div>`).join('');
+  // An arm's mix is { all, L, R, … } keyed by the side he's facing, not a bare
+  // list — .all is his overall arsenal. A hitter has no mix at all.
+  const mixRows = (C.mix?.all || []).slice(0, 6).map(m => `<div class="pv-bat"><span class="pv-bat-name">${pitchAbbrClient(m.name)}</span><span class="pc-rate">${m.pct}%</span></div>`).join('');
   const hrRows = (C.hrProfile || []).slice(0, 6).map(h => `<div class="pv-bat"><span class="pv-bat-name">${pitchAbbrClient(h.name)}</span><span class="pc-rate">${h.pct}%<small>${h.n != null ? h.n + ' HR' : ''}</small></span></div>`).join('');
+  // For an arm, the second panel is what he's been taken deep on — the mirror of
+  // the hitter's "what he homers off", built from the same homer log.
+  const hitRows = isP ? mpHitOffRows(dongs) : '';
   const side = isP ? mixRows : hrRows;
   const sideTitle = isP ? 'His arsenal' : 'What he homers off';
   return `<div class="plm-body">
@@ -7024,19 +7215,39 @@ function mpSeasonPanel(pid, C, isP) {
       ${tiles.map(([ic, v, l]) => `<div class="ydk"><span class="ydk-ic">${ydIco(ic)}</span><b>${v}</b><span>${l}</span></div>`).join('')}
     </div></section>
     ${side ? `<section class="ydm-panel"><h4>${sideTitle}</h4>${side}</section>` : ''}
+    ${hitRows ? `<section class="ydm-panel"><h4>What gets hit off him</h4>${hitRows}</section>` : ''}
   </div>`;
 }
+/** Which of his pitches leave the yard, as a share of the homers he's allowed. */
+function mpHitOffRows(dongs) {
+  const by = {};
+  for (const d of dongs) if (d.dt.pitch) by[d.dt.pitch] = (by[d.dt.pitch] || 0) + 1;
+  const tot = Object.values(by).reduce((a, b) => a + b, 0);
+  if (!tot) return '';
+  return Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 6)
+    .map(([name, n]) => `<div class="pv-bat"><span class="pv-bat-name">${pitchAbbrClient(name)}</span><span class="pc-rate">${Math.round(n / tot * 100)}%<small>${n} HR</small></span></div>`).join('');
+}
 
-function mpDongsPanel(pid, dongs) {
+function mpDongsPanel(pid, dongs, isP) {
   if (!dongs.length)
-    return `<div class="plm-body"><div class="empty">No homers logged for him this season.</div></div>`;
+    return `<div class="plm-body"><div class="empty">${isP
+      ? "No homers logged against him this season."
+      : "No homers logged for him this season."}</div></div>`;
+  // A hitter's row is led by the date — they're all his, so the day is what
+  // separates them. An arm's is led by the man who did it.
   return `<div class="plm-body"><div class="plw">
-    <div class="plw-hd"><span class="plw-hd-l">${dongs.length} home run${dongs.length === 1 ? '' : 's'}</span><span class="plw-hd-r">tap to watch</span></div>
-    ${dongs.map(({ date, idx, dt }) => {
-      const cap = hrDetailCaption(date, pid, idx);
+    <div class="plw-hd"><span class="plw-hd-l">${dongs.length} home run${dongs.length === 1 ? '' : 's'} ${isP ? 'allowed' : ''}</span><span class="plw-hd-r">tap to watch</span></div>
+    ${dongs.map(({ date, idx, dt, bpid }) => {
+      const lead = isP ? compactPlayerName(playerNames[bpid] || bpid) : fmtDate(date);
+      // The batter is already the lead on an arm's row, so his caption carries
+      // the date instead of the name hrAllowedCaption would otherwise append.
+      const cap = isP ? [fmtDate(date), hrAllowedCaption(null, dt)].filter(Boolean).join(' · ')
+                      : hrDetailCaption(date, pid, idx);
+      const go = isP ? `openAllowedReels('${pid}','${date}','${bpid}',${idx})`
+                     : `openPlayerReels('${pid}','${date}',${idx})`;
       return `<div class="plw-row">
-        <button class="plw-go mp-go" onclick="openPlayerReels('${pid}','${date}',${idx})">
-          <span class="plw-mkt">${fmtDate(date)}<small class="mp-sub">${cap || 'no detail'}</small></span>
+        <button class="plw-go mp-go" onclick="${go}">
+          <span class="plw-mkt">${lead}<small class="mp-sub">${cap || 'no detail'}</small></span>
           <span class="plw-od mp-dist">${dt.dist != null && !dt.itp ? Math.round(dt.dist) : '—'}<small class="mp-ft">${dt.dist != null && !dt.itp ? 'ft' : ''}</small></span>
           <span class="plw-pc">▶ watch</span>
         </button>
@@ -7063,6 +7274,7 @@ window.mpOpenTool = (kind, pid, arg) => {
   if (kind === 'pick') openPickModal(pid, arg);
   else if (kind === 'due') openDueModal(pid);
   else if (kind === 'pitcher') openPitcher(pid, arg);
+  else if (kind === 'vuln') switchNav('pitchervuln');   // no per-arm card on that board
 };
 window.mpToMatchup = (pid) => {
   const C = matchupCards; if (!C || C === 'error') return;
@@ -9119,7 +9331,8 @@ function pcRender() {
       ${muPhotoTag(r.pid, r.team)}
       <div class="ydm-id"><h2>${compactPlayerName(r.name)}</h2>
         <div class="ydm-meta">${hand}<span>•</span>${r.team} vs ${r.oppTeam}${r.venue ? `<span class="ydm-venue"> · ${r.venue}</span>` : ''}
-          ${at >= 0 ? `<span class="ydm-count">${at + 1} / ${deck.length}</span>` : ''}</div></div>
+          ${at >= 0 ? `<span class="ydm-count">${at + 1} / ${deck.length}</span>` : ''}
+          <button class="mp-hub" onclick="pcToPlayer('${r.pid}')" title="His card — season, and every homer he's allowed">His card →</button></div></div>
       <div class="ydm-big"><div><span>Projected ${M.unit}</span><span>Exp ${M.lbl}% <b>${(r.exp * 100).toFixed(1)}</b></span></div>
         <strong>${mu != null ? mu.toFixed(1) : '—'}</strong></div>
     </header>`;
@@ -9232,6 +9445,8 @@ function closePc() {
   document.body.style.overflow = '';
   pc.pid = null;
 }
+/** Out of the market and onto the man. The player card links back the other way. */
+window.pcToPlayer = (pid) => { closePc(); openMlbPlayer(pid); };
 
 function renderPitcherProp(kind) {
   const isK = kind === 'k';

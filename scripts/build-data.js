@@ -8,7 +8,7 @@ const SEASON_START = '2026-03-25'; // true opening day — a single NYY@SF game 
 
 const dailyHRs        = {};  // date -> { pid -> hrCount }
 const hrTypes         = {};  // date -> { pid -> { gs, itp } } — grand-slam / inside-the-park counts (from play-by-play, only games with a HR)
-const hrDetails       = {};  // date -> { pid -> [ { pitcher, hand, pitch, mph, dist, ev, inning, gs, itp } ] } — one per HR, in game order
+const hrDetails       = {};  // date -> { pid -> [ { pitcher, ppid, hand, pitch, mph, dist, ev, inning, gs, itp } ] } — one per HR, in game order
 const dailyGames      = {};  // date -> gameCount
 const hrTotals        = {};  // pid -> total HRs
 const playerNames     = {};  // pid -> fullName
@@ -157,6 +157,9 @@ async function fetchDay(date) {
             (hrDetails[date] ??= {})[bp] ??= [];
             hrDetails[date][bp].push({
               pitcher: play.matchup?.pitcher?.fullName ?? null,
+              // The id, not just the name, so a homer is addressable from the
+              // arm's side too — the player card lists the dongs he allowed.
+              ppid:    play.matchup?.pitcher?.id != null ? String(play.matchup.pitcher.id) : null,
               hand:    play.matchup?.pitchHand?.code ?? null,
               pitch:   pitch.details?.type?.description ?? null,
               mph:     pitch.pitchData?.startSpeed ?? null,
