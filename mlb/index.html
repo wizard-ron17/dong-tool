@@ -684,7 +684,9 @@
   .plw-go:hover { background: var(--surface1); }
   .plw-mkt { font-size: 0.86rem; font-weight: 700; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .plw-line { font-family: var(--font-m); font-size: 0.75rem; color: var(--dim); text-align: right; }
-  .plw-od { font-family: var(--font-d); font-size: 1.15rem; font-weight: 700; text-align: right; }
+  /* Never leave this unstyled: inside a <button> an uncoloured span falls back
+     to the UA default, which is black on the dark theme. */
+  .plw-od { font-family: var(--font-d); font-size: 1.15rem; font-weight: 700; text-align: right; color: var(--text-strong); }
   .plw-pc { font-family: var(--font-m); font-size: 0.72rem; color: var(--dim); text-align: right; }
   .plw-add { flex: 0 0 auto; width: 3.8rem; border: none; border-left: 1px solid var(--border); background: none;
              color: var(--dim); font-family: var(--font-d); font-size: 1.2rem; font-weight: 700; cursor: pointer;
@@ -4481,7 +4483,7 @@ function renderLeaders() {
     const abPerHR  = r.hrs && r.abs ? (r.abs/r.hrs).toFixed(1) : '—';
     const lastCls  = r.lastAgo<=3?'recent':r.lastAgo<=10?'warm':'cold';
     const lastTxt  = r.last ? `${fmtDateLong(r.last)}<span class="ago">${r.lastAgo}d ago</span>` : '—';
-    return `<tr>
+    return `<tr class="due-row-clickable" onclick="openMlbPlayer('${r.pid}')">
       <td class="lb-rank ${rankClass(i)}">${i+1}</td>
       <td><div class="lb-player"><img class="lb-photo" src="${photoUrl}" alt=""><div><div class="lb-name">${r.name}${crossTabBadge(r.pid)}</div><div class="lb-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div></div></div></td>
       <td class="lb-num hr-col">${r.hrs}</td>
@@ -4512,7 +4514,7 @@ function renderLeaders() {
     const abPerHR  = r.hrs && r.abs ? (r.abs/r.hrs).toFixed(1) : '—';
     const lastCls  = r.lastAgo<=3?'recent':r.lastAgo<=10?'warm':'cold';
     const lastTxt  = r.last ? `${fmtDate(r.last)} · ${r.lastAgo}d` : '—';
-    return `<div class="lbc-card">
+    return `<div class="lbc-card due-row-clickable" onclick="openMlbPlayer('${r.pid}')">
       <div class="lbc-top">
         <span class="lbc-rank ${rankClass(i)}">${i+1}</span>
         <img class="lbc-photo" src="${photoUrl}" alt="">
@@ -6888,6 +6890,9 @@ function muGamedayHtml(b, p, env, row, live, touched) {
 // Search lands here rather than on whichever board happened to hold him — a
 // player is not a tool.
 const mp = { pid: null, tab: 'today' };
+// pickScoreClass/valueScoreClass speak great|good|ok; the .hrg-val ramp speaks
+// great|good|avg|below|bad. Map rather than leave a class that styles nothing.
+const MP_HRG = { great: 'great', good: 'good', ok: 'avg', avg: 'avg', below: 'below', bad: 'bad' };
 const mpIsPitcher = (pid) => !!(matchupCards && matchupCards !== 'error'
   && matchupCards._pIdx?.[pid] && !matchupCards._bIdx?.[pid]);
 const mpCard = (pid) => (matchupCards && matchupCards !== 'error')
@@ -6908,12 +6913,15 @@ function mpToday(pid) {
   const valIdx = (value || []).findIndex(r => r.pid === pid);
   const val = valIdx >= 0 ? value[valIdx] : null;
   const due = (dueRows || []).find(r => r.pid === pid);
+  // Each row opens that tool's own card rather than dropping you on its board —
+  // you came here for this player, so you should leave with his number, not a
+  // page you have to find him on again.
   if (chalk) rows.push({ tool: 'picks', lab: 'Picks · Chalk', sub: `#${chalkIdx + 1} on the board`,
-                         val: chalk.pickScore.toFixed(1), cls: pickScoreClass(chalk.pickScore), open: `switchNav('picks')` });
+                         val: chalk.pickScore.toFixed(1), cls: pickScoreClass(chalk.pickScore), open: `mpOpenTool('pick','${pid}','chalk')` });
   if (val) rows.push({ tool: 'picks', lab: 'Picks · Value', sub: `#${valIdx + 1} — blast running ahead of his HR total`,
-                       val: (val.valueScore ?? 0).toFixed(1), cls: valueScoreClass(val.valueScore ?? 0), open: `switchNav('picks');setPicksMode('value')` });
+                       val: (val.valueScore ?? 0).toFixed(1), cls: valueScoreClass(val.valueScore ?? 0), open: `mpOpenTool('pick','${pid}','value')` });
   if (due) rows.push({ tool: 'due', lab: 'Due', sub: due.droughtBarrels ? `${due.droughtBarrels} barrels since his last homer` : 'on the drought board',
-                       val: due.barrelPct != null ? due.barrelPct.toFixed(1) + '%' : '—', foot: 'barrel', cls: 'avg', open: `switchNav('due')` });
+                       val: due.barrelPct != null ? due.barrelPct.toFixed(1) + '%' : '—', foot: 'barrel', cls: 'avg', open: `mpOpenTool('due','${pid}')` });
   for (const kind of ['k', 'bb']) {
     const { rows: rs, lg } = ppRankStarters(kind);
     const i = rs.findIndex(r => r.pid === pid);
@@ -6923,7 +6931,7 @@ function mpToday(pid) {
     rows.push({ tool: 'pp', lab: `${M.name}`, sub: r.proj != null ? `#${i + 1} today · ~${r.proj.toFixed(1)} projected` : `#${i + 1} today`,
                 val: need != null ? kbbOdds(kbbWinProb(r.proj, need)) : `${(r.exp * 100).toFixed(1)}%`,
                 foot: need != null ? `over ${need - 0.5}` : `exp ${M.lbl}%`,
-                cls: 'avg', open: `openPitcher('${pid}','${kind}')` });
+                cls: 'avg', open: `mpOpenTool('pitcher','${pid}','${kind}')` });
   }
   return rows;
 }
@@ -6967,7 +6975,7 @@ function mpTodayPanel(pid, rows, isP) {
     ${rows.map(r => `<div class="plw-row">
       <button class="plw-go mp-go" onclick="${r.open}">
         <span class="plw-mkt">${r.lab}<small class="mp-sub">${r.sub}</small></span>
-        <span class="plw-od ${r.cls === 'great' ? 'goodc' : r.cls === 'bad' ? 'dogc' : ''}">${r.val}</span>
+        <span class="plw-od hrg-val ${MP_HRG[r.cls] || 'avg'}">${r.val}</span>
         ${r.foot ? `<span class="plw-pc">${r.foot}</span>` : '<span class="plw-pc"></span>'}
       </button>
     </div>`).join('')}
@@ -7028,6 +7036,13 @@ function mpMatchupTarget(pid) {
   if (C._pIdx?.[pid]) return { label: 'Open in Matchups →', code: `mpToMatchup('${pid}')` };
   return null;
 }
+/** Close this card, then open the tool's own card for the same player. */
+window.mpOpenTool = (kind, pid, arg) => {
+  closeMlbPlayer();
+  if (kind === 'pick') openPickModal(pid, arg);
+  else if (kind === 'due') openDueModal(pid);
+  else if (kind === 'pitcher') openPitcher(pid, arg);
+};
 window.mpToMatchup = (pid) => {
   const C = matchupCards; if (!C || C === 'error') return;
   const row = (picks || []).find(r => r.pid === pid) || (value || []).find(r => r.pid === pid);
