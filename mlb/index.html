@@ -1142,8 +1142,19 @@
      units aren't repeated on every row (reclaims width for the name/badges) */
   .sched-lineup-hrval { width: 1.5rem; flex-shrink: 0; text-align: right; font-size: 0.704rem; font-weight: 700; color: var(--dim); }
   .sched-lineup-abhr  { width: 2.7rem; flex-shrink: 0; text-align: right; font-size: 0.704rem; font-weight: 700; }
+  /* Matchup score vs today's starter — the widest number here, and the one
+     worth reading, so it carries the pick ramp rather than the HR/AB grey. */
+  .sched-lineup-mu { width: 2.1rem; flex-shrink: 0; text-align: right; font-family: var(--font-d); font-size: 0.72rem; font-weight: 700; }
+  .sched-lineup-mu.great { color: var(--accent); } .sched-lineup-mu.good { color: var(--gold); }
+  .sched-lineup-mu.ok { color: #ff7040; } .sched-lineup-mu.off { color: var(--dim); font-weight: 400; }
+  /* A bat opens his card. The row is inside a header that toggles the game, so
+     the handler stops propagation — without it a tap would open the card and
+     collapse the lineup out from under it. */
+  .sched-lineup-row.bat { cursor: pointer; border-radius: 4px; margin: 0 -0.25rem; padding-inline: 0.25rem; transition: background 0.12s; }
+  .sched-lineup-row.bat:hover { background: var(--surface2); }
+  .sched-lineup-row.bat:hover .sched-lineup-pname { color: var(--accent); }
   .sched-lineup-hdr { padding-bottom: 0.15rem; border-bottom: 1px solid var(--border); margin-bottom: 0.1rem; }
-  .sched-lineup-hdr .sched-lineup-hrval, .sched-lineup-hdr .sched-lineup-abhr { color: var(--muted); font-size: 0.630rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .sched-lineup-hdr .sched-lineup-hrval, .sched-lineup-hdr .sched-lineup-abhr, .sched-lineup-hdr .sched-lineup-mu { color: var(--muted); font-size: 0.630rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
   .sched-lineup-hdr-spacer { flex: 1; min-width: 0; }
   .sched-lineup-empty { font-size: 0.723rem; color: var(--dim); font-style: italic; }
   .sched-proj-tag { font-size: 0.661rem; font-weight: 700; letter-spacing: 0.03em; color: var(--gold); background: rgba(240,192,64,0.1); border: 1px solid rgba(240,192,64,0.3); border-radius: 8px; padding: 0.05rem 0.4rem; text-transform: none; }
@@ -5505,10 +5516,34 @@ function pickPositionalLineup(pids, posOf, limit = 9) {
   for (const pid of pids) { if (used.size >= limit) break; used.add(pid); }
   return pids.filter(pid => used.has(pid)).slice(0, limit);
 }
-function schedLineupHtml(side) {
+/**
+ * A bat's matchup score against the arm he faces in THIS game — the same number
+ * the Matchup tool and the Picks board show, because it is the same call. Null
+ * until matchup-cards.json is in memory; the Schedule page pulls it only when a
+ * game is expanded, so nobody checking start times downloads 668 KB.
+ */
+function schedScoreFor(pid, oppSide, venue) {
+  const C = matchupCards;
+  if (!C || C === 'error') return null;
+  const b = C._bIdx?.[String(pid)], p = C._pIdx?.[String(oppSide?.probablePitcherId || '')];
+  if (!b || !p) return null;
+  const prev = muVenue;
+  // scoreMatchup and muEnvFor read muVenue for the park factor; this game's park
+  // is the right one regardless of what the Matchup tool happens to be set to.
+  muVenue = (venue && C.parkFactors[venue]) ? venue : '__neutral__';
+  try { return scoreMatchup(b, p, muVenue, muEnvFor(b, p).env).pickScore; }
+  finally { muVenue = prev; }
+}
+function schedLineupHtml(side, oppSide, venue) {
   const label = side.teamAbbr || side.teamName;
   const batterAvg = avgBatterAbPerHR();
-  const hdr = '<div class="sched-lineup-row sched-lineup-hdr"><span class="sched-lineup-hdr-spacer"></span><span class="sched-lineup-hrval">HR</span><span class="sched-lineup-abhr">AB/HR</span></div>';
+  const scored = matchupCards && matchupCards !== 'error' && matchupCards._pIdx?.[String(oppSide?.probablePitcherId || '')];
+  const scoreCell = (pid) => {
+    if (!scored) return '';
+    const v = schedScoreFor(pid, oppSide, venue);
+    return `<span class="sched-lineup-mu ${v == null ? 'off' : pickScoreClass(v)}">${v == null ? '—' : v.toFixed(1)}</span>`;
+  };
+  const hdr = `<div class="sched-lineup-row sched-lineup-hdr"><span class="sched-lineup-hdr-spacer"></span><span class="sched-lineup-hrval">HR</span><span class="sched-lineup-abhr">AB/HR</span>${scored ? '<span class="sched-lineup-mu" title="Matchup score vs today\'s starter — the Picks board number">MU</span>' : ''}</div>`;
   // No posted lineup — project the likely bats instead of a blank TBD block.
   if (!side.lineup.length) {
     const proj = projectedLineupFor(side.teamAbbr);
@@ -5524,13 +5559,14 @@ function schedLineupHtml(side) {
       const abPerHR = hrs ? abs / hrs : null;
       const cls = lowerIsBetterClass(abPerHR, batterAvg);
       const m = batMeta[pid] || {};
-      return `<div class="sched-lineup-row">
+      return `<div class="sched-lineup-row bat" onclick="event.stopPropagation();openMlbPlayer('${pid}')" title="Open ${(playerNames[pid] || '').replace(/"/g, '&quot;')}'s card">
         <span class="sched-lineup-order">${i + 1}</span>
         <span class="sched-lineup-hand">${handBadge(m.b, 'bats')}</span>
         <span class="sched-lineup-pos">${m.p || ''}</span>
         <span class="sched-lineup-nameblock"><span class="sched-lineup-pname">${playerNames[pid] || pid}</span><span class="sched-lineup-badges">${injuryBadge(pid, true)}${crossTabBadge(pid, {}, true)}</span></span>
         <span class="sched-lineup-hrval">${hrs}</span>
         <span class="sched-lineup-abhr hrg-val ${cls}">${abPerHR != null ? abPerHR.toFixed(1) : '—'}</span>
+        ${scoreCell(pid)}
       </div>`;
     }).join('');
     return `<div class="sched-lineup-col"><div class="sched-lineup-head">${label} <span class="sched-proj-tag" title="Lineup not posted — likely everyday starters, the pool the books use pre-lineup">Projected</span></div>${hdr}${prows}</div>`;
@@ -5540,13 +5576,14 @@ function schedLineupHtml(side) {
     const abs = playerABs[p.pid] ?? 0;
     const abPerHR = hrs ? abs / hrs : null;
     const cls = lowerIsBetterClass(abPerHR, batterAvg);
-    return `<div class="sched-lineup-row">
+    return `<div class="sched-lineup-row bat" onclick="event.stopPropagation();openMlbPlayer('${p.pid}')" title="Open ${(playerNames[p.pid] || p.name || '').replace(/"/g, '&quot;')}'s card">
       <span class="sched-lineup-order">${p.order}</span>
       <span class="sched-lineup-hand">${handBadge(p.bats, 'bats')}</span>
       <span class="sched-lineup-pos">${p.position}</span>
       <span class="sched-lineup-nameblock"><span class="sched-lineup-pname">${playerNames[p.pid] || p.name}</span><span class="sched-lineup-badges">${injuryBadge(p.pid, true)}${crossTabBadge(p.pid, {}, true)}</span></span>
       <span class="sched-lineup-hrval">${hrs}</span>
       <span class="sched-lineup-abhr hrg-val ${cls}">${abPerHR != null ? abPerHR.toFixed(1) : '—'}</span>
+      ${scoreCell(p.pid)}
     </div>`;
   }).join('');
   return `<div class="sched-lineup-col"><div class="sched-lineup-head">${label}</div>${hdr}${rows}</div>`;
@@ -5636,7 +5673,23 @@ function schedBullpenHtml(side) {
   return `<div class="sched-lineup-col"><div class="sched-lineup-head">${label} Bullpen</div>${rows}</div>`;
 }
 function toggleSchedGame(pk) {
-  document.getElementById(`sched-game-${pk}`)?.classList.toggle('expanded');
+  const el = document.getElementById(`sched-game-${pk}`);
+  el?.classList.toggle('expanded');
+  // Matchup scores need matchup-cards.json (668 KB). Opening a lineup is the
+  // first moment we know it's wanted — someone checking first pitch pays
+  // nothing. ensureMatchupCards re-renders this page when it lands.
+  if (el?.classList.contains('expanded')) ensureMatchupCards();
+}
+/**
+ * Re-render the slate without collapsing what the user has open. renderSchedule
+ * rebuilds every game's markup, so the `expanded` class — which lives only in
+ * the DOM — would otherwise be wiped by the very fetch the user triggered by
+ * expanding a game.
+ */
+function renderScheduleKeepingOpen() {
+  const open = [...document.querySelectorAll('.sched-game.expanded')].map(el => el.id);
+  renderSchedule();
+  for (const id of open) document.getElementById(id)?.classList.add('expanded');
 }
 let schedSort = 'time'; // 'time' (earliest first) or 'homer' (highest Homer Score first)
 function setSchedSort(s) { schedSort = s; renderSchedule(); }
@@ -5997,8 +6050,8 @@ function renderSchedule() {
         <span class="sched-expand-hint">▶</span>
       </div>
       <div class="sched-lineups">
-        ${schedLineupHtml(g.away)}
-        ${schedLineupHtml(g.home)}
+        ${schedLineupHtml(g.away, g.home, g.venue)}
+        ${schedLineupHtml(g.home, g.away, g.venue)}
       </div>
       <div class="sched-bullpen-head">Bullpens</div>
       <div class="sched-bullpens">
@@ -7064,6 +7117,7 @@ async function ensureMatchupCards() {
   // Re-render whichever matchup-card-backed tool is open now that data has arrived.
   if (activeNav === 'matchups') renderMatchups();
   else if (activeNav === 'pitchervuln') renderPitcherVuln();
+  else if (activeNav === 'schedule') renderScheduleKeepingOpen();
   // Search is one of them: it warms this file on focus, so someone may already
   // be typing against the thin today's-boards base while it lands.
   if (!document.getElementById('tb-results')?.hidden) siteSearch();
