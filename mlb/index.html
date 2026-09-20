@@ -665,6 +665,82 @@
   .mu-sug-score.great { color: var(--accent); } .mu-sug-score.good { color: var(--gold); } .mu-sug-score.ok { color: #ff7040; }
   .mu-parkline { display: flex; align-items: center; gap: 0.4rem; margin: 0 0 0.7rem; }
   /* Gameday controls — the three levers the Picks board applies. */
+  /* Row list shared with the Tud tool's player card — same component, same
+     classes, so the two sides stay recognisably one thing. */
+  .goodc { color: var(--good); } .dogc { color: var(--silver); }
+  .plw { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface0); }
+  .plw-hd { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0 0.5rem 0.8rem;
+            font-size: 0.667rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim);
+            border-bottom: 1px solid var(--border); background: var(--surface1); }
+  .plw-hd-l { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .plw-hd-r { flex: 0 0 auto; }
+  .plw-hd-add { flex: 0 0 3.8rem; text-align: center; white-space: nowrap; letter-spacing: 0.02em; }
+  .plw-row { display: flex; align-items: stretch; border-top: 1px solid var(--border); }
+  .plw-row:first-of-type { border-top: none; }
+  .plw-row.on { background: rgba(51,208,124,0.07); }
+  .plw-go { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) 3.4rem 4.6rem 3rem;
+            align-items: center; gap: 0.5rem; background: none; border: none; cursor: pointer;
+            padding: 0.6rem 0.4rem 0.6rem 0.8rem; text-align: left; font-family: var(--font-b); }
+  .plw-go:hover { background: var(--surface1); }
+  .plw-mkt { font-size: 0.86rem; font-weight: 700; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .plw-line { font-family: var(--font-m); font-size: 0.75rem; color: var(--dim); text-align: right; }
+  .plw-od { font-family: var(--font-d); font-size: 1.15rem; font-weight: 700; text-align: right; }
+  .plw-pc { font-family: var(--font-m); font-size: 0.72rem; color: var(--dim); text-align: right; }
+  .plw-add { flex: 0 0 auto; width: 3.8rem; border: none; border-left: 1px solid var(--border); background: none;
+             color: var(--dim); font-family: var(--font-d); font-size: 1.2rem; font-weight: 700; cursor: pointer;
+             transition: background 0.12s, color 0.12s; }
+  .plw-add:hover { background: var(--surface2); color: var(--text); }
+  .plw-add.on { color: var(--accent); }
+  .plw-res { flex: 0 0 3.8rem; display: flex; align-items: center; justify-content: center;
+             border-left: 1px solid var(--border); padding: 0 0.2rem; }
+  .plw-res .lv-chip { margin: 0; }
+  .plw-dash { color: var(--dim); font-family: var(--font-m); font-size: 0.8rem; }
+  .plw.done .plw-hd-add, .plw.done .plw-res { flex-basis: 5.2rem; }
+  .plw-note { margin: 0.55rem 0 0; font-size: 0.72rem; line-height: 1.5; color: var(--dim); }
+  .plt-short { display: none; }
+  @media (max-width: 560px) {
+    .plw-go { grid-template-columns: minmax(0, 1fr) 2.7rem 4rem; padding-left: 0.6rem; }
+    .plw-pc { display: none; }
+    .plw-od { font-size: 1.05rem; }
+  }
+  @media (max-width: 420px) {
+    .plw-go { grid-template-columns: minmax(0, 1fr) 3.5rem; grid-template-areas: "m o" "l o";
+              row-gap: 0.05rem; column-gap: 0.35rem; padding-left: 0.55rem; }
+    .plw-mkt { font-size: 0.81rem; }
+    .plw-mkt .plt-long { display: none; }
+    .plw-mkt .plt-short { display: inline; }
+    .plw-mkt { grid-area: m; }
+    .plw-line { grid-area: l; text-align: left; min-height: 0.9rem; }
+    .plw-od { grid-area: o; align-self: center; }
+    .plw-add, .plw-hd-add { flex-basis: 3.3rem; width: 3.3rem; }
+    /* the result column is wider than the + it replaces, so the graded state
+       claws the space back from the odds column and the chip's own type */
+    .plw.done .plw-hd-add, .plw.done .plw-res { flex-basis: 4rem; width: 4rem; }
+    .plw.done .plw-go { grid-template-columns: minmax(0, 1fr) 3.2rem; }
+    .plw-res .lv-chip { font-size: 0.6rem; padding: 0.1rem 0.28rem; }
+    .plw-hd { padding-left: 0.55rem; }
+    #mp-back .pl-tabs { gap: 0.5rem; }
+    #mp-back .pl-tabs .sub-btn { font-size: 0.76rem; }
+  }
+  @media (max-width: 620px) {
+    #mp-back .pl-tabs { gap: 1rem; overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
+    #mp-back .pl-tabs::-webkit-scrollbar { display: none; }
+    #mp-back .pl-tabs .sub-btn { font-size: 0.82rem; white-space: nowrap; }
+    #mp-back .pl-tabs .plt-long { display: none; }
+    #mp-back .pl-tabs .plt-short { display: inline; }
+    .plw-hd-r { display: none; }
+  }
+  /* Player card rows: a second line under the label, and a call to action. */
+  .mp-sub { display: block; font-family: var(--font-b); font-size: 0.667rem; font-weight: 600; color: var(--dim); margin-top: 0.12rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .plw-go.mp-go { align-items: center; }
+  .plw-go.mp-go .plw-mkt { white-space: normal; }
+  .mp-ft { font-size: 0.55em; color: var(--dim); margin-left: 0.1rem; }
+  .mp-dist { color: var(--text-strong); }
+  .mp-cta-wrap { margin-top: 0.7rem; text-align: center; }
+  .mp-cta { background: rgba(53,201,110,0.12); border: 1px solid var(--accent); color: var(--accent);
+            font-family: var(--font-d); font-size: 0.85rem; font-weight: 700; letter-spacing: 0.02em;
+            padding: 0.5rem 1.1rem; border-radius: 999px; cursor: pointer; transition: background 0.14s; }
+  .mp-cta:hover { background: rgba(53,201,110,0.2); }
   .mu-gd { border: 1px solid var(--border); border-radius: 10px; background: var(--surface0); padding: 0.55rem 0.7rem 0.65rem; margin: 0 0 0.7rem; }
   .mu-gd-hd { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.45rem; }
   .mu-gd-live { font-size: 0.667rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent);
@@ -681,6 +757,13 @@
                 transition: background 0.12s, color 0.12s, border-color 0.12s; }
   .mu-gd-chip:hover { color: var(--text); border-color: var(--dim); }
   .mu-gd-chip.on { background: rgba(53,201,110,0.14); border-color: var(--accent); color: var(--accent); }
+  /* Declared after the 620px block above, so it actually wins at 320px —
+     same-specificity rules are decided by source order, not by how narrow
+     the query is. */
+  @media (max-width: 420px) {
+    #mp-back .pl-tabs { gap: 0.5rem; }
+    #mp-back .pl-tabs .sub-btn { font-size: 0.76rem; padding-left: 0.05rem; padding-right: 0.05rem; }
+  }
   @media (max-width: 560px) {
     .mu-gd-row { grid-template-columns: minmax(0, 1fr); gap: 0.55rem; }
     .mu-gd-chips { flex-wrap: nowrap; }
@@ -3405,25 +3488,8 @@ const tbIsPitcher = (pid) => !!(matchupCards && matchupCards !== 'error' && matc
  * Matchup tool against whoever he actually faces today. A pitcher opens his own
  * card. Falls back to the pick modal when the matchup data isn't loaded yet.
  */
-async function tbOpenPlayer(pid) {
-  const row = (picks || []).find(r => r.pid === pid) || (value || []).find(r => r.pid === pid);
-  // The matchup cards load on first visit to the tool, so a search that lands
-  // there has to wait for them rather than falling back to the pick modal.
-  if (!matchupCards || matchupCards === 'error') await ensureMatchupCards();
-  const C = matchupCards;
-  if (C && C !== 'error') {
-    if (C._pIdx?.[pid] && !C._bIdx?.[pid]) { openPitcher(pid); return; }
-    if (C._bIdx?.[pid]) {
-      const opp = row && C._pIdx?.[row.oppPid] ? row.oppPid : muPitcherPid;
-      switchNav('matchups');
-      muOv = { pa: undefined, wx: undefined, pen: undefined };   // set before the render, not through it
-      muLoadMatchup(pid, opp, row?.venue);
-      return;
-    }
-  }
-  if (row) openPickModal(pid);
-  else switchNav('matchups');
-}
+/** Search opens a player's own card — his boards, his season, his homers. */
+const tbOpenPlayer = (pid) => openMlbPlayer(pid);
 function tbGo(code) {
   const input = document.getElementById('site-search');
   document.getElementById('tb-results').hidden = true;
@@ -6806,6 +6872,183 @@ function muGamedayHtml(b, p, env, row, live, touched) {
         </div>
       </div>
     </div>`;
+}
+// ── Player card ────────────────────────────────────────────────────────────
+// The Tud tool's player card on this side: one place per player, listing where
+// he turns up across the tools today, his season, and his homers with the clip.
+// Search lands here rather than on whichever board happened to hold him — a
+// player is not a tool.
+const mp = { pid: null, tab: 'today' };
+const mpIsPitcher = (pid) => !!(matchupCards && matchupCards !== 'error'
+  && matchupCards._pIdx?.[pid] && !matchupCards._bIdx?.[pid]);
+const mpCard = (pid) => (matchupCards && matchupCards !== 'error')
+  ? (matchupCards._bIdx?.[pid] || matchupCards._pIdx?.[pid] || null) : null;
+
+/** Every homer we have on him, newest first, with the clip index for openReels. */
+function mpDongs(pid) {
+  const out = [];
+  for (const date of Object.keys(hrDetails || {}).sort().reverse())
+    (hrDetails[date]?.[pid] || []).forEach((dt, idx) => out.push({ date, idx, dt }));
+  return out;
+}
+/** Where he shows up across today's boards. */
+function mpToday(pid) {
+  const rows = [];
+  const chalkIdx = (picks || []).findIndex(r => r.pid === pid);
+  const chalk = chalkIdx >= 0 ? picks[chalkIdx] : null;
+  const valIdx = (value || []).findIndex(r => r.pid === pid);
+  const val = valIdx >= 0 ? value[valIdx] : null;
+  const due = (dueRows || []).find(r => r.pid === pid);
+  if (chalk) rows.push({ tool: 'picks', lab: 'Picks · Chalk', sub: `#${chalkIdx + 1} on the board`,
+                         val: chalk.pickScore.toFixed(1), cls: pickScoreClass(chalk.pickScore), open: `switchNav('picks')` });
+  if (val) rows.push({ tool: 'picks', lab: 'Picks · Value', sub: `#${valIdx + 1} — blast running ahead of his HR total`,
+                       val: (val.valueScore ?? 0).toFixed(1), cls: valueScoreClass(val.valueScore ?? 0), open: `switchNav('picks');setPicksMode('value')` });
+  if (due) rows.push({ tool: 'due', lab: 'Due', sub: due.droughtBarrels ? `${due.droughtBarrels} barrels since his last homer` : 'on the drought board',
+                       val: due.barrelPct != null ? due.barrelPct.toFixed(1) + '%' : '—', foot: 'barrel', cls: 'avg', open: `switchNav('due')` });
+  for (const kind of ['k', 'bb']) {
+    const { rows: rs, lg } = ppRankStarters(kind);
+    const i = rs.findIndex(r => r.pid === pid);
+    if (i < 0) continue;
+    const r = rs[i], M = PC_MKT[kind];
+    const need = r.proj != null ? ppEven(r.proj) : null;
+    rows.push({ tool: 'pp', lab: `${M.name}`, sub: r.proj != null ? `#${i + 1} today · ~${r.proj.toFixed(1)} projected` : `#${i + 1} today`,
+                val: need != null ? kbbOdds(kbbWinProb(r.proj, need)) : `${(r.exp * 100).toFixed(1)}%`,
+                foot: need != null ? `over ${need - 0.5}` : `exp ${M.lbl}%`,
+                cls: 'avg', open: `openPitcher('${pid}','${kind}')` });
+  }
+  return rows;
+}
+
+function mpRender() {
+  const box = document.querySelector('#mp-back .plm'); if (!box || !mp.pid) return;
+  const pid = mp.pid, C = mpCard(pid), isP = mpIsPitcher(pid);
+  const name = playerNames[pid] || C?.name || pid;
+  const team = C?.team || playerTeams[pid] || '';
+  const dongs = mpDongs(pid), today = mpToday(pid);
+  const hr = hrTotals?.[pid] ?? C?.hrs ?? 0;
+  const hand = C?.hand ? `<span class="pk-hand ${C.hand.toLowerCase()}">${C.hand}</span>` : '';
+  const tabs = [['today', `Today${today.length ? ` · ${today.length}` : ''}`, `Today${today.length ? ` · ${today.length}` : ''}`],
+                ['season', 'Season', 'Season'],
+                ['dongs', `Dongs${dongs.length ? ` · ${dongs.length}` : ''}`, `HR${dongs.length ? ` · ${dongs.length}` : ''}`]];
+  let body;
+  if (mp.tab === 'dongs') body = mpDongsPanel(pid, dongs);
+  else if (mp.tab === 'season') body = mpSeasonPanel(pid, C, isP);
+  else body = mpTodayPanel(pid, today, isP);
+  box.innerHTML = `
+    <button class="pm-x" onclick="closeMlbPlayer()" aria-label="Close">×</button>
+    <header class="ydm-hero">
+      ${muPhotoTag(pid, team)}
+      <div class="ydm-id"><h2>${compactPlayerName(name)}</h2>
+        <div class="ydm-meta">${hand}${team ? `<span>•</span>${team}${teamLogoImg(team, 'team-logo')}` : ''}${isP ? '<span>•</span>P' : ''}</div></div>
+      <div class="ydm-big"><div><span>${new Date().getFullYear()} season</span><span>${isP && C?.ip != null ? `${C.ip} IP` : `${C?.abs ?? 0} AB`}</span></div>
+        <strong>${isP ? (C?.fbVelo != null ? C.fbVelo : '—') : hr}<small>${isP ? 'mph FB' : 'HR'}</small></strong></div>
+    </header>
+    <div class="sub-tabs u-tabs pl-tabs">${tabs.map(([v, l, sh]) =>
+      `<button class="sub-btn${mp.tab === v ? ' active' : ''}" onclick="setMpTab('${v}')"><span class="plt-long">${l}</span><span class="plt-short">${sh}</span></button>`).join('')}</div>
+    ${body}`;
+}
+
+function mpTodayPanel(pid, rows, isP) {
+  const open = mpMatchupTarget(pid);
+  const cta = open ? `<button class="mp-cta" onclick="${open.code}">${open.label}</button>` : '';
+  if (!rows.length)
+    return `<div class="plm-body"><div class="empty">He isn't on any of today's boards — no lineup, no start, or below every cut.</div>${cta ? `<div class="mp-cta-wrap">${cta}</div>` : ''}</div>`;
+  return `<div class="plm-body"><div class="plw">
+    <div class="plw-hd"><span class="plw-hd-l">${rows.length} board${rows.length === 1 ? '' : 's'} today</span><span class="plw-hd-r">tap to open</span></div>
+    ${rows.map(r => `<div class="plw-row">
+      <button class="plw-go mp-go" onclick="${r.open}">
+        <span class="plw-mkt">${r.lab}<small class="mp-sub">${r.sub}</small></span>
+        <span class="plw-od ${r.cls === 'great' ? 'goodc' : r.cls === 'bad' ? 'dogc' : ''}">${r.val}</span>
+        ${r.foot ? `<span class="plw-pc">${r.foot}</span>` : '<span class="plw-pc"></span>'}
+      </button>
+    </div>`).join('')}
+  </div>${cta ? `<div class="mp-cta-wrap">${cta}</div>` : ''}</div>`;
+}
+
+function mpSeasonPanel(pid, C, isP) {
+  if (!C) return `<div class="plm-body"><div class="empty">No season card for him yet — he shows up here once he's in the matchup data.</div></div>`;
+  const pct = (v) => v == null ? '—' : (v * 100).toFixed(1) + '%';
+  const rat = (v) => v == null ? '—' : v.toFixed(2) + '×';
+  const tiles = isP
+    ? [['target', rat(C.stuffRatio), 'Arm stuff'], ['trend', C.fbVelo != null ? C.fbVelo : '—', 'FB velo'],
+       ['bars', C.barrelPct != null ? C.barrelPct + '%' : '—', 'Barrel%'], ['clock', C.ip != null ? C.ip : '—', 'Innings'],
+       ['team', rat(C.platoonVsL), 'vs LHB'], ['ball', rat(C.platoonVsR), 'vs RHB']]
+    : [['bars', String(C.hrs ?? 0), 'Home runs'], ['clock', String(C.abs ?? 0), 'At bats'],
+       ['target', C.hrs ? (C.abs / C.hrs).toFixed(1) : '—', 'AB / HR'], ['trend', pct(C.blastPct), 'Blast%'],
+       ['team', rat(C.platoonVsL), 'vs LHP'], ['ball', rat(C.platoonVsR), 'vs RHP'],
+       ['bulb', rat(C.form), 'Recent form']];
+  const mixRows = (C.mix || []).slice(0, 6).map(m => `<div class="pv-bat"><span class="pv-bat-name">${pitchAbbrClient(m.name)}</span><span class="pc-rate">${m.pct}%</span></div>`).join('');
+  const hrRows = (C.hrProfile || []).slice(0, 6).map(h => `<div class="pv-bat"><span class="pv-bat-name">${pitchAbbrClient(h.name)}</span><span class="pc-rate">${h.pct}%<small>${h.n != null ? h.n + ' HR' : ''}</small></span></div>`).join('');
+  const side = isP ? mixRows : hrRows;
+  const sideTitle = isP ? 'His arsenal' : 'What he homers off';
+  return `<div class="plm-body">
+    <section class="ydm-panel ydm-keys"><h4>Season</h4><div class="ydk-row">
+      ${tiles.map(([ic, v, l]) => `<div class="ydk"><span class="ydk-ic">${ydIco(ic)}</span><b>${v}</b><span>${l}</span></div>`).join('')}
+    </div></section>
+    ${side ? `<section class="ydm-panel"><h4>${sideTitle}</h4>${side}</section>` : ''}
+  </div>`;
+}
+
+function mpDongsPanel(pid, dongs) {
+  if (!dongs.length)
+    return `<div class="plm-body"><div class="empty">No homers logged for him this season.</div></div>`;
+  return `<div class="plm-body"><div class="plw">
+    <div class="plw-hd"><span class="plw-hd-l">${dongs.length} home run${dongs.length === 1 ? '' : 's'}</span><span class="plw-hd-r">tap to watch</span></div>
+    ${dongs.map(({ date, idx, dt }) => {
+      const cap = hrDetailCaption(date, pid, idx);
+      return `<div class="plw-row">
+        <button class="plw-go mp-go" onclick="openReels('${date}','${pid}',${idx})">
+          <span class="plw-mkt">${fmtDate(date)}<small class="mp-sub">${cap || 'no detail'}</small></span>
+          <span class="plw-od mp-dist">${dt.dist != null && !dt.itp ? Math.round(dt.dist) : '—'}<small class="mp-ft">${dt.dist != null && !dt.itp ? 'ft' : ''}</small></span>
+          <span class="plw-pc">▶ watch</span>
+        </button>
+      </div>`;
+    }).join('')}
+  </div></div>`;
+}
+
+/** "Open in Matchups" — against today's opponent when he has one. */
+function mpMatchupTarget(pid) {
+  const C = matchupCards; if (!C || C === 'error') return null;
+  const row = (picks || []).find(r => r.pid === pid) || (value || []).find(r => r.pid === pid);
+  if (C._bIdx?.[pid]) {
+    const opp = row && C._pIdx?.[row.oppPid] ? row.oppPid : null;
+    return { label: opp ? `Open in Matchups vs ${compactPlayerName(row.oppName || '')} →` : 'Open in Matchups →',
+             code: `mpToMatchup('${pid}')` };
+  }
+  if (C._pIdx?.[pid]) return { label: 'Open in Matchups →', code: `mpToMatchup('${pid}')` };
+  return null;
+}
+window.mpToMatchup = (pid) => {
+  const C = matchupCards; if (!C || C === 'error') return;
+  const row = (picks || []).find(r => r.pid === pid) || (value || []).find(r => r.pid === pid);
+  closeMlbPlayer();
+  switchNav('matchups');
+  muOv = { pa: undefined, wx: undefined, pen: undefined };
+  if (C._bIdx?.[pid]) muLoadMatchup(pid, (row && C._pIdx?.[row.oppPid]) ? row.oppPid : muPitcherPid, row?.venue);
+  else muLoadMatchup(muBatterPid, pid, muVenue === '__neutral__' ? null : muVenue);
+};
+function setMpTab(t) { mp.tab = t; mpRender(); }
+function mpKey(e) { if (e.key === 'Escape') closeMlbPlayer(); }
+async function openMlbPlayer(pid) {
+  if (!matchupCards || matchupCards === 'error') await ensureMatchupCards();
+  mp.pid = String(pid);
+  mp.tab = mpToday(mp.pid).length ? 'today' : (mpDongs(mp.pid).length ? 'dongs' : 'season');
+  if (!document.getElementById('mp-back')) {
+    document.body.insertAdjacentHTML('beforeend', `
+      <div class="pm-back" id="mp-back" onclick="if(event.target===this)closeMlbPlayer()">
+        <div class="pm ydm plm" role="dialog" aria-modal="true"></div>
+      </div>`);
+    document.addEventListener('keydown', mpKey);
+    document.body.style.overflow = 'hidden';
+  }
+  mpRender();
+}
+function closeMlbPlayer() {
+  document.getElementById('mp-back')?.remove();
+  document.removeEventListener('keydown', mpKey);
+  document.body.style.overflow = '';
+  mp.pid = null;
 }
 function muLabel(x) { const tag = [x.team, x.role].filter(Boolean).join(' · '); return `${x.name}${tag ? ` (${tag})` : ''}`; }
 // Team colors for the matchup photo rings — brightened where a team's primary
