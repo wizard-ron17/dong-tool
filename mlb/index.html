@@ -6785,7 +6785,12 @@ function scoreMatchup(b, p, venue, env) {
   // Pitch-mix synergy is no longer scored (no out-of-sample HR signal — see build);
   // mv.mix still feeds the pitch-overlap viz below, just not the score.
   const factorList = [form, batP, effPlat, effStuff, pa, park, wx].filter(f => f != null);
-  const mf = factorList.reduce((a, c) => a * c, form != null ? 1 : 0.95);
+  // For an untouched real matchup, take the board's own product rather than
+  // rebuilding it: starterShare ships rounded, and reconstructing the blend
+  // from it lands within ~1.4% instead of on the number. The parts below are
+  // still computed — the factor bars need them — but they do not set the score.
+  const mf = E.exactMF != null ? E.exactMF
+    : factorList.reduce((a, c) => a * c, form != null ? 1 : 0.95);
   const surplusW = Math.max(0.5, Math.min(2.5, b.blastSurplus ?? 1));
   return {
     pickScore: basePower * mf * 100,
@@ -6817,7 +6822,9 @@ function muEnvFor(b, p) {
   if (muOv.wx !== undefined) env.wx = muOv.wx;
   if (muOv.pen !== undefined) { env.pen = muOv.pen.pen; env.sW = muOv.pen.sW; }
   const touched = muOv.pa !== undefined || muOv.wx !== undefined || muOv.pen !== undefined;
-  return { env, row, live: !!row && !touched, touched };
+  const live = !!row && !touched && (!muVenue || muVenue === row.venue);
+  if (live && row.matchupFactor != null) env.exactMF = row.matchupFactor;
+  return { env, row, live, touched };
 }
 function setMuEnv(key, val) { muOv[key] = val; renderMatchups(); }
 function muResetEnv() { muOv = { pa: undefined, wx: undefined, pen: undefined }; renderMatchups(); }
@@ -6866,7 +6873,9 @@ function muGamedayHtml(b, p, env, row, live, touched) {
             ${MU_PEN_MODES.map(m => chip(
               muOv.pen === undefined ? (row ? (m.k === 'game') === penOn : m.k === 'starter') : (muOv.pen.sW === m.sW),
               m.lbl,
-              `setMuEnv('pen', ${JSON.stringify({ sW: m.sW, pen: m.k === 'game' ? (row && row.bullpenPlatoonFactor != null ? row.bullpenPlatoonFactor : null) : null })})`,
+              // built by hand, not JSON.stringify — its double quotes would close
+              // the onclick attribute and silently kill the control
+              `setMuEnv('pen', {sW:${m.sW}, pen:${m.k === 'game' && row && row.bullpenPlatoonFactor != null ? row.bullpenPlatoonFactor : 'null'}})`,
               m.tip)).join('')}
           </div>
         </div>
