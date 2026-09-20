@@ -664,6 +664,28 @@
   .mu-sug-score { position: absolute; top: 0.4rem; right: 0.45rem; font-family: var(--font-d); font-weight: 700; font-size: 0.82rem; }
   .mu-sug-score.great { color: var(--accent); } .mu-sug-score.good { color: var(--gold); } .mu-sug-score.ok { color: #ff7040; }
   .mu-parkline { display: flex; align-items: center; gap: 0.4rem; margin: 0 0 0.7rem; }
+  /* Gameday controls — the three levers the Picks board applies. */
+  .mu-gd { border: 1px solid var(--border); border-radius: 10px; background: var(--surface0); padding: 0.55rem 0.7rem 0.65rem; margin: 0 0 0.7rem; }
+  .mu-gd-hd { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.45rem; }
+  .mu-gd-live { font-size: 0.667rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent);
+                background: rgba(53,201,110,0.12); border: 1px solid rgba(53,201,110,0.4); border-radius: 999px; padding: 0.1rem 0.45rem; }
+  .mu-gd-neutral { font-size: 0.667rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dim); }
+  .mu-gd-reset { background: none; border: none; color: var(--gold); font-family: var(--font-b); font-size: 0.692rem; font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0; }
+  .mu-gd-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; align-items: start; }
+  .mu-gd-cell { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+  .mu-gd-lbl { font-size: 0.642rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .mu-gd-sel { font-size: 0.766rem; padding: 0.32rem 0.4rem; }
+  .mu-gd-chips { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+  .mu-gd-chip { background: var(--surface1); border: 1px solid var(--border2); color: var(--muted); font-family: var(--font-b);
+                font-size: 0.692rem; font-weight: 700; padding: 0.3rem 0.5rem; border-radius: 7px; cursor: pointer; white-space: nowrap;
+                transition: background 0.12s, color 0.12s, border-color 0.12s; }
+  .mu-gd-chip:hover { color: var(--text); border-color: var(--dim); }
+  .mu-gd-chip.on { background: rgba(53,201,110,0.14); border-color: var(--accent); color: var(--accent); }
+  @media (max-width: 560px) {
+    .mu-gd-row { grid-template-columns: minmax(0, 1fr); gap: 0.55rem; }
+    .mu-gd-chips { flex-wrap: nowrap; }
+    .mu-gd-chip { flex: 1 1 0; text-align: center; }
+  }
   .mu-parkline-lbl { font-size: 0.680rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); flex: none; }
   .mu-parkline .mu-select { flex: 1; min-width: 0; }
   .pk-sub { max-width: 100%; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; column-gap: 0.25rem; font-size: 0.692rem; color: var(--muted); margin-top: 0.25rem; }
@@ -3374,8 +3396,33 @@ function siteSearch() {
     box.hidden = false; box.innerHTML = '<div class="tb-res" style="color:var(--muted)">No player or tool by that name</div>'; return;
   }
   box.hidden = false; tbSel = -1;
-  box.innerHTML = players.map(r => `<button class="tb-res" onclick="tbGo(&quot;openPickModal('${r.pid}')&quot;)"><b>${r.name}</b><small>${r.team}</small></button>`).join('')
+  box.innerHTML = players.map(r => `<button class="tb-res" onclick="tbGo(&quot;tbOpenPlayer('${r.pid}')&quot;)"><b>${r.name}</b><small>${r.team}${tbIsPitcher(r.pid) ? ' · P' : ''}</small></button>`).join('')
     + tools.map(([nav, lab]) => `<button class="tb-res" onclick="tbGo(&quot;switchNav('${nav}')&quot;)"><b>${lab}</b><small>tool</small></button>`).join('');
+}
+const tbIsPitcher = (pid) => !!(matchupCards && matchupCards !== 'error' && matchupCards._pIdx?.[pid] && !matchupCards._bIdx?.[pid]);
+/**
+ * A batter's question is "what is he worth in this matchup", so he opens the
+ * Matchup tool against whoever he actually faces today. A pitcher opens his own
+ * card. Falls back to the pick modal when the matchup data isn't loaded yet.
+ */
+async function tbOpenPlayer(pid) {
+  const row = (picks || []).find(r => r.pid === pid) || (value || []).find(r => r.pid === pid);
+  // The matchup cards load on first visit to the tool, so a search that lands
+  // there has to wait for them rather than falling back to the pick modal.
+  if (!matchupCards || matchupCards === 'error') await ensureMatchupCards();
+  const C = matchupCards;
+  if (C && C !== 'error') {
+    if (C._pIdx?.[pid] && !C._bIdx?.[pid]) { openPitcher(pid); return; }
+    if (C._bIdx?.[pid]) {
+      const opp = row && C._pIdx?.[row.oppPid] ? row.oppPid : muPitcherPid;
+      switchNav('matchups');
+      muOv = { pa: undefined, wx: undefined, pen: undefined };   // set before the render, not through it
+      muLoadMatchup(pid, opp, row?.venue);
+      return;
+    }
+  }
+  if (row) openPickModal(pid);
+  else switchNav('matchups');
 }
 function tbGo(code) {
   const input = document.getElementById('site-search');
@@ -6620,28 +6667,145 @@ function muSynScore(profile, mix) {
   let s = 0; for (const b of profile) s += (b.pct * (u[b.name] ?? 0)) / 100;
   return s;
 }
-// Score B vs P at a venue — the starter-only slice of the pick model. Bullpen,
-// lineup-PA and weather are game-day factors, so they stay neutral (1.0) here.
-function scoreMatchup(b, p, venue) {
-  const C = matchupCards, [LO, HI] = C.ratioClamp;
-  const clamp = x => Math.max(LO, Math.min(HI, x));
+// Lineup-position PA multiplier. Mirrors LINEUP_PA_FACTOR in
+// scripts/build-data.js — if that changes this has to, or the tool and the
+// board disagree about the same batter. The build ships it when it can.
+const MU_PA_FALLBACK = [1.094, 1.071, 1.047, 1.024, 1.0, 0.976, 0.953, 0.929, 0.906];
+const muPaTable = () => (matchupCards && matchupCards.lineupPA) || MU_PA_FALLBACK;
+const muPaFactor = (order) => (order >= 1 && order <= 9) ? muPaTable()[order - 1] : 1;
+
+/**
+ * The gameday environment a matchup is scored in. Everything here was pinned at
+ * 1.0 before, which is why the tool read up to 17% hot against the Picks board
+ * on the very same batter-vs-pitcher pairing.
+ *   sW  starter's share of the game — the rest is bullpen
+ *   pen bullpen platoon factor for this batter (null = league-average)
+ *   pa  lineup-slot PA multiplier
+ *   wx  game-time weather (air density x wind along his pull gap)
+ */
+const MU_NEUTRAL_ENV = { sW: 1, pen: null, pa: 1, wx: 1 };
+
+/**
+ * Score B vs P. With the neutral environment this is the starter-only slice it
+ * always was; with a real game's environment it reproduces the Picks board's
+ * own matchupFactor, because it is the same arithmetic in the same order as
+ * computePicks() in scripts/build-data.js.
+ */
+function scoreMatchup(b, p, venue, env) {
+  const C = matchupCards;
+  const E = { ...MU_NEUTRAL_ENV, ...(env || {}) };
   const park = (venue && venue !== '__neutral__') ? (C.parkFactors[venue] ?? 1) : 1;
   const bEff = b.hand === 'S' ? (p.hand === 'L' ? 'R' : 'L') : b.hand;
-  const batP = p.hand ? (p.hand === 'L' ? b.platoonVsL : b.platoonVsR) : null;
-  const pitP = bEff ? (bEff === 'L' ? p.platoonVsL : p.platoonVsR) : null;
-  const stuff = p.stuffRatio;
   const mv = muMixVs(p.mix, bEff);
-  const form = b.form;
+  // matchup-cards.json and the picks board are built from separate snapshots, so
+  // the same arm's stuff read can differ by a few percent. For a pairing that is
+  // actually on today's board, the board's own values win — otherwise the tool
+  // would still disagree with it after all the environment work.
+  const pin = E.pin || {};
+  const batP = pin.batP ?? (p.hand ? (p.hand === 'L' ? b.platoonVsL : b.platoonVsR) : null);
+  const pitP = pin.pitP ?? (bEff ? (bEff === 'L' ? p.platoonVsL : p.platoonVsR) : null);
+  const stuff = pin.stuff ?? p.stuffRatio;
+  const form = pin.form ?? b.form;
+  const basePower = pin.base ?? b.basePower;
+  // Starter and bullpen blended over their shares of the game, renormalised so a
+  // missing piece doesn't drag the blend toward nothing — build-data's wavg().
+  const sW = Math.max(0, Math.min(1, E.sW ?? 1));
+  const parts = [[sW, pitP], [1 - sW, E.pen]].filter(([w, v]) => v != null && w > 0);
+  const tw = parts.reduce((a, [w]) => a + w, 0);
+  const effPlat = tw > 0 ? parts.reduce((a, [w, v]) => a + w * v, 0) / tw : null;
+  // Stuff is velo + hard contact off THIS arm, so it only covers his own innings.
+  const effStuff = stuff != null ? sW * stuff + (1 - sW) * 1 : null;
+  const pa = E.pa ?? 1, wx = E.wx ?? 1;
   // Pitch-mix synergy is no longer scored (no out-of-sample HR signal — see build);
   // mv.mix still feeds the pitch-overlap viz below, just not the score.
-  const factorList = [form, batP, pitP, stuff, park].filter(f => f != null);
+  const factorList = [form, batP, effPlat, effStuff, pa, park, wx].filter(f => f != null);
   const mf = factorList.reduce((a, c) => a * c, form != null ? 1 : 0.95);
   const surplusW = Math.max(0.5, Math.min(2.5, b.blastSurplus ?? 1));
   return {
-    pickScore: b.basePower * mf * 100,
+    pickScore: basePower * mf * 100,
     valueScore: b.blastPower * mf * 100 * surplusW,
-    matchupFactor: mf, factors: { form, batP, pitP, stuff, park }, stand: bEff, mix: mv.mix, mixSplit: mv.split,
+    matchupFactor: mf,
+    factors: { form, batP, pitP, stuff, park, effPlat, effStuff, pen: E.pen, pa, wx, sW },
+    stand: bEff, mix: mv.mix, mixSplit: mv.split,
   };
+}
+
+/** Today's real pick row for this exact pairing, if that is what you picked. */
+function muGameRow(b, p) {
+  return (picks || []).find(r => r.pid === b.pid && String(r.oppPid) === String(p.pid))
+      || (value || []).find(r => r.pid === b.pid && String(r.oppPid) === String(p.pid)) || null;
+}
+// Per-field overrides. undefined = follow the default for this pairing.
+let muOv = { pa: undefined, wx: undefined, pen: undefined };
+/** Resolve the environment: today's game if this is one, else neutral. */
+function muEnvFor(b, p) {
+  const row = muGameRow(b, p);
+  const base = row
+    ? { sW: row.starterShare ?? 1, pen: row.bullpenPlatoonFactor ?? null,
+        pa: row.lineupPAFactor ?? 1, wx: row.weatherRatio ?? 1,
+        pin: { base: row.basePower, form: row.recentFormRatio, batP: row.batterPlatoonRatio,
+               pitP: row.pitcherPlatoonRatio, stuff: row.pitcherStuffRatio } }
+    : { ...MU_NEUTRAL_ENV };
+  const env = { ...base };
+  if (muOv.pa !== undefined) env.pa = muOv.pa;
+  if (muOv.wx !== undefined) env.wx = muOv.wx;
+  if (muOv.pen !== undefined) { env.pen = muOv.pen.pen; env.sW = muOv.pen.sW; }
+  const touched = muOv.pa !== undefined || muOv.wx !== undefined || muOv.pen !== undefined;
+  return { env, row, live: !!row && !touched, touched };
+}
+function setMuEnv(key, val) { muOv[key] = val; renderMatchups(); }
+function muResetEnv() { muOv = { pa: undefined, wx: undefined, pen: undefined }; renderMatchups(); }
+// ── Gameday controls ───────────────────────────────────────────────────────
+// The three levers the Picks board applies and this tool used to pin at 1.0.
+// Each follows the real game when there is one and can be overridden, so the
+// tool can answer both "what is this worth today" and "what if".
+const MU_PEN_MODES = [
+  { k: 'starter', lbl: 'Starter only', sW: 1, tip: 'Score his innings alone — no bullpen in the number' },
+  { k: 'game', lbl: 'Full game', sW: 0.55, tip: 'Blend the starter with the bullpen over a typical start' },
+];
+function muGamedayHtml(b, p, env, row, live, touched) {
+  const paOpts = ['auto', '', 1, 2, 3, 4, 5, 6, 7, 8, 9].map(v => {
+    if (v === 'auto') return `<option value="auto"${muOv.pa === undefined ? ' selected' : ''}>${row && row.lineupOrder ? `Auto · ${row.lineupOrder}th` : 'Auto · unknown'}</option>`;
+    if (v === '') return '<option disabled>──────</option>';
+    return `<option value="${v}"${muOv.pa === muPaFactor(v) ? ' selected' : ''}>${v}${['st','nd','rd'][v-1] || 'th'} — ${muPaFactor(v).toFixed(3)}×</option>`;
+  }).join('');
+  const wxKnown = row && row.weatherRatio != null && row.weatherRatio !== 1;
+  const penOn = (env.sW ?? 1) < 1;
+  const chip = (on, lbl, onclick, tip) =>
+    `<button class="mu-gd-chip${on ? ' on' : ''}" onclick="${onclick}" title="${tip}">${lbl}</button>`;
+  return `
+    <div class="mu-gd">
+      <div class="mu-gd-hd">
+        <span class="mu-parkline-lbl">Gameday</span>
+        ${live ? '<span class="mu-gd-live">matches the Picks board</span>'
+               : touched ? `<button class="mu-gd-reset" onclick="muResetEnv()">Reset to auto</button>`
+               : '<span class="mu-gd-neutral">neutral — not a game today</span>'}
+      </div>
+      <div class="mu-gd-row">
+        <label class="mu-gd-cell">
+          <span class="mu-gd-lbl">Lineup spot</span>
+          <select class="mu-select mu-gd-sel" onchange="setMuEnv('pa', this.value === 'auto' ? undefined : muPaFactor(+this.value))">${paOpts}</select>
+        </label>
+        <div class="mu-gd-cell">
+          <span class="mu-gd-lbl">Weather</span>
+          <div class="mu-gd-chips">
+            ${chip(muOv.wx === undefined, wxKnown ? `Auto · ${row.weatherRatio.toFixed(2)}×` : 'Auto', "setMuEnv('wx', undefined)",
+                   wxKnown ? 'Air density and the wind along his pull gap, from the forecast' : 'No forecast for this pairing — sits at league average')}
+            ${chip(muOv.wx === 1, 'Neutral', "setMuEnv('wx', 1)", 'Take the weather out of the number')}
+          </div>
+        </div>
+        <div class="mu-gd-cell">
+          <span class="mu-gd-lbl">Bullpen</span>
+          <div class="mu-gd-chips">
+            ${MU_PEN_MODES.map(m => chip(
+              muOv.pen === undefined ? (row ? (m.k === 'game') === penOn : m.k === 'starter') : (muOv.pen.sW === m.sW),
+              m.lbl,
+              `setMuEnv('pen', ${JSON.stringify({ sW: m.sW, pen: m.k === 'game' ? (row && row.bullpenPlatoonFactor != null ? row.bullpenPlatoonFactor : null) : null })})`,
+              m.tip)).join('')}
+          </div>
+        </div>
+      </div>
+    </div>`;
 }
 function muLabel(x) { const tag = [x.team, x.role].filter(Boolean).join(' · '); return `${x.name}${tag ? ` (${tag})` : ''}`; }
 // Team colors for the matchup photo rings — brightened where a team's primary
@@ -6826,7 +6990,8 @@ function muSuggestHtml() {
 }
 function matchupBreakdownHtml(b, p) {
   const C = matchupCards;
-  const s = scoreMatchup(b, p, muVenue), f = s.factors, cls = pickScoreClass(s.pickScore);
+  const { env, row, live, touched } = muEnvFor(b, p);
+  const s = scoreMatchup(b, p, muVenue, env), f = s.factors, cls = pickScoreClass(s.pickScore);
   const parkOpts = `<option value="__neutral__"${muVenue === '__neutral__' ? ' selected' : ''}>Neutral park</option>`
     + Object.keys(C.parkFactors).sort((a, c) => a.localeCompare(c, undefined, { sensitivity: 'base' })).map(v => `<option value="${v}"${v === muVenue ? ' selected' : ''}>${v} (${C.parkFactors[v].toFixed(2)}×)</option>`).join('');
   const esc = str => (str || '').replace(/"/g, '&quot;');
@@ -6879,20 +7044,27 @@ function matchupBreakdownHtml(b, p) {
       <select class="mu-select" onchange="setMatchupVenue(this.value)">${parkOpts}</select>
       <button class="mu-neutral-btn${muVenue === '__neutral__' ? ' active' : ''}" onclick="setMatchupVenue('__neutral__')" title="Reset to a neutral park (no park factor applied)">Neutral</button>
     </div>
+    ${muGamedayHtml(b, p, env, row, live, touched)}
     <div class="pick-section-title pm-title">Pitch Matchup</div>
     ${pitchMatchupHtml(b.hrProfile, s.mix, s.mixSplit ? s.stand : null)}
     <div class="pick-section-title pm-title">Matchup Factors</div>
     ${factorBarsHtml([
       { label: 'Recent Contact', value: f.form },
       { label: 'Batter Platoon', value: f.batP },
-      { label: 'Starter Vuln.', value: f.pitP },
-      { label: 'Arm Stuff', value: f.stuff },
+      { label: 'Lineup PA', value: f.pa !== 1 ? f.pa : null },
+      { label: f.sW < 1 ? 'Pitching Vuln.' : 'Starter Vuln.', value: f.effPlat },
+      { label: 'Arm Stuff', value: f.effStuff },
       { label: 'Park', value: f.park },
+      { label: 'Weather', value: f.wx !== 1 ? f.wx : null },
     ])}
     ${p.ip != null && p.ip < 10 ? `<div class="mu-note mu-thin">⚠︎ Thin sample — only ~${p.ip} IP for ${p.name.split(' ').pop()}, so his stuff, splits, and arsenal are pulled toward league average. Read it as a near-neutral matchup (no book on him yet), not a real edge either way.</div>` : ''}
-    <div class="mu-note">${p.role === 'RP' || p.role === 'CL'
-      ? 'One-look matchup — a reliever faces a hitter ~1 PA, so the factors are real but the score reads as full-game exposure. Bullpen depth, lineup spot, and weather stay neutral.'
-      : 'Starter-only matchup — bullpen, lineup spot, and game-time weather are live-game factors and stay neutral here.'}</div>`;
+    <div class="mu-note">${live
+      ? `Scored in today's real environment, so this is the same number the <a href="javascript:void(0)" onclick="switchNav('picks')">Picks</a> board has for him${row && row.pickScore != null ? ` (<b>${row.pickScore.toFixed(1)}</b>)` : ''} — his lineup spot, the forecast, and ${p.name.split(' ').pop()}'s share of the game against that bullpen.`
+      : touched
+      ? 'Scored in the environment set above — change any control back to Auto to return to the real game.'
+      : p.role === 'RP' || p.role === 'CL'
+      ? 'One-look matchup — a reliever faces a hitter ~1 PA, so the factors are real but the score reads as full-game exposure. Set the gameday controls above to put it in a real game.'
+      : 'Neutral environment — these two are not matched up today, so lineup spot, weather and bullpen sit at league average. Set them above to see it in a real game.'}</div>`;
 }
 
 // State + DOM only — used both by user clicks and when a route is applied.

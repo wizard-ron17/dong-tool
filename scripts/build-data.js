@@ -1222,7 +1222,9 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
         r.bulkMix = bulkMix.mix; r.bulkMixHand = bulkMix.split ? batStandVs(r.bHand, bulk.hand) : null;
       }
       const penW = 1 - sW - bulkW;
-      r.starterShare = Math.round(sW * 100) / 100;
+      // 3dp, not 2: the Matchup tool reproduces the board's matchupFactor from
+      // this weight, and 2dp left a 0.1% disagreement between the two tools.
+      r.starterShare = Math.round(sW * 1000) / 1000;
       r.bulkShare    = bulkW ? Math.round(bulkW * 100) / 100 : null;
 
       // Weighted average over whichever components actually have data,
@@ -1410,7 +1412,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       cards = {
         generatedAt: new Date().toISOString(), ratioClamp: [PICKS_RATIO_MIN, PICKS_RATIO_MAX],
         synergyBaseline: Math.round(synergyBaseline * 1000) / 1000, synergyHrFull: SYNERGY_HR_FULL,
-        valueContactGain: VALUE_CONTACT_GAIN, parkFactors,
+        valueContactGain: VALUE_CONTACT_GAIN, parkFactors, lineupPA: LINEUP_PA_FACTOR,
         default: top ? { batterPid: top.pid, pitcherPid: top.oppPid, venue: top.venue } : null,
         batters, pitchers,
       };
