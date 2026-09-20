@@ -7045,6 +7045,12 @@ function muWeatherRatio(venue, bHand, pHand) {
  * deploys ahead of data.json, and the service worker can hold an older copy
  * longer still. Covers only the parks with a board bat in them; elsewhere the
  * forecast is simply unknown and the control says so.
+ *
+ * Note for anyone who diffs the two sources and finds them disagreeing by a
+ * point or so: once a game starts its pick row FREEZES, so it keeps the
+ * forecast from the last pre-game build while weatherByVenue keeps updating.
+ * That's two moments in time, not two formulas — they agree exactly on any
+ * game still in Pre-Game.
  */
 let muWxBorrow = null;
 function muBorrowedWx(venue, bHand, pHand) {
@@ -7154,7 +7160,11 @@ function muGamedayHtml(b, p, env, row, live, touched, sch, onSched) {
           <span class="mu-gd-lbl">Bullpen</span>
           <div class="mu-gd-chips">
             ${MU_PEN_MODES.map(m => chip(
-              muOv.pen === undefined ? (row ? (m.k === 'game') === penOn : m.k === 'starter') : (muOv.pen.sW === m.sW),
+              // A schedule-built game already blends the pen — sW is that arm's
+              // real share — so it has to light up "Full game" like a board row.
+              // Reading `row` alone left the chip on "Starter only" while the
+              // number underneath it was the full-game one.
+              muOv.pen === undefined ? ((row || sch) ? (m.k === 'game') === penOn : m.k === 'starter') : (muOv.pen.sW === m.sW),
               m.lbl,
               // built by hand, not JSON.stringify — its double quotes would close
               // the onclick attribute and silently kill the control
@@ -7389,13 +7399,21 @@ function mpGameToday(pid) {
       if (isBat) {
         const oppPid = String(opp.probablePitcherId || '');
         if (!C._pIdx?.[oppPid]) return null;
-        return { bPid: String(pid), pPid: oppPid, venue: g.venue, oppName: opp.probablePitcher };
+        return { kind: 'bat', bPid: String(pid), pPid: oppPid, venue: g.venue, oppName: opp.probablePitcher };
       }
-      // His opponents are the other lineup; lead with its biggest power threat.
+      // An arm doesn't face a hitter, he faces a lineup — so the target is the
+      // TEAM, and the tool's own team search is what shows it: type the code in
+      // the batter box and the nine come back ranked by matchup score. We still
+      // seat one behind the dropdown so the card isn't stale, and it's the top
+      // of that ranking rather than whoever hits the ball hardest in the
+      // abstract — the two are not the same batter.
+      const me2 = C._pIdx?.[String(pid)];
       const bats = (opp.lineup || []).map(x => C._bIdx?.[String(x.pid)]).filter(Boolean);
-      if (!bats.length) return null;
-      const top = bats.reduce((a, b) => (b.basePower ?? 0) > (a.basePower ?? 0) ? b : a);
-      return { bPid: top.pid, pPid: String(pid), venue: g.venue, oppName: top.name };
+      if (!bats.length || !me2) return null;
+      const top = bats.reduce((a, b) =>
+        scoreMatchup(b, me2, g.venue).pickScore > scoreMatchup(a, me2, g.venue).pickScore ? b : a);
+      return { kind: 'arm', bPid: top.pid, pPid: String(pid), venue: g.venue,
+               oppTeam: opp.teamAbbr, oppName: opp.teamAbbr };
     }
   return null;
 }
@@ -7404,7 +7422,10 @@ function mpMatchupTarget(pid) {
   const C = matchupCards; if (!C || C === 'error') return null;
   if (!C._bIdx?.[pid] && !C._pIdx?.[pid]) return null;
   const g = mpGameToday(pid);
-  return { label: g ? `Matchups vs ${compactPlayerName(g.oppName || '')} →` : 'Matchups →',
+  // A bat is named against the one arm he faces; an arm against the whole club.
+  return { label: !g ? 'Matchups →'
+                 : g.kind === 'arm' ? `Matchups vs ${g.oppTeam} →`
+                 : `Matchups vs ${compactPlayerName(g.oppName || '')} →`,
            code: `mpToMatchup('${pid}')` };
 }
 /** Close this card, then open the tool's own card for the same player. */
@@ -7421,7 +7442,14 @@ window.mpToMatchup = (pid) => {
   switchNav('matchups');
   muOv = { pa: undefined, wx: undefined, pen: undefined };   // his game, not the last what-if
   const g = mpGameToday(pid);
-  if (g) { muLoadMatchup(g.bPid, g.pPid, g.venue); return; }
+  if (g) {
+    muLoadMatchup(g.bPid, g.pPid, g.venue);
+    // For an arm, hand over the lineup rather than the one bat we seated: the
+    // batter box already filters on a team code, so typing it there is the whole
+    // feature. muLoadMatchup has just re-rendered, so the input exists.
+    if (g.kind === 'arm' && g.oppTeam) muOpenTeamList(g.oppTeam);
+    return;
+  }
   // Not playing today — keep the other half of whatever is loaded.
   if (C._bIdx?.[pid]) muLoadMatchup(pid, muPitcherPid, muVenue === '__neutral__' ? null : muVenue);
   else muLoadMatchup(muBatterPid, pid, muVenue === '__neutral__' ? null : muVenue);
@@ -7515,6 +7543,20 @@ function muDDRender(which) {
       </div>`).join('')
     : `<div class="mu-dd-empty">No match</div>`);
   dd.classList.add('open');
+}
+/**
+ * Put a team code in the batter box and open the ranked list — the nine bats
+ * that club starts, sorted by their score against the loaded arm. Focus is real
+ * (not just a value) so blur closes it and typing replaces the code; the scroll
+ * is suppressed because muLoadMatchup is already scrolling the card into view.
+ */
+function muOpenTeamList(team) {
+  const el = document.getElementById('mu-input-batter');
+  if (!el) return;
+  el.focus({ preventScroll: true });   // muFaceFocus clears it and stashes the name
+  el.value = team;
+  el.select();
+  muDDShow('batter');
 }
 function muDDShow(which) {
   muDDOpen = which; muDDIdx = -1;
