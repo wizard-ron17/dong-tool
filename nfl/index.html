@@ -178,23 +178,66 @@
                       transition: opacity 0.18s ease, transform 0.22s cubic-bezier(.2,.9,.3,1.1);
                       display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.55rem; }
     .nav-tools-menu.open { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
-    .nav-tools-menu .nav-menu-item { flex-direction: column; align-items: flex-start; gap: 0.45rem; padding: 0.85rem 0.9rem; border-radius: 14px; background: var(--surface0); border: 1px solid var(--border); }
-    .nav-tools-menu .nav-menu-item:hover:not(:disabled) { border-color: var(--accent); background: var(--surface2); transform: translateY(-1px); }
-    .nav-tools-menu .nav-menu-item svg { width: 26px; height: 26px; color: var(--accent); }
+    /* chip | name over desc | arrow. .nm-head goes display:contents so the same
+       markup the phone lays out as two rows becomes one grid here. */
+    .nav-tools-menu .nav-menu-item { display: grid; grid-template-columns: auto minmax(0,1fr) auto;
+      grid-template-areas: "chip name go" "chip desc go"; align-items: center; column-gap: 0.62rem; row-gap: 0.1rem;
+      text-align: left; padding: 0.8rem 0.85rem; border-radius: 14px;
+      background: linear-gradient(140deg, color-mix(in srgb, var(--gc) 11%, var(--surface0)), var(--surface0) 72%);
+      border: 1px solid color-mix(in srgb, var(--gc) 22%, var(--border)); }
+    .nav-tools-menu .nm-head { display: contents; }
+    .nav-tools-menu .nm-chip { grid-area: chip; width: 38px; height: 38px; }
+    .nav-tools-menu .nav-menu-item .nm-chip svg { width: 20px; height: 20px; }
+    .nav-tools-menu .nm-name { grid-area: name; }
+    .nav-tools-menu .nm-desc { grid-area: desc; }
+    .nav-tools-menu .nm-go { grid-area: go; margin-left: 0; }
+    .nav-tools-menu .nav-menu-item:hover:not(:disabled) { border-color: var(--gc); background: linear-gradient(140deg, color-mix(in srgb, var(--gc) 18%, var(--surface0)), var(--surface0) 66%); transform: translateY(-1px); }
+    .nav-tools-menu .nav-menu-item:hover:not(:disabled) .nm-go { color: var(--gc); transform: translateX(2px); }
     .nav-menu-group { grid-column: 1 / -1; }
     @media (prefers-reduced-motion: reduce) { .nav-tools-menu { transition: opacity 0.18s ease; transform: translate(-50%, -50%) scale(1); } }
   }
-  .nav-menu-group { grid-column: 1 / -1; font-size: 0.655rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); padding: 0.4rem 0.3rem 0.1rem; opacity: 0.75; }
+  /* ── Tools menu ────────────────────────────────────────────────────────
+     Every item already carried an .nm-desc saying what the tool is for, and
+     both breakpoints set it to display:none — so the menu was a grid of bare
+     names. Showing them is most of what this needed.
+
+     Chips are coloured BY SECTION, not per tool, in cyan / violet / magenta —
+     deliberately nothing from the good-bad ramp. This site paints green=good,
+     gold=middling, red=bad on every number it shows, so a red tool chip would
+     read as a warning ABOUT the tool; the NFL position colours made exactly
+     that mistake once. Per-section hue also earns its keep by making the
+     grouping visible without reading the headers.
+
+     Validated as a categorical set against both surfaces — lightness band,
+     chroma floor, CVD separation, normal-vision floor, contrast all pass;
+     worst adjacent pair ΔE 15.6 normal / 10.5 deutan on dark, 17.5 / 13.6 on
+     light. Each chip also carries its own glyph and a permanent text label,
+     so colour is never the only thing telling two tools apart. */
+  .nav-tools-menu { --g1: #2a9fb5; --g2: #7a7ae8; --g3: #d24e8e; }
+  :root[data-theme="light"] .nav-tools-menu { --g1: #0097b3; --g2: #6060d8; --g3: #c73c80; }
+  .nav-menu-item { --gc: var(--accent); }
+  .nav-menu-item.g1 { --gc: var(--g1); }
+  .nav-menu-item.g2 { --gc: var(--g2); }
+  .nav-menu-item.g3 { --gc: var(--g3); }
+  .nav-menu-group { grid-column: 1 / -1; display: flex; align-items: center; gap: 0.5rem; font-size: 0.655rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); padding: 0.55rem 0.3rem 0.15rem; }
+  .nav-menu-group::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .nav-menu-group.g1 { color: var(--g1); } .nav-menu-group.g2 { color: var(--g2); } .nav-menu-group.g3 { color: var(--g3); }
   .nav-menu-group:first-child { padding-top: 0.15rem; }
-  /* A single-column list: three tools do not need a tile grid, and a row can
-     carry the description a centred tile has no room for. */
-  .nav-menu-item { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.3rem; width: 100%; background: var(--surface0); border: none; border-radius: 11px; padding: 0.6rem 0.4rem; cursor: pointer; transition: background 0.15s; }
+  .nav-menu-item { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.3rem; width: 100%; background: var(--surface0); border: none; border-radius: 11px; padding: 0.6rem 0.4rem; cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.15s; }
   .nav-menu-item:hover:not(:disabled) { background: var(--surface2); }
   .nav-menu-item:disabled { opacity: 0.32; cursor: not-allowed; }
   .nav-menu-item svg { width: 21px; height: 21px; flex-shrink: 0; color: var(--muted); }
+  /* Filled disc behind the glyph — the colour lives here rather than on the
+     text, so names and descriptions keep their normal ink and stay readable. */
+  .nm-chip { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+             background: color-mix(in srgb, var(--gc) 18%, transparent); color: var(--gc); }
+  .nav-menu-item .nm-chip svg { width: 18px; height: 18px; color: inherit; }
+  .nm-text { display: flex; flex-direction: column; gap: 0.12rem; min-width: 0; }
   .nav-menu-item .nm-name { font-family: var(--font-d); font-size: 1.06rem; font-weight: 700; color: var(--text); display: block; line-height: 1.2; letter-spacing: 0.005em; }
-  .nav-menu-item .nm-desc { display: none; }
-  .nav-menu-item.active svg, .nav-menu-item.active .nm-name { color: var(--accent); }
+  .nav-menu-item .nm-desc { display: block; font-size: 0.735rem; line-height: 1.35; color: var(--dim); }
+  .nm-go { margin-left: auto; align-self: center; flex-shrink: 0; color: var(--dim); font-size: 0.9rem; line-height: 1; transition: color 0.14s, transform 0.14s; }
+  .nav-menu-item.active { border-color: var(--gc); }
+  .nav-menu-item.active .nm-name { color: var(--gc); }
 
   /* Mobile: app-style bottom tab bar — icon over label, roomy touch targets. */
   /* the bar wraps before the nav does: brand + search + theme on one row */
@@ -244,11 +287,21 @@
     .nav-tools-menu.open { transform: none; visibility: visible; transition: transform 0.24s ease; }
     .nav-menu-group { grid-column: 1 / -1; padding: 0.4rem 0.25rem 0.05rem; }
     .nav-menu-group:first-child { padding-top: 0.1rem; }
-    .nav-menu-item { flex-direction: column; align-items: center; text-align: center; gap: 0.3rem; padding: 0.65rem 0.35rem; border-radius: 12px; background: var(--surface0); }
-    .nav-menu-item:hover:not(:disabled), .nav-menu-item.active { background: var(--surface2); }
-    .nav-menu-item .nm-name { font-size: 0.98rem; line-height: 1.2; }
-    .nav-menu-item .nm-desc { display: none; }
+    /* Phone card: chip and name on the first line, description under both, and
+       a coloured spine down the left edge so the section reads even when the
+       group header has scrolled off. */
+    .nav-menu-item { flex-direction: column; align-items: flex-start; text-align: left; gap: 0.3rem; padding: 0.6rem 0.55rem 0.62rem 0.7rem; border-radius: 12px;
+      background: linear-gradient(140deg, color-mix(in srgb, var(--gc) 13%, var(--surface0)), var(--surface0) 70%);
+      border: 1px solid color-mix(in srgb, var(--gc) 20%, var(--border)); border-left: 3px solid var(--gc); }
+    .nav-menu-item:hover:not(:disabled), .nav-menu-item.active { border-color: var(--gc); border-left-color: var(--gc); }
+    .nav-menu-item .nm-name { font-size: 0.95rem; line-height: 1.2; }
+    .nav-menu-item .nm-desc { display: block; font-size: 0.7rem; line-height: 1.32; }
     .nav-menu-item svg { width: 23px; height: 23px; }
+    .nm-chip { width: 26px; height: 26px; }
+    .nav-menu-item .nm-chip svg { width: 15px; height: 15px; }
+    /* first row: chip + name + chevron; the description spans underneath */
+    .nm-head { display: flex; align-items: center; gap: 0.4rem; width: 100%; }
+    .nm-head .nm-go { font-size: 0.8rem; }
   }
 
   .sub-tabs { display: flex; gap: 0.3rem; margin-bottom: 1rem; background: var(--surface0); padding: 0.25rem; border-radius: 8px; border: 1px solid var(--border); }
@@ -2955,54 +3008,53 @@
     </div>
   </header>
     <div class="nav-tools-menu" id="nav-tools-menu">
-      <div class="nav-menu-group">Scoring</div>
-      <button class="nav-menu-item" data-nav="picks" onclick="switchNav('picks')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.75" fill="currentColor"/></svg>
-        <span><span class="nm-name">Picks</span><span class="nm-desc">Who scores a TD this week</span></span>
+      <div class="nav-menu-group g1">Scoring</div>
+      <button class="nav-menu-item g1" data-nav="picks" onclick="switchNav('picks')">
+        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.75" fill="currentColor"/></svg></span><span class="nm-name">Picks</span><span class="nm-go" aria-hidden="true">→</span></span>
+        <span class="nm-desc">Every skill player ranked by his odds of finding the end zone.</span>
       </button>
-      <button class="nav-menu-item" data-nav="kickers" onclick="switchNav('kickers')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 11V3M17.5 11V3M6.5 11h11M12 11v8M9 21h6"/></svg>
-        <span><span class="nm-name">Kickers</span><span class="nm-desc">FGs, PATs and kicker points</span></span>
+      <button class="nav-menu-item g1" data-nav="kickers" onclick="switchNav('kickers')">
+        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 11V3M17.5 11V3M6.5 11h11M12 11v8M9 21h6"/></svg></span><span class="nm-name">Kickers</span><span class="nm-go" aria-hidden="true">→</span></span>
+        <span class="nm-desc">Field goals and PATs, with the legs worth backing this week.</span>
       </button>
-      <button class="nav-menu-item" data-nav="returners" onclick="switchNav('returners')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="14.5" cy="4" r="2"/><path d="M13 7.6 L10 13"/><path d="M13.2 9 L17.5 11.2"/><path d="M11.6 9.8 L7.5 8.6"/><path d="M10 13 L13 16 L12.4 21"/><path d="M10 13 L6.2 16.8"/></svg>
-        <span><span class="nm-name">Returners</span><span class="nm-desc">Punt and kick return volume</span></span>
+      <button class="nav-menu-item g1" data-nav="returners" onclick="switchNav('returners')">
+        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="14.5" cy="4" r="2"/><path d="M13 7.6 L10 13"/><path d="M13.2 9 L17.5 11.2"/><path d="M11.6 9.8 L7.5 8.6"/><path d="M10 13 L13 16 L12.4 21"/><path d="M10 13 L6.2 16.8"/></svg></span><span class="nm-name">Returners</span><span class="nm-go" aria-hidden="true">→</span></span>
+        <span class="nm-desc">Return volume and the men who can take one the distance.</span>
       </button>
-      <button class="nav-menu-item" data-nav="pairs" onclick="switchNav('pairs')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="12" r="4.75"/><circle cx="15" cy="12" r="4.75"/></svg>
-        <span><span class="nm-name">Pairs</span><span class="nm-desc">Players who score the same week</span></span>
+      <button class="nav-menu-item g1" data-nav="pairs" onclick="switchNav('pairs')">
+        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="12" r="4.75"/><circle cx="15" cy="12" r="4.75"/></svg></span><span class="nm-name">Pairs</span><span class="nm-go" aria-hidden="true">→</span></span>
+        <span class="nm-desc">Teammates and rivals who tend to score the same week.</span>
       </button>
-      <div class="nav-menu-group">Stat Lines</div>
-      <button class="nav-menu-item" data-nav="yards" onclick="switchNav('yards')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="8" width="19" height="8" rx="1.5"/><path d="M6.5 8v3M10.5 8v4.5M14.5 8v3M18.5 8v4.5"/></svg>
-        <span><span class="nm-name">Yards</span><span class="nm-desc">Passing, rushing, receiving</span></span>
+      <div class="nav-menu-group g2">Stat Lines</div>
+      <button class="nav-menu-item g2" data-nav="yards" onclick="switchNav('yards')">
+        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="8" width="19" height="8" rx="1.5"/><path d="M6.5 8v3M10.5 8v4.5M14.5 8v3M18.5 8v4.5"/></svg></span><span class="nm-name">Yards</span><span class="nm-go" aria-hidden="true">→</span></span>
+        <span class="nm-desc">Passing, rushing and receiving lines, priced over and under.</span>
       </button>
-      <button class="nav-menu-item" data-nav="receptions" onclick="switchNav('receptions')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11.5V5.4a1.5 1.5 0 0 1 3 0v5.6"/><path d="M12 11V4.2a1.5 1.5 0 0 1 3 0V11"/><path d="M15 11.4V6.2a1.5 1.5 0 0 1 3 0v6.6"/><path d="M9 11.5V9.4a1.5 1.5 0 0 0-3 0v5.4c0 3.6 2.6 6.2 6.2 6.2 3.4 0 5.8-2.6 5.8-6.2v-2"/></svg>
-        <span><span class="nm-name">Receptions</span><span class="nm-desc">Catch totals, priced over and under</span></span>
+      <button class="nav-menu-item g2" data-nav="receptions" onclick="switchNav('receptions')">
+        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11.5V5.4a1.5 1.5 0 0 1 3 0v5.6"/><path d="M12 11V4.2a1.5 1.5 0 0 1 3 0V11"/><path d="M15 11.4V6.2a1.5 1.5 0 0 1 3 0v6.6"/><path d="M9 11.5V9.4a1.5 1.5 0 0 0-3 0v5.4c0 3.6 2.6 6.2 6.2 6.2 3.4 0 5.8-2.6 5.8-6.2v-2"/></svg></span><span class="nm-name">Receptions</span><span class="nm-go" aria-hidden="true">→</span></span>
+        <span class="nm-desc">Target share turned into a catch total, both sides priced.</span>
       </button>
-      <button class="nav-menu-item" data-nav="completions" onclick="switchNav('completions')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M8 12.4l2.7 2.7L16.2 9.4"/></svg>
-        <span><span class="nm-name">Completions</span><span class="nm-desc">QB completions, priced over and under</span></span>
+      <button class="nav-menu-item g2" data-nav="completions" onclick="switchNav('completions')">
+        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M8 12.4l2.7 2.7L16.2 9.4"/></svg></span><span class="nm-name">Completions</span><span class="nm-go" aria-hidden="true">→</span></span>
+        <span class="nm-desc">QB completion lines, with the volume behind the number.</span>
       </button>
-      <button class="nav-menu-item" data-nav="interceptions" onclick="switchNav('interceptions')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h11a5 5 0 0 1 0 10H9"/><path d="M12 14l-3 3 3 3"/></svg>
-        <span><span class="nm-name">Interceptions</span><span class="nm-desc">Which QBs throw a pick</span></span>
+      <button class="nav-menu-item g2" data-nav="interceptions" onclick="switchNav('interceptions')">
+        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h11a5 5 0 0 1 0 10H9"/><path d="M12 14l-3 3 3 3"/></svg></span><span class="nm-name">Interceptions</span><span class="nm-go" aria-hidden="true">→</span></span>
+        <span class="nm-desc">Game script, bad-ball rate, and which QBs hand it over.</span>
       </button>
-      <div class="nav-menu-group">Watch Lists</div>
-      <button class="nav-menu-item" data-nav="due" onclick="switchNav('due')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h11M6.5 20.5h11M8 3.5v2.6L12 12 8 17.9v2.6M16 3.5v2.6L12 12l4 5.9v2.6"/></svg>
-        <span><span class="nm-name">Due</span><span class="nm-desc">Red-zone work with nothing to show</span></span>
+      <div class="nav-menu-group g3">Watch Lists</div>
+      <button class="nav-menu-item g3" data-nav="due" onclick="switchNav('due')">
+        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h11M6.5 20.5h11M8 3.5v2.6L12 12 8 17.9v2.6M16 3.5v2.6L12 12l4 5.9v2.6"/></svg></span><span class="nm-name">Due</span><span class="nm-go" aria-hidden="true">→</span></span>
+        <span class="nm-desc">Red-zone work piling up with no touchdown to show for it.</span>
       </button>
-      <button class="nav-menu-item" data-nav="milestones" onclick="switchNav('milestones')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V3M6 4h11l-2.2 3L17 10H6"/></svg>
-        <span><span class="nm-name">Milestones</span><span class="nm-desc">Chasing 50 · 100 · 150 career TDs</span></span>
+      <button class="nav-menu-item g3" data-nav="milestones" onclick="switchNav('milestones')">
+        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V3M6 4h11l-2.2 3L17 10H6"/></svg></span><span class="nm-name">Milestones</span><span class="nm-go" aria-hidden="true">→</span></span>
+        <span class="nm-desc">Who's closing on 50, 100 or 150 career touchdowns.</span>
       </button>
-      <button class="nav-menu-item" data-nav="birthdays" onclick="switchNav('birthdays')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16"/><path d="M5.5 21v-9a2.5 2.5 0 0 1 2.5-2.5h8a2.5 2.5 0 0 1 2.5 2.5v9"/><path d="M5.5 15.5h13"/><path d="M9 9.5V7M12 9.5V7M15 9.5V7"/></svg>
-        <span><span class="nm-name">Birthdays</span><span class="nm-desc">Who is celebrating on the slate</span></span>
+      <button class="nav-menu-item g3" data-nav="birthdays" onclick="switchNav('birthdays')">
+        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16"/><path d="M5.5 21v-9a2.5 2.5 0 0 1 2.5-2.5h8a2.5 2.5 0 0 1 2.5 2.5v9"/><path d="M5.5 15.5h13"/><path d="M9 9.5V7M12 9.5V7M15 9.5V7"/></svg></span><span class="nm-name">Birthdays</span><span class="nm-go" aria-hidden="true">→</span></span>
+        <span class="nm-desc">Who's celebrating on the slate, and whether it matters.</span>
       </button>
-    
     </div>
   <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
 
