@@ -97,8 +97,8 @@
   h1 em { color: var(--accent); font-style: normal; }
   .status-badge { font-size: 0.673rem; font-weight: 700; letter-spacing: 0.08em; text-transform: none; padding: 0.12rem 0.5rem; border-radius: 10px; border: 1px solid var(--border2); color: var(--muted); background: var(--surface2); flex-shrink: 0; }
   .status-badge.fetching { color: var(--gold); border-color: #5a5000; background: #1e1a00; }
-  .status-badge.ready    { color: var(--green); border-color: #1a6020; background: #0a2a10; }
-  .status-badge.error    { color: #f05050; border-color: #5a1010; background: #2a0a0a; }
+  .status-badge.ready { color: var(--green); border-color: #1a6020; background: #0a2a10; }
+  .status-badge.error { color: #f05050; border-color: #5a1010; background: #2a0a0a; }
   .nav-shell { position: relative; z-index: 210; }
   nav { position: relative; z-index: 2; display: flex; gap: 0.2rem; }
   .nav-btn { position: relative; display: flex; align-items: center; justify-content: center; gap: 0.35rem; background: transparent; border: none; border-radius: 8px; color: var(--muted); font-family: var(--font-d); font-size: 1.02rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.45rem 0.7rem; cursor: pointer; transition: color 0.15s; white-space: nowrap; }
@@ -187,15 +187,15 @@
   .hm-score { margin-left: auto; font-family: var(--font-d); font-weight: 600; font-size: 1.24rem; line-height: 1.05; flex-shrink: 0; letter-spacing: 0; }
   .hm-score.hot, .hm-score.great { color: var(--accent); }
   .hm-score.warm, .hm-score.good { color: var(--gold); }
-  .hm-score.mild, .hm-score.ok   { color: var(--warn); }
+  .hm-score.mild, .hm-score.ok { color: var(--warn); }
   .theme-toggle { flex-shrink: 0; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 9px; border: 1px solid var(--border2); background: var(--surface1); color: var(--muted); cursor: pointer; transition: color 0.15s, background 0.15s, border-color 0.15s; }
   .theme-toggle:hover { color: var(--accent); border-color: var(--accent); background: var(--surface2); }
   .theme-toggle svg { width: 18px; height: 18px; display: block; }
   .panel { display: none; }
   .panel.visible { display: block; }
   :root[data-theme="light"] .status-badge.fetching { background: rgba(176,125,10,0.14); border-color: rgba(176,125,10,0.4); }
-  :root[data-theme="light"] .status-badge.ready    { background: rgba(16,167,88,0.12);  border-color: rgba(16,167,88,0.4); }
-  :root[data-theme="light"] .status-badge.error    { background: rgba(214,31,60,0.12);  border-color: rgba(214,31,60,0.4); }
+  :root[data-theme="light"] .status-badge.ready { background: rgba(16,167,88,0.12);  border-color: rgba(16,167,88,0.4); }
+  :root[data-theme="light"] .status-badge.error { background: rgba(214,31,60,0.12);  border-color: rgba(214,31,60,0.4); }
   .rc-wknav { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin: 0.2rem 0 0.7rem; }
   .rc-wknav-center { display: flex; align-items: center; gap: 0.5rem; }
   .rc-arrow { background: var(--surface1); border: 1px solid var(--border2); color: var(--text); font-size: 1.25rem; font-weight: 700; width: 2.1rem; height: 2.1rem; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; transition: background 0.15s; }
@@ -309,11 +309,179 @@
   @media (max-width: 600px) {
     #nav-tools-btn { border-radius: 14px; }
   }
-  /* Empty state: the Tools menu is in for nav parity with /mlb and /nfl, but
-     has nothing in it until the first NHL tool ships. The .nav-menu-item /
-     .nm-* rules come back with it (they are dead CSS until then). */
-  .nav-menu-empty { grid-column: 1 / -1; padding: 1.6rem 1rem; text-align: center; color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
-
+  /* Tools menu items — the rules held back while the menu was empty. */
+  @media (min-width: 601px) {
+    .nav-tools-menu .nav-menu-item { display: grid; grid-template-columns: auto minmax(0,1fr) auto;
+      grid-template-areas: "chip name go" "chip desc go"; align-items: center; column-gap: 0.62rem; row-gap: 0.1rem;
+      text-align: left; padding: 0.8rem 0.85rem; border-radius: 14px;
+      background: linear-gradient(140deg, color-mix(in srgb, var(--gc) 11%, var(--surface0)), var(--surface0) 72%);
+      border: 1px solid color-mix(in srgb, var(--gc) 22%, var(--border)); }
+    .nav-tools-menu .nm-head { display: contents; }
+    .nav-tools-menu .nm-chip { grid-area: chip; width: 38px; height: 38px; }
+    .nav-tools-menu .nav-menu-item .nm-chip svg { width: 20px; height: 20px; }
+    .nav-tools-menu .nm-name { grid-area: name; }
+    .nav-tools-menu .nm-desc { grid-area: desc; }
+    .nav-tools-menu .nm-go { grid-area: go; margin-left: 0; }
+    .nav-tools-menu .nav-menu-item:hover:not(:disabled) { border-color: var(--gc); background: linear-gradient(140deg, color-mix(in srgb, var(--gc) 18%, var(--surface0)), var(--surface0) 66%); transform: translateY(-1px); }
+    .nav-tools-menu .nav-menu-item:hover:not(:disabled) .nm-go { color: var(--gc); transform: translateX(2px); }
+    .nav-menu-group { grid-column: 1 / -1; }
+  }
+  .nav-menu-item { --gc: var(--accent); }
+  .nav-menu-item.g1 { --gc: var(--g1); }
+  .nav-menu-item.g2 { --gc: var(--g2); }
+  .nav-menu-item.g3 { --gc: var(--g3); }
+  .nav-menu-group { grid-column: 1 / -1; display: flex; align-items: center; gap: 0.5rem; font-size: 0.655rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); padding: 0.55rem 0.3rem 0.15rem; }
+  .nav-menu-group::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .nav-menu-group.g1 { color: var(--g1); }
+  .nav-menu-group.g2 { color: var(--g2); }
+  .nav-menu-group.g3 { color: var(--g3); }
+  .nav-menu-group:first-child { padding-top: 0.15rem; }
+  .nav-menu-item { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.3rem; width: 100%; background: var(--surface0); border: none; border-radius: 11px; padding: 0.6rem 0.4rem; cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.15s; }
+  .nav-menu-item:hover:not(:disabled) { background: var(--surface2); }
+  .nav-menu-item:disabled { opacity: 0.32; cursor: not-allowed; }
+  .nav-menu-item svg { width: 21px; height: 21px; flex-shrink: 0; color: var(--muted); }
+  .nm-chip { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+             background: color-mix(in srgb, var(--gc) 18%, transparent); color: var(--gc); }
+  .nav-menu-item .nm-chip svg { width: 18px; height: 18px; color: inherit; }
+  .nav-menu-item .nm-name { font-family: var(--font-d); font-size: 1.06rem; font-weight: 700; color: var(--text); display: block; line-height: 1.2; letter-spacing: 0.005em; }
+  .nav-menu-item .nm-desc { display: block; font-size: 0.735rem; line-height: 1.35; color: var(--dim); }
+  .nm-go { margin-left: auto; align-self: center; flex-shrink: 0; color: var(--dim); font-size: 0.9rem; line-height: 1; transition: color 0.14s, transform 0.14s; }
+  .nav-menu-item.active { border-color: var(--gc); }
+  .nav-menu-item.active .nm-name { color: var(--gc); }
+  @media (max-width: 600px) {
+    .nav-menu-group { grid-column: 1 / -1; padding: 0.4rem 0.25rem 0.05rem; }
+    .nav-menu-group:first-child { padding-top: 0.1rem; }
+    .nav-menu-item { flex-direction: column; align-items: flex-start; text-align: left; gap: 0.3rem; padding: 0.6rem 0.55rem 0.62rem 0.7rem; border-radius: 12px;
+      background: linear-gradient(140deg, color-mix(in srgb, var(--gc) 13%, var(--surface0)), var(--surface0) 70%);
+      border: 1px solid color-mix(in srgb, var(--gc) 20%, var(--border)); border-left: 3px solid var(--gc); }
+    .nav-menu-item:hover:not(:disabled), .nav-menu-item.active { border-color: var(--gc); border-left-color: var(--gc); }
+    .nav-menu-item .nm-name { font-size: 0.95rem; line-height: 1.2; }
+    .nav-menu-item .nm-desc { display: block; font-size: 0.7rem; line-height: 1.32; }
+    .nav-menu-item svg { width: 23px; height: 23px; }
+    .nm-chip { width: 26px; height: 26px; }
+    .nav-menu-item .nm-chip svg { width: 15px; height: 15px; }
+    .nm-head { display: flex; align-items: center; gap: 0.4rem; width: 100%; }
+    .nm-head .nm-go { font-size: 0.8rem; }
+  }
+  /* ── Shots board ────────────────────────────────────────────────────────
+     Chrome lifted rule-for-rule out of /nfl's receptions page, which this
+     mirrors: same explainer, same filter chips, same card/table/compact view
+     switcher, same ladder. */
+  .pb-search { position: relative; margin-bottom: 0.55rem; }
+  .pb-search input { width: 100%; box-sizing: border-box; background: var(--surface1);
+    border: 1px solid var(--border); border-radius: 8px; color: var(--text);
+    font-family: var(--font-b); font-size: 0.791rem; font-weight: 500;
+    padding: 0.55rem 2.1rem 0.55rem 2.2rem; outline: none;
+    transition: border-color 0.15s, background 0.15s; }
+  .pb-search input:hover { border-color: var(--border2); }
+  .pb-search input:focus { border-color: var(--accent); background: var(--surface2); }
+  .pb-search input::placeholder { color: var(--dim); font-weight: 400; }
+  .pb-search input::-webkit-search-cancel-button { display: none; }
+  .pb-search-ico { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%);
+    width: 13px; height: 13px; color: var(--muted); pointer-events: none; transition: color 0.15s; }
+  .pb-search:focus-within .pb-search-ico { color: var(--accent); }
+  .pb-search-x { position: absolute; right: 0.45rem; top: 50%; transform: translateY(-50%);
+    display: none; background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 1rem; line-height: 1; padding: 0.2rem 0.35rem; border-radius: 5px; }
+  .pb-search-x:hover { color: var(--text); background: var(--surface2); }
+  .pb-search.on .pb-search-x { display: block; }
+  .due-explainer { background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.9rem; margin-bottom: 0.6rem; font-size: 0.766rem; line-height: 1.5; color: var(--dim); cursor: pointer; transition: background 0.15s; }
+  .due-explainer:hover { background: var(--surface2); }
+  .due-explainer-head { display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.1rem 0; }
+  .due-explainer-title { font-size: 0.692rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+  .due-explainer-chevron { display: inline-block; font-size: 0.82rem; font-weight: 900; line-height: 1; color: var(--muted); transition: transform 0.18s ease, color 0.15s; }
+  .due-explainer-chevron.open { transform: rotate(90deg); color: var(--accent); }
+  .due-explainer:hover .due-explainer-chevron, .due-filters-toggle:hover .due-explainer-chevron { color: var(--accent); }
+  .due-explainer-cta { margin-left: auto; font-size: 0.661rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); background: rgba(51,208,124,0.1); border: 1px solid rgba(51,208,124,0.34); border-radius: 20px; padding: 0.12rem 0.5rem; white-space: nowrap; transition: background 0.15s; }
+  .due-explainer:hover .due-explainer-cta { background: rgba(51,208,124,0.18); }
+  .due-explainer-cta::before { content: 'Read more'; }
+  .due-explainer[aria-expanded="true"] .due-explainer-cta::before { content: 'Hide'; }
+  .due-explainer-teaser { margin-top: 0.3rem; color: var(--dim); }
+  .due-explainer-body { margin-top: 0.55rem; padding-top: 0.55rem; border-top: 1px solid var(--border); }
+  .due-explainer-body ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  .due-explainer-body li { color: var(--dim); }
+  .due-explainer-body b { color: var(--text); }
+  .due-filters-toggle:hover .due-explainer-title { color: #4ad888; }
+  .pb-list { display: flex; flex-direction: column; gap: 0.4rem; }
+  .pb-card { display: flex; align-items: center; gap: 0.65rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.7rem; }
+  .pb-rank { font-family: var(--font-m); font-size: 0.742rem; color: var(--dim); min-width: 1.5rem; text-align: right; flex-shrink: 0; }
+  .pb-info { min-width: 0; flex: 1; }
+  .pb-nm { font-weight: 700; font-size: 0.85rem; color: var(--text-strong); display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+  .pb-line { font-size: 0.723rem; color: var(--muted); margin-top: 0.12rem; }
+  .pb-flag { font-family: var(--font-m); font-size: 0.655rem; font-weight: 700; padding: 0.06rem 0.32rem; border-radius: 4px; background: rgba(242,201,76,0.14); color: var(--gold); border: 1px solid rgba(242,201,76,0.4); }
+  .pb-facts { display: flex; gap: 0.3rem; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
+  .pb-f { font-family: var(--font-m); font-size: 0.692rem; color: var(--silver); background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 0.1rem 0.34rem; white-space: nowrap; }
+  .pb-f b { color: var(--text-strong); font-weight: 700; }
+  .pb-price { text-align: right; flex-shrink: 0; min-width: 4.1rem; }
+  .rc-tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border); border-radius: 10px; background: var(--surface0); }
+  .rc-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 520px; }
+  .rc-table th { position: sticky; top: 0; background: var(--surface1); color: var(--muted); font-size: 0.7rem;
+    text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; text-align: left; padding: 0.5rem 0.6rem; white-space: nowrap; }
+  .rc-table td { padding: 0.5rem 0.6rem; border-top: 1px solid var(--border); white-space: nowrap; }
+  .rc-table tbody tr { cursor: pointer; }
+  .rc-table tbody tr:hover { background: var(--surface1); }
+  .rc-table .num { text-align: right; font-family: var(--font-d); font-weight: 700; }
+  .rc-table .dim, .rc-table td.dim { color: var(--muted); font-weight: 500; }
+  .rc-table b { font-family: var(--font-d); font-weight: 700; }
+  .rc-compact { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface0); }
+  .rc-crow { display: grid; grid-template-columns: 1.6rem 1fr 2.6rem 3rem 4.2rem 2.6rem; align-items: center;
+    gap: 0.4rem; padding: 0.42rem 0.6rem; border-top: 1px solid var(--border); cursor: pointer; font-size: 0.82rem; }
+  .rc-crow:first-child { border-top: none; }
+  .rc-crow:hover { background: var(--surface1); }
+  .rc-crank { color: var(--dim); font-family: var(--font-d); font-weight: 700; text-align: center; }
+  .rc-cnm { font-family: var(--font-d); font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rc-cteam { color: var(--muted); font-size: 0.74rem; }
+  .rc-cproj { font-family: var(--font-d); font-weight: 700; color: var(--accent); text-align: right; }
+  .rc-cod { font-family: var(--font-d); font-weight: 700; text-align: right; }
+  .rc-cline { color: var(--dim); font-size: 0.72rem; text-align: right; }
+  @media (max-width: 520px) {
+    .rc-crow { grid-template-columns: 1.4rem 1fr 2.8rem 4rem; }
+    .rc-cteam, .rc-cline { display: none; }
+  }
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface1) 60%, var(--surface0)), var(--surface0)); }
+  @media (max-width: 620px) {
+  }
+  .pb-odds { display: block; font-family: var(--font-d); font-size: 1.45rem; font-weight: 700; line-height: 1; color: var(--good); }
+  .pb-odds.dog { color: var(--silver); }
+  .pb-pct { display: block; font-family: var(--font-m); font-size: 0.692rem; color: var(--dim); margin-top: 0.16rem; }
+  @media (max-width: 620px) {
+    .pb-facts { display: none; }
+    .pb-rank { min-width: 1.1rem; font-size: 0.704rem; }
+    .pb-odds { font-size: 1.28rem; }
+  }
+  .pm-back { position: fixed; inset: 0; background: rgba(0,0,0,0.66); backdrop-filter: blur(3px); z-index: 300; display: flex; align-items: flex-start; justify-content: center; padding: 1.5rem 0.9rem; overflow-y: auto; }
+  @media (max-width: 619px) {
+    .pm-back { padding: 1.1rem 2.6rem; }
+  }
+  .pb-card { cursor: pointer; }
+  .pb-logo { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; vertical-align: -0.25em; }
+  .fl-sel { font-family: var(--font-d); font-weight: 700; font-size: 0.785rem; padding: 0.3rem 1.5rem 0.3rem 0.55rem; background: var(--surface1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a94a6' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 0.55rem center; border: 1px solid var(--border); color: var(--text); border-radius: 8px; cursor: pointer; -webkit-appearance: none; appearance: none; }
+  /* Modal shell, from /nfl. Its own .pm-head is a small uppercase label bar,
+     not a header with a face in it, so this card writes its own .sg-head. */
+  .pm-back { position: fixed; inset: 0; background: rgba(0,0,0,0.66); backdrop-filter: blur(3px); z-index: 300; display: flex; align-items: flex-start; justify-content: center; padding: 1.5rem 0.9rem; overflow-y: auto; }
+  .pm { position: relative; margin: auto; background: var(--surface0); border: 1px solid var(--border2); border-radius: 14px; width: 100%; max-width: 520px; box-shadow: 0 18px 50px rgba(0,0,0,0.6); padding: 1.1rem 1.2rem 1.3rem; }
+  .pm-sec { text-align: center; font-family: var(--font-d); font-size: 0.766rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin: 1.15rem 0 0.15rem; }
+  .sg-head { display: flex; align-items: center; gap: 0.7rem; padding-bottom: 0.8rem; border-bottom: 1px solid var(--border); }
+  .sg-head .rc-photo { width: 52px; height: 52px; }
+  .sg-head-id { flex: 1; min-width: 0; }
+  .sg-x { flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border2); background: var(--surface1);
+          color: var(--muted); font-size: 1.1rem; line-height: 1; cursor: pointer; }
+  .sg-x:hover { color: var(--text); border-color: var(--accent); }
+  .sg-note { font-size: 0.78rem; color: var(--muted); text-align: center; margin-top: 0.2rem; }
+  /* NHL-only: the projection chip and the ladder inside the card modal. */
+  .sg-proj { margin-left: 0.4rem; font-size: 0.7rem; color: var(--muted); }
+  .sg-proj b { font-family: var(--font-d); color: var(--accent); font-size: 0.86rem; }
+  .sg-lad { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.5rem; }
+  .sg-lrow { display: grid; grid-template-columns: 3.2rem 1fr 4.2rem; align-items: center; gap: 0.5rem;
+             padding: 0.4rem 0.55rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; }
+  .sg-lrow.best { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--surface1)); }
+  .sg-lline { font-family: var(--font-d); font-weight: 700; font-size: 0.9rem; color: var(--text-strong); }
+  .sg-lbar { position: relative; height: 7px; border-radius: 4px; background: var(--surface2); overflow: hidden; }
+  .sg-lbar i { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 4px; }
+  .sg-lod { font-family: var(--font-d); font-weight: 700; font-size: 0.92rem; text-align: right; }
+  .sg-spark { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 14px; margin-left: 0.4rem; vertical-align: middle; }
+  .sg-spark i { width: 3px; background: var(--border2); border-radius: 1px; }
+  .sg-spark i.hit { background: var(--accent); }
   @keyframes sportMenuIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
   :root {
     --pos-c: #4fc3e8;   /* centre    — cyan   */
@@ -332,10 +500,10 @@
   .posb.p-R { color: var(--pos-r); background: color-mix(in srgb, var(--pos-r) 16%, transparent); }
   .posb.p-D { color: var(--pos-d); background: color-mix(in srgb, var(--pos-d) 16%, transparent); }
   .posb.p-G { color: var(--pos-g); background: color-mix(in srgb, var(--pos-g) 16%, transparent); }
-  .rc-pp  { color: var(--pos-d); background: color-mix(in srgb, var(--pos-d) 16%, transparent); }
-  .rc-sh  { color: var(--pos-c); background: color-mix(in srgb, var(--pos-c) 16%, transparent); }
-  .rc-en  { color: var(--pos-g); background: color-mix(in srgb, var(--pos-g) 18%, transparent); }
-  .rc-ot  { color: var(--gold); background: rgba(242,201,76,0.16); }
+  .rc-pp { color: var(--pos-d); background: color-mix(in srgb, var(--pos-d) 16%, transparent); }
+  .rc-sh { color: var(--pos-c); background: color-mix(in srgb, var(--pos-c) 16%, transparent); }
+  .rc-en { color: var(--pos-g); background: color-mix(in srgb, var(--pos-g) 18%, transparent); }
+  .rc-ot { color: var(--gold); background: rgba(242,201,76,0.16); }
   .rc-hat { color: var(--gold); background: rgba(242,201,76,0.2); }
   .rc-clock { font-family: var(--font-d); font-weight: 700; font-size: 0.85rem; color: var(--text); text-align: right; white-space: nowrap; }
   .rc-run { font-family: var(--font-m); font-size: 0.68rem; color: var(--muted); text-align: right; margin-top: 0.1rem; white-space: nowrap; }
@@ -437,7 +605,11 @@
   </header>
 
   <div class="nav-tools-menu" id="nav-tools-menu">
-    <div class="nav-menu-empty">No tools yet. The goal-scorer board and the rest land here once the season has games to model.</div>
+    <div class="nav-menu-group g1">Shooting</div>
+    <button class="nav-menu-item g1" data-nav="shots" onclick="switchNav('shots')">
+      <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v4M12 16.5v4M3.5 12h4M16.5 12h4"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/></svg></span><span class="nm-name">Shots</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+      <span class="nm-desc">Projected shots on goal for every skater, priced at every line.</span>
+    </button>
   </div>
   <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
 
@@ -445,6 +617,28 @@
   <div id="panel-stats" class="panel"><div id="stats-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-recap" class="panel"><div id="recap-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-schedule" class="panel"><div id="schedule-content"><div class="empty">Loading…</div></div></div>
+  <div id="panel-shots" class="panel">
+    <div class="due-explainer" id="shots-explainer-toggle" onclick="toggleExplainer('shots')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Shots Works</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="shots-explainer-chevron">&#9654;</span>
+      </div>
+      <div class="due-explainer-teaser">Projected shots on goal for every skater on the slate, priced against the standard lines.</div>
+      <div class="due-explainer-body" id="shots-explainer-body" style="display:none">
+        <ul>
+          <li><b>It is a volume market, and volume is what hockey predicts well.</b> Goals are a share market and mostly luck game to game; shots are a role. A skater's shots per game splits half-against-half at <b>0.82</b>, and his ice time at <b>0.98</b> &mdash; higher than the snap share that carries the whole NFL touchdown board. That is why this is the market we built first.</li>
+          <li><b>His own shot rate carries it.</b> Career shots per game alone takes the model most of the way &mdash; from a league-average guess to <b>&minus;10.8%</b> log loss. Recent ice time is the next largest term, then his last ten games, then power-play minutes.</li>
+          <li><b>Prices are negative binomial, not Poisson.</b> Per player, shot counts run variance/mean <b>1.13</b> against the 1.00 a Poisson assumes, so a Poisson pushes too much probability past the line. The wider distribution fixes it &mdash; the same reason the NFL receptions board is priced this way.</li>
+          <li><b>Individual Corsi and Fenwick are in the feed, were tested, and are not in the model.</b> Total shot attempts correlate <b>0.93</b> with career shots per game and unblocked attempts <b>0.98</b>. Both are <em>worse</em> than plain shots per game on their own, and adding Corsi back to the finished model makes it worse, not better. They measure the same thing less directly.</li>
+          <li><b>The opponent matters here, which is unusual.</b> Shots allowed per game by the other team is the largest gain after usage &mdash; worth more than power-play minutes. On the NFL boards defence has failed this test five times; in a shot-volume market it passes.</li>
+          <li><b>Built on 182,608 skater-games</b> across four seasons, fitted walk-forward &mdash; every season predicted by a model that never saw it. Out of sample the ladder is honest to within a point at every line.</li>
+          <li><b>League shot rates are falling</b> (1.75 per skater-game in 2022-23, 1.55 last season) so the fit runs about 2% high on the mean. A live correction was tested and <em>overshot</em>, flipping the error negative, so the board ships uncorrected.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="shots-content"><div class="empty">Loading&hellip;</div></div>
+  </div>
 
 
   <footer class="site-foot">
@@ -519,8 +713,8 @@
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch, .sport-menu')) closeSportMenu(); });
 
   // ── Nav + routing ──────────────────────────────────────────────────────
-  const NHL_NAVS = ['home', 'stats', 'recap', 'schedule'];   // tools added here as they ship
-  const PAGE_TITLES = { home: "Ron's Goal Tool", stats: "Stats · Ron's Goal Tool", recap: "Recap · Ron's Goal Tool", schedule: "Schedule · Ron's Goal Tool" };
+  const NHL_NAVS = ['home', 'stats', 'recap', 'schedule', 'shots'];   // tools added here as they ship
+  const PAGE_TITLES = { home: "Ron's Goal Tool", stats: "Stats · Ron's Goal Tool", recap: "Recap · Ron's Goal Tool", schedule: "Schedule · Ron's Goal Tool", shots: "Shots · Ron's Goal Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
     activeNav = nav;
@@ -549,6 +743,7 @@
     else if (nav === 'stats') renderStats();
     else if (nav === 'recap') renderRecap();
     else if (nav === 'schedule') renderSchedule();
+    else if (nav === 'shots') renderShots();
   }
 
   // ── Data ───────────────────────────────────────────────────────────────
@@ -892,6 +1087,203 @@
       </div>
       <div class="result-meta">${rows.length} ${goalies ? 'goalies' : 'skaters'} · <b>${esc(D.leaderSeasonLabel)}</b> · sorted by <b>${esc(sortLbl)}</b></div>
       <div class="rc-list">${rows.length ? rows.map(goalies ? glRow : skRow).join('') : '<div class="empty">No players match these filters.</div>'}</div>`;
+  }
+
+
+  // ── Shots on goal ──────────────────────────────────────────────────────
+  // Mirrors /nfl's receptions board: same explainer, filters, view switcher
+  // and ladder. Model in research/nhl_sog.py, scored in scripts/nhl-shots.js.
+  const sgF = { pos: 'ALL', line: 'auto', sort: 'proj', view: 'cards', q: '', open: false };
+  function setSg(k, v) { sgF[k] = v; renderShots(); }
+  function toggleSgFilters() { sgF.open = !sgF.open; renderShots(); }
+  function onSgSearch() { sgF.q = document.getElementById('sg-search').value; renderShots(); }
+  function clearSgSearch() { sgF.q = ''; renderShots(); }
+  function toggleExplainer(name) {
+    const b = document.getElementById(name + '-explainer-body');
+    const c = document.getElementById(name + '-explainer-chevron');
+    const t = document.getElementById(name + '-explainer-toggle');
+    if (!b) return;
+    const open = b.style.display === 'none';
+    b.style.display = open ? 'block' : 'none';
+    c?.classList.toggle('open', open);
+    t?.setAttribute('aria-expanded', String(open));
+  }
+
+  const sgChip = (k, v, lab) =>
+    `<button class="due-filter-chip${sgF[k] === v ? ' active' : ''}" onclick="setSg('${k}','${v}')">${lab}</button>`;
+  /** Fair American odds. No vig — a book always prices worse than this. */
+  const sgOdds = (p) => {
+    if (!(p > 0 && p < 1)) return '—';
+    const o = p >= 0.5 ? -100 * p / (1 - p) : 100 * (1 - p) / p;
+    return (o > 0 ? '+' : '') + Math.round(o);
+  };
+  /** The line whose price sits closest to even — the one worth quoting. */
+  function sgBestLine(r, lines) {
+    let best = lines[0], gap = 9;
+    for (const L of lines) {
+      const g = Math.abs((r.p[L] ?? 0) - 0.5);
+      if (g < gap) { gap = g; best = L; }
+    }
+    return best;
+  }
+  function sgRows() {
+    const S = D.shots || {}, lines = S.model?.lines || [1.5, 2.5, 3.5];
+    let rows = (S.board || []).map(r => {
+      const L = sgF.line === 'auto' ? sgBestLine(r, lines) : +sgF.line;
+      return { ...r, L, pAt: r.p[L] ?? r.p[String(L)] ?? 0 };
+    });
+    if (sgF.pos !== 'ALL') {
+      rows = rows.filter(r => sgF.pos === 'F' ? r.pos !== 'D' : r.pos === sgF.pos);
+    }
+    const q = sgF.q.trim().toLowerCase();
+    if (q) rows = rows.filter(r => (r.name + ' ' + r.team + ' ' + r.opp + ' ' + r.pos).toLowerCase().includes(q));
+    rows.sort(sgF.sort === 'odds' ? (a, b) => b.pAt - a.pAt : (a, b) => b.mu - a.mu);
+    return rows.map((r, i) => ({ ...r, rank: i + 1 }));
+  }
+
+  function renderShots() {
+    const el = dataGate('shots-content'); if (!el) return;
+    const S = D.shots || {};
+    if (!S.board?.length) {
+      el.innerHTML = `<div class="empty">No shot projections yet — the board fills in once the slate is set.</div>`;
+      return;
+    }
+    const lines = S.model?.lines || [1.5, 2.5, 3.5];
+    const rows = sgRows();
+    const nFilt = (sgF.pos !== 'ALL') + (sgF.line !== 'auto') + (sgF.sort !== 'proj');
+
+    const controls = `
+      <div class="due-filters-card">
+        <button class="due-filters-toggle" onclick="toggleSgFilters()" aria-expanded="${sgF.open}">
+          <span class="due-explainer-title">Filters &amp; view${nFilt ? `<span class="due-filters-badge">${nFilt}</span>` : ''}</span>
+          <span class="due-explainer-chevron${sgF.open ? ' open' : ''}">&#9654;</span>
+        </button>
+        <div class="due-filter-row" style="display:${sgF.open ? 'flex' : 'none'}">
+          <div class="due-filter-group"><span class="due-filter-label">Line</span>
+            <span class="due-filter-chips">${['auto', ...lines].map(v => sgChip('line', v, v === 'auto' ? 'Best line' : 'o' + v)).join('')}</span></div>
+          <div class="due-filter-group"><span class="due-filter-label">Position</span>
+            <span class="due-filter-chips">${[['ALL', 'All'], ['F', 'Forwards'], ['C', 'C'], ['L', 'LW'], ['R', 'RW'], ['D', 'D']].map(([v, l]) => sgChip('pos', v, l)).join('')}</span></div>
+          <div class="due-filter-group"><span class="due-filter-label">Sort</span>
+            <span class="due-filter-chips">${[['proj', 'Projection'], ['odds', 'Shortest price']].map(([v, l]) => sgChip('sort', v, l)).join('')}</span></div>
+        </div>
+      </div>
+      <div class="pb-search${sgF.q ? ' on' : ''}">
+        <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        <input type="text" id="sg-search" placeholder="Search a skater, team or position…"
+               value="${esc(sgF.q)}" oninput="onSgSearch()" autocomplete="off" spellcheck="false">
+        <button class="pb-search-x" onclick="clearSgSearch()" aria-label="Clear">×</button>
+      </div>`;
+
+    const viewBtn = (v, lab) =>
+      `<button class="due-filter-chip${sgF.view === v ? ' active' : ''}" onclick="setSg('view','${v}')">${lab}</button>`;
+    const meta = `<div class="result-meta"><b>${S.date ? dayLabel(S.date, true) : ''}</b> · ${rows.length} of ${S.board.length} skaters · negative-binomial prices</div>
+      <div class="pairs-filter-row"><span class="due-filter-label">View</span>${viewBtn('cards', 'Cards')}${viewBtn('table', 'Table')}${viewBtn('compact', 'Compact')}</div>`;
+
+    if (!rows.length) { el.innerHTML = controls + meta + `<div class="empty">Nothing matches that filter.</div>`; return; }
+
+    const spark = (r) => `<span class="sg-spark" title="His last games — bars over the line are green">${
+      (r.recent || []).slice(-10).map(v => `<i class="${v > r.L ? 'hit' : ''}" style="height:${Math.max(2, Math.min(14, v * 3))}px"></i>`).join('')}</span>`;
+
+    let body;
+    if (sgF.view === 'table') {
+      body = `<div class="rc-tablewrap"><table class="rc-table">
+        <thead><tr><th></th><th>Skater</th><th>Game</th><th class="num">Proj</th><th class="num">TOI</th>
+          <th class="num">L10</th><th class="num">Opp SA</th><th class="num">Line</th><th class="num">Price</th></tr></thead>
+        <tbody>${rows.map(r => `
+          <tr onclick="openShot(${r.pid})">
+            <td class="num dim">${r.rank}</td>
+            <td><b>${esc(r.name)}</b> <span class="dim">${POS_NAME[r.pos] || r.pos}</span></td>
+            <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}</td>
+            <td class="num"><b>${r.mu.toFixed(2)}</b></td>
+            <td class="num dim">${(r.toi / 60).toFixed(1)}</td>
+            <td class="num dim">${r.sogL10.toFixed(1)}</td>
+            <td class="num dim">${r.oppSa.toFixed(1)}</td>
+            <td class="num dim">o${r.L}</td>
+            <td class="num"><b>${sgOdds(r.pAt)}</b></td>
+          </tr>`).join('')}</tbody></table></div>`;
+    } else if (sgF.view === 'compact') {
+      body = `<div class="rc-compact">${rows.map(r => `
+        <div class="rc-crow" onclick="openShot(${r.pid})">
+          <span class="rc-crank">${r.rank}</span>
+          <span class="rc-cnm">${esc(r.name)}</span>
+          <span class="rc-cteam">${esc(r.team)}</span>
+          <span class="rc-cproj">${r.mu.toFixed(1)}</span>
+          <span class="rc-cod">${sgOdds(r.pAt)}</span>
+          <span class="rc-cline">o${r.L}</span>
+        </div>`).join('')}</div>`;
+    } else {
+      body = `<div class="pb-list">${rows.map(r => `
+        <div class="pb-card" onclick="openShot(${r.pid})">
+          <div class="pb-rank">${r.rank}</div>${faceHtml(mugOf(r.pid, r.team, D.leaderSeason), r.name)}
+          <div class="pb-info">
+            <div class="pb-nm">${esc(r.name)}<span class="pb-flag">${POS_NAME[r.pos] || r.pos}</span></div>
+            <div class="pb-line">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}
+              <span class="sg-proj"><b>${r.mu.toFixed(1)}</b> proj</span>${spark(r)}</div>
+          </div>
+          <div class="pb-facts">
+            <span class="pb-f" title="Ice time per game"><b>${(r.toi / 60).toFixed(1)}</b> TOI</span>
+            <span class="pb-f" title="Shots per game over his last ten"><b>${r.sogL10.toFixed(1)}</b> L10</span>
+            <span class="pb-f" title="Shots the opponent allows per game"><b>${r.oppSa.toFixed(1)}</b> opp SA</span>
+          </div>
+          <div class="pb-price">
+            <span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span>
+            <span class="pb-pct">over ${r.L}</span>
+          </div>
+        </div>`).join('')}</div>`;
+    }
+    el.innerHTML = controls + meta + body;
+  }
+
+  /** The full ladder for one skater, plus the usage behind the number. */
+  function openShot(pid) {
+    const S = D.shots || {};
+    const r = (S.board || []).find(x => x.pid === pid); if (!r) return;
+    const lines = S.model?.lines || [];
+    const best = sgBestLine(r, lines);
+    document.getElementById('sg-back')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `
+      <div class="pm-back" id="sg-back" onclick="if(event.target===this)closeShot()">
+        <div class="pm" role="dialog" aria-modal="true">
+          <div class="sg-head">
+            ${faceHtml(mugOf(r.pid, r.team, D.leaderSeason), r.name)}
+            <div class="sg-head-id">
+              <div class="rc-name">${esc(r.name)} ${posBadge(r.pos)}</div>
+              <div class="rc-sub">${esc(teamName(r.team))} ${r.home ? 'vs' : '@'} ${esc(teamName(r.opp))} · ${S.date ? dayLabel(S.date) : ''}</div>
+            </div>
+            <button class="sg-x" onclick="closeShot()" aria-label="Close">×</button>
+          </div>
+          <div class="pm-sec">Projection</div>
+          <div class="sg-note">We project <b>${r.mu.toFixed(2)}</b> shots on goal — the whole ladder comes off that one number</div>
+          <div class="sg-lad">${lines.map(L => {
+            const p = r.p[L] ?? r.p[String(L)] ?? 0;
+            return `<div class="sg-lrow${L === best ? ' best' : ''}">
+              <span class="sg-lline">o${L}</span>
+              <span class="sg-lbar"><i style="width:${(p * 100).toFixed(1)}%"></i></span>
+              <span class="sg-lod">${sgOdds(p)}</span></div>`;
+          }).join('')}</div>
+          <div class="pm-sec">What is behind it</div>
+          <div class="pb-facts">
+            <span class="pb-f"><b>${(r.toi / 60).toFixed(1)}</b> min TOI</span>
+            <span class="pb-f"><b>${(r.pptoi / 60).toFixed(1)}</b> min PP</span>
+            <span class="pb-f"><b>${r.sogPrior.toFixed(2)}</b> career/gm</span>
+            <span class="pb-f"><b>${r.sogL5.toFixed(2)}</b> last 5</span>
+            <span class="pb-f"><b>${r.sogL10.toFixed(2)}</b> last 10</span>
+            <span class="pb-f"><b>${r.oppSa.toFixed(1)}</b> ${esc(r.opp)} shots allowed</span>
+            <span class="pb-f"><b>${r.gp}</b> games of history</span>
+          </div>
+          ${r.recent?.length ? `<div class="pm-sec">His last ${r.recent.length} games</div>
+          <div class="sg-lad"><div class="rc-sub">${r.recent.join(' · ')} shots</div></div>` : ''}
+        </div>
+      </div>`);
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', sgKey);
+  }
+  function sgKey(e) { if (e.key === 'Escape') closeShot(); }
+  function closeShot() {
+    document.getElementById('sg-back')?.remove();
+    document.body.style.overflow = '';
+    document.removeEventListener('keydown', sgKey);
   }
 
   // ── Home ───────────────────────────────────────────────────────────────

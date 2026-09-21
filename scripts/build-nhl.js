@@ -11,6 +11,7 @@
 // NFL rolls itself over.
 import fs from 'node:fs';
 import { web, rest, restPaged, etDate, shiftDate } from './nhl-api.js';
+import { buildShotsBoard } from './nhl-shots.js';
 
 const LEADERS = 300;      // skaters on the Stats board
 const GOALIES = 90;       // ~3 per club
@@ -171,7 +172,29 @@ async function main() {
   if (!L.skaters.length) { L = await leaders(HIST.id); leaderSeason = HIST.id; }
   console.log(`  ${L.skaters.length} skaters, ${L.goalies.length} goalies (${leaderSeason})`);
 
-  // ── 6) Write ───────────────────────────────────────────────────────────
+  // ── 6) Shots on goal ───────────────────────────────────────────────────
+  // Priced for the next date that has regular-season games, which is what the
+  // app opens on. Preseason is deliberately not priced: the rosters are not
+  // the rosters.
+  console.log('Pricing shots on goal…');
+  const upcoming = schedule.filter(g => g.type === 2 && g.date >= today)
+    .reduce((d, g) => d || g.date, null);
+  const slate = schedule.filter(g => g.type === 2 && g.date === upcoming);
+  const playedDates = [...new Set(schedule
+    .filter(g => g.type === 2 && g.state !== 'FUT' && g.date < (upcoming || '9999'))
+    .map(g => g.date))].sort();
+  let shots = { board: [], model: null, date: upcoming || null };
+  try {
+    const r = await buildShotsBoard({
+      season: UP.id, prevSeason: HIST.id, games: slate, playedDates,
+    });
+    shots = { ...r, date: upcoming || null };
+    console.log(`  ${r.board.length} skaters priced for ${upcoming} (${slate.length} games)`);
+  } catch (e) {
+    console.error('  shots board failed:', e.message);
+  }
+
+  // ── 7) Write ───────────────────────────────────────────────────────────
   const output = {
     generated: new Date().toISOString(),
     season: UP.id, seasonLabel: label(UP),
@@ -181,6 +204,7 @@ async function main() {
     teams, schedule, dates,
     recap, recapDates, recapGames,
     leaders: L.skaters, goalies: L.goalies,
+    shots,
   };
   const out = new URL('../nhl/data.json', import.meta.url);
   fs.mkdirSync(new URL('../nhl/', import.meta.url), { recursive: true });
