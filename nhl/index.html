@@ -10,11 +10,15 @@
 <meta property="og:site_name" content="Ron's Goal Tool">
 <meta property="og:title" content="Ron's Goal Tool">
 <meta property="og:description" content="NHL schedule, skater and goalie leaders, and a goal-by-goal recap of every night.">
+<meta property="og:image" content="https://dong-tool.netlify.app/icons/nhl-icon-512.png">
 <meta property="og:url" content="https://dong-tool.netlify.app/nhl">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Ron's Goal Tool">
 <meta name="twitter:description" content="NHL schedule, stats and a goal-by-goal recap of every night.">
-<link rel="icon" href="/icons/favicon.ico">
+<meta name="twitter:image" content="https://dong-tool.netlify.app/icons/nhl-icon-512.png">
+<link rel="icon" type="image/svg+xml" href="/icons/nhl-favicon.svg?v=1">
+<link rel="icon" type="image/x-icon" href="/icons/nhl-favicon.ico?v=1">
+<link rel="apple-touch-icon" href="/icons/nhl-apple-touch-icon.png?v=1">
 <link rel="manifest" href="/nhl/manifest.webmanifest">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -338,8 +342,14 @@
   @media (max-width: 460px) {
     .cd-g span { display: none; }
   }
-  .brand-puck { width: 30px; height: 30px; flex-shrink: 0; }
-  :root[data-theme="light"] .brand-puck { filter: drop-shadow(0 0 1px rgba(0,0,0,0.55)); }
+  /* The puck, in its small cut — no knurled side wall. The full mark
+     (icons/nhl-logo.svg) carries a dot texture, but below ~48px those dots
+     flatten into solid white and it reads as a blob, so the topbar and the
+     favicons share the heavier knurl-free cut. Drawn inline rather than
+     fetched — /nfl was downloading 13 MB of logos to paint 40px circles
+     before that got fixed. No light-mode halo: /nfl's football needs one
+     because it is all white, but the green ring already carries this. */
+  .brand-puck { width: 32px; height: 32px; flex-shrink: 0; }
   .foot-credit { min-width: 0; }
 </style>
 <script>
@@ -361,12 +371,12 @@
   <header class="topbar">
     <div class="tb-brand">
       <a href="/" class="brand-home" aria-label="Back to all sports">
-        <svg class="brand-puck" viewBox="0 0 64 64" aria-hidden="true">
-          <path d="M6 22h13a3 3 0 0 1 0 6H6a3 3 0 0 1 0-6Z" fill="#72d907"/>
-          <path d="M2 34h15a3 3 0 0 1 0 6H2a3 3 0 0 1 0-6Z" fill="#72d907" opacity="0.6"/>
-          <ellipse cx="42" cy="24" rx="18" ry="7" fill="#ffffff"/>
-          <path d="M24 24v14c0 3.9 8.1 7 18 7s18-3.1 18-7V24c0 3.9-8.1 7-18 7s-18-3.1-18-7Z" fill="#ffffff"/>
-          <ellipse cx="42" cy="24" rx="11" ry="4" fill="#0a1120"/>
+        <svg class="brand-puck" viewBox="0 0 500 500" aria-hidden="true">
+          <g transform="rotate(-6 250 250)">
+            <path d="M38 208 V300 A212 120 0 0 0 462 300 V208 Z" fill="#ffffff"/>
+            <path d="M38 208 V300 A212 120 0 0 0 462 300 V208" fill="none" stroke="#72d907" stroke-width="44" stroke-linejoin="round"/>
+            <ellipse cx="250" cy="208" rx="212" ry="120" fill="#ffffff" stroke="#72d907" stroke-width="44"/>
+          </g>
         </svg>
       </a>
       <h1>Ron's Goal Tool<span class="sport-switch"><button class="sport-switch-btn" id="sport-switch-btn" onclick="toggleSportMenu(event)" aria-label="Switch sport" title="Switch sport">▾</button></span></h1>
@@ -838,8 +848,8 @@
   function renderHome() {
     const el = dataGate('home-content'); if (!el) return;
     const card = (nav, title, link, body, empty) =>
-      `<div class="hm-card"${nav ? ` onclick="switchNav('${nav}')"` : ''}>
-        <div class="hm-head"><span class="hm-title">${title}</span>${nav ? `<span class="hm-link">${link} →</span>` : ''}</div>
+      `<div class="hm-card" onclick="switchNav('${nav}')">
+        <div class="hm-head"><span class="hm-title">${title}</span><span class="hm-link">${link} →</span></div>
         ${body || `<div class="hm-subtle">${empty}</div>`}
       </div>`;
 
@@ -894,27 +904,18 @@
     const byPP = [...(D.leaders || [])].sort((a, b) => (b.ppToi ?? 0) - (a.ppToi ?? 0)).slice(0, 5)
       .map((r, i) => leaderRow(r, i, mmss(r.ppToi), 'PP')).join('');
 
-    // ── Standings ────────────────────────────────────────────────────────
-    const standings = Object.values(D.teams || {}).sort((a, b) => a.rank - b.rank).slice(0, 6).map((t, i) => `
-      <div class="hm-row"><span class="hm-subtle" style="width:0.9rem">${i + 1}</span>
-        ${logoImg(t.id, 'hm-glogo')}
-        <span class="hm-name">${esc(t.name)}<span class="hm-subtle">${t.w}-${t.l}-${t.otl} · ${t.gf} GF / ${t.ga} GA</span></span>
-        <span class="hm-score hot">${t.pts}<span class="hm-subtle" style="font-size:0.766rem"> pts</span></span></div>`).join('');
-
     const season = esc(D.leaderSeasonLabel);
-    const stale = D.standingsStale ? ` (${season})` : '';
     el.innerHTML = countdown + `
       <div class="hm-cols">
         <div class="hm-col">
           ${card('recap', lastNight ? `${dayLabel(lastNight)} Recap` : 'Recap', 'Recap', lastNightCard, 'No games played yet.')}
           ${card('stats', `${season} Goal Leaders`, 'Stats', byG, 'No leaders yet.')}
           ${card('stats', `${season} Point Leaders`, 'Stats', byP, 'No leaders yet.')}
-          ${card('stats', `${season} Power-Play Ice Time`, 'Stats', byPP, 'No ice time logged yet.')}
         </div>
         <div class="hm-col">
           ${card('schedule', `${dayLabel(nd)} · ${next.length} Games`, 'Schedule', gameRows, 'No games scheduled.')}
-          ${card(null, `Standings${stale}`, '', standings, 'No table yet.')}
           ${card('stats', `${season} Save % (25+ GP)`, 'Stats', byGl, 'No goalies yet.')}
+          ${card('stats', `${season} Power-Play Ice Time`, 'Stats', byPP, 'No ice time logged yet.')}
         </div>
       </div>`;
   }
