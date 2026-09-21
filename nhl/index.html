@@ -371,7 +371,7 @@
       <a href="/" class="brand-home" aria-label="Back to all sports">
         <img class="brand-puck" src="/icons/nhl-mark-96.png?v=1" alt="" width="32" height="32">
       </a>
-      <h1>Ron's Goal Tool<span class="sport-switch"><button class="sport-switch-btn" id="sport-switch-btn" onclick="toggleSportMenu(event)" aria-label="Switch sport" title="Switch sport">▾</button></span></h1>
+      <h1>Ron's <em>Goal</em> Tool<span class="sport-switch"><button class="sport-switch-btn" id="sport-switch-btn" onclick="toggleSportMenu(event)" aria-label="Switch sport" title="Switch sport">▾</button></span></h1>
     </div>
     <div class="nav-shell">
     <nav id="main-nav">
@@ -403,7 +403,6 @@
   <div id="panel-recap" class="panel"><div id="recap-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-schedule" class="panel"><div id="schedule-content"><div class="empty">Loading…</div></div></div>
 
-  <div class="sport-menu" id="sport-menu"><a class="sport-item" href="/mlb/"><span class="sport-ico">⚾</span><span class="sport-name">Ron's Dong Tool</span><span class="sport-sub">MLB</span></a><a class="sport-item" href="/nfl/"><span class="sport-ico">🏈</span><span class="sport-name">Ron's Tud Tool</span><span class="sport-sub">NFL</span></a><a class="sport-item current" href="/nhl/"><span class="sport-ico">🏒</span><span class="sport-name">Ron's Goal Tool</span><span class="sport-sub">NHL</span></a><span class="sport-item soon"><span class="sport-ico">🏀</span><span class="sport-name">Ron's Hoop Tool</span><span class="sport-sub">Soon</span></span></div>
 
   <footer class="site-foot">
     <span class="foot-data">NHL · <span id="eyebrow-season">2026-27</span> · <span id="status-badge" class="status-badge fetching">Loading</span></span>
@@ -415,6 +414,8 @@
     </span>
   </footer>
 </div>
+
+  <div class="sport-menu" id="sport-menu"><a class="sport-item" href="/mlb/"><span class="sport-ico">⚾</span><span class="sport-name">Ron's Dong Tool</span><span class="sport-sub">MLB</span></a><a class="sport-item" href="/nfl/"><span class="sport-ico">🏈</span><span class="sport-name">Ron's Tud Tool</span><span class="sport-sub">NFL</span></a><a class="sport-item current" href="/nhl/"><span class="sport-ico">🏒</span><span class="sport-name">Ron's Goal Tool</span><span class="sport-sub">NHL</span></a><span class="sport-item soon"><span class="sport-ico">🏀</span><span class="sport-name">Ron's Hoop Tool</span><span class="sport-sub">Soon</span></span></div>
 <script>
   const APP_BASE = '/nhl';
 
@@ -556,7 +557,8 @@
   /** A date string the feed keys on (yyyy-mm-dd) as a label in the reader's words. */
   function dayLabel(ymd, long) {
     const d = new Date(ymd + 'T12:00:00Z');
-    const opt = long ? { weekday: 'long', month: 'short', day: 'numeric' } : { weekday: 'short', month: 'short', day: 'numeric' };
+    const opt = long ? { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }
+                     : { weekday: 'short', month: 'short', day: 'numeric' };
     return new Intl.DateTimeFormat('en-US', { ...opt, timeZone: 'UTC' }).format(d);
   }
   /** Puck drop in the reader's own timezone — the feed publishes UTC. */
@@ -674,9 +676,14 @@
   // Hockey's schedule unit is the date, not the week: the arrows step one night
   // and the jumps go to opening night and to today.
   const openingDate = () => (D.schedule.find(g => g.type === 2) || {}).date || D.dates[0];
+  // The next date with a REGULAR-SEASON game. Preseason still browses with the
+  // arrows, but it isn't what the page should open on: in the September window
+  // "next games" would otherwise mean exhibition hockey, and once the season is
+  // underway this is simply today or the next game day — it fixes itself.
   function nextGameDate() {
     const t = todayET();
-    return D.dates.find(d => d >= t) || D.dates[D.dates.length - 1];
+    const reg = new Set(D.schedule.filter(g => g.type === 2).map(g => g.date));
+    return D.dates.find(d => d >= t && reg.has(d)) || D.dates.find(d => d >= t) || D.dates[D.dates.length - 1];
   }
   function setScheduleDate(d) { scheduleDate = d; scOpen.clear(); renderSchedule(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
   function shiftScheduleDate(n) {
