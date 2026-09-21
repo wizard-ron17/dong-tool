@@ -1,0 +1,53 @@
+name: Build nhl/data.json
+
+on:
+  schedule:
+    # Hockey is a nightly sport, so the shape here is "morning baseline, then
+    # hourly through the games" rather than the NFL's Sunday-shaped windows.
+    # All times UTC; ET is UTC-4 until November, UTC-5 after.
+    #   Morning: the night's finals are in, the schedule and standings are settled.
+    - cron: '27 11 * * *'
+    #   Game windows: 7pm ET first puck through the last western finish (~1:30am ET).
+    - cron: '27 23 * * *'
+    - cron: '27 0-6 * * *'
+  workflow_dispatch: {}      # manual trigger from the Actions tab
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-nhl
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Build nhl/data.json
+        run: node scripts/build-nhl.js
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add nhl/data.json
+          git diff --staged --quiet && { echo "No changes to commit"; exit 0; }
+          git commit -m "Update nhl/data.json"
+          # nhl/data.json is a whole-file regenerate — same replay-onto-main
+          # strategy as build-nfl.yml so a racing push can't wedge a rebase.
+          for attempt in 1 2 3 4 5; do
+            if git push; then echo "Pushed on attempt $attempt"; exit 0; fi
+            echo "Push rejected (attempt $attempt) — replaying onto latest main"
+            git fetch origin main
+            git reset FETCH_HEAD
+            git add nhl/data.json
+            git diff --staged --quiet && { echo "Already current with main"; exit 0; }
+            git commit -m "Update nhl/data.json"
+          done
+          echo "Failed to push after 5 attempts"; exit 1

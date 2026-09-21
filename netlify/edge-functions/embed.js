@@ -33,7 +33,7 @@ const ROUTES = {
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-// The multi-sport landing + Tud Tool live outside the MLB (/mlb) route tree.
+// The multi-sport landing + the Tud and Goal Tools live outside the MLB (/mlb) route tree.
 const LANDING = { title: "Ron's Tools", desc: "Ron's sports tools — MLB home run picks (Dong Tool), football touchdowns (Tud Tool), and more. Inspired by Green Means Go." };
 const NFL_ROUTES = {
   '':      { title: "Ron's Tud Tool", desc: "NFL touchdown prices, receptions and completions projections, TD leaders, schedule, and the correlated-parlay Pairs tool." },
@@ -53,10 +53,18 @@ const NFL_ROUTES = {
   schedule:{ title: "Schedule · Ron's Tud Tool", desc: "The full NFL slate by week with spreads and over/unders." },
 };
 
+const NHL_ROUTES = {
+  '':       { title: "Ron's Goal Tool", desc: "NHL schedule, skater and goalie leaders, and a goal-by-goal recap of every night." },
+  stats:    { title: "Leaders · Ron's Goal Tool", desc: "Season skater and goalie leaders — goals, points, shots, ice time, save percentage and GAA." },
+  recap:    { title: "Goal Recap · Ron's Goal Tool", desc: "Every goal of the night, game by game — scorer, assists, strength and the clip." },
+  schedule: { title: "Schedule · Ron's Goal Tool", desc: "The full NHL slate night by night, with records, venue and broadcast." },
+};
+
 function metaFor(pathname) {
   const segs = (pathname || '/').split('/').filter(Boolean);
   if (segs[0] === 'mlb') return ROUTES[segs[1] || ''] || ROUTES['']; // /mlb, /mlb/picks, /mlb/due/results
   if (segs[0] === 'nfl') return NFL_ROUTES[segs[1] || ''] || NFL_ROUTES['']; // /nfl, /nfl/pairs …
+  if (segs[0] === 'nhl') return NHL_ROUTES[segs[1] || ''] || NHL_ROUTES['']; // /nhl, /nhl/recap …
   return LANDING; // "/" and anything else -> the sport picker
 }
 

@@ -1,7 +1,8 @@
 # Ron's multi-sport hierarchy:
 #   /            -> the sport picker (root index.html)
 #   /mlb/*       -> Ron's Dong Tool (mlb/index.html, a client-routed SPA)
-#   /football/*  -> Ron's Tud Tool (coming next)
+#   /nfl/*       -> Ron's Tud Tool (nfl/index.html)
+#   /nhl/*       -> Ron's Goal Tool (nhl/index.html)
 #
 # Netlify serves real static files (mlb/data.json, mlb/sw.js, icons/*, …) before
 # applying these rewrites, so they only catch virtual client-side routes.
@@ -11,6 +12,11 @@
 # browser-side no-store fetch (which only controls the local cache).
 [[headers]]
   for = "/mlb/data.json"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/nhl/data.json"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
@@ -24,6 +30,12 @@
 [[redirects]]
   from = "/nfl/*"
   to = "/nfl/index.html"
+  status = 200
+
+# NHL (Ron's Goal Tool) SPA fallback.
+[[redirects]]
+  from = "/nhl/*"
+  to = "/nhl/index.html"
   status = 200
 
 # No catch-all: any other path that isn't a real file gets Netlify's automatic

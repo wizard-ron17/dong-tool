@@ -43,7 +43,7 @@ http.createServer((req, res) => {
   // before the root landing page does. Without the per-app rules a deep link
   // like /nfl/picks renders the sport picker, so client routes cannot be
   // tested locally at all.
-  const app = ['/mlb/', '/nfl/'].find(p => urlPath === p.slice(0, -1) || urlPath.startsWith(p));
+  const app = ['/mlb/', '/nfl/', '/nhl/'].find(p => urlPath === p.slice(0, -1) || urlPath.startsWith(p));
   const fallback = app ? path.join(ROOT, app.slice(1, -1), 'index.html')
                        : path.join(ROOT, 'index.html');
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
