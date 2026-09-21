@@ -5036,7 +5036,12 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
   // ESPN team-logo CDN (transparent PNGs). nflverse abbrs are ESPN slugs
   // lowercased, save two: LA(Rams)->lar, WAS->wsh.
   const LOGO_SLUG = { LA: 'lar', WAS: 'wsh' };
-  const teamLogo = (abbr) => `https://a.espncdn.com/i/teamlogos/nfl/500/${(LOGO_SLUG[abbr] || (abbr || '').toLowerCase())}.png`;
+  // ESPN's path serves the 500×500 original — 42 KB of PNG for a mark we draw
+  // at 17–28px. Their combiner endpoint resizes server-side (?w/&h are ignored
+  // on the plain path, which is why this goes through /combiner/i), taking each
+  // logo to ~4 KB. 96px covers the largest use (28px in a card hero) on a 3×
+  // screen; one size keeps them all sharing a cache entry.
+  const teamLogo = (abbr) => `https://a.espncdn.com/combiner/i?img=/i/teamlogos/nfl/500/${(LOGO_SLUG[abbr] || (abbr || '').toLowerCase())}.png&w=96&h=96`;
   const logoImg = (abbr) => abbr ? `<img class="tm-logo" src="${teamLogo(abbr)}" alt="${abbr}" loading="lazy">` : '';
   // nflverse spread_line: positive => HOME favored. Show it as a betting line
   // (favorite carries the minus). e.g. spread 3.5 => "SEA -3.5".
@@ -5123,9 +5128,27 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
     const p = String(n || '').trim().split(/\s+/);
     return p.length < 2 ? (n || '') : `${p[0][0]}. ${p.slice(1).join(' ')}`;
   };
-  function faceHtml(pid, name) {
+  // ── Headshots ────────────────────────────────────────────────────────
+  // nflverse ships the Cloudinary original: 3400×2450, 700 KB–1 MB apiece,
+  // which we then draw in a 40px circle. Forty of those is ~13 MB down the wire
+  // and — worse — well over a gigabyte of decoded bitmap sitting in the
+  // compositor, which is what made hovering anything on this page stutter.
+  //
+  // The URL is already a Cloudinary transform (f_auto,q_auto); it just never
+  // asked for a size. Adding w_ to that same segment is a one-word fix and the
+  // CDN does the rest. Two sizes only, so the cache stays warm: a list size and
+  // a hero size. Both are generous because the images are 1.39:1 while the
+  // frames are square — object-fit: cover scales to the SHORT side, so a 40px
+  // circle needs ~56px of width at 1×, and double that on a retina screen.
+  const FACE_PX = 120, FACE_HERO_PX = 280;
+  function faceUrl(s, px) {
+    // Only touch the shape we know; anything else is passed through untouched.
+    return s.replace(/\/image\/upload\/([^/]*)\//, (m, t) =>
+      /(^|,)w_\d+/.test(t) ? m : `/image/upload/${t ? t + ',' : ''}w_${px}/`);
+  }
+  function faceHtml(pid, name, px = FACE_PX) {
     const s = nflData.headshots[pid];
-    return s ? `<img class="rc-photo" src="${s}" alt="" loading="lazy">` : `<div class="rc-photo rc-noface">${(name || '?').replace(/^[A-Z]\.\s*/, '')[0] || '?'}</div>`;
+    return s ? `<img class="rc-photo" src="${faceUrl(s, px)}" alt="" loading="lazy" decoding="async">` : `<div class="rc-photo rc-noface">${(name || '?').replace(/^[A-Z]\.\s*/, '')[0] || '?'}</div>`;
   }
   function tdCard(t) {
     return `<div class="rc-card${t.k ? ' td-open' : ''}"${t.k ? ` onclick="openTd('${t.gameId}',${t.k})" role="button" tabindex="0"` : ''}>${faceHtml(t.pid, t.player)}
@@ -5775,7 +5798,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
     document.querySelector('#td-back .ydm').innerHTML = `
       <button class="pm-x" onclick="closeTd()" aria-label="Close">×</button>
       <header class="ydm-hero">
-        ${faceHtml(t.pid, t.player)}
+        ${faceHtml(t.pid, t.player, FACE_HERO_PX)}
         <div class="ydm-id"><h2>${full}</h2><div class="ydm-meta">${pos ? `<b>${pos}</b><span>•</span>` : ''}${t.team} vs ${t.opp}<img src="${teamLogo(t.team)}" alt="" loading="lazy">${at >= 0 ? `<span class="ydm-count">${at + 1} / ${deck.length}</span>` : ''}<em class="tdm-sub">${typeLbl} TD · Wk ${+t.gameId.split('_')[1]}${t.weekday ? ' · ' + t.weekday.slice(0, 3) : ''}${at >= 0 ? ` · ${at + 1}/${deck.length}` : ''}</em></div></div>
         <div class="ydm-big"><div><span>${typeLbl} touchdown</span><span>${WK_LABEL(+t.gameId.split('_')[1])}${t.weekday ? ' · ' + t.weekday.slice(0, 3) : ''}</span></div><strong>${t.yards ?? [...(d?.desc || '').matchAll(/for (-?\d+) yards?, TOUCHDOWN/g)].pop()?.[1] ?? '—'}<small>yd</small></strong></div>
       </header>
@@ -6197,7 +6220,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
     box.innerHTML = `
       <button class="pm-x" onclick="closePlayer()" aria-label="Close">×</button>
       <header class="ydm-hero">
-        ${faceHtml(plOpen.pid, info.name)}
+        ${faceHtml(plOpen.pid, info.name, FACE_HERO_PX)}
         <div class="ydm-id"><h2>${info.name}</h2><div class="ydm-meta">${info.pos ? `<b>${info.pos}</b><span>•</span>` : ''}${info.team}${info.team ? `<img src="${teamLogo(info.team)}" alt="" loading="lazy">` : ''}${at >= 0 ? `<span class="ydm-count">${at + 1} / ${deck.length}</span>` : ''}</div></div>
         <div class="ydm-big"><div><span>${nflData.historySeason} season</span><span>${G || lead?.games || 0} game${(G || lead?.games) === 1 ? '' : 's'}</span></div><strong>${grp === 'qb' && !loading ? tot.ptd + (lead?.tds || 0) : nTd}<small>${grp === 'qb' && !loading ? 'total TD' : 'TD'}</small></strong></div>
       </header>
@@ -6379,7 +6402,7 @@ let pairStacks = false;
   }
   function chipFace(pid, name) {
     const s = nflData.headshots[pid];
-    return s ? `<img class="player-photo" src="${s}" alt="" loading="lazy">`
+    return s ? `<img class="player-photo" src="${faceUrl(s, FACE_PX)}" alt="" loading="lazy" decoding="async">`
       : `<span class="player-photo" style="display:flex;align-items:center;justify-content:center;font-size:0.704rem;color:var(--muted)">${(name || '?').replace(/^[A-Z]\.\s*/, '')[0] || '?'}</span>`;
   }
   const sharedTeamsOf = (grp) => { const b = {}; grp.forEach(p => { const t = scorerIdx[p]?.team; if (t) (b[t] ??= []).push(p); }); return Object.entries(b).filter(([, ps]) => ps.length >= 2).map(([t]) => t); };
@@ -7456,7 +7479,7 @@ let pairStacks = false;
     const html = `
       <button class="pm-x" onclick="closeYds()" aria-label="Close">×</button>
       <header class="ydm-hero">
-        ${faceHtml(r.pid, r.name)}
+        ${faceHtml(r.pid, r.name, FACE_HERO_PX)}
         <div class="ydm-id"><h2>${r.name}</h2><div class="ydm-meta"><b>${r.pos}</b><span>•</span>${r.team} ${r.home ? 'vs' : '@'} ${r.opp}<img src="${teamLogo(r.team)}" alt="" loading="lazy">${at >= 0 ? `<span class="ydm-count">${at + 1} / ${deck.length}</span>` : ''}</div></div>
         <div class="ydm-big"><div><span>Median ${ydMktName(r.m)} yds</span><span>Avg <b>${r.mu.toFixed(0)}</b></span></div><strong>${r.med.toFixed(0)}</strong></div>
       </header>
@@ -7781,7 +7804,7 @@ let pairStacks = false;
     const html = `
       <button class="pm-x" onclick="closeLc()" aria-label="Close">×</button>
       <header class="ydm-hero">
-        ${faceHtml(r.pid, r.name)}
+        ${faceHtml(r.pid, r.name, FACE_HERO_PX)}
         <div class="ydm-id"><h2>${r.name}</h2><div class="ydm-meta"><b>${r.pos || 'QB'}</b><span>•</span>${r.team} ${r.home ? 'vs' : '@'} ${r.opp}<img src="${teamLogo(r.team)}" alt="" loading="lazy">${at >= 0 ? `<span class="ydm-count">${at + 1} / ${deck.length}</span>` : ''}${tags}</div></div>
         <div class="ydm-big"><div><span>${bigL}</span><span>${lc.kind === 'int' ? `Proj <b>${r.mu.toFixed(2)}</b>` : `Median <b>${pmf.reduce((a, v, k) => a.c >= 0.5 ? a : { c: a.c + v, k }, { c: 0, k: 0 }).k}</b>`}</span></div><strong>${bigV}</strong></div>
       </header>
@@ -7821,7 +7844,7 @@ let pairStacks = false;
     document.querySelector('#lc-back .ydm').innerHTML = `
       <button class="pm-x" onclick="closeLc()" aria-label="Close">×</button>
       <header class="ydm-hero">
-        ${faceHtml(r.pid, r.name)}
+        ${faceHtml(r.pid, r.name, FACE_HERO_PX)}
         <div class="ydm-id"><h2>${r.name}</h2><div class="ydm-meta"><b>QB</b><span>•</span>${r.team} ${r.home ? 'vs' : '@'} ${r.opp}<img src="${teamLogo(r.team)}" alt="" loading="lazy">${at >= 0 ? `<span class="ydm-count">${at + 1} / ${deck.length}</span>` : ''}</div></div>
         <div class="ydm-big"><div><span>${bigL}</span><span>Proj <b>${r.mu.toFixed(2)}</b> INTs</span></div><strong>${bigV}</strong></div>
       </header>
