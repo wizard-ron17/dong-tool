@@ -280,6 +280,40 @@
   .sport-name { font-family: var(--font-d); font-weight: 700; font-size: 0.92rem; }
   .sport-sub { margin-left: auto; font-size: 0.692rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
   .sport-item.current .sport-sub { color: var(--accent); }
+  #nav-tools-btn.active::after { display: none; }
+  .nav-caret { display: inline-block; font-size: 0.766rem; font-weight: 900; line-height: 1; transition: transform 0.18s ease; }
+  nav.tools-open .nav-caret { transform: rotate(90deg); }
+  .nav-tools-backdrop { position: fixed; inset: 0; backdrop-filter: blur(3px); z-index: 235; background: rgba(4,8,16,0.55); opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .nav-tools-backdrop.open { opacity: 1; pointer-events: auto; }
+  @media (min-width: 601px) {
+    .nav-tools-menu { position: fixed; top: 50%; left: 50%; z-index: 240; width: min(880px, 92vw); max-height: min(80vh, 760px); overflow-y: auto;
+                      background: var(--surface1); border: 1px solid var(--border2); border-radius: 20px; padding: 1.1rem 1.2rem 1.3rem;
+                      box-shadow: 0 30px 90px rgba(0,0,0,0.6); opacity: 0; transform: translate(-50%, -46%) scale(0.94); pointer-events: none;
+                      transition: opacity 0.18s ease, transform 0.22s cubic-bezier(.2,.9,.3,1.1);
+                      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.55rem; }
+    .nav-tools-menu.open { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
+  }
+  .nav-tools-menu { --g1: #2a9fb5; --g2: #7a7ae8; --g3: #d24e8e; }
+  :root[data-theme="light"] .nav-tools-menu { --g1: #0097b3; --g2: #6060d8; --g3: #c73c80; }
+  @media (max-width: 600px) {
+    .nav-caret { display: none; }
+    .nav-tools-backdrop { background: rgba(0,0,0,0.45); bottom: calc(var(--nav-bottom) + var(--nav-h)); }
+    .nav-tools-menu { position: fixed; z-index: 240; background: var(--surface1); box-shadow: 0 10px 34px rgba(0,0,0,0.5); top: auto; left: var(--nav-side); right: var(--nav-side); bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.5rem); min-width: 0; width: auto; border: 1px solid var(--border2); border-radius: 20px; padding: 0.55rem 0.6rem 0.65rem; opacity: 1; transform: translateY(135%); visibility: hidden; transition: transform 0.24s ease, visibility 0s linear 0.24s; box-shadow: 0 10px 34px rgba(0,0,0,0.5);
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; max-height: calc(100dvh - var(--nav-bottom) - var(--nav-h) - 2rem); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .nav-tools-menu.open { transform: none; visibility: visible; transition: transform 0.24s ease; }
+  }
+  #nav-tools-btn { position: relative; color: var(--accent); background: color-mix(in srgb, var(--accent) 11%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
+  #nav-tools-btn:hover:not(.active):not(:disabled) { color: var(--accent); background: color-mix(in srgb, var(--accent) 19%, transparent); }
+  #nav-tools-btn.active { color: #04170f; background: var(--accent); }
+  @media (max-width: 600px) {
+    #nav-tools-btn { border-radius: 14px; }
+  }
+  /* Empty state: the Tools menu is in for nav parity with /mlb and /nfl, but
+     has nothing in it until the first NHL tool ships. The .nav-menu-item /
+     .nm-* rules come back with it (they are dead CSS until then). */
+  .nav-menu-empty { grid-column: 1 / -1; padding: 1.6rem 1rem; text-align: center; color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+
   @keyframes sportMenuIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
   :root {
     --pos-c: #4fc3e8;   /* centre    — cyan   */
@@ -376,20 +410,24 @@
     <div class="nav-shell">
     <nav id="main-nav">
       <button class="nav-btn active" data-nav="home" onclick="switchNav('home')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.2 12 4l9 7.2M5.5 9.4V20h13V9.4"/></svg>
         <span>Home</span>
       </button>
       <button class="nav-btn" data-nav="stats" onclick="switchNav('stats')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20v-7M12 20V5.5M19 20v-10"/></svg>
         <span>Stats</span>
       </button>
       <button class="nav-btn" data-nav="recap" onclick="switchNav('recap')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4a8 8 0 1 1-7.6 5.5"/><path d="M4 4v5h5"/><path d="M12 8v4.4l3 1.8"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 1.9"/></svg>
         <span>Recap</span>
       </button>
       <button class="nav-btn" data-nav="schedule" onclick="switchNav('schedule')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M8 3.5v4M16 3.5v4M4 10.5h16"/></svg>
         <span>Schedule</span>
+      </button>
+      <button class="nav-btn" id="nav-tools-btn" onclick="toggleNavTools(event)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>
+        <span>Tools</span><span class="nav-caret">▶</span>
       </button>
     </nav>
     </div>
@@ -397,6 +435,11 @@
       <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light or dark mode" title="Toggle light/dark"></button>
     </div>
   </header>
+
+  <div class="nav-tools-menu" id="nav-tools-menu">
+    <div class="nav-menu-empty">No tools yet. The goal-scorer board and the rest land here once the season has games to model.</div>
+  </div>
+  <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
 
   <div id="panel-home" class="panel visible"><div id="home-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-stats" class="panel"><div id="stats-content"><div class="empty">Loading…</div></div></div>
@@ -433,6 +476,13 @@
     // the _dark file paints its blacks white. Repaint every logo on the flip.
     document.querySelectorAll('img[data-team]').forEach(img => { img.src = teamLogo(img.dataset.team); });
   }
+
+  // ── Tools menu ─────────────────────────────────────────────────────────
+  let navToolsOpen = false;
+  function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
+  function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
+  function toggleNavTools(e) { e.stopPropagation(); navToolsOpen ? closeNavTools() : openNavTools(); }
+  document.addEventListener('click', (e) => { if (navToolsOpen && !e.target.closest('#nav-tools-menu') && !e.target.closest('#nav-tools-btn')) closeNavTools(); });
 
   // ── Sport switcher ─────────────────────────────────────────────────────
   function sportBackdrop(on) {
@@ -479,6 +529,7 @@
     document.querySelectorAll('.nav-btn[data-nav]').forEach(b => b.classList.toggle('active', b.dataset.nav === nav));
     document.title = PAGE_TITLES[nav] || "Ron's Goal Tool";
     renderPanel(nav);
+    closeNavTools();
     if (!applyingRoute) commitRoute();
   }
   function currentPath() { return activeNav === 'home' ? APP_BASE + '/' : APP_BASE + '/' + activeNav; }
