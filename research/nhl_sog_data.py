@@ -43,6 +43,7 @@ def load():
                     name=row.get("skaterFullName"), pos=row.get("positionCode"),
                     teams=(row.get("teamAbbrevs") or "").strip(),
                     sog=row.get("shots") or 0, goals=row.get("goals") or 0,
+                    evg=row.get("evGoals") or 0, ppg=row.get("ppGoals") or 0,
                     toi=row.get("timeOnIcePerGame") or 0.0,
                     icf=rr.get("totalShotAttempts") or 0,      # Individual Corsi For
                     blk=rr.get("shotAttemptsBlocked") or 0,    # his own attempts blocked
@@ -52,7 +53,10 @@ def load():
             for x in m:
                 tm.append(dict(season=season, date=date, team_name=x["teamFullName"],
                                sf=x.get("shotsForPerGame") or 0.0,
-                               sa=x.get("shotsAgainstPerGame") or 0.0))
+                               sa=x.get("shotsAgainstPerGame") or 0.0,
+                               gf=x.get("goalsFor") or 0.0, ga=x.get("goalsAgainst") or 0.0,
+                               pk=x.get("penaltyKillPct") if x.get("penaltyKillPct") is not None else np.nan,
+                               pp=x.get("powerPlayPct") if x.get("powerPlayPct") is not None else np.nan))
     return pd.DataFrame(sk), pd.DataFrame(tm)
 
 
@@ -105,10 +109,28 @@ def build():
                 conv=(b.sog.sum() / max(b.icf.sum(), 1)) or 0.55)
     for f in ("sog", "icf", "iff", "toi", "pptoi", "conv"):
         sk["_t_" + f] = [tgt[(s, r)][f] for s, r in zip(sk.season, sk.role)]
+    tgt_g = {}
+    for s_ in seasons:
+        past = sk[sk.season < s_]
+        base = past if len(past) else sk[sk.season == s_]
+        for role in ("F", "D"):
+            b = base[base.role == role]
+            tgt_g[(s_, role)] = dict(goals=b.goals.mean(), evg=b.evg.mean(), ppg=b.ppg.mean())
 
     # Career-to-date (crosses seasons: a shooter is a shooter), shrunk.
     for f in ("sog", "icf", "iff", "toi", "pptoi"):
         sk[f + "_prior"] = asof_mean(sk, "pid", f, "one", SHRINK_K, sk["_t_" + f])
+    # ── Goal features (the Picks / anytime-goal model) ──
+    for f in ("goals", "evg", "ppg"):
+        pri = sk.groupby(["season", "role"])[f].transform("mean")  # replaced below by prior-season means
+        sk[f + "_t"] = [tgt_g[(s_, r_)][f] for s_, r_ in zip(sk.season, sk.role)]
+        sk[f + "_prior"] = asof_mean(sk, "pid", f, "one", SHRINK_K * 2, sk[f + "_t"])
+    # Career shooting %: goals per shot, shrunk hard — finishing talent is real
+    # but a small-sample shooting % is mostly luck.
+    sk["shpct_prior"] = asof_mean(sk, "pid", "goals", "sog", 120.0, sk["goals_t"] / sk["_t_sog"])
+    sk["goals_l10"] = (sk.groupby("pid", sort=False)["goals"]
+                         .transform(lambda s_: s_.shift(1).rolling(10, min_periods=2).mean())).fillna(sk.goals_prior)
+
     # Share of his own attempts that reach the net — the "catch rate" analogue.
     sk["conv_prior"] = asof_mean(sk, "pid", "sog", "icf", SHRINK_K * 3, sk["_t_conv"])
     # Shots per 60 of ice time: volume with the minutes divided out.
@@ -129,8 +151,10 @@ def build():
         tm["team"] = tm.team_name.map(NAME2AB)
         tm = tm.dropna(subset=["team"]).sort_values(["team", "season", "date"]).reset_index(drop=True)
         tm["one"] = 1.0
-        for f in ("sf", "sa"):
+        for f in ("sf", "sa", "gf", "ga"):
             tm[f + "_prior"] = asof_mean(tm, "team", f, "one", 10.0, tm[f].mean())
+        tm["pk_f"] = tm.pk.fillna(tm.pk.mean())
+        tm["pk_prior"] = asof_mean(tm, "team", "pk_f", "one", 10.0, tm.pk_f.mean())
         # who played whom, that date
         pair = tm.groupby(["season", "date"])["team"].apply(list).to_dict()
         opp = opponents(tm)
@@ -144,8 +168,13 @@ def build():
         sk["opp"] = [opp.get(k) for k in key]
         sk["opp_sa_prior"] = [sa.get((s, d, o), np.nan) if o else np.nan
                               for s, d, o in zip(sk.season, sk.date, sk.opp)]
+        for col, src in (("opp_ga_prior", "ga_prior"), ("opp_pk_prior", "pk_prior")):
+            mp = tm.set_index(["season", "date", "team"])[src].to_dict()
+            sk[col] = [mp.get((s, d, o), np.nan) if o else np.nan for s, d, o in zip(sk.season, sk.date, sk.opp)]
+        gfm = tm.set_index(["season", "date", "team"])["gf_prior"].to_dict()
+        sk["team_gf_prior"] = [gfm.get(k, np.nan) for k in key]
         sk["is_home"] = [1.0 if home.get((s, d, t)) else 0.0 for s, d, t in key]
-    for c in ("team_sf_prior", "opp_sa_prior"):
+    for c in ("team_sf_prior", "opp_sa_prior", "opp_ga_prior", "opp_pk_prior", "team_gf_prior"):
         sk[c] = sk[c].fillna(sk[c].mean())
 
     # A skater needs some history before he is predictable at all; the app will

@@ -184,17 +184,59 @@ async function main() {
     .filter(g => g.type === 2 && g.state !== 'FUT' && g.date < (upcoming || '9999'))
     .map(g => g.date))].sort();
   let shots = { board: [], model: null, date: upcoming || null };
+  let picks = { picks: [], model: null, date: upcoming || null };
   try {
     const r = await buildShotsBoard({
       season: UP.id, prevSeason: HIST.id, games: slate, playedDates,
     });
-    shots = { ...r, date: upcoming || null };
-    console.log(`  ${r.board.length} skaters priced for ${upcoming} (${slate.length} games)`);
+    shots = { board: r.board, model: r.model, date: upcoming || null };
+    picks = { picks: r.picks, model: r.picksModel, date: upcoming || null };
+    console.log(`  ${r.board.length} skaters priced for ${upcoming} (${slate.length} games), ${r.picks.length} goal prices`);
   } catch (e) {
     console.error('  shots board failed:', e.message);
   }
 
-  // ── 7) Write ───────────────────────────────────────────────────────────
+  // ── 7) Freeze and grade the Picks board ────────────────────────────────
+  // Each night's board is frozen before its first puck drop — rewritten on
+  // every build until then, so it holds the last pre-game prices — and graded
+  // once every game in it is final. Rows are [pid, p, scored|null, gameId].
+  //
+  // A skater who did not dress is VOID, not a miss: that is how a book settles
+  // an anytime bet, and counting scratches as zeros would drag the live hit
+  // rate below what the prices actually earned. Who dressed comes from each
+  // game's boxscore, since the recap only lists who scored.
+  const HIST_PATH = new URL('../nhl/picks-history.json', import.meta.url);
+  let hist = {};
+  try { hist = JSON.parse(fs.readFileSync(HIST_PATH, 'utf8')); } catch (e) { hist = {}; }
+  if (upcoming && picks.picks.length) {
+    const started = schedule.some(g => g.date === upcoming && g.type === 2 && !['FUT', 'PRE'].includes(g.state));
+    if (!started) hist[upcoming] = picks.picks.map(r => [r.pid, r.p, null, r.gameId]);
+  }
+  let graded = 0;
+  for (const [d, rows] of Object.entries(hist)) {
+    if (!rows.some(x => x[2] == null)) continue;
+    const gids = [...new Set(rows.map(x => x[3]))];
+    if (!gids.every(id => recapGames[id])) continue;          // not all final yet
+    const scorers = new Set((recap[d] || []).map(x => x.pid));
+    const dressed = new Set();
+    for (const id of gids) {
+      try {
+        const bx = await web(`/gamecenter/${id}/boxscore`);
+        for (const side of ['awayTeam', 'homeTeam'])
+          for (const grp of ['forwards', 'defense'])
+            for (const pl of bx.playerByGameStats?.[side]?.[grp] || []) dressed.add(pl.playerId);
+      } catch (e) { /* leave this game ungraded; the next build retries */ }
+    }
+    if (!dressed.size) continue;
+    hist[d] = rows.map(([pid, pp, , gid]) => [pid, pp, dressed.has(pid) ? (scorers.has(pid) ? 1 : 0) : -1, gid]);
+    graded++;
+  }
+  // -1 = did not dress (void). The app counts only 0 and 1.
+  fs.writeFileSync(HIST_PATH, JSON.stringify(hist));
+  const nGraded = Object.values(hist).filter(r => r.every(x => x[2] != null)).length;
+  console.log(`  picks history: ${Object.keys(hist).length} nights frozen, ${nGraded} graded${graded ? ` (${graded} new)` : ''}`);
+
+  // ── 8) Write ───────────────────────────────────────────────────────────
   const output = {
     generated: new Date().toISOString(),
     season: UP.id, seasonLabel: label(UP),
@@ -204,7 +246,11 @@ async function main() {
     teams, schedule, dates,
     recap, recapDates, recapGames,
     leaders: L.skaters, goalies: L.goalies,
-    shots,
+    shots, picks,
+    // graded nights only, voids dropped, as [pid, p, scored]
+    picksHistory: Object.fromEntries(Object.entries(hist)
+      .filter(([, r]) => r.every(x => x[2] != null))
+      .map(([d, r]) => [d, r.filter(x => x[2] >= 0).map(x => [x[0], x[1], x[2]])])),
   };
   const out = new URL('../nhl/data.json', import.meta.url);
   fs.mkdirSync(new URL('../nhl/', import.meta.url), { recursive: true });

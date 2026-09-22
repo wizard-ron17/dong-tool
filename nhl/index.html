@@ -447,7 +447,6 @@
     .rc-crow { grid-template-columns: 1.4rem 1fr 2.8rem 4rem; }
     .rc-cteam, .rc-cline { display: none; }
   }
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface1) 60%, var(--surface0)), var(--surface0)); }
   @media (max-width: 620px) {
   }
   .pb-odds { display: block; font-family: var(--font-d); font-size: 1.45rem; font-weight: 700; line-height: 1; color: var(--good); }
@@ -465,6 +464,97 @@
   .pb-card { cursor: pointer; }
   .pb-logo { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; vertical-align: -0.25em; }
   .fl-sel { font-family: var(--font-d); font-weight: 700; font-size: 0.785rem; padding: 0.3rem 1.5rem 0.3rem 0.55rem; background: var(--surface1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a94a6' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 0.55rem center; border: 1px solid var(--border); color: var(--text); border-radius: 8px; cursor: pointer; -webkit-appearance: none; appearance: none; }
+  /* Picks board + pick modal, extracted rule for rule from /nfl's TD board. */
+  .pb-search-hint { font-size: 0.692rem; color: var(--muted); margin: 0.35rem 0 0 0.15rem; letter-spacing: 0.02em; }
+  .pb-search-hint b { color: var(--text); font-weight: 600; }
+  .pb-search-hint a { color: var(--accent); text-decoration: none; }
+  .pb-search-hint a:hover { text-decoration: underline; }
+  .pk-deck-count { text-align: center; font-family: var(--font-d); font-size: 0.729rem; font-weight: 700; color: var(--muted); letter-spacing: 0.08em; margin: -0.15rem 0 0.5rem; }
+  .fbars { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.1rem; position: relative; }
+  .fbar-legend { font-size: 0.667rem; color: var(--dim); margin: 0.1rem 0 0.75rem; letter-spacing: 0.02em; text-align: center; }
+  .fbar { display: grid; grid-template-columns: 6rem 1fr 3.2rem; align-items: center; gap: 0.5rem; }
+  .fbar-baseline { position: absolute; left: calc(50% + 1.4rem); top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.5); z-index: 2; pointer-events: none; }
+  .fbar-baseline::before { content: '1.00×'; position: absolute; top: 0; left: 50%; transform: translate(-50%, -105%); font-family: var(--font-d); font-weight: 700; font-size: 0.630rem; color: rgba(255,255,255,0.85); background: var(--surface0); padding: 0 0.22rem; border-radius: 3px; white-space: nowrap; }
+  .fbar-label { font-size: 0.692rem; color: var(--muted); letter-spacing: 0.02em; text-transform: uppercase; font-weight: 600; line-height: 1.1; }
+  .fbar-track { position: relative; height: 15px; background: var(--surface1); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .fbar-fill { position: absolute; top: 1px; bottom: 1px; border-radius: 2px; min-width: 1px; }
+  .fbar-fill.pos { background: linear-gradient(90deg, rgba(53,201,110,0.32), rgba(53,201,110,0.85)); }
+  .fbar-fill.neg { background: linear-gradient(270deg, rgba(229,83,75,0.32), rgba(229,83,75,0.85)); }
+  .fbar-val { font-family: var(--font-d); font-weight: 700; font-size: 0.779rem; text-align: right; }
+  .fbar-note { font-size: 0.680rem; color: var(--muted); margin-top: 0.5rem; }
+  .pk-side { flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; align-items: center; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.65rem 0.4rem 0.55rem; text-align: center; }
+  .pk-side:focus-within { z-index: 30; }
+  .pk-side > img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: var(--surface2); border: 1px solid var(--border2); margin-bottom: 0.3rem; }
+  .pb-head { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.55rem; }
+  .pb-week { font-family: var(--font-d); font-size: 1.5rem; font-weight: 700; color: var(--text-strong); }
+  .pb-meta { font-size: 0.729rem; color: var(--muted); }
+  .pb-cutnote { font-size: 0.711rem; color: var(--dim); margin: -0.15rem 0 0.7rem; }
+  .pb-cutnote b { color: var(--silver); }
+  .pb-tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+  .pb-table { width: 100%; border-collapse: collapse; font-size: 0.766rem; min-width: 560px; }
+  .pb-table th { position: sticky; top: 0; background: var(--surface2); color: var(--muted); font-family: var(--font-d); font-size: 0.791rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; text-align: left; padding: 0.45rem 0.6rem; white-space: nowrap; cursor: pointer; user-select: none; border-bottom: 1px solid var(--border); }
+  .pb-table th:hover { color: var(--text); }
+  .pb-table th.on { color: var(--accent); }
+  .pb-table th .ar { font-size: 0.692rem; margin-left: 0.15rem; }
+  .pb-table th.num { text-align: right; }
+  .pb-table th.static { cursor: default; color: var(--dim); }
+  .pb-table th.static:hover { color: var(--dim); }
+  .pb-table td { padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); color: var(--silver); white-space: nowrap; }
+  .pb-table tr:last-child td { border-bottom: none; }
+  .pb-table tr:hover td { background: var(--surface0); }
+  .pb-table td.nm { color: var(--text-strong); font-weight: 700; white-space: normal; }
+  .pb-table td.num { font-family: var(--font-m); text-align: right; }
+  .pb-table td.od { font-family: var(--font-m); font-weight: 700; text-align: right; color: var(--good); }
+  .pb-table td.od.dog { color: var(--gold); }
+  .pm-hero { position: relative; display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 1rem 0.85rem; }
+  .pm-hero .rc-photo { width: 58px; height: 58px; flex-shrink: 0; }
+  .pm-id { flex: 1; min-width: 0; }
+  .pm-nm { font-family: var(--font-d); font-size: 1.5rem; font-weight: 700; color: var(--text-strong); line-height: 1.05; }
+  .pm-meta { font-size: 0.729rem; color: var(--muted); margin-top: 0.2rem; }
+  .pm-meta b { color: var(--silver); }
+  .pm-hero-price { text-align: right; flex-shrink: 0; }
+  .pm-hero-od { font-family: var(--font-d); font-size: 2.1rem; font-weight: 700; line-height: 1; color: var(--good); }
+  .pm-hero-od.dog { color: var(--gold); }
+  .pm-hero-lbl { font-size: 0.661rem; color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 0.2rem; }
+  .pm-link { text-align: center; font-size: 0.692rem; color: var(--muted); padding: 0.4rem 1rem 0; }
+  .pm-link b { color: var(--gold); font-family: var(--font-d); font-size: 0.785rem; }
+  .pm-sec { text-align: center; font-family: var(--font-d); font-size: 0.766rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin: 1.15rem 0 0.15rem; }
+  .pm-body { padding: 0 1rem 1.1rem; }
+  .pm-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; margin-top: 0.5rem; }
+  .pm-stat { background: var(--surface1); border: 1px solid var(--border); border-radius: 9px; padding: 0.45rem 0.3rem; text-align: center; }
+  .pm-stat-v { font-family: var(--font-d); font-size: 1.05rem; font-weight: 700; color: var(--text-strong); line-height: 1; }
+  .pm-stat-l { font-size: 0.642rem; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 0.22rem; }
+  .pm-stat-bar { height: 3px; border-radius: 2px; background: var(--border2); margin: 0.32rem 0.25rem 0; overflow: hidden; }
+  .pm-stat-bar i { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+  .pm-foot { font-size: 0.692rem; color: var(--dim); line-height: 1.5; margin: 0.9rem 0 0; text-align: center; }
+  @media (max-width: 460px) {
+    .pm-stats { grid-template-columns: repeat(2, 1fr); }
+    .pm-nm { font-size: 1.25rem; }
+    .pm-hero-od { font-size: 1.7rem; }
+  }
+  .pb-card, .pb-table tbody tr { cursor: pointer; }
+  .pbc { border: 1px solid var(--border2); border-radius: 12px; overflow: hidden; background: var(--surface0); }
+  .pbc-hd { display: flex; align-items: baseline; gap: 0.5rem; padding: 0.6rem 0.85rem; background: var(--surface2); border-bottom: 1px solid var(--border); }
+  .pbc-brand { font-family: var(--font-d); font-size: 1rem; font-weight: 700; color: var(--text-strong); letter-spacing: 0.01em; }
+  .pbc-brand em { color: var(--accent); font-style: normal; }
+  .pbc-sub { font-size: 0.704rem; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; margin-left: auto; }
+  .pbc-row { display: flex; align-items: center; gap: 0.55rem; padding: 0.42rem 0.85rem; border-bottom: 1px solid var(--border); }
+  .pbc-row:last-of-type { border-bottom: none; }
+  .pbc-rank { font-family: var(--font-m); font-size: 0.717rem; color: var(--dim); min-width: 1.4rem; text-align: right; }
+  .pbc-logo { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
+  .pbc-nm { font-weight: 700; font-size: 0.84rem; color: var(--text-strong); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pbc-opp { font-family: var(--font-m); font-size: 0.692rem; color: var(--dim); white-space: nowrap; }
+  .pbc-od { font-family: var(--font-d); font-size: 1.1rem; font-weight: 700; min-width: 3.6rem; text-align: right; color: var(--good); }
+  .pbc-od.dog { color: var(--gold); }
+  .pbc-ft { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.45rem 0.85rem; background: var(--surface1); border-top: 1px solid var(--border); font-size: 0.673rem; color: var(--dim); letter-spacing: 0.03em; }
+  @media (max-width: 520px) {
+    .pbc-opp { display: none; }
+  }
+  .pbf-sel { background: var(--surface1); border: 1px solid var(--border2); color: var(--silver); font-family: var(--font-b); font-size: 0.729rem; font-weight: 700; padding: 0.26rem 0.5rem; border-radius: 7px; cursor: pointer; }
+  .pbf-hint { font-size: 0.680rem; color: var(--dim); margin-left: 0.15rem; align-self: center; }
+  .pbf-foot { display: flex; justify-content: flex-end; padding-top: 0.55rem; margin-top: 0.1rem; border-top: 1px solid var(--border); }
+  .pbf-reset { background: transparent; border: 1px solid var(--border2); color: var(--muted); font-family: var(--font-b); font-size: 0.704rem; font-weight: 700; padding: 0.22rem 0.7rem; border-radius: 7px; cursor: pointer; }
+  .pbf-reset:hover { color: var(--bad); border-color: var(--bad); }
   /* Filter card + ladder card, extracted rule for rule from /nfl. The Shots
      board is a port of the receptions board and shares its chrome: the same
      collapsing filter card, the same view switcher, and the same ladder card
@@ -771,8 +861,13 @@
   </header>
 
   <div class="nav-tools-menu" id="nav-tools-menu">
-    <div class="nav-menu-group g1">Shooting</div>
-    <button class="nav-menu-item g1" data-nav="shots" onclick="switchNav('shots')">
+    <div class="nav-menu-group g1">Scoring</div>
+    <button class="nav-menu-item g1" data-nav="picks" onclick="switchNav('picks')">
+      <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.75" fill="currentColor"/></svg></span><span class="nm-name">Picks</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+      <span class="nm-desc">Every skater ranked by his odds of scoring a goal.</span>
+    </button>
+    <div class="nav-menu-group g2">Shooting</div>
+    <button class="nav-menu-item g2" data-nav="shots" onclick="switchNav('shots')">
       <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v4M12 16.5v4M3.5 12h4M16.5 12h4"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/></svg></span><span class="nm-name">Shots</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
       <span class="nm-desc">Projected shots on goal for every skater, priced at every line.</span>
     </button>
@@ -783,6 +878,56 @@
   <div id="panel-stats" class="panel"><div id="stats-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-recap" class="panel"><div id="recap-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-schedule" class="panel"><div id="schedule-content"><div class="empty">Loading…</div></div></div>
+  <div id="panel-picks" class="panel">
+    <div class="due-explainer" id="picks-explainer-toggle" onclick="toggleExplainer('picks')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Picks Work</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="picks-explainer-chevron">&#9654;</span>
+      </div>
+      <div class="due-explainer-teaser">Every skater on the slate, priced to score at least one goal.</div>
+      <div class="due-explainer-body" id="picks-explainer-body" style="display:none">
+        <ul>
+          <li><b>What the price is.</b> The modelled chance he scores at least one goal, shown as American odds with the raw probability beneath. These are <em>fair</em> odds with no vig &mdash; a real sportsbook will always price worse. A price assumes he dresses, which is how books settle it: a scratch is void.</li>
+          <li><b>It is calibrated, not a rating.</b> Out of sample across three seasons the number means what it says &mdash; the top tenth of the board was priced at 34.8% and scored 34.6% of the time, the bottom tenth 3.8% and 3.7%.</li>
+          <li><b>Poisson, not a coin flip.</b> Goals per skater-game run variance/mean <b>1.004</b> &mdash; as close to Poisson as real data gets &mdash; so the model projects expected goals and the anytime price is 1 &minus; e<sup>&minus;expected</sup>. That is also what the NFL touchdown board is, one link function over.</li>
+          <li><b>What drives it.</b> His career scoring &mdash; goals, shot volume and shooting percentage together &mdash; takes the model from a 0.61 ranking to 0.69 on its own. Recent ice time is next, then power-play minutes, recent shots, the opponent's goals allowed, his team's offence and home ice. Final ranking accuracy (AUC) <b>0.706</b>.</li>
+          <li><b>What is deliberately absent.</b> Recent goals (his last ten games) add nothing once recent <em>shots</em> are in &mdash; goals are what shots turn into by luck. Opponent shots allowed and penalty kill were tested and are nulls. A separate even-strength and power-play model, summed, was tested and is <em>worse</em> than one model, because power-play minutes already carry that channel.</li>
+          <li><b>It is recalibrated.</b> A monotone (isotonic) map fitted on out-of-sample results trims the top end, where the raw model runs a little hot. It halves the calibration error without changing the order of the board.</li>
+          <li><b>Only the current roster is priced.</b> A skater's stats are filed under the club he finished last season with, so the board reads each team's roster directly &mdash; otherwise anyone who moved this summer would be priced for his old team.</li>
+          <li><b>Cut lines.</b> Each maximum-price filter shows the hit rate that cut actually produced out of sample &mdash; so tightening the board is a measured trade, not a guess.</li>
+          <li><b>Honest limits.</b> Built on 182,608 skater-games across four seasons, never yet graded against a live night, and not measured against sportsbook prices &mdash; a fair number is not the same thing as an edge. No starting-goalie or line-combination data yet: those need a lineup feed the free NHL API does not have.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="sub-tabs u-tabs" id="picks-sub-tabs">
+      <button class="sub-btn active" id="picks-sub-board" onclick="switchPicksSub('board')">Board</button>
+      <button class="sub-btn" id="picks-sub-results" onclick="switchPicksSub('results')">Results</button>
+    </div>
+
+    <div class="due-filters-card" id="picks-filters-card">
+      <button class="due-filters-toggle" id="picks-filters-toggle" onclick="togglePicksFilters()" aria-expanded="false">
+        <span class="due-explainer-title">Filters &amp; view<span class="due-filters-badge" id="picks-filters-badge" style="display:none"></span></span>
+        <span class="due-explainer-chevron" id="picks-filters-chevron">&#9654;</span>
+      </button>
+      <div class="due-filter-row" id="picks-filter-row" style="display:none"></div>
+    </div>
+
+    <div id="picks-search-wrap">
+      <div class="pb-search" id="picks-search-box">
+        <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path>
+        </svg>
+        <input type="text" id="picks-search" placeholder="Search a skater, team or position…"
+               oninput="onPicksSearch()" autocomplete="off" spellcheck="false" aria-label="Search the board">
+        <button class="pb-search-x" onclick="clearPicksSearch()" aria-label="Clear search">×</button>
+      </div>
+      <div class="pb-search-hint" id="picks-search-hint">Commas match any of them — narrows whatever the filters already show</div>
+    </div>
+
+    <div id="picks-board-wrap"><div id="picks-content"><div class="empty">Loading…</div></div></div>
+  </div>
   <div id="panel-shots" class="panel">
     <div class="due-explainer" id="shots-explainer-toggle" onclick="toggleExplainer('shots')" aria-expanded="false">
       <div class="due-explainer-head">
@@ -879,8 +1024,8 @@
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch, .sport-menu')) closeSportMenu(); });
 
   // ── Nav + routing ──────────────────────────────────────────────────────
-  const NHL_NAVS = ['home', 'stats', 'recap', 'schedule', 'shots'];   // tools added here as they ship
-  const PAGE_TITLES = { home: "Ron's Goal Tool", stats: "Stats · Ron's Goal Tool", recap: "Recap · Ron's Goal Tool", schedule: "Schedule · Ron's Goal Tool", shots: "Shots · Ron's Goal Tool" };
+  const NHL_NAVS = ['home', 'stats', 'recap', 'schedule', 'picks', 'shots'];   // tools added here as they ship
+  const PAGE_TITLES = { home: "Ron's Goal Tool", stats: "Stats · Ron's Goal Tool", recap: "Recap · Ron's Goal Tool", schedule: "Schedule · Ron's Goal Tool", shots: "Shots · Ron's Goal Tool", picks: "Picks · Ron's Goal Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
     activeNav = nav;
@@ -910,6 +1055,7 @@
     else if (nav === 'recap') renderRecap();
     else if (nav === 'schedule') renderSchedule();
     else if (nav === 'shots') renderShots();
+    else if (nav === 'picks') renderPicks();
   }
 
   // ── Data ───────────────────────────────────────────────────────────────
@@ -1404,6 +1550,325 @@
     el.innerHTML = controls + meta + body;
   }
 
+
+  // ── Picks: anytime goal scorer ─────────────────────────────────────────
+  // /nfl's TD board, ported: same filter card, search, card/table/compact
+  // views and the same pick modal with its factor bars. Model in
+  // research/nhl_goals.py, priced in scripts/nhl-goals.js.
+  const PK_DEFAULTS = { cut: 0, pos: [], team: 'all', sort: 'p', dir: 'desc', view: 'cards' };
+  let pkF = (() => { try { return { ...PK_DEFAULTS, ...JSON.parse(localStorage.getItem('nhlPicksFilters') || '{}') }; } catch (e) { return { ...PK_DEFAULTS }; } })();
+  let pkFiltersOpen = false, pkSub = 'board', pkSearch = [];
+  const pkSave = () => { try { localStorage.setItem('nhlPicksFilters', JSON.stringify(pkF)); } catch (e) {} };
+  const PK_SORTS = [{ v: 'p', lab: 'Price' }, { v: 'sog', lab: 'Shots/g' }, { v: 'toi', lab: 'Ice time' },
+                    { v: 'pp', lab: 'PP min' }, { v: 'time', lab: 'Game' }, { v: 'name', lab: 'Name' }];
+  const pkCuts = () => [{ v: 0, lab: 'All' }, ...((D.picks?.model?.cuts) || []).map(c => ({ v: c.v, lab: '+' + c.v, p: c.p, hit: c.hit, per: c.per }))];
+  const pkCutP = (v) => v ? 100 / (v + 100) : 0;
+  const pkNorm = (x) => (x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const pkMatch = (r, t) => { const q = pkNorm(t); return pkNorm(r.name).includes(q) || r.team.toLowerCase() === q || r.opp.toLowerCase() === q || (POS_NAME[r.pos] || r.pos).toLowerCase() === q; };
+  const pkMug = (r) => r.mug || mugOf(r.pid, r.team, D.leaderSeason);
+
+  function setPkF(k, v) { pkF[k] = v; pkSave(); renderPicks(); }
+  function setPkSort(v) { if (pkF.sort === v) pkF.dir = pkF.dir === 'desc' ? 'asc' : 'desc'; else { pkF.sort = v; pkF.dir = v === 'name' || v === 'time' ? 'asc' : 'desc'; } pkSave(); renderPicks(); }
+  function togglePkPos(v) { if (v === 'all') pkF.pos = []; else pkF.pos = pkF.pos.includes(v) ? pkF.pos.filter(x => x !== v) : [...pkF.pos, v]; pkSave(); renderPicks(); }
+  function clearPkF() { pkF = { ...PK_DEFAULTS, view: pkF.view }; pkSave(); renderPicks(); }
+  function togglePicksFilters() { pkFiltersOpen = !pkFiltersOpen; renderPicksFilters(); }
+  function onPicksSearch() { pkSearch = (document.getElementById('picks-search').value || '').split(',').map(x => x.trim()).filter(Boolean); document.getElementById('picks-search-box').classList.toggle('on', pkSearch.length > 0); renderPicks(); }
+  function clearPicksSearch() { const i = document.getElementById('picks-search'); if (i) i.value = ''; pkSearch = []; document.getElementById('picks-search-box')?.classList.remove('on'); renderPicks(); }
+  function switchPicksSub(v) {
+    pkSub = v;
+    document.getElementById('picks-sub-board').classList.toggle('active', v === 'board');
+    document.getElementById('picks-sub-results').classList.toggle('active', v === 'results');
+    ['picks-filters-card', 'picks-search-wrap'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = v === 'board' ? '' : 'none'; });
+    renderPicks();
+  }
+
+  function pkRows() {
+    let rows = (D.picks?.picks || []).map(r => ({ ...r, ts: r.start || '' }));
+    rows = rows.filter(r => r.p >= pkCutP(pkF.cut));
+    if (pkF.pos.length) rows = rows.filter(r => pkF.pos.includes(r.pos));
+    if (pkF.team !== 'all') rows = rows.filter(r => r.team === pkF.team);
+    const key = { p: r => r.p, sog: r => r.f.sogPg, toi: r => r.f.toi, pp: r => r.f.pptoi,
+                  time: r => r.ts, name: r => r.name.toLowerCase() }[pkF.sort] || (r => r.p);
+    const dir = pkF.dir === 'asc' ? 1 : -1;
+    rows.sort((a, b) => { const x = key(a), y = key(b); return x < y ? -dir : x > y ? dir : b.p - a.p; });
+    // rank fixed before search, so looking a skater up shows where he sits
+    rows.forEach((r, i) => { r.rank = i + 1; });
+    if (pkSearch.length) rows = rows.filter(r => pkSearch.some(t => pkMatch(r, t)));
+    return rows;
+  }
+
+  function renderPicksFilters() {
+    const row = document.getElementById('picks-filter-row'); if (!row || !D || D === 'error') return;
+    const P = D.picks?.picks || [];
+    const teams = [...new Set(P.map(r => r.team))].sort();
+    const chip = (on, label, fn, title = '', extra = '') =>
+      `<button class="pbf-chip${extra ? ' ' + extra : ''}${on ? ' on' : ''}" onclick="${fn}"${title ? ` title="${title}"` : ''}>${label}</button>`;
+    const base = ((D.picks?.model?.base || 0) * 100).toFixed(1);
+    const cuts = pkCuts();
+    const cutChips = cuts.map(c => chip(pkF.cut === c.v, c.lab, `setPkF('cut',${c.v})`,
+      c.v ? `${c.lab} or shorter — historically ${c.hit}% hit, about ${c.per} skaters a night` : `Everyone on the board — ${base}% base rate`)).join('');
+    const cur = cuts.find(c => c.v === pkF.cut);
+    const onBoard = new Set(P.map(r => r.pos));
+    const posChips = [chip(!pkF.pos.length, 'All', `togglePkPos('all')`, 'Every position'),
+      ...['C', 'L', 'R', 'D'].filter(v => onBoard.has(v)).map(v =>
+        chip(pkF.pos.includes(v), POS_NAME[v], `togglePkPos('${v}')`, 'Toggle — combine as many as you like'))].join('');
+    const sortChips = PK_SORTS.map(sm => chip(pkF.sort === sm.v, sm.lab + (pkF.sort === sm.v ? (pkF.dir === 'desc' ? ' ↓' : ' ↑') : ''),
+      `setPkSort('${sm.v}')`, pkF.sort === sm.v ? 'Click again to reverse' : '')).join('');
+    const dirty = pkF.cut !== 0 || pkF.pos.length || pkF.team !== 'all' || pkF.sort !== 'p' || pkF.dir !== 'desc';
+    row.innerHTML = `
+      <div class="pbf-row"><span class="pbf-lbl">Max price</span><div class="pbf-chips">${cutChips}
+        <span class="pbf-hint">${cur?.v ? `≈${cur.hit}% hit` : `${base}% base`}</span></div></div>
+      <div class="pbf-row"><span class="pbf-lbl">Position</span><div class="pbf-chips">${posChips}
+        ${pkF.pos.length > 1 ? `<span class="pbf-hint">${pkF.pos.length} selected</span>` : ''}</div></div>
+      <div class="pbf-row"><span class="pbf-lbl">Team</span><div class="pbf-chips">
+        <select class="pbf-sel" onchange="setPkF('team',this.value)">
+          <option value="all">All teams</option>
+          ${teams.map(t => `<option value="${t}"${pkF.team === t ? ' selected' : ''}>${t}</option>`).join('')}
+        </select></div></div>
+      <div class="pbf-row"><span class="pbf-lbl">Sort</span><div class="pbf-chips">${sortChips}</div></div>
+      ${dirty ? `<div class="pbf-foot"><button class="pbf-reset" onclick="clearPkF()">Reset filters</button></div>` : ''}`;
+    row.style.display = pkFiltersOpen ? '' : 'none';
+    document.getElementById('picks-filters-chevron').classList.toggle('open', pkFiltersOpen);
+    document.getElementById('picks-filters-toggle').setAttribute('aria-expanded', String(pkFiltersOpen));
+    const n = (pkF.cut !== 0) + !!pkF.pos.length + (pkF.team !== 'all') + (pkF.sort !== 'p' || pkF.dir !== 'desc');
+    const badge = document.getElementById('picks-filters-badge');
+    badge.style.display = n ? 'inline-flex' : 'none'; badge.textContent = n;
+  }
+
+  const pkPct = (p) => (p * 100).toFixed(p < 0.1 ? 1 : 0) + '%';
+  const pkTime = (r) => r.start ? gameTime(r.start) : '';
+
+  function pkCard(r) {
+    const dog = r.p < 0.5, f = r.f;
+    return `<div class="pb-card p-${r.pos}" onclick="openPick(${r.pid})">
+      <div class="pb-rank">${r.rank}</div>${faceHtml(pkMug(r), r.name)}
+      <div class="pb-info">
+        <div class="pb-nm">${esc(r.name)}${posBadge(r.pos)}</div>
+        <div class="pb-line">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} ${logoImg(r.opp, 'pb-logo')}${pkTime(r) ? ' · ' + pkTime(r) : ''}</div>
+      </div>
+      <div class="pb-facts">
+        <span class="pb-f" title="Shots on goal per game, career"><b>${f.sogPg.toFixed(1)}</b> shots/g</span>
+        <span class="pb-f" title="Ice time per game over his last five"><b>${(f.toi / 60).toFixed(1)}</b> TOI</span>
+        <span class="pb-f" title="Power-play minutes per game over his last five"><b>${(f.pptoi / 60).toFixed(1)}</b> PP</span>
+      </div>
+      <div class="pb-price"><span class="pb-odds${dog ? ' dog' : ''}">${sgOdds(r.p)}</span><span class="pb-pct">${pkPct(r.p)} · ${r.mu.toFixed(2)} xG</span></div>
+    </div>`;
+  }
+
+  function pkTable(rows) {
+    const th = (v, lab, cls = '') => `<th class="${cls}${pkF.sort === v ? ' on' : ''}" onclick="setPkSort('${v}')">${lab}${pkF.sort === v ? `<span class="ar">${pkF.dir === 'desc' ? '▼' : '▲'}</span>` : ''}</th>`;
+    return `<div class="pb-tablewrap"><table class="pb-table">
+      <thead><tr><th class="static">#</th>${th('name', 'Skater')}<th class="static">Pos</th>${th('time', 'Game')}${th('p', 'Price', 'num')}<th class="static num">Chance</th><th class="static num">xG</th>${th('sog', 'Shots/g', 'num')}${th('toi', 'TOI', 'num')}${th('pp', 'PP', 'num')}<th class="static num">Sh%</th></tr></thead>
+      <tbody>${rows.map(r => `<tr onclick="openPick(${r.pid})">
+        <td class="num">${r.rank}</td>
+        <td class="nm">${esc(r.name)}</td>
+        <td>${posBadge(r.pos)}</td>
+        <td>${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}${pkTime(r) ? ` <span style="color:var(--dim)">${pkTime(r)}</span>` : ''}</td>
+        <td class="od${r.p < 0.5 ? ' dog' : ''}">${sgOdds(r.p)}</td>
+        <td class="num">${pkPct(r.p)}</td>
+        <td class="num" style="color:var(--dim)">${r.mu.toFixed(2)}</td>
+        <td class="num">${r.f.sogPg.toFixed(1)}</td>
+        <td class="num">${(r.f.toi / 60).toFixed(1)}</td>
+        <td class="num">${(r.f.pptoi / 60).toFixed(1)}</td>
+        <td class="num" style="color:var(--dim)">${(r.f.shpct * 100).toFixed(1)}%</td>
+      </tr>`).join('')}</tbody></table></div>`;
+  }
+
+  // Compact is the share/screenshot view, so it carries its own header and
+  // footer: a crop of it still says what it is and that the odds are fair.
+  function pkCompact(rows) {
+    const posLbl = pkF.pos.length ? ' · ' + pkF.pos.map(x => POS_NAME[x]).join('/') : '';
+    return `<div class="pbc">
+      <div class="pbc-hd">
+        <span class="pbc-brand">Ron's <em>Goal</em> Tool</span>
+        <span class="pbc-sub">${D.picks?.date ? dayLabel(D.picks.date) : ''} · Anytime goal${posLbl}</span>
+      </div>
+      ${rows.map(r => `<div class="pbc-row" onclick="openPick(${r.pid})">
+        <span class="pbc-rank">${r.rank}</span>
+        ${logoImg(r.team, 'pbc-logo')}
+        <span class="pbc-nm">${esc(r.name)}</span>
+        ${posBadge(r.pos)}
+        <span class="pbc-opp">${r.home ? 'vs' : '@'} ${esc(r.opp)}</span>
+        <span class="pbc-od${r.p < 0.5 ? ' dog' : ''}">${sgOdds(r.p)}</span>
+      </div>`).join('')}
+      <div class="pbc-ft"><span>${rows.length} picks · fair odds, no vig</span><span>dong-tool.netlify.app/nhl</span></div>
+    </div>`;
+  }
+
+  function renderPicks() {
+    renderPicksFilters();
+    const el = dataGate('picks-content'); if (!el) return;
+    if (pkSub === 'results') { el.innerHTML = renderPicksResults(); return; }
+    const P = D.picks;
+    if (!P?.picks?.length) { el.innerHTML = `<div class="empty">No picks yet — the board is built once the next slate is set.</div>`; return; }
+    const rows = pkRows();
+    const hint = document.getElementById('picks-search-hint');
+    if (hint) {
+      let msg = 'Commas match any of them — narrows whatever the filters already show';
+      if (pkSearch.length) {
+        const shown = new Set(rows.map(r => r.pid));
+        const hidden = P.picks.filter(x => pkSearch.some(t => pkMatch(x, t)) && !shown.has(x.pid));
+        msg = `${rows.length} match${rows.length === 1 ? '' : 'es'} within the current filters`
+          + (hidden.length ? ` · <b>${hidden.slice(0, 2).map(h => esc(h.name)).join(', ')}${hidden.length > 2 ? ` +${hidden.length - 2}` : ''}</b> hidden by them — <a href="javascript:void(0)" onclick="clearPkF()">reset filters</a>` : '')
+          + ` · <a href="javascript:void(0)" onclick="clearPicksSearch()">clear</a>`;
+      }
+      hint.innerHTML = msg;
+    }
+    const cut = pkCuts().find(c => c.v === pkF.cut);
+    const base = ((P.model?.base || 0) * 100).toFixed(1);
+    const body = !rows.length ? (() => {
+      if (pkSearch.length) {
+        const hits = P.picks.filter(x => pkSearch.some(t => pkMatch(x, t)));
+        if (!hits.length) return `<div class="empty">No skater or team matches <b>${esc(pkSearch.join(', '))}</b>. <a href="javascript:void(0)" onclick="clearPicksSearch()">Clear search →</a></div>`;
+        return `<div class="empty"><b>${hits.slice(0, 3).map(h => esc(h.name)).join(', ')}</b>${hits.length > 3 ? ` +${hits.length - 3} more` : ''} ${hits.length === 1 ? 'is' : 'are'} on the board, but filtered out. <a href="javascript:void(0)" onclick="clearPkF()">Reset filters →</a></div>`;
+      }
+      const best = P.picks.reduce((a, b) => (b.p > a.p ? b : a));
+      return `<div class="empty">Nothing here is shorter than <b>${cut?.lab || ''}</b>. The shortest is <b>${sgOdds(best.p)}</b> (${esc(best.name)}). <a href="javascript:void(0)" onclick="setPkF('cut',0)">Show the full board →</a></div>`;
+    })()
+      : pkF.view === 'table' ? pkTable(rows)
+      : pkF.view === 'compact' ? pkCompact(rows)
+      : `<div class="pb-list">${rows.map(pkCard).join('')}</div>`;
+    el.innerHTML = `
+      <div class="pb-head">
+        <span class="pb-week">${P.date ? dayLabel(P.date) : ''}</span>
+        <span class="pb-meta">${esc(D.seasonLabel || '')} · Anytime goal${pkF.pos.length ? ' · ' + pkF.pos.map(x => POS_NAME[x]).join('/') : ''}${pkSearch.length ? ' · “' + esc(pkSearch.join('”, “')) + '”' : ''} · ${rows.length} shown · fair odds, no vig</span>
+      </div>
+      <div class="lb-toolbar">
+        <div class="view-switch">${[['table', 'Table'], ['cards', 'Cards'], ['compact', 'Compact']]
+          .map(([v, l]) => `<button class="view-btn${pkF.view === v ? ' active' : ''}" onclick="setPkF('view','${v}')">${l}</button>`).join('')}</div>
+      </div>
+      ${cut && cut.v ? `<div class="pb-cutnote">At <b>${cut.lab}</b> or shorter, anytime goal historically hit <b>${cut.hit}%</b> — against a <b>${base}%</b> base rate.</div>`
+                     : `<div class="pb-cutnote">Full board. Anytime-goal base rate is <b>${base}%</b>.</div>`}
+      ${body}`;
+  }
+
+
+  // ── Pick modal ──────────────────────────────────────────────────────────
+  // The model is log-link Poisson, so it is additive in log(expected goals):
+  // each term's push is EXACTLY a multiplier on his expected goals, exp(coef*z).
+  // Same arithmetic that produced the price, one term at a time — the NFL TD
+  // modal's bars, one link function over.
+  //
+  // Terms are GROUPED where they measure one thing. Career goals, shot volume
+  // and shooting % are collinear (goals ~ shots x shooting %), so the fit
+  // splits their weight across signs — shown apart, McDavid's goal rate would
+  // read as a penalty. Summed, the bar is still exact and means what it says.
+  const PK_GROUPS = [
+    ['Scoring talent', ['goals_prior', 'sog_prior', 'shpct_prior'], r => `${r.f.goalsPg.toFixed(2)} G/g · ${r.f.sogPg.toFixed(1)} shots/g · ${(r.f.shpct * 100).toFixed(1)}%`,
+      'His career goals, shot volume and shooting percentage, combined — the three measure one thing. This is the largest term on the board.'],
+    ['Ice time', ['toi_prior', 'toi_l5'], r => `${(r.f.toi / 60).toFixed(1)} min, last 5`, 'Minutes a night, weighted to his last five games. A role changes faster than a career average does.'],
+    ['Power play', ['pptoi_l5'], r => `${(r.f.pptoi / 60).toFixed(1)} min/g`, 'Power-play minutes over his last five. A separate power-play model was tested and was worse than letting this carry it.'],
+    ['Recent shots', ['sog_l10'], r => `${r.f.sogL10.toFixed(1)} per game, last 10`, 'Shots on goal over his last ten. Recent GOALS were tested and add nothing once recent shots are in.'],
+    ['Opponent', ['opp_ga_prior'], r => `${r.opp} allows ${r.f.oppGa.toFixed(2)} goals/g`, "Goals his opponent concedes a game — goaltending and defence together."],
+    ['Team offence', ['team_gf_prior'], r => `${r.team} scores ${r.f.teamGf.toFixed(2)}/g`, 'Goals his own team scores a game.'],
+    ['Home ice', ['is_home'], r => r.home ? 'home' : 'away', 'Home skaters score slightly more.'],
+  ];
+  let pmOpen = null;
+
+  function openPick(pid) {
+    const P = D.picks; if (!P) return;
+    const r = (P.picks || []).find(x => x.pid === pid); if (!r) return;
+    document.getElementById('pm-back')?.remove();
+    pmOpen = pid;
+    const deck = pkRows(), at = deck.findIndex(x => x.pid === pid);
+    const parts = PK_GROUPS.map(([lab, keys, det, tip]) => ({ lab, det: det(r), tip, d: keys.reduce((a, k) => a + (r.c?.[k] || 0), 0) }));
+    // calibration, expressed on the same scale: the expected goals the
+    // calibrated price implies, against the model's own.
+    const muCal = -Math.log(1 - r.p);
+    if (Math.abs(Math.log(muCal / r.mu)) >= 0.015)
+      parts.push({ lab: 'Calibration', det: 'out-of-sample fit', tip: 'A monotone map fitted on out-of-sample results. It trims the top end, where the raw model runs a little hot.', d: Math.log(muCal / r.mu) });
+    const shown = parts.filter(x => Math.abs(x.d) >= 0.015).sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
+    const maxAbs = Math.max(0.4, ...shown.map(x => Math.abs(x.d)));
+    const bars = shown.map(x => {
+      const pos = x.d > 0, w = Math.min(50, Math.abs(x.d) / maxAbs * 50);
+      return `<div class="fbar"><span class="fbar-label" title="${esc(x.tip)} (${esc(x.det)})">${x.lab}</span>
+        <div class="fbar-track"><div class="fbar-fill ${pos ? 'pos' : 'neg'}" style="${pos ? 'left:50%' : 'right:50%'};width:${w}%"></div></div>
+        <span class="fbar-val" style="color:${pos ? 'var(--good)' : 'var(--bad)'}">${Math.exp(x.d).toFixed(2)}×</span></div>`;
+    }).join('');
+
+    const pctl = (get, v) => { const arr = P.picks.map(get).filter(x => typeof x === 'number'); return arr.length ? Math.round(arr.filter(x => x <= v).length / arr.length * 100) : 0; };
+    const stat = (v, l, pc, tip) => `<div class="pm-stat" title="${tip}"><div class="pm-stat-v">${v}</div><div class="pm-stat-l">${l}</div><div class="pm-stat-bar"><i style="width:${pc}%"></i></div></div>`;
+    const f = r.f;
+    const stats = [
+      stat(f.sogPg.toFixed(1), 'Shots / game', pctl(x => x.f.sogPg, f.sogPg), 'Career shots on goal per game'),
+      stat((f.toi / 60).toFixed(1), 'Ice time', pctl(x => x.f.toi, f.toi), 'Minutes per game, last five'),
+      stat((f.pptoi / 60).toFixed(1), 'PP minutes', pctl(x => x.f.pptoi, f.pptoi), 'Power-play minutes per game, last five'),
+      stat((f.shpct * 100).toFixed(1) + '%', 'Shooting %', pctl(x => x.f.shpct, f.shpct), 'Career goals per shot, shrunk toward the league when the sample is thin'),
+    ].join('');
+    const muBase = Math.exp(r.base), pBase = 1 - Math.exp(-muBase);
+    const roleName = r.pos === 'D' ? 'defenceman' : 'forward';
+    document.body.insertAdjacentHTML('beforeend', `
+      <div class="pm-back" id="pm-back" onclick="if(event.target===this)closePick()">
+        <button class="pk-side-nav pk-side-prev" onclick="pmStep(-1)" aria-label="Previous pick"${at <= 0 ? ' disabled' : ''}>‹</button>
+        <button class="pk-side-nav pk-side-next" onclick="pmStep(1)" aria-label="Next pick"${at < 0 || at >= deck.length - 1 ? ' disabled' : ''}>›</button>
+        <div class="pm" role="dialog" aria-modal="true">
+          <button class="pm-x" onclick="closePick()" aria-label="Close">×</button>
+          ${at >= 0 ? `<div class="pk-deck-count" style="padding-top:0.6rem">${at + 1} / ${deck.length}</div>` : ''}
+          <div class="pm-hero">
+            ${faceHtml(pkMug(r), r.name)}
+            <div class="pm-id">
+              <div class="pm-nm">${esc(r.name)}</div>
+              <div class="pm-meta"><b>${POS_NAME[r.pos] || r.pos}</b> · ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}${pkTime(r) ? ' · ' + pkTime(r) : ''}</div>
+            </div>
+            <div class="pm-hero-price">
+              <div class="pm-hero-od${r.p < 0.5 ? ' dog' : ''}">${sgOdds(r.p)}</div>
+              <div class="pm-hero-lbl">Anytime goal</div>
+            </div>
+          </div>
+          <div class="pm-link">we project <b>${r.mu.toFixed(2)}</b> expected goals for him — a <b>${pkPct(r.p)}</b> chance of at least one</div>
+          <div class="pm-sec">What moves the price</div>
+          <div class="pm-body">
+            <div class="fbar-legend">← tougher · 1.0× neutral · juicier →</div>
+            <div class="fbars"><div class="fbar-baseline"></div>${bars}</div>
+            <div class="fbar-note">Each bar multiplies his expected goals. A league-average ${roleName} in a neutral spot is expected <b>${muBase.toFixed(2)}</b> goals — <b>${(pBase * 100).toFixed(0)}%</b> to score; these take him to <b>${r.mu.toFixed(2)}</b> — <b>${pkPct(r.p)}</b>.</div>
+            <div class="pm-sec">The numbers</div>
+            <div class="pm-stats">${stats}</div>
+            <p class="pm-foot">Bars show percentile on tonight's board. Fair odds, no vig — a book prices worse. Priced off ${r.gp} NHL games.</p>
+          </div>
+        </div>
+      </div>`);
+    document.addEventListener('keydown', pmKey);
+  }
+  function closePick() { document.getElementById('pm-back')?.remove(); document.removeEventListener('keydown', pmKey); pmOpen = null; }
+  function pmKey(e) { if (e.key === 'Escape') closePick(); else if (e.key === 'ArrowLeft') pmStep(-1); else if (e.key === 'ArrowRight') pmStep(1); }
+  function pmStep(d) {
+    const deck = pkRows(), at = deck.findIndex(x => x.pid === pmOpen), nx = deck[at + d]; if (!nx) return;
+    document.removeEventListener('keydown', pmKey); openPick(nx.pid);
+  }
+
+  // ── Picks results ───────────────────────────────────────────────────────
+  // Every night's board is frozen before the first puck drops and graded the
+  // next morning against the goals actually scored (scripts/build-nhl.js).
+  function renderPicksResults() {
+    const H = D.picksHistory || {};
+    const nights = Object.keys(H).sort();
+    const rows = nights.flatMap(d => (H[d] || []).filter(x => x[2] != null).map(x => ({ d, p: x[1], y: x[2] })));
+    if (!rows.length) return `<div class="empty">No nights graded yet. Every board is frozen before puck drop and graded the next morning against the goals scored — the first will be opening night, ${D.seasonStart ? dayLabel(D.seasonStart, true) : ''}.</div>`;
+    const n = rows.length, hits = rows.reduce((a, x) => a + x.y, 0), exp = rows.reduce((a, x) => a + x.p, 0);
+    const graded = new Set(rows.map(x => x.d)).size;
+    const buckets = [[0, 0.1], [0.1, 0.2], [0.2, 0.3], [0.3, 1.01]].map(([lo, hi]) => {
+      const b = rows.filter(x => x.p >= lo && x.p < hi);
+      return { lab: hi > 1 ? `${lo * 100}%+` : `${lo * 100}–${hi * 100}%`, n: b.length,
+               pred: b.length ? b.reduce((a, x) => a + x.p, 0) / b.length : 0, act: b.length ? b.reduce((a, x) => a + x.y, 0) / b.length : 0 };
+    });
+    const cuts = pkCuts().filter(c => c.v).map(c => {
+      const b = rows.filter(x => x.p >= c.p);
+      return { lab: c.lab, n: b.length, hit: b.length ? b.reduce((a, x) => a + x.y, 0) / b.length : 0, bt: c.hit };
+    });
+    return `
+      <div class="hm-tiles">
+        <div class="hm-tile"><b>${graded}</b><span>Nights graded</span></div>
+        <div class="hm-tile"><b>${hits}</b><span>Goals / ${n} priced</span></div>
+        <div class="hm-tile"><b>${(hits / n * 100).toFixed(1)}%</b><span>Scored · ${(exp / n * 100).toFixed(1)}% expected</span></div>
+      </div>
+      <div class="result-meta" style="margin-top:0.9rem">Calibration — does a price mean what it says?</div>
+      <div class="rc-tablewrap"><table class="rc-table"><thead><tr><th>Priced at</th><th class="num">Skaters</th><th class="num">Expected</th><th class="num">Scored</th></tr></thead>
+        <tbody>${buckets.map(b => `<tr><td>${b.lab}</td><td class="num">${b.n}</td><td class="num">${(b.pred * 100).toFixed(1)}%</td><td class="num"><b>${b.n ? (b.act * 100).toFixed(1) + '%' : '—'}</b></td></tr>`).join('')}</tbody></table></div>
+      <div class="result-meta" style="margin-top:0.9rem">Max-price cuts — live against the backtest</div>
+      <div class="rc-tablewrap"><table class="rc-table"><thead><tr><th>Cut</th><th class="num">Picks</th><th class="num">Live hit</th><th class="num">Backtest</th></tr></thead>
+        <tbody>${cuts.map(c => `<tr><td>${c.lab} or shorter</td><td class="num">${c.n}</td><td class="num"><b>${c.n ? (c.hit * 100).toFixed(1) + '%' : '—'}</b></td><td class="num dim">${c.bt}%</td></tr>`).join('')}</tbody></table></div>`;
+  }
+
   // ── Ladder card ────────────────────────────────────────────────────────
   // /nfl's shared ladder card, ported: a bar chart of the model's own negative
   // binomial with the selected line splitting over from under, over/under
@@ -1644,6 +2109,14 @@
         ${logoImg(g.home, 'hm-glogo')}
         <span class="hm-score" style="font-size:0.84rem;color:var(--muted)">${gameTime(g.start)}</span></div>`).join('');
 
+    // ── Picks: the top of tonight's anytime-goal board ───────────────────
+    const PKB = D.picks || {};
+    const pkHome = (PKB.picks || []).slice(0, 5).map(r => `
+      <div class="hm-row" onclick="event.stopPropagation(); switchNav('picks'); openPick(${r.pid})">
+        ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
+        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${POS_NAME[r.pos] || r.pos} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${r.mu.toFixed(2)} xG</span></span>
+        <span class="hm-score ${r.p >= 0.33 ? 'hot' : 'warm'}">${sgOdds(r.p)}</span></div>`).join('');
+
     // ── Shots: the top of tonight's board ────────────────────────────────
     const SB = D.shots || {}, sbLines = SB.model?.lines || [1.5, 2.5, 3.5];
     const sbRows = (SB.board || []).slice(0, 5).map(r => {
@@ -1674,6 +2147,7 @@
       <div class="hm-cols">
         <div class="hm-col">
           ${card('recap', lastNight ? `${dayLabel(lastNight)} Recap` : 'Recap', 'Recap', lastNightCard, 'No games played yet.')}
+          ${card('picks', PKB.date ? `Picks · ${dayLabel(PKB.date)}` : 'Picks', 'Picks', pkHome, 'The board fills in once the slate is set.')}
           ${card('shots', SB.date ? `Shots · ${dayLabel(SB.date)}` : 'Shots', 'Shots', sbRows, 'The board fills in once the slate is set.')}
           ${card('stats', `${season} Goal Leaders`, 'Stats', byG, 'No leaders yet.')}
           ${card('stats', `${season} Point Leaders`, 'Stats', byP, 'No leaders yet.')}
