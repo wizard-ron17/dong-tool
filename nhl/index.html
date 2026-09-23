@@ -943,8 +943,15 @@
   .sc-ln { font-family: var(--font-m); font-size: 0.704rem; color: var(--text); background: var(--surface0);
            border: 1px solid var(--border); border-radius: 5px; padding: 0.1rem 0.34rem; white-space: nowrap; }
   @media (max-width: 430px) { .sc-ln { font-size: 0.680rem; padding: 0.08rem 0.28rem; } }
+  /* phones: the book tag rides above the chips rather than widening the row */
+  @media (max-width: 600px) {
+    .sc-lines .sc-ln.sc-book { flex-basis: 100%; border: none; padding: 0; font-size: 0.6rem; line-height: 1; }
+    .sc-side-rec { white-space: nowrap; }
+  }
   .scl { margin-top: 0.6rem; border: 1px solid var(--border); border-radius: 10px; background: var(--surface0); padding: 0.5rem 0.7rem; }
   .scl-grid { display: grid; gap: 0.2rem; }
+  .sc-ln.sc-book { color: var(--muted); background: transparent; border-style: dashed; letter-spacing: 0.04em; }
+  .scl-title { display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.4rem; font-size: 0.7rem; font-weight: 700; color: var(--muted); }
   .scl-row { display: grid; grid-template-columns: minmax(0, 1fr) 5rem 6.5rem; align-items: center; gap: 0.4rem; font-family: var(--font-m); font-size: 0.78rem; color: var(--text); }
   .scl-row > span:not(:first-child) { text-align: right; }
   .scl-head { font-family: var(--font-b); font-size: 0.64rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
@@ -2335,7 +2342,8 @@
     const L = g.lines; if (!L) return '';
     const fav = L.pl.h.line != null && L.pl.h.line < 0 ? g.home : g.away;
     const pl = fav === g.home ? L.pl.h.line : L.pl.a.line;
-    return `<div class="sc-lines">${pl != null ? `<span class="sc-ln">${fav} ${pl}</span>` : ''}${L.tot.line != null ? `<span class="sc-ln">O/U ${L.tot.line}</span>` : ''}</div>`;
+    const bk = L.book === 'DraftKings' ? 'DK' : (L.book || 'Book').split(' ')[0];
+    return `<div class="sc-lines"><span class="sc-ln sc-book" title="${esc(L.book || 'Sportsbook')} line via ESPN — the book's price, not ours">${esc(bk)}</span>${pl != null ? `<span class="sc-ln">${fav} ${pl}</span>` : ''}${L.tot.line != null ? `<span class="sc-ln">O/U ${L.tot.line}</span>` : ''}</div>`;
   }
   function scLinesDetail(g) {
     const L = g.lines; if (!L) return '';
@@ -2343,12 +2351,13 @@
     const row = (ab, ml, pl) => `<div class="scl-row"><span class="scl-team">${logoImg(ab, 'scl-logo')}${esc(ab)}</span>
       <span class="scl-v">${amer(ml)}</span><span class="scl-v">${sign(pl.line)} <em>${amer(pl.odds)}</em></span></div>`;
     return `<div class="scl">
+      <div class="scl-title"><span class="sc-ln sc-book">${esc(L.book === 'DraftKings' ? 'DK' : (L.book || 'Book'))}</span>${esc(L.book || 'Sportsbook')} lines — the book's prices, not ours</div>
       <div class="scl-grid">
         <div class="scl-row scl-head"><span></span><span>Moneyline</span><span>Puck line</span></div>
         ${row(g.away, L.ml.a, L.pl.a)}${row(g.home, L.ml.h, L.pl.h)}
       </div>
       ${L.tot.line != null ? `<div class="scl-tot"><span>Total <b>${L.tot.line}</b></span><span>Over <em>${amer(L.tot.o)}</em></span><span>Under <em>${amer(L.tot.u)}</em></span></div>` : ''}
-      <div class="scl-src">${esc(L.book || 'Sportsbook')} via ESPN · updated with every build until puck drop</div>
+      <div class="scl-src">Via ESPN · updated with every build until puck drop. Our own prices live on Picks, Shots, Saves and Goals Allowed.</div>
     </div>`;
   }
   function gameRow(g) {
