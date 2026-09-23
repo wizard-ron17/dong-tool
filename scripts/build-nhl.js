@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import { web, rest, restPaged, etDate, shiftDate } from './nhl-api.js';
 import { buildShotsBoard } from './nhl-shots.js';
 import { gameGoalDetail } from './nhl-goal-detail.js';
+import { buildPlayersLog } from './nhl-players.js';
 
 const LEADERS = 300;      // skaters on the Stats board
 const GOALIES = 90;       // ~3 per club
@@ -320,6 +321,11 @@ async function main() {
   fs.writeFileSync(SH_PATH, JSON.stringify(shHist));
   const shDone = Object.values(shHist).filter(r => r.every(x => x[4] != null)).length;
   console.log(`  shots history: ${Object.keys(shHist).length} nights frozen, ${shDone} graded${shGraded ? ` (${shGraded} new)` : ''}`);
+
+  // ── 7c) Player card archive: game logs + every goal this season ───────
+  console.log('Updating player logs…');
+  try { await buildPlayersLog({ season: UP.id, schedule, recap, recapGames }); }
+  catch (e) { console.warn(`  players.json not updated: ${e.message}`); }   // the card degrades; the build doesn't
 
   // ── 8) Write ───────────────────────────────────────────────────────────
   const output = {
