@@ -69,3 +69,61 @@ export function priceGoal(f) {
 }
 
 export const GOAL_MODEL = MODEL;
+
+// ── Goal-scorer markets beyond anytime ──────────────────────────────────
+// research/nhl_goal_types.py. Every one hangs off the calibrated anytime price
+// except the power-play goal, which has its own model; all were checked out of
+// sample (ECE: 2+ 0.18pp, 3+ 0.06, 1st period 0.31, first 0.17, last 0.21,
+// PP 0.14).
+const TM = JSON.parse(
+  fs.readFileSync(new URL('../research/nhl_goal_types_model.json', import.meta.url), 'utf8'));
+
+/** Power-play goal features — rates on a log scale, the same transforms as the research. */
+export function ppFeatures({ role, gp, ppg, sogPrior, shpct, pptoiL5, pptoiL10, oppPk, teamGf, isHome }) {
+  const P = TM.pp, R = P.role[role] || P.role.F, off = P.log_offset;
+  const ppgPrior = (ppg + P.shrink_games * R.ppg) / (gp + P.shrink_games);
+  return {
+    log_ppg_prior: Math.log(Math.max(0, ppgPrior) + off.ppg_prior),
+    log_pptoi_l5: Math.log(Math.max(0, pptoiL5 ?? 0) + off.pptoi_l5),
+    log_pptoi_l10: Math.log(Math.max(0, pptoiL10 ?? pptoiL5 ?? 0) + off.pptoi_l10),
+    log_sog_prior: Math.log(Math.max(0, sogPrior) + off.sog_prior),
+    shpct_prior: shpct, opp_pk_prior: oppPk ?? P.league.opp_pk, team_gf_prior: teamGf,
+    is_home: isHome ? 1 : 0, is_D: role === 'D' ? 1 : 0,
+  };
+}
+/** P(1+ power-play goal): Poisson on PP goals, then its own isotonic map. */
+export function pricePp(f) {
+  const P = TM.pp;
+  let eta = P.coef.intercept + (P.coef.is_D || 0) * f.is_D;
+  for (const k of P.features) eta += P.coef[k] * ((f[k] - P.scale[k].mean) / P.scale[k].sd);
+  const raw = 1 - Math.exp(-Math.exp(Math.max(-12, Math.min(3, eta))));
+  const { x, y } = P.iso, n = x.length;
+  let p;
+  if (raw <= x[0]) p = raw * (y[0] / x[0]);
+  else if (raw >= x[n - 1]) p = raw * (y[n - 1] / x[n - 1]);
+  else { let i = 1; while (x[i] < raw) i++; const t = (raw - x[i - 1]) / (x[i] - x[i - 1]); p = y[i - 1] + t * (y[i] - y[i - 1]); }
+  return Math.min(0.9, Math.max(1e-4, p));
+}
+
+/**
+ * 2+, 3+, 1st-period, first and last goal for a whole board, in place.
+ * `dressed(pick)` says whether he's in the projected lineup: first/last goal
+ * are races, so his price is his share of the expected goals of the skaters
+ * who actually dress — pricing the healthy scratches into the pool would make
+ * every price about a fifth too long.
+ */
+export function goalMarkets(picks, dressed) {
+  const mu = (p) => -Math.log(1 - p.p);
+  const M = new Map();
+  for (const p of picks) if (dressed(p)) M.set(p.gameId, (M.get(p.gameId) || 0) + mu(p));
+  for (const p of picks) {
+    const m = mu(p), g = M.get(p.gameId) || m;
+    p.p2 = +(1 - Math.exp(-m) * (1 + m)).toFixed(5);
+    p.p3 = +(1 - Math.exp(-m) * (1 + m + m * m / 2)).toFixed(6);
+    p.pP1 = +(1 - Math.exp(-TM.s1 * m)).toFixed(5);
+    const share = m / (dressed(p) ? g : g + m) * (1 - Math.exp(-g));
+    p.pFirst = +share.toFixed(5);
+    p.pLast = p.pFirst;                               // same race; a D factor for empty-netters moved nothing
+  }
+}
+export const MARKET_CUTS = TM.cuts;

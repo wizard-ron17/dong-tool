@@ -820,6 +820,14 @@
   .rc-assist { color: var(--dim); }
   .goodc { color: var(--good); } .dogc { color: var(--silver); }
   .pc-tabs { margin: -0.15rem 0 0.7rem; }
+  .pm-mkts { display: grid; grid-template-columns: repeat(auto-fit, minmax(3.6rem, 1fr)); gap: 0.4rem; padding: 0 1rem; margin-bottom: 0.4rem; }
+  @media (max-width: 460px) { .pm-mkts { grid-template-columns: repeat(auto-fit, minmax(4.4rem, 1fr)); } }
+  .pm-mkt { flex: 1; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.4rem; text-align: center; }
+  .pm-mkt.on { border-color: rgba(53,201,110,0.45); background: rgba(53,201,110,0.07); }
+  .pm-mkt-lbl { font-size: 0.661rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .pm-mkt-od { font-family: var(--font-d); font-size: 1.4rem; font-weight: 700; line-height: 1.1; margin-top: 0.12rem; color: var(--text-strong); }
+  .pm-mkt.on .pm-mkt-od { color: var(--good); }
+  .pm-mkt-pct { font-family: var(--font-m); font-size: 0.680rem; color: var(--dim); }
   .pl-link { color: inherit; text-decoration: none; }
   .pl-link:hover { color: var(--accent); }
   @media (max-width: 980px) { .tb-search { width: auto; flex: 1 1 0; min-width: 0; } }
@@ -1158,6 +1166,7 @@
           <li><b>What is deliberately absent.</b> Recent goals (his last ten games) add nothing once recent <em>shots</em> are in &mdash; goals are what shots turn into by luck. Opponent shots allowed and penalty kill were tested and are nulls. A separate even-strength and power-play model, summed, was tested and is <em>worse</em> than one model, because power-play minutes already carry that channel.</li>
           <li><b>It is recalibrated.</b> A monotone (isotonic) map fitted on out-of-sample results trims the top end, where the raw model runs a little hot. It halves the calibration error without changing the order of the board.</li>
           <li><b>Only the current roster is priced.</b> A skater's stats are filed under the club he finished last season with, so the board reads each team's roster directly &mdash; otherwise anyone who moved this summer would be priced for his old team.</li>
+          <li><b>Seven markets off one model.</b> Pick a market in the filters. <b>2+ goals</b>, the <b>hat trick</b> and a <b>1st-period goal</b> come straight from his expected goals &mdash; goals are Poisson, so the tails follow (29% of goals are scored in the 1st). <b>First and last goal</b> are a race: exactly one skater scores each, so his price is his share of the expected goals of everyone who dresses in his game &mdash; the same anytime number is a better first-goal bet against a weak lineup. The healthy scratches are left out of that race, or every price would run about a fifth long. <b>Power-play goal</b> has its own model: his power-play minutes and power-play scoring, on a log scale, against the opponent's penalty kill. Out of sample every market lands within a third of a point of what happened.</li>
           <li><b>Cut lines.</b> Each maximum-price filter shows the hit rate that cut actually produced out of sample &mdash; so tightening the board is a measured trade, not a guess.</li>
           <li><b>Honest limits.</b> Built on 182,608 skater-games across four seasons, never yet graded against a live night, and not measured against sportsbook prices &mdash; a fair number is not the same thing as an edge. No starting-goalie or line-combination data yet: those need a lineup feed the free NHL API does not have.</li>
         </ul>
@@ -1978,11 +1987,8 @@
     const rows = [];
     const pk = (D.picks?.picks || []).find(x => x.pid === pid);
     if (pk) {
-      // 2+ is the same calibrated Poisson one step further: the anytime price
-      // implies an expected-goals figure, and P(2+) follows from it.
-      const m = -Math.log(1 - pk.p), p2 = 1 - Math.exp(-m) * (1 + m);
-      rows.push({ lab: 'Anytime goal', line: '', p: pk.p, open: `plTo('pick',${pid})` });
-      rows.push({ lab: '2+ goals', line: '', p: p2, open: `plTo('pick',${pid})` });
+      for (const [lab, key] of [['Anytime goal', 'p'], ['2+ goals', 'p2'], ['First goal', 'pFirst'], ['PP goal', 'pPP']])
+        if (pk[key] != null) rows.push({ lab, line: '', p: pk[key], open: `plTo('pick',${pid})` });
     }
     const sh = (D.shots?.board || []).find(x => x.pid === pid);
     if (sh) {
@@ -2946,13 +2952,33 @@
   // /nfl's TD board, ported: same filter card, search, card/table/compact
   // views and the same pick modal with its factor bars. Model in
   // research/nhl_goals.py, priced in scripts/nhl-goals.js.
-  const PK_DEFAULTS = { cut: 0, pos: [], team: 'all', sort: 'p', dir: 'desc', view: 'cards' };
+  // Goal-scorer markets. Anytime is the model; the rest hang off its calibrated
+  // expected goals (2+, hat trick, 1st period, first and last goal — a race
+  // among the skaters who dress) except the power-play goal, which has its own
+  // model. Each checked out of sample: research/nhl_goal_types.py.
+  const PK_MARKETS = [
+    { v: 'any',   key: 'p',      lab: 'Anytime',    long: 'Anytime goal' },
+    { v: '2',     key: 'p2',     lab: '2+ goals',   long: '2+ goals' },
+    { v: '3',     key: 'p3',     lab: 'Hat trick',  long: 'Hat trick (3+)' },
+    { v: 'first', key: 'pFirst', lab: '1st goal',   long: 'First goal of the game' },
+    { v: 'last',  key: 'pLast',  lab: 'Last goal',  long: 'Last goal of the game' },
+    { v: 'p1',    key: 'pP1',    lab: '1st period', long: 'Goal in the 1st period' },
+    { v: 'pp',    key: 'pPP',    lab: 'PP goal',    long: 'Power-play goal' },
+  ];
+  const PK_DEFAULTS = { mkt: 'any', cut: 0, pos: [], team: 'all', sort: 'p', dir: 'desc', view: 'cards' };
   let pkF = (() => { try { return { ...PK_DEFAULTS, ...JSON.parse(localStorage.getItem('nhlPicksFilters') || '{}') }; } catch (e) { return { ...PK_DEFAULTS }; } })();
   let pkFiltersOpen = false, pkSub = 'board', pkSearch = [];
   const pkSave = () => { try { localStorage.setItem('nhlPicksFilters', JSON.stringify(pkF)); } catch (e) {} };
   const PK_SORTS = [{ v: 'p', lab: 'Price' }, { v: 'sog', lab: 'Shots/g' }, { v: 'toi', lab: 'Ice time' },
                     { v: 'pp', lab: 'PP min' }, { v: 'time', lab: 'Game' }, { v: 'name', lab: 'Name' }];
-  const pkCuts = () => [{ v: 0, lab: 'All' }, ...((D.picks?.model?.cuts) || []).map(c => ({ v: c.v, lab: '+' + c.v, p: c.p, hit: c.hit, per: c.per }))];
+  const pkMkt = () => PK_MARKETS.find(m => m.v === pkF.mkt) || PK_MARKETS[0];
+  const pkP = (r) => r[pkMkt().key] ?? 0;
+  const pkCuts = () => {
+    const M = pkMkt(), src = M.v === 'any' ? D.picks?.model?.cuts : D.picks?.model?.markets?.[M.key]?.cuts;
+    return [{ v: 0, lab: 'All' }, ...(src || []).filter(c => c.hit != null && c.per > 0).map(c => ({ v: c.v, lab: '+' + c.v, p: c.p, hit: c.hit, per: c.per }))];
+  };
+  const pkBase = () => { const M = pkMkt(); return M.v === 'any' ? (D.picks?.model?.base || 0) * 100 : D.picks?.model?.markets?.[M.key]?.base ?? 0; };
+  function setPkMkt(v) { pkF.mkt = v; pkF.cut = 0; pkSave(); renderPicks(); }
   const pkCutP = (v) => v ? 100 / (v + 100) : 0;
   const pkNorm = (x) => (x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   const pkMatch = (r, t) => { const q = pkNorm(t); return pkNorm(r.name).includes(q) || r.team.toLowerCase() === q || r.opp.toLowerCase() === q || (POS_NAME[r.pos] || r.pos).toLowerCase() === q; };
@@ -2975,13 +3001,13 @@
 
   function pkRows() {
     let rows = (D.picks?.picks || []).map(r => ({ ...r, ts: r.start || '' }));
-    rows = rows.filter(r => r.p >= pkCutP(pkF.cut));
+    rows = rows.filter(r => pkP(r) >= pkCutP(pkF.cut));
     if (pkF.pos.length) rows = rows.filter(r => pkF.pos.includes(r.pos));
     if (pkF.team !== 'all') rows = rows.filter(r => r.team === pkF.team);
-    const key = { p: r => r.p, sog: r => r.f.sogPg, toi: r => r.f.toi, pp: r => r.f.pptoi,
+    const key = { p: r => pkP(r), sog: r => r.f.sogPg, toi: r => r.f.toi, pp: r => r.f.pptoi,
                   time: r => r.ts, name: r => r.name.toLowerCase() }[pkF.sort] || (r => r.p);
     const dir = pkF.dir === 'asc' ? 1 : -1;
-    rows.sort((a, b) => { const x = key(a), y = key(b); return x < y ? -dir : x > y ? dir : b.p - a.p; });
+    rows.sort((a, b) => { const x = key(a), y = key(b); return x < y ? -dir : x > y ? dir : pkP(b) - pkP(a); });
     // rank fixed before search, so looking a skater up shows where he sits
     rows.forEach((r, i) => { r.rank = i + 1; });
     if (pkSearch.length) rows = rows.filter(r => pkSearch.some(t => pkMatch(r, t)));
@@ -2994,7 +3020,7 @@
     const teams = [...new Set(P.map(r => r.team))].sort();
     const chip = (on, label, fn, title = '', extra = '') =>
       `<button class="pbf-chip${extra ? ' ' + extra : ''}${on ? ' on' : ''}" onclick="${fn}"${title ? ` title="${title}"` : ''}>${label}</button>`;
-    const base = ((D.picks?.model?.base || 0) * 100).toFixed(1);
+    const base = pkBase().toFixed(pkBase() < 1 ? 2 : 1);
     const cuts = pkCuts();
     const cutChips = cuts.map(c => chip(pkF.cut === c.v, c.lab, `setPkF('cut',${c.v})`,
       c.v ? `${c.lab} or shorter — historically ${c.hit}% hit, about ${c.per} skaters a night` : `Everyone on the board — ${base}% base rate`)).join('');
@@ -3005,8 +3031,11 @@
         chip(pkF.pos.includes(v), POS_NAME[v], `togglePkPos('${v}')`, 'Toggle — combine as many as you like'))].join('');
     const sortChips = PK_SORTS.map(sm => chip(pkF.sort === sm.v, sm.lab + (pkF.sort === sm.v ? (pkF.dir === 'desc' ? ' ↓' : ' ↑') : ''),
       `setPkSort('${sm.v}')`, pkF.sort === sm.v ? 'Click again to reverse' : '')).join('');
-    const dirty = pkF.cut !== 0 || pkF.pos.length || pkF.team !== 'all' || pkF.sort !== 'p' || pkF.dir !== 'desc';
+    const dirty = pkF.mkt !== 'any' || pkF.cut !== 0 || pkF.pos.length || pkF.team !== 'all' || pkF.sort !== 'p' || pkF.dir !== 'desc';
+    const mktChips = PK_MARKETS.filter(m => m.v === 'any' || (D.picks?.picks?.[0]?.[m.key] != null))
+      .map(m => chip(pkF.mkt === m.v, m.lab, `setPkMkt('${m.v}')`, m.long)).join('');
     row.innerHTML = `
+      <div class="pbf-row"><span class="pbf-lbl">Market</span><div class="pbf-chips">${mktChips}</div></div>
       <div class="pbf-row"><span class="pbf-lbl">Max price</span><div class="pbf-chips">${cutChips}
         <span class="pbf-hint">${cur?.v ? `≈${cur.hit}% hit` : `${base}% base`}</span></div></div>
       <div class="pbf-row"><span class="pbf-lbl">Position</span><div class="pbf-chips">${posChips}
@@ -3021,7 +3050,7 @@
     row.style.display = pkFiltersOpen ? '' : 'none';
     document.getElementById('picks-filters-chevron').classList.toggle('open', pkFiltersOpen);
     document.getElementById('picks-filters-toggle').setAttribute('aria-expanded', String(pkFiltersOpen));
-    const n = (pkF.cut !== 0) + !!pkF.pos.length + (pkF.team !== 'all') + (pkF.sort !== 'p' || pkF.dir !== 'desc');
+    const n = (pkF.mkt !== 'any') + (pkF.cut !== 0) + !!pkF.pos.length + (pkF.team !== 'all') + (pkF.sort !== 'p' || pkF.dir !== 'desc');
     const badge = document.getElementById('picks-filters-badge');
     badge.style.display = n ? 'inline-flex' : 'none'; badge.textContent = n;
   }
@@ -3030,7 +3059,7 @@
   const pkTime = (r) => r.start ? gameTime(r.start) : '';
 
   function pkCard(r) {
-    const dog = r.p < 0.5, f = r.f;
+    const pm = pkP(r), dog = pm < 0.5, f = r.f;
     return `<div class="pb-card p-${r.pos}" onclick="openPick(${r.pid})">
       <div class="pb-rank">${r.rank}</div>${faceHtml(pkMug(r), r.name)}
       <div class="pb-info">
@@ -3042,7 +3071,7 @@
         <span class="pb-f" title="Ice time per game over his last five"><b>${(f.toi / 60).toFixed(1)}</b> TOI</span>
         <span class="pb-f" title="Power-play minutes per game over his last five"><b>${(f.pptoi / 60).toFixed(1)}</b> PP</span>
       </div>
-      <div class="pb-price"><span class="pb-odds${dog ? ' dog' : ''}">${sgOdds(r.p)}</span><span class="pb-pct">${pkPct(r.p)} · ${r.mu.toFixed(2)} xG</span></div>
+      <div class="pb-price"><span class="pb-odds${dog ? ' dog' : ''}">${sgOdds(pm)}</span><span class="pb-pct">${pkPct(pm)} · ${pkF.mkt === 'any' ? r.mu.toFixed(2) + ' xG' : esc(pkMkt().lab)}</span></div>
     </div>`;
   }
 
@@ -3055,8 +3084,8 @@
         <td class="nm">${esc(r.name)}</td>
         <td>${posBadge(r.pos)}</td>
         <td>${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}${pkTime(r) ? ` <span style="color:var(--dim)">${pkTime(r)}</span>` : ''}</td>
-        <td class="od${r.p < 0.5 ? ' dog' : ''}">${sgOdds(r.p)}</td>
-        <td class="num">${pkPct(r.p)}</td>
+        <td class="od${pkP(r) < 0.5 ? ' dog' : ''}">${sgOdds(pkP(r))}</td>
+        <td class="num">${pkPct(pkP(r))}</td>
         <td class="num" style="color:var(--dim)">${r.mu.toFixed(2)}</td>
         <td class="num">${r.f.sogPg.toFixed(1)}</td>
         <td class="num">${(r.f.toi / 60).toFixed(1)}</td>
@@ -3072,7 +3101,7 @@
     return `<div class="pbc">
       <div class="pbc-hd">
         <span class="pbc-brand">Ron's <em>Goal</em> Tool</span>
-        <span class="pbc-sub">${D.picks?.date ? dayLabel(D.picks.date) : ''} · Anytime goal${posLbl}</span>
+        <span class="pbc-sub">${D.picks?.date ? dayLabel(D.picks.date) : ''} · ${esc(pkMkt().long)}${posLbl}</span>
       </div>
       ${rows.map(r => `<div class="pbc-row" onclick="openPick(${r.pid})">
         <span class="pbc-rank">${r.rank}</span>
@@ -3080,7 +3109,7 @@
         <span class="pbc-nm">${esc(r.name)}</span>
         ${posBadge(r.pos)}
         <span class="pbc-opp">${r.home ? 'vs' : '@'} ${esc(r.opp)}</span>
-        <span class="pbc-od${r.p < 0.5 ? ' dog' : ''}">${sgOdds(r.p)}</span>
+        <span class="pbc-od${pkP(r) < 0.5 ? ' dog' : ''}">${sgOdds(pkP(r))}</span>
       </div>`).join('')}
       <div class="pbc-ft"><span>${rows.length} picks · fair odds, no vig</span><span>dong-tool.netlify.app/nhl</span></div>
     </div>`;
@@ -3122,7 +3151,7 @@
     el.innerHTML = `
       <div class="pb-head">
         <span class="pb-week">${P.date ? dayLabel(P.date) : ''}</span>
-        <span class="pb-meta">${esc(D.seasonLabel || '')} · Anytime goal${pkF.pos.length ? ' · ' + pkF.pos.map(x => POS_NAME[x]).join('/') : ''}${pkSearch.length ? ' · “' + esc(pkSearch.join('”, “')) + '”' : ''} · ${rows.length} shown · fair odds, no vig</span>
+        <span class="pb-meta">${esc(D.seasonLabel || '')} · ${esc(pkMkt().long)}${pkF.pos.length ? ' · ' + pkF.pos.map(x => POS_NAME[x]).join('/') : ''}${pkSearch.length ? ' · “' + esc(pkSearch.join('”, “')) + '”' : ''} · ${rows.length} shown · fair odds, no vig</span>
       </div>
       <div class="lb-toolbar">
         <div class="view-switch">${[['table', 'Table'], ['cards', 'Cards'], ['compact', 'Compact']]
@@ -3202,9 +3231,13 @@
               <div class="pm-meta"><b>${POS_NAME[r.pos] || r.pos}</b> · ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}${pkTime(r) ? ' · ' + pkTime(r) : ''}</div>
             </div>
             <div class="pm-hero-price">
-              <div class="pm-hero-od${r.p < 0.5 ? ' dog' : ''}">${sgOdds(r.p)}</div>
-              <div class="pm-hero-lbl">Anytime goal</div>
+              <div class="pm-hero-od${pkP(r) < 0.5 ? ' dog' : ''}">${sgOdds(pkP(r))}</div>
+              <div class="pm-hero-lbl">${esc(pkMkt().long)}</div>
             </div>
+          </div>
+          <div class="pm-mkts">${PK_MARKETS.filter(m => r[m.key] != null).map(m => `
+            <div class="pm-mkt${pkF.mkt === m.v ? ' on' : ''}" title="${esc(m.long)}"><div class="pm-mkt-lbl">${m.lab}</div>
+              <div class="pm-mkt-od">${sgOdds(r[m.key])}</div><div class="pm-mkt-pct">${(r[m.key] * 100).toFixed(r[m.key] < 0.1 ? 1 : 0)}%</div></div>`).join('')}
           </div>
           <div class="pm-link"><button class="vid-btn" style="float:right;margin-left:0.5rem" onclick="closePick();openPlayer(${r.pid})">Player card →</button>we project <b>${r.mu.toFixed(2)}</b> expected goals for him — a <b>${pkPct(r.p)}</b> chance of at least one</div>
           <div class="pm-sec">What moves the price</div>
@@ -3230,26 +3263,42 @@
   // ── Picks results ───────────────────────────────────────────────────────
   // Every night's board is frozen before the first puck drops and graded the
   // next morning against the goals actually scored (scripts/build-nhl.js).
+  // picksHistory rows: [pid, p, scored, p2, p3, pFirst, pLast, pP1, pPP, goals, first, last, p1Goals, ppGoals]
+  const PK_RES = {
+    any:   { p: x => x[1], y: x => x[2] },
+    '2':   { p: x => x[3], y: x => +(x[9] >= 2) },
+    '3':   { p: x => x[4], y: x => +(x[9] >= 3) },
+    first: { p: x => x[5], y: x => x[10] },
+    last:  { p: x => x[6], y: x => x[11] },
+    p1:    { p: x => x[7], y: x => +(x[12] > 0) },
+    pp:    { p: x => x[8], y: x => +(x[13] > 0) },
+  };
   function renderPicksResults() {
     const H = D.picksHistory || {};
     const nights = Object.keys(H).sort();
-    const rows = nights.flatMap(d => (H[d] || []).filter(x => x[2] != null).map(x => ({ d, p: x[1], y: x[2] })));
-    if (!rows.length) return `<div class="empty">No nights graded yet. Every board is frozen before puck drop and graded the next morning against the goals scored — the first will be opening night, ${D.seasonStart ? dayLabel(D.seasonStart, true) : ''}.</div>`;
+    const R = PK_RES[pkF.mkt] || PK_RES.any, M = pkMkt();
+    const mkt = `<div class="pairs-filter-row"><span class="due-filter-label">Market</span>${
+      PK_MARKETS.map(m => `<button class="due-filter-chip${pkF.mkt === m.v ? ' active' : ''}" onclick="setPkMkt('${m.v}')">${m.lab}</button>`).join('')}</div>`;
+    const rows = nights.flatMap(d => (H[d] || []).filter(x => x[2] != null && (pkF.mkt === 'any' || x.length > 3))
+      .map(x => ({ d, p: R.p(x), y: R.y(x) })));
+    if (!rows.length) return mkt + `<div class="empty">No nights graded yet. Every board is frozen before puck drop and graded the next morning against the goals scored — the first will be opening night, ${D.seasonStart ? dayLabel(D.seasonStart, true) : ''}.</div>`;
     const n = rows.length, hits = rows.reduce((a, x) => a + x.y, 0), exp = rows.reduce((a, x) => a + x.p, 0);
     const graded = new Set(rows.map(x => x.d)).size;
-    const buckets = [[0, 0.1], [0.1, 0.2], [0.2, 0.3], [0.3, 1.01]].map(([lo, hi]) => {
+    const edges = pkF.mkt === 'any' ? [0, 0.1, 0.2, 0.3] : pkF.mkt === '3' ? [0, 0.005, 0.01, 0.02] : [0, 0.03, 0.06, 0.1];
+    const buckets = edges.map((lo, i) => [lo, edges[i + 1] ?? 1.01]).map(([lo, hi]) => {
       const b = rows.filter(x => x.p >= lo && x.p < hi);
-      return { lab: hi > 1 ? `${lo * 100}%+` : `${lo * 100}–${hi * 100}%`, n: b.length,
+      const pc = (v) => +(v * 100).toFixed(1);
+      return { lab: hi > 1 ? `${pc(lo)}%+` : `${pc(lo)}–${pc(hi)}%`, n: b.length,
                pred: b.length ? b.reduce((a, x) => a + x.p, 0) / b.length : 0, act: b.length ? b.reduce((a, x) => a + x.y, 0) / b.length : 0 };
     });
     const cuts = pkCuts().filter(c => c.v).map(c => {
       const b = rows.filter(x => x.p >= c.p);
       return { lab: c.lab, n: b.length, hit: b.length ? b.reduce((a, x) => a + x.y, 0) / b.length : 0, bt: c.hit };
     });
-    return `
+    return mkt + `
       <div class="hm-tiles">
         <div class="hm-tile"><b>${graded}</b><span>Nights graded</span></div>
-        <div class="hm-tile"><b>${hits}</b><span>Goals / ${n} priced</span></div>
+        <div class="hm-tile"><b>${hits}</b><span>${esc(M.lab)} hits / ${n} priced</span></div>
         <div class="hm-tile"><b>${(hits / n * 100).toFixed(1)}%</b><span>Scored · ${(exp / n * 100).toFixed(1)}% expected</span></div>
       </div>
       <div class="result-meta" style="margin-top:0.9rem">Calibration — does a price mean what it says?</div>

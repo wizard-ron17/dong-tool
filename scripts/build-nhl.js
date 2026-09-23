@@ -262,7 +262,11 @@ async function main() {
   // ── 7) Freeze and grade the Picks board ────────────────────────────────
   // Each night's board is frozen before its first puck drop — rewritten on
   // every build until then, so it holds the last pre-game prices — and graded
-  // once every game in it is final. Rows are [pid, p, scored|null, gameId].
+  // once every game in it is final. Rows are
+  //   [pid, p, scored|null, gameId, p2, p3, pFirst, pLast, pP1, pPP,
+  //    goals, first, last, p1Goals, ppGoals]
+  // — the anytime price plus the six other goal markets, and what happened in
+  // each, read off the recap's goal order (shootout goals are not goals).
   //
   // A skater who did not dress is VOID, not a miss: that is how a book settles
   // an anytime bet, and counting scratches as zeros would drag the live hit
@@ -273,7 +277,8 @@ async function main() {
   try { hist = JSON.parse(fs.readFileSync(HIST_PATH, 'utf8')); } catch (e) { hist = {}; }
   if (upcoming && picks.picks.length) {
     const started = schedule.some(g => g.date === upcoming && g.type === 2 && !['FUT', 'PRE'].includes(g.state));
-    if (!started) hist[upcoming] = picks.picks.map(r => [r.pid, r.p, null, r.gameId]);
+    if (!started) hist[upcoming] = picks.picks.map(r => [r.pid, r.p, null, r.gameId,
+      r.p2, r.p3, r.pFirst, r.pLast, r.pP1, r.pPP, null, null, null, null, null]);
   }
   // One boxscore read per game, shared by both graders: who dressed, and how
   // many shots each put on net. null when the fetch fails — the next build retries.
@@ -314,7 +319,17 @@ async function main() {
     const scorers = new Set((recap[d] || []).map(x => x.pid));
     const dressed = await dressedIn(gids);
     if (!dressed) continue;
-    hist[d] = rows.map(([pid, pp, , gid]) => [pid, pp, dressed.has(pid) ? (scorers.has(pid) ? 1 : 0) : -1, gid]);
+    // per game: the goal order, shootout excluded
+    const byGame = {};
+    for (const x of recap[d] || []) if (x.ptype !== 'SO') (byGame[x.gameId] ??= []).push(x);
+    for (const g of Object.values(byGame)) g.sort((a, b) => a.k - b.k);
+    hist[d] = rows.map(([pid, pp, , gid, ...mk]) => {
+      if (!dressed.has(pid)) return [pid, pp, -1, gid, ...mk.slice(0, 6), -1, -1, -1, -1, -1];
+      const gl = byGame[gid] || [], mine = gl.filter(x => x.pid === pid);
+      return [pid, pp, scorers.has(pid) ? 1 : 0, gid, ...mk.slice(0, 6),
+              mine.length, gl[0]?.pid === pid ? 1 : 0, gl[gl.length - 1]?.pid === pid ? 1 : 0,
+              mine.filter(x => x.period === 1).length, mine.filter(x => x.strength === 'pp').length];
+    });
     graded++;
   }
   // -1 = did not dress (void). The app counts only 0 and 1.
@@ -400,10 +415,12 @@ async function main() {
     recap, recapDates, recapGames,
     leaders: L.skaters, goalies: L.goalies,
     shots, picks, saves,
-    // graded nights only, voids dropped, as [pid, p, scored]
+    // graded nights only, voids dropped, as
+    //   [pid, p, scored, p2, p3, pFirst, pLast, pP1, pPP, goals, first, last, p1Goals, ppGoals]
+    // (nights frozen before the extra markets carry only the first three)
     picksHistory: Object.fromEntries(Object.entries(hist)
       .filter(([, r]) => r.every(x => x[2] != null))
-      .map(([d, r]) => [d, r.filter(x => x[2] >= 0).map(x => [x[0], x[1], x[2]])])),
+      .map(([d, r]) => [d, r.filter(x => x[2] >= 0).map(x => x.length > 4 ? [x[0], x[1], x[2], ...x.slice(4)] : [x[0], x[1], x[2]])])),
   };
   const out = new URL('../nhl/data.json', import.meta.url);
   fs.mkdirSync(new URL('../nhl/', import.meta.url), { recursive: true });
