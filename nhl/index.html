@@ -819,6 +819,7 @@
   .rc-clip:hover { text-decoration: underline; }
   .rc-assist { color: var(--dim); }
   .goodc { color: var(--good); } .dogc { color: var(--silver); }
+  .pc-tabs { margin: -0.15rem 0 0.7rem; }
   .pl-link { color: inherit; text-decoration: none; }
   .pl-link:hover { color: var(--accent); }
   @media (max-width: 980px) { .tb-search { width: auto; flex: 1 1 0; min-width: 0; } }
@@ -1103,7 +1104,11 @@
     <div class="nav-menu-group g3">Goaltending</div>
     <button class="nav-menu-item g3" data-nav="saves" onclick="switchNav('saves')">
       <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l7 2.5v5.5c0 4-3 7.3-7 9-4-1.7-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg></span><span class="nm-name">Saves</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
-      <span class="nm-desc">Every projected starter's saves and goals allowed, priced at every line.</span>
+      <span class="nm-desc">Projected saves for every projected starter, priced at every line.</span>
+    </button>
+    <button class="nav-menu-item g3" data-nav="allowed" onclick="switchNav('allowed')">
+      <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18V8.5L12 5l8 3.5V18"/><path d="M4 18h16"/><circle cx="12" cy="13" r="2" fill="currentColor" stroke="none"/></svg></span><span class="nm-name">Goals Allowed</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+      <span class="nm-desc">Goals against for every projected starter, priced at every line.</span>
     </button>
   </div>
   <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
@@ -1194,19 +1199,40 @@
         <span class="due-explainer-cta"></span>
         <span class="due-explainer-chevron" id="saves-explainer-chevron">&#9654;</span>
       </div>
-      <div class="due-explainer-teaser">Projected saves and goals allowed for every projected starter, priced against the standard lines.</div>
+      <div class="due-explainer-teaser">Projected saves for every projected starter, priced against the standard lines.</div>
       <div class="due-explainer-body" id="saves-explainer-body" style="display:none">
         <ul>
           <li><b>Saves are a shot-volume market, and the other team supplies the volume.</b> The biggest single input is how many shots his opponent takes, season-long and over its last ten games. Then his own saves per start and how many shots his club lets through. Save % adds nothing to a saves projection &mdash; a goalie stops the shots he faces at nearly the same rate as the next one, and the volume is what moves.</li>
           <li><b>The league keeps getting quieter, so the level floats.</b> Saves per start fell every season we trained on, 27.3 to 24.1. A model fitted on older seasons prices newer ones low, so the projection is the league's saves per start over the last 30 days, times how this goalie, his defence and tonight's opponent compare to the rest of the slate. Opening night, before there are 30 days, uses last season's level.</li>
           <li><b>The price is two curves, because goalies get pulled.</b> About one start in 18 ends with the goalie pulled, and a pulled goalie keeps about half a game's saves. That gives saves a long <em>left</em> tail; a single curve bends the other way and makes every over near the middle look worse than it is. So the price is a full-game curve plus a small pulled-goalie one. Out of sample that puts every line from 20.5 to 32.5 within half a point of what happened.</li>
-          <li><b>Goals allowed is mostly the game total, and we price it honestly.</b> Without a betting line the best we can do is team goals for and against, home ice and back-to-backs &mdash; and that barely beats the league average. So the projection is pulled toward the average, and priced with a distribution <em>tighter</em> than a Poisson, because a goalie who leaks gets pulled before the tail happens. The lines land on what happened; the edge is thin.</li>
           <li><b>Starters are projected, not confirmed.</b> The NHL doesn't publish starters ahead of time. The board prices the goalie with most of his club's recent starts, shows how many, and Results voids a start he didn't make.</li>
           <li><b>Built on 10,076 starts</b> across four seasons, fitted walk-forward &mdash; every season predicted by a model that never saw it. The busiest 2% of projections still run hot: those are the nights a goalie is most likely to be pulled.</li>
         </ul>
       </div>
     </div>
     <div id="saves-content"><div class="empty">Loading&hellip;</div></div>
+  </div>
+
+  <div id="panel-allowed" class="panel">
+    <div class="due-explainer" id="allowed-explainer-toggle" onclick="toggleExplainer('allowed')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Goals Allowed Works</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="allowed-explainer-chevron">&#9654;</span>
+      </div>
+      <div class="due-explainer-teaser">Projected goals against for every projected starter, priced against the standard lines.</div>
+      <div class="due-explainer-body" id="allowed-explainer-body" style="display:none">
+        <ul>
+          <li><b>Goals allowed is mostly the game total.</b> What a goalie gives up tracks how many goals the game is expected to have far more than anything about him. Without a betting line the best inputs are team goals for and against, home ice and back-to-backs &mdash; and together they only just beat the league average.</li>
+          <li><b>So the projection leans on the average, on purpose.</b> Fitted raw, the model's spread ran about twice too wide out of sample: the leakiest-looking spots averaged 3.1 goals against a projected 3.6. Its projections are pulled toward the league mean by the amount that held up on seasons it never saw.</li>
+          <li><b>The price is tighter than a Poisson.</b> Starts run variance/mean <b>0.82</b>, not 1.00: a goalie who leaks gets pulled before the long tail happens. The price uses a distribution matched to that, and it lands &mdash; over 1.5 is priced at 80.0% and went over 79.0%, where a Poisson says 76.5%.</li>
+          <li><b>His save % barely moves it.</b> Over a season, a goalie's save % is mostly noise around the league's; it's shrunk hard, and it adds almost nothing.</li>
+          <li><b>Starters are projected, not confirmed.</b> The board prices the goalie with most of his club's recent starts, shows how many, and Results voids a start he didn't make.</li>
+          <li><b>Built on 10,076 starts</b> across four seasons, fitted walk-forward. The edge here is thin, and the page says so.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="allowed-content"><div class="empty">Loading&hellip;</div></div>
   </div>
 
 
@@ -1282,8 +1308,8 @@
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch, .sport-menu')) closeSportMenu(); });
 
   // ── Nav + routing ──────────────────────────────────────────────────────
-  const NHL_NAVS = ['home', 'stats', 'recap', 'schedule', 'picks', 'shots', 'saves'];   // tools added here as they ship
-  const PAGE_TITLES = { home: "Ron's Goal Tool", stats: "Stats · Ron's Goal Tool", recap: "Recap · Ron's Goal Tool", schedule: "Schedule · Ron's Goal Tool", shots: "Shots · Ron's Goal Tool", saves: "Saves · Ron's Goal Tool", picks: "Picks · Ron's Goal Tool" };
+  const NHL_NAVS = ['home', 'stats', 'recap', 'schedule', 'picks', 'shots', 'saves', 'allowed'];   // tools added here as they ship
+  const PAGE_TITLES = { home: "Ron's Goal Tool", stats: "Stats · Ron's Goal Tool", recap: "Recap · Ron's Goal Tool", schedule: "Schedule · Ron's Goal Tool", shots: "Shots · Ron's Goal Tool", saves: "Saves · Ron's Goal Tool", allowed: "Goals Allowed · Ron's Goal Tool", picks: "Picks · Ron's Goal Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
     activeNav = nav;
@@ -1324,6 +1350,7 @@
     else if (nav === 'schedule') renderSchedule();
     else if (nav === 'shots') renderShots();
     else if (nav === 'saves') renderSaves();
+    else if (nav === 'allowed') renderAllowed();
     else if (nav === 'picks') renderPicks();
   }
 
@@ -2224,7 +2251,7 @@
     return out.slice(0, 4);
   }
   function tbOpenGame(date, gameId) { scheduleDate = date; scOpen.clear(); scOpen.add(gameId); switchNav('schedule'); }
-  const TB_TOOLS = [['picks', 'Picks'], ['shots', 'Shots'], ['saves', 'Saves'], ['saves', 'Goals allowed'], ['stats', 'Stats'], ['recap', 'Recap'], ['schedule', 'Schedule'], ['home', 'Home']];
+  const TB_TOOLS = [['picks', 'Picks'], ['shots', 'Shots'], ['saves', 'Saves'], ['allowed', 'Goals Allowed'], ['stats', 'Stats'], ['recap', 'Recap'], ['schedule', 'Schedule'], ['home', 'Home']];
   function siteSearch() {
     const box = document.getElementById('tb-results'), input = document.getElementById('site-search');
     if (!box || !input || !D || D === 'error') return;
@@ -2666,65 +2693,78 @@
   }
 
 
-  // ── Saves & goals allowed ──────────────────────────────────────────────
-  // The Shots board for goalies: same filter card, search, three views, ladder
-  // card and Results — with a tab per market. Model in research/nhl_saves.py,
-  // priced in scripts/nhl-saves.js. The price is recomputed here from the same
-  // distribution the build uses, so any half line can be quoted, not just the
-  // handful the build stores.
-  const svF = { tab: 'saves', line: 'auto', sort: 'proj', view: 'cards', q: '', open: false, night: null, all: false, rmkt: 'saves' };
-  function setSv(k, v) { svF[k] = v; if (k === 'tab') svF.line = 'auto'; renderSaves(); }
-  function onSvSearch() { svF.q = document.getElementById('sv-search').value; renderSaves(); }
-  function clearSvSearch() { svF.q = ''; renderSaves(); }
-  const SV_LINES = { saves: [20.5, 22.5, 24.5, 26.5, 28.5, 30.5], ga: [1.5, 2.5, 3.5] };
-  function svRows(kind = svF.tab === 'ga' ? 'ga' : 'saves') {
-    const k = kind === 'ga' ? 'ga' : 'sv';
+  // ── Goalie tools: Saves and Goals Allowed ──────────────────────────────
+  // Two pages off one board (D.saves), each the Shots board for goalies: same
+  // filter card, search, three views, Results and backtest. They share one
+  // ladder card with a Saves | Goals allowed switch, the way /mlb's pitcher
+  // card switches Ks and walks. Model in research/nhl_saves.py, priced in
+  // scripts/nhl-saves.js; prices are recomputed here from the same
+  // distributions, so any half line can be quoted.
+  const GT = {
+    saves:   { nav: 'saves',   el: 'saves-content',   kind: 'sv', unit: 'saves', dp: 1, lines: [20.5, 22.5, 24.5, 26.5, 28.5, 30.5],
+               meta: 'full-game + pulled-goalie prices' },
+    allowed: { nav: 'allowed', el: 'allowed-content', kind: 'ga', unit: 'goals', dp: 2, lines: [1.5, 2.5, 3.5],
+               meta: 'binomial prices, tighter than Poisson' },
+  };
+  const gtState = () => ({ tab: 'board', line: 'auto', sort: 'proj', view: 'cards', q: '', open: false, night: null });
+  const gtF = { saves: gtState(), allowed: gtState() };
+  function setGt(page, k, v) { gtF[page][k] = v; renderGoalie(page); }
+  function onGtSearch(page) { gtF[page].q = document.getElementById(`gt-search-${page}`).value; renderGoalie(page); }
+  function clearGtSearch(page) { gtF[page].q = ''; renderGoalie(page); }
+  function renderSaves() { renderGoalie('saves'); }
+  function renderAllowed() { renderGoalie('allowed'); }
+  // setFn for the shared chrome (uiChip/uiFilters/uiTabs/uiView) takes (k, v)
+  window.setGtSaves = (k, v) => setGt('saves', k, v);
+  window.setGtAllowed = (k, v) => setGt('allowed', k, v);
+  const gtSetFn = (page) => page === 'saves' ? 'setGtSaves' : 'setGtAllowed';
+
+  /** The board for one market, priced at its best (or chosen) line. */
+  function svRows(kind) {
+    const page = kind === 'ga' ? 'allowed' : 'saves', P = GT[page], F = gtF[page];
     let rows = (D.saves?.board || []).map(r => {
-      const pmf = lcPmf(r, k), mu = k === 'ga' ? r.muGa : r.mu;
+      const pmf = lcPmf(r, P.kind), mu = P.kind === 'ga' ? r.muGa : r.mu;
       let L;
-      if (svF.line !== 'auto' && svF.tab === kind) L = +svF.line;
-      else { const [lo, hi] = LC[k].range; L = lo; for (let x = lo; x <= hi; x++) if (Math.abs(lcOver(pmf, x) - 0.5) < Math.abs(lcOver(pmf, L) - 0.5)) L = x; }
+      if (F.line !== 'auto') L = +F.line;
+      else { const [lo, hi] = LC[P.kind].range; L = lo; for (let x = lo; x <= hi; x++) if (Math.abs(lcOver(pmf, x) - 0.5) < Math.abs(lcOver(pmf, L) - 0.5)) L = x; }
       return { ...r, m: mu, L, pAt: lcOver(pmf, L) };
     });
-    const q = svF.q.trim().toLowerCase();
+    const q = F.q.trim().toLowerCase();
     if (q) rows = rows.filter(r => (r.name + ' ' + r.team + ' ' + r.opp).toLowerCase().includes(q));
-    rows.sort(svF.sort === 'odds' ? (a, b) => b.pAt - a.pAt : (a, b) => b.m - a.m);
+    rows.sort(F.sort === 'odds' ? (a, b) => b.pAt - a.pAt : (a, b) => b.m - a.m);
     return rows.map((r, i) => ({ ...r, rank: i + 1 }));
   }
   const svStarter = (r) => r.starter.of
     ? `<span class="pb-f" title="Starts of his club's last ${r.starter.of}${r.starter.alt ? ` — ${esc(r.starter.alt.name)} has the rest` : ''}"><b>${r.starter.starts}/${r.starter.of}</b> starts</span>`
     : `<span class="pb-f" title="No starts yet this season — projected off last season"><b>proj.</b> starter</span>`;
-  const SV_TABS = [['saves', 'Saves'], ['ga', 'Goals allowed'], ['results', 'Results']];
 
-  function renderSaves() {
-    const el = dataGate('saves-content'); if (!el) return;
-    const tabs = uiTabs('setSv', svF.tab, SV_TABS);
-    if (svF.tab === 'results') { el.innerHTML = tabs + svResults(); return; }
+  function renderGoalie(page) {
+    const P = GT[page], F = gtF[page], fn = gtSetFn(page);
+    const el = dataGate(P.el); if (!el) return;
+    const tabs = uiTabs(fn, F.tab);
+    if (F.tab === 'results') { el.innerHTML = tabs + svResults(page); return; }
     const B = D.saves || {};
     if (!B.board?.length) { el.innerHTML = tabs + `<div class="empty">No goalie projections yet — the board fills in once the slate is set.</div>`; return; }
-    const ga = svF.tab === 'ga', kind = ga ? 'ga' : 'sv', unit = ga ? 'goals' : 'saves';
-    const rows = svRows(ga ? 'ga' : 'saves');
-    const controls = uiFilters('setSv', svF.open, [
-        ['Line', ['auto', ...SV_LINES[ga ? 'ga' : 'saves']].map(v => uiChip('setSv', 'line', v, v === 'auto' ? 'Best line' : 'o' + v, svF.line)).join('')],
-        ['Sort', [['proj', 'Projection'], ['odds', 'Shortest price']].map(([v, l]) => uiChip('setSv', 'sort', v, l, svF.sort)).join('')],
-      ], (svF.line !== 'auto') + (svF.sort !== 'proj')) + `
-      <div class="pb-search${svF.q ? ' on' : ''}">
+    const ga = P.kind === 'ga', dp = P.dp;
+    const rows = svRows(P.kind);
+    const controls = uiFilters(fn, F.open, [
+        ['Line', ['auto', ...P.lines].map(v => uiChip(fn, 'line', v, v === 'auto' ? 'Best line' : 'o' + v, F.line)).join('')],
+        ['Sort', [['proj', 'Projection'], ['odds', 'Shortest price']].map(([v, l]) => uiChip(fn, 'sort', v, l, F.sort)).join('')],
+      ], (F.line !== 'auto') + (F.sort !== 'proj')) + `
+      <div class="pb-search${F.q ? ' on' : ''}">
         <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
           <circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
-        <input type="text" id="sv-search" placeholder="Search a goalie or team…"
-               value="${esc(svF.q)}" oninput="onSvSearch()" autocomplete="off" spellcheck="false">
-        <button class="pb-search-x" onclick="clearSvSearch()" aria-label="Clear">×</button>
+        <input type="text" id="gt-search-${page}" placeholder="Search a goalie or team…"
+               value="${esc(F.q)}" oninput="onGtSearch('${page}')" autocomplete="off" spellcheck="false">
+        <button class="pb-search-x" onclick="clearGtSearch('${page}')" aria-label="Clear">×</button>
       </div>`;
-    const meta = `<div class="result-meta"><b>${B.date ? dayLabel(B.date, true) : ''}</b> · ${rows.length} projected starters · ${ga ? 'binomial prices, tighter than Poisson' : 'full-game + pulled-goalie prices'}</div>`
-      + uiView('setSv', svF.view);
+    const meta = `<div class="result-meta"><b>${B.date ? dayLabel(B.date, true) : ''}</b> · ${rows.length} projected starters · ${P.meta}</div>`
+      + uiView(fn, F.view);
     if (!rows.length) { el.innerHTML = tabs + controls + meta + `<div class="empty">Nothing matches that search.</div>`; return; }
-    const open = (r) => `openSave(${r.pid},'${kind}')`;
-    const recent = (r) => ga ? r.recentGa : r.recent;
+    const open = (r) => `openSave(${r.pid},'${P.kind}')`;
     const spark = (r) => `<span class="sg-spark" title="His last starts — bars over the line are green">${
-      (recent(r) || []).slice(-10).map(v => `<i class="${v > r.L ? 'hit' : ''}" style="height:${Math.max(2, Math.min(14, ga ? v * 3 : (v - 10) * 0.6))}px"></i>`).join('')}</span>`;
-    const dp = ga ? 2 : 1;
+      ((ga ? r.recentGa : r.recent) || []).slice(-10).map(v => `<i class="${v > r.L ? 'hit' : ''}" style="height:${Math.max(2, Math.min(14, ga ? v * 3 : (v - 10) * 0.6))}px"></i>`).join('')}</span>`;
     let body;
-    if (svF.view === 'table') {
+    if (F.view === 'table') {
       body = `<div class="rc-tablewrap"><table class="rc-table">
         <thead><tr><th></th><th>Goalie</th><th>Game</th><th class="num">Proj</th><th class="num">${ga ? 'Team GA' : 'Opp SF'}</th>
           <th class="num">${ga ? 'Opp GF' : 'Team SA'}</th><th class="num">SV%</th><th class="num">Starts</th><th class="num">Line</th><th class="num">Price</th></tr></thead>
@@ -2741,7 +2781,7 @@
             <td class="num dim">o${r.L}</td>
             <td class="num"><b>${sgOdds(r.pAt)}</b></td>
           </tr>`).join('')}</tbody></table></div>`;
-    } else if (svF.view === 'compact') {
+    } else if (F.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
         <div class="rc-crow" onclick="${open(r)}">
           <span class="rc-crank">${r.rank}</span>
@@ -2774,12 +2814,13 @@
           </div>
         </div>`).join('')}</div>`;
     }
-    const note = `<div class="lr-note">Projected starters: the goalie with most of his club's recent starts. The NHL doesn't publish confirmed starters, so check before you bet — if a different goalie starts, the Results tab voids it the way a book would.</div>`;
+    const note = `<div class="lr-note">Projected starters: the goalie with most of his club's recent starts. The NHL doesn't publish confirmed starters, so check before you bet — if a different goalie starts, Results voids it the way a book would.</div>`;
     el.innerHTML = tabs + controls + meta + body + note;
   }
 
-  // ── Saves results ──────────────────────────────────────────────────────
-  // Frozen before the first puck drop, graded from the boxscore. Rows:
+  // ── Goalie results ─────────────────────────────────────────────────────
+  // One history file for both pages, frozen before the first puck drop and
+  // graded from the boxscore. Rows:
   //   [pid, mu, line, pOver, got, gameId, name, team, opp, muGa, gaLine, gaPOver, gotGa]
   // got = -1 when our projected starter did not start (void).
   let svHist = null, svHistState = 'idle';
@@ -2788,22 +2829,20 @@
     svHistState = 'loading';
     fetch(APP_BASE + '/saves-history.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
       .then(j => { svHist = j; svHistState = 'ready'; }).catch(() => { svHistState = 'error'; })
-      .finally(() => { if (activeNav === 'saves' && svF.tab === 'results') renderSaves(); });
+      .finally(() => { if (GT[activeNav] && gtF[activeNav].tab === 'results') renderGoalie(activeNav); });
   }
-  function svResults() {
+  function svResults(page) {
     if (svHistState === 'idle') loadSavesHistory();
     if (svHistState !== 'ready') return svHistState === 'error'
       ? '<div class="empty">Couldn\'t load results.</div>' : '<div class="empty">Loading results…</div>';
-    const ga = svF.rmkt === 'ga';
-    const mkt = `<div class="pairs-filter-row"><span class="due-filter-label">Market</span>${
-      [['saves', 'Saves'], ['ga', 'Goals allowed']].map(([v, l]) => uiChip('setSv', 'rmkt', v, l, svF.rmkt)).join('')}</div>`;
+    const F = gtF[page], ga = page === 'allowed', fn = gtSetFn(page);
     const nights = Object.keys(svHist || {}).sort();
     const bt = svBacktest(ga ? 'ga' : 'saves');
-    if (!nights.length) return mkt + `<div class="empty">No nights logged yet — each night's board is saved before the first puck drop and graded when its games end. The first is opening night, ${D.seasonStart ? dayLabel(D.seasonStart, true) : ''}.</div>` + bt;
+    if (!nights.length) return `<div class="empty">No nights logged yet — each night's board is saved before the first puck drop and graded when its games end. The first is opening night, ${D.seasonStart ? dayLabel(D.seasonStart, true) : ''}.</div>` + bt;
     const done = nights.filter(d => svHist[d].some(x => x[4] != null));
-    if (svF.night == null || !nights.includes(svF.night)) svF.night = done.length ? done[done.length - 1] : nights[nights.length - 1];
-    const ni = nights.indexOf(svF.night);
-    const rows = svHist[svF.night].map(x => {
+    if (F.night == null || !nights.includes(F.night)) F.night = done.length ? done[done.length - 1] : nights[nights.length - 1];
+    const ni = nights.indexOf(F.night);
+    const rows = svHist[F.night].map(x => {
       const [pid, mu, L, p, got] = ga ? [x[0], x[9], x[10], x[11], x[12]] : x;
       return { pid, mu, L, p, got, name: x[6], team: x[7], opp: x[8],
                st: got == null ? 'pend' : got < 0 ? 'void' : got > L ? 'hit' : 'miss' };
@@ -2812,7 +2851,7 @@
     rows.sort((a, b) => ORDER[a.st] - ORDER[b.st] || b.mu - a.mu);
     const graded = rows.filter(r => r.st === 'hit' || r.st === 'miss');
     const hits = graded.filter(r => r.st === 'hit').length, said = graded.reduce((a, r) => a + r.p, 0);
-    const gids = new Set(svHist[svF.night].map(x => x[5]));
+    const gids = new Set(svHist[F.night].map(x => x[5]));
     const tiles = graded.length ? `
       <div class="hm-tiles" style="margin-bottom:0.6rem">
         <div class="hm-tile"><b>${hits}/${graded.length}</b><span>Went over · we said ${said.toFixed(1)}</span></div>
@@ -2828,23 +2867,22 @@
         <span class="cp-res-act">${r.got == null || r.got < 0 ? '' : r.got}</span>
         <span class="cp-res-tag">${TAG[r.st]}</span></div>`).join('');
     const pending = rows.some(r => r.st === 'pend');
-    return `${mkt}
-      ${tiles}
+    return `${tiles}
       <div class="cp-wknav">
-        <button class="due-filter-chip mode-chip" onclick="setSv('night','${nights[ni - 1] ?? svF.night}')"${ni <= 0 ? ' disabled' : ''}>‹</button>
-        <span class="cp-wk">${dayLabel(svF.night)} · ${gids.size} game${gids.size === 1 ? '' : 's'}${pending ? ' · not final yet' : ''}</span>
-        <button class="due-filter-chip mode-chip" onclick="setSv('night','${nights[ni + 1] ?? svF.night}')"${ni >= nights.length - 1 ? ' disabled' : ''}>›</button>
+        <button class="due-filter-chip mode-chip" onclick="${fn}('night','${nights[ni - 1] ?? F.night}')"${ni <= 0 ? ' disabled' : ''}>‹</button>
+        <span class="cp-wk">${dayLabel(F.night)} · ${gids.size} game${gids.size === 1 ? '' : 's'}${pending ? ' · not final yet' : ''}</span>
+        <button class="due-filter-chip mode-chip" onclick="${fn}('night','${nights[ni + 1] ?? F.night}')"${ni >= nights.length - 1 ? ' disabled' : ''}>›</button>
       </div>
       ${head + list}
-      <div class="lr-note">Each night is graded against the board as it stood before the <b>first puck drop</b>, at the line it quoted — the one closest to even money. Saves and goals against come from the box score. A projected starter who didn't start is a void (<b>DNS</b>), which is how a book settles it; a goalie pulled mid-game still counts, which is also how a book settles it.</div>
+      <div class="lr-note">Each night is graded against the board as it stood before the <b>first puck drop</b>, at the line it quoted — the one closest to even money. ${ga ? 'Goals against' : 'Saves'} come from the box score. A projected starter who didn't start is a void (<b>DNS</b>), which is how a book settles it; a goalie pulled mid-game still counts, which is also how a book settles it.</div>
       ${bt}`;
   }
   function svBacktest(key) {
     const B = D.saves?.model?.backtest, M = B?.[key]; if (!M) return '';
     const pc = (v) => (v * 100).toFixed(1) + '%';
-    const ga = key === 'ga', u = ga ? 'goals' : 'saves';
+    const u = key === 'ga' ? 'goals' : 'saves';
     const tbl = (head, rows) => `<div class="rc-tablewrap"><table class="rc-table"><thead><tr>${head.map((h, i) => `<th${i ? ' class="num"' : ''}>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
-    return `<details class="lr-bt"${window.svBtOpen ? ' open' : ''} ontoggle="window.svBtOpen = this.open"><summary>Backtest — ${B.rows.toLocaleString()} starts, every season predicted cold</summary>
+    return `<details class="lr-bt"${window['btOpen_' + key] ? ' open' : ''} ontoggle="window['btOpen_${key}'] = this.open"><summary>Backtest — ${B.rows.toLocaleString()} starts, every season predicted cold</summary>
       <div class="result-meta" style="margin-top:0.8rem">At the line the board quotes — does the price mean what it says?</div>
       ${tbl(['Quoted over', 'Starts', 'Priced', 'Went over'], M.by_price.map(r => `<tr><td>${r.lab}</td><td class="num">${r.n.toLocaleString()}</td><td class="num">${pc(r.pred)}</td><td class="num"><b>${pc(r.act)}</b></td></tr>`).join(''))}
       <div class="result-meta" style="margin-top:0.8rem">Every line, every start</div>
@@ -3352,6 +3390,8 @@
           <button class="vid-btn" style="margin-top:0.45rem" onclick="closeLc();openPlayer(${r.pid})">Player card →</button></div>
         <div class="ydm-big"><div><span>${C.big}</span><span>Median <b>${med}</b></span></div><strong>${mu.toFixed(lc.kind === 'ga' ? 2 : 1)}</strong></div>
       </header>
+      ${goalie ? `<div class="sub-tabs pc-tabs">${[['sv', 'Saves'], ['ga', 'Goals allowed']].map(([k, l]) =>
+        `<button class="sub-btn${lc.kind === k ? ' active' : ''}" onclick="lcSetKind('${k}')">${l}</button>`).join('')}</div>` : ''}
       <div class="ydm-grid">
         <div class="ydm-main">
           <section class="ydm-panel">
@@ -3393,6 +3433,12 @@
     lcCenter();
   }
   function openShot(pid) { openLc('sog', pid); }
+  /** Flip the goalie card between its two markets, on the same goalie. */
+  function lcSetKind(k) {
+    lc.kind = k;
+    const r = lcRow(); if (!r) return;
+    lc.line = lcPick(r, lcPmf(r)); lcRender();
+  }
   function openSave(pid, kind = 'sv') { openLc(kind, pid); }
   function openLc(kind, pid) {
     lc.kind = kind; lc.pid = pid;
@@ -3504,6 +3550,10 @@
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${sgOdds(r.pAt)} over ${r.L}</span></span>
         <span class="hm-score hot">${r.m.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> saves</span></span></div>`).join('') : '';
+    const gaHome = SVB.board?.length ? svRows('ga').slice(0, 5).map(r => `<div class="hm-row" onclick="event.stopPropagation(); switchNav('allowed'); openSave(${r.pid},'ga')">
+        ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
+        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${sgOdds(r.pAt)} over ${r.L}</span></span>
+        <span class="hm-score hot">${r.m.toFixed(2)}<span class="hm-subtle" style="font-size:0.766rem"> GA</span></span></div>`).join('') : '';
 
     // ── Leader mini-boards ───────────────────────────────────────────────
     const leaderRow = (r, i, val, unit) => `
@@ -3527,6 +3577,7 @@
           ${card('picks', PKB.date ? `Picks · ${dayLabel(PKB.date)}` : 'Picks', 'Picks', pkHome, 'The board fills in once the slate is set.')}
           ${card('shots', SB.date ? `Shots · ${dayLabel(SB.date)}` : 'Shots', 'Shots', sbRows, 'The board fills in once the slate is set.')}
           ${card('saves', SVB.date ? `Saves · ${dayLabel(SVB.date)}` : 'Saves', 'Saves', svHome, 'The board fills in once the slate is set.')}
+          ${card('allowed', SVB.date ? `Goals Allowed · ${dayLabel(SVB.date)}` : 'Goals Allowed', 'Goals Allowed', gaHome, 'The board fills in once the slate is set.')}
           ${card('stats', `${season} Goal Leaders`, 'Stats', byG, 'No leaders yet.')}
           ${card('stats', `${season} Point Leaders`, 'Stats', byP, 'No leaders yet.')}
         </div>
