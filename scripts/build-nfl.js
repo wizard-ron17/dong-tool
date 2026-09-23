@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import { fetchText, parseCsv, num } from './nflverse.js';
 import { buildPicks, loadPlayers } from './picks.js';
 import * as liveLog from './live-log.js';
+import { fetchEspnLines, trackLine } from './espn-lines.js';
 
 // Neither season is a constant any more. Both are read off the schedule feed so
 // the app rolls forward on its own — opening Sunday and the turn of a season
@@ -46,6 +47,29 @@ async function main() {
     // for the wind lookup — roof is known before kickoff, temp/wind are not
     roof: game(r, 'roof'), stadium: game(r, 'stadium'),
   }));
+
+  // Sportsbook lines for the schedule — DraftKings via ESPN: spread, total and
+  // moneyline as opened and as they stand, plus every move a build saw
+  // (scripts/espn-lines.js). Display and sorting only: the Picks model keeps
+  // nflverse's spread_line / total_line as its input. A game keeps its last
+  // pre-kickoff line once it starts.
+  try {
+    let prevSched = [];
+    try { prevSched = JSON.parse(fs.readFileSync(new URL('../nfl/data.json', import.meta.url), 'utf8')).schedule || []; } catch (e) { /* first build */ }
+    const prevLines = new Map(prevSched.filter(g => g.lines).map(g => [g.gameId, g.lines]));
+    const today = new Date().toISOString().slice(0, 10), soon = new Date(Date.now() + 10 * 864e5).toISOString().slice(0, 10);
+    const dates = [...new Set(schedule.filter(g => g.homeScore == null && g.gameday >= today && g.gameday <= soon).map(g => g.gameday))];
+    const fresh = await fetchEspnLines('nfl', dates, { LAR: 'LA', WSH: 'WAS' });
+    let n = 0;
+    for (const g of schedule) {
+      const prev = prevLines.get(g.gameId);
+      const x = fresh.find(f => f.away === g.away && f.home === g.home);
+      const kicked = x?.start ? Date.parse(x.start) <= Date.now() : g.homeScore != null;
+      if (x && !kicked) { g.lines = trackLine(prev, x.line); n++; }
+      else if (prev) g.lines = prev;
+    }
+    console.log(`  lines: ${n} games across ${dates.length} dates (${prevLines.size} carried)`);
+  } catch (e) { console.warn(`  lines skipped: ${e.message}`); }
 
   // results map for the historical season (to caption recap games + day-of-week filtering)
   const results = {};

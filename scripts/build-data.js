@@ -3,6 +3,8 @@
 // Run on a schedule (see .github/workflows/build-data.yml) so phones never
 // have to do this work themselves.
 
+import { fetchEspnLines, trackLine } from './espn-lines.js';
+
 const MLB          = 'https://statsapi.mlb.com/api/v1';
 const SEASON_START = '2026-03-25'; // true opening day — a single NYY@SF game (season opened a day before the full slate)
 
@@ -3125,6 +3127,25 @@ async function main() {
     if (expected > 0) throw new Error(`Degraded build: schedule hydrate returned 0 games but MLB lists ${expected} for ${todayET()} — refusing to write data.json`);
   }
   await attachHands(todaySchedule);
+
+  // Sportsbook lines for the schedule — DraftKings via ESPN: run line, total
+  // and moneyline, as opened and as they stand, plus every move a build saw
+  // (scripts/espn-lines.js). Only read before first pitch; a started game keeps
+  // its last pre-game line. Display only, never a model input.
+  try {
+    const fresh = await fetchEspnLines('mlb', [todayET()], { ARI: 'AZ', CHW: 'CWS' });
+    const prevLines = new Map(prevSchedule.filter(g => g.lines).map(g => [g.gamePk, g.lines]));
+    let n = 0;
+    for (const g of todaySchedule) {
+      const prev = prevLines.get(g.gamePk);
+      if (g.started) { if (prev) g.lines = prev; continue; }
+      // doubleheaders: same clubs twice — take the reading whose start is nearest
+      const cands = fresh.filter(x => x.away === g.away.teamAbbr && x.home === g.home.teamAbbr);
+      const x = cands.sort((a, b) => Math.abs(Date.parse(a.start) - Date.parse(g.gameDate)) - Math.abs(Date.parse(b.start) - Date.parse(g.gameDate)))[0];
+      if (x) { g.lines = trackLine(prev, x.line); n++; } else if (prev) g.lines = prev;
+    }
+    console.log(`  lines: ${n} of ${todaySchedule.length} games`);
+  } catch (e) { console.warn(`  lines skipped: ${e.message}`); }
 
   // Correct team assignments from live rosters BEFORE anything reads playerTeams
   // for today (projected lineups, teamPower, picks) so trades match the player

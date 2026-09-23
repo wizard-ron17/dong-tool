@@ -1146,6 +1146,38 @@
   .sched-status.live  { background: rgba(255,112,64,0.12); color: #ff7040; }
   .sched-status.final { background: rgba(53,201,110,0.12); color: var(--accent); }
   .sched-venue-row { font-size: 0.692rem; color: var(--muted); margin-top: 0.35rem; }
+  .sc-lines { display: flex; gap: 0.3rem; justify-content: center; flex-wrap: wrap; }
+  .sc-ln { font-family: var(--font-m); font-size: 0.704rem; color: var(--text); background: var(--surface0); border: 1px solid var(--border); border-radius: 5px; padding: 0.1rem 0.34rem; white-space: nowrap; }
+  /* ── Sportsbook lines + movement ── */
+  .sc-ln small { font-size: 0.86em; color: var(--dim); margin-left: 0.3rem; }
+  .sc-ln.ln-moved { border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); }
+  /* a total moving isn't good or bad — direction only, one neutral hue */
+  .sc-ln .ln-up, .sc-ln .ln-dn { color: var(--gold); }
+  .sc-ln.ln-book { color: var(--dim); background: none; border-style: dashed; }
+  .ln { background: var(--surface1); border: 1px solid var(--border); border-radius: 12px; padding: 0.6rem 0.8rem; }
+  .ln-row { display: grid; grid-template-columns: 5.2rem 1fr 1.2rem 1fr 7.5rem; align-items: center; gap: 0.4rem; padding: 0.42rem 0; border-top: 1px solid var(--border); font-family: var(--font-d); font-weight: 700; }
+  .ln-row.ln-head { border-top: none; font-family: var(--font-b); font-size: 0.64rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); padding-bottom: 0.1rem; }
+  .ln-k { font-family: var(--font-b); font-size: 0.74rem; font-weight: 600; color: var(--muted); }
+  .ln-o { color: var(--muted); text-align: right; }
+  .ln-c { color: var(--text-strong); }
+  .ln-c.moved { color: var(--gold); }
+  .ln-arrow { color: var(--dim); text-align: center; }
+  .ln-spark { width: 100%; height: 26px; overflow: visible; }
+  .ln-spark path { fill: none; stroke: var(--gold); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+  .ln-spark circle { fill: var(--gold); }
+  .ln-hist-hd { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin: 0.8rem 0 0.3rem; }
+  .ln-hist { display: flex; flex-direction: column; gap: 0.15rem; max-height: 16rem; overflow-y: auto; }
+  .ln-h { display: grid; grid-template-columns: 7.6rem 1fr 1fr 1fr; gap: 0.4rem; font-family: var(--font-m); font-size: 0.7rem; color: var(--muted); padding: 0.2rem 0; border-bottom: 1px dashed var(--border); }
+  .ln-h .chg { color: var(--gold); font-weight: 700; }
+  .ln-t { color: var(--dim); }
+  .ln-note { font-size: 0.68rem; color: var(--dim); line-height: 1.5; margin: 0.6rem 0 0; }
+  @media (max-width: 560px) { .ln-row { grid-template-columns: 4.4rem 1fr 1rem 1fr 4.5rem; } .ln-h { grid-template-columns: 5.6rem 1fr 1fr; } .ln-h > span:last-child { display: none; } }
+  .sched-lines-row { display: flex; justify-content: flex-start; margin-top: 0.35rem; }
+  .sched-lines-row .sc-lines { justify-content: flex-start; }
+  .sched-lines-head, .sched-lines-panel { display: none; }
+  .sched-game.expanded .sched-lines-head { display: block; }
+  .sched-game.expanded .sched-lines-panel { display: block; margin: 0.4rem auto 0; max-width: 640px; }
+  @media (max-width: 600px) { .sc-ln { font-size: 0.680rem; padding: 0.08rem 0.28rem; } }
   .sched-wx { margin-left: 0.15rem; white-space: nowrap; }
   .sched-wx-sep { opacity: 0.5; margin: 0 0.15rem; }
   .wx-favor { color: var(--accent); font-weight: 700; }
@@ -5775,7 +5807,69 @@ function renderScheduleKeepingOpen() {
   renderSchedule();
   for (const id of open) document.getElementById(id)?.classList.add('expanded');
 }
-let schedSort = 'time'; // 'time' (earliest first) or 'homer' (highest Homer Score first)
+  // ── Sportsbook lines: open, now, and every move ─────────────────────────
+  // DraftKings via ESPN (scripts/espn-lines.js). `open` is the book's opening
+  // number; `moves` is every change a build saw, [time, home spread, total,
+  // home ML, away ML]. Spreads are the HOME side's (negative = home favoured).
+  const lnAm = (v) => v == null ? '—' : (v > 0 ? '+' : '') + v;
+  const lnNum = (v) => v == null ? '—' : String(v).replace('-', '−');
+  /** "DET −6.5" / "PK" off a home-side spread */
+  const lnFav = (sp, away, home) => sp == null ? null : sp === 0 ? 'PK' : sp < 0 ? `${home} ${lnNum(sp)}` : `${away} ${lnNum(-sp)}`;
+  function lnMove(L) {
+    const o = L?.open || {}, c = L?.cur || {};
+    const dSp = o.sp != null && c.sp != null ? +(c.sp - o.sp).toFixed(1) : 0;
+    const dTot = o.tot != null && c.tot != null ? +(c.tot - o.tot).toFixed(1) : 0;
+    return { dSp, dTot, size: Math.abs(dSp) + Math.abs(dTot), n: Math.max(0, (L?.moves || []).length - 1) };
+  }
+  /** Row chips: the line now, and where it opened when it has moved. */
+  function lnChips(L, away, home) {
+    if (!L?.cur) return '';
+    const c = L.cur, o = L.open || {}, m = lnMove(L);
+    const sp = lnFav(c.sp, away, home), spOpen = lnFav(o.sp, away, home);
+    const spMoved = o.sp != null && c.sp != null && o.sp !== c.sp;
+    return `<span class="sc-ln ln-book" title="${L.book || 'Sportsbook'} via ESPN — the book's line, not ours">DK</span>`
+      // same favourite: just the opening number; a flip: the whole opening line
+      + (sp ? `<span class="sc-ln${spMoved ? ' ln-moved' : ''}" title="${spMoved ? `Opened ${spOpen}` : 'Unchanged since open'}">${sp}${spMoved
+          ? `<small>op ${spOpen.split(' ')[0] === sp.split(' ')[0] ? spOpen.split(' ').pop() : spOpen}</small>` : ''}</span>` : '')
+      + (c.tot != null ? `<span class="sc-ln${m.dTot ? ' ln-moved' : ''}" title="${m.dTot ? `Opened ${o.tot}` : 'Unchanged since open'}">O/U ${c.tot}${m.dTot ? `<small class="${m.dTot > 0 ? 'ln-up' : 'ln-dn'}">${m.dTot > 0 ? '▲' : '▼'}${Math.abs(m.dTot)}</small>` : ''}</span>` : '');
+  }
+  /** Tiny line of one market through its moves. */
+  function lnSpark(moves, k, fmt) {
+    const pts = moves.map(m => m[k]).filter(v => v != null);
+    if (pts.length < 2) return '';
+    const lo = Math.min(...pts), hi = Math.max(...pts), W = 120, H = 26;
+    const X = (i) => (i / (pts.length - 1) * W).toFixed(1), Y = (v) => (hi === lo ? H / 2 : H - 3 - (v - lo) / (hi - lo) * (H - 6)).toFixed(1);
+    return `<svg class="ln-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${pts.map((v, i) => `${i ? 'L' : 'M'}${X(i)},${Y(v)}`).join('')}"/>
+      <circle cx="${X(pts.length - 1)}" cy="${Y(pts[pts.length - 1])}" r="2.4"/></svg>`;
+  }
+  /** The full panel: open vs now for every market, then each move a build saw. */
+  function lnPanel(L, away, home) {
+    if (!L?.cur) return '<div class="empty" style="padding:1.5rem 0">No sportsbook line for this game yet.</div>';
+    const c = L.cur, o = L.open || {}, moves = L.moves || [];
+    const row = (lab, a, b, spark) => {
+      const moved = a !== b && a !== '—' && b !== '—';
+      return `<div class="ln-row"><span class="ln-k">${lab}</span><span class="ln-o">${a}</span><span class="ln-arrow">${moved ? '→' : ''}</span><span class="ln-c${moved ? ' moved' : ''}">${b}</span><span class="ln-sp">${spark || ''}</span></div>`;
+    };
+    const when = (iso) => new Date(iso).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+    const hist = moves.length > 1 ? `<div class="ln-hist-hd">${moves.length - 1} move${moves.length === 2 ? '' : 's'} since we started watching</div>
+      <div class="ln-hist">${moves.slice().reverse().map((m, i, arr) => {
+        const p = arr[i + 1];
+        const cell = (v, pv, txt) => `<span class="${p && v !== pv ? 'chg' : ''}">${txt}</span>`;
+        return `<div class="ln-h"><span class="ln-t">${when(m[0])}</span>${cell(m[1], p?.[1], lnFav(m[1], away, home) || '—')}${cell(m[2], p?.[2], m[2] != null ? `O/U ${m[2]}` : '—')}${cell(m[3], p?.[3], `${home} ${lnAm(m[3])}`)}</div>`;
+      }).join('')}</div>`
+      : `<p class="ln-note">No moves seen since we started watching${moves[0] ? ` (${when(moves[0][0])})` : ''} — any change shows up here with the time a build caught it.</p>`;
+    return `<div class="ln">
+      <div class="ln-row ln-head"><span class="ln-k"></span><span class="ln-o">Open</span><span class="ln-arrow"></span><span class="ln-c">Now</span><span class="ln-sp"></span></div>
+      ${row('Spread', lnFav(o.sp, away, home) || '—', lnFav(c.sp, away, home) || '—', lnSpark(moves, 1))}
+      ${row('Total', o.tot ?? '—', c.tot ?? '—', lnSpark(moves, 2))}
+      ${row(`${away} ML`, lnAm(o.mlA), lnAm(c.mlA), lnSpark(moves, 4))}
+      ${row(`${home} ML`, lnAm(o.mlH), lnAm(c.mlH), lnSpark(moves, 3))}
+      ${hist}
+      <p class="ln-note">${L.book || 'DraftKings'} via ESPN — the book's lines, not ours. The open is the book's; the moves are every change our builds caught.</p>
+    </div>`;
+  }
+
+let schedSort = 'time'; // 'time', 'homer' (highest Homer Score first), 'spread', 'total' or 'moved'
 function setSchedSort(s) { schedSort = s; renderSchedule(); }
 
 // ── Dinger Digest ─────────────────────────────────────────────────────
@@ -6086,14 +6180,23 @@ function renderSchedule() {
   const dayAvg = anyHomer ? Math.round(homerScores.reduce((a, b) => a + b, 0) / homerScores.length) : null;
   const byTime = (a, b) => new Date(a.gameDate) - new Date(b.gameDate);
   const byHomer = (a, b) => (b.homer?.score ?? -Infinity) - (a.homer?.score ?? -Infinity) || byTime(a, b);
-  const sorted = [...todaySchedule].sort(anyHomer && schedSort === 'homer' ? byHomer : byTime);
+  // Run lines are nearly all 1.5, so the spread sort breaks ties on how big a
+  // favourite the moneyline makes the chalk side; totals run highest first.
+  const favMl = (g) => { const c = g.lines?.cur; return c ? Math.min(c.mlH ?? 0, c.mlA ?? 0) : 0; };
+  const bySpread = (a, b) => Math.abs(b.lines?.cur?.sp ?? -1) - Math.abs(a.lines?.cur?.sp ?? -1) || favMl(a) - favMl(b) || byTime(a, b);
+  const byTotal = (a, b) => (b.lines?.cur?.tot ?? -1) - (a.lines?.cur?.tot ?? -1) || byTime(a, b);
+  const byMove = (a, b) => lnMove(b.lines).size - lnMove(a.lines).size || byTime(a, b);
+  const anyLines = todaySchedule.some(g => g.lines?.cur);
+  const SORTS = { time: byTime, homer: anyHomer ? byHomer : byTime, spread: bySpread, total: byTotal, moved: byMove };
+  const sorted = [...todaySchedule].sort(SORTS[schedSort] || byTime);
   metaEl.innerHTML = `${sorted.length} game${sorted.length === 1 ? '' : 's'}`
     + (todayDate ? ` · ${fmtDateLong(todayDate)}` : '')
     + (anyHomer ? ` · Avg Homer Score <span class="sched-meta-avg ${homerScoreClass(dayAvg)}" title="Average Homer Score across all ${homerScores.length} scored games today (50 = average day)">${dayAvg}</span>` : '');
-  const sortBar = anyHomer ? `<div class="picks-sort">
+  const sortBar = anyHomer || anyLines ? `<div class="picks-sort">
     <span class="due-filter-label">Sort</span>
     <button class="due-filter-chip${schedSort==='time'?' active':''}" onclick="setSchedSort('time')">Game Time</button>
-    <button class="due-filter-chip${schedSort==='homer'?' active':''}" onclick="setSchedSort('homer')">Homer Score</button>
+    ${anyHomer ? `<button class="due-filter-chip${schedSort==='homer'?' active':''}" onclick="setSchedSort('homer')">Homer Score</button>` : ''}
+    ${anyLines ? [['spread', 'Run Line'], ['total', 'Total'], ['moved', 'Line Move']].map(([v, l]) => `<button class="due-filter-chip${schedSort===v?' active':''}" onclick="setSchedSort('${v}')">${l}</button>`).join('') : ''}
   </div>` : '';
   const legend = anyHomer ? `<div class="homer-legend">
     <b>Homer Score</b> = HR-betting confidence per game (park, weather, both lineups, starters, pens). 50 = average.
@@ -6127,6 +6230,7 @@ function renderSchedule() {
           ${homer}
         </div>
       </div>
+      ${g.lines?.cur ? `<div class="sched-lines-row"><div class="sc-lines">${lnChips(g.lines, awayLabel, homeLabel)}</div></div>` : ''}
       <div class="sched-venue-row">${g.venue}${venueGames ? ` · <span class="hrg-val ${venueCls}">${venueHRG.toFixed(2)}</span> HR/G` : ''}${schedWeatherChip(g.weather)}</div>
       ${schedPitchersRow(g)}
       <div class="sched-expand-row" onclick="toggleSchedGame(${g.gamePk})">
@@ -6142,6 +6246,7 @@ function renderSchedule() {
         ${schedBullpenHtml(g.away)}
         ${schedBullpenHtml(g.home)}
       </div>
+      ${g.lines?.cur ? `<div class="sched-bullpen-head sched-lines-head">Lines</div><div class="sched-lines-panel">${lnPanel(g.lines, awayLabel, homeLabel)}</div>` : ''}
     </div>`;
   }).join('')}</div>`;
 }

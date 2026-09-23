@@ -2542,6 +2542,30 @@
   .sc-side-rec.old::after { content: " '25"; opacity: 0.7; }
   .sc-mid { text-align: center; flex-shrink: 0; }
   .sc-lines { display: flex; gap: 0.3rem; justify-content: center; flex-wrap: wrap; }
+  /* ── Sportsbook lines + movement ── */
+  .sc-ln small { font-size: 0.86em; color: var(--dim); margin-left: 0.3rem; }
+  .sc-ln.ln-moved { border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); }
+  /* a total moving isn't good or bad — direction only, one neutral hue */
+  .sc-ln .ln-up, .sc-ln .ln-dn { color: var(--gold); }
+  .sc-ln.ln-book { color: var(--dim); background: none; border-style: dashed; }
+  .ln { background: var(--surface1); border: 1px solid var(--border); border-radius: 12px; padding: 0.6rem 0.8rem; }
+  .ln-row { display: grid; grid-template-columns: 5.2rem 1fr 1.2rem 1fr 7.5rem; align-items: center; gap: 0.4rem; padding: 0.42rem 0; border-top: 1px solid var(--border); font-family: var(--font-d); font-weight: 700; }
+  .ln-row.ln-head { border-top: none; font-family: var(--font-b); font-size: 0.64rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); padding-bottom: 0.1rem; }
+  .ln-k { font-family: var(--font-b); font-size: 0.74rem; font-weight: 600; color: var(--muted); }
+  .ln-o { color: var(--muted); text-align: right; }
+  .ln-c { color: var(--text-strong); }
+  .ln-c.moved { color: var(--gold); }
+  .ln-arrow { color: var(--dim); text-align: center; }
+  .ln-spark { width: 100%; height: 26px; overflow: visible; }
+  .ln-spark path { fill: none; stroke: var(--gold); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+  .ln-spark circle { fill: var(--gold); }
+  .ln-hist-hd { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin: 0.8rem 0 0.3rem; }
+  .ln-hist { display: flex; flex-direction: column; gap: 0.15rem; max-height: 16rem; overflow-y: auto; }
+  .ln-h { display: grid; grid-template-columns: 7.6rem 1fr 1fr 1fr; gap: 0.4rem; font-family: var(--font-m); font-size: 0.7rem; color: var(--muted); padding: 0.2rem 0; border-bottom: 1px dashed var(--border); }
+  .ln-h .chg { color: var(--gold); font-weight: 700; }
+  .ln-t { color: var(--dim); }
+  .ln-note { font-size: 0.68rem; color: var(--dim); line-height: 1.5; margin: 0.6rem 0 0; }
+  @media (max-width: 560px) { .ln-row { grid-template-columns: 4.4rem 1fr 1rem 1fr 4.5rem; } .ln-h { grid-template-columns: 5.6rem 1fr 1fr; } .ln-h > span:last-child { display: none; } }
   .sc-ln { font-family: var(--font-m); font-size: 0.704rem; color: var(--text); background: var(--surface0);
            border: 1px solid var(--border); border-radius: 5px; padding: 0.1rem 0.34rem; white-space: nowrap; }
   @media (max-width: 430px) {
@@ -3163,10 +3187,12 @@
         <span class="due-explainer-cta"></span>
         <span class="due-explainer-chevron" id="schedule-explainer-chevron">▶</span>
       </div>
-      <div class="due-explainer-teaser">The full slate by week, with kickoff, over/under, and the closing spread.</div>
+      <div class="due-explainer-teaser">The full slate by week, with the DraftKings spread and total — where each opened, and every move since.</div>
       <div class="due-explainer-body" id="schedule-explainer-body" style="display:none">
         <ul>
-          <li><b>Lines.</b> Each game shows the total (O/U) and the spread as a betting line — the favorite carries the minus (e.g. <em>SEA -3.5</em>).</li>
+          <li><b>Lines.</b> Each game shows DraftKings' spread and total via ESPN — the favorite carries the minus (e.g. <em>SEA -3.5</em>). These are the book's numbers, not ours.</li>
+          <li><b>Line movement.</b> A gold chip has moved since it opened: <em>DET −6.5 op −9.5</em> opened at −9.5; <em>O/U 47.5 ▲3</em> is three points above its open. When the favorite has flipped, the chip names who opened favored. The game card's <b>Lines</b> tab has open vs now for the spread, total and both moneylines, and every move our builds caught with the time they caught it — daily through the week, hourly on game days.</li>
+          <li><b>Sort.</b> By kickoff, by spread (biggest favorite first), by total (highest first), or by line move (whichever game's spread and total have moved furthest from their opens).</li>
           <li><b>Live scores.</b> Once a game is played the card flips to its final score. Step through the season with the week buttons.</li>
         </ul>
       </div>
@@ -3614,7 +3640,9 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
   }
 
   // ── Data + renders ─────────────────────────────────────────────────────
-  let nflData = null, recapWeek = null, scheduleWeek = null;
+  let nflData = null, recapWeek = null, scheduleWeek = null, schedSort = 'time';
+  function setSchedSort(v) { schedSort = v; renderSchedule(); }
+  window.setSchedSort = setSchedSort;
   async function loadNfl() {
     setStatus('fetching');
     try {
@@ -4993,8 +5021,9 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
       const w = nflData.wind?.[g.gameId], k = (nflData.kickers || []).find(x => x.gameId === g.gameId);
       return [k?.f?.temp != null ? `${k.f.temp}°F` : null, w != null ? `${Math.round(w)} mph` : null].filter(Boolean).join(' · ') || g.roof;
     })();
-    const tabs = [['proj', state === 'pre' ? 'Projections' : 'Our board'], ['matchup', 'Matchup']].concat(played ? [['flow', 'Game flow']] : []);
-    const body = gm.tab === 'matchup' ? matchupPanel(g).replace('<div class="mx"', '<div class="mx flat"')
+    const tabs = [['proj', state === 'pre' ? 'Projections' : 'Our board'], ['matchup', 'Matchup']].concat(g.lines?.cur ? [['lines', 'Lines']] : []).concat(played ? [['flow', 'Game flow']] : []);
+    const body = gm.tab === 'lines' ? lnPanel(g.lines, g.away, g.home)
+      : gm.tab === 'matchup' ? matchupPanel(g).replace('<div class="mx"', '<div class="mx flat"')
       : gm.tab === 'flow' ? (gameFlow(g) || '<div class="empty">No win-probability line for this game.</div>').replace('<div class="gf"', '<div class="gf flat"')
       : gmProjections(g, ge, state);
     box.innerHTML = `
@@ -5003,7 +5032,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
         <div class="gm-team"><img src="${teamLogo(g.away)}" alt="" loading="lazy"><b>${g.away}</b></div>
         <div class="gm-mid">
           ${played ? `<div class="gm-score"><span${g.awayScore > g.homeScore ? ' class="win"' : ''}>${g.awayScore}</span><i>–</i><span${g.homeScore > g.awayScore ? ' class="win"' : ''}>${g.homeScore}</span></div><div class="gm-when">Final</div>`
-            : `<div class="gm-lines">${g.spread != null ? `<span>${spreadLabel(g)}</span>` : ''}${g.total != null ? `<span>O/U ${g.total}</span>` : ''}</div>
+            : `${g.lines?.cur ? `<div class="sc-lines">${lnChips(g.lines, g.away, g.home)}</div>` : `<div class="gm-lines">${g.spread != null ? `<span>${spreadLabel(g)}</span>` : ''}${g.total != null ? `<span>O/U ${g.total}</span>` : ''}</div>`}
                <div class="gm-when">${live ? '<b class="gm-live">In progress</b>' : `${g.weekday || ''} ${g.gameday ? g.gameday.slice(5) : ''}${g.gametime ? ' · ' + g.gametime.slice(0, 5) : ''}`}</div>`}
           <div class="gm-wx">${WK_LABEL(g.week)} · ${wx}${at >= 0 ? ` · ${at + 1} / ${deck.length}` : ''}</div>
         </div>
@@ -5097,6 +5126,68 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
   const logoImg = (abbr) => abbr ? `<img class="tm-logo" src="${teamLogo(abbr)}" alt="${abbr}" loading="lazy">` : '';
   // nflverse spread_line: positive => HOME favored. Show it as a betting line
   // (favorite carries the minus). e.g. spread 3.5 => "SEA -3.5".
+  // ── Sportsbook lines: open, now, and every move ─────────────────────────
+  // DraftKings via ESPN (scripts/espn-lines.js). `open` is the book's opening
+  // number; `moves` is every change a build saw, [time, home spread, total,
+  // home ML, away ML]. Spreads are the HOME side's (negative = home favoured).
+  const lnAm = (v) => v == null ? '—' : (v > 0 ? '+' : '') + v;
+  const lnNum = (v) => v == null ? '—' : String(v).replace('-', '−');
+  /** "DET −6.5" / "PK" off a home-side spread */
+  const lnFav = (sp, away, home) => sp == null ? null : sp === 0 ? 'PK' : sp < 0 ? `${home} ${lnNum(sp)}` : `${away} ${lnNum(-sp)}`;
+  function lnMove(L) {
+    const o = L?.open || {}, c = L?.cur || {};
+    const dSp = o.sp != null && c.sp != null ? +(c.sp - o.sp).toFixed(1) : 0;
+    const dTot = o.tot != null && c.tot != null ? +(c.tot - o.tot).toFixed(1) : 0;
+    return { dSp, dTot, size: Math.abs(dSp) + Math.abs(dTot), n: Math.max(0, (L?.moves || []).length - 1) };
+  }
+  /** Row chips: the line now, and where it opened when it has moved. */
+  function lnChips(L, away, home) {
+    if (!L?.cur) return '';
+    const c = L.cur, o = L.open || {}, m = lnMove(L);
+    const sp = lnFav(c.sp, away, home), spOpen = lnFav(o.sp, away, home);
+    const spMoved = o.sp != null && c.sp != null && o.sp !== c.sp;
+    return `<span class="sc-ln ln-book" title="${L.book || 'Sportsbook'} via ESPN — the book's line, not ours">DK</span>`
+      // same favourite: just the opening number; a flip: the whole opening line
+      + (sp ? `<span class="sc-ln${spMoved ? ' ln-moved' : ''}" title="${spMoved ? `Opened ${spOpen}` : 'Unchanged since open'}">${sp}${spMoved
+          ? `<small>op ${spOpen.split(' ')[0] === sp.split(' ')[0] ? spOpen.split(' ').pop() : spOpen}</small>` : ''}</span>` : '')
+      + (c.tot != null ? `<span class="sc-ln${m.dTot ? ' ln-moved' : ''}" title="${m.dTot ? `Opened ${o.tot}` : 'Unchanged since open'}">O/U ${c.tot}${m.dTot ? `<small class="${m.dTot > 0 ? 'ln-up' : 'ln-dn'}">${m.dTot > 0 ? '▲' : '▼'}${Math.abs(m.dTot)}</small>` : ''}</span>` : '');
+  }
+  /** Tiny line of one market through its moves. */
+  function lnSpark(moves, k, fmt) {
+    const pts = moves.map(m => m[k]).filter(v => v != null);
+    if (pts.length < 2) return '';
+    const lo = Math.min(...pts), hi = Math.max(...pts), W = 120, H = 26;
+    const X = (i) => (i / (pts.length - 1) * W).toFixed(1), Y = (v) => (hi === lo ? H / 2 : H - 3 - (v - lo) / (hi - lo) * (H - 6)).toFixed(1);
+    return `<svg class="ln-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${pts.map((v, i) => `${i ? 'L' : 'M'}${X(i)},${Y(v)}`).join('')}"/>
+      <circle cx="${X(pts.length - 1)}" cy="${Y(pts[pts.length - 1])}" r="2.4"/></svg>`;
+  }
+  /** The full panel: open vs now for every market, then each move a build saw. */
+  function lnPanel(L, away, home) {
+    if (!L?.cur) return '<div class="empty" style="padding:1.5rem 0">No sportsbook line for this game yet.</div>';
+    const c = L.cur, o = L.open || {}, moves = L.moves || [];
+    const row = (lab, a, b, spark) => {
+      const moved = a !== b && a !== '—' && b !== '—';
+      return `<div class="ln-row"><span class="ln-k">${lab}</span><span class="ln-o">${a}</span><span class="ln-arrow">${moved ? '→' : ''}</span><span class="ln-c${moved ? ' moved' : ''}">${b}</span><span class="ln-sp">${spark || ''}</span></div>`;
+    };
+    const when = (iso) => new Date(iso).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+    const hist = moves.length > 1 ? `<div class="ln-hist-hd">${moves.length - 1} move${moves.length === 2 ? '' : 's'} since we started watching</div>
+      <div class="ln-hist">${moves.slice().reverse().map((m, i, arr) => {
+        const p = arr[i + 1];
+        const cell = (v, pv, txt) => `<span class="${p && v !== pv ? 'chg' : ''}">${txt}</span>`;
+        return `<div class="ln-h"><span class="ln-t">${when(m[0])}</span>${cell(m[1], p?.[1], lnFav(m[1], away, home) || '—')}${cell(m[2], p?.[2], m[2] != null ? `O/U ${m[2]}` : '—')}${cell(m[3], p?.[3], `${home} ${lnAm(m[3])}`)}</div>`;
+      }).join('')}</div>`
+      : `<p class="ln-note">No moves seen since we started watching${moves[0] ? ` (${when(moves[0][0])})` : ''} — any change shows up here with the time a build caught it.</p>`;
+    return `<div class="ln">
+      <div class="ln-row ln-head"><span class="ln-k"></span><span class="ln-o">Open</span><span class="ln-arrow"></span><span class="ln-c">Now</span><span class="ln-sp"></span></div>
+      ${row('Spread', lnFav(o.sp, away, home) || '—', lnFav(c.sp, away, home) || '—', lnSpark(moves, 1))}
+      ${row('Total', o.tot ?? '—', c.tot ?? '—', lnSpark(moves, 2))}
+      ${row(`${away} ML`, lnAm(o.mlA), lnAm(c.mlA), lnSpark(moves, 4))}
+      ${row(`${home} ML`, lnAm(o.mlH), lnAm(c.mlH), lnSpark(moves, 3))}
+      ${hist}
+      <p class="ln-note">${L.book || 'DraftKings'} via ESPN — the book's lines, not ours. The open is the book's; the moves are every change our builds caught.</p>
+    </div>`;
+  }
+
   const spreadLabel = (g) => g.spread === 0 ? 'PK' : `${g.home} ${g.spread > 0 ? '-' : '+'}${Math.abs(g.spread)}`;
   function gameRow(g) {
     const played = g.homeScore != null && g.awayScore != null;
@@ -5133,7 +5224,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
     const mid = played
       ? `<div class="sc-mid"><div class="sc-score">${g.awayScore}–${g.homeScore}</div><div class="sc-when">Final</div></div>`
       : `<div class="sc-mid">
-          <div class="sc-lines">${g.spread != null ? `<span class="sc-ln">${spreadLabel(g)}</span>` : ''}${g.total != null ? `<span class="sc-ln">O/U ${g.total}</span>` : ''}</div>
+          <div class="sc-lines">${g.lines?.cur ? lnChips(g.lines, g.away, g.home) : `${g.spread != null ? `<span class="sc-ln">${spreadLabel(g)}</span>` : ''}${g.total != null ? `<span class="sc-ln">O/U ${g.total}</span>` : ''}`}</div>
           <div class="sc-when">${when}</div>
         </div>`;
 
@@ -8261,7 +8352,16 @@ let pairStacks = false;
     const { byWeek, wks } = scheduleWeeks();
     if (scheduleWeek == null || !wks.includes(scheduleWeek)) scheduleWeek = firstUpcomingWeek();
     const i = wks.indexOf(scheduleWeek), atFirst = i <= 0, atLast = i >= wks.length - 1;
-    const games = (byWeek[scheduleWeek] || []).slice().sort((a, b) => (a.gameday || '').localeCompare(b.gameday || '') || (a.gametime || '').localeCompare(b.gametime || ''));
+    const byTime = (a, b) => (a.gameday || '').localeCompare(b.gameday || '') || (a.gametime || '').localeCompare(b.gametime || '');
+    // spread and total off the book's current line, nflverse's where there isn't one
+    const spOf = (g) => g.lines?.cur?.sp != null ? Math.abs(g.lines.cur.sp) : g.spread != null ? Math.abs(g.spread) : -1;
+    const totOf = (g) => g.lines?.cur?.tot ?? g.total ?? -1;
+    const SORTS = { time: byTime, spread: (a, b) => spOf(b) - spOf(a) || byTime(a, b), total: (a, b) => totOf(b) - totOf(a) || byTime(a, b),
+                    moved: (a, b) => lnMove(b.lines).size - lnMove(a.lines).size || byTime(a, b) };
+    const games = (byWeek[scheduleWeek] || []).slice().sort(SORTS[schedSort] || byTime);
+    const anyLines = games.some(g => g.lines?.cur || g.spread != null);
+    const sortBar = anyLines ? `<div class="pairs-filter-row sc-sort"><span class="due-filter-label">Sort</span>${[['time', 'Kickoff'], ['spread', 'Spread'], ['total', 'Total'], ['moved', 'Line move']]
+      .map(([v, l]) => `<button class="due-filter-chip mode-chip${schedSort === v ? ' active' : ''}" onclick="setSchedSort('${v}')">${l}</button>`).join('')}</div>` : '';
     el.innerHTML = `<div class="rc-wknav">
         <button class="rc-jump" onclick="setScheduleWeek(${wks[0]})" ${atFirst ? 'disabled' : ''} title="Jump to the first week">Week ${wks[0]}</button>
         <div class="rc-wknav-center">
@@ -8271,7 +8371,8 @@ let pairStacks = false;
         </div>
         <button class="rc-jump" onclick="setScheduleWeek(${firstUpcomingWeek()})" title="Jump to the upcoming week">Upcoming</button>
       </div>
-      <div class="result-meta"><b>${WK_LABEL(scheduleWeek)}</b> · ${games.length} games · tap a game for the matchup</div>
+      <div class="result-meta"><b>${WK_LABEL(scheduleWeek)}</b> · ${games.length} games · tap a game for the matchup${games.some(g => g.lines?.cur) ? ' · DK lines via ESPN, <b>op</b> = where the line opened' : ''}</div>
+      ${sortBar}
       <div class="sc-list">${games.map(gameRow).join('')}</div>`;
   }
   function renderHome() {
