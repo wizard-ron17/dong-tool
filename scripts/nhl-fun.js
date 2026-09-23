@@ -23,7 +23,8 @@ export const MS_RUNGS = {
   gp:  { every: 100, min: 100, within: 8,  label: 'Games' },
   w:   { every: 50,  min: 50,  within: 6,  label: 'Wins' },
 };
-const BD_BEFORE = 3, BD_AFTER = 7;        // birthdays from 3 days ago through a week out
+const BD_BEFORE = 3, BD_AFTER = 7;
+const MS_PATH = new URL('../nhl/milestones-history.json', import.meta.url);        // birthdays from 3 days ago through a week out
 
 const DAY = 864e5;
 const dnum = (ymd) => Date.parse(ymd + 'T00:00:00Z') / DAY;
@@ -89,6 +90,52 @@ export async function buildFun({ season, hist, today, schedule, picks, log }) {
   }
   milestones.sort((x, y) => x.away / MS_RUNGS[x.stat].within - y.away / MS_RUNGS[y.stat].within || y.next - x.next);
 
+  // ── Milestones reached: the Results tab ──
+  // Each build keeps every rostered player's career line; a rung crossed since
+  // the last build is logged against the game he crossed it in — the newest in
+  // his log — and a goal milestone against the goal itself, clip and all. How
+  // long he sat on the watch list rides along from when he first appeared.
+  let msLog = { season, snap: {}, watch: {}, reached: [] };
+  try { const h = JSON.parse(fs.readFileSync(MS_PATH, 'utf8')); msLog = { ...msLog, ...h }; } catch (e) { /* first build */ }
+  if (msLog.season !== season) { msLog.season = season; msLog.reached = []; msLog.watch = {}; }
+  const epochMs = log ? dnum(log.epoch) : 0;
+  const dayOf = (n) => new Date((epochMs + n) * DAY).toISOString().slice(0, 10);
+  const nowKeys = new Set();
+  for (const [pid, rs] of roster) {
+    const c = rs.pos === 'G' ? gcar[pid] : car[pid]; if (!c) continue;
+    const stats = rs.pos === 'G' ? ['gp', 'w'] : ['gp', 'g', 'a', 'pts'];
+    const cv = Object.fromEntries(stats.map(k => [k, c[k]]));
+    const prev = msLog.snap[pid];
+    if (prev) for (const k of stats) {
+      if (prev[k] == null || !(cv[k] > prev[k])) continue;
+      const R = MS_RUNGS[k];
+      for (let n = Math.max(R.min, (Math.floor(prev[k] / R.every) + 1) * R.every); n <= cv[k]; n += R.every) {
+        const games = log?.p?.[pid]?.g || [], last = games[games.length - 1];
+        const ev = { pid: +pid, name: rs.name, team: rs.team, pos: rs.pos, mug: rs.mug, stat: k, n,
+                     date: last ? dayOf(last[0]) : today, opp: last?.[1] || '' };
+        if (k === 'g') {
+          // the n-th career goal is this season's (n - goals before it)-th
+          const mine = (log?.goals || []).filter(x => x.pid === +pid && x.type === 2)
+            .sort((a, b) => a.date.localeCompare(b.date) || a.gameId - b.gameId || a.k - b.k);
+          const g = mine[n - (cv.g - mine.length) - 1];
+          if (g) Object.assign(ev, { date: g.date, gameId: g.gameId, k: g.k, vid: g.vid || null,
+                                     opp: g.team === g.a ? g.h : g.a });
+        }
+        const w = msLog.watch[`${pid}|${k}|${n}`];
+        if (w) Object.assign(ev, { since: w.since, from: w.from });
+        if (!msLog.reached.some(x => x.pid === ev.pid && x.stat === k && x.n === n)) msLog.reached.push(ev);
+      }
+    }
+    msLog.snap[pid] = cv;
+  }
+  for (const m of milestones) {
+    const key = `${m.pid}|${m.stat}|${m.next}`; nowKeys.add(key);
+    msLog.watch[key] ??= { since: today, from: m.career };
+  }
+  for (const k of Object.keys(msLog.watch)) if (!nowKeys.has(k)) delete msLog.watch[k];
+  msLog.reached.sort((a, b) => b.date.localeCompare(a.date));
+  fs.writeFileSync(MS_PATH, JSON.stringify(msLog));
+
   // ── Goal droughts for tonight's board ──
   // This season off players.json; a skater without a goal yet this season
   // carries last season's drought on top of it.
@@ -136,5 +183,5 @@ export async function buildFun({ season, hist, today, schedule, picks, log }) {
   }
   birthdays.sort((a, b) => a.off - b.off || (b.game ? 1 : 0) - (a.game ? 1 : 0) || a.name.localeCompare(b.name));
 
-  return { birthdays, bdStats: FUN.bday.stats, milestones, rungs: MS_RUNGS, due, through: FUN.through };
+  return { birthdays, bdStats: FUN.bday.stats, milestones, rungs: MS_RUNGS, msReached: msLog.reached, due, through: FUN.through };
 }

@@ -1458,6 +1458,7 @@
         <ul>
           <li><b>What it counts.</b> How often each group of skaters scored on the same <em>night</em> — or, tighter, in the same <em>game</em> — across the season, ranked by how many times. Until this season has two weeks of games, the page runs on last season's goals, and a chip lets you switch once both exist.</li>
           <li><b>Basis.</b> Every goal, or one of the markets the Picks board prices: the game's <em>first</em> goal, <em>power-play</em> goals, or <em>2+ goal</em> games. The narrower bases are rarer, so the co-occurrence floor drops to 2.</li>
+          <li><b>The floor steps down as groups grow.</b> A pair has to have scored together 6 nights (3 games) to show; trios 4 (2), quads 3 (2), quints 2 (2). Five skaters scoring on the same night twice is rarer than two doing it six times — one floor for every size left the big groups empty. Early in a season every floor is clamped to the nights played.</li>
           <li><b>SGP.</b> When 2+ members play for the same club they share a game — a true same-game stack, flagged <span class="sgp-badge">SGP·TEAM</span>.</li>
           <li><b>The price, and the correlation.</b> When every member is on tonight's Picks board, the card carries a <b>fair</b> price next to the naive product, struck through. <b>+ Parlay</b> drops every leg into your slip, where the same correction applies.</li>
           <li><b>Teammates barely compete — until the group gets big.</b> Measured over three seasons of goals, two skaters from the same club land at <b>0.98×</b> the naive product: nearly independent. A team that scores four spreads them around, so a pair doesn't cannibalise the way two NFL receivers do. It compounds as the group grows: a same-club trio lands <b>11% below</b>, a four-man stack <b>31% below</b>. Skaters on opposite sides run about 3% below (0.97×).</li>
@@ -1504,6 +1505,7 @@
           <li><b>What it counts.</b> Regular-season career totals, all the way back, plus this season as it's played. Playoffs don't count toward the round numbers the league celebrates, so they don't count here.</li>
           <li><b>The rungs.</b> Goals every <b>50</b>, within 10. Assists and points every <b>100</b>, within 15. Games every <b>100</b>, within 8. Goalie wins every <b>50</b>, within 6. Each is a distance someone covers in a few weeks, so the board moves.</li>
           <li><b>Active players only.</b> Everyone on a current NHL roster, nobody else.</li>
+          <li><b>Results.</b> Every milestone reached this season, logged the night it happens &mdash; a goal milestone carries the goal itself, clip and all, and how long he sat on this list first. Last season's 910 sit underneath.</li>
           <li><b>It's a watch list.</b> Being one goal from 200 doesn't make him likelier to score tonight. Where a chaser is on tonight's board, his price is shown so you can see what the model thinks independently.</li>
         </ul>
       </div>
@@ -4308,7 +4310,8 @@
     if (D === 'error') { el.innerHTML = `<div class="empty">Couldn't load NHL data. <a href="javascript:void(0)" onclick="loadNhl()">Retry</a></div>`; return; }
     if (!D) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
     const F = D.fun || {}, all = F.milestones || [], R = F.rungs || {};
-    const tabs = uiTabs('setMs', msF.tab, [['all', 'All'], ...Object.entries(R).map(([k, v]) => [k, k === 'gp' ? 'GP' : v.label])]);
+    const tabs = uiTabs('setMs', msF.tab, [['all', 'All'], ...Object.entries(R).map(([k, v]) => [k, k === 'gp' ? 'GP' : v.label]), ['results', 'Results']]);
+    if (msF.tab === 'results') { el.innerHTML = tabs + msResults(F); return; }
     const ms = msF.tab === 'all' ? all : all.filter(m => m.stat === msF.tab);
     if (!ms.length) { el.innerHTML = tabs + '<div class="empty">No chases within reach.</div>'; return; }
     const pk = new Map((D.picks?.picks || []).map(p => [p.pid, p]));
@@ -4337,6 +4340,66 @@
       </div>`;
     }).join('');
     el.innerHTML = tabs + meta + `<div class="pb-list">${cards}</div>`;
+  }
+
+  // ── Milestones: Results ────────────────────────────────────────────────
+  // This season's from the build's log (scripts/nhl-fun.js, one entry the night
+  // a rung is crossed); last season's from research/nhl_milestones_backfill.py,
+  // a static file fetched only when this tab opens.
+  const msrF = { stat: 'all', show: 60 };
+  let MSL = null, mslState = 'idle';
+  function loadMsLast() {
+    if (mslState !== 'idle') return;
+    mslState = 'loading';
+    fetch(APP_BASE + '/milestones-20252026.json').then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { MSL = j.events.map(r => Object.fromEntries(j.cols.map((c, i) => [c, r[i]]))); mslState = 'ready'; })
+      .catch(() => { mslState = 'error'; })
+      .finally(() => { if (activeNav === 'milestones' && msF.tab === 'results') renderMilestones(); });
+  }
+  window.setMsr = (k, v) => { msrF[k] = v; if (k === 'stat') msrF.show = 60; renderMilestones(); };
+  const MS_WORD = { g: 'goal', a: 'assist', pts: 'point', gp: 'game', w: 'win' };
+  const ordinal = (n) => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n.toLocaleString() + (s[(v - 20) % 10] || s[v] || s[0]); };
+  window.msWatch = (i) => {
+    const e = (D.fun?.msReached || [])[i]; if (!e?.vid) return;
+    if (!PL?.goals) { loadPlayersLog(); setTimeout(() => msWatch(i), 400); return; }
+    const g = PL.goals.find(x => x.gameId === e.gameId && x.k === e.k); if (!g?.vid) return;
+    if (isMob()) { openReels(g.date, g, e.pid); return; }
+    hv = { list: [g], at: 0, date: g.date };
+    hvRender();
+  };
+  function msResults(F) {
+    loadMsLast();
+    const R = F.rungs || {}, cur = F.msReached || [];
+    const keep = (e) => msrF.stat === 'all' || e.stat === msrF.stat;
+    const chips = `<div class="pairs-filter-row"><span class="due-filter-label">Stat</span>${[['all', 'All'], ...Object.entries(R).map(([k, v]) => [k, k === 'gp' ? 'Games' : v.label])]
+      .map(([v, l]) => `<button class="due-filter-chip mode-chip${msrF.stat === v ? ' active' : ''}" onclick="setMsr('stat','${v}')">${l}</button>`).join('')}</div>`;
+    const row = (e, i, live) => {
+      const mug = e.mug || mugOf(e.pid, e.team, live ? D.season : 20252026);
+      const took = live && e.since ? (() => { const d = Math.round((Date.parse(e.date) - Date.parse(e.since)) / 864e5); return d > 0 ? ` · ${d} day${d === 1 ? '' : 's'} on the watch list` : ''; })() : '';
+      return `<div class="pb-card" onclick="openPlayer(${e.pid})">
+        ${faceHtml(mug, e.name)}
+        <div class="pb-info">
+          <div class="pb-nm">${esc(e.name)}${e.pos ? posBadge(e.pos) : ''}</div>
+          <div class="pb-line">${logoImg(e.team, 'pb-logo')} ${esc(e.team)}${e.opp ? ` vs ${esc(e.opp)}` : ''} · ${dayLabel(e.date)}${took}</div>
+        </div>
+        ${live && e.vid ? `<button class="vid-btn" style="flex-shrink:0" onclick="event.stopPropagation(); msWatch(${i})" title="Watch the goal">▶ Watch</button>` : ''}
+        <div class="pb-price"><span class="pb-odds">${e.n.toLocaleString()}<small style="font-size:0.55em">${ordinal(e.n).replace(/^[\d,]+/, '')}</small></span><span class="pb-pct">career ${MS_WORD[e.stat]}</span></div>
+      </div>`;
+    };
+    const mine = cur.map((e, i) => [e, i]).filter(([e]) => keep(e));
+    const by = (k) => cur.filter(e => e.stat === k).length;
+    const tiles = `<div class="hm-tiles" style="margin-bottom:0.6rem">
+      <div class="hm-tile"><b>${cur.length}</b><span>Reached this season</span></div>
+      ${Object.keys(R).map(k => `<div class="hm-tile"><b>${by(k)}</b><span>${k === 'gp' ? 'Games' : R[k].label}</span></div>`).join('')}
+    </div>`;
+    const last = (MSL || []).filter(keep).slice().reverse();
+    return chips + tiles + `
+      <div class="bd-sec">${esc(D.seasonLabel)}<span>${mine.length} reached</span></div>
+      ${mine.length ? `<div class="pb-list">${mine.map(([e, i]) => row(e, i, true)).join('')}</div>`
+        : '<div class="empty">Milestones reached this season land here the night they happen — a goal milestone with its clip.</div>'}
+      <div class="bd-sec">${esc(D.leaderSeasonLabel)}<span>${MSL ? `${last.length} reached` : mslState === 'error' ? 'couldn\'t load' : 'loading…'}</span></div>
+      ${last.length ? `<div class="pb-list">${last.slice(0, msrF.show).map((e, i) => row(e, i, false)).join('')}</div>
+        ${last.length > msrF.show ? `<div style="text-align:center;margin:0.7rem 0"><button class="par-add" onclick="setMsr('show',${msrF.show + 120})">Show more (${last.length - msrF.show} left)</button></div>` : ''}` : ''}`;
   }
 
   // ── Birthdays ──────────────────────────────────────────────────────────
@@ -4756,14 +4819,24 @@
     const src = { key, label, rows, who, goals, ast, nights: new Set(rows.map(r => r.d)).size, useThis, groups: {} };
     return (prCache[key] = src);
   }
-  function prMin(S) {
-    const normal = prF.basis === 'all' ? (prF.win === 'night' ? 6 : 3) : 2;
+  // Co-occurrence floor by group size. A quint that scored together twice is
+  // rarer than a pair that did it six times, so the floor steps down as the
+  // group grows — one floor for every size left quads and quints empty.
+  const PR_MINS = { night: { 2: 6, 3: 4, 4: 3, 5: 2 }, game: { 2: 3, 3: 2, 4: 2, 5: 2 } };
+  function prMin(S, size = prF.size) {
+    const normal = prF.basis === 'all' ? PR_MINS[prF.win][size] : 2;
     return Math.max(1, Math.min(normal, S.nights));
   }
+  /**
+   * Groups of one size, by apriori with a proper join: two (k-1)-groups extend
+   * only when they share their first k-2 members, so the work tracks the groups
+   * that exist rather than every skater times every group. Each size runs its
+   * own pass at its own floor and is cached.
+   */
   function prGroups(S) {
-    const ck = prF.win + '|' + prF.basis;
+    const size = prF.size, MIN = prMin(S, size);
+    const ck = prF.win + '|' + prF.basis + '|' + size + '|' + MIN;
     if (S.groups[ck]) return S.groups[ck];
-    const MIN = prMin(S);
     const slates = {};
     for (const r of S.rows) {
       if (prF.basis === 'first' && !r.first) continue;
@@ -4775,25 +4848,35 @@
     const pids = Object.keys(slates).filter(p => slates[p].size >= MIN)
       .sort((a, b) => slates[b].size - slates[a].size || (price[b] || 0) - (price[a] || 0) || a - b);
     const inter = (a, b) => { const [s, l] = a.size <= b.size ? [a, b] : [b, a]; const r = new Set(); for (const x of s) if (l.has(x)) r.add(x); return r; };
-    // A hard ceiling per size: early in a season every scorer "pairs" with every
-    // other, and quints would run to millions (the NFL page crashed iPhones on it).
-    const MAX_GROUPS = 3000;
-    const result = { 2: [], 3: [], 4: [], 5: [] };
-    let level = pids.map((p, i) => ({ pids: [p], idx: i, set: slates[p] }));
-    for (let k = 2; k <= 5; k++) {
+    // Ceilings: intermediate levels may run wide so the join stays complete for
+    // the groups kept; what's shown is capped. Early in a season the floor is
+    // clamped to the nights played and everything "pairs" with everything —
+    // the NFL page crashed iPhones on exactly that, so the ceilings hold.
+    const MAX_LEVEL = 40000, MAX_OUT = 3000;
+    let level = pids.map((p, i) => ({ ix: [i], set: slates[p] }));
+    for (let k = 2; k <= size && level.length; k++) {
       const next = [];
-      outer: for (const g of level) {
-        for (let j = g.idx + 1; j < pids.length; j++) {
-          const s = inter(g.set, slates[pids[j]]);
-          if (s.size >= MIN) { next.push({ pids: [...g.pids, pids[j]], idx: j, set: s }); if (next.length >= MAX_GROUPS) break outer; }
+      if (k === 2) {
+        outer2: for (let i = 0; i < pids.length; i++) for (let j = i + 1; j < pids.length; j++) {
+          const s = inter(slates[pids[i]], slates[pids[j]]);
+          if (s.size >= MIN) { next.push({ ix: [i, j], set: s }); if (next.length >= MAX_LEVEL) break outer2; }
+        }
+      } else {
+        const byPre = new Map();
+        for (const g of level) { const pre = g.ix.slice(0, -1).join(','); (byPre.get(pre) || byPre.set(pre, []).get(pre)).push(g); }
+        outer: for (const grp of byPre.values()) {
+          grp.sort((x, y) => x.ix[x.ix.length - 1] - y.ix[y.ix.length - 1]);
+          for (let i = 0; i < grp.length; i++) for (let j = i + 1; j < grp.length; j++) {
+            const s = inter(grp[i].set, grp[j].set);
+            if (s.size >= MIN) { next.push({ ix: [...grp[i].ix, grp[j].ix[grp[j].ix.length - 1]], set: s }); if (next.length >= MAX_LEVEL) break outer; }
+          }
         }
       }
-      result[k] = next.map(g => ({ pids: g.pids.map(Number), keys: [...g.set].map(x => x.split('|').pop()).sort(), count: g.set.size }))
-        .sort((a, b) => b.count - a.count);
       level = next;
-      if (!level.length) break;
     }
-    return (S.groups[ck] = result);
+    const out = level.map(g => ({ pids: g.ix.map(i => +pids[i]), keys: [...g.set].map(x => x.split('|').pop()).sort(), count: g.set.size }))
+      .sort((a, b) => b.count - a.count).slice(0, MAX_OUT);
+    return (S.groups[ck] = { [size]: out });
   }
   /** Scorer -> assister stacks: A scored, and 1-2 teammates assisted his goals in the same game. */
   function prStacks(S, size) {
