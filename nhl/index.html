@@ -1127,6 +1127,10 @@
       <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.75" fill="currentColor"/></svg></span><span class="nm-name">Picks</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
       <span class="nm-desc">Every skater ranked by his odds of scoring a goal.</span>
     </button>
+    <button class="nav-menu-item g1" data-nav="points" onclick="switchNav('points')">
+      <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="12" r="2.2"/><circle cx="17" cy="7" r="2.2"/><circle cx="17" cy="17" r="2.2"/><path d="M9 11l6-3M9 13l6 3"/></svg></span><span class="nm-name">Points</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+      <span class="nm-desc">Points, assists and power-play points for every skater, priced at every line.</span>
+    </button>
     <div class="nav-menu-group g2">Shooting</div>
     <button class="nav-menu-item g2" data-nav="shots" onclick="switchNav('shots')">
       <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v4M12 16.5v4M3.5 12h4M16.5 12h4"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/></svg></span><span class="nm-name">Shots</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
@@ -1223,6 +1227,28 @@
     <div id="shots-content"><div class="empty">Loading&hellip;</div></div>
   </div>
 
+
+  <div id="panel-points" class="panel">
+    <div class="due-explainer" id="points-explainer-toggle" onclick="toggleExplainer('points')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Points Works</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="points-explainer-chevron">&#9654;</span>
+      </div>
+      <div class="due-explainer-teaser">Projected points, assists and power-play points for every skater on the slate, priced against the standard lines.</div>
+      <div class="due-explainer-body" id="points-explainer-body" style="display:none">
+        <ul>
+          <li><b>His own scoring rate carries it.</b> Career points per game alone takes the model most of the way &mdash; <b>&minus;8%</b> log loss from a position-only guess. Ice time and power-play minutes add the next largest piece, then his last ten games, his team's scoring and the opponent's goals against.</li>
+          <li><b>Assists are the hardest of the three.</b> An assist is half a teammate's event &mdash; he can make the pass and the shot misses &mdash; so a player's assist rate is noisier than his points rate. The model still separates skaters (AUC .674), just less sharply than points (.692).</li>
+          <li><b>PP points is the sharpest model on the site.</b> A skater is either on a power-play unit or he isn't, and his power-play minutes say which &mdash; AUC <b>.825</b>. Its projection is recalibrated at the top, where the raw model ran hot.</li>
+          <li><b>Poisson, and tested.</b> Pooled across players, points look over-dispersed, but that's the mix of players; for one player on one night a Poisson fits. A wider curve was tested at every line, including over 2.5 points, and did no better.</li>
+          <li><b>What was tested and left out.</b> His share of his team's goals ("involvement" &mdash; it's points per game by another name), a separate goals-plus-assists build, a centre-versus-winger flag, and shot attempts (Corsi and Fenwick). None added anything.</li>
+          <li><b>Built on 182,053 skater-games</b> across four seasons, fitted walk-forward &mdash; every season predicted by a model that never saw it. Out of sample the lines land on what happened: over 0.5 points priced 34.7%, went 34.7%; over 1.5 points 8.9% and 8.9%.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="points-content"><div class="empty">Loading&hellip;</div></div>
+  </div>
 
   <div id="panel-saves" class="panel">
     <div class="due-explainer" id="saves-explainer-toggle" onclick="toggleExplainer('saves')" aria-expanded="false">
@@ -1340,8 +1366,8 @@
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch, .sport-menu')) closeSportMenu(); });
 
   // ── Nav + routing ──────────────────────────────────────────────────────
-  const NHL_NAVS = ['home', 'stats', 'recap', 'schedule', 'picks', 'shots', 'saves', 'allowed'];   // tools added here as they ship
-  const PAGE_TITLES = { home: "Ron's Goal Tool", stats: "Stats · Ron's Goal Tool", recap: "Recap · Ron's Goal Tool", schedule: "Schedule · Ron's Goal Tool", shots: "Shots · Ron's Goal Tool", saves: "Saves · Ron's Goal Tool", allowed: "Goals Allowed · Ron's Goal Tool", picks: "Picks · Ron's Goal Tool" };
+  const NHL_NAVS = ['home', 'stats', 'recap', 'schedule', 'picks', 'shots', 'saves', 'allowed', 'points'];   // tools added here as they ship
+  const PAGE_TITLES = { home: "Ron's Goal Tool", stats: "Stats · Ron's Goal Tool", recap: "Recap · Ron's Goal Tool", schedule: "Schedule · Ron's Goal Tool", shots: "Shots · Ron's Goal Tool", saves: "Saves · Ron's Goal Tool", points: "Points · Ron's Goal Tool", allowed: "Goals Allowed · Ron's Goal Tool", picks: "Picks · Ron's Goal Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
     activeNav = nav;
@@ -1383,6 +1409,7 @@
     else if (nav === 'shots') renderShots();
     else if (nav === 'saves') renderSaves();
     else if (nav === 'allowed') renderAllowed();
+    else if (nav === 'points') renderPoints();
     else if (nav === 'picks') renderPicks();
   }
 
@@ -1996,6 +2023,12 @@
       let L = lo; for (let x = lo; x <= hi; x++) if (Math.abs(lcOver(pmf, x) - 0.5) < Math.abs(lcOver(pmf, L) - 0.5)) L = x;
       rows.push({ lab: 'Shots on goal', short: 'SOG', line: 'o' + L, p: lcOver(pmf, L), open: `plTo('shot',${pid})` });
     }
+    const pt = (D.points?.board || []).find(x => x.pid === pid);
+    if (pt) for (const [k, lab] of [['pts', 'Points'], ['ast', 'Assists'], ['ppp', 'PP points']]) {
+      const pmf = poisPmf(LC[k].mu(pt)); let L = 0.5;
+      for (let x = 0.5; x <= 4.5; x++) if (Math.abs(lcOver(pmf, x) - 0.5) < Math.abs(lcOver(pmf, L) - 0.5)) L = x;
+      rows.push({ lab, line: 'o' + L, p: lcOver(pmf, L), open: `plTo('${k}',${pid})` });
+    }
     // a projected starter: saves and goals allowed at the lines closest to even
     const sv = (D.saves?.board || []).find(x => x.pid === pid);
     if (sv) {
@@ -2027,7 +2060,7 @@
       </div>`).join('')}
     </div>${started ? '<p class="plw-note">His game is underway or over. These are the prices we posted before puck drop — not live numbers.</p>' : ''}</div>`;
   }
-  window.plTo = (kind, pid) => { closePlayer(); kind === 'pick' ? openPick(pid) : kind === 'shot' ? openShot(pid) : openSave(pid, kind); };
+  window.plTo = (kind, pid) => { closePlayer(); kind === 'pick' ? openPick(pid) : kind === 'shot' ? openShot(pid) : ['pts', 'ast', 'ppp'].includes(kind) ? openPointsCard(pid, kind) : openSave(pid, kind); };
 
   /** His games this season as objects, oldest first. */
   function plGames(w) {
@@ -2280,7 +2313,7 @@
     return out.slice(0, 4);
   }
   function tbOpenGame(date, gameId) { scheduleDate = date; scOpen.clear(); scOpen.add(gameId); switchNav('schedule'); }
-  const TB_TOOLS = [['picks', 'Picks'], ['shots', 'Shots'], ['saves', 'Saves'], ['allowed', 'Goals Allowed'], ['stats', 'Stats'], ['recap', 'Recap'], ['schedule', 'Schedule'], ['home', 'Home']];
+  const TB_TOOLS = [['picks', 'Picks'], ['shots', 'Shots'], ['points', 'Points'], ['points', 'Assists'], ['saves', 'Saves'], ['allowed', 'Goals Allowed'], ['stats', 'Stats'], ['recap', 'Recap'], ['schedule', 'Schedule'], ['home', 'Home']];
   function siteSearch() {
     const box = document.getElementById('tb-results'), input = document.getElementById('site-search');
     if (!box || !input || !D || D === 'error') return;
@@ -2948,6 +2981,176 @@
     </details>`;
   }
 
+  // ── Points: points, assists, power-play points ─────────────────────────
+  // One skater board, three markets, the Shots page's chrome. They share the
+  // ladder card with a Points | Assists | PP points switch, like the goalie
+  // card. Model in research/nhl_points.py, priced in scripts/nhl-points.js:
+  // Poisson on each mean (PP points' mean is already through its isotonic map).
+  const PT = {
+    pts: { lab: 'Points',    unit: 'points',    mu: r => r.mu.pts, lines: [0.5, 1.5, 2.5], recent: r => r.recent.pts, hist: [5, 6, 7, 8] },
+    ast: { lab: 'Assists',   unit: 'assists',   mu: r => r.mu.a,   lines: [0.5, 1.5],      recent: r => r.recent.a,   hist: [9, 10, 11, 12] },
+    ppp: { lab: 'PP points', unit: 'PP points', mu: r => r.mu.ppp, lines: [0.5, 1.5],      recent: r => r.recent.ppp, hist: [13, 14, 15, 16] },
+  };
+  const ptF = { tab: 'pts', line: 'auto', pos: 'ALL', sort: 'proj', view: 'cards', q: '', open: false, night: null, rmkt: 'pts', all: false };
+  function setPt(k, v) { ptF[k] = v; if (k === 'tab') ptF.line = 'auto'; renderPoints(); }
+  function onPtSearch() { ptF.q = document.getElementById('pt-search').value; renderPoints(); }
+  function clearPtSearch() { ptF.q = ''; renderPoints(); }
+  const poisPmf = (mu, K = 8) => { const o = [Math.exp(-mu)]; for (let k = 1; k <= K; k++) o.push(o[k - 1] * mu / k); return o; };
+
+  function ptRows(kind = ptF.tab) {
+    const P = PT[kind];
+    let rows = (D.points?.board || []).map(r => {
+      const pmf = poisPmf(P.mu(r));
+      let L;
+      if (ptF.line !== 'auto' && ptF.tab === kind) L = +ptF.line;
+      else { L = 0.5; for (let x = 0.5; x <= 4.5; x++) if (Math.abs(lcOver(pmf, x) - 0.5) < Math.abs(lcOver(pmf, L) - 0.5)) L = x; }
+      return { ...r, m: P.mu(r), L, pAt: lcOver(pmf, L) };
+    });
+    if (ptF.pos !== 'ALL') rows = rows.filter(r => ptF.pos === 'F' ? r.pos !== 'D' : r.pos === ptF.pos);
+    const q = ptF.q.trim().toLowerCase();
+    if (q) rows = rows.filter(r => (r.name + ' ' + r.team + ' ' + r.opp + ' ' + r.pos).toLowerCase().includes(q));
+    rows.sort(ptF.sort === 'odds' ? (a, b) => b.pAt - a.pAt : (a, b) => b.m - a.m);
+    return rows.map((r, i) => ({ ...r, rank: i + 1 }));
+  }
+  const PT_TABS = [['pts', 'Points'], ['ast', 'Assists'], ['ppp', 'PP points'], ['results', 'Results']];
+
+  function renderPoints() {
+    const el = dataGate('points-content'); if (!el) return;
+    const tabs = uiTabs('setPt', ptF.tab, PT_TABS);
+    if (ptF.tab === 'results') { el.innerHTML = tabs + ptResults(); return; }
+    const B = D.points || {}, P = PT[ptF.tab];
+    if (!B.board?.length) { el.innerHTML = tabs + `<div class="empty">No projections yet — the board fills in once the slate is set.</div>`; return; }
+    const rows = ptRows();
+    const controls = uiFilters('setPt', ptF.open, [
+        ['Line', ['auto', ...P.lines].map(v => uiChip('setPt', 'line', v, v === 'auto' ? 'Best line' : 'o' + v, ptF.line)).join('')],
+        ['Position', [['ALL', 'All'], ['F', 'Forwards'], ['C', 'C'], ['L', 'LW'], ['R', 'RW'], ['D', 'D']].map(([v, l]) => uiChip('setPt', 'pos', v, l, ptF.pos)).join('')],
+        ['Sort', [['proj', 'Projection'], ['odds', 'Shortest price']].map(([v, l]) => uiChip('setPt', 'sort', v, l, ptF.sort)).join('')],
+      ], (ptF.line !== 'auto') + (ptF.pos !== 'ALL') + (ptF.sort !== 'proj')) + `
+      <div class="pb-search${ptF.q ? ' on' : ''}">
+        <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        <input type="text" id="pt-search" placeholder="Search a skater, team or position…"
+               value="${esc(ptF.q)}" oninput="onPtSearch()" autocomplete="off" spellcheck="false">
+        <button class="pb-search-x" onclick="clearPtSearch()" aria-label="Clear">×</button>
+      </div>`;
+    const meta = `<div class="result-meta"><b>${B.date ? dayLabel(B.date, true) : ''}</b> · ${rows.length} of ${B.board.length} skaters · Poisson prices${ptF.tab === 'ppp' ? ', recalibrated' : ''}</div>`
+      + uiView('setPt', ptF.view);
+    if (!rows.length) { el.innerHTML = tabs + controls + meta + `<div class="empty">Nothing matches that filter.</div>`; return; }
+    const open = (r) => `openPointsCard(${r.pid},'${ptF.tab}')`;
+    const spark = (r) => `<span class="sg-spark" title="His last games — bars over the line are green">${
+      (P.recent(r) || []).slice(-10).map(v => `<i class="${v > r.L ? 'hit' : ''}" style="height:${Math.max(2, Math.min(14, 2 + v * 4))}px"></i>`).join('')}</span>`;
+    const facts = (r) => ptF.tab === 'ppp'
+      ? `<span class="pb-f" title="Power-play minutes per game, last five"><b>${(r.f.pptoi / 60).toFixed(1)}</b> PP min</span>
+         <span class="pb-f" title="PP points per game, career"><b>${r.f.pppPg.toFixed(2)}</b> PPP/g</span>
+         <span class="pb-f" title="Opponent's penalty kill"><b>${(r.f.oppPk * 100).toFixed(0)}%</b> ${esc(r.opp)} PK</span>`
+      : `<span class="pb-f" title="${ptF.tab === 'ast' ? 'Assists' : 'Points'} per game, career"><b>${(ptF.tab === 'ast' ? r.f.aPg : r.f.ptsPg).toFixed(2)}</b> ${ptF.tab === 'ast' ? 'A' : 'P'}/g</span>
+         <span class="pb-f" title="Ice time per game, last five"><b>${(r.f.toi / 60).toFixed(1)}</b> TOI</span>
+         <span class="pb-f" title="Goals the opponent allows per game"><b>${r.f.oppGa.toFixed(2)}</b> ${esc(r.opp)} GA</span>`;
+    let body;
+    if (ptF.view === 'table') {
+      body = `<div class="rc-tablewrap"><table class="rc-table">
+        <thead><tr><th></th><th>Skater</th><th>Game</th><th class="num">Proj</th><th class="num">${ptF.tab === 'ppp' ? 'PP min' : 'TOI'}</th>
+          <th class="num">${ptF.tab === 'ast' ? 'A/g' : ptF.tab === 'ppp' ? 'PPP/g' : 'P/g'}</th><th class="num">Opp GA</th><th class="num">Line</th><th class="num">Price</th></tr></thead>
+        <tbody>${rows.map(r => `<tr onclick="${open(r)}">
+            <td class="num dim">${r.rank}</td><td><b>${esc(r.name)}</b> <span class="dim">${POS_NAME[r.pos] || r.pos}</span></td>
+            <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}</td><td class="num"><b>${r.m.toFixed(2)}</b></td>
+            <td class="num dim">${((ptF.tab === 'ppp' ? r.f.pptoi : r.f.toi) / 60).toFixed(1)}</td>
+            <td class="num dim">${(ptF.tab === 'ast' ? r.f.aPg : ptF.tab === 'ppp' ? r.f.pppPg : r.f.ptsPg).toFixed(2)}</td>
+            <td class="num dim">${r.f.oppGa.toFixed(2)}</td><td class="num dim">o${r.L}</td><td class="num"><b>${sgOdds(r.pAt)}</b></td>
+          </tr>`).join('')}</tbody></table></div>`;
+    } else if (ptF.view === 'compact') {
+      body = `<div class="rc-compact">${rows.map(r => `
+        <div class="rc-crow" onclick="${open(r)}">
+          <span class="rc-crank">${r.rank}</span><span class="rc-cnm">${esc(r.name)}</span><span class="rc-cteam">${esc(r.team)}</span>
+          <span class="rc-cproj">${r.m.toFixed(2)}</span><span class="rc-cod">${sgOdds(r.pAt)}</span><span class="rc-cline">o${r.L}</span>
+        </div>`).join('')}</div>`;
+    } else {
+      body = `<div class="pb-list">${rows.map(r => `
+        <div class="pb-card" onclick="${open(r)}">
+          <div class="pb-rank">${r.rank}</div>${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name)}
+          <div class="pb-info">
+            <div class="pb-nm">${esc(r.name)}${posBadge(r.pos)}</div>
+            <div class="pb-line">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}
+              <span class="sg-proj"><b>${r.m.toFixed(2)}</b> proj</span>${spark(r)}</div>
+          </div>
+          <div class="pb-facts">${facts(r)}</div>
+          <div class="pb-price"><span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span><span class="pb-pct">over ${r.L}</span></div>
+        </div>`).join('')}</div>`;
+    }
+    el.innerHTML = tabs + controls + meta + body;
+  }
+  function openPointsCard(pid, kind = 'pts') { openLc(kind, pid); }
+
+  // ── Points results ─────────────────────────────────────────────────────
+  // Rows: [pid, gameId, name, team, opp, muPts, Lpts, pPts, gotPts, muA, La, pA, gotA, muPpp, Lppp, pPpp, gotPpp]
+  let ptHist = null, ptHistState = 'idle';
+  function loadPointsHistory() {
+    if (ptHistState !== 'idle') return;
+    ptHistState = 'loading';
+    fetch(APP_BASE + '/points-history.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { ptHist = j; ptHistState = 'ready'; }).catch(() => { ptHistState = 'error'; })
+      .finally(() => { if (activeNav === 'points' && ptF.tab === 'results') renderPoints(); });
+  }
+  function ptResults() {
+    if (ptHistState === 'idle') loadPointsHistory();
+    if (ptHistState !== 'ready') return ptHistState === 'error' ? '<div class="empty">Couldn\'t load results.</div>' : '<div class="empty">Loading results…</div>';
+    const P = PT[ptF.rmkt], [iMu, iL, iP, iGot] = P.hist;
+    const mkt = `<div class="pairs-filter-row"><span class="due-filter-label">Market</span>${
+      Object.entries(PT).map(([k, m]) => uiChip('setPt', 'rmkt', k, m.lab, ptF.rmkt)).join('')}</div>`;
+    const key = ptF.rmkt === 'ast' ? 'a' : ptF.rmkt;
+    const bt = ptBacktest(key, P.unit);
+    const nights = Object.keys(ptHist || {}).sort();
+    if (!nights.length) return mkt + `<div class="empty">No nights logged yet — each night's board is saved before the first puck drop and graded when its games end. The first is opening night, ${D.seasonStart ? dayLabel(D.seasonStart, true) : ''}.</div>` + bt;
+    const done = nights.filter(d => ptHist[d].some(x => x[8] != null));
+    if (ptF.night == null || !nights.includes(ptF.night)) ptF.night = done.length ? done[done.length - 1] : nights[nights.length - 1];
+    const ni = nights.indexOf(ptF.night);
+    const rows = ptHist[ptF.night].map(x => ({ name: x[2], team: x[3], opp: x[4], mu: x[iMu], L: x[iL], p: x[iP], got: x[iGot],
+      st: x[iGot] == null ? 'pend' : x[iGot] < 0 ? 'void' : x[iGot] > x[iL] ? 'hit' : 'miss' }));
+    const ORDER = { hit: 0, miss: 0, void: 1, pend: 3 };
+    rows.sort((a, b) => ORDER[a.st] - ORDER[b.st] || b.mu - a.mu);
+    const graded = rows.filter(r => r.st === 'hit' || r.st === 'miss');
+    const hits = graded.filter(r => r.st === 'hit').length, said = graded.reduce((a, r) => a + r.p, 0);
+    const gids = new Set(ptHist[ptF.night].map(x => x[1]));
+    const tiles = graded.length ? `<div class="hm-tiles" style="margin-bottom:0.6rem">
+        <div class="hm-tile"><b>${hits}/${graded.length}</b><span>Went over · we said ${said.toFixed(0)}</span></div>
+        <div class="hm-tile"><b>${(graded.reduce((a, r) => a + Math.abs(r.got - r.mu), 0) / graded.length).toFixed(2)}</b><span>Avg miss, ${P.unit}</span></div>
+        <div class="hm-tile"><b>${rows.filter(r => r.st === 'void').length}</b><span>Didn't dress (void)</span></div>
+      </div>` : '';
+    const TAG = { hit: 'OVER', miss: 'UNDER', void: 'DNP', pend: 'PENDING' };
+    const LIMIT = 30, shown = ptF.all ? rows : rows.slice(0, LIMIT);
+    const head = `<div class="cp-res head"><span class="cp-res-nm">Skater</span><span class="cp-res-line">Line</span><span class="cp-res-proj">Proj</span><span class="cp-res-act">Got</span><span class="cp-res-tag"></span></div>`;
+    const list = shown.map(r => `<div class="cp-res ${r.st}">
+        <span class="cp-res-nm">${esc(r.name)}<span class="cp-res-tm">${esc(r.team)}${r.opp ? ' v ' + esc(r.opp) : ''}</span></span>
+        <span class="cp-res-line">o${r.L}<span class="cp-res-od">${sgOdds(r.p)}</span></span>
+        <span class="cp-res-proj">${r.mu.toFixed(2)}</span><span class="cp-res-act">${r.got == null || r.got < 0 ? '' : r.got}</span>
+        <span class="cp-res-tag">${TAG[r.st]}</span></div>`).join('');
+    const more = rows.length > LIMIT ? `<button class="pbf-chip lr-more" onclick="setPt('all',${!ptF.all})">${ptF.all ? 'Show top ' + LIMIT : `Show all ${rows.length}`}</button>` : '';
+    const pending = rows.some(r => r.st === 'pend');
+    return `${mkt}${tiles}
+      <div class="cp-wknav">
+        <button class="due-filter-chip mode-chip" onclick="setPt('night','${nights[ni - 1] ?? ptF.night}')"${ni <= 0 ? ' disabled' : ''}>‹</button>
+        <span class="cp-wk">${dayLabel(ptF.night)} · ${gids.size} game${gids.size === 1 ? '' : 's'}${pending ? ' · not final yet' : ''}</span>
+        <button class="due-filter-chip mode-chip" onclick="setPt('night','${nights[ni + 1] ?? ptF.night}')"${ni >= nights.length - 1 ? ' disabled' : ''}>›</button>
+      </div>
+      ${head + list + more}
+      <div class="lr-note">Each night is graded against the board as it stood before the <b>first puck drop</b>, at the line it quoted — the one closest to even money. Points, assists and PP points are counted from the goal log: every goal credits its scorer and assisters, and a power-play goal is a PP point for all of them. A skater who did not dress is a void (<b>DNP</b>).</div>
+      ${bt}`;
+  }
+  function ptBacktest(key, u) {
+    const B = D.points?.model?.backtest, M = B?.[key]; if (!M) return '';
+    const pc = (v) => (v * 100).toFixed(1) + '%';
+    const tbl = (head, rows) => `<div class="rc-tablewrap"><table class="rc-table"><thead><tr>${head.map((h, i) => `<th${i ? ' class="num"' : ''}>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    return `<details class="lr-bt"${window['ptBt_' + key] ? ' open' : ''} ontoggle="window['ptBt_${key}'] = this.open"><summary>Backtest — ${M.rows.toLocaleString()} skater-games, every season predicted cold</summary>
+      <div class="result-meta" style="margin-top:0.8rem">At the line the board quotes — does the price mean what it says?</div>
+      ${tbl(['Quoted over', 'Skater-games', 'Priced', 'Went over'], M.by_price.map(r => `<tr><td>${r.lab}</td><td class="num">${r.n.toLocaleString()}</td><td class="num">${pc(r.pred)}</td><td class="num"><b>${pc(r.act)}</b></td></tr>`).join(''))}
+      <div class="result-meta" style="margin-top:0.8rem">Every line, every skater-game</div>
+      ${tbl(['Line', 'Skater-games', 'Priced', 'Went over'], M.by_line.map(r => `<tr><td>o${r.line}</td><td class="num">${r.n.toLocaleString()}</td><td class="num">${pc(r.pred)}</td><td class="num"><b>${pc(r.act)}</b></td></tr>`).join(''))}
+      <div class="result-meta" style="margin-top:0.8rem">By projection — does a projection hold up?</div>
+      ${tbl(['Projected', 'Skater-games', 'Avg projection', `Avg ${u}`], M.by_proj.map(r => `<tr><td>${r.lab} ${u}</td><td class="num">${r.n.toLocaleString()}</td><td class="num">${r.proj.toFixed(3)}</td><td class="num"><b>${r.act.toFixed(3)}</b></td></tr>`).join(''))}
+      <div class="lr-note">Mean absolute error ${M.mae} ${u}. Seasons ${B.seasons.map(s => String(s).slice(0, 4) + '-' + String(s).slice(6)).join(', ')}, each fitted only on the seasons before it.</div>
+    </details>`;
+  }
+
   // ── Picks: anytime goal scorer ─────────────────────────────────────────
   // /nfl's TD board, ported: same filter card, search, card/table/compact
   // views and the same pick modal with its factor bars. Model in
@@ -3341,7 +3544,19 @@
     ga:  { rows: () => D.saves?.board || [], mu: r => r.muGa, range: [0.5, 6.5], deck: () => svRows('ga'), unit: 'goals',
            title: 'goals allowed distribution', big: 'Projected goals allowed',
            blurb: 'Tighter than a Poisson: a goalie who leaks gets pulled, which cuts off the long tail' },
+    pts: { rows: () => D.points?.board || [], mu: r => r.mu.pts, range: [0.5, 4.5], deck: () => ptRows('pts'), unit: 'points',
+           title: 'points distribution', big: 'Projected points',
+           blurb: 'Poisson around his projection — a wider curve was tested on every line and did no better' },
+    ast: { rows: () => D.points?.board || [], mu: r => r.mu.a, range: [0.5, 3.5], deck: () => ptRows('ast'), unit: 'assists',
+           title: 'assists distribution', big: 'Projected assists',
+           blurb: 'Poisson around his projection — assists are half a teammate\'s event, so this is the least certain of the three' },
+    ppp: { rows: () => D.points?.board || [], mu: r => r.mu.ppp, range: [0.5, 2.5], deck: () => ptRows('ppp'), unit: 'PP points',
+           title: 'power-play points distribution', big: 'Projected PP points',
+           blurb: 'Poisson around a recalibrated projection — power-play minutes make this the sharpest model on the site' },
   };
+  const LC_GROUPS = { sv: [['sv', 'Saves'], ['ga', 'Goals allowed']], ga: [['sv', 'Saves'], ['ga', 'Goals allowed']],
+                      pts: [['pts', 'Points'], ['ast', 'Assists'], ['ppp', 'PP points']], ast: [['pts', 'Points'], ['ast', 'Assists'], ['ppp', 'PP points']],
+                      ppp: [['pts', 'Points'], ['ast', 'Assists'], ['ppp', 'PP points']] };
   const lcCfg = () => LC[lc.kind];
   const lcRow = () => lcCfg().rows().find(x => x.pid === lc.pid);
   /** NB2 pmf, k = 0..K. */
@@ -3360,6 +3575,7 @@
       for (let k = 0; k < pmf.length; k++) { c += pmf[k]; if (c >= 0.9985 && k > mu + 2) { K = k; break; } }
       return pmf.slice(0, K + 1);
     }
+    if (kind === 'pts' || kind === 'ast' || kind === 'ppp') return poisPmf(LC[kind].mu(r), 8);
     if (kind === 'ga') {
       const d = D.saves?.model?.gaDisp ?? 0.82, mu = r.muGa;
       const n = Math.max(Math.round(mu / (1 - d)), 8), p = mu / n, pmf = [Math.pow(1 - p, n)];
@@ -3440,6 +3656,14 @@
 
   /** The key-metric tiles, per market. */
   function lcMetrics(r) {
+    if (lc.kind === 'pts' || lc.kind === 'ast' || lc.kind === 'ppp') return [
+      ['target', (lc.kind === 'ast' ? r.f.aPg : lc.kind === 'ppp' ? r.f.pppPg : r.f.ptsPg).toFixed(2), `${lc.kind === 'ast' ? 'Assists' : lc.kind === 'ppp' ? 'PP points' : 'Points'} / game`],
+      ['trend', (lc.kind === 'ast' ? r.f.aL10 : lc.kind === 'ppp' ? r.f.pppL10 : r.f.ptsL10).toFixed(2), 'Last 10 games'],
+      ['clock', (r.f.toi / 60).toFixed(1), 'Ice time / game'],
+      ['bars', (r.f.pptoi / 60).toFixed(1), 'Power-play min'],
+      ['team', r.f.teamGf.toFixed(2), `${r.team} goals for`],
+      ['shield', lc.kind === 'ppp' ? (r.f.oppPk * 100).toFixed(0) + '%' : r.f.oppGa.toFixed(2), lc.kind === 'ppp' ? `${r.opp} penalty kill` : `${r.opp} goals against`],
+    ];
     if (lc.kind === 'sv') return [
       ['target', r.svPrior.toFixed(1), 'Saves / start'],
       ['trend', r.svL10.toFixed(1), 'Saves, last 10'],
@@ -3475,7 +3699,7 @@
     let c = 0, p10 = null, p90 = null;
     pmf.forEach((v, k) => { c += v; if (p10 == null && c >= 0.1) p10 = k; if (p90 == null && c >= 0.9) p90 = k; });
     const med = pmf.reduce((a, v, k) => a.c >= 0.5 ? a : { c: a.c + v, k }, { c: 0, k: 0 }).k;
-    const goalie = lc.kind !== 'sog';
+    const goalie = lc.kind === 'sv' || lc.kind === 'ga';
     const starterNote = goalie ? (r.starter.of
       ? ` Projected starter — ${r.starter.starts} of ${r.team}'s last ${r.starter.of} starts.`
       : ' Projected starter, off last season\'s starts — nobody has started for his club yet this season.') : '';
@@ -3486,9 +3710,9 @@
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name)}
         <div class="ydm-id"><h2>${esc(r.name)}</h2><div class="ydm-meta"><b>${POS_NAME[r.pos] || r.pos}</b><span>•</span>${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}<img src="${teamLogo(r.team)}" alt="" loading="lazy">${at >= 0 ? `<span class="ydm-count">${at + 1} / ${deck.length}</span>` : ''}</div>
           <button class="vid-btn" style="margin-top:0.45rem" onclick="closeLc();openPlayer(${r.pid})">Player card →</button></div>
-        <div class="ydm-big"><div><span>${C.big}</span><span>Median <b>${med}</b></span></div><strong>${mu.toFixed(lc.kind === 'ga' ? 2 : 1)}</strong></div>
+        <div class="ydm-big"><div><span>${C.big}</span><span>Median <b>${med}</b></span></div><strong>${mu.toFixed(['ga', 'pts', 'ast', 'ppp'].includes(lc.kind) ? 2 : 1)}</strong></div>
       </header>
-      ${goalie ? `<div class="sub-tabs pc-tabs">${[['sv', 'Saves'], ['ga', 'Goals allowed']].map(([k, l]) =>
+      ${LC_GROUPS[lc.kind] ? `<div class="sub-tabs pc-tabs">${LC_GROUPS[lc.kind].map(([k, l]) =>
         `<button class="sub-btn${lc.kind === k ? ' active' : ''}" onclick="lcSetKind('${k}')">${l}</button>`).join('')}</div>` : ''}
       <div class="ydm-grid">
         <div class="ydm-main">
@@ -3642,6 +3866,13 @@
         <span class="hm-score hot">${r.mu.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> proj</span></span></div>`;
     }).join('');
 
+    // ── Points: the top of tonight's board ──────────────────────────────
+    const PTB = D.points || {};
+    const ptHome = PTB.board?.length ? ptRows('pts').slice(0, 5).map(r => `<div class="hm-row" onclick="event.stopPropagation(); switchNav('points'); openPointsCard(${r.pid},'pts')">
+        ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
+        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${sgOdds(r.pAt)} over ${r.L}</span></span>
+        <span class="hm-score hot">${r.m.toFixed(2)}<span class="hm-subtle" style="font-size:0.766rem"> pts</span></span></div>`).join('') : '';
+
     // ── Saves: the busiest goalies tonight ───────────────────────────────
     const SVB = D.saves || {};
     const svHome = SVB.board?.length ? svRows('saves').slice(0, 5).map(r => `<div class="hm-row" onclick="event.stopPropagation(); switchNav('saves'); openSave(${r.pid},'sv')">
@@ -3673,6 +3904,7 @@
         <div class="hm-col">
           ${card('recap', lastNight ? `${dayLabel(lastNight)} Recap` : 'Recap', 'Recap', lastNightCard, 'No games played yet.')}
           ${card('picks', PKB.date ? `Picks · ${dayLabel(PKB.date)}` : 'Picks', 'Picks', pkHome, 'The board fills in once the slate is set.')}
+          ${card('points', PTB.date ? `Points · ${dayLabel(PTB.date)}` : 'Points', 'Points', ptHome, 'The board fills in once the slate is set.')}
           ${card('shots', SB.date ? `Shots · ${dayLabel(SB.date)}` : 'Shots', 'Shots', sbRows, 'The board fills in once the slate is set.')}
           ${card('saves', SVB.date ? `Saves · ${dayLabel(SVB.date)}` : 'Saves', 'Saves', svHome, 'The board fills in once the slate is set.')}
           ${card('allowed', SVB.date ? `Goals Allowed · ${dayLabel(SVB.date)}` : 'Goals Allowed', 'Goals Allowed', gaHome, 'The board fills in once the slate is set.')}

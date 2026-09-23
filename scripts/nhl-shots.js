@@ -13,6 +13,7 @@
 import { web, rest, restPaged } from './nhl-api.js';
 import { sogFeatures, projectSog, ladder, SOG_MODEL } from './nhl-sog.js';
 import { goalFeatures, priceGoal, GOAL_MODEL, ppFeatures, pricePp, goalMarkets, MARKET_CUTS } from './nhl-goals.js';
+import { pointsFeatures, projectPoints, PT_MODEL } from './nhl-points.js';
 
 const RECENT_DATES = 22;          // enough to cover a last-10 for everyone
 
@@ -34,6 +35,7 @@ async function aggregates(season) {
       pid: r.playerId, name: r.skaterFullName, pos: r.positionCode,
       team: (r.teamAbbrevs || '').split(',').pop().trim(),
       gp: r.gamesPlayed || 0, sog: r.shots || 0, goals: r.goals || 0, ppg: r.ppGoals || 0,
+      a: r.assists || 0, pts: r.points || 0, ppp: r.ppPoints || 0,
       toi: secs(r.timeOnIcePerGame) * (r.gamesPlayed || 0),
       pptoi: secs(x.ppTimeOnIcePerGame) * (r.gamesPlayed || 0),
     };
@@ -55,7 +57,7 @@ async function recentGames(dates) {
       const x = t[r.playerId] || {};
       if (!log.has(r.playerId)) log.set(r.playerId, []);
       log.get(r.playerId).push({
-        date: d, sog: r.shots || 0,
+        date: d, sog: r.shots || 0, a: r.assists || 0, pts: r.points || 0, ppp: r.ppPoints || 0,
         toi: secs(r.timeOnIcePerGame), pptoi: secs(x.ppTimeOnIcePerGame),
       });
     }
@@ -135,7 +137,7 @@ export async function buildShotsBoard({ season, prevSeason, games, playedDates }
     } catch (e) { /* a missing roster leaves that club off the board, not wrong on it */ }
   }));
 
-  const board = [];
+  const board = [], points = [];
   for (const [pid, rs] of roster) {
     const a = cur[pid], b = prev[pid];
     const who = a || b;
@@ -152,6 +154,7 @@ export async function buildShotsBoard({ season, prevSeason, games, playedDates }
       toi: (a?.toi || 0) + (b?.toi || 0),
       pptoi: (a?.pptoi || 0) + (b?.pptoi || 0),
       ppg: (a?.ppg || 0) + (b?.ppg || 0),
+      a: (a?.a || 0) + (b?.a || 0), pts: (a?.pts || 0) + (b?.pts || 0), ppp: (a?.ppp || 0) + (b?.ppp || 0),
     };
     // sogFeatures() wants a per-game log; hand it the career as `gp` synthetic
     // average games plus the real recent ones, so the shrinkage and the rolling
@@ -199,6 +202,23 @@ export async function buildShotsBoard({ season, prevSeason, games, playedDates }
         base: +pr.base.toFixed(4),
       });
     }
+    // Points, assists, PP points — off the same career history and recent games
+    {
+      const rec = (log.get(+pid) || []);
+      const pf = pointsFeatures({ role: (rs.pos || who.pos) === 'D' ? 'D' : 'F', h: { gp, ...hist },
+        recent: rec, teamGf: teamGf(team), oppGa: teamGa(opp[team]), oppPk: teamPk(opp[team]), isHome: home[team] });
+      const m = projectPoints(pf);
+      points.push({
+        pid: +pid, name: who.name, pos: rs.pos || who.pos, team, mug: rs.mug || null,
+        opp: opp[team], home: !!home[team], gameId: g.gameId, date: g.date, start: g.start, gp,
+        mu: { pts: +m.pts.toFixed(4), a: +m.a.toFixed(4), ppp: +m.ppp.toFixed(4) },
+        f: { ptsPg: +pf.pts_prior.toFixed(3), aPg: +pf.a_prior.toFixed(3), pppPg: +pf.ppp_prior.toFixed(3),
+             ptsL10: +pf.pts_l10.toFixed(2), aL10: +pf.a_l10.toFixed(2), pppL10: +pf.ppp_l10.toFixed(2),
+             toi: +pf.toi_l5.toFixed(0), pptoi: +pf.pptoi_l5.toFixed(0),
+             teamGf: +pf.team_gf_prior.toFixed(2), oppGa: +pf.opp_ga_prior.toFixed(2), oppPk: +pf.opp_pk_prior.toFixed(3) },
+        recent: { pts: rec.slice(-10).map(x => x.pts), a: rec.slice(-10).map(x => x.a), ppp: rec.slice(-10).map(x => x.ppp) },
+      });
+    }
     board.push({
       pid: +pid, name: who.name, pos: rs.pos || who.pos, team, mug: rs.mug || null,
       opp: opp[team], home: !!home[team], gameId: g.gameId, date: g.date, start: g.start,
@@ -225,7 +245,9 @@ export async function buildShotsBoard({ season, prevSeason, games, playedDates }
   goalMarkets(picks, (p) => lineup.has(p));
   for (const p of picks) { p.lineup = lineup.has(p); delete p._lastDate; delete p._toi; }
   picks.sort((x, y) => y.p - x.p);
-  return { board, model: meta(), picks, picksModel: picksMeta() };
+  points.sort((x, y) => y.mu.pts - x.mu.pts);
+  return { board, model: meta(), picks, picksModel: picksMeta(), points,
+           pointsModel: { lines: PT_MODEL.lines, rows: PT_MODEL.rows, seasons: PT_MODEL.seasons, backtest: PT_MODEL.backtest } };
 }
 
 function picksMeta() {

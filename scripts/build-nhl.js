@@ -237,12 +237,14 @@ async function main() {
     .map(g => g.date))].sort();
   let shots = { board: [], model: null, date: upcoming || null };
   let picks = { picks: [], model: null, date: upcoming || null };
+  let points = { board: [], model: null, date: upcoming || null };
   try {
     const r = await buildShotsBoard({
       season: UP.id, prevSeason: HIST.id, games: slate, playedDates,
     });
     shots = { board: r.board, model: r.model, date: upcoming || null };
     picks = { picks: r.picks, model: r.picksModel, date: upcoming || null };
+    points = { board: r.points, model: r.pointsModel, date: upcoming || null };
     console.log(`  ${r.board.length} skaters priced for ${upcoming} (${slate.length} games), ${r.picks.length} goal prices`);
   } catch (e) {
     console.error('  shots board failed:', e.message);
@@ -399,6 +401,52 @@ async function main() {
   const svDone = Object.values(svHist).filter(r => r.every(x => x[4] != null)).length;
   console.log(`  saves history: ${Object.keys(svHist).length} nights frozen, ${svDone} graded${svGraded ? ` (${svGraded} new)` : ''}`);
 
+  // ── 7e) Freeze and grade the Points board ─────────────────────────────
+  // Three markets at their quoted (closest-to-even) lines, Poisson on each mean:
+  //   [pid, gameId, name, team, opp,  muPts, Lpts, pPts, gotPts,  muA, La, pA, gotA,  muPpp, Lppp, pPpp, gotPpp]
+  // Graded off the recap: every non-shootout goal credits its scorer and its
+  // assisters, and a power-play goal counts as a PP point for all of them. A
+  // skater who did not dress is -1 (void) on all three.
+  const PT_PATH = new URL('../nhl/points-history.json', import.meta.url);
+  let ptHist = {};
+  try { ptHist = JSON.parse(fs.readFileSync(PT_PATH, 'utf8')); } catch (e) { ptHist = {}; }
+  const pois = (mu, L) => { let t = Math.exp(-mu), c = t; for (let k = 1; k <= Math.floor(L); k++) { t *= mu / k; c += t; } return 1 - c; };
+  const quote = (mu) => { let best = 0.5; for (let L = 0.5; L <= 4.5; L++) if (Math.abs(pois(mu, L) - 0.5) < Math.abs(pois(mu, best) - 0.5)) best = L; return [best, +pois(mu, best).toFixed(4)]; };
+  if (upcoming && points.board.length) {
+    const started = schedule.some(g => g.date === upcoming && g.type === 2 && !['FUT', 'PRE'].includes(g.state));
+    if (!started) ptHist[upcoming] = points.board.map(r => {
+      const [Lp, pp] = quote(r.mu.pts), [La, pa] = quote(r.mu.a), [Lq, pq] = quote(r.mu.ppp);
+      return [r.pid, r.gameId, r.name, r.team, r.opp, r.mu.pts, Lp, pp, null, r.mu.a, La, pa, null, r.mu.ppp, Lq, pq, null];
+    });
+  }
+  let ptGraded = 0;
+  for (const [d, rows] of Object.entries(ptHist)) {
+    if (!rows.some(x => x[8] == null)) continue;
+    const gids = [...new Set(rows.map(x => x[1]))];
+    if (!gids.every(id => recapGames[id])) continue;
+    const dressed = await dressedIn(gids);
+    if (!dressed) continue;
+    const tally = new Map();                        // pid -> [points, assists, ppPoints]
+    const add = (pid, pts, a, ppp) => { const t = tally.get(pid) || [0, 0, 0]; t[0] += pts; t[1] += a; t[2] += ppp; tally.set(pid, t); };
+    for (const x of recap[d] || []) {
+      if (x.ptype === 'SO') continue;
+      const pp = x.strength === 'pp' ? 1 : 0;
+      add(x.pid, 1, 0, pp);
+      for (const a of x.assists || []) add(a.pid, 1, 1, pp);
+    }
+    ptHist[d] = rows.map(x => {
+      const y = x.slice();
+      if (!dressed.has(x[0])) { y[8] = y[12] = y[16] = -1; return y; }
+      const t = tally.get(x[0]) || [0, 0, 0];
+      y[8] = t[0]; y[12] = t[1]; y[16] = t[2];
+      return y;
+    });
+    ptGraded++;
+  }
+  fs.writeFileSync(PT_PATH, JSON.stringify(ptHist));
+  const ptDone = Object.values(ptHist).filter(r => r.every(x => x[8] != null)).length;
+  console.log(`  points history: ${Object.keys(ptHist).length} nights frozen, ${ptDone} graded${ptGraded ? ` (${ptGraded} new)` : ''}`);
+
   // ── 7d) Player card archive: game logs + every goal this season ───────
   console.log('Updating player logs…');
   try { await buildPlayersLog({ season: UP.id, schedule, recap, recapGames }); }
@@ -414,7 +462,7 @@ async function main() {
     teams, schedule, dates,
     recap, recapDates, recapGames,
     leaders: L.skaters, goalies: L.goalies,
-    shots, picks, saves,
+    shots, picks, saves, points,
     // graded nights only, voids dropped, as
     //   [pid, p, scored, p2, p3, pFirst, pLast, pP1, pPP, goals, first, last, p1Goals, ppGoals]
     // (nights frozen before the extra markets carry only the first three)
