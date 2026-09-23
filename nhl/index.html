@@ -77,6 +77,7 @@
     --text-strong: #0e1621;
     --glow: rgba(16,167,88,0.06);
   }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
   body { background: var(--bg); color: var(--text); font-family: var(--font-b); font-size: 14px; font-weight: 600; -webkit-font-smoothing: antialiased; min-height: 100vh; padding: clamp(0.75rem, 3vw, 2rem); }
   body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(115% 70% at 50% -12%, var(--glow), transparent 58%); pointer-events: none; z-index: 0; }
@@ -115,6 +116,8 @@
   .status-badge.fetching { color: var(--gold); border-color: #5a5000; background: #1e1a00; }
   .status-badge.ready { color: var(--green); border-color: #1a6020; background: #0a2a10; }
   .status-badge.error { color: #f05050; border-color: #5a1010; background: #2a0a0a; }
+  :root[data-theme="light"] .status-badge.ready    { background: rgba(16,167,88,0.12);  border-color: rgba(16,167,88,0.4); }
+  :root[data-theme="light"] .status-badge.error    { background: rgba(214,31,60,0.12);  border-color: rgba(214,31,60,0.4); }
   .nav-shell { position: relative; z-index: 210; }
   nav { position: relative; z-index: 2; display: flex; gap: 0.2rem; }
   .nav-btn { position: relative; display: flex; align-items: center; justify-content: center; gap: 0.35rem; background: transparent; border: none; border-radius: 8px; color: var(--muted); font-family: var(--font-d); font-size: 1.02rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.45rem 0.7rem; cursor: pointer; transition: color 0.15s; white-space: nowrap; }
@@ -135,6 +138,7 @@
     .topbar { border-bottom: none; padding-bottom: 0; }
     :root { --nav-side: 0.75rem; --nav-bottom: calc(0.55rem + env(safe-area-inset-bottom)); --nav-h: 3.61rem; }
     nav { position: fixed; left: var(--nav-side); right: var(--nav-side); bottom: var(--nav-bottom); z-index: 230; margin: 0; border: 1px solid var(--border2); border-radius: 24px; background: rgba(10,17,32,0.92); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); padding: 0.3rem 0.4rem 0.35rem; gap: 0; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
+    :root[data-theme="light"] nav { background: rgba(255,255,255,0.92); }
     .nav-btn { flex: 1 1 0; min-width: 0; flex-direction: column; gap: 0.18rem; font-size: 0.692rem; font-weight: 700; letter-spacing: 0.02em; padding: 0.42rem 0.1rem 0.3rem; border-radius: 10px; }
     .nav-btn svg { display: block; }
     .nav-btn.active { color: var(--accent); background: transparent; box-shadow: none; }
@@ -207,6 +211,7 @@
   .theme-toggle { flex-shrink: 0; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 9px; border: 1px solid var(--border2); background: var(--surface1); color: var(--muted); cursor: pointer; transition: color 0.15s, background 0.15s, border-color 0.15s; }
   .theme-toggle:hover { color: var(--accent); border-color: var(--accent); background: var(--surface2); }
   .theme-toggle svg { width: 18px; height: 18px; display: block; }
+  footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 0.667rem; color: var(--dim); flex-wrap: wrap; gap: 0.4rem; }
   .panel { display: none; }
   .panel.visible { display: block; }
   :root[data-theme="light"] .status-badge.fetching { background: rgba(176,125,10,0.14); border-color: rgba(176,125,10,0.4); }
@@ -1022,7 +1027,8 @@
      segments — none of which survive at 32px. Regenerate the set with
      scripts/make-nhl-icons.sh. No light-mode halo: /nfl's football needs one
      because it is all white; the puck's green ring already carries it. */
-  .brand-puck { width: 32px; height: 32px; flex-shrink: 0; object-fit: contain; }
+  .brand-puck { width: 1.9em; height: 1.9em; flex-shrink: 0; object-fit: contain; }
+  @media (max-width: 600px) { .brand-puck { width: 1.6em; height: 1.6em; } }
   .foot-credit { min-width: 0; }
 </style>
 <script>
