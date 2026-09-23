@@ -555,6 +555,37 @@
   .pbf-foot { display: flex; justify-content: flex-end; padding-top: 0.55rem; margin-top: 0.1rem; border-top: 1px solid var(--border); }
   .pbf-reset { background: transparent; border: 1px solid var(--border2); color: var(--muted); font-family: var(--font-b); font-size: 0.704rem; font-weight: 700; padding: 0.22rem 0.7rem; border-radius: 7px; cursor: pointer; }
   .pbf-reset:hover { color: var(--bad); border-color: var(--bad); }
+  /* Live results list + backtest drawer, from /nfl's receptions Results. */
+  .mode-chip.active { background: rgba(53,201,110,0.14); border-color: var(--accent); color: var(--accent); }
+  .cp-wknav { display: flex; align-items: center; justify-content: center; gap: 0.6rem; margin: 0.2rem 0 0.5rem; }
+  .cp-wk { font-family: var(--font-d); font-weight: 700; color: var(--text); min-width: 11rem; text-align: center; }
+  .cp-res { display: grid; grid-template-columns: 1fr 5.4rem 3rem 2.6rem 4rem; align-items: center; gap: 0.4rem;
+    padding: 0.5rem 0.65rem; border: 1px solid var(--border); border-radius: 9px; margin-bottom: 0.3rem;
+    background: var(--surface0); font-size: 0.86rem; }
+  .cp-res.head { background: none; border: none; padding-block: 0.1rem; color: var(--muted); font-size: 0.7rem;
+    text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+  .cp-res.hit { border-color: rgba(51,208,124,0.45); background: rgba(51,208,124,0.07); }
+  .cp-res-nm { font-family: var(--font-d); font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cp-res.head .cp-res-nm { font-family: inherit; color: var(--muted); }
+  .cp-res.head .cp-res-act, .cp-res.head .cp-res-proj, .cp-res.head .cp-res-line { font-size: 0.7rem; color: var(--muted); font-family: inherit; }
+  .cp-res-tm { display: block; font-family: var(--font-b); font-weight: 500; font-size: 0.72rem; color: var(--muted); }
+  .cp-res-line { font-family: var(--font-d); font-weight: 700; color: var(--text); }
+  .cp-res-od { display: block; font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+  .cp-res-proj, .cp-res-act { text-align: right; font-family: var(--font-d); font-weight: 700; }
+  .cp-res-proj { color: var(--muted); }
+  .cp-res-act { color: var(--text); font-size: 1rem; }
+  .cp-res-tag { text-align: right; font-family: var(--font-d); font-weight: 700; font-size: 0.74rem; letter-spacing: 0.05em; color: var(--dim); }
+  .cp-res.hit .cp-res-tag { color: var(--good); }
+  .cp-res.void { opacity: 0.5; }
+  .cp-res.pend .cp-res-tag, .cp-res.live .cp-res-tag { color: var(--gold); }
+  .cp-res.live { border-color: rgba(240,192,64,0.35); }
+  .lr-more { display: block; width: 100%; margin: 0.4rem 0 0.2rem; }
+  .lr-bt { margin-top: 1.4rem; border-top: 1px solid var(--border); padding-top: 0.7rem; }
+  .lr-bt > summary { cursor: pointer; font-family: var(--font-d); font-weight: 700; color: var(--muted); letter-spacing: 0.04em; }
+  .lr-bt[open] > summary { margin-bottom: 0.7rem; }
+  .lr-note { font-size: 0.78rem; color: var(--muted); margin-top: 0.6rem; line-height: 1.45; }
+
+
   /* Filter card + ladder card, extracted rule for rule from /nfl. The Shots
      board is a port of the receptions board and shares its chrome: the same
      collapsing filter card, the same view switcher, and the same ladder card
@@ -1405,7 +1436,7 @@
   // ── Shots on goal ──────────────────────────────────────────────────────
   // Mirrors /nfl's receptions board: same explainer, filters, view switcher
   // and ladder. Model in research/nhl_sog.py, scored in scripts/nhl-shots.js.
-  const sgF = { pos: 'ALL', line: 'auto', sort: 'proj', view: 'cards', q: '', open: false };
+  const sgF = { pos: 'ALL', line: 'auto', sort: 'proj', view: 'cards', q: '', open: false, tab: 'board', night: null, all: false };
   function setSg(k, v) { sgF[k] = v; renderShots(); }
   function onSgSearch() { sgF.q = document.getElementById('sg-search').value; renderShots(); }
   function clearSgSearch() { sgF.q = ''; renderShots(); }
@@ -1433,6 +1464,9 @@
       ${open ? `<div class="due-filter-row pbf-body">${rows.map(([l, c]) =>
         `<div class="pbf-row"><span class="pbf-lbl">${l}</span><div class="pbf-chips">${c}</div></div>`).join('')}</div>` : ''}
     </div>`;
+  const uiTabs = (setFn, cur) => `
+    <div class="sub-tabs u-tabs">${[['board', 'Board'], ['results', 'Results']].map(([v, l]) =>
+      `<button class="sub-btn${cur === v ? ' active' : ''}" onclick="${setFn}('tab','${v}')">${l}</button>`).join('')}</div>`;
   const uiView = (setFn, cur) => `
     <div class="lb-toolbar"><div class="view-switch">${[['table', 'Table'], ['cards', 'Cards'], ['compact', 'Compact']].map(([v, l]) =>
       `<button class="view-btn${cur === v ? ' active' : ''}" onclick="${setFn}('view','${v}')">${l}</button>`).join('')}</div></div>`;
@@ -1469,6 +1503,7 @@
   function renderShots() {
     const el = dataGate('shots-content'); if (!el) return;
     const S = D.shots || {};
+    if (sgF.tab === 'results') { el.innerHTML = uiTabs('setSg', sgF.tab) + sgResults(); return; }
     if (!S.board?.length) {
       el.innerHTML = `<div class="empty">No shot projections yet — the board fills in once the slate is set.</div>`;
       return;
@@ -1547,7 +1582,84 @@
           </div>
         </div>`).join('')}</div>`;
     }
-    el.innerHTML = controls + meta + body;
+    el.innerHTML = uiTabs('setSg', sgF.tab) + controls + meta + body;
+  }
+
+  // ── Shots results ───────────────────────────────────────────────────────
+  // /nfl receptions' Results, by NIGHT rather than by week. Each night's board
+  // is frozen before its first puck drop at the line it quoted (closest to
+  // even) and graded from the boxscore once every game is final. The history
+  // is its own file, loaded the first time this tab opens.
+  let shHist = null, shHistState = 'idle';
+  function loadShotsHistory() {
+    if (shHistState !== 'idle') return;
+    shHistState = 'loading';
+    fetch(APP_BASE + '/shots-history.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { shHist = j; shHistState = 'ready'; }).catch(() => { shHistState = 'error'; })
+      .finally(() => { if (activeNav === 'shots' && sgF.tab === 'results') renderShots(); });
+  }
+  function sgResults() {
+    if (shHistState === 'idle') loadShotsHistory();
+    if (shHistState !== 'ready') return shHistState === 'error'
+      ? '<div class="empty">Couldn\'t load results.</div>' : '<div class="empty">Loading results…</div>';
+    const nights = Object.keys(shHist || {}).sort();
+    const bt = sgBacktest();
+    if (!nights.length) return `<div class="empty">No nights logged yet — each night's board is saved before the first puck drop and graded when its games end. The first is opening night, ${D.seasonStart ? dayLabel(D.seasonStart, true) : ''}.</div>` + bt;
+    const done = nights.filter(d => shHist[d].some(x => x[4] != null));
+    if (sgF.night == null || !nights.includes(sgF.night)) sgF.night = done.length ? done[done.length - 1] : nights[nights.length - 1];
+    const ni = nights.indexOf(sgF.night);
+    const rows = shHist[sgF.night].map(([pid, mu, L, p, got, gid, name, team, opp]) => ({
+      pid, mu, L, p, got, name, team, opp,
+      st: got == null ? 'pend' : got < 0 ? 'void' : got > L ? 'hit' : 'miss' }));
+    const ORDER = { hit: 0, miss: 0, void: 1, pend: 3 };
+    rows.sort((a, b) => ORDER[a.st] - ORDER[b.st] || b.mu - a.mu);
+    const graded = rows.filter(r => r.st === 'hit' || r.st === 'miss');
+    const hits = graded.filter(r => r.st === 'hit').length;
+    const said = graded.reduce((a, r) => a + r.p, 0);
+    const top = [...graded].sort((a, b) => b.mu - a.mu).slice(0, 20);
+    const gids = new Set(shHist[sgF.night].map(x => x[5]));
+    const tiles = graded.length ? `
+      <div class="hm-tiles" style="margin-bottom:0.6rem">
+        <div class="hm-tile"><b>${top.filter(r => r.st === 'hit').length}/${top.length}</b><span>Top ${top.length} went over</span></div>
+        <div class="hm-tile"><b>${hits}/${graded.length}</b><span>Over · we said ${said.toFixed(0)}</span></div>
+        <div class="hm-tile"><b>${(graded.reduce((a, r) => a + Math.abs(r.got - r.mu), 0) / graded.length).toFixed(2)}</b><span>Avg miss, shots</span></div>
+      </div>` : '';
+    const TAG = { hit: 'OVER', miss: 'UNDER', void: 'DNP', pend: 'PENDING' };
+    const LIMIT = 30, shown = sgF.all ? rows : rows.slice(0, LIMIT);
+    const head = `<div class="cp-res head"><span class="cp-res-nm">Skater</span><span class="cp-res-line">Line</span><span class="cp-res-proj">Proj</span><span class="cp-res-act">Got</span><span class="cp-res-tag"></span></div>`;
+    const list = shown.map(r => `<div class="cp-res ${r.st}">
+        <span class="cp-res-nm">${esc(r.name)}<span class="cp-res-tm">${esc(r.team)}${r.opp ? ' v ' + esc(r.opp) : ''}</span></span>
+        <span class="cp-res-line">o${r.L}<span class="cp-res-od">${sgOdds(r.p)}</span></span>
+        <span class="cp-res-proj">${r.mu.toFixed(1)}</span>
+        <span class="cp-res-act">${r.got == null || r.got < 0 ? '' : r.got}</span>
+        <span class="cp-res-tag">${TAG[r.st]}</span></div>`).join('');
+    const more = rows.length > LIMIT ? `<button class="pbf-chip lr-more" onclick="setSg('all',${!sgF.all})">${sgF.all ? 'Show top ' + LIMIT : `Show all ${rows.length}`}</button>` : '';
+    const pending = rows.some(r => r.st === 'pend');
+    return `
+      ${tiles}
+      <div class="cp-wknav">
+        <button class="due-filter-chip mode-chip" onclick="setSg('night','${nights[ni - 1] ?? sgF.night}')"${ni <= 0 ? ' disabled' : ''}>‹</button>
+        <span class="cp-wk">${dayLabel(sgF.night)} · ${gids.size} game${gids.size === 1 ? '' : 's'}${pending ? ' · not final yet' : ''}</span>
+        <button class="due-filter-chip mode-chip" onclick="setSg('night','${nights[ni + 1] ?? sgF.night}')"${ni >= nights.length - 1 ? ' disabled' : ''}>›</button>
+      </div>
+      ${head + list + more}
+      <div class="lr-note">Each night is graded against the board as it stood before the <b>first puck drop</b> — the last build before it started — at the line it quoted, the one closest to even money. Shots come from the box score once every game is final. A skater who did not dress is a void (<b>DNP</b>), which is how books settle it.</div>
+      ${bt}`;
+  }
+  // Walk-forward backtest: every season predicted by a model that never saw it.
+  function sgBacktest() {
+    const B = D.shots?.model?.backtest; if (!B) return '';
+    const pc = (v) => (v * 100).toFixed(1) + '%';
+    const tbl = (head, rows) => `<div class="rc-tablewrap"><table class="rc-table"><thead><tr>${head.map((h, i) => `<th${i ? ' class="num"' : ''}>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    return `<details class="lr-bt"${window.sgBtOpen ? ' open' : ''} ontoggle="window.sgBtOpen = this.open"><summary>Backtest — ${B.rows.toLocaleString()} skater-games, every season predicted cold</summary>
+      <div class="result-meta" style="margin-top:0.8rem">At the line the board quotes — does the price mean what it says?</div>
+      ${tbl(['Quoted over', 'Skater-games', 'Priced', 'Went over'], B.by_price.map(r => `<tr><td>${r.lab}</td><td class="num">${r.n.toLocaleString()}</td><td class="num">${pc(r.pred)}</td><td class="num"><b>${pc(r.act)}</b></td></tr>`).join(''))}
+      <div class="result-meta" style="margin-top:0.8rem">Every line, every skater-game</div>
+      ${tbl(['Line', 'Skater-games', 'Priced', 'Went over'], B.by_line.map(r => `<tr><td>o${r.line}</td><td class="num">${r.n.toLocaleString()}</td><td class="num">${pc(r.pred)}</td><td class="num"><b>${pc(r.act)}</b></td></tr>`).join(''))}
+      <div class="result-meta" style="margin-top:0.8rem">By projection — where the board runs hot</div>
+      ${tbl(['Projected', 'Skater-games', 'Avg projection', 'Avg shots'], B.by_proj.map(r => `<tr><td>${r.lab} shots</td><td class="num">${r.n.toLocaleString()}</td><td class="num">${r.proj.toFixed(2)}</td><td class="num"><b>${r.act.toFixed(2)}</b></td></tr>`).join(''))}
+      <div class="lr-note">Mean absolute error ${B.mae} shots. Seasons ${B.seasons.map(s => String(s).slice(0, 4) + '-' + String(s).slice(6)).join(', ')}, each fitted only on the seasons before it.</div>
+    </details>`;
   }
 
 

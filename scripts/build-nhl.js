@@ -212,22 +212,41 @@ async function main() {
     const started = schedule.some(g => g.date === upcoming && g.type === 2 && !['FUT', 'PRE'].includes(g.state));
     if (!started) hist[upcoming] = picks.picks.map(r => [r.pid, r.p, null, r.gameId]);
   }
+  // One boxscore read per game, shared by both graders: who dressed, and how
+  // many shots each put on net. null when the fetch fails — the next build retries.
+  const boxCache = new Map();
+  async function boxscore(id) {
+    if (boxCache.has(id)) return boxCache.get(id);
+    let out = null;
+    try {
+      const bx = await web(`/gamecenter/${id}/boxscore`);
+      out = new Map();
+      for (const side of ['awayTeam', 'homeTeam'])
+        for (const grp of ['forwards', 'defense'])
+          for (const pl of bx.playerByGameStats?.[side]?.[grp] || []) out.set(pl.playerId, pl.sog ?? 0);
+      if (!out.size) out = null;
+    } catch (e) { out = null; }
+    boxCache.set(id, out);
+    return out;
+  }
+  async function dressedIn(gids) {
+    const all = new Map();
+    for (const id of gids) {
+      const b = await boxscore(id);
+      if (!b) return null;                                    // any game missing -> grade later
+      for (const [k, v] of b) all.set(k, v);
+    }
+    return all;
+  }
+
   let graded = 0;
   for (const [d, rows] of Object.entries(hist)) {
     if (!rows.some(x => x[2] == null)) continue;
     const gids = [...new Set(rows.map(x => x[3]))];
     if (!gids.every(id => recapGames[id])) continue;          // not all final yet
     const scorers = new Set((recap[d] || []).map(x => x.pid));
-    const dressed = new Set();
-    for (const id of gids) {
-      try {
-        const bx = await web(`/gamecenter/${id}/boxscore`);
-        for (const side of ['awayTeam', 'homeTeam'])
-          for (const grp of ['forwards', 'defense'])
-            for (const pl of bx.playerByGameStats?.[side]?.[grp] || []) dressed.add(pl.playerId);
-      } catch (e) { /* leave this game ungraded; the next build retries */ }
-    }
-    if (!dressed.size) continue;
+    const dressed = await dressedIn(gids);
+    if (!dressed) continue;
     hist[d] = rows.map(([pid, pp, , gid]) => [pid, pp, dressed.has(pid) ? (scorers.has(pid) ? 1 : 0) : -1, gid]);
     graded++;
   }
@@ -235,6 +254,38 @@ async function main() {
   fs.writeFileSync(HIST_PATH, JSON.stringify(hist));
   const nGraded = Object.values(hist).filter(r => r.every(x => x[2] != null)).length;
   console.log(`  picks history: ${Object.keys(hist).length} nights frozen, ${nGraded} graded${graded ? ` (${graded} new)` : ''}`);
+
+  // ── 7b) Freeze and grade the Shots board ──────────────────────────────
+  // Same cycle as Picks, graded at the line the board quoted — the one whose
+  // price sits closest to even, which is what the app shows by default. Rows:
+  //   [pid, mu, line, pOver, got, gameId, name, team, opp]
+  // got = shots on goal from the boxscore, -1 if he did not dress (void), null
+  // until every game that night is final. Names ride along because a graded
+  // night is shown long after its skaters have left the live board. Shipped
+  // as its own file and loaded by the Results tab only, like /nfl's results.json.
+  const SH_PATH = new URL('../nhl/shots-history.json', import.meta.url);
+  let shHist = {};
+  try { shHist = JSON.parse(fs.readFileSync(SH_PATH, 'utf8')); } catch (e) { shHist = {}; }
+  if (upcoming && shots.board.length) {
+    const started = schedule.some(g => g.date === upcoming && g.type === 2 && !['FUT', 'PRE'].includes(g.state));
+    if (!started) shHist[upcoming] = shots.board.map(r => {
+      const L = Object.keys(r.p).map(Number).reduce((b, x) => Math.abs(r.p[x] - 0.5) < Math.abs(r.p[b] - 0.5) ? x : b);
+      return [r.pid, r.mu, L, r.p[L], null, r.gameId, r.name, r.team, r.opp];
+    });
+  }
+  let shGraded = 0;
+  for (const [d, rows] of Object.entries(shHist)) {
+    if (!rows.some(x => x[4] == null)) continue;
+    const gids = [...new Set(rows.map(x => x[5]))];
+    if (!gids.every(id => recapGames[id])) continue;
+    const dressed = await dressedIn(gids);
+    if (!dressed) continue;
+    shHist[d] = rows.map(x => { const y = x.slice(); y[4] = dressed.has(x[0]) ? dressed.get(x[0]) : -1; return y; });
+    shGraded++;
+  }
+  fs.writeFileSync(SH_PATH, JSON.stringify(shHist));
+  const shDone = Object.values(shHist).filter(r => r.every(x => x[4] != null)).length;
+  console.log(`  shots history: ${Object.keys(shHist).length} nights frozen, ${shDone} graded${shGraded ? ` (${shGraded} new)` : ''}`);
 
   // ── 8) Write ───────────────────────────────────────────────────────────
   const output = {

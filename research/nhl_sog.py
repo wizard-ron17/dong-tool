@@ -13,7 +13,7 @@ last-5/last-10, and opposing shots allowed.
 
     python3 research/nhl_sog.py
 """
-import json, os
+import json, os, sys
 import numpy as np
 import pandas as pd
 
@@ -190,7 +190,7 @@ def calibration(feats=None):
         break
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and "--backtest" not in sys.argv:
     seasons = sorted(D.season.unique())
     print(f"{len(D):,} skater-games, {D.pid.nunique()} skaters, seasons {seasons}")
     print(f"mean SOG {D.sog.mean():.3f}\n")
@@ -214,3 +214,55 @@ if __name__ == "__main__":
     globals()["D"] = D2 if False else pd.read_parquet(os.path.join(HERE, "nhl_sog.parquet"))
     calibration()
     export()
+
+
+def backtest(path=None):
+    """Walk-forward out-of-sample ledgers for the Results tab, patched into the
+    exported model without refitting it. Every season is predicted by a model
+    fit only on the seasons before it — the same walk() the ladder uses."""
+    seasons = sorted(D.season.unique())
+    MU, Y = [], []
+    alphas = []
+    for s in seasons[1:]:
+        tr, te = D[D.season < s], D[D.season == s]
+        ref = {f: (tr[f].mean(), tr[f].std() or 1.0) for f in SHIPPED}
+        b = poisson_irls(design(tr, SHIPPED, ref), tr.sog.to_numpy(float))
+        mu_tr = np.exp(np.clip(design(tr, SHIPPED, ref) @ b, -6, 6))
+        alphas.append(nb_dispersion(tr.sog.to_numpy(float), mu_tr))
+        MU.append(np.exp(np.clip(design(te, SHIPPED, ref) @ b, -6, 6))); Y.append(te.sog.to_numpy(float))
+    mu, y = np.concatenate(MU), np.concatenate(Y)
+    alpha = float(np.mean(alphas))
+    P = {L: nb_sf(L, mu, alpha) for L in LINES}
+    # every line, every skater-game
+    by_line = [{"line": L, "n": int(len(y)), "pred": round(float(P[L].mean()), 4), "act": round(float((y > L).mean()), 4)} for L in LINES]
+    # the line the board actually quotes: closest to even money
+    Pm = np.column_stack([P[L] for L in LINES])
+    k = np.argmin(np.abs(Pm - 0.5), axis=1)
+    pq = Pm[np.arange(len(k)), k]; lq = np.array(LINES)[k]; hit = (y > lq)
+    bins = [(0.0, 0.40), (0.40, 0.45), (0.45, 0.50), (0.50, 0.55), (0.55, 0.60), (0.60, 1.01)]
+    by_price = []
+    for lo, hi in bins:
+        m = (pq >= lo) & (pq < hi)
+        if m.sum() < 200: continue
+        by_price.append({"lab": f"{int(lo*100)}–{int(min(hi,1)*100)}%" if hi <= 1 else f"{int(lo*100)}%+",
+                         "n": int(m.sum()), "pred": round(float(pq[m].mean()), 4), "act": round(float(hit[m].mean()), 4)})
+    by_proj = []
+    for lo, hi in [(0, 1), (1, 2), (2, 3), (3, 4), (4, 99)]:
+        m = (mu >= lo) & (mu < hi)
+        if m.sum() < 200: continue
+        by_proj.append({"lab": f"{lo}–{hi}" if hi < 99 else f"{lo}+", "n": int(m.sum()),
+                        "proj": round(float(mu[m].mean()), 3), "act": round(float(y[m].mean()), 3)})
+    path = path or os.path.join(HERE, "nhl_sog_model.json")
+    M = json.load(open(path))
+    M["backtest"] = {"seasons": [int(s) for s in seasons[1:]], "rows": int(len(y)),
+                     "mae": round(float(np.abs(y - mu).mean()), 3),
+                     "by_line": by_line, "by_price": by_price, "by_proj": by_proj}
+    json.dump(M, open(path, "w"), indent=1)
+    print(f"backtest patched into {path}: {len(y):,} OOS skater-games")
+    for r in by_line: print(f"  o{r['line']}  pred {r['pred']:.3f}  act {r['act']:.3f}")
+    for r in by_price: print(f"  quoted {r['lab']:>8s}  n {r['n']:>6,}  pred {r['pred']:.3f}  act {r['act']:.3f}")
+    for r in by_proj: print(f"  proj {r['lab']:>4s}  n {r['n']:>6,}  proj {r['proj']:.2f}  got {r['act']:.2f}")
+
+
+if __name__ == "__main__" and "--backtest" in sys.argv:
+    backtest()

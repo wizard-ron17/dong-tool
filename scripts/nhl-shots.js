@@ -212,7 +212,7 @@ function picksMeta() {
 
 function meta() {
   return { alpha: SOG_MODEL.alpha, lines: SOG_MODEL.lines, note: SOG_MODEL.note,
-           rows: SOG_MODEL.rows, seasons: SOG_MODEL.seasons };
+           rows: SOG_MODEL.rows, seasons: SOG_MODEL.seasons, backtest: SOG_MODEL.backtest || null };
 }
 
 // teamFullName -> abbrev. The team report keys on the full name and nothing
