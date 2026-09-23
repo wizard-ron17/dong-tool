@@ -1,53 +1,53 @@
 {
- "note": "Shots on goal. Poisson GLM for the mean (consistent under over-dispersion) priced through a negative binomial: per player SOG runs variance/mean 1.13 against the 1.00 a Poisson assumes. Individual Corsi and Fenwick were tested and dropped - r=0.93 and 0.98 with career SOG/game, and worse alone. Same shape as the NFL receptions model.",
+ "note": "Shots on goal. Poisson GLM for the mean (consistent under over-dispersion) priced through a negative binomial: per player SOG runs variance/mean 1.13 against the 1.00 a Poisson assumes. Individual Corsi and Fenwick were tested and dropped - r=0.93 and 0.98 with career SOG/game, and worse alone. Same shape as the NFL receptions model. Rate features enter on a log scale: raw-scale inputs made the projection exponential in a skater's rate and ran the ends of the board hot (projected 4+ shots: +27% out of sample).",
  "features": [
-  "sog_prior",
-  "sog_l5",
-  "sog_l10",
-  "toi_prior",
-  "toi_l5",
-  "pptoi_l5",
+  "log_sog_prior",
+  "log_sog_l5",
+  "log_sog_l10",
+  "log_toi_prior",
+  "log_toi_l5",
+  "log_pptoi_l5",
   "opp_sa_prior",
   "team_sf_prior",
   "is_home"
  ],
  "coef": {
-  "intercept": 0.4671851891951744,
-  "sog_prior": 0.20281793332761125,
-  "sog_l5": 0.010217318154888341,
-  "sog_l10": 0.06239632163387666,
-  "toi_prior": -0.05810085251254971,
-  "toi_l5": 0.15943555624406303,
-  "pptoi_l5": 0.04385063141816641,
-  "opp_sa_prior": 0.05189538697644773,
-  "team_sf_prior": 0.0032846637922387886,
-  "is_home": 0.02083872611003752,
-  "is_D": -0.1527735210602738
+  "intercept": 0.4128078115593602,
+  "log_sog_prior": 0.2880723090192767,
+  "log_sog_l5": 0.016477157048223934,
+  "log_sog_l10": 0.05708072860757896,
+  "log_toi_prior": -0.1162063660239153,
+  "log_toi_l5": 0.166161950980963,
+  "log_pptoi_l5": 0.05186024569315787,
+  "opp_sa_prior": 0.05132422867041868,
+  "team_sf_prior": 0.0006495776805097667,
+  "is_home": 0.020665244309246482,
+  "is_D": -0.024443052430431312
  },
  "scale": {
-  "sog_prior": {
-   "mean": 1.727181105292926,
-   "sd": 0.6894132907763463
+  "log_sog_prior": {
+   "mean": 0.536917984086224,
+   "sd": 0.36006295318827763
   },
-  "sog_l5": {
-   "mean": 1.645153552965916,
-   "sd": 0.9620261238962179
+  "log_sog_l5": {
+   "mean": 0.3901797037261048,
+   "sd": 0.6203030782699662
   },
-  "sog_l10": {
-   "mean": 1.6487717944518852,
-   "sd": 0.862808164992408
+  "log_sog_l10": {
+   "mean": 0.43486392295202775,
+   "sd": 0.5150857224313421
   },
-  "toi_prior": {
-   "mean": 999.785803547078,
-   "sd": 204.95816418729254
+  "log_toi_prior": {
+   "mean": 6.885949981744712,
+   "sd": 0.21077885195113005
   },
-  "toi_l5": {
-   "mean": 995.6196683606414,
-   "sd": 247.50020130709268
+  "log_toi_l5": {
+   "mean": 6.8697611270779335,
+   "sd": 0.26740397554613665
   },
-  "pptoi_l5": {
-   "mean": 80.36402786296328,
-   "sd": 82.73521276726166
+  "log_pptoi_l5": {
+   "mean": 3.2583805170714633,
+   "sd": 1.9509144341654179
   },
   "opp_sa_prior": {
    "mean": 30.380164708308158,
@@ -62,7 +62,15 @@
    "sd": 0.5000013582324383
   }
  },
- "alpha": 0.062772344584807,
+ "log_offset": {
+  "sog_prior": 0.1,
+  "sog_l5": 0.1,
+  "sog_l10": 0.1,
+  "toi_prior": 0.1,
+  "toi_l5": 0.1,
+  "pptoi_l5": 1.0
+ },
+ "alpha": 0.07594716257112374,
  "lines": [
   1.5,
   2.5,
@@ -92,107 +100,107 @@
    20252026
   ],
   "rows": 139867,
-  "mae": 1.041,
+  "mae": 1.035,
   "by_line": [
    {
     "line": 1.5,
     "n": 139867,
-    "pred": 0.4507,
+    "pred": 0.4469,
     "act": 0.4419
    },
    {
     "line": 2.5,
     "n": 139867,
-    "pred": 0.2329,
+    "pred": 0.2357,
     "act": 0.231
    },
    {
     "line": 3.5,
     "n": 139867,
-    "pred": 0.1113,
+    "pred": 0.115,
     "act": 0.1097
    },
    {
     "line": 4.5,
     "n": 139867,
-    "pred": 0.0513,
+    "pred": 0.0534,
     "act": 0.0489
    },
    {
     "line": 5.5,
     "n": 139867,
-    "pred": 0.0234,
+    "pred": 0.0239,
     "act": 0.0206
    }
   ],
   "by_price": [
    {
     "lab": "0\u201340%",
-    "n": 69919,
-    "pred": 0.3099,
-    "act": 0.2821
+    "n": 68080,
+    "pred": 0.2823,
+    "act": 0.2771
    },
    {
     "lab": "40\u201345%",
-    "n": 20861,
+    "n": 19848,
     "pred": 0.4243,
-    "act": 0.4208
+    "act": 0.4118
    },
    {
     "lab": "45\u201350%",
-    "n": 17461,
-    "pred": 0.4744,
-    "act": 0.4819
+    "n": 17356,
+    "pred": 0.4746,
+    "act": 0.4589
    },
    {
     "lab": "50\u201355%",
-    "n": 14940,
-    "pred": 0.5244,
-    "act": 0.5335
+    "n": 15923,
+    "pred": 0.5245,
+    "act": 0.5221
    },
    {
     "lab": "55\u201360%",
-    "n": 12424,
-    "pred": 0.5741,
-    "act": 0.5786
+    "n": 13761,
+    "pred": 0.5745,
+    "act": 0.5658
    },
    {
     "lab": "60%+",
-    "n": 4262,
-    "pred": 0.6136,
-    "act": 0.6326
+    "n": 4899,
+    "pred": 0.6125,
+    "act": 0.6197
    }
   ],
   "by_proj": [
    {
     "lab": "0\u20131",
-    "n": 16035,
-    "proj": 0.905,
-    "act": 0.76
+    "n": 27176,
+    "proj": 0.827,
+    "act": 0.831
    },
    {
     "lab": "1\u20132",
-    "n": 91562,
-    "proj": 1.4,
-    "act": 1.393
+    "n": 74530,
+    "proj": 1.436,
+    "act": 1.41
    },
    {
     "lab": "2\u20133",
-    "n": 24564,
-    "proj": 2.394,
-    "act": 2.413
+    "n": 30653,
+    "proj": 2.403,
+    "act": 2.347
    },
    {
     "lab": "3\u20134",
-    "n": 5900,
-    "proj": 3.366,
-    "act": 3.164
+    "n": 6664,
+    "proj": 3.334,
+    "act": 3.226
    },
    {
     "lab": "4+",
-    "n": 1806,
-    "proj": 4.84,
-    "act": 3.88
+    "n": 844,
+    "proj": 4.409,
+    "act": 4.245
    }
   ]
  }

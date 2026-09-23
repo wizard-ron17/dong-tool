@@ -11,6 +11,8 @@
 //    Poisson misprices the tails. pOver() below is the same negative-binomial
 //    tail receptions uses, with SOG's own fitted alpha.
 //
+//  * Rate features are on a log scale — see featureValue() below.
+//
 //  * Individual Corsi and Fenwick are NOT features, though the feed has them
 //    (skater/realtime totalShotAttempts and shotAttemptsBlocked). They were
 //    tested: r=0.927 and 0.978 with career SOG/game, both worse than it alone,
@@ -63,12 +65,22 @@ export function sogFeatures({ log, role, oppSa, teamSf, isHome }) {
 }
 
 /** Projected shots on goal: exp of the standardised linear predictor. */
+// Rate features enter the model on a log scale (log_<x> = ln(max(x,0) + offset)),
+// so the projection is a power law in a skater's rates rather than exponential
+// in them — raw-scale inputs ran the ends of the board ~25% hot out of sample.
+const LOG_OFFSET = MODEL.log_offset || {};
+const featureValue = (f, k) => {
+  if (!k.startsWith('log_')) return f[k];
+  const raw = k.slice(4);
+  return Math.log(Math.max(0, f[raw] ?? 0) + (LOG_OFFSET[raw] ?? 0.1));
+};
+
 export function projectSog(f) {
   if (!f) return null;
   let eta = MODEL.coef.intercept;
   for (const k of MODEL.features) {
     const s = MODEL.scale[k];
-    eta += MODEL.coef[k] * ((f[k] - s.mean) / s.sd);
+    eta += MODEL.coef[k] * ((featureValue(f, k) - s.mean) / s.sd);
   }
   eta += (MODEL.coef.is_D || 0) * f.is_D;
   return Math.exp(Math.max(-6, Math.min(6, eta)));

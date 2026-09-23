@@ -975,7 +975,7 @@
           <li><b>Individual Corsi and Fenwick are in the feed, were tested, and are not in the model.</b> Total shot attempts correlate <b>0.93</b> with career shots per game and unblocked attempts <b>0.98</b>. Both are <em>worse</em> than plain shots per game on their own, and adding Corsi back to the finished model makes it worse, not better. They measure the same thing less directly.</li>
           <li><b>The opponent matters here, which is unusual.</b> Shots allowed per game by the other team is the largest gain after usage &mdash; worth more than power-play minutes. On the NFL boards defence has failed this test five times; in a shot-volume market it passes.</li>
           <li><b>Built on 182,608 skater-games</b> across four seasons, fitted walk-forward &mdash; every season predicted by a model that never saw it. Out of sample the ladder is honest to within a point at every line.</li>
-          <li><b>League shot rates are falling</b> (1.75 per skater-game in 2022-23, 1.55 last season) so the fit runs about 2% high on the mean. A live correction was tested and <em>overshot</em>, flipping the error negative, so the board ships uncorrected.</li>
+          <li><b>Rates are on a log scale — and that fixed the stars.</b> The first version fed shot rates in raw, which makes a projection grow <em>exponentially</em> with a skater's rate. Out of sample it priced MacKinnon at 5.76 shots a game when he took 4.21, Pastrnak at 4.91 against 3.65. On a log scale the projection is a power law in the rate, and the league's top 25 shooters now come in 2% under their actual volume instead of 5% over. Quoted-line calibration error fell from 1.7 points to 0.6. An isotonic correction on top was tested and made it worse, so there isn't one.</li>
         </ul>
       </div>
     </div>
@@ -1656,7 +1656,7 @@
       ${tbl(['Quoted over', 'Skater-games', 'Priced', 'Went over'], B.by_price.map(r => `<tr><td>${r.lab}</td><td class="num">${r.n.toLocaleString()}</td><td class="num">${pc(r.pred)}</td><td class="num"><b>${pc(r.act)}</b></td></tr>`).join(''))}
       <div class="result-meta" style="margin-top:0.8rem">Every line, every skater-game</div>
       ${tbl(['Line', 'Skater-games', 'Priced', 'Went over'], B.by_line.map(r => `<tr><td>o${r.line}</td><td class="num">${r.n.toLocaleString()}</td><td class="num">${pc(r.pred)}</td><td class="num"><b>${pc(r.act)}</b></td></tr>`).join(''))}
-      <div class="result-meta" style="margin-top:0.8rem">By projection — where the board runs hot</div>
+      <div class="result-meta" style="margin-top:0.8rem">By projection — does a projection hold up?</div>
       ${tbl(['Projected', 'Skater-games', 'Avg projection', 'Avg shots'], B.by_proj.map(r => `<tr><td>${r.lab} shots</td><td class="num">${r.n.toLocaleString()}</td><td class="num">${r.proj.toFixed(2)}</td><td class="num"><b>${r.act.toFixed(2)}</b></td></tr>`).join(''))}
       <div class="lr-note">Mean absolute error ${B.mae} shots. Seasons ${B.seasons.map(s => String(s).slice(0, 4) + '-' + String(s).slice(6)).join(', ')}, each fitted only on the seasons before it.</div>
     </details>`;

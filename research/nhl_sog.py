@@ -19,6 +19,19 @@ import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 D = pd.read_parquet(os.path.join(HERE, "nhl_sog.parquet"))
+
+# Rate features enter on a LOG scale. With a log link and raw-scale inputs, the
+# projection grows EXPONENTIALLY in a skater's shot rate, so the ends of the
+# board ran hot: out of sample, projected 4+ shots averaged 4.77 vs 3.75 actual
+# (+27%), and 0-1 averaged 0.90 vs 0.77 (+17.5%). On a log scale the projection
+# is a power law in the rates (mu ~ rate^b), which is the natural shape.
+# research/nhl_sog_cal.py: ladder log loss 0.31865 -> 0.31660, quoted-line
+# calibration error 1.68pp -> 0.63pp. An isotonic layer on top was tested and
+# made quoted-line calibration WORSE (0.80pp), so it is not used.
+LOG_OFFSET = {"sog_prior": 0.1, "sog_l5": 0.1, "sog_l10": 0.1,
+              "toi_prior": 0.1, "toi_l5": 0.1, "pptoi_l5": 1.0}
+for _f, _o in LOG_OFFSET.items():
+    D["log_" + _f] = np.log(D[_f].clip(lower=0) + _o)
 LINES = [1.5, 2.5, 3.5, 4.5, 5.5]
 
 
@@ -119,8 +132,8 @@ LADDER = [
 # than it as a lone predictor, and adding ICF back to this exact set makes it
 # worse (-1.38% -> -1.30%). They are the same feature measured less well — the
 # "a composite's signal concentrates in one base-rate feature" result again.
-SHIPPED = ["sog_prior", "sog_l5", "sog_l10", "toi_prior", "toi_l5",
-           "pptoi_l5", "opp_sa_prior", "team_sf_prior", "is_home"]
+SHIPPED = ["log_sog_prior", "log_sog_l5", "log_sog_l10", "log_toi_prior", "log_toi_l5",
+           "log_pptoi_l5", "opp_sa_prior", "team_sf_prior", "is_home"]
 
 
 def export(path=None):
@@ -139,16 +152,15 @@ def export(path=None):
                  "player SOG runs variance/mean 1.13 against the 1.00 a Poisson "
                  "assumes. Individual Corsi and Fenwick were tested and "
                  "dropped - r=0.93 and 0.98 with career SOG/game, and worse "
-                 "alone. Same shape as the NFL receptions model. NOT "
-                 "recalibrated: league SOG/game is falling season over season "
-                 "(1.754 -> 1.552 across the training window) so the fit runs "
-                 "about 2.4% high on the mean, but a live level correction "
-                 "estimated from the first quarter of a season OVERSHOOTS and "
-                 "flips the ladder bias from +0.2pp to -1.4pp at o2.5. "
-                 "Uncorrected it is honest to within 1pp at every line."),
+                 "alone. Same shape as the NFL receptions model. Rate features "
+                 "enter on a log scale: raw-scale inputs made the projection "
+                 "exponential in a skater's rate and ran the ends of the board "
+                 "hot (projected 4+ shots: +27% out of sample)."),
         "features": feats,
         "coef": {n: float(v) for n, v in zip(names, b)},
         "scale": {f: {"mean": ref[f][0], "sd": ref[f][1]} for f in feats},
+        # log_<x> = ln(max(x, 0) + offset); the Node scorer must apply the same
+        "log_offset": LOG_OFFSET,
         "alpha": float(alpha),
         "lines": LINES,
         "shrink_k": 8.0,
@@ -190,7 +202,7 @@ def calibration(feats=None):
         break
 
 
-if __name__ == "__main__" and "--backtest" not in sys.argv:
+if __name__ == "__main__" and "--backtest" not in sys.argv and "--export" not in sys.argv:
     seasons = sorted(D.season.unique())
     print(f"{len(D):,} skater-games, {D.pid.nunique()} skaters, seasons {seasons}")
     print(f"mean SOG {D.sog.mean():.3f}\n")
@@ -266,3 +278,6 @@ def backtest(path=None):
 
 if __name__ == "__main__" and "--backtest" in sys.argv:
     backtest()
+
+if __name__ == "__main__" and "--export" in sys.argv:
+    export(); backtest()
