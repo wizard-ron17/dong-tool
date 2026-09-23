@@ -96,6 +96,9 @@ def fetch_season(season):
             rows = cached(f"{season}/{d}/{rep}", lambda p=rep, e=exp: paged(f"skater/{p}", e))
             n += len(rows)
         cached(f"{season}/{d}/team", lambda e=exp: paged("team/summary", e))
+        # goalie/summary: saves, shots against, goals against, gamesStarted — the
+        # saves / goals-allowed model (nhl_saves_data.py)
+        cached(f"{season}/{d}/goalie", lambda e=exp: paged("goalie/summary", e))
         if i % 25 == 0:
             print(f"   {i}/{len(dates)} dates, {n:,} skater-rows")
     print(f"   done: {n:,} skater-rows across {len(dates)} dates")

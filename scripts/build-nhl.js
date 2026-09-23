@@ -14,6 +14,7 @@ import { web, rest, restPaged, etDate, shiftDate } from './nhl-api.js';
 import { buildShotsBoard } from './nhl-shots.js';
 import { gameGoalDetail } from './nhl-goal-detail.js';
 import { buildPlayersLog } from './nhl-players.js';
+import { buildSavesBoard } from './nhl-saves.js';
 
 const LEADERS = 300;      // skaters on the Stats board
 const GOALIES = 90;       // ~3 per club
@@ -231,6 +232,17 @@ async function main() {
     console.error('  shots board failed:', e.message);
   }
 
+  // ── 6b) Saves and goals allowed ────────────────────────────────────────
+  console.log('Pricing saves…');
+  let saves = { board: [], model: null, date: upcoming || null };
+  try {
+    const r = await buildSavesBoard({ season: UP.id, prevSeason: HIST.id, games: slate, playedDates, schedule, recapGames });
+    saves = { board: r.board, model: r.model, date: upcoming || null };
+    console.log(`  ${r.board.length} projected starters priced for ${upcoming}`);
+  } catch (e) {
+    console.error('  saves board failed:', e.message);
+  }
+
   // ── 7) Freeze and grade the Picks board ────────────────────────────────
   // Each night's board is frozen before its first puck drop — rewritten on
   // every build until then, so it holds the last pre-game prices — and graded
@@ -249,16 +261,20 @@ async function main() {
   }
   // One boxscore read per game, shared by both graders: who dressed, and how
   // many shots each put on net. null when the fetch fails — the next build retries.
-  const boxCache = new Map();
+  // Goalies ride along in goalieBox: pid -> { starter, saves, ga }.
+  const boxCache = new Map(), goalieBox = new Map();
   async function boxscore(id) {
     if (boxCache.has(id)) return boxCache.get(id);
     let out = null;
     try {
       const bx = await web(`/gamecenter/${id}/boxscore`);
       out = new Map();
-      for (const side of ['awayTeam', 'homeTeam'])
+      for (const side of ['awayTeam', 'homeTeam']) {
         for (const grp of ['forwards', 'defense'])
           for (const pl of bx.playerByGameStats?.[side]?.[grp] || []) out.set(pl.playerId, pl.sog ?? 0);
+        for (const pl of bx.playerByGameStats?.[side]?.goalies || [])
+          goalieBox.set(pl.playerId, { starter: !!pl.starter, saves: pl.saves ?? 0, ga: pl.goalsAgainst ?? 0 });
+      }
       if (!out.size) out = null;
     } catch (e) { out = null; }
     boxCache.set(id, out);
@@ -322,7 +338,37 @@ async function main() {
   const shDone = Object.values(shHist).filter(r => r.every(x => x[4] != null)).length;
   console.log(`  shots history: ${Object.keys(shHist).length} nights frozen, ${shDone} graded${shGraded ? ` (${shGraded} new)` : ''}`);
 
-  // ── 7c) Player card archive: game logs + every goal this season ───────
+  // ── 7c) Freeze and grade the Saves board ──────────────────────────────
+  // Same cycle again, both markets at their quoted (closest-to-even) lines:
+  //   [pid, mu, line, pOver, got, gameId, name, team, opp, muGa, gaLine, gaPOver, gotGa]
+  // A projected starter who did not START is a void (-1) on both — a backup
+  // who came on in relief is not the bet the board offered.
+  const SV_PATH = new URL('../nhl/saves-history.json', import.meta.url);
+  let svHist = {};
+  try { svHist = JSON.parse(fs.readFileSync(SV_PATH, 'utf8')); } catch (e) { svHist = {}; }
+  if (upcoming && saves.board.length) {
+    const started = schedule.some(g => g.date === upcoming && g.type === 2 && !['FUT', 'PRE'].includes(g.state));
+    if (!started) svHist[upcoming] = saves.board.map(r =>
+      [r.pid, r.mu, r.q.line, r.q.p, null, r.gameId, r.name, r.team, r.opp, r.muGa, r.qGa.line, r.qGa.p, null]);
+  }
+  let svGraded = 0;
+  for (const [d, rows] of Object.entries(svHist)) {
+    if (!rows.some(x => x[4] == null)) continue;
+    const gids = [...new Set(rows.map(x => x[5]))];
+    if (!gids.every(id => recapGames[id])) continue;
+    if (!(await dressedIn(gids))) continue;                  // fills goalieBox for every game
+    svHist[d] = rows.map(x => {
+      const y = x.slice(), b = goalieBox.get(x[0]);
+      y[4] = b?.starter ? b.saves : -1; y[12] = b?.starter ? b.ga : -1;
+      return y;
+    });
+    svGraded++;
+  }
+  fs.writeFileSync(SV_PATH, JSON.stringify(svHist));
+  const svDone = Object.values(svHist).filter(r => r.every(x => x[4] != null)).length;
+  console.log(`  saves history: ${Object.keys(svHist).length} nights frozen, ${svDone} graded${svGraded ? ` (${svGraded} new)` : ''}`);
+
+  // ── 7d) Player card archive: game logs + every goal this season ───────
   console.log('Updating player logs…');
   try { await buildPlayersLog({ season: UP.id, schedule, recap, recapGames }); }
   catch (e) { console.warn(`  players.json not updated: ${e.message}`); }   // the card degrades; the build doesn't
@@ -337,7 +383,7 @@ async function main() {
     teams, schedule, dates,
     recap, recapDates, recapGames,
     leaders: L.skaters, goalies: L.goalies,
-    shots, picks,
+    shots, picks, saves,
     // graded nights only, voids dropped, as [pid, p, scored]
     picksHistory: Object.fromEntries(Object.entries(hist)
       .filter(([, r]) => r.every(x => x[2] != null))
