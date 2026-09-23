@@ -11,11 +11,11 @@
 // NFL rolls itself over.
 import fs from 'node:fs';
 import { web, rest, restPaged, etDate, shiftDate } from './nhl-api.js';
-import { buildShotsBoard } from './nhl-shots.js';
+import { buildShotsBoard, TEAM_ABBREV } from './nhl-shots.js';
 import { gameGoalDetail } from './nhl-goal-detail.js';
 import { buildPlayersLog } from './nhl-players.js';
 import { buildSavesBoard } from './nhl-saves.js';
-import { fetchLines } from './nhl-lines.js';
+import { fetchLines, impliedRates } from './nhl-lines.js';
 import { buildFun } from './nhl-fun.js';
 
 const LEADERS = 300;      // skaters on the Stats board
@@ -62,6 +62,18 @@ async function main() {
       rank: t.leagueSequence, divRank: t.divisionSequence,
     };
   }
+  // Per-game team rates for the schedule's Matchup tab: shots, special teams,
+  // faceoffs. The season being played once it has games, last season's before.
+  try {
+    let rows = await restPaged(`/team/summary?cayenneExp=seasonId=${UP.id} and gameTypeId=2`, Infinity, [{ property: 'teamId', direction: 'ASC' }]);
+    let season = UP.id;
+    if (!rows.some(r => r.gamesPlayed)) { rows = await restPaged(`/team/summary?cayenneExp=seasonId=${HIST.id} and gameTypeId=2`, Infinity, [{ property: 'teamId', direction: 'ASC' }]); season = HIST.id; }
+    for (const r of rows) {
+      const t = teams[TEAM_ABBREV[r.teamFullName]]; if (!t || !r.gamesPlayed) continue;
+      t.rates = { season, gp: r.gamesPlayed, gf: r.goalsForPerGame, ga: r.goalsAgainstPerGame, sf: r.shotsForPerGame, sa: r.shotsAgainstPerGame,
+                  pp: r.powerPlayPct, pk: r.penaltyKillPct, fo: r.faceoffWinPct };
+    }
+  } catch (e) { console.warn(`  team rates skipped: ${e.message}`); }
   // Standings are the PREVIOUS season's final table until a game is played, so
   // the app can say so rather than presenting April's table as today's.
   const standingsDate = st.standings?.[0]?.date || null;
@@ -110,11 +122,24 @@ async function main() {
     const L = await fetchLines(ahead);
     let n = 0;
     for (const g of schedule) {
+      // only before puck drop: ESPN swaps in live odds once a game starts, and
+      // the line we keep is the closing one
+      if (!['FUT', 'PRE'].includes(g.state)) continue;
       const x = L.get(`${g.date}|${g.away}|${g.home}`);
       if (x) { g.lines = x; n++; }
     }
     console.log(`  lines: ${n} games across ${ahead.length} upcoming nights`);
   } catch (e) { console.warn(`  lines skipped: ${e.message}`); }
+  // Closing lines carry forward: a game keeps the last line it had before puck
+  // drop, which is what its game-flow chart prices from once it's under way.
+  try {
+    const prev = JSON.parse(fs.readFileSync(new URL('../nhl/data.json', import.meta.url), 'utf8'));
+    const had = new Map((prev.schedule || []).filter(g => g.lines).map(g => [g.gameId, g.lines]));
+    let kept = 0;
+    for (const g of schedule) if (!g.lines && had.has(g.gameId)) { g.lines = had.get(g.gameId); kept++; }
+    if (kept) console.log(`  lines: ${kept} closing lines carried forward`);
+  } catch (e) { /* first build */ }
+  for (const g of schedule) { const r = g.lines && impliedRates(g.lines); if (r) g.lam = r; }
   console.log(`  ${schedule.length} games over ${dates.length} dates`);
 
   // ── 4) Recap: every goal, by date ──────────────────────────────────────
@@ -481,6 +506,9 @@ async function main() {
       const g = rd('nhl_pairs_model.json'), st = rd('nhl_stacks_model.json');
       return { rho_same: g.rho_same, rho_cross: g.rho_cross, same_by_size: g.same_by_size, stack: st.bins };
     })(),
+    // in-game win probability (research/nhl_winprob.py) — the schedule's game flow
+    winprob: (({ late, m_lead, m_trail, ot_shrink }) => ({ late, m_lead, m_trail, ot_shrink }))(
+      JSON.parse(fs.readFileSync(new URL('../research/nhl_winprob_model.json', import.meta.url), 'utf8'))),
     // graded nights only, voids dropped, as
     //   [pid, p, scored, p2, p3, pFirst, pLast, pP1, pPP, goals, first, last, p1Goals, ppGoals]
     // (nights frozen before the extra markets carry only the first three)

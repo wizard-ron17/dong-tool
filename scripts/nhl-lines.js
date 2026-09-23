@@ -55,3 +55,33 @@ export async function fetchLines(dates) {
   }
   return out;
 }
+
+// ── Implied scoring rates ──────────────────────────────────────────────────
+// What the closing line says each side scores, for the schedule's in-game win
+// probability (research/nhl_winprob.py; research/nhl_odds.py is the same maths).
+// The total's de-vigged over price fixes the game's expected goals, the
+// moneyline's de-vigged home price splits it.
+const imp = (a) => a > 0 ? 100 / (a + 100) : -a / (-a + 100);
+const fair = (a, b) => imp(a) / (imp(a) + imp(b));
+function poisPmf(l, K = 16) { const p = [Math.exp(-l)]; for (let k = 1; k < K; k++) p.push(p[k - 1] * l / k); return p; }
+const poisSf = (L, l) => 1 - poisPmf(l, Math.floor(L) + 1).reduce((a, b) => a + b, 0);
+function bisect(f, lo, hi) {
+  let flo = f(lo);
+  if (flo * f(hi) > 0) return null;
+  for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2, fm = f(m); if (fm * flo > 0) { lo = m; flo = fm; } else hi = m; }
+  return (lo + hi) / 2;
+}
+function homeWin(lh, la) {           // home ahead after regulation, plus half the ties
+  const ph = poisPmf(lh), pa = poisPmf(la);
+  let w = 0, t = 0;
+  for (let i = 0; i < ph.length; i++) for (let j = 0; j < pa.length; j++) { if (i > j) w += ph[i] * pa[j]; else if (i === j) t += ph[i] * pa[j]; }
+  return w + t / 2;
+}
+/** { h, a } expected goals per 60 for each side, or null when the line is incomplete. */
+export function impliedRates(L) {
+  if (L?.tot?.line == null || L.tot.o == null || L.tot.u == null || L.ml?.h == null || L.ml?.a == null) return null;
+  const lam = bisect(x => poisSf(L.tot.line, x) - fair(L.tot.o, L.tot.u), 1, 14);
+  if (!lam) return null;
+  const s = bisect(x => homeWin(lam * x, lam * (1 - x)) - fair(L.ml.h, L.ml.a), 0.2, 0.8) ?? 0.5;
+  return { h: +(lam * s).toFixed(3), a: +(lam * (1 - s)).toFixed(3) };
+}

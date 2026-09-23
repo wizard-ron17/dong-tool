@@ -358,6 +358,139 @@
   .nav-menu-group.g2 { color: var(--g2); }
   .nav-menu-group.g3 { color: var(--g3); }
   .nav-menu-group.g4 { color: var(--g4); }
+  /* ── Schedule game card (ported from /nfl) ── */
+  .sc-pick { display: flex; align-items: center; gap: 0.4rem; font-size: 0.729rem; border-top: 1px solid var(--border); padding-top: 0.45rem; }
+  .sc-pick-star { color: var(--gold); font-size: 0.754rem; }
+  .sc-pick-nm { color: var(--text-strong); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sc-pick-lbl { color: var(--dim); font-size: 0.661rem; letter-spacing: 0.05em; text-transform: uppercase; }
+  .sc-pick-od { margin-left: auto; font-family: var(--font-d); font-size: 0.88rem; font-weight: 700; color: var(--good); }
+  .sc-pick-od.dog { color: var(--gold); }
+  .pm.gmm { max-width: 1000px; }
+  .gm-more { display: block; margin: 0.7rem auto 0; }
+  .gm-hero { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 0.8rem; padding: 0.1rem 2rem 0.8rem 0.2rem; border-bottom: 1px solid var(--border); margin-bottom: 0.85rem; }
+  .gm-team { display: flex; align-items: center; gap: 0.6rem; font-family: var(--font-d); font-size: 1.5rem; color: var(--text-strong); }
+  .gm-team.end { justify-content: flex-end; }
+  .gm-team img { width: 2.6rem; height: 2.6rem; object-fit: contain; }
+  .gm-mid { text-align: center; font-family: var(--font-d); }
+  .gm-lines { display: flex; gap: 0.4rem; justify-content: center; }
+  .gm-lines span { font-size: 0.8rem; padding: 0.15rem 0.5rem; border-radius: 6px; border: 1px solid var(--border2); color: var(--silver); }
+  .gm-score { font-size: 2rem; line-height: 1; display: flex; gap: 0.4rem; justify-content: center; color: var(--muted); }
+  .gm-score .win { color: var(--text-strong); }
+  .gm-score i { font-style: normal; opacity: 0.4; }
+  .gm-when { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+  .gm-live { color: var(--gold); }
+  .gm-wx { font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); margin-top: 0.2rem; }
+  .gm-tabs { margin: 0 0 0.9rem; }
+  .gm-tiles { margin-bottom: 0.8rem; }
+  .gm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 0.6rem; }
+  .gmc { border: 1px solid var(--border); border-radius: 12px; background: var(--surface0); padding: 0.6rem 0.7rem 0.5rem; min-width: 0; }
+  .gmc.void { opacity: 0.55; }
+  .gmc-top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.5rem; cursor: pointer; }
+  .gmc-top .rc-photo { width: 34px; height: 34px; margin: 0; }
+  .gmc-id { display: flex; flex-direction: column; min-width: 0; }
+  .gmc-id b { font-family: var(--font-d); font-size: 0.95rem; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gmc-id > span { display: flex; align-items: center; gap: 0.3rem; font-size: 0.7rem; color: var(--muted); }
+  .gmc-id .posb { font-style: normal; }
+  .gmc-td { text-align: right; font-family: var(--font-d); line-height: 1.1; }
+  .gmc-td b { font-size: 0.95rem; color: var(--gold); }
+  .gmc-td.hit b { color: var(--accent); }
+  .gmc-td small { display: block; font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+  .gmc-stats { margin-top: 0.45rem; display: grid; gap: 0.1rem; }
+  .gmc-void { margin: 0.5rem 0 0.2rem; font-size: 0.8rem; color: var(--muted); }
+  .gms { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "k v" "bar od"; align-items: center; column-gap: 0.5rem; row-gap: 0.1rem; padding: 0.3rem 0.35rem; border-radius: 8px; cursor: pointer; }
+  .gms:hover { background: var(--surface2); }
+  .gms + .gms { border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent); }
+  .gms-k { grid-area: k; font-size: 0.74rem; color: var(--muted); }
+  .gms-v { grid-area: v; font-family: var(--font-d); font-size: 0.95rem; color: var(--text); }
+  .gms-v em { font-style: normal; margin-left: 0.35rem; color: var(--text-strong); }
+  .gms.hit .gms-v em { color: var(--accent); }
+  .gms.miss .gms-v em { color: var(--muted); }
+  .gms-bar { grid-area: bar; height: 4px; border-radius: 2px; background: var(--surface2); overflow: hidden; }
+  .gms-bar em { display: block; height: 100%; background: var(--silver); }
+  .gms.hit .gms-bar em { background: var(--accent); }
+  .gms-od { grid-area: od; font-size: 0.7rem; color: var(--muted); font-family: var(--font-d); white-space: nowrap; }
+  .gms-od b { margin-left: 0.3rem; }
+  .mx.flat, .gf.flat { border: none; background: transparent; padding: 0; }
+  @media (max-width: 620px) {
+    .pm.gmm { padding-left: 0.7rem; padding-right: 0.7rem; }
+    .gm-hero { grid-template-columns: auto auto; justify-content: space-between; align-items: center; gap: 0.3rem 0.5rem; padding: 0 1.8rem 0.6rem 0; }
+    .gm-mid { grid-column: 1 / -1; order: 3; }
+    .gm-lines { gap: 0.3rem; }
+    .gm-lines span { font-size: 0.72rem; }
+    .gm-when, .gm-wx { font-size: 0.7rem; }
+    .gm-team { font-size: 1.25rem; gap: 0.4rem; }
+    .gm-team img { width: 2rem; height: 2rem; }
+    .gm-score { font-size: 1.5rem; }
+    .gm-grid { grid-template-columns: minmax(0, 1fr); }
+  }
+  .gb-note { margin-top: 0.5rem; font-size: 0.75rem; color: var(--muted); }
+  .gf { background: var(--surface0); border: 1px solid var(--border2); border-top: none; padding: 0.85rem 1rem 0.7rem; }
+  .gf + .mx { border-top: 1px dashed var(--border); }
+  .gf-empty { padding: 1rem 0; color: var(--muted); font-size: 0.85rem; }
+  .gf-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem 1rem; margin-bottom: 0.55rem; }
+  .gf-head h4 { margin: 0; font-family: var(--font-d); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--silver); }
+  .gf-teams { display: flex; gap: 1rem; }
+  .gf-team { display: inline-flex; align-items: center; gap: 0.35rem; font-family: var(--font-d); font-weight: 700; font-size: 0.9rem; color: var(--muted); }
+  .gf-team i { width: 0.9rem; height: 3px; border-radius: 2px; background: var(--c); }
+  .gf-team img { width: 1.1rem; height: 1.1rem; object-fit: contain; }
+  .gf-team b { font-size: 1.05rem; color: var(--text); font-variant-numeric: tabular-nums; }
+  .gf-team.won b { color: var(--text-strong); }
+  .gf-team.won { color: var(--text-strong); }
+  .gf-plot { position: relative; height: 10.5rem; margin: 0 0.2rem; touch-action: pan-y; cursor: crosshair; }
+  .gf-plot svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .gf-mid { stroke: var(--border2); stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+  .gf-q { stroke: var(--border); vector-effect: non-scaling-stroke; }
+  .gf-ot { fill: var(--surface2); opacity: 0.55; }
+  .gf-line { fill: none; stroke-width: 2.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+  .gf-plot svg { animation: gfDraw 1.7s ease-out both; }
+  .gf-line.away { stroke-width: 2; opacity: 0.75; }
+  @keyframes gfDraw { from { clip-path: inset(-10px 100% -10px 0); } to { clip-path: inset(-10px -10px -10px 0); } }
+  .gf-pct { position: absolute; left: 0.2rem; font-size: 0.6rem; color: var(--dim); font-family: var(--font-d); pointer-events: none; }
+  .gf-pct.top { top: 0.1rem; }
+  .gf-pct.mid { top: calc(50% - 0.95rem); }
+  .gf-cursor { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--silver); opacity: 0.6; pointer-events: none; }
+  .gf-read { position: absolute; top: -0.35rem; transform: translate(-50%, -100%); white-space: nowrap; font-size: 0.72rem; font-family: var(--font-d); color: var(--text); background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px; padding: 0.15rem 0.45rem; pointer-events: none; z-index: 3; }
+  .gf-read b { color: var(--gold); margin-right: 0.2rem; }
+  .gf-td { position: absolute; width: 13px; height: 13px; margin: -6.5px 0 0 -6.5px; padding: 0; border-radius: 50%; border: 2px solid var(--surface0); background: var(--c); box-shadow: 0 0 0 1px var(--c), 0 0 8px color-mix(in srgb, var(--c) 70%, transparent); cursor: pointer; z-index: 2; opacity: 0; animation: gfPop 0.35s var(--d) ease-out forwards; }
+  .gf-td::before { content: ''; position: absolute; inset: -9px; }
+  .gf-td span { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 0.7rem; font-family: var(--font-d); font-weight: 700; color: var(--text-strong); background: var(--surface2); border: 1px solid var(--c); border-radius: 6px; padding: 0.12rem 0.4rem; opacity: 0; pointer-events: none; transition: opacity 0.15s; }
+  .gf-td.flip span { left: auto; right: -6px; transform: none; }
+  .gf-td:hover, .gf-td:focus-visible { transform: scale(1.35); }
+  .gf-td:hover span, .gf-td:focus-visible span { opacity: 1; }
+  @keyframes gfPop { 0% { opacity: 0; transform: scale(0.2); } 70% { opacity: 1; transform: scale(1.4); } 100% { opacity: 1; transform: scale(1); } }
+  .gf-ql { position: relative; height: 1.1rem; margin: 0.2rem 0.2rem 0; font-size: 0.66rem; color: var(--muted); font-family: var(--font-d); }
+  .gf-ql span { position: absolute; transform: translateX(-50%); }
+  .gf-note { margin: 0.35rem 0 0; font-size: 0.8rem; color: var(--muted); }
+  .gf-note b { color: var(--text); }
+  @media (min-width: 900px) {
+    .sc-game > .sc-pick { border-top: none; border-left: 1px solid var(--border); padding-top: 0; padding-left: 0.9rem; width: 20rem; flex-shrink: 0; }
+  }
+  /* NHL additions: live win-probability bar on the row, the Matchup tab */
+  .sc-wp { display: flex; align-items: center; gap: 0.55rem; margin: 0.45rem 0.2rem 0.05rem; font-size: 0.72rem; color: var(--muted); }
+  .sc-wp b { color: var(--text-strong); font-family: var(--font-d); }
+  .sc-wpbar { flex: 1; height: 6px; border-radius: 999px; background: linear-gradient(90deg, var(--ac) 0 calc(100% - var(--h)), var(--hc) calc(100% - var(--h)) 100%); }
+  .gmx { background: var(--surface1); border: 1px solid var(--border); border-radius: 12px; padding: 0.7rem 0.8rem; }
+  .gmx-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; font-family: var(--font-d); font-weight: 700; color: var(--text-strong); margin-bottom: 0.35rem; }
+  .gmx-head > span:last-child { text-align: right; }
+  .gmx-mid { font-family: var(--font-b); font-size: 0.66rem; font-weight: 600; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; }
+  .gmx-logo { width: 20px; height: 20px; object-fit: contain; vertical-align: -5px; margin: 0 0.35rem; }
+  .gmx-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 0.5rem; padding: 0.38rem 0; border-top: 1px solid var(--border); }
+  .gmx-k { font-size: 0.7rem; color: var(--muted); text-align: center; min-width: 7.5rem; }
+  .gmx-v { font-family: var(--font-d); font-weight: 700; font-size: 1.02rem; }
+  .gmx-row > .gmx-v:last-child, .gmx-row > .gmx-gl:last-child { justify-self: end; text-align: right; }
+  .gmx-v small { font-family: var(--font-m); font-size: 0.62rem; font-weight: 600; color: var(--dim); margin-left: 0.3rem; }
+  .gmx-v.great { color: var(--good); } .gmx-v.good { color: color-mix(in srgb, var(--good) 65%, var(--text)); }
+  .gmx-v.avg { color: var(--gold); } .gmx-v.below { color: color-mix(in srgb, var(--bad) 60%, var(--gold)); } .gmx-v.bad { color: var(--bad); }
+  .gmx-gl { display: flex; align-items: center; gap: 0.45rem; min-width: 0; }
+  .gmx-gl .rc-photo { width: 30px; height: 30px; margin: 0; flex-shrink: 0; }
+  .gmx-gl span { display: flex; flex-direction: column; font-size: 0.78rem; min-width: 0; }
+  .gmx-gl small { color: var(--dim); font-size: 0.66rem; }
+  .gmx-row > .gmx-gl:last-child { flex-direction: row-reverse; }
+  .gmx-wp { margin-top: 0.7rem; }
+  .gmx-wpbar { height: 8px; border-radius: 999px; background: linear-gradient(90deg, var(--surface2) 0 calc(100% - var(--h)), var(--accent) calc(100% - var(--h)) 100%); }
+  .gmx-wpl { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted); margin-top: 0.3rem; }
+  .gmx-wpl b { color: var(--text-strong); font-family: var(--font-d); }
+  @media (max-width: 560px) { .gmx-k { min-width: 5.5rem; font-size: 0.64rem; } .gmx-gl small { display: none; } }
   /* ── Parlay slip (ported from /nfl — one slip shared across the site) ── */
   .plw-hd-add { flex: 0 0 3.8rem; text-align: center; white-space: nowrap; letter-spacing: 0.02em; }
   .plw-row.on { background: rgba(51,208,124,0.07); }
@@ -1746,6 +1879,7 @@
       setStatus('ready', statusSummary(D));
     } catch (e) { D = 'error'; setStatus('error'); }
     renderPanel(activeNav);
+    liveStart();
     plOpenPending();
   }
   function dataGate(id) {
@@ -2621,7 +2755,7 @@
     }
     return out.slice(0, 4);
   }
-  function tbOpenGame(date, gameId) { scheduleDate = date; scOpen.clear(); scOpen.add(gameId); switchNav('schedule'); }
+  function tbOpenGame(date, gameId) { scheduleDate = date; switchNav('schedule'); openGame(gameId); }
   const TB_TOOLS = [['picks', 'Picks'], ['shots', 'Shots'], ['points', 'Points'], ['points', 'Assists'], ['saves', 'Saves'], ['allowed', 'Goals Allowed'], ['pairs', 'Pairs'], ['due', 'Due'], ['milestones', 'Milestones'], ['birthdays', 'Birthdays'], ['stats', 'Stats'], ['recap', 'Recap'], ['schedule', 'Schedule'], ['home', 'Home']];
   function siteSearch() {
     const box = document.getElementById('tb-results'), input = document.getElementById('site-search');
@@ -2709,15 +2843,16 @@
     </div>`;
   }
   function gameRow(g) {
-    const open = scOpen.has(g.gameId);
-    const final = g.awayScore != null && g.homeScore != null && (g.state === 'OFF' || g.state === 'FINAL');
-    const live = g.state === 'LIVE' || g.state === 'CRIT';
-    const aWin = final && g.awayScore > g.homeScore;
+    const state = gmState(g), L = liveOf(g);
+    const final = state === 'post' && g.awayScore != null;
+    const live = state === 'live';
+    const as = live ? L?.as ?? g.awayScore ?? 0 : g.awayScore, hs = live ? L?.hs ?? g.homeScore ?? 0 : g.homeScore;
+    const aWin = final && as > hs;
     const pre = g.type === 1 ? '<span class="sc-pre">PRE</span> ' : '';
     const mid = final
-      ? `<div class="sc-score">${g.awayScore}–${g.homeScore}</div><div class="sc-when">${pre}${g.end && g.end !== 'REG' ? g.end : 'Final'}</div>`
+      ? `<div class="sc-score">${as}–${hs}</div><div class="sc-when">${pre}${g.end && g.end !== 'REG' ? g.end : 'Final'}</div>`
       : live
-        ? `<div class="sc-score" style="color:var(--bad)">${g.awayScore ?? 0}–${g.homeScore ?? 0}</div><div class="sc-when"><span class="sc-live">LIVE</span></div>`
+        ? `<div class="sc-score" style="color:var(--bad)">${as}–${hs}</div><div class="sc-when"><span class="sc-live">LIVE</span>${L?.detail ? ' ' + esc(L.detail) : ''}</div>`
         : `${scLines(g)}<div class="sc-score">${gameTime(g.start)}</div><div class="sc-when">${pre}${g.tv[0] ? esc(g.tv[0]) : ''}</div>`;
     // Records come off the standings table, which is last season's until a game
     // is played — the caller labels it rather than passing April off as today.
@@ -2729,29 +2864,33 @@
         </div>
         ${end ? logoImg(ab, 'sc-logo') : ''}
       </div>`;
-    const goals = (D.recap?.[g.date] || []).filter(x => x.gameId === g.gameId);
-    const body = !open ? '' : `<div class="sc-body">
-        <div class="sc-facts">
-          <span class="sc-fact">${esc(teamName(g.away))} <b>at</b> ${esc(teamName(g.home))}</span>
-          ${g.venue ? `<span class="sc-fact">· ${esc(g.venue)}</span>` : ''}
-          ${!final ? `<span class="sc-fact">· ${dayLabel(g.date, true)}, ${gameTime(g.start)}</span>` : ''}
-          ${g.tv.map(t => `<span class="sc-tv">${esc(t)}</span>`).join('')}
-        </div>
-        ${goals.length ? `<div class="sc-goals">${goals.map(x => `
-          <div class="sc-goal"><span class="t">${periodLabel(x)} ${esc(x.time)}</span><b>${esc(x.name)}</b>
-            <span>${esc(x.team)}${x.strength !== 'ev' ? ` · ${x.strength.toUpperCase()}` : ''}${x.mod === 'empty-net' ? ' · EN' : ''}</span>
-            <span style="margin-left:auto;font-family:var(--font-m);font-size:0.66rem">${x.as}–${x.hs}</span></div>`).join('')}</div>`
-          : final ? '<div class="sc-goals"><span class="sc-goal">Goal detail for this game is outside the recap window.</span></div>' : ''}
-        ${final ? gameVidButtons({ ...g, ...(D.recapGames?.[g.gameId] || {}) }, 'sc-vids') : scLinesDetail(g)}
-      </div>`;
-    return `<div class="sc-game${open ? ' open' : ''}" onclick="toggleGame(${g.gameId})" role="button" tabindex="0">
+    // Before puck drop: the board's likeliest scorer in this game, so the slate
+    // scans for who to bet without opening anything. Live: who's winning.
+    let extra = '';
+    if (state === 'pre') {
+      const inGame = (D.picks?.picks || []).filter(p => p.gameId === g.gameId);
+      if (inGame.length) {
+        const best = inGame.reduce((x, y) => (y.p > x.p ? y : x));
+        extra = `<div class="sc-pick" onclick="event.stopPropagation();openPick(${best.pid})">
+          <span class="sc-pick-star">★</span><span class="sc-pick-lbl">top pick</span>
+          ${posBadge(best.pos)}<span class="sc-pick-nm">${esc(best.name)}</span>
+          <span class="sc-pick-od${best.p < 0.5 ? ' dog' : ''}">${sgOdds(best.p)}</span></div>`;
+      }
+    } else if (live && L) {
+      const lead = (L.hs ?? 0) - (L.as ?? 0), hp = nhlWp(gameLam(g), liveElapsed(L), lead);
+      const [HC, AC] = teamPair(g.home, g.away);
+      extra = `<div class="sc-wp" title="Our live win probability"><span>${g.away} <b>${Math.round((1 - hp) * 100)}%</b></span>
+        <i class="sc-wpbar" style="--h:${(hp * 100).toFixed(1)}%;--hc:${HC};--ac:${AC}"></i>
+        <span><b>${Math.round(hp * 100)}%</b> ${g.home}</span></div>`;
+    }
+    return `<div class="sc-game" onclick="openGame(${g.gameId})" role="button" tabindex="0">
       <div class="sc-top">
         ${side(g.away, false, aWin)}
         <div class="sc-mid">${mid}</div>
         ${side(g.home, true, final && !aWin)}
         <span class="sc-chev">▶</span>
       </div>
-      ${body}
+      ${extra}
     </div>`;
   }
   function renderSchedule() {
@@ -2769,7 +2908,7 @@
         </div>
         <button class="rc-jump" onclick="setScheduleDate(nextGameDate())" title="Jump to the next date with games">Next up</button>
       </div>
-      <div class="result-meta"><b>${dayLabel(scheduleDate, true)}</b> · ${games.length} games${pre ? ` · ${pre} preseason` : ''} · tap a game for the detail${
+      <div class="result-meta"><b>${dayLabel(scheduleDate, true)}</b> · ${games.length} games${pre ? ` · ${pre} preseason` : ''} · tap a game for projections, the matchup and the game flow${
         D.standingsStale ? ` · records are ${esc(D.leaderSeasonLabel)} finals` : ''}</div>
       <div class="sc-list">${games.map(gameRow).join('') || '<div class="empty">No games on this date.</div>'}</div>`;
   }
@@ -5047,6 +5186,467 @@
         ${prPriceRow(pr, i, tip)}
         <div class="dates">${pills(g.keys)}</div></div>`;
     }).join('');
+  }
+
+  // ── Win probability ─────────────────────────────────────────────────────
+  // research/nhl_winprob.py: the closing line's scoring rates (g.lam, from the
+  // moneyline and total) played out as two Poissons over the time left; a 1-2
+  // goal lead in the last three minutes prices the leader and the trailer at
+  // their measured rates (the goalie comes out); ties go to overtime. Held out
+  // on 2025-26: Brier 0.141, calibrated to ~2 points. Games without a line use
+  // the two clubs' scoring rates and say so.
+  function wpPmf(l, K = 12) { const p = [Math.exp(-l)]; for (let k = 1; k < K; k++) p.push(p[k - 1] * l / k); return p; }
+  function wpStep(dist, rates) {
+    const out = new Map();
+    for (const [d, p0] of dist) {
+      const [rh, ra] = rates(d), ph = wpPmf(rh), pa = wpPmf(ra);
+      for (let i = 0; i < ph.length; i++) for (let j = 0; j < pa.length; j++) {
+        const k = d + i - j; out.set(k, (out.get(k) || 0) + p0 * ph[i] * pa[j]);
+      }
+    }
+    return out;
+  }
+  /** P(home wins) with home lead `lead` at t seconds of regulation. */
+  function nhlWp(lam, t, lead) {
+    const P = D.winprob || { late: 180, m_lead: 4.246, m_trail: 1.593, ot_shrink: 0.5 };
+    const lh = lam.h, la = lam.a, pOt = P.ot_shrink * 0.5 + (1 - P.ot_shrink) * lh / (lh + la);
+    const settle = (dist) => { let w = 0; for (const [d, p] of dist) w += p * (d > 0 ? 1 : d === 0 ? pOt : 0); return w; };
+    if (t >= 3600) return lead > 0 ? 1 : lead < 0 ? 0 : pOt;
+    const tl = 3600 - P.late;
+    let dist = new Map([[lead, 1]]);
+    if (t < tl) { const f = (tl - t) / 3600; dist = wpStep(dist, () => [lh * f, la * f]); }
+    const f = (3600 - Math.max(t, tl)) / 3600;
+    dist = wpStep(dist, (d) => Math.abs(d) >= 1 && Math.abs(d) <= 2
+      ? (d > 0 ? [lh * P.m_lead * f, la * P.m_trail * f] : [lh * P.m_trail * f, la * P.m_lead * f]) : [lh * f, la * f]);
+    return settle(dist);
+  }
+  /** Each side's scoring rate: the closing line's, else the two clubs' own. */
+  function gameLam(g) {
+    if (g.lam) return { ...g.lam, src: 'line' };
+    const A = D.teams?.[g.away]?.rates, H = D.teams?.[g.home]?.rates;
+    if (!A || !H) return { h: 3.1, a: 2.95, src: 'league' };
+    return { h: (H.gf + A.ga) / 2 * 1.02, a: (A.gf + H.ga) / 2 * 0.98, src: 'team' };
+  }
+
+  // ── Live scores ─────────────────────────────────────────────────────────
+  // data.json rebuilds every half hour; a game in progress needs better than
+  // that. While tonight has a game on, the page polls ESPN's scoreboard (it
+  // allows cross-origin reads; the NHL's own API doesn't) once a minute, and the
+  // open game's goals from ESPN's play-by-play.
+  const ESPN_SB = 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=';
+  const ESPN_SUM = 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=';
+  const ESPN2NHL = { LA: 'LAK', NJ: 'NJD', SJ: 'SJS', TB: 'TBL', UTAH: 'UTA', MON: 'MTL' };
+  const espnAb = (x) => ESPN2NHL[x] || x;
+  const LIVE = {};                 // "away|home" -> { as, hs, per, left, state, id, detail }
+  const LIVE_EV = {};              // espn id -> [{ t, team, name }]
+  let liveTimer = null, liveBusy = false;
+  const liveOf = (g) => LIVE[`${g.away}|${g.home}`];
+  const gameLiveNow = (g) => {
+    const L = liveOf(g); if (L) return L.state === 'in';
+    return g.state === 'LIVE' || g.state === 'CRIT';
+  };
+  function liveWanted() {
+    const t = todayET(), now = Date.now();
+    return (D?.schedule || []).some(g => g.date === t && g.start && Date.parse(g.start) - 15 * 60e3 <= now
+      && !(liveOf(g)?.state === 'post') && !['OFF', 'FINAL'].includes(g.state));
+  }
+  async function liveTick() {
+    if (liveBusy || document.hidden || !D || D === 'error' || !liveWanted()) return;
+    liveBusy = true;
+    try {
+      const r = await fetch(ESPN_SB + todayET().replace(/-/g, '')); if (!r.ok) return;
+      const j = await r.json();
+      for (const ev of j.events || []) {
+        const c = ev.competitions?.[0]; if (!c) continue;
+        const side = Object.fromEntries((c.competitors || []).map(x => [x.homeAway, x]));
+        const st = ev.status || c.status || {};
+        LIVE[`${espnAb(side.away?.team?.abbreviation)}|${espnAb(side.home?.team?.abbreviation)}`] = {
+          as: +side.away?.score || 0, hs: +side.home?.score || 0, per: st.period || 0, left: st.clock ?? null,
+          state: st.type?.state || 'pre', detail: st.type?.shortDetail || '', id: ev.id,
+        };
+      }
+      // the open game's goals, for its live chart
+      const g = gm.gid && gmGame();
+      if (g && liveOf(g)?.state === 'in') await liveGoals(g);
+    } catch (e) { /* the next tick tries again */ }
+    finally {
+      liveBusy = false;
+      if (activeNav === 'schedule') renderSchedule();
+      if (gm.gid) gmRender();
+    }
+  }
+  async function liveGoals(g) {
+    const L = liveOf(g); if (!L?.id) return;
+    const r = await fetch(ESPN_SUM + L.id); if (!r.ok) return;
+    const j = await r.json();
+    const ids = Object.fromEntries((j.header?.competitions?.[0]?.competitors || []).map(c => [c.team.id, espnAb(c.team.abbreviation)]));
+    LIVE_EV[L.id] = (j.plays || []).filter(p => p.scoringPlay && p.period?.number <= 3).map(p => {
+      const [m, s] = String(p.clock?.displayValue || '0:00').split(':');
+      return { t: (p.period.number - 1) * 1200 + (+m) * 60 + (+s), team: ids[p.team?.id], name: p.participants?.[0]?.athlete?.displayName || '' };
+    });
+  }
+  function liveStart() {
+    if (liveTimer) return;
+    liveTick();
+    liveTimer = setInterval(liveTick, 60e3);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) liveTick(); });
+  }
+  /** Seconds of regulation elapsed in a live game (ESPN's status clock counts down). */
+  const liveElapsed = (L) => L.per >= 1 && L.per <= 3 && L.left != null ? (L.per - 1) * 1200 + (1200 - L.left) : L.per > 3 ? 3600 : 0;
+
+  // ── Team colours, for the chart ─────────────────────────────────────────
+  const TEAM_COLOR = {
+    ANA: ['#F47A38', '#B9975B'], BOS: ['#FFB81C', '#000000'], BUF: ['#003087', '#FFB81C'], CAR: ['#CE1126', '#A2AAAD'],
+    CBJ: ['#002654', '#CE1126'], CGY: ['#C8102E', '#F1BE48'], CHI: ['#CF0A2C', '#FFD100'], COL: ['#6F263D', '#236192'],
+    DAL: ['#006847', '#8F8F8C'], DET: ['#CE1126', '#FFFFFF'], EDM: ['#041E42', '#FF4C00'], FLA: ['#C8102E', '#B9975B'],
+    LAK: ['#111111', '#A2AAAD'], MIN: ['#154734', '#A6192E'], MTL: ['#AF1E2D', '#192168'], NJD: ['#CE1126', '#000000'],
+    NSH: ['#FFB81C', '#041E42'], NYI: ['#00539B', '#F47D30'], NYR: ['#0038A8', '#CE1126'], OTT: ['#C52032', '#C2912C'],
+    PHI: ['#F74902', '#000000'], PIT: ['#FCB514', '#000000'], SEA: ['#99D9D9', '#E9072B'], SJS: ['#006D75', '#EA7200'],
+    STL: ['#002F87', '#FCB514'], TBL: ['#002868', '#FFFFFF'], TOR: ['#00205B', '#FFFFFF'], UTA: ['#71AFE5', '#090909'],
+    VAN: ['#00205B', '#00843D'], VGK: ['#B4975A', '#333F42'], WPG: ['#041E42', '#AC162C'], WSH: ['#C8102E', '#041E42'],
+  };
+  function lineColor(hex) {
+    const n = parseInt((hex || '#888888').slice(1), 16), c = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    const lum = (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255;
+    const f = lum < 0.45 ? Math.min(0.65, (0.45 - lum) * 1.6) : 0;
+    return '#' + c.map(v => Math.round(v + (255 - v) * f).toString(16).padStart(2, '0')).join('');
+  }
+  /** Two colours that read as two teams on the dark card (ported from /nfl). */
+  function teamPair(ta, tb) {
+    const rgb = (h) => { const n = parseInt((h || '#888888').slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+    const lum = (h) => { const [r, g, b] = rgb(h); return (0.299 * r + 0.587 * g + 0.114 * b) / 255; };
+    const far = (h1, h2) => Math.hypot(...rgb(h1).map((v, i) => v - rgb(h2)[i]));
+    const opts = (ab) => {
+      const [c1, c2] = TEAM_COLOR[ab] || ['#1f6feb', '#ffffff'];
+      return [lum(c1) >= 0.2 ? c1 : null, c2 && lum(c2) >= 0.2 && lum(c2) <= 0.85 ? c2 : null, lineColor(c1)].filter(Boolean);
+    };
+    const oa = opts(ta), ob = opts(tb);
+    const pairs = oa.flatMap((x, i) => ob.map((y, j) => [i + j, x, y])).sort((a, b) => a[0] - b[0]);
+    const hit = pairs.find(([, x, y]) => far(x, y) > 120);
+    return hit ? [hit[1], hit[2]] : [oa[0], '#c9d2e0'];
+  }
+
+  // ── Game flow ───────────────────────────────────────────────────────────
+  const gfData = {};
+  const gfClock = (t) => t >= 3600 ? 'OT' : `P${Math.floor(t / 1200) + 1} ${Math.floor((t % 1200) / 60)}:${String(Math.round(t % 60)).padStart(2, '0')}`;
+  /** Goals as {t, home, name, ...recap goal}: the recap, the season archive, or ESPN for a live game. */
+  function gameGoals(g) {
+    const toT = (x) => { const [m, s] = String(x.time || '0:00').split(':'); return (x.period - 1) * 1200 + (+m) * 60 + (+s); };
+    const rec = (D.recap?.[g.date] || []).map((x, i) => ({ x, i })).filter(({ x }) => x.gameId === g.gameId);
+    if (rec.length) return rec.map(({ x, i }) => ({ t: toT(x), home: x.team === g.home, name: x.name, ot: x.ptype !== 'REG', so: x.ptype === 'SO', vid: x.vid, at: i, src: 'recap', g: x }));
+    const L = liveOf(g);
+    if (L?.id && LIVE_EV[L.id]) return LIVE_EV[L.id].map(x => ({ t: x.t, home: x.team === g.home, name: x.name, src: 'live' }));
+    if (PL?.goals) {
+      const a = PL.goals.filter(x => x.gameId === g.gameId);
+      return a.map(x => ({ t: toT(x), home: x.team === g.home, name: x.name, ot: x.ptype !== 'REG', so: x.ptype === 'SO', vid: x.vid, src: 'arch', g: x }));
+    }
+    return null;
+  }
+  function gameFlow(g, state) {
+    const goals = gameGoals(g);
+    if (goals == null) { loadPlayersLog(); return `<div class="gf"><div class="gf-empty">Loading the game's goals…</div></div>`; }
+    const lam = gameLam(g), L = liveOf(g);
+    const reg = goals.filter(x => !x.ot && x.t < 3600).sort((a, b) => a.t - b.t);
+    const now = state === 'live' ? (L ? liveElapsed(L) : Math.max(...reg.map(x => x.t), 0)) : 3600;
+    const hs = state === 'live' ? (L?.hs ?? 0) : g.homeScore, as = state === 'live' ? (L?.as ?? 0) : g.awayScore;
+    const wentOT = state === 'post' && (g.end === 'OT' || g.end === 'SO' || goals.some(x => x.ot));
+    // the line: every 20 seconds, and on both sides of every goal
+    const pts = [];
+    let lead = 0, gi = 0;
+    const leadAt = (t) => reg.filter(x => x.t <= t).reduce((d, x) => d + (x.home ? 1 : -1), 0);
+    const ts = new Set(); for (let t = 0; t <= Math.min(now, 3600); t += 20) ts.add(t);
+    for (const x of reg) { if (x.t <= now) { ts.add(Math.max(0, x.t - 0.01)); ts.add(x.t); } }
+    ts.add(Math.min(now, 3600));
+    for (const t of [...ts].sort((a, b) => a - b)) pts.push([t, nhlWp(lam, t, leadAt(t))]);
+    const end = wentOT ? 3900 : 3600;
+    if (state === 'post') pts.push([wentOT ? 3900 : 3600, g.homeScore > g.awayScore ? 1 : 0]);
+    gfData[g.gameId] = { pts, end, home: g.home, away: g.away };
+    const [HC, AC] = teamPair(g.home, g.away);
+    const W = 600, H = 170;
+    const X = (t) => (t / end * W).toFixed(1), Y = (v) => ((1 - v) * H).toFixed(1);
+    const line = (inv) => pts.map(([t, v], i) => `${i ? 'L' : 'M'}${X(t)},${Y(inv ? 1 - v : v)}`).join('');
+    const marks = reg.filter(x => x.t <= now).map(x => ({ ...x, v: nhlWp(lam, x.t, leadAt(x.t)), before: nhlWp(lam, Math.max(0, x.t - 0.01), leadAt(x.t - 0.01)) }));
+    const big = marks.reduce((m, x) => !m || Math.abs(x.v - x.before) > Math.abs(m.v - m.before) ? x : m, null);
+    const marker = (x) => {
+      // on the scoring side's own line: the home line sits at 1 - v, the away line at v
+      const top = ((x.home ? 1 - x.v : x.v) * 100).toFixed(2), left = (x.t / end * 100).toFixed(2);
+      const play = x.vid ? (x.src === 'recap' ? `openGoalVideo('${g.date}',${x.at})` : `gfWatch(${g.gameId},${x.g.k})`) : '';
+      return `<button class="gf-td${+left > 70 ? ' flip' : ''}" style="left:${left}%;top:${top}%;--c:${x.home ? HC : AC};--d:${(0.4 + x.t / end * 1.3).toFixed(2)}s"
+        onclick="event.stopPropagation();${play}" aria-label="${esc(x.name)} goal, ${gfClock(x.t)}">
+        <span>${esc(x.name)} · ${gfClock(x.t)}${x.vid ? ' · ▶' : ''}</span></button>`;
+    };
+    const winner = state === 'post' ? (g.homeScore > g.awayScore ? g.home : g.away) : null;
+    const teamRow = (ab, c, score) => `<span class="gf-team${winner === ab ? ' won' : ''}" style="--c:${c}"><i></i>${logoImg(ab, '')}${ab}<b>${score ?? ''}</b></span>`;
+    const hp = Math.round(pts[pts.length - 1][1] * 100);
+    const lbls = ['P1', 'P2', 'P3'].concat(wentOT ? [g.end === 'SO' ? 'SO' : 'OT'] : [])
+      .map((q, i) => `<span style="left:${((i < 3 ? 600 + i * 1200 : 3750) / end * 100).toFixed(2)}%">${q}</span>`).join('');
+    const src = lam.src === 'line' ? 'priced off the closing line' : lam.src === 'team' ? 'no closing line — priced off the two clubs\' scoring rates' : 'no line or team rates yet — league-average scoring';
+    return `<div class="gf" onclick="event.stopPropagation()">
+      <div class="gf-head">
+        <h4>${state === 'live' ? `Win probability · <b class="gm-live">${esc(L?.detail || 'Live')}</b>` : 'Game flow'}</h4>
+        <div class="gf-teams">${teamRow(g.away, AC, as)}${teamRow(g.home, HC, hs)}</div>
+      </div>
+      <div class="gf-plot" onpointermove="gfScrub(event,${g.gameId})" onpointerleave="gfScrub(null,${g.gameId})">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Win probability through the game">
+          ${wentOT ? `<rect x="${X(3600)}" y="0" width="${(W - +X(3600)).toFixed(1)}" height="${H}" class="gf-ot"/>` : ''}
+          <line x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}" class="gf-mid"/>
+          ${[1200, 2400].concat(wentOT ? [3600] : []).map(q => `<line x1="${X(q)}" x2="${X(q)}" y1="0" y2="${H}" class="gf-q"/>`).join('')}
+          <path d="${line(true)}" stroke="${AC}" class="gf-line away"/>
+          <path d="${line(false)}" stroke="${HC}" class="gf-line"/>
+        </svg>
+        <span class="gf-pct top">100%</span><span class="gf-pct mid">50%</span>
+        <i class="gf-cursor" hidden></i><div class="gf-read" hidden></div>
+        ${marks.map(marker).join('')}
+      </div>
+      <div class="gf-ql">${lbls}</div>
+      <p class="gf-note">${state === 'live' ? `Right now: <b>${g.home} ${hp}%</b> · ${g.away} ${100 - hp}%. Updates every minute. ` : ''}${
+        big && Math.abs(big.v - big.before) >= 0.08 ? `Biggest swing: <b>${esc(big.name)}</b> at ${gfClock(big.t)}, <b>${big.v >= big.before ? '+' : '−'}${Math.abs((big.v - big.before) * 100).toFixed(0)}</b> for ${big.home ? g.home : g.away}. ` : ''}${
+        wentOT ? 'Shaded: overtime. ' : ''}Our win probability, ${src}. ${marks.some(x => x.vid) ? 'Tap a goal to watch it.' : ''}</p>
+    </div>`;
+  }
+  function gfScrub(e, gid) {
+    const box = e?.currentTarget || document.querySelector('.gf .gf-plot'); if (!box) return;
+    const cur = box.querySelector('.gf-cursor'), read = box.querySelector('.gf-read'), G = gfData[gid];
+    if (!e || !G || (e.target.closest && e.target.closest('.gf-td'))) { cur.hidden = read.hidden = true; return; }
+    const r = box.getBoundingClientRect(), f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), t = f * G.end;
+    let lo = 0; while (lo < G.pts.length - 1 && G.pts[lo + 1][0] <= t) lo++;
+    const hp = Math.round(G.pts[lo][1] * 100);
+    cur.hidden = read.hidden = false;
+    cur.style.left = (f * 100).toFixed(2) + '%';
+    read.style.left = (Math.min(0.82, Math.max(0.18, f)) * 100).toFixed(2) + '%';
+    read.innerHTML = `<b>${gfClock(t)}</b> ${G.home} ${hp}% · ${G.away} ${100 - hp}%`;
+  }
+  window.gfScrub = gfScrub;
+  window.gfWatch = (gameId, k) => {
+    const list = (PL?.goals || []).filter(x => x.gameId === gameId && x.vid);
+    const g = list.find(x => x.k === k); if (!g) return;
+    if (isMob()) { openReels(g.date, g); return; }
+    hv = { list, at: list.indexOf(g), date: g.date };
+    hvRender();
+  };
+
+  // ── The game card ───────────────────────────────────────────────────────
+  // /nfl's schedule card: one modal per game, three tabs. Projections before
+  // puck drop (the live boards), our board once it starts (what was frozen at
+  // puck drop, with what each player did beside it), the matchup, and the game
+  // flow for anything under way or finished.
+  const gm = { gid: null, tab: null, all: false };
+  const gmGame = () => (D?.schedule || []).find(x => x.gameId === gm.gid);
+  function gmState(g) {
+    const L = liveOf(g);
+    if (L?.state === 'post' || ['OFF', 'FINAL'].includes(g.state)) return 'post';
+    if (L?.state === 'in' || g.state === 'LIVE' || g.state === 'CRIT') return 'live';
+    return 'pre';
+  }
+  function openGame(gid) {
+    gm.gid = +gid; gm.tab = null; gm.all = false;
+    if (!document.getElementById('gm-back')) {
+      document.body.insertAdjacentHTML('beforeend', `
+        <div class="pm-back" id="gm-back" onclick="if(event.target===this)closeGame()">
+          <button class="pk-side-nav pk-side-prev" onclick="gmStep(-1)">‹</button>
+          <button class="pk-side-nav pk-side-next" onclick="gmStep(1)">›</button>
+          <div class="pm ydm gmm" role="dialog" aria-modal="true"></div>
+        </div>`);
+      document.addEventListener('keydown', gmKey);
+    }
+    document.body.style.overflow = 'hidden';
+    const g = gmGame();
+    if (g && gmState(g) !== 'pre') { loadGameHist(); if (!gameGoals(g)) loadPlayersLog(); }
+    if (g && gmState(g) === 'live' && liveOf(g)) liveGoals(g).then(() => gmRender()).catch(() => {});
+    gmRender();
+  }
+  function gmKey(e) {
+    if (!document.getElementById('gm-back') || document.getElementById('lc-back') || document.getElementById('pm-back') || document.getElementById('hv-back')) return;
+    if (e.key === 'Escape') closeGame(); else if (e.key === 'ArrowLeft') gmStep(-1); else if (e.key === 'ArrowRight') gmStep(1);
+  }
+  function closeGame() {
+    document.getElementById('gm-back')?.remove(); document.removeEventListener('keydown', gmKey);
+    document.body.style.overflow = '';
+    gm.gid = null;
+  }
+  const gmDeck = () => { const g = gmGame(); return g ? D.schedule.filter(x => x.date === g.date) : []; };
+  function gmStep(d) {
+    const deck = gmDeck(), at = deck.findIndex(x => x.gameId === gm.gid), nx = deck[at + d];
+    if (!nx) return;
+    openGame(nx.gameId);
+  }
+  window.setGmTab = (t) => { gm.tab = t; gmRender(); };
+  window.gmShowAll = (v) => { gm.all = v; gmRender(); };
+  Object.assign(window, { openGame, closeGame, gmStep });
+
+  // what was frozen at puck drop, per game: the four boards' history files
+  let GH = null, ghState = 'idle';
+  function loadGameHist() {
+    if (ghState !== 'idle') return;
+    ghState = 'loading';
+    const get = (f) => fetch(`${APP_BASE}/${f}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : {}).catch(() => ({}));
+    Promise.all(['picks-history.json', 'shots-history.json', 'points-history.json', 'saves-history.json'].map(get))
+      .then(([pk, sh, pt, sv]) => { GH = { pk, sh, pt, sv }; ghState = 'ready'; })
+      .finally(() => { if (gm.gid) gmRender(); });
+  }
+  const gmOdds = (p) => p == null ? '—' : sgOdds(p);
+  /** Every skater and goalie we price in this game: [{pid, name, team, pos, goal, got, stats:[{k,lab,proj,line,p,got,open}]}] */
+  function gmPlayers(g, state) {
+    const M = new Map();
+    const row = (pid, name, team, pos, mug) => { if (!M.has(pid)) M.set(pid, { pid, name, team, pos, mug, stats: [] }); return M.get(pid); };
+    const st = (e, k, lab, proj, line, p, got, open) => e.stats.push({ k, lab, proj, line, p, got, open });
+    if (state === 'pre') {
+      const inG = (arr) => (arr || []).filter(x => x.gameId === g.gameId);
+      for (const r of inG(D.picks?.picks)) { const e = row(r.pid, r.name, r.team, r.pos, r.mug); e.goal = r.p; e.open = `openPick(${r.pid})`; }
+      for (const r of inG(D.shots?.board)) {
+        const e = row(r.pid, r.name, r.team, r.pos, r.mug), pmf = lcPmf(r, 'sog'), [lo, hi] = LC.sog.range;
+        let L = lo; for (let x = lo; x <= hi; x++) if (Math.abs(lcOver(pmf, x) - 0.5) < Math.abs(lcOver(pmf, L) - 0.5)) L = x;
+        st(e, 'sog', 'Shots', r.mu, L, lcOver(pmf, L), null, `openShot(${r.pid})`);
+      }
+      for (const r of inG(D.points?.board)) {
+        const e = row(r.pid, r.name, r.team, r.pos, r.mug);
+        for (const [k, lab, mu] of [['pts', 'Points', r.mu.pts], ['ast', 'Assists', r.mu.a]]) {
+          const pmf = poisPmf(mu); let L = 0.5; for (let x = 0.5; x <= 3.5; x++) if (Math.abs(lcOver(pmf, x) - 0.5) < Math.abs(lcOver(pmf, L) - 0.5)) L = x;
+          st(e, k, lab, mu, L, lcOver(pmf, L), null, `openPointsCard(${r.pid},'${k}')`);
+        }
+      }
+      for (const r of inG(D.saves?.board)) {
+        const e = row(r.pid, r.name, r.team, 'G', r.mug);
+        for (const [k, lab, mu] of [['sv', 'Saves', r.mu], ['ga', 'Goals allowed', r.muGa]]) {
+          const pmf = lcPmf(r, k), [lo, hi] = LC[k].range; let L = lo;
+          for (let x = lo; x <= hi; x++) if (Math.abs(lcOver(pmf, x) - 0.5) < Math.abs(lcOver(pmf, L) - 0.5)) L = x;
+          st(e, k, lab, mu, L, lcOver(pmf, L), null, `openSave(${r.pid},'${k}')`);
+        }
+      }
+    } else if (GH) {
+      const done = state === 'post';
+      const night = (h) => (h?.[g.date] || []);
+      const names = {};
+      for (const x of night(GH.sh)) if (x[5] === g.gameId) names[x[0]] = [x[6], x[7]];
+      for (const x of night(GH.pt)) if (x[1] === g.gameId) names[x[0]] ??= [x[2], x[3]];
+      const who = (pid) => { const lg = PL?.p?.[pid]; return names[pid] || [lg?.n || String(pid), lg?.tm || '']; };
+      const pos = (pid) => PL?.p?.[pid]?.pos || (D.picks?.picks || []).find(x => x.pid === pid)?.pos || '';
+      const got = (v) => done && v != null && v >= 0 ? v : null;
+      for (const x of night(GH.pk)) if (x[3] === g.gameId) {
+        const [n, t] = who(x[0]); const e = row(x[0], n, t, pos(x[0]));
+        e.goal = x[1]; e.got = done ? (x[2] == null ? null : x[2] < 0 ? -1 : (x[10] ?? x[2])) : null; e.open = `openPlayer(${x[0]})`;
+      }
+      for (const x of night(GH.sh)) if (x[5] === g.gameId) st(row(x[0], x[6], x[7], pos(x[0])), 'sog', 'Shots', x[1], x[2], x[3], got(x[4]), `openPlayer(${x[0]})`);
+      for (const x of night(GH.pt)) if (x[1] === g.gameId) {
+        const e = row(x[0], x[2], x[3], pos(x[0]));
+        st(e, 'pts', 'Points', x[5], x[6], x[7], got(x[8]), `openPlayer(${x[0]})`);
+        st(e, 'ast', 'Assists', x[9], x[10], x[11], got(x[12]), `openPlayer(${x[0]})`);
+      }
+      for (const x of night(GH.sv)) if (x[5] === g.gameId) {
+        const e = row(x[0], x[6], x[7], 'G');
+        st(e, 'sv', 'Saves', x[1], x[2], x[3], got(x[4]), `openPlayer(${x[0]})`);
+        st(e, 'ga', 'Goals allowed', x[9], x[10], x[11], got(x[12]), `openPlayer(${x[0]})`);
+      }
+    }
+    return [...M.values()].map(e => ({ ...e, dnp: e.got === -1 }))
+      .sort((a, b) => (a.pos === 'G') - (b.pos === 'G') || (b.goal ?? 0) - (a.goal ?? 0));
+  }
+  function gmProjections(g, state) {
+    if (state !== 'pre' && ghState !== 'ready') return '<div class="empty" style="padding:2rem 0">Loading what we had at puck drop…</div>';
+    const all = gmPlayers(g, state);
+    // the key names: each club's four likeliest scorers and its goalie
+    const key = [];
+    for (const t of [g.away, g.home]) {
+      const mine = all.filter(r => r.team === t);
+      key.push(...mine.filter(r => r.pos !== 'G').slice(0, 4), ...mine.filter(r => r.pos === 'G').slice(0, 1));
+    }
+    const rows = gm.all ? all : all.filter(r => key.includes(r));
+    if (!rows.length) return `<div class="empty" style="padding:2rem 0">${state === 'pre'
+      ? 'Prices post once the slate is set — usually the night before.' : 'No board was frozen for this game.'}</div>`;
+    const done = state === 'post';
+    const tiles = (() => {
+      if (!done) return '';
+      const calls = rows.flatMap(r => [...r.stats.filter(s => s.got != null).map(s => ({ p: s.p, hit: s.got > s.line })),
+                                      ...(r.goal != null && r.got != null && r.got >= 0 ? [{ p: r.goal, hit: r.got >= 1 }] : [])]);
+      if (!calls.length) return '';
+      return `<div class="hm-tiles gm-tiles">
+        <div class="hm-tile"><b>${calls.filter(x => x.hit).length}/${calls.length}</b><span>Calls landed</span></div>
+        <div class="hm-tile"><b>${calls.reduce((a, x) => a + x.p, 0).toFixed(0)}</b><span>We expected</span></div>
+        <div class="hm-tile"><b>${g.awayScore}–${g.homeScore}</b><span>Final score</span></div></div>`;
+    })();
+    const card = (r) => {
+      const stat = (s) => {
+        const fin = s.got != null, hit = fin && s.got > s.line;
+        const pctv = fin ? Math.min(100, s.got / Math.max(+s.proj, 0.001) * 100) : 0;
+        return `<div class="gms${fin ? (hit ? ' hit' : ' miss') : ''}" onclick="event.stopPropagation();${s.open}">
+          <span class="gms-k">${s.lab}</span>
+          <span class="gms-v">${(+s.proj).toFixed(s.k === 'sv' ? 1 : s.k === 'sog' ? 1 : 2)}${fin ? `<em>${s.got}</em>` : ''}</span>
+          ${fin ? `<i class="gms-bar"><em style="width:${pctv.toFixed(0)}%"></em></i>` : ''}
+          <span class="gms-od ${s.p >= 0.5 ? 'goodc' : 'dogc'}">o${s.line}<b>${gmOdds(s.p)}</b></span>
+        </div>`;
+      };
+      return `<div class="gmc ${r.team === g.home ? 'home' : 'away'}${r.dnp ? ' void' : ''}">
+        <div class="gmc-top"${r.open ? ` onclick="event.stopPropagation();${r.open}"` : ''}>
+          ${faceHtml(r.mug || mugOf(r.pid, r.team, D.season), r.name)}
+          <span class="gmc-id"><b>${esc(r.name)}</b><span>${r.pos ? posBadge(r.pos) : ''}${esc(r.team)}</span></span>
+          ${r.goal != null ? `<span class="gmc-td${r.got > 0 ? ' hit' : ''}"><b>${gmOdds(r.goal)}</b><small>${r.got != null && r.got >= 0 ? (r.got ? `${r.got} G` : 'no goal') : 'anytime goal'}</small></span>` : ''}
+        </div>
+        ${r.dnp ? '<div class="gmc-void">Did not dress</div>' : `<div class="gmc-stats">${r.stats.map(stat).join('')}</div>`}
+      </div>`;
+    };
+    const note = state === 'pre' ? 'Projections and fair odds at each market\'s even-money line. Tap a line for the full card.'
+      : state === 'live' ? 'The board as it was frozen at puck drop. Results fill in when the game goes final.'
+      : 'What we had at puck drop, and what each player actually did.';
+    const more = all.length > rows.length || gm.all
+      ? `<button class="pbf-chip gm-more" onclick="gmShowAll(${!gm.all})">${gm.all ? 'Show the key players' : `Show all ${all.length} players`}</button>` : '';
+    return `${tiles}<div class="gm-grid">${rows.map(card).join('')}</div>${more}<p class="gb-note">${note}</p>`;
+  }
+
+  /** Side by side: each club's rates against the league, and the two goalies. */
+  function gmMatchup(g) {
+    const T = D.teams || {}, A = T[g.away]?.rates, H = T[g.home]?.rates;
+    const all = Object.values(T).map(t => t.rates).filter(Boolean);
+    if (!A || !H) return '<div class="empty" style="padding:2rem 0">No team rates yet.</div>';
+    const rank = (v, k, hi) => 1 + all.filter(r => hi ? r[k] > v : r[k] < v).length;
+    const tone = (rk) => rk <= 6 ? 'great' : rk <= 13 ? 'good' : rk <= 19 ? 'avg' : rk <= 26 ? 'below' : 'bad';
+    const fmt = { gf: v => v.toFixed(2), ga: v => v.toFixed(2), sf: v => v.toFixed(1), sa: v => v.toFixed(1), pp: v => (v * 100).toFixed(1) + '%', pk: v => (v * 100).toFixed(1) + '%', fo: v => (v * 100).toFixed(1) + '%' };
+    const ROWS = [['gf', 'Goals for / g', true], ['ga', 'Goals against / g', false], ['sf', 'Shots for / g', true], ['sa', 'Shots against / g', false],
+                  ['pp', 'Power play', true], ['pk', 'Penalty kill', true], ['fo', 'Faceoffs', true]];
+    const cell = (R, k, hi) => { const rk = rank(R[k], k, hi); return `<span class="gmx-v hrg-val ${tone(rk)}">${fmt[k](R[k])}<small>#${rk}</small></span>`; };
+    const lam = gameLam(g), pre = nhlWp(lam, 0, 0);
+    const gl = (t) => (D.saves?.board || []).find(x => x.gameId === g.gameId && x.team === t);
+    const glSide = (t) => { const r = gl(t); return r ? `<div class="gmx-gl">${faceHtml(r.mug || mugOf(r.pid, t, D.season), r.name)}<span><b>${esc(r.name)}</b><small>${pct3(r.svPct)} SV% · ${r.starter?.of ? `${r.starter.starts}/${r.starter.of} starts` : 'projected'}</small></span></div>` : `<div class="gmx-gl"><span><small>No projected starter yet</small></span></div>`; };
+    return `<div class="gmx">
+      <div class="gmx-head"><span>${logoImg(g.away, 'gmx-logo')}${g.away}</span><span class="gmx-mid">${A.season === D.season ? esc(D.seasonLabel) : esc(D.leaderSeasonLabel)} · league rank</span><span>${g.home}${logoImg(g.home, 'gmx-logo')}</span></div>
+      ${ROWS.map(([k, lab, hi]) => `<div class="gmx-row">${cell(A, k, hi)}<span class="gmx-k">${lab}</span>${cell(H, k, hi)}</div>`).join('')}
+      <div class="gmx-row gmx-gls">${glSide(g.away)}<span class="gmx-k">Goalie</span>${glSide(g.home)}</div>
+      <div class="gmx-wp"><div class="gmx-wpbar" style="--h:${(pre * 100).toFixed(1)}%"><i></i></div>
+        <div class="gmx-wpl"><span>${g.away} <b>${Math.round((1 - pre) * 100)}%</b></span><span>${lam.src === 'line' ? 'win chance, from the closing line' : 'win chance, from the clubs\' scoring rates'}</span><span><b>${Math.round(pre * 100)}%</b> ${g.home}</span></div></div>
+    </div>${scLinesDetail(g)}`;
+  }
+
+  function gmRender() {
+    const g = gmGame(); if (!g) return;
+    const box = document.querySelector('#gm-back .gmm'); if (!box) return;
+    const state = gmState(g), L = liveOf(g);
+    const tabs = (state === 'pre' ? [['proj', 'Projections'], ['matchup', 'Matchup']] : [['flow', state === 'live' ? 'Live' : 'Game flow'], ['proj', 'Our board'], ['matchup', 'Matchup']]);
+    if (!gm.tab || !tabs.some(([v]) => v === gm.tab)) gm.tab = tabs[0][0];
+    const deck = gmDeck(), at = deck.findIndex(x => x.gameId === g.gameId);
+    const as = state === 'live' ? L?.as ?? g.awayScore : g.awayScore, hs = state === 'live' ? L?.hs ?? g.homeScore : g.homeScore;
+    const goals = gameGoals(g) || [];
+    const goalList = state === 'pre' || !goals.length ? '' : `<div class="sc-goals" style="margin-top:0.7rem">${goals.slice().sort((a, b) => a.t - b.t).map(x => `
+      <div class="sc-goal"><span class="t">${x.so ? 'SO' : x.ot ? 'OT' : gfClock(x.t)}</span><b>${esc(x.name)}</b><span>${x.home ? g.home : g.away}${x.g?.strength && x.g.strength !== 'ev' ? ` · ${x.g.strength.toUpperCase()}` : ''}${x.g?.mod === 'empty-net' ? ' · EN' : ''}</span>
+        ${x.vid ? `<button class="vid-btn" style="margin-left:auto" onclick="${x.src === 'recap' ? `openGoalVideo('${g.date}',${x.at})` : `gfWatch(${g.gameId},${x.g.k})`}">▶</button>` : ''}</div>`).join('')}</div>`;
+    const body = gm.tab === 'matchup' ? gmMatchup(g)
+      : gm.tab === 'flow' ? gameFlow(g, state).replace('<div class="gf"', '<div class="gf flat"') + goalList + (state === 'post' ? gameVidButtons({ ...g, ...(D.recapGames?.[g.gameId] || {}) }, 'sc-vids') : '')
+      : gmProjections(g, state);
+    box.innerHTML = `
+      <button class="pm-x" onclick="closeGame()" aria-label="Close">×</button>
+      <header class="gm-hero">
+        <div class="gm-team">${logoImg(g.away, '')}<b>${g.away}</b></div>
+        <div class="gm-mid">
+          ${state !== 'pre' ? `<div class="gm-score"><span${as > hs ? ' class="win"' : ''}>${as ?? 0}</span><i>–</i><span${hs > as ? ' class="win"' : ''}>${hs ?? 0}</span></div>
+              <div class="gm-when">${state === 'live' ? `<b class="gm-live">${esc(L?.detail || 'In progress')}</b>` : (g.end && g.end !== 'REG' ? `Final/${g.end}` : 'Final')}</div>`
+            : `${scLines(g)}<div class="gm-when">${dayLabel(g.date)} · ${gameTime(g.start)}</div>`}
+          <div class="gm-wx">${esc(g.venue || '')}${at >= 0 ? ` · ${at + 1} / ${deck.length}` : ''}</div>
+        </div>
+        <div class="gm-team end"><b>${g.home}</b>${logoImg(g.home, '')}</div>
+      </header>
+      <div class="sub-tabs u-tabs gm-tabs">${tabs.map(([v, l]) => `<button class="sub-btn${gm.tab === v ? ' active' : ''}" onclick="setGmTab('${v}')">${l}</button>`).join('')}</div>
+      ${body}`;
+    const back = document.getElementById('gm-back');
+    back.querySelector('.pk-side-prev').disabled = at <= 0;
+    back.querySelector('.pk-side-next').disabled = at < 0 || at >= deck.length - 1;
   }
 
   document.addEventListener('DOMContentLoaded', () => { updateThemeToggleIcon(); applyRouteState(); loadNhl(); });
