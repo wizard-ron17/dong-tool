@@ -70,9 +70,10 @@ def sv_fit(tr):
     pulled keeps about half a game's saves — which a single right-skewed NB
     cannot draw: its median sits below its mean and every over near the middle
     hits more than priced. So: (1 - pi) x NB(full game) + pi x NB(pulled)."""
-    ref = {f: (tr[f].mean(), tr[f].std() or 1.0) for f in SV_REL}
-    b = irls_off(design(tr, SV_REL, ref), tr.sv.to_numpy(float), np.log(tr.lg_sv.to_numpy()))
-    mu_of = lambda df: np.exp(np.clip(design(df, SV_REL, ref) @ b + np.log(df.lg_sv.to_numpy()), -6, 6))
+    feats = list(SV_REL)                          # captured: the closure must not follow a later rebind
+    ref = {f: (tr[f].mean(), tr[f].std() or 1.0) for f in feats}
+    b = irls_off(design(tr, feats, ref), tr.sv.to_numpy(float), np.log(tr.lg_sv.to_numpy()))
+    mu_of = lambda df: np.exp(np.clip(design(df, feats, ref) @ b + np.log(df.lg_sv.to_numpy()), -6, 6))
     mu, y, pl = mu_of(tr), tr.sv.to_numpy(float), tr.pulled.to_numpy() == 1
     m = dict(b=b, ref=ref, pi=float(pl.mean()),
              cf=float(y[~pl].sum() / mu[~pl].sum()), cp=float(y[pl].sum() / mu[pl].sum()))
