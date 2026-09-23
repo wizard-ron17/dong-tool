@@ -43,7 +43,7 @@ def get(url, tries=4):
 
 def day_lines(d):
     """Every starter's line and each team's batting line on date d (cached)."""
-    p = os.path.join(CACHE, f"{d}.json")
+    p = os.path.join(CACHE, "v2", f"{d}.json")
     if os.path.exists(p):
         return json.load(open(p))
     sched = get(f"{MLB}/schedule?sportId=1&date={d}&gameType=R") or {}
@@ -51,7 +51,7 @@ def day_lines(d):
              if g.get("status", {}).get("abstractGameState") == "Final"
              and "postpon" not in (g.get("status", {}).get("detailedState") or "").lower()
              and "cancel" not in (g.get("status", {}).get("detailedState") or "").lower()]
-    out = {"starts": [], "bat": {}, "pks": []}
+    out = {"starts": [], "bat": {}, "pks": [], "batters": []}
     for g in games:
         box = get(f"{MLB}/game/{g['gamePk']}/boxscore")
         if not box: continue
@@ -66,9 +66,19 @@ def day_lines(d):
                 st = t["players"].get(f"ID{pid}", {}).get("stats", {}).get("pitching")
                 if not st or (st.get("gamesStarted") or 0) < 1: continue
                 out["starts"].append({"pid": str(pid), "name": t["players"][f"ID{pid}"]["person"]["fullName"],
-                                      "team": ab, "opp": opp, "k": st.get("strikeOuts", 0), "bb": st.get("baseOnBalls", 0),
-                                      "bf": st.get("battersFaced", 0)})
-    os.makedirs(CACHE, exist_ok=True)
+                                      "team": ab, "opp": opp, "gpk": g["gamePk"], "k": st.get("strikeOuts", 0), "bb": st.get("baseOnBalls", 0),
+                                      "bf": st.get("battersFaced", 0), "pitches": st.get("numberOfPitches", 0),
+                                      "outs": st.get("outs", 0), "h": st.get("hits", 0), "er": st.get("earnedRuns", 0),
+                                      "hr": st.get("homeRuns", 0), "ibb": st.get("intentionalWalks", 0), "hbp": st.get("hitBatsmen", 0)})
+            # every batter's line, with his spot in the order — for lineup walk rates
+            for pid in t.get("batters", []):
+                pl = t["players"].get(f"ID{pid}", {}); b = pl.get("stats", {}).get("batting", {})
+                if not b.get("plateAppearances"): continue
+                order = pl.get("battingOrder")
+                out["batters"].append({"pid": str(pid), "team": ab, "opp": opp, "gpk": g["gamePk"],
+                                       "pa": b["plateAppearances"], "bb": b.get("baseOnBalls", 0), "k": b.get("strikeOuts", 0),
+                                       "order": int(order) if order else None})
+    os.makedirs(os.path.join(CACHE, "v2"), exist_ok=True)
     if d < date.today().isoformat():            # today's slate may still be going
         json.dump(out, open(p, "w"))
     return out
