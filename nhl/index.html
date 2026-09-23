@@ -358,6 +358,152 @@
   .nav-menu-group.g2 { color: var(--g2); }
   .nav-menu-group.g3 { color: var(--g3); }
   .nav-menu-group.g4 { color: var(--g4); }
+  /* ── Parlay slip (ported from /nfl — one slip shared across the site) ── */
+  .plw-hd-add { flex: 0 0 3.8rem; text-align: center; white-space: nowrap; letter-spacing: 0.02em; }
+  .plw-row.on { background: rgba(51,208,124,0.07); }
+  .plw-add { flex: 0 0 auto; width: 3.8rem; border: none; border-left: 1px solid var(--border); background: none; color: var(--dim); font-family: var(--font-d); font-size: 1.2rem; font-weight: 700; cursor: pointer; transition: background 0.12s, color 0.12s; }
+  .plw-add:hover { background: var(--surface2); color: var(--text); }
+  .plw-add.on { color: var(--accent); }
+  .plw-res { flex: 0 0 3.8rem; display: flex; align-items: center; justify-content: center; border-left: 1px solid var(--border); padding: 0 0.2rem; }
+  .plw-res .lv-chip { margin: 0; }
+  .plw-dash { color: var(--dim); font-family: var(--font-m); font-size: 0.8rem; }
+  .plw.done .plw-hd-add, .plw.done .plw-res { flex-basis: 5.2rem; }
+  .par-chips { margin: 0; }
+  @media (max-width: 420px) {
+    .plw-add, .plw-hd-add { flex-basis: 3.3rem; width: 3.3rem; }
+    .plw.done .plw-hd-add, .plw.done .plw-res { flex-basis: 4rem; width: 4rem; }
+    .plw.done .plw-go { grid-template-columns: minmax(0, 1fr) 3.2rem; }
+    .plw-res .lv-chip { font-size: 0.6rem; padding: 0.1rem 0.28rem; }
+  }
+  .par-fab { position: fixed; right: 1rem; bottom: 1.15rem; z-index: 225; display: none; align-items: center; gap: 0.4rem; font-family: var(--font-d); font-size: 0.82rem; font-weight: 700; letter-spacing: 0.03em; color: #04210f; background: var(--accent); border: none; border-radius: 999px; padding: 0.6rem 1rem 0.6rem 0.85rem; cursor: pointer; box-shadow: 0 8px 26px rgba(0,0,0,0.45); transition: transform 0.12s ease, filter 0.15s; }
+  .par-fab:hover { transform: translateY(-1px); filter: brightness(1.06); }
+  .par-fab svg { width: 16px; height: 16px; }
+  body.par-has .par-fab { display: inline-flex; }
+  body.par-mode .par-fab, body.par-legs .par-fab { display: none; }
+  body.par-mode [data-leg] { position: relative; cursor: pointer; }
+  body.par-mode div[data-leg], body.par-mode a[data-leg] { padding-left: 2.15rem; }
+  body.par-mode tr[data-leg] td:first-child { position: relative; padding-left: 1.9rem; }
+  body.par-mode [data-leg]::after,
+  body.par-mode tr[data-leg] td:first-child::after { content: ''; position: absolute; left: 0.62rem; top: 50%; transform: translateY(-50%); width: 17px; height: 17px; border-radius: 6px; border: 1.5px solid var(--border2); background: var(--surface0); box-sizing: border-box; pointer-events: none; transition: background 0.12s, border-color 0.12s; }
+  body.par-mode tr[data-leg]::after { content: none; }
+  body.par-mode [data-leg].par-pick::after,
+  body.par-mode tr[data-leg].par-pick td:first-child::after { border-color: var(--accent); background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2304210f' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12.5l5.5 5.5L20 6.5'/%3E%3C/svg%3E") center / 11px no-repeat; }
+  body.par-mode div[data-leg].par-pick { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  body.par-mode tr[data-leg].par-pick td { background: rgba(51,208,124,0.09); }
+  .par-slip { position: fixed; left: 50%; transform: translateX(-50%); bottom: 1rem; z-index: 232; width: min(440px, calc(100vw - 1.5rem)); background: var(--surface1); border: 1px solid var(--border2); border-radius: 18px; box-shadow: 0 14px 44px rgba(0,0,0,0.55); display: none; overflow: hidden; }
+  body.par-mode .par-slip, body.par-legs .par-slip { display: block; }
+  .par-head { display: flex; align-items: center; gap: 0.6rem; padding: 0.62rem 0.7rem 0.62rem 0.85rem; cursor: pointer; }
+  .par-mode-btn { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 999px; border: 1px solid var(--border2); background: var(--surface0); color: var(--dim); cursor: pointer; padding: 0; transition: background 0.14s, color 0.14s, border-color 0.14s; }
+  .par-mode-btn svg { width: 14px; height: 14px; }
+  .par-mode-btn.on { background: var(--accent); border-color: var(--accent); color: #04210f; }
+  body.par-legs:not(.par-mode) .par-mode-btn { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+  .par-head-n { font-family: var(--font-d); font-size: 0.83rem; font-weight: 700; color: var(--text-strong); }
+  .par-head-n span { color: var(--dim); font-weight: 600; }
+  .par-head-od { margin-left: auto; font-family: var(--font-d); font-size: 1.12rem; font-weight: 700; color: var(--accent); }
+  .par-head-od.par-none { color: var(--dim); font-size: 0.78rem; font-weight: 600; font-family: var(--font-b); }
+  .par-x { background: none; border: none; color: var(--dim); font-size: 1.25rem; line-height: 1; padding: 0 0.15rem; cursor: pointer; }
+  .par-x:hover { color: var(--text); }
+  .par-caret { color: var(--dim); transition: transform 0.18s ease; width: 14px; height: 14px; }
+  .par-slip.open .par-caret { transform: rotate(180deg); }
+  .par-body { display: none; border-top: 1px solid var(--border); padding: 0.6rem 0.85rem 0.8rem; max-height: min(58vh, 460px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .par-slip.open .par-body { display: block; }
+  .par-leg { display: flex; align-items: center; gap: 0.5rem; padding: 0.36rem 0; border-bottom: 1px solid var(--border); font-size: 0.766rem; }
+  .par-leg:last-of-type { border-bottom: none; }
+  .par-leg-nm { font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .par-sp { font-family: var(--font-m); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em; color: var(--dim); background: var(--surface0); border: 1px solid var(--border2); border-radius: 4px; padding: 0.05rem 0.26rem; margin-right: 0.35rem; }
+  .par-leg-sel { color: var(--dim); font-size: 0.692rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 0; min-width: 0; }
+  .par-leg-od { font-family: var(--font-d); font-weight: 700; color: var(--muted); margin-left: auto; }
+  .par-leg-x { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 0.1rem; }
+  .par-leg-x:hover { color: var(--bad); }
+  .par-empty { color: var(--dim); font-size: 0.766rem; text-align: center; padding: 0.8rem 0.4rem; line-height: 1.5; }
+  .par-lbl2 { font-family: var(--font-d); font-size: 0.642rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); margin: 0.75rem 0 0.35rem; }
+  .par-chips { display: flex; flex-wrap: wrap; gap: 0.32rem; }
+  .par-chip { background: var(--surface0); border: 1px solid var(--border2); color: var(--muted); font-family: var(--font-b); font-size: 0.723rem; font-weight: 700; padding: 0.26rem 0.6rem; border-radius: 999px; cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s; }
+  .par-chip:hover { color: var(--text); border-color: var(--dim); }
+  .par-chip.on { background: rgba(51,208,124,0.14); border-color: var(--accent); color: var(--accent); }
+  .par-chip input { width: 2.6rem; background: none; border: none; color: inherit; font: inherit; text-align: right; outline: none; padding: 0; -moz-appearance: textfield; }
+  .par-chip input::-webkit-outer-spin-button, .par-chip input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .par-nums { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-top: 0.7rem; }
+  .par-num { background: var(--surface0); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.55rem; }
+  .par-num b { display: block; font-family: var(--font-d); font-size: 1.22rem; font-weight: 700; color: var(--text-strong); line-height: 1.1; }
+  .par-num.acc b { color: var(--accent); }
+  .par-num span { display: block; font-size: 0.642rem; color: var(--dim); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 0.2rem; }
+  .par-note { font-size: 0.692rem; color: var(--dim); line-height: 1.5; margin-top: 0.55rem; }
+  .par-note b { color: var(--muted); }
+  .par-warn { color: var(--ok); }
+  .par-ev { display: flex; align-items: center; gap: 0.45rem; margin-top: 0.6rem; font-size: 0.723rem; color: var(--dim); flex-wrap: wrap; }
+  .par-ev input { width: 5.2rem; background: var(--surface0); border: 1px solid var(--border2); border-radius: 8px; color: var(--text); font-family: var(--font-d); font-size: 0.8rem; font-weight: 700; padding: 0.3rem 0.45rem; outline: none; }
+  .par-ev input:focus { border-color: var(--accent); }
+  .par-ev-out { font-family: var(--font-d); font-weight: 700; }
+  .par-ev-out.good { color: var(--good); }
+  .par-ev-out.bad { color: var(--bad); }
+  .par-legs-hd { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.1rem; }
+  .par-legs-hd .par-lbl2 { margin: 0; }
+  .par-clear { display: inline-flex; align-items: center; gap: 0.25rem; background: none; border: 1px solid transparent; border-radius: 999px; color: var(--bad); font-family: var(--font-b); font-size: 0.667rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; padding: 0.14rem 0.45rem; transition: background 0.14s, border-color 0.14s; }
+  .par-clear:hover { background: color-mix(in srgb, var(--bad) 13%, transparent); border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
+  .par-clear svg { width: 11px; height: 11px; }
+  .par-add { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--surface1); border: 1px solid var(--border2); color: var(--muted); font-family: var(--font-b); font-size: 0.754rem; font-weight: 700; padding: 0.38rem 0.8rem; border-radius: 999px; cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s; }
+  .par-add:hover { color: var(--text); border-color: var(--dim); }
+  .par-add.on { background: rgba(51,208,124,0.14); border-color: var(--accent); color: var(--accent); }
+  @media (max-width: 600px) {
+    body.par-mode div[data-leg] { padding-left: 1.75rem; }
+    body.par-mode [data-leg]::after { left: 0.4rem; width: 15px; height: 15px; }
+    .par-slip { bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.5rem); left: var(--nav-side); right: var(--nav-side); transform: none; width: auto; }
+    .par-fab { bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.6rem); right: var(--nav-side); }
+    .par-body { max-height: 46vh; }
+    .par-nums { grid-template-columns: 1fr 1fr; }
+  }
+  /* ── Pairs (ported from /nfl) ── */
+  .search-wrap { display: none; margin-bottom: 0.8rem; }
+  .search-wrap.visible { display: block; }
+  #player-search { width: 100%; background: var(--surface1); border: 1px solid var(--border2); color: var(--text); font-family: var(--font-b); font-size: 0.804rem; padding: 0.5rem 0.8rem; border-radius: 6px; outline: none; transition: border-color 0.15s; }
+  #player-search:focus { border-color: var(--accent); }
+  #player-search::placeholder { color: var(--muted); }
+  .search-hint { font-size: 0.680rem; color: var(--muted); margin-top: 0.3rem; letter-spacing: 0.08em; }
+  .pl-row { display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; margin: 0.5rem 0 0.15rem; padding-top: 0.5rem; border-top: 1px solid var(--border); }
+  .pl-fair b { font-family: var(--font-d); font-size: 1.05rem; font-weight: 700; color: var(--good); }
+  .pl-naive { font-family: var(--font-d); font-size: 0.8rem; font-weight: 700; color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+  .pr-lbl { font-family: var(--font-b); font-size: 0.642rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--dim); margin-left: 0.3rem; text-decoration: none; display: inline-block; }
+  .pl-gap { margin-left: auto; font-family: var(--font-d); font-size: 0.766rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 5px; cursor: help; }
+  .pl-worse { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
+  .pl-better { color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); }
+  .pl-flat { color: var(--muted); background: var(--surface1); }
+  #cards { display: flex; flex-direction: column; gap: 0.5rem; }
+  .card { border-radius: 8px; padding: 0.75rem 0.85rem; border: 1px solid var(--border); background: var(--surface0); animation: fadeIn 0.15s ease; }
+  .card.top { background: #0b1e08; border-color: #2a6012; }
+  .card.high { background: var(--surface1); border-color: var(--border2); }
+  .card-top-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; gap: 0.4rem; }
+  .card-left { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .rank-badge { width: 24px; height: 24px; border-radius: 50%; background: var(--surface0); display: flex; align-items: center; justify-content: center; font-size: 0.692rem; font-weight: 700; flex-shrink: 0; border: 2px solid var(--muted); }
+  .card.top  .rank-badge { border-color: var(--gold); color: var(--gold); }
+  .card.high .rank-badge { border-color: var(--silver); color: var(--silver); }
+  .count-block { display: flex; align-items: baseline; gap: 0.2rem; }
+  .count-num { font-family: var(--font-d); font-size: 1.8rem; font-weight: 700; line-height: 1; color: var(--muted); }
+  .card.top  .count-num { color: #6ad040; }
+  .card.high .count-num { color: var(--accent); }
+  .count-label { font-size: 0.673rem; color: var(--silver); letter-spacing: 0.12em; }
+  .fresh-badge { font-size: 0.692rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 5px; border: 1px solid var(--border); color: var(--muted); background: var(--surface1); white-space: nowrap; flex-shrink: 0; }
+  .fresh-badge.hot { background: #0a2a10; border-color: #1a6020; color: var(--green); }
+  .fresh-badge.warm { background: #1a1a08; border-color: #5a5000; color: #c0b000; }
+  .sgp-badge { font-size: 0.680rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 5px; border: 1px solid #5a4a00; color: var(--gold); background: #1e1a00; letter-spacing: 0.06em; }
+  .players { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 0.5rem; }
+  .player-chip { display: flex; align-items: center; gap: 0.2rem; background: var(--surface2); border: 1px solid var(--border2); border-radius: 20px; padding: 0.15rem 0.5rem; }
+  .player-chip.matched { border-color: var(--accent); background: #0a2018; }
+  .player-photo { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: var(--surface0); }
+  .player-name { font-family: var(--font-d); font-size: 0.96rem; color: var(--text); font-weight: 700; letter-spacing: 0.005em; }
+  .player-hr { font-size: 0.711rem; color: var(--accent); font-weight: 700; }
+  .player-hr-lbl { font-size: 0.649rem; color: var(--muted); }
+  .dates { display: flex; flex-wrap: wrap; gap: 0.2rem; }
+  .date-pill { background: var(--surface0); border: 1px solid var(--border); border-radius: 4px; padding: 0.12rem 0.35rem; font-size: 0.692rem; color: var(--muted); }
+  .date-pill.latest { background: #0f2a18; border-color: #1a5028; color: var(--green); font-weight: 700; }
+  :root[data-theme="light"] .card.top { background: rgba(16,167,88,0.09); border-color: rgba(16,167,88,0.38); }
+  :root[data-theme="light"] .card.top .count-num { color: var(--good); }
+  :root[data-theme="light"] .fresh-badge.hot { background: rgba(16,167,88,0.12); border-color: rgba(16,167,88,0.4); }
+  :root[data-theme="light"] .fresh-badge.warm { background: rgba(176,125,10,0.14); border-color: rgba(176,125,10,0.4); color: var(--gold); }
+  :root[data-theme="light"] .sgp-badge { background: rgba(176,125,10,0.14); border-color: rgba(176,125,10,0.4); }
+  :root[data-theme="light"] .player-chip.matched { background: rgba(16,167,88,0.1); }
+  :root[data-theme="light"] .date-pill.latest { background: rgba(16,167,88,0.12); border-color: rgba(16,167,88,0.4); color: var(--green); }
+  .count-label { align-self: center; }
   /* ── Birthdays / Milestones / Due (ported from /nfl) ── */
   .pt-meta { font-size: 0.704rem; color: var(--muted); margin-bottom: 0.5rem; }
   .pt-meta b { color: var(--text); }
@@ -1164,6 +1310,10 @@
       <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="12" r="2.2"/><circle cx="17" cy="7" r="2.2"/><circle cx="17" cy="17" r="2.2"/><path d="M9 11l6-3M9 13l6 3"/></svg></span><span class="nm-name">Points</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
       <span class="nm-desc">Points, assists and power-play points for every skater, priced at every line.</span>
     </button>
+    <button class="nav-menu-item g1" data-nav="pairs" onclick="switchNav('pairs')">
+      <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="9" r="3.2"/><circle cx="15.5" cy="9" r="3.2"/><path d="M3.5 19.5c.6-3 2.6-4.8 5-4.8s4.4 1.8 5 4.8M10.5 19.5c.6-3 2.6-4.8 5-4.8s4.4 1.8 5 4.8"/></svg></span><span class="nm-name">Pairs</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+      <span class="nm-desc">Who scores together and who sets up whom &mdash; priced with the measured correlation.</span>
+    </button>
     <div class="nav-menu-group g2">Shooting</div>
     <button class="nav-menu-item g2" data-nav="shots" onclick="switchNav('shots')">
       <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v4M12 16.5v4M3.5 12h4M16.5 12h4"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/></svg></span><span class="nm-name">Shots</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
@@ -1296,6 +1446,31 @@
     <div id="points-content"><div class="empty">Loading&hellip;</div></div>
   </div>
 
+  <div id="panel-pairs" class="panel">
+    <div class="due-explainer" id="pairs-explainer-toggle" onclick="toggleExplainer('pairs')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Pairings Work</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="pairs-explainer-chevron">&#9654;</span>
+      </div>
+      <div class="due-explainer-teaser">Which skaters score together, and who sets up whom &mdash; priced with the correlation naive parlay math misses.</div>
+      <div class="due-explainer-body" id="pairs-explainer-body" style="display:none">
+        <ul>
+          <li><b>What it counts.</b> How often each group of skaters scored on the same <em>night</em> — or, tighter, in the same <em>game</em> — across the season, ranked by how many times. Until this season has two weeks of games, the page runs on last season's goals, and a chip lets you switch once both exist.</li>
+          <li><b>Basis.</b> Every goal, or one of the markets the Picks board prices: the game's <em>first</em> goal, <em>power-play</em> goals, or <em>2+ goal</em> games. The narrower bases are rarer, so the co-occurrence floor drops to 2.</li>
+          <li><b>SGP.</b> When 2+ members play for the same club they share a game — a true same-game stack, flagged <span class="sgp-badge">SGP·TEAM</span>.</li>
+          <li><b>The price, and the correlation.</b> When every member is on tonight's Picks board, the card carries a <b>fair</b> price next to the naive product, struck through. <b>+ Parlay</b> drops every leg into your slip, where the same correction applies.</li>
+          <li><b>Teammates barely compete — until the group gets big.</b> Measured over three seasons of goals, two skaters from the same club land at <b>0.98×</b> the naive product: nearly independent. A team that scores four spreads them around, so a pair doesn't cannibalise the way two NFL receivers do. It compounds as the group grows: a same-club trio lands <b>11% below</b>, a four-man stack <b>31% below</b>. Skaters on opposite sides run about 3% below (0.97×).</li>
+          <li><b>Why we trust the number.</b> Two skaters from <em>different</em> games on the same night are independent by construction — that control lands at 1.00, so the gaps above are correlation, not a pricing error. The fit (2023-24 and 2024-25) and the check season (2025-26) agree to within a point for every group size.</li>
+          <li><b>🎯 Goal → Assist.</b> A different relation: a scorer and the teammates who assisted his goals in the same game, ranked by how many games they connected. A trio is the scorer and both setup men.</li>
+          <li><b>These price the other way.</b> When he scores, someone gets the assist, so &ldquo;A scores + B gets an assist&rdquo; runs <b>19% above</b> the naive product even for teammates who have never connected — and <b>47% above</b> once B has set A up in 5+ games this season (28%, 31%, 36% at 1, 2 and 3-4 games). Held on the check season to within five points. Early in a season, before the connections build, stacks price at the base 19%.</li>
+          <li><b>What this is not.</b> A fair, no-vig number isn't a claim you beat the book. It tells you what the bet is worth, so you can see how far a book's same-game price sits from it.</li>
+          <li><b>Search.</b> Type names, comma-separated, to require specific skaters in every group.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="pairs-content"><div class="empty">Loading&hellip;</div></div>
+  </div>
   <div id="panel-due" class="panel">
     <div class="due-explainer" id="due-explainer-toggle" onclick="toggleExplainer('due')" aria-expanded="false">
       <div class="due-explainer-head">
@@ -1411,6 +1586,20 @@
 </div>
 
   <div class="sport-menu" id="sport-menu"><a class="sport-item" href="/mlb/"><span class="sport-ico">⚾</span><span class="sport-name">Ron's Dong Tool</span><span class="sport-sub">MLB</span></a><a class="sport-item" href="/nfl/"><span class="sport-ico">🏈</span><span class="sport-name">Ron's Tud Tool</span><span class="sport-sub">NFL</span></a><a class="sport-item current" href="/nhl/"><span class="sport-ico">🏒</span><span class="sport-name">Ron's Goal Tool</span><span class="sport-sub">NHL</span></a><span class="sport-item soon"><span class="sport-ico">🏀</span><span class="sport-name">Ron's Hoop Tool</span><span class="sport-sub">Soon</span></span></div>
+  <button class="par-fab" id="par-fab" onclick="parMode(true)" aria-label="Build a parlay">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13.5H11l-1 8.5 8.5-11.5H12l1-8.5z"/></svg>
+    Parlay
+  </button>
+  <div class="par-slip" id="par-slip">
+    <div class="par-head" onclick="parToggleOpen(event)">
+      <button class="par-mode-btn" id="par-mode-btn" onclick="parMode(!PARLAY.on)" aria-label="Select picks" title="Tap rows on the board to add them"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13.5H11l-1 8.5 8.5-11.5H12l1-8.5z"/></svg></button>
+      <span class="par-head-n" id="par-head-n">Parlay mode <span>· tap picks to add</span></span>
+      <span class="par-head-od par-none" id="par-head-od">0 legs</span>
+      <svg class="par-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
+      <button class="par-x" onclick="parMode(false)" aria-label="Exit parlay mode">×</button>
+    </div>
+    <div class="par-body" id="par-body"></div>
+  </div>
 <script>
   const APP_BASE = '/nhl';
 
@@ -1471,8 +1660,8 @@
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch, .sport-menu')) closeSportMenu(); });
 
   // ── Nav + routing ──────────────────────────────────────────────────────
-  const NHL_NAVS = ['home', 'stats', 'recap', 'schedule', 'picks', 'shots', 'saves', 'allowed', 'points', 'due', 'milestones', 'birthdays'];   // tools added here as they ship
-  const PAGE_TITLES = { home: "Ron's Goal Tool", stats: "Stats · Ron's Goal Tool", recap: "Recap · Ron's Goal Tool", schedule: "Schedule · Ron's Goal Tool", shots: "Shots · Ron's Goal Tool", saves: "Saves · Ron's Goal Tool", points: "Points · Ron's Goal Tool", allowed: "Goals Allowed · Ron's Goal Tool", picks: "Picks · Ron's Goal Tool", due: "Due · Ron's Goal Tool", milestones: "Milestones · Ron's Goal Tool", birthdays: "Birthdays · Ron's Goal Tool" };
+  const NHL_NAVS = ['home', 'stats', 'recap', 'schedule', 'picks', 'shots', 'saves', 'allowed', 'points', 'pairs', 'due', 'milestones', 'birthdays'];   // tools added here as they ship
+  const PAGE_TITLES = { home: "Ron's Goal Tool", stats: "Stats · Ron's Goal Tool", recap: "Recap · Ron's Goal Tool", schedule: "Schedule · Ron's Goal Tool", shots: "Shots · Ron's Goal Tool", saves: "Saves · Ron's Goal Tool", points: "Points · Ron's Goal Tool", allowed: "Goals Allowed · Ron's Goal Tool", picks: "Picks · Ron's Goal Tool", pairs: "Pairs · Ron's Goal Tool", due: "Due · Ron's Goal Tool", milestones: "Milestones · Ron's Goal Tool", birthdays: "Birthdays · Ron's Goal Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
     activeNav = nav;
@@ -1516,6 +1705,7 @@
     else if (nav === 'allowed') renderAllowed();
     else if (nav === 'points') renderPoints();
     else if (nav === 'picks') renderPicks();
+    else if (nav === 'pairs') renderPairs();
     else if (nav === 'due') renderDue();
     else if (nav === 'milestones') renderMilestones();
     else if (nav === 'birthdays') renderBirthdays();
@@ -2081,7 +2271,7 @@
         PL = j; plState = 'ready';
       })
       .catch(() => { plState = 'error'; })
-      .finally(() => { if (plOpen.pid) plRender(); });
+      .finally(() => { if (plOpen.pid) plRender(); parRender(); if (activeNav === 'pairs') renderPairs(); });
   }
   const plPathOf = (pid) => `${APP_BASE}/stats/${pid}`;
   const plFromPath = () => (location.pathname.match(/\/stats\/(\d{7,})\/?$/) || [])[1] || null;
@@ -2125,19 +2315,19 @@
     const pk = (D.picks?.picks || []).find(x => x.pid === pid);
     if (pk) {
       for (const [lab, key] of [['Anytime goal', 'p'], ['2+ goals', 'p2'], ['First goal', 'pFirst'], ['PP goal', 'pPP']])
-        if (pk[key] != null) rows.push({ lab, line: '', p: pk[key], open: `plTo('pick',${pid})` });
+        if (pk[key] != null) rows.push({ lab, line: '', p: pk[key], open: `plTo('pick',${pid})`, leg: pkLeg(pk, PK_MARKETS.find(m => m.key === key)) });
     }
     const sh = (D.shots?.board || []).find(x => x.pid === pid);
     if (sh) {
       const pmf = lcPmf(sh, 'sog'), [lo, hi] = LC.sog.range;
       let L = lo; for (let x = lo; x <= hi; x++) if (Math.abs(lcOver(pmf, x) - 0.5) < Math.abs(lcOver(pmf, L) - 0.5)) L = x;
-      rows.push({ lab: 'Shots on goal', short: 'SOG', line: 'o' + L, p: lcOver(pmf, L), open: `plTo('shot',${pid})` });
+      rows.push({ lab: 'Shots on goal', short: 'SOG', line: 'o' + L, p: lcOver(pmf, L), open: `plTo('shot',${pid})`, leg: lcLegOf('sog', sh, L, lcOver(pmf, L)) });
     }
     const pt = (D.points?.board || []).find(x => x.pid === pid);
     if (pt) for (const [k, lab] of [['pts', 'Points'], ['ast', 'Assists'], ['ppp', 'PP points']]) {
       const pmf = poisPmf(LC[k].mu(pt)); let L = 0.5;
       for (let x = 0.5; x <= 4.5; x++) if (Math.abs(lcOver(pmf, x) - 0.5) < Math.abs(lcOver(pmf, L) - 0.5)) L = x;
-      rows.push({ lab, line: 'o' + L, p: lcOver(pmf, L), open: `plTo('${k}',${pid})` });
+      rows.push({ lab, line: 'o' + L, p: lcOver(pmf, L), open: `plTo('${k}',${pid})`, leg: lcLegOf(k, pt, L, lcOver(pmf, L)) });
     }
     // a projected starter: saves and goals allowed at the lines closest to even
     const sv = (D.saves?.board || []).find(x => x.pid === pid);
@@ -2145,7 +2335,7 @@
       for (const [k, lab, short, mu] of [['sv', 'Saves', 'Saves', sv.mu], ['ga', 'Goals allowed', 'GA', sv.muGa]]) {
         const pmf = lcPmf(sv, k), [lo, hi] = LC[k].range;
         let L = lo; for (let x = lo; x <= hi; x++) if (Math.abs(lcOver(pmf, x) - 0.5) < Math.abs(lcOver(pmf, L) - 0.5)) L = x;
-        rows.push({ lab, short, line: 'o' + L, p: lcOver(pmf, L), open: `plTo('${k}',${pid})` });
+        rows.push({ lab, short, line: 'o' + L, p: lcOver(pmf, L), open: `plTo('${k}',${pid})`, leg: lcLegOf(k, sv, L, lcOver(pmf, L)) });
       }
     }
     const g = pk || sh || sv;
@@ -2154,20 +2344,27 @@
   function plTonightPanel(pid) {
     const { rows, game, start } = plTonight(pid);
     if (!rows.length) return `<div class="plm-body"><div class="empty">Nothing priced for him tonight — he's not on the slate, not on tonight's roster, or not his club's projected starter.</div></div>`;
+    // once the puck drops these are what we said, not bets — the + goes away
     const started = start && new Date(start) <= new Date();
-    return `<div class="plm-body"><div class="plw">
+    const keys = new Set(PARLAY.legs.map(l => l.k));
+    return `<div class="plm-body"><div class="plw${started ? ' done' : ''}">
       <div class="plw-hd">
         <span class="plw-hd-l">${rows.length} market${rows.length === 1 ? '' : 's'}${game ? ` · ${esc(game)}` : ''}${start ? ` · ${gameTime(start)}` : ''}</span>
-        <span class="plw-hd-r" style="padding-right:0.8rem">${started ? 'our pre-game price' : 'fair odds, no vig'}</span>
+        <span class="plw-hd-r">${started ? 'our pre-game price' : 'fair odds, no vig'}</span>
+        ${started ? '' : '<span class="plw-hd-add">Add leg</span>'}
       </div>
-      ${rows.map(r => `<div class="plw-row">
+      ${rows.map((r, i) => {
+        const on = !started && r.leg && keys.has(parLeg(r.leg).k);
+        return `<div class="plw-row${on ? ' on' : ''}">
         <button class="plw-go" onclick="${r.open}">
           <span class="plw-mkt">${r.short ? `<span class="plt-long">${r.lab}</span><span class="plt-short">${r.short}</span>` : r.lab}</span>
           <span class="plw-line">${r.line}</span>
           <span class="plw-od ${r.p >= 0.5 ? 'goodc' : 'dogc'}">${sgOdds(r.p)}</span>
           <span class="plw-pc">${(r.p * 100).toFixed(r.p < 0.1 ? 1 : 0)}%</span>
         </button>
-      </div>`).join('')}
+        ${started || !r.leg ? '' : `<button class="plw-add${on ? ' on' : ''}" onclick="plwAdd(${pid},${i})" aria-label="${on ? 'Remove from parlay' : 'Add to parlay'}" title="${on ? 'In your parlay' : 'Add to parlay'}">${on ? '✓' : '+'}</button>`}
+      </div>`;
+      }).join('')}
     </div>${started ? '<p class="plw-note">His game is underway or over. These are the prices we posted before puck drop — not live numbers.</p>' : ''}</div>`;
   }
   window.plTo = (kind, pid) => { closePlayer(); kind === 'pick' ? openPick(pid) : kind === 'shot' ? openShot(pid) : ['pts', 'ast', 'ppp'].includes(kind) ? openPointsCard(pid, kind) : openSave(pid, kind); };
@@ -2423,7 +2620,7 @@
     return out.slice(0, 4);
   }
   function tbOpenGame(date, gameId) { scheduleDate = date; scOpen.clear(); scOpen.add(gameId); switchNav('schedule'); }
-  const TB_TOOLS = [['picks', 'Picks'], ['shots', 'Shots'], ['points', 'Points'], ['points', 'Assists'], ['saves', 'Saves'], ['allowed', 'Goals Allowed'], ['due', 'Due'], ['milestones', 'Milestones'], ['birthdays', 'Birthdays'], ['stats', 'Stats'], ['recap', 'Recap'], ['schedule', 'Schedule'], ['home', 'Home']];
+  const TB_TOOLS = [['picks', 'Picks'], ['shots', 'Shots'], ['points', 'Points'], ['points', 'Assists'], ['saves', 'Saves'], ['allowed', 'Goals Allowed'], ['pairs', 'Pairs'], ['due', 'Due'], ['milestones', 'Milestones'], ['birthdays', 'Birthdays'], ['stats', 'Stats'], ['recap', 'Recap'], ['schedule', 'Schedule'], ['home', 'Home']];
   function siteSearch() {
     const box = document.getElementById('tb-results'), input = document.getElementById('site-search');
     if (!box || !input || !D || D === 'error') return;
@@ -2769,7 +2966,7 @@
         <thead><tr><th></th><th>Skater</th><th>Game</th><th class="num">Proj</th><th class="num">TOI</th>
           <th class="num">L10</th><th class="num">Opp SA</th><th class="num">Line</th><th class="num">Price</th></tr></thead>
         <tbody>${rows.map(r => `
-          <tr onclick="openShot(${r.pid})">
+          <tr onclick="openShot(${r.pid})"${parAttr(lcLegOf('sog', r, r.L, r.pAt))}>
             <td class="num dim">${r.rank}</td>
             <td><b>${esc(r.name)}</b> <span class="dim">${POS_NAME[r.pos] || r.pos}</span></td>
             <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}</td>
@@ -2782,7 +2979,7 @@
           </tr>`).join('')}</tbody></table></div>`;
     } else if (sgF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
-        <div class="rc-crow" onclick="openShot(${r.pid})">
+        <div class="rc-crow" onclick="openShot(${r.pid})"${parAttr(lcLegOf('sog', r, r.L, r.pAt))}>
           <span class="rc-crank">${r.rank}</span>
           <span class="rc-cnm">${esc(r.name)}</span>
           <span class="rc-cteam">${esc(r.team)}</span>
@@ -2792,7 +2989,7 @@
         </div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
-        <div class="pb-card" onclick="openShot(${r.pid})">
+        <div class="pb-card" onclick="openShot(${r.pid})"${parAttr(lcLegOf('sog', r, r.L, r.pAt))}>
           <div class="pb-rank">${r.rank}</div>${faceHtml(mugOf(r.pid, r.team, D.leaderSeason), r.name)}
           <div class="pb-info">
             <div class="pb-nm">${esc(r.name)}<span class="pb-flag">${POS_NAME[r.pos] || r.pos}</span></div>
@@ -2967,7 +3164,7 @@
         <thead><tr><th></th><th>Goalie</th><th>Game</th><th class="num">Proj</th><th class="num">${ga ? 'Team GA' : 'Opp SF'}</th>
           <th class="num">${ga ? 'Opp GF' : 'Team SA'}</th><th class="num">SV%</th><th class="num">Starts</th><th class="num">Line</th><th class="num">Price</th></tr></thead>
         <tbody>${rows.map(r => `
-          <tr onclick="${open(r)}">
+          <tr onclick="${open(r)}"${parAttr(lcLegOf(P.kind, r, r.L, r.pAt))}>
             <td class="num dim">${r.rank}</td>
             <td><b>${esc(r.name)}</b></td>
             <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}</td>
@@ -2981,7 +3178,7 @@
           </tr>`).join('')}</tbody></table></div>`;
     } else if (F.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
-        <div class="rc-crow" onclick="${open(r)}">
+        <div class="rc-crow" onclick="${open(r)}"${parAttr(lcLegOf(P.kind, r, r.L, r.pAt))}>
           <span class="rc-crank">${r.rank}</span>
           <span class="rc-cnm">${esc(r.name)}</span>
           <span class="rc-cteam">${esc(r.team)}</span>
@@ -2991,7 +3188,7 @@
         </div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
-        <div class="pb-card" onclick="${open(r)}">
+        <div class="pb-card" onclick="${open(r)}"${parAttr(lcLegOf(P.kind, r, r.L, r.pAt))}>
           <div class="pb-rank">${r.rank}</div>${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name)}
           <div class="pb-info">
             <div class="pb-nm">${esc(r.name)}<span class="pb-flag">G</span></div>
@@ -3161,7 +3358,7 @@
       body = `<div class="rc-tablewrap"><table class="rc-table">
         <thead><tr><th></th><th>Skater</th><th>Game</th><th class="num">Proj</th><th class="num">${ptF.tab === 'ppp' ? 'PP min' : 'TOI'}</th>
           <th class="num">${ptF.tab === 'ast' ? 'A/g' : ptF.tab === 'ppp' ? 'PPP/g' : 'P/g'}</th><th class="num">Opp GA</th><th class="num">Line</th><th class="num">Price</th></tr></thead>
-        <tbody>${rows.map(r => `<tr onclick="${open(r)}">
+        <tbody>${rows.map(r => `<tr onclick="${open(r)}"${parAttr(lcLegOf(ptF.tab, r, r.L, r.pAt))}>
             <td class="num dim">${r.rank}</td><td><b>${esc(r.name)}</b> <span class="dim">${POS_NAME[r.pos] || r.pos}</span></td>
             <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}</td><td class="num"><b>${r.m.toFixed(2)}</b></td>
             <td class="num dim">${((ptF.tab === 'ppp' ? r.f.pptoi : r.f.toi) / 60).toFixed(1)}</td>
@@ -3170,13 +3367,13 @@
           </tr>`).join('')}</tbody></table></div>`;
     } else if (ptF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
-        <div class="rc-crow" onclick="${open(r)}">
+        <div class="rc-crow" onclick="${open(r)}"${parAttr(lcLegOf(ptF.tab, r, r.L, r.pAt))}>
           <span class="rc-crank">${r.rank}</span><span class="rc-cnm">${esc(r.name)}</span><span class="rc-cteam">${esc(r.team)}</span>
           <span class="rc-cproj">${r.m.toFixed(2)}</span><span class="rc-cod">${sgOdds(r.pAt)}</span><span class="rc-cline">o${r.L}</span>
         </div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
-        <div class="pb-card" onclick="${open(r)}">
+        <div class="pb-card" onclick="${open(r)}"${parAttr(lcLegOf(ptF.tab, r, r.L, r.pAt))}>
           <div class="pb-rank">${r.rank}</div>${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name)}
           <div class="pb-info">
             <div class="pb-nm">${esc(r.name)}${posBadge(r.pos)}</div>
@@ -3373,7 +3570,7 @@
 
   function pkCard(r) {
     const pm = pkP(r), dog = pm < 0.5, f = r.f;
-    return `<div class="pb-card p-${r.pos}" onclick="openPick(${r.pid})">
+    return `<div class="pb-card p-${r.pos}" onclick="openPick(${r.pid})"${parAttr(pkLeg(r))}>
       <div class="pb-rank">${r.rank}</div>${faceHtml(pkMug(r), r.name)}
       <div class="pb-info">
         <div class="pb-nm">${esc(r.name)}${posBadge(r.pos)}</div>
@@ -3392,7 +3589,7 @@
     const th = (v, lab, cls = '') => `<th class="${cls}${pkF.sort === v ? ' on' : ''}" onclick="setPkSort('${v}')">${lab}${pkF.sort === v ? `<span class="ar">${pkF.dir === 'desc' ? '▼' : '▲'}</span>` : ''}</th>`;
     return `<div class="pb-tablewrap"><table class="pb-table">
       <thead><tr><th class="static">#</th>${th('name', 'Skater')}<th class="static">Pos</th>${th('time', 'Game')}${th('p', 'Price', 'num')}<th class="static num">Chance</th><th class="static num">xG</th>${th('sog', 'Shots/g', 'num')}${th('toi', 'TOI', 'num')}${th('pp', 'PP', 'num')}<th class="static num">Sh%</th></tr></thead>
-      <tbody>${rows.map(r => `<tr onclick="openPick(${r.pid})">
+      <tbody>${rows.map(r => `<tr onclick="openPick(${r.pid})"${parAttr(pkLeg(r))}>
         <td class="num">${r.rank}</td>
         <td class="nm">${esc(r.name)}</td>
         <td>${posBadge(r.pos)}</td>
@@ -3416,7 +3613,7 @@
         <span class="pbc-brand">Ron's <em>Goal</em> Tool</span>
         <span class="pbc-sub">${D.picks?.date ? dayLabel(D.picks.date) : ''} · ${esc(pkMkt().long)}${posLbl}</span>
       </div>
-      ${rows.map(r => `<div class="pbc-row" onclick="openPick(${r.pid})">
+      ${rows.map(r => `<div class="pbc-row" onclick="openPick(${r.pid})"${parAttr(pkLeg(r))}>
         <span class="pbc-rank">${r.rank}</span>
         ${logoImg(r.team, 'pbc-logo')}
         <span class="pbc-nm">${esc(r.name)}</span>
@@ -3552,6 +3749,7 @@
             <div class="pm-mkt${pkF.mkt === m.v ? ' on' : ''}" title="${esc(m.long)}"><div class="pm-mkt-lbl">${m.lab}</div>
               <div class="pm-mkt-od">${sgOdds(r[m.key])}</div><div class="pm-mkt-pct">${(r[m.key] * 100).toFixed(r[m.key] < 0.1 ? 1 : 0)}%</div></div>`).join('')}
           </div>
+          <div class="pm-pl" id="pm-pl-add" style="text-align:center;margin:0.55rem 0 0.2rem">${pmAddBtn(r)}</div>
           <div class="pm-link"><button class="vid-btn" style="float:right;margin-left:0.5rem" onclick="closePick();openPlayer(${r.pid})">Player card →</button>we project <b>${r.mu.toFixed(2)}</b> expected goals for him — a <b>${pkPct(r.p)}</b> chance of at least one</div>
           <div class="pm-sec">What moves the price</div>
           <div class="pm-body">
@@ -3822,6 +4020,7 @@
           <button class="vid-btn" style="margin-top:0.45rem" onclick="closeLc();openPlayer(${r.pid})">Player card →</button></div>
         <div class="ydm-big"><div><span>${C.big}</span><span>Median <b>${med}</b></span></div><strong>${mu.toFixed(['ga', 'pts', 'ast', 'ppp'].includes(lc.kind) ? 2 : 1)}</strong></div>
       </header>
+      <div class="lc-add" style="text-align:center;margin:0.2rem 0 0.6rem">${lcAddBtn()}</div>
       ${LC_GROUPS[lc.kind] ? `<div class="sub-tabs pc-tabs">${LC_GROUPS[lc.kind].map(([k, l]) =>
         `<button class="sub-btn${lc.kind === k ? ' active' : ''}" onclick="lcSetKind('${k}')">${l}</button>`).join('')}</div>` : ''}
       <div class="ydm-grid">
@@ -3862,6 +4061,7 @@
     const set = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
     set('lc-chart', lcChart(r, pmf)); set('lc-probs', side.probs);
     set('lc-ladder', side.ladder); set('lc-ladder-m', side.ladder);
+    document.querySelectorAll('.lc-add').forEach(el => { el.innerHTML = lcAddBtn(); });
     lcCenter();
   }
   function openShot(pid) { openLc('sog', pid); }
@@ -4079,7 +4279,7 @@
     const cards = rows.slice(0, 60).map((r, i) => {
       const d = r.dr;
       const since = d.last ? `last: ${dayLabel(d.last)}${d.carried ? ' (last season)' : ''}` : 'no goal on record';
-      return `<div class="pb-card" onclick="openPick(${r.pid})">
+      return `<div class="pb-card" onclick="openPick(${r.pid})"${parAttr(pkLeg(r, PK_MARKETS[0]))}>
         <div class="pb-rank">${i + 1}</div>${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name)}
         <div class="pb-info">
           <div class="pb-nm">${esc(r.name)}${posBadge(r.pos)}</div>
@@ -4217,6 +4417,553 @@
         No. Graded against the goals model's own price, birthday boys scored at <b>${((on.rate ?? 0) * 100).toFixed(1)}%</b> on a
         <b>${((on.priced ?? 0) * 100).toFixed(1)}%</b> price — a z of ${st.z ?? '—'}. The days either side of it
         (${st.near?.goals ?? 0}/${st.near?.games ?? 0}) say the same. Enjoy it as trivia.</p>`;
+  }
+
+  // ── Parlay slip ─────────────────────────────────────────────────────────
+  // Ported from /nfl. Every priced row tags itself with parAttr({...}); parlay
+  // mode intercepts the click (capture phase) and adds the leg instead of
+  // opening the card. One slip for the whole site — NFL, MLB and NHL share the
+  // storage key and stamp each leg with its sport.
+  //
+  // The price is the product of the legs unless we have MEASURED better:
+  //   anytime-goal legs   research/nhl_pairs.py — teammates are nearly
+  //                       independent as a pair (0.98) but compete as the group
+  //                       grows (trio 0.89, four 0.69); opponents 0.97
+  //   goal + assist       research/nhl_stacks.py — A scores and his teammate B
+  //                       picks up an assist runs 19% above the product, 47%
+  //                       once B has set A up 5+ times this season
+  // Anything else multiplies, and says so when legs share a game.
+  const PAR_KEY = 'dtParlay';
+  const PAR_SPORT = 'nhl';
+  const PAR_SPORT_LBL = { nfl: 'NFL', mlb: 'MLB', nhl: 'NHL' };
+  const parLeg = (leg) => leg.sp ? leg : { ...leg, sp: PAR_SPORT, k: PAR_SPORT + ':' + leg.k };
+  const PARLAY = { on: false, open: false, legs: [], boost: 0, book: '' };
+  const PAR_BOOSTS = [0, 0.25, 0.5, 1];
+  const parEsc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const parAttr = (leg) => leg && leg.p > 0 ? ` data-leg="${parEsc(JSON.stringify(parLeg(leg)))}"` : '';
+  /** Canonical away@home key, so two legs in the same game always collide. */
+  const parGame = (r) => r.home ? `${r.opp}@${r.team}` : `${r.team}@${r.opp}`;
+  const parDecAm = (d) => !(d > 1) ? '—' : d >= 2 ? '+' + Math.round((d - 1) * 100) : '-' + Math.round(100 / (d - 1));
+  function parAmDec(s) {
+    const v = parseFloat(String(s).replace(/[^0-9.+-]/g, ''));
+    if (!isFinite(v) || Math.abs(v) < 100) return null;
+    return v > 0 ? 1 + v / 100 : 1 + 100 / -v;
+  }
+  function parSave() {
+    try { localStorage.setItem(PAR_KEY, JSON.stringify({ on: PARLAY.on, open: PARLAY.open, legs: PARLAY.legs, boost: PARLAY.boost })); } catch (e) {}
+  }
+  function parLoad() {
+    try {
+      const s = JSON.parse(localStorage.getItem(PAR_KEY) || '{}');
+      if (Array.isArray(s.legs)) PARLAY.legs = s.legs.filter(l => l && l.k && l.p > 0);
+      PARLAY.on = !!s.on; PARLAY.open = !!s.open; PARLAY.boost = +s.boost || 0;
+    } catch (e) {}
+  }
+
+  // ── Leg builders ──
+  const PK_M = { any: 'g1', 2: 'g2', 3: 'g3', first: 'gf', last: 'gl', p1: 'gp1', pp: 'gpp' };
+  /** A goal-market leg, in whichever market the Picks board is on (or the one passed). */
+  function pkLeg(r, M = pkMkt()) {
+    const m = PK_M[M.v];
+    return { k: `${m}|${r.pid}`, n: r.name, t: r.team, g: parGame(r), m, s: M.long, p: r[M.key], i: r.pid };
+  }
+  const LEG_UNIT = { sog: 'shots', sv: 'saves', ga: 'goals allowed', pts: 'points', ast: 'assists', ppp: 'PP points' };
+  /** An over leg on a ladder market. The line is in the key, so o2.5 and o3.5 are different legs — and replace each other. */
+  const lcLegOf = (kind, r, L, p) => ({ k: `${kind}|${r.pid}|${L}`, n: r.name, t: r.team, g: parGame(r), m: kind, s: `Over ${L} ${LEG_UNIT[kind]}`, p, i: r.pid, L });
+
+  // ── Measured corrections ──
+  /**
+   * Multiplier for a group of anytime-goal legs, or null when it's outside what
+   * was measured (five or more from one club). Groups split by game — legs in
+   * different games are independent — then by club within a game.
+   */
+  function goalGroupMult(members) {
+    const P = D?.parlay; if (!P) return null;
+    const games = {};
+    for (const m of members) ((games[m.g] ??= {})[m.t] ??= []).push(m);
+    let mult = 1;
+    for (const teams of Object.values(games)) {
+      const sizes = Object.values(teams).map(v => v.length);
+      for (const n of sizes) {
+        if (n < 2) continue;
+        const f = P.same_by_size?.[String(n)]; if (f == null) return null;
+        mult *= f;
+      }
+      if (sizes.length === 2) mult *= Math.pow(P.rho_cross, sizes[0] * sizes[1]);
+    }
+    return mult;
+  }
+  /** Games this season B assisted a goal of A's — from the goal archive, once it's loaded. */
+  function parLinks(a, b) {
+    if (!PL?.goals) return null;
+    const seen = new Set();
+    for (const g of PL.goals) if (g.type === 2 && g.pid === a && (g.ast || []).includes(b)) seen.add(g.gameId);
+    return seen.size;
+  }
+  function stackMult(a, b) {
+    const bins = D?.parlay?.stack || [];
+    const n = parLinks(a, b) ?? 0;
+    const bin = bins.find(x => n >= x.lo && n <= x.hi) || bins[0];
+    return bin ? { mult: bin.mult, links: n, known: !!PL?.goals } : null;
+  }
+
+  function parPrice() {
+    const legs = PARLAY.legs;
+    const naive = legs.reduce((a, l) => a * l.p, 1);
+    const games = {};
+    for (const l of legs) if (l.g) (games[l.sp + l.g] ??= []).push(l);
+    const shared = Object.values(games).filter(v => v.length > 1);
+    const who = {};
+    for (const l of legs) if (l.i) (who[l.sp + l.i] ??= []).push(l);
+    const samePlayer = Object.values(who).filter(v => v.length > 1).map(v => v[0].n);
+    let p = naive, corr = null, stack = null;
+    const nhl = legs.every(l => l.sp === 'nhl');
+    if (legs.length > 1 && nhl && legs.every(l => l.m === 'g1')) {
+      const f = goalGroupMult(legs); if (f != null) { p = naive * f; corr = 'goals'; }
+    } else if (legs.length === 2 && nhl) {
+      const A = legs.find(l => l.m === 'g1'), B = legs.find(l => l.m === 'ast' && l.L === 0.5);
+      if (A && B && A.t === B.t && A.i !== B.i && A.g === B.g) {
+        stack = stackMult(A.i, B.i);
+        if (stack) { p = naive * stack.mult; corr = 'stack'; stack.a = A.n; stack.b = B.n; }
+      }
+    }
+    return { p: Math.min(0.999, p), naive, corr, stack, shared, samePlayer };
+  }
+
+  function parMode(on) {
+    PARLAY.on = on;
+    if (!on) PARLAY.open = false;
+    document.body.classList.toggle('par-mode', on);
+    parRender(); parPaint(); parSave();
+  }
+  function parToggleOpen(e) {
+    if (e && e.target.closest('.par-x, .par-mode-btn')) return;
+    PARLAY.open = !PARLAY.open;
+    document.getElementById('par-slip').classList.toggle('open', PARLAY.open);
+    parRender(); parSave();
+  }
+  function parToggleLeg(leg) {
+    leg = parLeg(leg);
+    const i = PARLAY.legs.findIndex(l => l.k === leg.k);
+    if (i >= 0) PARLAY.legs.splice(i, 1);
+    else {
+      // Two lines in one player's market are one bet, not two — a new line replaces the old.
+      const clash = PARLAY.legs.findIndex(l => l.i && l.sp === leg.sp && l.i === leg.i && l.m === leg.m);
+      if (clash >= 0) PARLAY.legs.splice(clash, 1);
+      PARLAY.legs.push(leg);
+      // the stack price needs this season's assists; fetch them the first time it matters
+      if (leg.m === 'ast' || leg.m === 'g1') loadPlayersLog();
+    }
+    if (PARLAY.legs.length === 1 && i < 0 && window.innerWidth > 600) PARLAY.open = true;
+    document.getElementById('par-slip').classList.toggle('open', PARLAY.open);
+    parRender(); parPaint(); parSave();
+  }
+  function parRemove(k) { PARLAY.legs = PARLAY.legs.filter(l => l.k !== k); parRender(); parPaint(); parSave(); }
+  function parClear() { PARLAY.legs = []; parRender(); parPaint(); parSave(); }
+  function parSetBoost(v) { PARLAY.boost = +v || 0; parRender(); parSave(); }
+  function parCustomBoost(el) { PARLAY.boost = Math.max(0, Math.min(10, (parseFloat(el.value) || 0) / 100)); parRender(); parSave(); }
+  function parBook(el) { PARLAY.book = el.value; parRenderEv(); }
+
+  function parPaint() {
+    const keys = new Set(PARLAY.legs.map(l => l.k));
+    for (const el of document.querySelectorAll('[data-leg]')) {
+      let k = el._plk;
+      if (k === undefined) { try { k = JSON.parse(el.dataset.leg).k; } catch (e) { k = null; } el._plk = k; }
+      el.classList.toggle('par-pick', keys.has(k));
+    }
+    document.body.classList.toggle('par-has', !!document.querySelector('.panel.visible [data-leg]'));
+  }
+  function parRenderEv() {
+    const out = document.getElementById('par-ev-out'); if (!out) return;
+    const { p } = parPrice(), d = parAmDec(PARLAY.book);
+    if (!d || !(p > 0) || !PARLAY.legs.length) { out.textContent = ''; out.className = 'par-ev-out'; return; }
+    const boosted = 1 + (d - 1) * (1 + PARLAY.boost);
+    const ev = p * boosted - 1;
+    out.textContent = `${parDecAm(boosted)} after the boost · ${ev >= 0 ? '+' : '−'}${Math.abs(ev * 100).toFixed(1)}% EV`;
+    out.className = 'par-ev-out ' + (ev >= 0 ? 'good' : 'bad');
+  }
+  function parRender() {
+    const slip = document.getElementById('par-slip'); if (!slip) return;
+    slip.classList.toggle('open', PARLAY.open);
+    document.body.classList.toggle('par-legs', PARLAY.legs.length > 0);
+    document.getElementById('par-mode-btn')?.classList.toggle('on', PARLAY.on);
+    const legs = PARLAY.legs, { p, naive, corr, stack, shared, samePlayer } = parPrice();
+    const hn = document.getElementById('par-head-n'), ho = document.getElementById('par-head-od');
+    hn.innerHTML = legs.length
+      ? `${legs.length} leg${legs.length === 1 ? '' : 's'} <span>· ${PARLAY.on ? 'fair' : 'selection off'}</span>`
+      : 'Parlay mode <span>· tap picks to add</span>';
+    ho.className = 'par-head-od' + (legs.length ? '' : ' par-none');
+    ho.textContent = legs.length ? sgOdds(p) : '0 legs';
+    const body = document.getElementById('par-body');
+    if (!legs.length) {
+      body.innerHTML = `<div class="par-empty">Tap any priced row to add it.<br>One slip for the whole site: legs from every tool — and every sport — combine here.</div>`;
+      return;
+    }
+    const mixed = new Set(legs.map(l => l.sp)).size > 1;
+    const boostPct = Math.round(PARLAY.boost * 100);
+    const custom = !PAR_BOOSTS.includes(PARLAY.boost);
+    // With a boost, the worst book price that still beats fair: 1 + (d-1)(1+b) >= 1/p.
+    const need = 1 + (1 / p - 1) / (1 + PARLAY.boost);
+    const gap = Math.round((p / naive - 1) * 100);
+    body.innerHTML =
+      `<div class="par-legs-hd"><span class="par-lbl2">${legs.length} leg${legs.length === 1 ? '' : 's'}</span><button class="par-clear" onclick="parClear()" title="Remove every leg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg> Clear all</button></div>`
+      + legs.map(l => `<div class="par-leg">
+        <span class="par-leg-nm">${mixed ? `<span class="par-sp">${PAR_SPORT_LBL[l.sp] || ''}</span>` : ''}${esc(l.n)}</span>
+        <span class="par-leg-sel">${esc(l.s)}${l.t ? ` · ${esc(l.t)}` : ''}</span>
+        <span class="par-leg-od">${sgOdds(l.p)}</span>
+        <button class="par-leg-x" onclick="parRemove('${l.k.replace(/'/g, "\\'")}')" aria-label="Remove">×</button>
+      </div>`).join('')
+      + `<div class="par-lbl2">Profit boost</div>
+      <div class="par-chips">
+        ${PAR_BOOSTS.map(b => `<button class="par-chip${!custom && PARLAY.boost === b ? ' on' : ''}" onclick="parSetBoost(${b})">${b ? Math.round(b * 100) + '%' : 'None'}</button>`).join('')}
+        <span class="par-chip${custom ? ' on' : ''}"><input type="number" min="0" max="500" step="5" placeholder="custom" value="${custom ? boostPct : ''}" oninput="parCustomBoost(this)">%</span>
+      </div>
+      <div class="par-nums">
+        <div class="par-num acc"><b>${sgOdds(p)}</b><span>Fair odds</span></div>
+        <div class="par-num"><b>${(p * 100).toFixed(p < 0.1 ? 2 : 1)}%</b><span>True chance</span></div>
+      </div>
+      <p class="par-note">${PARLAY.boost
+        ? `With a <b>${boostPct}%</b> profit boost, take it at <b>${parDecAm(need)}</b> or better and you have the best of it.`
+        : `Anything longer than <b>${sgOdds(p)}</b> at your book beats fair.`}</p>
+      ${corr === 'goals' && gap ? `<p class="par-note">Priced with the measured goal-scorer correlation — ${gap < 0 ? 'teammates share a fixed number of goals, so a big same-club group lands below' : 'these legs land above'} straight multiplication, which says <b>${sgOdds(naive)}</b> (${gap > 0 ? '+' : ''}${gap}%).</p>` : ''}
+      ${corr === 'stack' ? `<p class="par-note">A scorer + assist stack: when ${esc(stack.a)} scores, someone gets the assist — ${esc(stack.b)} ${stack.known ? (stack.links ? `has set him up in <b>${stack.links}</b> game${stack.links === 1 ? '' : 's'} this season` : `hasn't set him up yet this season`) : '(this season\'s assists are loading)'}, so this runs <b>+${gap}%</b> over multiplying (${sgOdds(naive)}).</p>` : ''}
+      ${samePlayer.length ? `<p class="par-note par-warn">Two markets on ${samePlayer.map(esc).join(' and ')} — one player's lines move together, so multiplying them overstates the price.</p>` : ''}
+      ${!corr && shared.length ? `<p class="par-note par-warn">${shared.map(v => `${v.length} legs in ${esc(v[0].g)}`).join(', ')} — same-game legs aren't independent, so this is a multiplied estimate, not a fair same-game price.</p>` : ''}
+      <div class="par-ev">
+        <label for="par-book">Your book's price</label>
+        <input type="text" id="par-book" inputmode="text" placeholder="+1400" value="${parEsc(PARLAY.book)}" oninput="parBook(this)">
+        <span class="par-ev-out" id="par-ev-out"></span>
+      </div>`;
+    parRenderEv();
+  }
+  function parInit() {
+    parLoad();
+    document.body.classList.toggle('par-mode', PARLAY.on);
+    document.addEventListener('click', (e) => {
+      if (!PARLAY.on) return;
+      const el = e.target.closest?.('[data-leg]');
+      if (!el) return;
+      e.preventDefault(); e.stopPropagation();
+      let leg; try { leg = JSON.parse(el.dataset.leg); } catch (err) { return; }
+      if (leg && leg.k && leg.p > 0) parToggleLeg(leg);
+    }, true);
+    let raf = 0;
+    new MutationObserver(() => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => { raf = 0; parPaint(); });
+    }).observe(document.querySelector('.wrap') || document.body, { childList: true, subtree: true });
+    parRender(); parPaint();
+  }
+  Object.assign(window, { parMode, parToggleOpen, parRemove, parClear, parSetBoost, parCustomBoost, parBook });
+
+  // ── Add buttons in the cards ──
+  function pmAddBtn(r) {
+    const leg = pkLeg(r); if (!(leg.p > 0)) return '';
+    const on = PARLAY.legs.some(l => l.k === parLeg(leg).k);
+    return `<button class="par-add${on ? ' on' : ''}" onclick="pmAddLeg(${r.pid})">${on ? '✓ In your parlay' : `+ Add ${esc(pkMkt().lab)} to parlay`}</button>`;
+  }
+  window.pmAddLeg = (pid) => {
+    const r = (D.picks?.picks || []).find(x => x.pid === pid); if (!r) return;
+    if (!PARLAY.on) parMode(true);
+    parToggleLeg(pkLeg(r));
+    const b = document.getElementById('pm-pl-add'); if (b) b.innerHTML = pmAddBtn(r);
+  };
+  function lcLeg() {
+    const r = lcRow(); if (!r) return null;
+    return lcLegOf(lc.kind, r, lc.line, lcOver(lcPmf(r), lc.line));
+  }
+  function lcAddBtn() {
+    const leg = lcLeg(); if (!leg) return '';
+    const on = PARLAY.legs.some(l => l.k === parLeg(leg).k);
+    return `<button class="par-add${on ? ' on' : ''}" onclick="lcAddLeg()">${on ? '✓ In your parlay' : `+ Add o${lc.line} to parlay`}</button>`;
+  }
+  window.lcAddLeg = () => {
+    const leg = lcLeg(); if (!leg) return;
+    if (!PARLAY.on) parMode(true);
+    parToggleLeg(leg);
+    document.querySelectorAll('.lc-add').forEach(el => { el.innerHTML = lcAddBtn(); });
+  };
+  window.plwAdd = (pid, i) => {
+    const { rows, start } = plTonight(pid);
+    if (start && new Date(start) <= new Date()) return;
+    const leg = rows[i]?.leg; if (!leg) return;
+    if (!PARLAY.on) parMode(true);
+    parToggleLeg(leg);
+    plRender();
+  };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', parInit);
+  else parInit();
+
+  // ── Pairs ───────────────────────────────────────────────────────────────
+  // Ported from /nfl. Which skaters score on the same night (or in the same
+  // game), found by apriori over this season's goal archive — players.json,
+  // which the player card already loads. Until this season has two weeks of
+  // games the page runs on last season's goals (nhl/pairs-20252026.json).
+  //
+  // Prices are the parlay slip's: a group whose every member is on tonight's
+  // board gets the measured goal-scorer correlation, and the scorer -> assister
+  // stacks get the measured stack multiplier (research/nhl_pairs.py,
+  // research/nhl_stacks.py).
+  const PR_MIN_NIGHTS = 14;
+  const prF = { size: 2, win: 'night', basis: 'all', sgp: false, stacks: false, src: null, terms: [] };
+  let PRL = null, prlState = 'idle';          // last season's file
+  function loadPairsLast() {
+    if (prlState !== 'idle') return;
+    prlState = 'loading';
+    fetch(APP_BASE + '/pairs-20252026.json').then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { PRL = j; prlState = 'ready'; })
+      .catch(() => { prlState = 'error'; })
+      .finally(() => { if (activeNav === 'pairs') renderPairs(); });
+  }
+  /** This season's regular-season goals, or null while there are too few nights to say anything. */
+  function prThis() {
+    if (!PL?.goals) return null;
+    const goals = PL.goals.filter(g => g.type === 2 && g.ptype !== 'SO');
+    const nights = new Set(goals.map(g => g.date)).size;
+    return { goals, nights };
+  }
+  const prCache = {};
+  /** The chosen season as one normalised list: {d, g, t, s, a, pp, first, multi}, plus who's who. */
+  function prSource() {
+    const cur = prThis();
+    const useThis = prF.src ? prF.src === 'this' : (cur && cur.nights >= PR_MIN_NIGHTS);
+    const key = useThis ? 'this' : 'last';
+    if (prCache[key]) return prCache[key];
+    let rows = [], who = {}, label;
+    if (useThis) {
+      if (!cur) return null;
+      rows = [...cur.goals].sort((a, b) => a.gameId - b.gameId || a.k - b.k).map(g => ({ d: g.date, g: g.gameId, t: g.team, s: g.pid, a: g.ast || [], pp: g.strength === 'pp' }));
+      for (const g of cur.goals) who[g.pid] = { name: g.name, team: g.team };
+      for (const [pid, e] of Object.entries(PL.p || {})) who[pid] ??= { name: e.n, team: e.tm, pos: e.pos };
+      for (const [pid, e] of Object.entries(PL.p || {})) who[pid] = { ...who[pid], pos: e.pos, team: e.tm || who[pid].team };
+      label = D.seasonLabel;
+    } else {
+      if (!PRL) return null;
+      rows = PRL.goals.map(([d, g, t, s, a, str]) => ({ d, g, t, s, a, pp: str === 'pp' }));
+      for (const [pid, [name, pos, team]] of Object.entries(PRL.p)) who[pid] = { name, pos, team };
+      label = D.leaderSeasonLabel || '2025-26';
+    }
+    // first goal of each game, and 2+ goal games
+    const seenG = new Set(), cnt = {};
+    for (const r of rows) {
+      r.first = !seenG.has(r.g); seenG.add(r.g);
+      cnt[r.g + '|' + r.s] = (cnt[r.g + '|' + r.s] || 0) + 1;
+    }
+    for (const r of rows) r.multi = cnt[r.g + '|' + r.s] >= 2;
+    const goals = {}; for (const r of rows) goals[r.s] = (goals[r.s] || 0) + 1;
+    const ast = {}; for (const r of rows) for (const b of r.a) ast[b] = (ast[b] || 0) + 1;
+    const src = { key, label, rows, who, goals, ast, nights: new Set(rows.map(r => r.d)).size, useThis, groups: {} };
+    return (prCache[key] = src);
+  }
+  function prMin(S) {
+    const normal = prF.basis === 'all' ? (prF.win === 'night' ? 6 : 3) : 2;
+    return Math.max(1, Math.min(normal, S.nights));
+  }
+  function prGroups(S) {
+    const ck = prF.win + '|' + prF.basis;
+    if (S.groups[ck]) return S.groups[ck];
+    const MIN = prMin(S);
+    const slates = {};
+    for (const r of S.rows) {
+      if (prF.basis === 'first' && !r.first) continue;
+      if (prF.basis === 'pp' && !r.pp) continue;
+      if (prF.basis === 'multi' && !r.multi) continue;
+      (slates[r.s] ??= new Set()).add(prF.win === 'night' ? r.d : r.g + '|' + r.d);
+    }
+    const price = {}; for (const pk of (D.picks?.picks || [])) price[pk.pid] = pk.p;
+    const pids = Object.keys(slates).filter(p => slates[p].size >= MIN)
+      .sort((a, b) => slates[b].size - slates[a].size || (price[b] || 0) - (price[a] || 0) || a - b);
+    const inter = (a, b) => { const [s, l] = a.size <= b.size ? [a, b] : [b, a]; const r = new Set(); for (const x of s) if (l.has(x)) r.add(x); return r; };
+    // A hard ceiling per size: early in a season every scorer "pairs" with every
+    // other, and quints would run to millions (the NFL page crashed iPhones on it).
+    const MAX_GROUPS = 3000;
+    const result = { 2: [], 3: [], 4: [], 5: [] };
+    let level = pids.map((p, i) => ({ pids: [p], idx: i, set: slates[p] }));
+    for (let k = 2; k <= 5; k++) {
+      const next = [];
+      outer: for (const g of level) {
+        for (let j = g.idx + 1; j < pids.length; j++) {
+          const s = inter(g.set, slates[pids[j]]);
+          if (s.size >= MIN) { next.push({ pids: [...g.pids, pids[j]], idx: j, set: s }); if (next.length >= MAX_GROUPS) break outer; }
+        }
+      }
+      result[k] = next.map(g => ({ pids: g.pids.map(Number), keys: [...g.set].map(x => x.split('|').pop()).sort(), count: g.set.size }))
+        .sort((a, b) => b.count - a.count);
+      level = next;
+      if (!level.length) break;
+    }
+    return (S.groups[ck] = result);
+  }
+  /** Scorer -> assister stacks: A scored, and 1-2 teammates assisted his goals in the same game. */
+  function prStacks(S, size) {
+    const need = size - 1, by = new Map();
+    const perGame = new Map();
+    for (const r of S.rows) {
+      if (!r.a.length) continue;
+      const k = r.g + '|' + r.s;
+      const e = perGame.get(k) || { d: r.d, g: r.g, s: r.s, t: r.t, a: new Set() };
+      r.a.forEach(b => e.a.add(b)); perGame.set(k, e);
+    }
+    const combos = (arr, k) => k === 1 ? arr.map(x => [x]) : arr.flatMap((x, i) => combos(arr.slice(i + 1), k - 1).map(c => [x, ...c]));
+    for (const e of perGame.values()) {
+      const ids = [...e.a].sort((x, y) => x - y);
+      if (ids.length < need) continue;
+      for (const c of combos(ids, need)) {
+        const k = e.s + '|' + c.join('|');
+        const g = by.get(k) || { a: e.s, recs: c, team: e.t, keys: [] };
+        g.keys.push(e.d); by.set(k, g);
+      }
+    }
+    return [...by.values()].map(g => ({ ...g, keys: g.keys.sort(), count: g.keys.length }))
+      .sort((x, y) => y.count - x.count || y.keys[y.keys.length - 1].localeCompare(x.keys[x.keys.length - 1]));
+  }
+  const prName = (S, pid) => S.who[pid]?.name || String(pid);
+  const prMug = (S, pid) => {
+    const pk = (D.picks?.picks || []).find(x => x.pid === +pid) || (D.points?.board || []).find(x => x.pid === +pid);
+    return pk?.mug || mugOf(pid, S.who[pid]?.team || '', S.useThis ? D.season : 20252026);
+  };
+  const prPill = (d) => new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  /** Tonight's price for a goal group: every member on the board, or nothing. */
+  function prPrice(pids) {
+    if (prF.basis !== 'all') return null;
+    const rows = pids.map(pid => (D.picks?.picks || []).find(x => x.pid === pid));
+    if (rows.some(r => !r)) return null;
+    const naive = rows.reduce((a, r) => a * r.p, 1);
+    const mult = goalGroupMult(rows.map(r => ({ t: r.team, g: parGame(r) })));
+    if (mult == null) return { naive, fair: naive, mult: 1, rows, unmeasured: true };
+    return { naive, fair: Math.min(0.999, naive * mult), mult, rows };
+  }
+  /** Tonight's price for A scores + B assists. */
+  function prStackPrice(S, a, b) {
+    const A = (D.picks?.picks || []).find(x => x.pid === a), B = (D.points?.board || []).find(x => x.pid === b);
+    if (!A || !B || A.team !== B.team) return null;
+    const q = 1 - Math.exp(-B.mu.a), naive = A.p * q;
+    const st = stackMult(a, b), mult = S.useThis ? st.mult : (D.parlay?.stack?.[0]?.mult ?? 1);
+    return { naive, fair: Math.min(0.999, naive * mult), mult, legs: [pkLeg(A, PK_MARKETS[0]), lcLegOf('ast', B, 0.5, q)] };
+  }
+  window.prAddAll = (i) => {
+    const legs = window._prLegs?.[i]; if (!legs) return;
+    if (!PARLAY.on) parMode(true);
+    const keys = new Set(PARLAY.legs.map(l => l.k));
+    for (const l of legs) if (!keys.has(parLeg(l).k)) parToggleLeg(l);
+  };
+  const prPriceRow = (pr, i, tip) => !pr ? '' : (() => {
+    const gap = (pr.mult - 1) * 100;
+    const tone = pr.mult < 0.97 ? 'pl-worse' : pr.mult > 1.03 ? 'pl-better' : 'pl-flat';
+    return `<div class="pl-row">
+      <span class="pl-fair"><b>${sgOdds(pr.fair)}</b><span class="pr-lbl">fair</span></span>
+      <span class="pl-naive">${sgOdds(pr.naive)}<span class="pr-lbl">if independent</span></span>
+      ${pr.unmeasured ? '' : `<span class="pl-gap ${tone}" title="${tip}">${gap > 0 ? '+' : ''}${gap.toFixed(0)}%</span>`}
+      <button class="par-add" style="margin-left:${pr.unmeasured ? 'auto' : '0.2rem'};padding:0.18rem 0.55rem;font-size:0.7rem" onclick="prAddAll(${i})">+ Parlay</button>
+    </div>`;
+  })();
+
+  function setPr(k, v) {
+    prF[k] = k === 'sgp' || k === 'stacks' ? !prF[k] : v;
+    renderPairs();
+  }
+  window.setPr = setPr;
+  window.onPrSearch = () => { prF.terms = (document.getElementById('pr-search')?.value || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean); renderPairsBody(); };
+
+  function renderPairs() {
+    const el = document.getElementById('pairs-content'); if (!el) return;
+    if (D === 'error') { el.innerHTML = `<div class="empty">Couldn't load NHL data. <a href="javascript:void(0)" onclick="loadNhl()">Retry</a></div>`; return; }
+    if (!D) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
+    loadPlayersLog();
+    const cur = prThis();
+    if (!prF.src && plState === 'loading') { el.innerHTML = '<div class="empty">Loading this season\'s goals…</div>'; return; }
+    const useThis = prF.src ? prF.src === 'this' : (cur && cur.nights >= PR_MIN_NIGHTS);
+    if (!useThis) { loadPairsLast(); if (!PRL) { el.innerHTML = `<div class="empty">${prlState === 'error' ? 'Couldn\'t load last season\'s goals.' : 'Loading last season\'s goals…'}</div>`; return; } }
+    const chip = (k, v, lab, on) => `<button class="due-filter-chip mode-chip${on ? ' active' : ''}" onclick="setPr('${k}','${v}')">${lab}</button>`;
+    const tog = (k, lab, on, tip) => `<button class="due-filter-chip${on ? ' active' : ''}" onclick="setPr('${k}')" title="${tip}">${lab}</button>`;
+    const srcRow = cur?.nights ? `<span class="due-filter-label" style="margin-left:0.3rem">Season</span>
+      ${chip('src', 'this', D.seasonLabel, useThis)}${chip('src', 'last', D.leaderSeasonLabel, !useThis)}` : '';
+    el.innerHTML = `
+      <div class="sub-tabs">${[[2, 'Pairs'], [3, 'Trios'], [4, 'Quads'], [5, 'Quints']].map(([n, l]) =>
+        `<button class="sub-btn${prF.size === n ? ' active' : ''}" onclick="setPr('size',${n})"><span class="num">${n}</span>${l}</button>`).join('')}</div>
+      <div class="pb-search${prF.terms.length ? ' on' : ''}" style="margin-bottom:0.7rem">
+        <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        <input type="text" id="pr-search" placeholder="Search skaters… commas for multiple (McDavid, Draisaitl)" value="${esc(prF.terms.join(', '))}" oninput="onPrSearch()" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="pairs-filter-row">
+        ${prF.stacks ? '' : `<span class="due-filter-label">Window</span>${chip('win', 'night', 'Same night', prF.win === 'night')}${chip('win', 'game', 'Same game', prF.win === 'game')}
+        <span class="due-filter-label" style="margin-left:0.3rem">Basis</span>
+        ${[['all', 'All goals'], ['first', 'First goal'], ['pp', 'PP goal'], ['multi', '2+ goals']].map(([v, l]) => chip('basis', v, l, prF.basis === v)).join('')}
+        ${tog('sgp', '🏒 SGP only', prF.sgp, 'Only groups with a same-club stack — they share a game')}`}
+        ${tog('stacks', '🎯 Goal → Assist', prF.stacks, 'Who sets up whom: a scorer and the teammates who assisted his goals in the same game')}
+        ${srcRow}
+      </div>
+      <div class="result-meta" id="pairs-meta"></div>
+      <div id="pairs-cards"></div>`;
+    renderPairsBody();
+  }
+
+  function renderPairsBody() {
+    const cards = document.getElementById('pairs-cards'), meta = document.getElementById('pairs-meta');
+    if (!cards) return;
+    const S = prSource(); if (!S) { cards.innerHTML = '<div class="empty">Loading…</div>'; return; }
+    const T = prF.terms, hit = (pid) => T.some(t => prName(S, pid).toLowerCase().includes(t));
+    const legsOut = window._prLegs = [];
+    const chipHtml = (pid, n, lbl, m) => `<div class="player-chip${m ? ' matched' : ''}">${faceHtml(prMug(S, pid), prName(S, pid), 'player-photo')}<span class="player-name">${esc(prName(S, pid))}</span><span class="player-hr">${n ?? '—'}</span><span class="player-hr-lbl">${lbl}</span></div>`;
+    const pills = (keys) => keys.map((k, i) => `<span class="date-pill${i === keys.length - 1 ? ' latest' : ''}">${prPill(k)}</span>`).join('');
+    const LIMIT = 200;
+
+    if (prF.stacks) {
+      if (prF.size > 3) { meta.textContent = ''; cards.innerHTML = '<div class="empty">A goal carries at most two assists, so stacks run two or three deep — a scorer and one or both of his setup men.</div>'; return; }
+      let list = prStacks(S, prF.size);
+      if (T.length) list = list.filter(g => T.every(t => [g.a, ...g.recs].some(p => prName(S, p).toLowerCase().includes(t))));
+      meta.textContent = `${list.length.toLocaleString()} ${prF.size === 2 ? 'scorer → assister connections' : 'scorers with both setup men'} · ${S.label} · by games connected`
+        + (T.length ? ' · ' + T.join(' + ') : '') + (list.length > LIMIT ? ` · showing top ${LIMIT}` : '');
+      if (!list.length) { cards.innerHTML = '<div class="empty">No connections found.</div>'; return; }
+      const max = list[0].count;
+      cards.innerHTML = list.slice(0, LIMIT).map((g, i) => {
+        const pr = prF.size === 2 ? prStackPrice(S, g.a, g.recs[0]) : null;
+        if (pr) legsOut[i] = pr.legs;
+        const tip = S.useThis ? `When he scores, someone gets the assist — and this teammate has set him up ${g.count} time${g.count === 1 ? '' : 's'} this season.`
+          : 'Priced at the new-season rate: the linemate lift builds as this season\'s connections do.';
+        return `<div class="card${g.count === max ? ' top' : i < 4 ? ' high' : ''}">
+          <div class="card-top-row"><div class="card-left">
+            <div class="rank-badge">${i + 1}</div>
+            <div class="count-block"><span class="count-num">${g.count}</span><span class="count-label">${g.count === 1 ? 'GAME' : 'GAMES'}</span></div>
+            <span class="sgp-badge">${esc(g.team)}</span>
+          </div><div class="fresh-badge">${prPill(g.keys[g.keys.length - 1])}</div></div>
+          <div class="players">${chipHtml(g.a, S.goals[g.a], 'G', T.length && hit(g.a))}${g.recs.map(b => chipHtml(b, S.ast[b], 'A', T.length && hit(b))).join('')}</div>
+          ${prPriceRow(pr, i, tip)}
+          <div class="dates">${pills(g.keys)}</div></div>`;
+      }).join('');
+      return;
+    }
+
+    const groups = prGroups(S);
+    let list = groups[prF.size] || [];
+    const teamOf = (pid) => S.who[pid]?.team;
+    const sharedTeams = (pids) => { const b = {}; pids.forEach(p => { const t = teamOf(p); if (t) b[t] = (b[t] || 0) + 1; }); return Object.keys(b).filter(t => b[t] >= 2); };
+    if (prF.sgp) list = list.filter(g => sharedTeams(g.pids).length);
+    if (T.length) list = list.filter(g => T.every(t => g.pids.some(p => prName(S, p).toLowerCase().includes(t))));
+    const priced = new Map(list.slice(0, LIMIT * 2).map(g => [g, prPrice(g.pids)]));
+    // ties in co-occurrence break toward what's playable tonight
+    list = [...list].sort((a, b) => b.count - a.count || (priced.get(b)?.fair ?? 0) - (priced.get(a)?.fair ?? 0));
+    const winWord = prF.win === 'night' ? 'NIGHTS' : 'GAMES';
+    meta.textContent = `${list.length.toLocaleString()} ${{ 2: 'pairs', 3: 'trios', 4: 'quads', 5: 'quints' }[prF.size]} · ${S.label} · ${prF.win === 'night' ? 'same night' : 'same game'} · ${{ first: 'first goal only', pp: 'PP goals only', multi: '2+ goal games only' }[prF.basis] || 'all goals'} · min ${prMin(S)}`
+      + (prF.sgp ? ' · SGP only' : '') + (T.length ? ' · ' + T.join(' + ') : '') + (list.length > LIMIT ? ` · showing top ${LIMIT}` : '');
+    if (!list.length) { cards.innerHTML = `<div class="empty">${T.length ? 'No groups contain: ' + esc(T.join(' + ')) : 'No co-occurrences found.'}</div>`; return; }
+    const max = list[0].count;
+    cards.innerHTML = list.slice(0, LIMIT).map((g, i) => {
+      const shared = sharedTeams(g.pids), pr = priced.get(g) ?? prPrice(g.pids);
+      if (pr) legsOut[i] = pr.rows.map(r => pkLeg(r, PK_MARKETS[0]));
+      const tip = pr?.mult < 0.97 ? 'Teammates share a fixed number of goals — a same-club group this size lands below the naive product.'
+        : 'Measured on three seasons of goals: these legs price close to independent.';
+      return `<div class="card${g.count === max ? ' top' : i < 4 ? ' high' : ''}">
+        <div class="card-top-row"><div class="card-left">
+          <div class="rank-badge">${i + 1}</div>
+          <div class="count-block"><span class="count-num">${g.count}</span><span class="count-label">${winWord}</span></div>
+          ${shared.map(t => `<span class="sgp-badge">SGP·${esc(t)}</span>`).join('')}
+        </div><div class="fresh-badge">${prPill(g.keys[g.keys.length - 1])}</div></div>
+        <div class="players">${g.pids.map(p => chipHtml(p, S.goals[p], 'G', T.length && hit(p))).join('')}</div>
+        ${prPriceRow(pr, i, tip)}
+        <div class="dates">${pills(g.keys)}</div></div>`;
+    }).join('');
   }
 
   document.addEventListener('DOMContentLoaded', () => { updateThemeToggleIcon(); applyRouteState(); loadNhl(); });

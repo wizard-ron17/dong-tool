@@ -473,6 +473,14 @@ async function main() {
     recap, recapDates, recapGames,
     leaders: L.skaters, goalies: L.goalies,
     shots, picks, saves, points, fun,
+    // measured parlay multipliers (research/nhl_pairs.py, research/nhl_stacks.py):
+    // goal-scorer groups vs the naive product, and scorer + assister stacks by
+    // how many games this season the assister has set the scorer up
+    parlay: (() => {
+      const rd = (f) => JSON.parse(fs.readFileSync(new URL(`../research/${f}`, import.meta.url), 'utf8'));
+      const g = rd('nhl_pairs_model.json'), st = rd('nhl_stacks_model.json');
+      return { rho_same: g.rho_same, rho_cross: g.rho_cross, same_by_size: g.same_by_size, stack: st.bins };
+    })(),
     // graded nights only, voids dropped, as
     //   [pid, p, scored, p2, p3, pFirst, pLast, pP1, pPP, goals, first, last, p1Goals, ppGoals]
     // (nights frozen before the extra markets carry only the first three)

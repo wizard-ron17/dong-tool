@@ -98,7 +98,8 @@ export async function buildPlayersLog({ season, schedule, recap, recapGames, pat
       if (Math.floor(g.gameId / 1e6) !== yr) continue;
       // mug is rebuilt client-side from season/team/pid; the rest the card shows
       const { assists, clip, dx, mug, ...keep } = g;
-      const row = { ...keep, date: d, type: recapGames?.[g.gameId]?.type ?? null };
+      // assister ids only (names live in p) — /nhl/pairs builds scorer -> assister stacks from them
+      const row = { ...keep, ast: (assists || []).map(x => x.pid).filter(Boolean), date: d, type: recapGames?.[g.gameId]?.type ?? null };
       const k = `${g.gameId}|${g.k}`;
       if (idx.has(k)) out.goals[idx.get(k)] = row; else { idx.set(k, out.goals.length); out.goals.push(row); }
     }
