@@ -12,6 +12,7 @@
 import fs from 'node:fs';
 import { web, rest, restPaged, etDate, shiftDate } from './nhl-api.js';
 import { buildShotsBoard } from './nhl-shots.js';
+import { gameGoalDetail } from './nhl-goal-detail.js';
 
 const LEADERS = 300;      // skaters on the Stats board
 const GOALIES = 90;       // ~3 per club
@@ -20,6 +21,10 @@ const SCAN_BACK = 150;    // how far back to look for those dates before giving 
 const SCAN_GAP = 21;      // ...but stop after this many empty days once we have some
 
 const ymd = (s) => (s || '').slice(0, 10);
+// nhl.com video pages end in the Brightcove id the app plays them by:
+// "/video/lak-at-bos-recap-6390714705112" -> "6390714705112". Kept a string —
+// they are 13 digits today and there's no reason to find out where doubles stop.
+const vidId = (path) => (String(path || '').match(/(\d{9,})\/?$/) || [])[1] || null;
 
 async function main() {
   const today = etDate();
@@ -82,6 +87,7 @@ async function main() {
           state: g.gameState, venue: g.venue?.default || null,
           tv: (g.tvBroadcasts || []).filter(b => b.countryCode === 'US').map(b => b.network).slice(0, 2),
           end: g.gameOutcome?.lastPeriodType || null,
+          rv: vidId(g.threeMinRecap), cv: vidId(g.condensedGame),
         });
       }
     }
@@ -98,6 +104,27 @@ async function main() {
   // which is the right answer — the alternative is an empty recap page.
   console.log('Fetching goal recaps…');
   const recap = {}, recapGames = {};
+  // Goal detail (distance, shot type, goalie, puck speed) costs a play-by-play
+  // per game and a tracking replay per goal, and a final game never changes —
+  // so carry it forward from the last build and only fetch what's new. A goal
+  // whose speed didn't come back is retried for two days, then left alone.
+  const prevDetail = {};
+  try {
+    const prev = JSON.parse(fs.readFileSync(new URL('../nhl/data.json', import.meta.url), 'utf8'));
+    for (const [pd, list] of Object.entries(prev.recap || {}))
+      for (const x of list) if (x.dx) (prevDetail[x.gameId] ??= { date: pd, rows: {} }).rows[`${x.period}|${x.time}|${x.pid}`] =
+        { dist: x.dist ?? null, shot: x.shot ?? null, gid: x.gid ?? null, goalie: x.goalie ?? null, spd: x.spd ?? null };
+  } catch (e) { /* first build, or no recap yet */ }
+  let detFetched = 0, detReused = 0;
+  const detailFor = async (g, d) => {
+    const had = prevDetail[g.id];
+    const stale = had && Object.values(had.rows).some(r => r.spd == null) && d >= shiftDate(today, -2);
+    if (had && !stale && Object.keys(had.rows).length >= (g.goals || []).filter(x => x.periodDescriptor?.periodType !== 'SO').length) {
+      detReused++; return had.rows;
+    }
+    try { detFetched++; return await gameGoalDetail(g.id); }
+    catch (e) { console.warn(`  goal detail ${g.id}: ${e.message}`); return had?.rows || {}; }
+  };
   let d = today, found = 0, gap = 0;
   for (let i = 0; i < SCAN_BACK && found < RECAP_DATES; i++, d = shiftDate(d, -1)) {
     const sc = await web(`/score/${d}`);
@@ -115,19 +142,25 @@ async function main() {
         awaySog: g.awayTeam.sog ?? null, homeSog: g.homeTeam.sog ?? null,
         end: g.gameOutcome?.lastPeriodType || 'REG', type: g.gameType,
         recap: g.threeMinRecap ? 'https://www.nhl.com' + g.threeMinRecap : null,
+        rv: vidId(g.threeMinRecap), cv: vidId(g.condensedGame),
       };
+      const det = (g.goals || []).length ? await detailFor(g, d) : {};
       for (const [k, go] of (g.goals || []).entries()) {
+        const period = go.periodDescriptor?.number ?? go.period;
+        const dt = det[`${period}|${go.timeInPeriod}|${go.playerId}`];
         goals.push({
           gameId: g.id, k, pid: go.playerId,
           name: [go.firstName?.default, go.lastName?.default].filter(Boolean).join(' ') || go.name?.default || '',
           team: go.teamAbbrev?.default || go.teamAbbrev, mug: go.mugshot || null,
-          period: go.periodDescriptor?.number ?? go.period, ptype: go.periodDescriptor?.periodType || 'REG',
+          period, ptype: go.periodDescriptor?.periodType || 'REG',
           time: go.timeInPeriod, strength: go.strength || 'ev',
           mod: go.goalModifier && go.goalModifier !== 'none' ? go.goalModifier : null,
           season: go.goalsToDate ?? null,
           assists: (go.assists || []).map(a => ({ pid: a.playerId, name: a.name?.default || '' })),
           a: g.awayTeam.abbrev, h: g.homeTeam.abbrev, as: go.awayScore, hs: go.homeScore,
           clip: go.highlightClipSharingUrl || null,
+          vid: go.highlightClip ? String(go.highlightClip) : null,
+          ...(dt ? { dx: 1, dist: dt.dist, shot: dt.shot, gid: dt.gid, goalie: dt.goalie, spd: dt.spd } : {}),
         });
       }
     }
@@ -137,6 +170,7 @@ async function main() {
     console.log(`  ${d}: ${finals.length} games, ${goals.length} goals`);
   }
   const recapDates = Object.keys(recap).sort();
+  console.log(`  goal detail: ${detFetched} games fetched, ${detReused} carried forward`);
 
   // ── 5) Leader boards ───────────────────────────────────────────────────
   // Read the upcoming season first; before opening night it is empty and we

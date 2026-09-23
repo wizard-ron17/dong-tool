@@ -797,6 +797,70 @@
   .rc-clip { display: inline-flex; align-items: center; gap: 0.2rem; margin-left: 0.4rem; color: var(--accent); text-decoration: none; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.04em; }
   .rc-clip:hover { text-decoration: underline; }
   .rc-assist { color: var(--dim); }
+  /* Goal video — ported from /mlb's homer clips: a ▶ on the mug, detail
+     chips under the card, a modal on desktop and the swipe reels on phones. */
+  .rc-photo-wrap { position: relative; flex-shrink: 0; display: flex; }
+  .rc-play { position: absolute; right: -6px; bottom: -4px; width: 19px; height: 19px; border-radius: 50%; border: 1px solid var(--bg); background: var(--accent); color: #fff; font-size: 0.630rem; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0 0 0 1.5px; box-shadow: 0 1px 4px rgba(0,0,0,0.45); transition: transform 0.12s; }
+  .rc-play:hover { transform: scale(1.15); }
+  .gd-row { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.3rem; }
+  .gd-chip { font-size: 0.667rem; font-weight: 600; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 0.05rem 0.34rem; white-space: nowrap; }
+  .gd-chip.gd-hot { color: var(--gold); background: rgba(242,201,76,0.1); border-color: rgba(242,201,76,0.3); }
+  .gd-chip.gd-goalie { color: var(--text); }
+  .rc-sort { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.6rem; flex-wrap: wrap; }
+  .rc-flat { display: flex; flex-direction: column; gap: 0.4rem; }
+  .rc-game-tag { font-family: var(--font-m); font-size: 0.64rem; color: var(--dim); }
+  .rg-vids { display: inline-flex; gap: 0.3rem; margin-left: auto; }
+  .vid-btn { font-family: var(--font-d); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.04em; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); border-radius: 6px; padding: 0.18rem 0.5rem; cursor: pointer; white-space: nowrap; }
+  .vid-btn:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+  .sc-vids { display: flex; gap: 0.4rem; margin-top: 0.55rem; }
+  .hrv-modal { background: var(--surface0); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem; max-width: 860px; width: 100%; position: relative; margin: auto; }
+  .hrv-title { font-size: 0.804rem; font-weight: 600; color: var(--text); margin: 0 2rem 0.6rem 0.1rem; line-height: 1.4; }
+  .hrv-video { width: 100%; border-radius: 8px; display: block; background: #000; aspect-ratio: 16/9; }
+  .hrv-detail { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0 2rem 0.45rem 0.1rem; }
+  .hrv-nav { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.6rem; font-size: 0.72rem; color: var(--muted); }
+  .hrv-nav .vid-btn:disabled { opacity: 0.35; cursor: default; }
+  .rc-watchall { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(1rem + env(safe-area-inset-bottom)); z-index: 250; display: flex; align-items: center; gap: 0.45rem; background: var(--accent); border: none; color: #fff; font-family: var(--font-d); font-size: 0.766rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.6rem 1.35rem; border-radius: 999px; cursor: pointer; white-space: nowrap; box-shadow: 0 5px 20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.07); transition: transform 0.14s, filter 0.14s; }
+  .rc-watchall:hover { filter: brightness(1.08); transform: translateX(-50%) translateY(-2px); }
+  #panel-recap.visible { padding-bottom: 3.5rem; }
+  @media (max-width: 600px) {
+    .rc-watchall { bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.6rem); }
+    #panel-recap.visible { padding-bottom: 7rem; }
+  }
+  /* Reels (phones): the /mlb vertical feed, rule for rule. */
+  .reels { position: fixed; inset: 0; background: #000; z-index: 400; animation: fadeIn 0.12s ease; }
+  .reels-track { height: 100%; overflow-y: auto; scroll-snap-type: y mandatory; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; scrollbar-width: none; }
+  .reels-track::-webkit-scrollbar { display: none; }
+  .reels-slide { height: 100%; scroll-snap-align: start; scroll-snap-stop: always; position: relative; display: flex; align-items: center; justify-content: center; }
+  .reels-video { width: 100%; max-height: 100%; background: #000; }
+  .reels-btn { position: absolute; z-index: 2; width: 36px; height: 36px; border-radius: 50%; border: none; background: rgba(20,22,28,0.55); color: #fff; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(4px); }
+  .reels-close { top: max(0.8rem, env(safe-area-inset-top)); right: 0.8rem; }
+  .reels-mute-btn { top: max(0.8rem, env(safe-area-inset-top)); right: 3.6rem; }
+  .reels-overlay { position: absolute; left: 0.9rem; right: 3.2rem; bottom: max(1.4rem, env(safe-area-inset-bottom)); color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.85); pointer-events: none; }
+  .reels-name { display: flex; align-items: center; gap: 0.45rem; font-weight: 700; font-size: 0.85rem; margin-bottom: 0.3rem; font-family: var(--font-d); }
+  .reels-photo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; object-position: center 18%; border: 1.5px solid rgba(255,255,255,0.85); background: #222; }
+  .reels-multi { font-size: 0.692rem; font-weight: 600; color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.14); border-radius: 999px; padding: 0.1rem 0.45rem; }
+  .reels-headline { font-size: 0.754rem; line-height: 1.45; color: rgba(255,255,255,0.88); }
+  .reels-detail { display: inline-block; font-size: 0.766rem; font-weight: 700; color: #ffe08a; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,224,138,0.35); border-radius: 6px; padding: 0.18rem 0.5rem; margin-bottom: 0.35rem; }
+  .reels-count { position: absolute; right: 0.9rem; bottom: max(1.4rem, env(safe-area-inset-bottom)); font-family: var(--font-d); font-size: 0.754rem; font-weight: 700; color: rgba(255,255,255,0.65); text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+  .reels-indicator { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 62px; height: 62px; border-radius: 50%; background: rgba(15,17,22,0.55); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; letter-spacing: -2px; pointer-events: none; opacity: 0; transition: opacity 0.25s; backdrop-filter: blur(3px); }
+  .reels-indicator.show { opacity: 1; }
+  .reels-next { position: absolute; top: 62%; left: 50%; transform: translateX(-50%); background: rgba(15,17,22,0.65); color: rgba(255,255,255,0.9); font-size: 0.754rem; font-weight: 600; border-radius: 999px; padding: 0.35rem 0.85rem; pointer-events: none; opacity: 0; transition: opacity 0.2s; backdrop-filter: blur(3px); white-space: nowrap; }
+  .reels-next.show { opacity: 1; }
+  .reels-next b { font-family: var(--font-d); color: var(--accent); }
+  .reels-ph { display: flex; flex-direction: column; align-items: center; gap: 0.55rem; text-align: center; padding: 1rem; }
+  .reels-ph-photo { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; object-position: center 18%; border: 2px solid rgba(255,255,255,0.7); background: #222; }
+  .reels-ph-name { color: #fff; font-weight: 700; font-size: 0.95rem; font-family: var(--font-d); }
+  .reels-ph-sub { color: rgba(255,255,255,0.75); font-size: 0.785rem; }
+  .reels-ph-tag { color: rgba(255,255,255,0.55); font-size: 0.723rem; background: rgba(255,255,255,0.1); border-radius: 999px; padding: 0.25rem 0.7rem; margin-top: 0.3rem; }
+  .reels-intro { flex-direction: column; padding: 1.1rem; overflow-y: auto; }
+  .reels-intro-inner { width: 100%; max-width: 440px; margin: auto; }
+  .reels-intro-date { font-family: var(--font-d); font-weight: 700; font-size: 1.35rem; color: #fff; text-align: center; margin-bottom: 1.1rem; }
+  .reels-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+  .reels-tile { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.13); border-radius: 10px; padding: 0.7rem 0.4rem; text-align: center; }
+  .reels-tile b { display: block; font-family: var(--font-d); font-size: 1.5rem; font-weight: 700; color: #fff; }
+  .reels-tile span { font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255,255,255,0.6); }
+  .reels-intro-hint { text-align: center; color: rgba(255,255,255,0.55); font-size: 0.766rem; margin-top: 0.9rem; }
+  .reels-day { display: contents; }
   .rg { background: var(--surface0); border: 1px solid var(--border); border-radius: 12px; padding: 0.6rem 0.7rem 0.7rem; margin-bottom: 0.7rem; }
   .rg-head { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.55rem; flex-wrap: wrap; }
   .rg-score { font-family: var(--font-d); font-weight: 700; font-size: 1rem; color: var(--text-strong); display: flex; align-items: center; gap: 0.4rem; }
@@ -907,7 +971,8 @@
 
   <div id="panel-home" class="panel visible"><div id="home-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-stats" class="panel"><div id="stats-content"><div class="empty">Loading…</div></div></div>
-  <div id="panel-recap" class="panel"><div id="recap-content"><div class="empty">Loading…</div></div></div>
+  <div id="panel-recap" class="panel"><div id="recap-content"><div class="empty">Loading…</div></div>
+    <button class="rc-watchall" id="rc-watchall" onclick="watchAllGoals()" style="display:none" title="Play every goal of the night, in the board's order">▶ Watch all goals</button></div>
   <div id="panel-schedule" class="panel"><div id="schedule-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-picks" class="panel">
     <div class="due-explainer" id="picks-explainer-toggle" onclick="toggleExplainer('picks')" aria-expanded="false">
@@ -1216,12 +1281,15 @@
       const assists = g.assists.length
         ? `<span class="rc-assist">${g.assists.map(a => esc(a.name)).join(', ')}</span>`
         : `<span class="rc-assist">unassisted</span>`;
+      const at = goals.indexOf(g);
+      const play = g.vid ? `<button class="rc-play" onclick="openGoalVideo('${recapDate}',${at})" title="Watch the goal">▶</button>` : '';
+      const chips = goalChips(g);
       return `<div class="rc-card">
-        ${faceHtml(g.mug, g.name)}
+        <span class="rc-photo-wrap">${faceHtml(g.mug, g.name)}${play}</span>
         <div class="rc-info">
           <div class="rc-name">${esc(g.name)} ${GOAL_BADGES(g)}${hat}</div>
-          <div class="rc-sub">${esc(g.team)} · ${assists}${g.season ? ` · season goal ${g.season}` : ''}${
-            g.clip ? `<a class="rc-clip" href="${esc(g.clip)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ CLIP</a>` : ''}</div>
+          <div class="rc-sub">${esc(g.team)} · ${assists}${g.season ? ` · season goal ${g.season}` : ''}</div>
+          ${chips ? `<div class="gd-row">${chips}</div>` : ''}
         </div>
         <div class="rc-detail"><div>
           <div class="rc-clock">${periodLabel(g)} ${esc(g.time)}</div>
@@ -1243,11 +1311,20 @@
           ${G.end && G.end !== 'REG' ? `<span class="rg-end">${esc(G.end)}</span>` : ''}
           ${G.type === 1 ? '<span class="sc-pre">PRE</span>' : ''}
           <span class="rg-sog">${G.awaySog ?? '—'}–${G.homeSog ?? '—'} shots</span>
-          ${G.recap ? `<a class="rg-link" href="${esc(G.recap)}" target="_blank" rel="noopener">Recap ▶</a>` : ''}
+          ${gameVidButtons(G, 'rg-vids')}
         </div>
         <div class="rc-list">${rows.map(goalCard).join('') || '<div class="rc-sub">No goals in regulation or overtime.</div>'}</div>
       </div>`;
     }).join('');
+
+    // Any sort but game order flattens the night into one board — "longest goal
+    // of the night" means nothing split across eight games.
+    const sortBar = `<div class="rc-sort"><span class="due-filter-label">Sort</span>${
+      Object.entries(RC_SORTS).map(([k, [lbl]]) => `<button class="due-filter-chip${rcSort === k ? ' active' : ''}" onclick="setRcSort('${k}')">${lbl}</button>`).join('')}</div>`;
+    const flat = rcSort === 'game' ? '' : `<div class="rc-flat">${rcOrder(recapDate).map(goalCard).join('')}</div>`;
+    const hasVid = goals.some(g => g.vid);
+    const pill = document.getElementById('rc-watchall');
+    if (pill) pill.style.display = hasVid ? '' : 'none';
 
     el.innerHTML = `<div class="rc-wknav">
         <div class="rc-wknav-center">
@@ -1258,7 +1335,338 @@
         ${atLast ? '' : `<button class="rc-latest" onclick="recapToLatest()">Latest night →</button>`}
       </div>
       <div class="result-meta"><b>${dayLabel(recapDate, true)}</b> · ${gameIds.length} games · ${goals.length} goals</div>
-      ${body || '<div class="empty">Nothing final on this date.</div>'}`;
+      ${goals.length ? sortBar : ''}
+      ${flat || body || '<div class="empty">Nothing final on this date.</div>'}`;
+  }
+
+  // ── Goal detail + sorting ──────────────────────────────────────────────
+  // The build stamps each goal with where it came from (play-by-play), which
+  // goalie it beat, and the puck's speed off the tracking replay — hockey's
+  // answer to /mlb's distance and exit velo.
+  const SHOT_LBL = { wrist: 'Wrist', snap: 'Snap', slap: 'Slap', backhand: 'Backhand', 'tip-in': 'Tip-in',
+    deflected: 'Deflection', 'wrap-around': 'Wraparound', bat: 'Batted', poke: 'Poke', 'between-legs': 'Between the legs', cradle: 'Lacrosse' };
+  const shotLbl = (t) => SHOT_LBL[t] || (t ? t[0].toUpperCase() + t.slice(1) : '');
+  const shortName = (n) => { const w = String(n || '').split(' '); return w.length > 1 ? `${w[0][0]}. ${w.slice(1).join(' ')}` : n; };
+  function goalChips(g) {
+    const c = [];
+    if (g.dist != null) c.push(`<span class="gd-chip${rcSort === 'dist' ? ' gd-hot' : ''}" title="Distance from the net">🎯 ${g.dist} ft</span>`);
+    if (g.spd != null) c.push(`<span class="gd-chip gd-hot" title="Puck speed on the shot, from the NHL's puck tracking">${g.spd.toFixed(1)} mph</span>`);
+    if (g.shot) c.push(`<span class="gd-chip" title="Shot type">${esc(shotLbl(g.shot))}</span>`);
+    if (g.goalie) c.push(`<span class="gd-chip gd-goalie" title="Goalie he beat">on ${esc(shortName(g.goalie))}</span>`);
+    else if (g.dx && g.mod !== 'own-goal' && g.ptype !== 'SO') c.push(`<span class="gd-chip" title="No goalie in net">empty net</span>`);
+    return c.join('');
+  }
+  /** One-line plain caption for the video overlays. */
+  function goalCaption(g) {
+    return [g.dist != null ? `${g.dist} ft` : '', g.spd != null ? `${g.spd.toFixed(1)} mph` : '',
+      g.shot ? shotLbl(g.shot) : '', g.goalie ? `on ${shortName(g.goalie)}` : ''].filter(Boolean).join(' · ');
+  }
+  // Nulls sink, whatever the sort. Game order is the feed's own order (games by
+  // id, goals by clock), which is also what the reels play in by default.
+  const RC_SORTS = {
+    game:   ['Game order', null],
+    dist:   ['Distance', g => g.dist],
+    spd:    ['Puck speed', g => g.spd],
+    season: ['Season goals', g => g.season],
+  };
+  let rcSort = 'game';
+  function setRcSort(k) { rcSort = k; renderRecap(); }
+  function rcOrder(date) {
+    const goals = D.recap?.[date] || [];
+    const byGame = (a, b) => a.gameId - b.gameId || a.k - b.k;
+    const f = RC_SORTS[rcSort]?.[1];
+    return f ? goals.slice().sort((a, b) => (f(b) ?? -1) - (f(a) ?? -1) || byGame(a, b)) : goals.slice().sort(byGame);
+  }
+
+  // ── Video ──────────────────────────────────────────────────────────────
+  // Every NHL clip lives on Brightcove, and the id the score feed hands us for
+  // a goal (and the one at the end of a recap's nhl.com URL) is the Brightcove
+  // video id. The playback API answers any origin and returns a plain 720p mp4
+  // — the same kind of file /mlb's reels play — so no embed, no iframe, no
+  // leaving the app. The policy key is the public one nhl.com's own player
+  // ships in its config; if they rotate it, fetch the new one from there.
+  const BC_ACCT = '6415718365001', BC_PLAYER = 'D3UCGynRWU_default';
+  let bcKey = 'BCpkADawqM3l37Vq8trLJ95vVwxubXYZXYglAopEZXQTHTWX3YdalyF9xmkuknxjBgiMYwt8VZ_OZ1jAjYxz_yzuNh_cjC3uOaMspVTD-hZfNUHtNnBnhVD0Gmsih8TBF8QlQFXiCQM3W_u4ydJ1qK2Rx8ZutCUg3PHb7Q';
+  const bcCache = {};
+  const bcGet = (id) => fetch(`https://edge.api.brightcove.com/playback/v1/accounts/${BC_ACCT}/videos/${id}`,
+    { headers: { Accept: `application/json;pk=${bcKey}` } });
+  function bcVideo(id) {
+    return (bcCache[id] ??= (async () => {
+      let r = await bcGet(id);
+      if (r.status === 401 || r.status === 403) {        // key rotated → pick up the current one
+        try {
+          const cfg = await (await fetch(`https://players.brightcove.net/${BC_ACCT}/${BC_PLAYER}/config.json`)).json();
+          if (cfg?.video_cloud?.policy_key) { bcKey = cfg.video_cloud.policy_key; r = await bcGet(id); }
+        } catch (e) { /* fall through */ }
+      }
+      if (!r.ok) throw new Error('video ' + r.status);
+      const d = await r.json();
+      const mp4 = (d.sources || []).filter(x => x.container === 'MP4' && /^https:/.test(x.src || ''))
+        .sort((a, b) => Math.abs((a.height || 720) - 720) - Math.abs((b.height || 720) - 720))[0];
+      if (!mp4) throw new Error('no mp4');
+      return { mp4: mp4.src, poster: d.poster || '', name: d.name || '', desc: d.description || '' };
+    })().catch(e => { delete bcCache[id]; throw e; }));
+  }
+  const isMob = () => matchMedia('(max-width: 600px)').matches;
+
+  /** "▶ Recap" / "▶ Condensed" for a finished game, wherever it's drawn. */
+  function gameVidButtons(G, cls) {
+    const b = [];
+    if (G.rv) b.push(`<button class="vid-btn" onclick="event.stopPropagation();openGameVideo(${G.gameId},'rv')" title="The NHL's three-minute recap">▶ Recap</button>`);
+    if (G.cv) b.push(`<button class="vid-btn" onclick="event.stopPropagation();openGameVideo(${G.gameId},'cv')" title="The whole game, condensed">▶ Condensed</button>`);
+    return b.length ? `<span class="${cls}">${b.join('')}</span>` : '';
+  }
+
+  // Desktop: one modal, stepping through the night in the board's order with
+  // ‹ › (and the arrow keys), rolling on to the next goal when one ends.
+  let hv = null;   // { list, at } | { game }
+  function hvKey(e) {
+    if (e.key === 'Escape') closeVideo();
+    else if (hv?.list && e.key === 'ArrowLeft') hvStep(-1);
+    else if (hv?.list && e.key === 'ArrowRight') hvStep(1);
+  }
+  function closeVideo() {
+    const el = document.getElementById('hv-back');
+    if (el) { el.querySelector('video')?.pause(); el.remove(); }
+    document.removeEventListener('keydown', hvKey);
+    document.body.style.overflow = '';
+    hv = null;
+  }
+  function hvShell(inner) {
+    let el = document.getElementById('hv-back');
+    if (!el) {
+      document.body.insertAdjacentHTML('beforeend', `<div class="pm-back" id="hv-back" onclick="if(event.target===this)closeVideo()">
+        <div class="hrv-modal" id="hv-modal"></div></div>`);
+      document.addEventListener('keydown', hvKey);
+      document.body.style.overflow = 'hidden';
+      el = document.getElementById('hv-back');
+    }
+    document.getElementById('hv-modal').innerHTML = `<button class="pm-x" onclick="closeVideo()" aria-label="Close">&times;</button>${inner}`;
+    return el;
+  }
+  async function hvPlay(vid, fallback) {
+    const v = document.querySelector('#hv-modal video');
+    try {
+      const m = await bcVideo(vid);
+      if (!v?.isConnected) return;
+      v.poster = m.poster; v.src = m.mp4;
+      v.play().catch(() => {});
+      const t = document.querySelector('#hv-modal .hrv-title');
+      if (t && !t.textContent) t.textContent = m.name;
+    } catch (e) {
+      if (!v?.isConnected) return;
+      v.outerHTML = `<div class="empty">The NHL hasn't published this video yet${fallback ? ` — <a href="${esc(fallback)}" target="_blank" rel="noopener">try nhl.com</a>` : ''}.</div>`;
+    }
+  }
+  function hvRender() {
+    const { list, at, date } = hv, g = list[at], cap = goalCaption(g);
+    hvShell(`<div class="hrv-title">${esc(g.name)} · ${esc(g.team)} ${periodLabel(g)} ${esc(g.time)} · ${esc(g.a)} ${g.as}–${g.hs} ${esc(g.h)}</div>
+      ${goalChips(g) ? `<div class="hrv-detail">${goalChips(g)}</div>` : ''}
+      <video class="hrv-video" controls playsinline></video>
+      <div class="hrv-nav">
+        <button class="vid-btn" onclick="hvStep(-1)" ${at <= 0 ? 'disabled' : ''}>‹ Prev</button>
+        <span>${at + 1} of ${list.length} · ${dayLabel(date)}</span>
+        <button class="vid-btn" onclick="hvStep(1)" ${at >= list.length - 1 ? 'disabled' : ''}>Next ›</button>
+      </div>`);
+    const v = document.querySelector('#hv-modal video');
+    v.addEventListener('ended', () => { if (hv?.list && hv.at < hv.list.length - 1) hvStep(1); });
+    hvPlay(g.vid, g.clip);
+  }
+  function hvStep(d) {
+    if (!hv?.list) return;
+    const n = hv.at + d;
+    if (n >= 0 && n < hv.list.length) { hv.at = n; hvRender(); }
+  }
+  /** A goal's ▶. `at` indexes D.recap[date]; phones get the swipe feed instead. */
+  function openGoalVideo(date, at) {
+    const g = D.recap?.[date]?.[at]; if (!g) return;
+    if (isMob()) { openReels(date, g); return; }
+    const list = rcOrder(date).filter(x => x.vid);
+    hv = { list, at: Math.max(0, list.indexOf(g)), date };
+    hvRender();
+  }
+  function openGameVideo(gameId, kind) {
+    const G = { ...(D.schedule.find(x => x.gameId === gameId) || {}), ...(D.recapGames?.[gameId] || {}) };
+    const vid = G[kind]; if (!vid) return;
+    closeReels();
+    hv = { game: gameId };
+    hvShell(`<div class="hrv-title">${logoImg(G.away, 'rg-logo')} ${esc(G.away)} ${G.awayScore ?? ''}–${G.homeScore ?? ''} ${esc(G.home)} ${logoImg(G.home, 'rg-logo')}
+        · ${kind === 'rv' ? 'Recap' : 'Condensed game'} · ${dayLabel(G.date)}</div>
+      <video class="hrv-video" controls playsinline></video>`);
+    hvPlay(vid, G.recap);
+  }
+  function watchAllGoals() { openReels(recapDate, null); }
+
+  // ── Reels ──────────────────────────────────────────────────────────────
+  // /mlb's vertical feed, ported: each night is a title card and then one
+  // slide per goal in the board's current order; swipe past the last goal and
+  // the night before appends. The visible clip plays, the rest pause, a
+  // finished clip counts down to the next. Clip urls resolve lazily (current
+  // slide ± 1), so a night never pulls forty videos at once.
+  let reels = null;
+  const reelsMuted = () => reels?.el?.dataset.muted === '1';
+  const reelsSlides = () => reels ? [...reels.track.querySelectorAll('.reels-slide')] : [];
+  function reelsAdjacent(slide, dir) { const all = reelsSlides(); return all[all.indexOf(slide) + dir] || null; }
+  function reelsHydrate(slide) {
+    const v = slide?.querySelector('video');
+    if (!v || v.src || v._hyd) return Promise.resolve(v);
+    return (v._hyd = bcVideo(v.dataset.vid).then(m => {
+      v.poster = m.poster; v.src = m.mp4; return v;
+    }).catch(() => {
+      v.closest('.reels-slide')?.querySelector('.reels-headline')?.insertAdjacentHTML('beforeend', ' · video unavailable');
+      return null;
+    }));
+  }
+  function closeReels() {
+    if (!reels) return;
+    reels.observer?.disconnect();
+    reelsSlides().forEach(s => clearInterval(s._nextTimer));
+    reels.track.querySelectorAll('video').forEach(v => { v.pause(); v.removeAttribute('src'); v.load(); });
+    reels.el.remove();
+    reels = null;
+    document.body.style.overflow = '';
+    document.removeEventListener('keydown', reelsEsc);
+  }
+  function reelsEsc(e) { if (e.key === 'Escape') closeReels(); }
+  function reelsToggleMute() {
+    if (!reels) return;
+    const muted = !reelsMuted();
+    reels.el.dataset.muted = muted ? '1' : '0';
+    reels.track.querySelectorAll('video').forEach(v => v.muted = muted);
+    document.getElementById('reels-mute').textContent = muted ? '🔇' : '🔊';
+  }
+  function reelsTap(v) { if (v.ended) v.currentTime = 0; v.paused ? v.play() : v.pause(); }
+  function cancelReelsNext(slide) {
+    clearInterval(slide._nextTimer); slide._nextTimer = null;
+    slide.querySelector('.reels-next')?.classList.remove('show');
+  }
+  function startReelsNext(slide, nextEl) {
+    if (!nextEl || slide._nextTimer) return;
+    const box = slide.querySelector('.reels-next'); if (!box) return;
+    let n = 3;
+    box.querySelector('b').textContent = n;
+    box.classList.add('show');
+    slide._nextTimer = setInterval(() => {
+      if (--n <= 0) { cancelReelsNext(slide); nextEl.scrollIntoView({ behavior: 'smooth' }); return; }
+      box.querySelector('b').textContent = n;
+    }, 1000);
+  }
+  function reelsDayHtml(date) {
+    const goals = D.recap?.[date] || [], list = rcOrder(date);
+    const games = Object.values(D.recapGames || {}).filter(g => g.date === date).length;
+    const pp = goals.filter(g => g.strength === 'pp').length;
+    const next = `<div class="reels-next">Up next in <b>3</b></div>`;
+    const tally = {};
+    for (const g of goals) tally[g.pid] = (tally[g.pid] || 0) + 1;
+    const intro = `<div class="reels-slide reels-intro" data-date="${date}" data-kind="intro">
+        <div class="reels-intro-inner">
+          <div class="reels-intro-date">${dayLabel(date, true)}</div>
+          <div class="reels-tiles">
+            <div class="reels-tile"><b>${games}</b><span>${games === 1 ? 'Game' : 'Games'}</span></div>
+            <div class="reels-tile"><b>${goals.length}</b><span>Goals</span></div>
+            <div class="reels-tile"><b>${games ? (goals.length / games).toFixed(1) : '—'}</b><span>Goals / game</span></div>
+          </div>
+          <div class="reels-intro-hint">${goals.length ? `${pp} on the power play · ${RC_SORTS[rcSort][0].toLowerCase()} · swipe up to watch ↑` : 'No goals this night'}</div>
+        </div>${next}</div>`;
+    const slides = list.map((g, i) => {
+      const at = goals.indexOf(g);
+      const who = `${esc(g.name)} · ${esc(g.team)}`;
+      const cap = goalCaption(g);
+      const count = `<div class="reels-count">${dayLabel(date)} · ${i + 1}/${list.length}</div>`;
+      const multi = tally[g.pid] > 1 ? ` <span class="reels-multi">${goals.filter(x => x.pid === g.pid).indexOf(g) + 1} of ${tally[g.pid]} tonight</span>` : '';
+      const line = `${periodLabel(g)} ${esc(g.time)} · ${esc(g.a)} ${g.as}–${g.hs} ${esc(g.h)}${g.strength !== 'ev' ? ` · ${g.strength.toUpperCase()}` : ''}${g.season ? ` · goal ${g.season} this season` : ''}`;
+      if (!g.vid) return `<div class="reels-slide reels-noclip" data-date="${date}" data-at="${at}">
+          <div class="reels-ph">
+            ${g.mug ? `<img class="reels-ph-photo" src="${esc(g.mug)}" alt="">` : ''}
+            <div class="reels-ph-name">${who}</div>
+            <div class="reels-ph-sub">${line}</div>
+            ${cap ? `<div class="reels-detail">🎯 ${esc(cap)}</div>` : ''}
+            <div class="reels-ph-tag">🎬 No video from the NHL (yet)</div>
+          </div>${next}${count}</div>`;
+      return `<div class="reels-slide" data-date="${date}" data-at="${at}">
+          <video class="reels-video" data-vid="${g.vid}" playsinline preload="none" onclick="reelsTap(this)"></video>
+          <div class="reels-indicator">▶</div>${next}
+          <div class="reels-overlay">
+            <div class="reels-name">${g.mug ? `<img class="reels-photo" src="${esc(g.mug)}" alt="">` : ''}${who}${multi}</div>
+            ${cap ? `<div class="reels-detail">🎯 ${esc(cap)}</div>` : ''}
+            <div class="reels-headline">${line}</div>
+          </div>${count}</div>`;
+    }).join('');
+    return intro + slides;
+  }
+  function reelsMountDay(date) {
+    if (!reels || reels.loaded.has(date)) return;
+    reels.loaded.add(date);
+    const day = document.createElement('div');
+    day.className = 'reels-day'; day.dataset.date = date;
+    day.innerHTML = reelsDayHtml(date);
+    reels.track.appendChild(day);
+    day.querySelectorAll('.reels-slide').forEach(s => {
+      const v = s.querySelector('video');
+      if (v) {
+        const ind = s.querySelector('.reels-indicator');
+        let hideT = null;
+        v.addEventListener('play', () => { cancelReelsNext(s); ind.textContent = '❚❚'; ind.classList.add('show'); clearTimeout(hideT); hideT = setTimeout(() => ind.classList.remove('show'), 900); });
+        v.addEventListener('pause', () => { if (v.ended) return; clearTimeout(hideT); ind.textContent = '▶'; ind.classList.add('show'); });
+        v.addEventListener('ended', () => startReelsNext(s, reelsAdjacent(s, 1)));
+      }
+      reels.observer.observe(s);
+    });
+  }
+  // Nearing the end of the oldest night mounted → append the night before it.
+  function reelsMaybeLoadOlder(slide) {
+    const i = reels.days.indexOf(slide.dataset.date);
+    if (i !== reels.days.length - 1 && reels.loaded.has(reels.days[i + 1])) return;
+    const own = [...slide.closest('.reels-day').querySelectorAll('.reels-slide')];
+    if (own.indexOf(slide) >= own.length - 2 && reels.days[i + 1]) reelsMountDay(reels.days[i + 1]);
+  }
+  async function reelsPlay(s) {
+    const v = await reelsHydrate(s);
+    if (!v || !reels || reels.cur !== s) return;
+    v.muted = reelsMuted();
+    v.play().catch(() => {            // autoplay with sound refused → mute and retry
+      if (!reels) return;
+      reels.el.dataset.muted = '1';
+      document.getElementById('reels-mute').textContent = '🔇';
+      reels.track.querySelectorAll('video').forEach(x => x.muted = true);
+      v.play().catch(() => {});
+    });
+  }
+  /** Open the feed on a night — on its title card (g = null) or on one goal. */
+  function openReels(date, g) {
+    closeVideo(); closeReels();
+    const days = (D.recapDates || []).slice().reverse();     // newest first: down = back in time
+    if (!days.includes(date)) return;
+    document.body.insertAdjacentHTML('beforeend', `
+      <div class="reels" id="nhl-reels" data-muted="0">
+        <button class="reels-btn reels-close" onclick="closeReels()" aria-label="Close">✕</button>
+        <button class="reels-btn reels-mute-btn" id="reels-mute" onclick="reelsToggleMute()" aria-label="Mute">🔊</button>
+        <div class="reels-track" id="reels-track"></div>
+      </div>`);
+    reels = { el: document.getElementById('nhl-reels'), track: document.getElementById('reels-track'),
+              days, loaded: new Set(), observer: null, cur: null };
+    reels.observer = new IntersectionObserver(entries => {
+      for (const e of entries) {
+        const s = e.target, v = s.querySelector('video');
+        if (e.intersectionRatio >= 0.6) {
+          reels.cur = s;
+          reelsHydrate(reelsAdjacent(s, 1)); reelsHydrate(reelsAdjacent(s, -1));
+          reelsMaybeLoadOlder(s);
+          if (!v) { startReelsNext(s, reelsAdjacent(s, 1)); continue; }   // title card / no video → dwell, advance
+          reelsPlay(s);
+        } else {
+          cancelReelsNext(s);
+          if (v) { v.pause(); s.querySelector('.reels-indicator')?.classList.remove('show'); }
+        }
+      }
+    }, { root: reels.track, threshold: [0.6] });
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', reelsEsc);
+    reelsMountDay(date);
+    const at = g ? (D.recap[date] || []).indexOf(g) : -1;
+    const target = (at >= 0 && reels.track.querySelector(`.reels-slide[data-date="${date}"][data-at="${at}"]`))
+      || reels.track.querySelector(`.reels-intro[data-date="${date}"]`);
+    target?.scrollIntoView({ behavior: 'instant' });
   }
 
   // ── Schedule ───────────────────────────────────────────────────────────
@@ -1318,6 +1726,7 @@
             <span>${esc(x.team)}${x.strength !== 'ev' ? ` · ${x.strength.toUpperCase()}` : ''}${x.mod === 'empty-net' ? ' · EN' : ''}</span>
             <span style="margin-left:auto;font-family:var(--font-m);font-size:0.66rem">${x.as}–${x.hs}</span></div>`).join('')}</div>`
           : final ? '<div class="sc-goals"><span class="sc-goal">Goal detail for this game is outside the recap window.</span></div>' : ''}
+        ${final ? gameVidButtons({ ...g, ...(D.recapGames?.[g.gameId] || {}) }, 'sc-vids') : ''}
       </div>`;
     return `<div class="sc-game${open ? ' open' : ''}" onclick="toggleGame(${g.gameId})" role="button" tabindex="0">
       <div class="sc-top">
