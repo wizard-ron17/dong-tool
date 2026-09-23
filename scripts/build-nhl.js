@@ -15,6 +15,7 @@ import { buildShotsBoard } from './nhl-shots.js';
 import { gameGoalDetail } from './nhl-goal-detail.js';
 import { buildPlayersLog } from './nhl-players.js';
 import { buildSavesBoard } from './nhl-saves.js';
+import { fetchLines } from './nhl-lines.js';
 
 const LEADERS = 300;      // skaters on the Stats board
 const GOALIES = 90;       // ~3 per club
@@ -98,6 +99,21 @@ async function main() {
   }
   schedule.sort((a, b) => a.date.localeCompare(b.date) || (a.start || '').localeCompare(b.start || '') || a.gameId - b.gameId);
   const dates = [...new Set(schedule.map(g => g.date))];
+
+  // Pre-game lines (ESPN / DraftKings) for the next eight regular-season nights.
+  // Display only — never an input to a model. A failed fetch just leaves
+  // those games without lines.
+  try {
+    const ahead = [...new Set(schedule.filter(g => g.type === 2 && g.date >= today && !['OFF', 'FINAL'].includes(g.state))
+      .map(g => g.date))].slice(0, 8);
+    const L = await fetchLines(ahead);
+    let n = 0;
+    for (const g of schedule) {
+      const x = L.get(`${g.date}|${g.away}|${g.home}`);
+      if (x) { g.lines = x; n++; }
+    }
+    console.log(`  lines: ${n} games across ${ahead.length} upcoming nights`);
+  } catch (e) { console.warn(`  lines skipped: ${e.message}`); }
   console.log(`  ${schedule.length} games over ${dates.length} dates`);
 
   // ── 4) Recap: every goal, by date ──────────────────────────────────────

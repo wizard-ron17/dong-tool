@@ -938,6 +938,22 @@
   .vid-btn { font-family: var(--font-d); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.04em; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); border-radius: 6px; padding: 0.18rem 0.5rem; cursor: pointer; white-space: nowrap; }
   .vid-btn:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
   .sc-vids { display: flex; gap: 0.4rem; margin-top: 0.55rem; }
+  /* Pre-game lines — /nfl's .sc-lines chips, plus the full market when a game opens. */
+  .sc-lines { display: flex; gap: 0.3rem; justify-content: center; flex-wrap: wrap; margin-bottom: 0.2rem; }
+  .sc-ln { font-family: var(--font-m); font-size: 0.704rem; color: var(--text); background: var(--surface0);
+           border: 1px solid var(--border); border-radius: 5px; padding: 0.1rem 0.34rem; white-space: nowrap; }
+  @media (max-width: 430px) { .sc-ln { font-size: 0.680rem; padding: 0.08rem 0.28rem; } }
+  .scl { margin-top: 0.6rem; border: 1px solid var(--border); border-radius: 10px; background: var(--surface0); padding: 0.5rem 0.7rem; }
+  .scl-grid { display: grid; gap: 0.2rem; }
+  .scl-row { display: grid; grid-template-columns: minmax(0, 1fr) 5rem 6.5rem; align-items: center; gap: 0.4rem; font-family: var(--font-m); font-size: 0.78rem; color: var(--text); }
+  .scl-row > span:not(:first-child) { text-align: right; }
+  .scl-head { font-family: var(--font-b); font-size: 0.64rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .scl-team { display: flex; align-items: center; gap: 0.4rem; font-family: var(--font-d); font-weight: 700; color: var(--text-strong); }
+  .scl-logo { width: 20px; height: 20px; object-fit: contain; }
+  .scl-row em, .scl-tot em { font-style: normal; color: var(--muted); }
+  .scl-tot { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.45rem; padding-top: 0.45rem; border-top: 1px solid var(--border); font-family: var(--font-m); font-size: 0.78rem; color: var(--text); }
+  .scl-tot b { font-family: var(--font-d); color: var(--text-strong); }
+  .scl-src { margin-top: 0.4rem; font-size: 0.64rem; color: var(--dim); }
   .hrv-modal { background: var(--surface0); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem; max-width: 860px; width: 100%; position: relative; margin: auto; }
   .hrv-game { display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem 0.7rem; margin: 0 2rem 0.6rem 0.1rem; }
   .hrv-blurb { flex-basis: 100%; font-size: 0.72rem; color: var(--dim); font-style: italic; }
@@ -2311,6 +2327,30 @@
     scOpen.has(id) ? scOpen.delete(id) : scOpen.add(id);
     renderSchedule();
   }
+  // Pre-game lines, /nfl's schedule treatment: the puck line and total as chips
+  // on the row, the full market (moneyline, puck line, total, each priced) in
+  // the expanded game. DraftKings via ESPN; display only, never a model input.
+  const amer = (v) => v == null ? '—' : (v > 0 ? '+' : '') + v;
+  function scLines(g) {
+    const L = g.lines; if (!L) return '';
+    const fav = L.pl.h.line != null && L.pl.h.line < 0 ? g.home : g.away;
+    const pl = fav === g.home ? L.pl.h.line : L.pl.a.line;
+    return `<div class="sc-lines">${pl != null ? `<span class="sc-ln">${fav} ${pl}</span>` : ''}${L.tot.line != null ? `<span class="sc-ln">O/U ${L.tot.line}</span>` : ''}</div>`;
+  }
+  function scLinesDetail(g) {
+    const L = g.lines; if (!L) return '';
+    const sign = (x) => x == null ? '' : (x > 0 ? '+' : '') + x;
+    const row = (ab, ml, pl) => `<div class="scl-row"><span class="scl-team">${logoImg(ab, 'scl-logo')}${esc(ab)}</span>
+      <span class="scl-v">${amer(ml)}</span><span class="scl-v">${sign(pl.line)} <em>${amer(pl.odds)}</em></span></div>`;
+    return `<div class="scl">
+      <div class="scl-grid">
+        <div class="scl-row scl-head"><span></span><span>Moneyline</span><span>Puck line</span></div>
+        ${row(g.away, L.ml.a, L.pl.a)}${row(g.home, L.ml.h, L.pl.h)}
+      </div>
+      ${L.tot.line != null ? `<div class="scl-tot"><span>Total <b>${L.tot.line}</b></span><span>Over <em>${amer(L.tot.o)}</em></span><span>Under <em>${amer(L.tot.u)}</em></span></div>` : ''}
+      <div class="scl-src">${esc(L.book || 'Sportsbook')} via ESPN · updated with every build until puck drop</div>
+    </div>`;
+  }
   function gameRow(g) {
     const open = scOpen.has(g.gameId);
     const final = g.awayScore != null && g.homeScore != null && (g.state === 'OFF' || g.state === 'FINAL');
@@ -2321,7 +2361,7 @@
       ? `<div class="sc-score">${g.awayScore}–${g.homeScore}</div><div class="sc-when">${pre}${g.end && g.end !== 'REG' ? g.end : 'Final'}</div>`
       : live
         ? `<div class="sc-score" style="color:var(--bad)">${g.awayScore ?? 0}–${g.homeScore ?? 0}</div><div class="sc-when"><span class="sc-live">LIVE</span></div>`
-        : `<div class="sc-score">${gameTime(g.start)}</div><div class="sc-when">${pre}${g.tv[0] ? esc(g.tv[0]) : ''}</div>`;
+        : `${scLines(g)}<div class="sc-score">${gameTime(g.start)}</div><div class="sc-when">${pre}${g.tv[0] ? esc(g.tv[0]) : ''}</div>`;
     // Records come off the standings table, which is last season's until a game
     // is played — the caller labels it rather than passing April off as today.
     const side = (ab, end, won) => `<div class="sc-side${end ? ' end' : ''}">
@@ -2345,7 +2385,7 @@
             <span>${esc(x.team)}${x.strength !== 'ev' ? ` · ${x.strength.toUpperCase()}` : ''}${x.mod === 'empty-net' ? ' · EN' : ''}</span>
             <span style="margin-left:auto;font-family:var(--font-m);font-size:0.66rem">${x.as}–${x.hs}</span></div>`).join('')}</div>`
           : final ? '<div class="sc-goals"><span class="sc-goal">Goal detail for this game is outside the recap window.</span></div>' : ''}
-        ${final ? gameVidButtons({ ...g, ...(D.recapGames?.[g.gameId] || {}) }, 'sc-vids') : ''}
+        ${final ? gameVidButtons({ ...g, ...(D.recapGames?.[g.gameId] || {}) }, 'sc-vids') : scLinesDetail(g)}
       </div>`;
     return `<div class="sc-game${open ? ' open' : ''}" onclick="toggleGame(${g.gameId})" role="button" tabindex="0">
       <div class="sc-top">
