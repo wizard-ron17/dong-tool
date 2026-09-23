@@ -1482,6 +1482,16 @@
   .pv-juice-lbl { font-size: 0.630rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 700; margin-top: 0.1rem; }
   .pv-caret { color: var(--muted); font-size: 0.754rem; transition: transform 0.18s; flex-shrink: 0; margin-left: 0.15rem; }
   .pv-card.open .pv-caret { transform: rotate(90deg); color: var(--accent); }
+  .pv-cap { font-family: var(--font-b); font-size: 0.6rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--gold); margin-left: 0.25rem; }
+  .pv-flags { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.2rem; }
+  .pv-rankflag, .pv-capflag { font-family: var(--font-m); font-size: 0.64rem; color: var(--text); border: 1px dashed var(--border2); border-radius: 5px; padding: 0.05rem 0.3rem; white-space: nowrap; }
+  .pv-rankflag b { color: var(--accent); }
+  .pv-capflag { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 45%, transparent); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; }
+  .kbb-rank { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin: 0.3rem 0 1rem; }
+  .kbb-rank th, .kbb-rank td { padding: 0.35rem 0.5rem; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .kbb-rank th:first-child, .kbb-rank td:first-child { text-align: left; }
+  .kbb-rank th { font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .kbb-rank td b { font-family: var(--font-d); }
   .pv-status { font-size: 0.630rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); background: var(--surface0); border-radius: 4px; padding: 0.06rem 0.28rem; }
   /* Facts chips, the way the NFL boards carry them: the two or three numbers
      behind the price, inline before it on a desktop and dropped on a phone
@@ -2827,6 +2837,8 @@
         <ul>
           <li><b>Exp BB%</b> is the headline — the walk rate we'd expect in this matchup, via a log5 blend of the <b>pitcher's BB%</b> and the <b>opponent's team BB%</b> (walks drawn) against the league baseline. Higher = a wilder spot.</li>
           <li><b>~Proj BB</b> estimates the walks for his start: Exp BB% × the batters he actually averages per start (measured, not innings × a constant).</li>
+          <li><b>Projections are priced capped at 2.4.</b> Replaying every start this season, a pitcher projected above about 2.4 walks doesn't actually walk more &mdash; extreme walk rates regress, and a wild arm tends to get pulled before the walks pile up. Uncapped, arms projected 2.7+ were quoted around <b>&minus;360</b> on Over 1.5 and went over like <b>&minus;212 (68%)</b>; capped, the price is about &minus;224. The board still ranks by the raw projection, so the order doesn't change &mdash; a capped arm is marked <b>cap</b> with his raw number beside it.</li>
+          <li><b>Rank history on the top 8.</b> Each of the board's top 8 carries a small flag: how the board's arm at that spot has done on <b>Over 1.5</b> across every graded slate, in odds and percent (e.g. <b>#1 o1.5 hist &minus;229 · 70%</b>). The top three have gone over about 70% of the time however steep their own price looked, so it's a useful check against the book. It's a record of the rank &mdash; it isn't part of our price. The full table is on the Results tab.</li>
           <li><b>Why season-long?</b> Like K%, walk rate stabilizes fast (~120 batters faced), so a season rate is reliable and recency mostly adds noise. Rates are lightly regressed toward league for small samples.</li>
           <li><b>Flip the scope</b> with the By Pitcher / By Batter toggle: By Batter ranks today's <b>hitters</b> by their expected BB% vs the starter they face — the likeliest bats to draw a walk today.</li>
           <li><b>Results.</b> Every past slate is replayed and graded — the board is rebuilt from the rates that were known that morning, then checked against what those arms actually did. See the <b>Results</b> tab for the running hit rate.</li>
@@ -2951,6 +2963,18 @@ let ppLine = 'even';     // 'even' = each arm at his own nearest-even rung, or a
 // How deep the Results tab grades. Mirrors KBB_TOP in scripts/build-data.js —
 // if that changes this has to, or the board's marker lies about what's logged.
 const PP_TRACKED = 8;
+// Walks projections are priced capped at 2.4 — above that a pitcher doesn't walk
+// more (full-season replay of every starter, research/mlb_kbb_replay.py). The
+// board still sorts by the RAW projection; the cap changes the price, not the
+// order. Kept in step with KBB_BB_CAP in scripts/build-data.js.
+const KBB_BB_CAP = 2.4;
+/** Walks Over 1.5 for the board's #rank arm, every graded slate: { n, hit, am } or null. */
+function walksRankRecord(rank) {
+  const t = kbbHistory?.bb?.o15ByRank?.[rank - 1];
+  if (!t || !t.n) return null;
+  const p = t.hits / t.n;
+  return { n: t.n, p, am: kbbOdds(p), priced: t.priced };
+}
 // Ks / Walks Results: the two tools each keep their own sub-tab, so switching
 // between them doesn't drag the other one onto its history view.
 let ppSub = { pitcherks: 'board', pitcherwalks: 'board' };
@@ -9381,7 +9405,7 @@ function kbbRungs(graded) {
 // verbatim — two orderings of the same board that could disagree would be worse
 // than not offering the sort at all. Copies, because d.board is loaded data.
 const kbbSortBoard = (board) => [...board].sort(ppSort === 'proj'
-  ? (a, b) => (b.proj ?? -1) - (a.proj ?? -1) || b.exp - a.exp
+  ? (a, b) => (b.rawProj ?? b.proj ?? -1) - (a.rawProj ?? a.proj ?? -1) || b.exp - a.exp
   : (a, b) => b.exp - a.exp);
 // Which of the two graded rungs to lead with: the one priced nearest even
 // money, the way every NFL board picks its line. Quoting a -450 favourite as
@@ -9430,6 +9454,26 @@ function switchKbbSub(nav, sub) { applyKbbSub(nav, sub); commitRoute(); }
 // Grade the box score as whichever bet you'd actually be placing.
 function setKbbBet(nav, bet) { ppBet[nav] = bet; renderKbbResults(nav); }
 
+/**
+ * Walks Over 1.5 by board rank — the board's own order (raw projection), every
+ * graded slate, priced as the board prices it (capped). A record of how each
+ * spot on the board has actually done, shown next to the price rather than
+ * folded into it: the top three have gone over at nearly the same rate however
+ * steep their price looked.
+ */
+function walksRankTable(h) {
+  const R = h?.o15ByRank;
+  if (!R?.length) return '';
+  const pc = v => (v * 100).toFixed(1) + '%';
+  return `<div class="ph-buckets-head">Over 1.5 by Board Rank <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· the board's order, every graded slate · shown beside our price, not part of it</span></div>
+    <div class="kbb-ledger-wrap"><table class="kbb-rank">
+      <thead><tr><th>Rank</th><th>Starts</th><th>Went over</th><th>Hit like</th><th>We priced (capped)</th></tr></thead>
+      <tbody>${R.map(t => { const p = t.hits / t.n; return `<tr>
+        <td><b>#${t.rank}</b></td><td class="kbb-dim">${t.n}</td>
+        <td><b>${pc(p)}</b></td><td><b>${kbbOdds(p)}</b></td>
+        <td class="kbb-dim">${kbbOdds(t.priced)} · ${pc(t.priced)}</td></tr>`; }).join('')}</tbody>
+    </table></div>`;
+}
 function renderKbbResults(nav) {
   const isK = nav === 'pitcherks';
   const meta = document.getElementById(nav + '-results-meta');
@@ -9628,6 +9672,7 @@ function renderKbbResults(nav) {
       <div class="ph-stat"><span class="ph-stat-val hrg-val ${best ? 'good' : 'avg'}">${best ? '+' + best.roi.toFixed(1) + '%' : 'none'}</span><span class="ph-stat-lbl">${best ? `ROI · ${betLabel(best)}` : 'No Side Worth It'}</span></div>
       <div class="ph-stat"><span class="ph-stat-val">${h.days.length}</span><span class="ph-stat-lbl">Slates Tracked</span></div>
     </div>
+    ${isK ? '' : walksRankTable(h)}
     <div class="ph-buckets-head">Line Ledger <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">· 1u on every board arm at our own fair price · noise = inside 2 standard errors</span></div>
     <div class="kbb-ledger-wrap"><table class="kbb-ledger">
       <thead><tr><th>Bet</th><th>Record</th><th>Hit</th><th>Priced</th><th>Edge</th><th>ROI</th><th>Break-even</th></tr></thead>
@@ -9702,16 +9747,17 @@ function ppRankStarters(kind, sort = ppSort) {
       const exp = log5(pRate, t, lg);
       const projBF = ps.avgStartBF != null ? ps.avgStartBF
                    : ps.avgStartIP ? ps.avgStartIP * 4.242 : null;
+      const rawProj = projBF != null ? exp * projBF : null;
       rows.push({ pid, name: playerNames[pid] || pid, team: me.teamAbbr, oppTeam: opp.teamAbbr, venue: g.venue,
                   status: g.status, throws: me.probablePitcherThrows, raw, tRate: t, exp, bf: projBF,
-                  proj: projBF != null ? exp * projBF : null,
+                  rawProj, proj: rawProj != null && !isK ? Math.min(rawProj, KBB_BB_CAP) : rawProj,
                   lineupPids: opp.lineup?.length ? opp.lineup.map(b => String(b.pid)) : null });
     }
   }
   // A null projection (no start history) can't be ordered by odds, so it falls
   // to the bottom rather than to the top as a bare comparison would put it.
   rows.sort(sort === 'proj'
-    ? (a, b) => (b.proj ?? -1) - (a.proj ?? -1) || b.exp - a.exp
+    ? (a, b) => (b.rawProj ?? -1) - (a.rawProj ?? -1) || b.exp - a.exp
     : (a, b) => b.exp - a.exp);
   return { rows, lg, K0, log5 };
 }
@@ -9893,7 +9939,7 @@ function pcRender() {
         <div class="ydm-meta">${hand}<span>•</span>${r.team} vs ${r.oppTeam}${r.venue ? `<span class="ydm-venue"> · ${r.venue}</span>` : ''}
           ${at >= 0 ? `<span class="ydm-count">${at + 1} / ${deck.length}</span>` : ''}
           <button class="mp-hub" onclick="pcToPlayer('${r.pid}')" title="His card — season, and every homer he's allowed">His card →</button></div></div>
-      <div class="ydm-big"><div><span>Projected ${M.unit}</span><span>Exp ${M.lbl}% <b>${(r.exp * 100).toFixed(1)}</b></span></div>
+      <div class="ydm-big"><div><span>Projected ${M.unit}${kind === 'bb' && r.rawProj > KBB_BB_CAP ? ` <span class="pv-cap" title="Above ${KBB_BB_CAP} a pitcher doesn't walk more in practice — priced as ${KBB_BB_CAP}">cap · ${r.rawProj.toFixed(1)} raw</span>` : ''}</span><span>Exp ${M.lbl}% <b>${(r.exp * 100).toFixed(1)}</b></span></div>
         <strong>${mu != null ? mu.toFixed(1) : '—'}</strong></div>
     </header>`;
 
@@ -10037,8 +10083,13 @@ function renderPitcherProp(kind) {
       : `Every arm priced at <b>${ppSide === 'over' ? 'over' : 'under'} ${ppLine}</b>. Tap <b>His line</b> to put each back on his own nearest-even rung.`}
     Ranked <b>1-${rows.length}</b>; the <b>Results</b> tab grades the top <b>${PP_TRACKED}</b>, marked below. The ordering keeps
     working past that line — ranks 9-12 still ${isK ? 'strike out' : 'walk'} more than 13+ — it just isn't what we log.</div>`;
+  // The board's rank by raw projection — its default order — whatever the view is sorted by.
+  const projRank = new Map([...rows].filter(r => r.rawProj != null).sort((a, b) => b.rawProj - a.rawProj).map((r, i) => [r.pid, i + 1]));
   const cards = rows.map((r, i) => {
     const cls = pvClass(r.exp / lg);
+    const capped = !isK && r.rawProj != null && r.rawProj > KBB_BB_CAP;
+    const rk = !isK ? projRank.get(r.pid) : null, rec = rk && rk <= PP_TRACKED ? walksRankRecord(rk) : null;
+    const rankFlag = rec ? `<span class="pv-rankflag" title="Over 1.5 walks for the board's #${rk} arm, every graded slate this season (${rec.n} starts): went over ${(rec.p * 100).toFixed(1)}% of the time. A record of the rank, not part of our price.">#${rk} o1.5 hist <b>${rec.am}</b> · ${(rec.p * 100).toFixed(0)}%</span>` : '';
     const hand = r.throws ? `<span class="pk-hand ${r.throws.toLowerCase()}">${r.throws}</span>` : '';
     const statusChip = (r.status && r.status !== 'Pre-Game') ? `<span class="pv-status">${r.status === 'Final' ? 'Final' : 'Live'}</span>` : '';
     const mtr = (l, v) => `<span class="pv-mtr"><span class="pv-mtr-lbl">${l}</span><span class="pv-mtr-val">${v}</span></span>`;
@@ -10071,9 +10122,12 @@ function renderPitcherProp(kind) {
         <div class="pv-id">
           <div class="pv-name">${compactPlayerName(r.name)} ${hand}${statusChip}</div>
           <div class="pv-sub">${teamLogoImg(r.team, 'team-logo')}${r.team} vs ${r.oppTeam}${r.venue ? `<span class="pv-venue"> · ${r.venue}</span>` : ''}</div>
+          ${rankFlag || capped ? `<div class="pv-flags">${rankFlag}${capped ? `<span class="pv-capflag" title="Raw projection ${r.rawProj.toFixed(1)} walks — priced as ${KBB_BB_CAP}">cap · ${r.rawProj.toFixed(1)} raw</span>` : ''}</div>` : ''}
         </div>
         <div class="pv-facts">
-          ${r.proj == null ? '' : `<span class="pv-f" title="Projected ${word}s for his start — every price is built from this one number"><b>${r.proj.toFixed(1)}</b> proj</span>`}
+          ${r.proj == null ? '' : `<span class="pv-f${capped ? ' pv-capped' : ''}" title="${capped
+            ? `Raw projection ${r.rawProj.toFixed(1)} walks — priced as ${KBB_BB_CAP}. Above ${KBB_BB_CAP} a pitcher doesn't walk more in practice: extreme walk rates regress and wild arms get pulled early (graded on every start this season).`
+            : `Projected ${word}s for his start — every price is built from this one number`}"><b>${r.proj.toFixed(1)}</b> proj</span>`}
           <span class="pv-f" title="His own ${lbl}% this season, before the matchup"><b>${(r.raw * 100).toFixed(1)}%</b> his ${lbl}%</span>
           <span class="pv-f" title="The lineup he faces — their ${word} rate, against a ${(lg * 100).toFixed(1)}% league average"><b>${(r.tRate * 100).toFixed(1)}%</b> ${r.oppTeam} ${lbl}%</span>
         </div>

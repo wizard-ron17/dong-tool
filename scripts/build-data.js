@@ -1615,6 +1615,19 @@ const KBB_DAYS      = 120;  // day-level detail retained (season totals span all
 // lost in the middle of the distribution.
 const kbbNeeds = proj => { const n = Math.max(1, Math.floor(proj)); return [n, n + 1]; };
 const KBB_TIERS = ['low', 'high'];
+// Walks projections are capped here: above ~2.4 a pitcher does not walk more,
+// however wild his rate looks. Measured on a full-season replay of every
+// starter (research/mlb_kbb_replay.py, 3,899 starts): the walk-forward slope of
+// actual walks on projection above 2.7 was 0 in every month, and the cap that
+// minimised log loss on the months before was 2.3-2.4 every month. Uncapped,
+// arms projected 2.7+ priced Over 1.5 at -361 and hit like -212; capped, -224.
+// Extreme walk rates regress, and a wild arm gets pulled. The board still SORTS
+// by the raw projection — the cap changes the price, not who is on top.
+// Strikeouts are calibrated at every rung and are not capped.
+const KBB_BB_CAP = 2.4;
+// How many of the board's top arms (by raw projection, the board's order) get
+// their Over 1.5 record kept by rank.
+const KBB_RANK_DEPTH = 8;
 const kbbHit        = (act, need) => act >= need;   // "Over need-0.5"
 // Books only post half numbers, so a push is impossible by construction. An
 // earlier version graded `act > proj`, which made a 2.1 projection need 3 — an
@@ -1643,6 +1656,7 @@ function computeKbbHistory(scorable = () => true) {
   const tm  = {};                 // teamAbbr -> { k, bb, pa } through yesterday
   let lgK = 0, lgBB = 0, lgPA = 0;
   const out = { k: [], bb: [] };
+  const rankO15 = [];             // walks Over 1.5 by board rank, every graded slate
 
   for (const date of dates) {
     const starts = dailyStarts[date] ?? [];
@@ -1659,11 +1673,22 @@ function computeKbbHistory(scorable = () => true) {
           const tRate = (isK ? to.k : to.bb) / to.pa;
           const exp = log5(pRate, tRate, lg);
           const projBF = ps.gs ? ps.bf / ps.gs : null;   // avg batters faced per start
-          rows.push({ s, raw: cnt / ps.bf, tRate, exp, proj: projBF != null ? exp * projBF : null });
+          const rawProj = projBF != null ? exp * projBF : null;
+          const proj = rawProj != null && !isK ? Math.min(rawProj, KBB_BB_CAP) : rawProj;
+          rows.push({ s, raw: cnt / ps.bf, tRate, exp, proj, rawProj });
         }
         // A slate too thin to rank (early season, a two-game Monday) is skipped
         // rather than graded on three arms.
         if (rows.length >= KBB_TOP) {
+          // Over 1.5 by board rank, walks only: the board's own order (raw
+          // projection), priced at the capped projection as the board prices it.
+          if (!isK) {
+            const byProj = rows.filter(r => r.rawProj != null).sort((a, b) => b.rawProj - a.rawProj);
+            byProj.slice(0, KBB_RANK_DEPTH).forEach((r, i) => {
+              const t = (rankO15[i] ??= { rank: i + 1, n: 0, hits: 0, priced: 0 });
+              t.n++; t.hits += r.s.bb >= 2 ? 1 : 0; t.priced += poissonAtLeast(r.proj, 2);
+            });
+          }
           rows.sort((a, b) => b.exp - a.exp);
           const act = r => isK ? r.s.k : r.s.bb;
           const r3 = v => v == null ? null : Math.round(v * 1000) / 1000;
@@ -1680,6 +1705,7 @@ function computeKbbHistory(scorable = () => true) {
               pid: r.s.pid, name: r.s.name, team: r.s.team, opp: r.s.opp,
               exp: r3(r.exp), raw: r3(r.raw), tRate: r3(r.tRate),
               proj: r.proj == null ? null : Math.round(r.proj * 10) / 10,
+              ...(r.rawProj != null && r.rawProj > r.proj ? { rawProj: Math.round(r.rawProj * 10) / 10 } : {}),
               act: act(r), bf: r.s.bf, ip: Math.round(r.s.ip * 10) / 10,
             })),
           });
@@ -1741,6 +1767,8 @@ function computeKbbHistory(scorable = () => true) {
         return { lo: side(withProj.filter(r => r.proj < mean)), hi: side(withProj.filter(r => r.proj >= mean)) };
       })(),
       days: days.slice(-KBB_DAYS).reverse(), // newest first, the order the tab reads
+      ...(kind === 'bb' ? { cap: KBB_BB_CAP, o15ByRank: rankO15.map(t => ({ rank: t.rank, n: t.n, hits: t.hits,
+                                  priced: Math.round(t.priced / t.n * 10000) / 10000 })) } : {}),
     };
   }
   return wrap;
