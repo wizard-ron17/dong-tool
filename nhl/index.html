@@ -814,6 +814,8 @@
   .vid-btn:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
   .sc-vids { display: flex; gap: 0.4rem; margin-top: 0.55rem; }
   .hrv-modal { background: var(--surface0); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem; max-width: 860px; width: 100%; position: relative; margin: auto; }
+  .hrv-game { display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem 0.7rem; margin: 0 2rem 0.6rem 0.1rem; }
+  .hrv-sub { font-size: 0.72rem; font-weight: 600; color: var(--muted); letter-spacing: 0.02em; }
   .hrv-title { font-size: 0.804rem; font-weight: 600; color: var(--text); margin: 0 2rem 0.6rem 0.1rem; line-height: 1.4; }
   .hrv-video { width: 100%; border-radius: 8px; display: block; background: #000; aspect-ratio: 16/9; }
   .hrv-detail { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0 2rem 0.45rem 0.1rem; }
@@ -1490,8 +1492,16 @@
     const vid = G[kind]; if (!vid) return;
     closeReels();
     hv = { game: gameId };
-    hvShell(`<div class="hrv-title">${logoImg(G.away, 'rg-logo')} ${esc(G.away)} ${G.awayScore ?? ''}–${G.homeScore ?? ''} ${esc(G.home)} ${logoImg(G.home, 'rg-logo')}
-        · ${kind === 'rv' ? 'Recap' : 'Condensed game'} · ${dayLabel(G.date)}</div>
+    // The recap header's own score line, so the modal reads like the card it came from.
+    const aWin = G.awayScore > G.homeScore;
+    hvShell(`<div class="hrv-game">
+        <span class="rg-score">
+          ${logoImg(G.away, 'rg-logo')}<span class="${aWin ? 'w' : ''}">${esc(G.away)} ${G.awayScore ?? ''}</span>
+          <span style="color:var(--dim)">–</span>
+          <span class="${!aWin ? 'w' : ''}">${G.homeScore ?? ''} ${esc(G.home)}</span>${logoImg(G.home, 'rg-logo')}
+        </span>
+        <span class="hrv-sub">${kind === 'rv' ? 'Recap' : 'Condensed game'} · ${dayLabel(G.date)}${G.end && G.end !== 'REG' ? ` · ${esc(G.end)}` : ''}</span>
+      </div>
       <video class="hrv-video" controls playsinline></video>`);
     hvPlay(vid, G.recap);
   }
