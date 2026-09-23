@@ -16,6 +16,7 @@ import { gameGoalDetail } from './nhl-goal-detail.js';
 import { buildPlayersLog } from './nhl-players.js';
 import { buildSavesBoard } from './nhl-saves.js';
 import { fetchLines } from './nhl-lines.js';
+import { buildFun } from './nhl-fun.js';
 
 const LEADERS = 300;      // skaters on the Stats board
 const GOALIES = 90;       // ~3 per club
@@ -449,8 +450,17 @@ async function main() {
 
   // ── 7d) Player card archive: game logs + every goal this season ───────
   console.log('Updating player logs…');
-  try { await buildPlayersLog({ season: UP.id, schedule, recap, recapGames }); }
+  let playersLog = null;
+  try { playersLog = await buildPlayersLog({ season: UP.id, schedule, recap, recapGames }); }
   catch (e) { console.warn(`  players.json not updated: ${e.message}`); }   // the card degrades; the build doesn't
+
+  // ── 7e) Birthdays, Milestones, Due ─────────────────────────────────────
+  console.log('Birthdays, milestones, droughts…');
+  let fun = null;
+  try {
+    fun = await buildFun({ season: UP.id, hist: HIST.id, today, schedule, picks: picks.picks, log: playersLog });
+    console.log(`  ${fun.birthdays.length} birthdays this week, ${fun.milestones.length} milestone chases, ${fun.due.length} droughts`);
+  } catch (e) { console.warn(`  fun pages not built: ${e.message}`); }
 
   // ── 8) Write ───────────────────────────────────────────────────────────
   const output = {
@@ -462,7 +472,7 @@ async function main() {
     teams, schedule, dates,
     recap, recapDates, recapGames,
     leaders: L.skaters, goalies: L.goalies,
-    shots, picks, saves, points,
+    shots, picks, saves, points, fun,
     // graded nights only, voids dropped, as
     //   [pid, p, scored, p2, p3, pFirst, pLast, pP1, pPP, goals, first, last, p1Goals, ppGoals]
     // (nights frozen before the extra markets carry only the first three)

@@ -314,8 +314,8 @@
                       display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.55rem; }
     .nav-tools-menu.open { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
   }
-  .nav-tools-menu { --g1: #2a9fb5; --g2: #7a7ae8; --g3: #d24e8e; }
-  :root[data-theme="light"] .nav-tools-menu { --g1: #0097b3; --g2: #6060d8; --g3: #c73c80; }
+  .nav-tools-menu { --g1: #2a9fb5; --g2: #7a7ae8; --g3: #d24e8e; --g4: #c79a46; }
+  :root[data-theme="light"] .nav-tools-menu { --g1: #0097b3; --g2: #6060d8; --g3: #c73c80; --g4: #a87a22; }
   @media (max-width: 600px) {
     .nav-caret { display: none; }
     .nav-tools-backdrop { background: rgba(0,0,0,0.45); bottom: calc(var(--nav-bottom) + var(--nav-h)); }
@@ -351,11 +351,44 @@
   .nav-menu-item.g1 { --gc: var(--g1); }
   .nav-menu-item.g2 { --gc: var(--g2); }
   .nav-menu-item.g3 { --gc: var(--g3); }
+  .nav-menu-item.g4 { --gc: var(--g4); }
   .nav-menu-group { grid-column: 1 / -1; display: flex; align-items: center; gap: 0.5rem; font-size: 0.655rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); padding: 0.55rem 0.3rem 0.15rem; }
   .nav-menu-group::after { content: ''; flex: 1; height: 1px; background: var(--border); }
   .nav-menu-group.g1 { color: var(--g1); }
   .nav-menu-group.g2 { color: var(--g2); }
   .nav-menu-group.g3 { color: var(--g3); }
+  .nav-menu-group.g4 { color: var(--g4); }
+  /* ── Birthdays / Milestones / Due (ported from /nfl) ── */
+  .pt-meta { font-size: 0.704rem; color: var(--muted); margin-bottom: 0.5rem; }
+  .pt-meta b { color: var(--text); }
+  .due-od { font-family: var(--font-d); font-weight: 700; color: var(--good); }
+  .bd-hero { display: flex; align-items: baseline; gap: 0.55rem; flex-wrap: wrap; margin-bottom: 0.2rem; }
+  .bd-week { font-family: var(--font-d); font-size: 1.5rem; font-weight: 700; color: var(--text-strong); }
+  .bd-meta { font-size: 0.729rem; color: var(--muted); }
+  .bd-sec { font-family: var(--font-d); font-size: 0.98rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 1.1rem 0 0.45rem; display: flex; align-items: baseline; gap: 0.5rem; }
+  .bd-sec span { font-family: var(--font-b); font-size: 0.692rem; letter-spacing: 0; text-transform: none; color: var(--dim); }
+  .bd-list { display: flex; flex-direction: column; gap: 0.4rem; }
+  .bd-card { display: flex; align-items: center; gap: 0.6rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.7rem; cursor: pointer; }
+  .bd-card:hover { border-color: var(--accent); }
+  .bd-card.today { border-color: rgba(242,201,76,0.5); background: rgba(242,201,76,0.06); }
+  .bd-cake { font-size: 1.1rem; flex-shrink: 0; width: 1.5rem; text-align: center; }
+  .bd-logo { width: 15px; height: 15px; object-fit: contain; flex-shrink: 0; vertical-align: -3px; margin-right: 0.25rem; }
+  .bd-card .rc-photo { width: 34px; height: 34px; margin: 0; flex-shrink: 0; }
+  .bd-info { flex: 1; min-width: 0; }
+  .bd-nm { font-weight: 700; font-size: 0.85rem; color: var(--text-strong); display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+  .bd-sub { font-size: 0.723rem; color: var(--muted); margin-top: 0.12rem; }
+  .bd-age { font-family: var(--font-d); font-size: 1.25rem; font-weight: 700; color: var(--gold); line-height: 1; text-align: center; }
+  .bd-age small { display: block; font-family: var(--font-b); font-size: 0.630rem; font-weight: 700; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; margin-top: 0.12rem; }
+  .bd-rec { font-family: var(--font-m); font-size: 0.692rem; color: var(--silver); background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 0.1rem 0.34rem; white-space: nowrap; }
+  .bd-rec b { color: var(--good); }
+  .bd-price { font-family: var(--font-d); font-size: 1.05rem; font-weight: 700; min-width: 3.4rem; text-align: right; color: var(--good); }
+  .bd-price.dog { color: var(--gold); }
+  .bd-price.none { color: var(--dim); font-size: 0.8rem; }
+  .bd-stat { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 0.45rem; margin: 0.5rem 0 0.2rem; }
+  .bd-tile { background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.5rem; text-align: center; }
+  .bd-tile-v { font-family: var(--font-d); font-size: 1.4rem; font-weight: 700; color: var(--text-strong); line-height: 1; }
+  .bd-tile-l { font-size: 0.661rem; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 0.22rem; }
+  @media (max-width: 560px) { .bd-rec { display: none; } }
   .nav-menu-group:first-child { padding-top: 0.15rem; }
   .nav-menu-item { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.3rem; width: 100%; background: var(--surface0); border: none; border-radius: 11px; padding: 0.6rem 0.4rem; cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.15s; }
   .nav-menu-item:hover:not(:disabled) { background: var(--surface2); }
@@ -1145,6 +1178,19 @@
       <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18V8.5L12 5l8 3.5V18"/><path d="M4 18h16"/><circle cx="12" cy="13" r="2" fill="currentColor" stroke="none"/></svg></span><span class="nm-name">Goals Allowed</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
       <span class="nm-desc">Goals against for every projected starter, priced at every line.</span>
     </button>
+    <div class="nav-menu-group g4">Watch Lists</div>
+    <button class="nav-menu-item g4" data-nav="due" onclick="switchNav('due')">
+      <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h11M6.5 20.5h11M8 3.5v2.6L12 12 8 17.9v2.6M16 3.5v2.6L12 12l4 5.9v2.6"/></svg></span><span class="nm-name">Due</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+      <span class="nm-desc">Goal droughts on tonight's board &mdash; games, shots and ice time since his last one.</span>
+    </button>
+    <button class="nav-menu-item g4" data-nav="milestones" onclick="switchNav('milestones')">
+      <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V3M6 4h11l-2.2 3L17 10H6"/></svg></span><span class="nm-name">Milestones</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+      <span class="nm-desc">Who's closing on a round number &mdash; career goals, assists, points, games and wins.</span>
+    </button>
+    <button class="nav-menu-item g4" data-nav="birthdays" onclick="switchNav('birthdays')">
+      <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16"/><path d="M5.5 21v-9a2.5 2.5 0 0 1 2.5-2.5h8a2.5 2.5 0 0 1 2.5 2.5v9"/><path d="M5.5 15.5h13"/><path d="M9 9.5V7M12 9.5V7M15 9.5V7"/></svg></span><span class="nm-name">Birthdays</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+      <span class="nm-desc">Who's celebrating this week, who plays on the day, and whether it matters.</span>
+    </button>
   </div>
   <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
 
@@ -1248,6 +1294,65 @@
       </div>
     </div>
     <div id="points-content"><div class="empty">Loading&hellip;</div></div>
+  </div>
+
+  <div id="panel-due" class="panel">
+    <div class="due-explainer" id="due-explainer-toggle" onclick="toggleExplainer('due')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Due Works</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="due-explainer-chevron">&#9654;</span>
+      </div>
+      <div class="due-explainer-teaser">Skaters on tonight&rsquo;s board who haven&rsquo;t scored in a while &mdash; how many games, shots and minutes since the last one.</div>
+      <div class="due-explainer-body" id="due-explainer-body" style="display:none">
+        <ul>
+          <li><b>Who's here.</b> Everyone on tonight's Picks board who has gone five or more games without a goal, with the shots he has put on net and the ice time he has played since his last one. A drought that began last season carries over the summer.</li>
+          <li><b>It is not an edge, and I checked.</b> Across three seasons (134,304 skater-games), the goals model was graded against how long each skater's drought had run. Nobody is owed anything. Players 30+ games dry scored <b>5.2%</b> of the time on a <b>5.7%</b> price &mdash; if anything a long drought runs slightly <em>colder</em> than the price, because it often means a lost role or a quiet injury. Shots since his last goal, ice time since, and the expected goals he &ldquo;should&rdquo; have scored each added nothing to the model.</li>
+          <li><b>So why show it?</b> Because it is fun, and because it flags cold players &mdash; which is worth knowing too. The default order is tonight's price, which already carries what predicts: his shot volume, his ice time and his power-play role. Sort by games or shots since to see the longest droughts.</li>
+          <li><b>The puck doesn't know he's been waiting.</b> A shooter's odds tomorrow are his shot rate and his role, whether he scored last night or not in a month.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="due-content"><div class="empty">Loading&hellip;</div></div>
+  </div>
+
+  <div id="panel-milestones" class="panel">
+    <div class="due-explainer" id="milestones-explainer-toggle" onclick="toggleExplainer('milestones')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Milestones Works</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="milestones-explainer-chevron">&#9654;</span>
+      </div>
+      <div class="due-explainer-teaser">Who is closing in on a round number &mdash; career goals, assists, points and games, and wins for goalies.</div>
+      <div class="due-explainer-body" id="milestones-explainer-body" style="display:none">
+        <ul>
+          <li><b>What it counts.</b> Regular-season career totals, all the way back, plus this season as it's played. Playoffs don't count toward the round numbers the league celebrates, so they don't count here.</li>
+          <li><b>The rungs.</b> Goals every <b>50</b>, within 10. Assists and points every <b>100</b>, within 15. Games every <b>100</b>, within 8. Goalie wins every <b>50</b>, within 6. Each is a distance someone covers in a few weeks, so the board moves.</li>
+          <li><b>Active players only.</b> Everyone on a current NHL roster, nobody else.</li>
+          <li><b>It's a watch list.</b> Being one goal from 200 doesn't make him likelier to score tonight. Where a chaser is on tonight's board, his price is shown so you can see what the model thinks independently.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="milestones-content"><div class="empty">Loading&hellip;</div></div>
+  </div>
+
+  <div id="panel-birthdays" class="panel">
+    <div class="due-explainer" id="birthdays-explainer-toggle" onclick="toggleExplainer('birthdays')" aria-expanded="false">
+      <div class="due-explainer-head">
+        <span class="due-explainer-title">How Birthdays Work</span>
+        <span class="due-explainer-cta"></span>
+        <span class="due-explainer-chevron" id="birthdays-explainer-chevron">&#9654;</span>
+      </div>
+      <div class="due-explainer-teaser">Who is celebrating this week, who plays on the day &mdash; and whether birthday boys actually score.</div>
+      <div class="due-explainer-body" id="birthdays-explainer-body" style="display:none">
+        <ul>
+          <li><b>The week.</b> Every player on a current NHL roster whose birthday falls between three days ago and a week from now, with the age he's turning and whether his club plays that day. If he's on tonight's Picks board on his birthday, his goal price is shown.</li>
+          <li><b>His own record.</b> Games he has played on his birthday since 2022-23, and how many he scored in.</li>
+          <li><b>Does it mean anything? No.</b> Graded against the goals model's price over three seasons, birthday boys scored in <b>57 of 377</b> games &mdash; <b>15.1%</b> against a <b>15.3%</b> price. That is as close to nothing as a test gets. It is here because it is fun.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="birthdays-content"><div class="empty">Loading&hellip;</div></div>
   </div>
 
   <div id="panel-saves" class="panel">
@@ -1366,8 +1471,8 @@
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch, .sport-menu')) closeSportMenu(); });
 
   // ── Nav + routing ──────────────────────────────────────────────────────
-  const NHL_NAVS = ['home', 'stats', 'recap', 'schedule', 'picks', 'shots', 'saves', 'allowed', 'points'];   // tools added here as they ship
-  const PAGE_TITLES = { home: "Ron's Goal Tool", stats: "Stats · Ron's Goal Tool", recap: "Recap · Ron's Goal Tool", schedule: "Schedule · Ron's Goal Tool", shots: "Shots · Ron's Goal Tool", saves: "Saves · Ron's Goal Tool", points: "Points · Ron's Goal Tool", allowed: "Goals Allowed · Ron's Goal Tool", picks: "Picks · Ron's Goal Tool" };
+  const NHL_NAVS = ['home', 'stats', 'recap', 'schedule', 'picks', 'shots', 'saves', 'allowed', 'points', 'due', 'milestones', 'birthdays'];   // tools added here as they ship
+  const PAGE_TITLES = { home: "Ron's Goal Tool", stats: "Stats · Ron's Goal Tool", recap: "Recap · Ron's Goal Tool", schedule: "Schedule · Ron's Goal Tool", shots: "Shots · Ron's Goal Tool", saves: "Saves · Ron's Goal Tool", points: "Points · Ron's Goal Tool", allowed: "Goals Allowed · Ron's Goal Tool", picks: "Picks · Ron's Goal Tool", due: "Due · Ron's Goal Tool", milestones: "Milestones · Ron's Goal Tool", birthdays: "Birthdays · Ron's Goal Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
     activeNav = nav;
@@ -1411,6 +1516,9 @@
     else if (nav === 'allowed') renderAllowed();
     else if (nav === 'points') renderPoints();
     else if (nav === 'picks') renderPicks();
+    else if (nav === 'due') renderDue();
+    else if (nav === 'milestones') renderMilestones();
+    else if (nav === 'birthdays') renderBirthdays();
   }
 
   // ── Data ───────────────────────────────────────────────────────────────
@@ -1997,7 +2105,9 @@
     const ld = (D.leaders || []).find(x => x.pid === pid), gl = (D.goalies || []).find(x => x.pid === pid);
     const lg = PL?.p?.[pid];
     const rg = Object.values(D.recap || {}).flat().find(x => x.pid === pid) || (PL?.goals || []).find(x => x.pid === pid);
-    const b = pk || sh;
+    // the watch lists reach players no board or leaderboard carries
+    const fn = D.fun?.milestones?.find(x => x.pid === pid) || D.fun?.birthdays?.find(x => x.pid === pid);
+    const b = pk || sh || fn;
     const team = b?.team || lg?.tm || ld?.team || gl?.team || rg?.team || '';
     return {
       name: b?.name || lg?.n || ld?.name || gl?.name || rg?.name || String(pid), team,
@@ -2313,7 +2423,7 @@
     return out.slice(0, 4);
   }
   function tbOpenGame(date, gameId) { scheduleDate = date; scOpen.clear(); scOpen.add(gameId); switchNav('schedule'); }
-  const TB_TOOLS = [['picks', 'Picks'], ['shots', 'Shots'], ['points', 'Points'], ['points', 'Assists'], ['saves', 'Saves'], ['allowed', 'Goals Allowed'], ['stats', 'Stats'], ['recap', 'Recap'], ['schedule', 'Schedule'], ['home', 'Home']];
+  const TB_TOOLS = [['picks', 'Picks'], ['shots', 'Shots'], ['points', 'Points'], ['points', 'Assists'], ['saves', 'Saves'], ['allowed', 'Goals Allowed'], ['due', 'Due'], ['milestones', 'Milestones'], ['birthdays', 'Birthdays'], ['stats', 'Stats'], ['recap', 'Recap'], ['schedule', 'Schedule'], ['home', 'Home']];
   function siteSearch() {
     const box = document.getElementById('tb-results'), input = document.getElementById('site-search');
     if (!box || !input || !D || D === 'error') return;
@@ -3898,6 +4008,27 @@
     const byPP = [...(D.leaders || [])].sort((a, b) => (b.ppToi ?? 0) - (a.ppToi ?? 0)).slice(0, 5)
       .map((r, i) => leaderRow(r, i, mmss(r.ppToi), 'PP')).join('');
 
+    // ── Watch lists: Due, Milestones, Birthdays ──────────────────────────
+    const FUN = D.fun || {};
+    const drMap = new Map((FUN.due || []).map(x => [x.pid, x]));
+    const dueHome = (D.picks?.picks || []).filter(p => (drMap.get(p.pid)?.games ?? 0) >= DUE_MIN_GAMES).slice(0, 3).map(r => `
+      <div class="hm-row" onclick="event.stopPropagation(); switchNav('due'); openPick(${r.pid})">
+        ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
+        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} · ${drMap.get(r.pid).shots} shots since · ${sgOdds(r.p)}</span></span>
+        <span class="hm-score warm">${drMap.get(r.pid).games}<span class="hm-subtle" style="font-size:0.766rem"> gms</span></span></div>`).join('');
+    const msHome = (FUN.milestones || []).slice(0, 3).map(m => `
+      <div class="hm-row" onclick="event.stopPropagation(); openPlayer(${m.pid})">
+        ${faceHtml(m.mug || mugOf(m.pid, m.team, D.leaderSeason), m.name, 'hm-photo')}
+        <span class="hm-name">${esc(m.name)}<span class="hm-subtle">${esc(m.team)} · ${m.career.toLocaleString()} career ${MS_UNIT[m.stat]}</span></span>
+        <span class="hm-score hot">${m.away}<span class="hm-subtle" style="font-size:0.766rem"> from ${m.next}</span></span></div>`).join('');
+    const bdT0 = Date.parse(todayET() + 'T00:00:00Z') / 864e5;
+    const bdHome = (FUN.birthdays || []).map(b => ({ ...b, o: Date.parse(b.day + 'T00:00:00Z') / 864e5 - bdT0 }))
+      .filter(b => b.o >= 0).slice(0, 3).map(b => `
+      <div class="hm-row" onclick="event.stopPropagation(); openPlayer(${b.pid})">
+        ${faceHtml(b.mug || mugOf(b.pid, b.team, D.leaderSeason), b.name, 'hm-photo')}
+        <span class="hm-name">${esc(b.name)}<span class="hm-subtle">${esc(b.team)} · turns ${b.turning}${b.game ? ' · game day' : ''}</span></span>
+        <span class="hm-score ${b.o === 0 ? 'hot' : 'warm'}">${b.o === 0 ? 'today' : `${b.o}d`}</span></div>`).join('');
+
     const season = esc(D.leaderSeasonLabel);
     el.innerHTML = countdown + `
       <div class="hm-cols">
@@ -3915,8 +4046,177 @@
           ${card('schedule', `${dayLabel(nd)} · ${next.length} Games`, 'Schedule', gameRows, 'No games scheduled.')}
           ${card('stats', `${season} Save % (25+ GP)`, 'Stats', byGl, 'No goalies yet.')}
           ${card('stats', `${season} Power-Play Ice Time`, 'Stats', byPP, 'No ice time logged yet.')}
+          ${card('due', 'Due', 'Due', dueHome, 'Nobody on the board is in a drought.')}
+          ${card('milestones', 'Milestone Watch 🏆', 'Milestones', msHome, 'No chases within reach.')}
+          ${card('birthdays', 'Birthdays 🎂', 'Birthdays', bdHome, 'No birthdays this week.')}
         </div>
       </div>`;
+  }
+
+  // ── Due ────────────────────────────────────────────────────────────────
+  // Goal droughts for tonight's board. The drought is the hook and nothing
+  // more: research/nhl_due.py graded the goals model by drought length and
+  // found long ones price slightly HIGH (30+ games dry: 5.2% on a 5.7% price),
+  // and shots / ice time since the last goal added nothing. So the default
+  // order is the price — the part that predicts.
+  const DUE_MIN_GAMES = 5;
+  const dueF = { sort: 'price' };
+  function setDue(k, v) { dueF[k] = v; renderDue(); }
+  window.setDue = setDue;
+  function renderDue() {
+    const el = document.getElementById('due-content'); if (!el) return;
+    if (D === 'error') { el.innerHTML = `<div class="empty">Couldn't load NHL data. <a href="javascript:void(0)" onclick="loadNhl()">Retry</a></div>`; return; }
+    if (!D) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
+    const P = D.picks || {}, dr = new Map((D.fun?.due || []).map(x => [x.pid, x]));
+    const rows = (P.picks || []).map(p => ({ ...p, dr: dr.get(p.pid) }))
+      .filter(r => r.dr && r.dr.games >= DUE_MIN_GAMES);
+    if (!rows.length) { el.innerHTML = '<div class="empty">Nobody on tonight\'s board is five games past his last goal.</div>'; return; }
+    const by = { price: (a, b) => b.p - a.p, games: (a, b) => b.dr.games - a.dr.games || b.p - a.p, shots: (a, b) => b.dr.shots - a.dr.shots || b.p - a.p };
+    rows.sort(by[dueF.sort]);
+    const tabs = uiTabs('setDue', dueF.sort, [['price', 'By price'], ['games', 'Games since'], ['shots', 'Shots since']]).replace(/'tab'/g, "'sort'");
+    const meta = `<div class="pt-meta"><b>${P.date ? dayLabel(P.date, true) : ''}</b> · ${rows.length} skaters ${DUE_MIN_GAMES}+ games without a goal · ${
+      dueF.sort === 'price' ? 'ordered by <b>tonight\'s price</b>, not the drought' : `ordered by <b>${dueF.sort} since his last goal</b>`}</div>`;
+    const cards = rows.slice(0, 60).map((r, i) => {
+      const d = r.dr;
+      const since = d.last ? `last: ${dayLabel(d.last)}${d.carried ? ' (last season)' : ''}` : 'no goal on record';
+      return `<div class="pb-card" onclick="openPick(${r.pid})">
+        <div class="pb-rank">${i + 1}</div>${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name)}
+        <div class="pb-info">
+          <div class="pb-nm">${esc(r.name)}${posBadge(r.pos)}</div>
+          <div class="pb-line">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}
+            · <b>${d.shots}</b> shots, <b>${d.toi}</b> min since · <b class="due-od">${sgOdds(r.p)}</b></div>
+          <div class="pb-line">${since}</div>
+        </div>
+        <div class="pb-price">
+          <span class="pb-odds dog">${d.games}</span>
+          <span class="pb-pct">games w/o goal</span>
+        </div>
+      </div>`;
+    }).join('');
+    el.innerHTML = tabs + meta + `<div class="pb-list">${cards}</div>`;
+  }
+
+  // ── Milestones ─────────────────────────────────────────────────────────
+  // Career totals against the next round number (scripts/nhl-fun.js). A watch
+  // list, not a signal.
+  const msF = { tab: 'all' };
+  function setMs(k, v) { msF[k] = v; renderMilestones(); }
+  window.setMs = setMs;
+  const MS_UNIT = { g: 'goals', a: 'assists', pts: 'points', gp: 'games', w: 'wins' };
+  function renderMilestones() {
+    const el = document.getElementById('milestones-content'); if (!el) return;
+    if (D === 'error') { el.innerHTML = `<div class="empty">Couldn't load NHL data. <a href="javascript:void(0)" onclick="loadNhl()">Retry</a></div>`; return; }
+    if (!D) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
+    const F = D.fun || {}, all = F.milestones || [], R = F.rungs || {};
+    const tabs = uiTabs('setMs', msF.tab, [['all', 'All'], ...Object.entries(R).map(([k, v]) => [k, k === 'gp' ? 'GP' : v.label])]);
+    const ms = msF.tab === 'all' ? all : all.filter(m => m.stat === msF.tab);
+    if (!ms.length) { el.innerHTML = tabs + '<div class="empty">No chases within reach.</div>'; return; }
+    const pk = new Map((D.picks?.picks || []).map(p => [p.pid, p]));
+    const pt = new Map((D.points?.board || []).map(p => [p.pid, p]));
+    // tonight's price for the stat being chased, where the board has one
+    const tonight = (m) => {
+      if (m.stat === 'g' && pk.has(m.pid)) return `${sgOdds(pk.get(m.pid).p)} to score tonight`;
+      if (m.stat === 'pts' && pt.has(m.pid)) return `${sgOdds(1 - Math.exp(-pt.get(m.pid).mu.pts))} for a point tonight`;
+      if (m.stat === 'a' && pt.has(m.pid)) return `${sgOdds(1 - Math.exp(-pt.get(m.pid).mu.a))} for an assist tonight`;
+      return '';
+    };
+    const r0 = R[ms[0]?.stat];
+    const meta = `<div class="pt-meta">Regular-season career totals vs the next round number${msF.tab !== 'all' && r0 ? ` — every ${r0.every}, within ${r0.within}` : ''}. <b>A watch list, not a signal.</b></div>`;
+    const cards = ms.slice(0, 60).map((m, i) => {
+      const t = tonight(m);
+      return `<div class="pb-card" onclick="openPlayer(${m.pid})">
+        <div class="pb-rank">${i + 1}</div>${faceHtml(m.mug || mugOf(m.pid, m.team, D.leaderSeason), m.name)}
+        <div class="pb-info">
+          <div class="pb-nm">${esc(m.name)}${posBadge(m.pos)}</div>
+          <div class="pb-line">${logoImg(m.team, 'pb-logo')} ${esc(m.team)} · <b>${m.career.toLocaleString()}</b> career ${MS_UNIT[m.stat]}${t ? ` · <b class="due-od">${t.split(' ')[0]}</b> ${t.split(' ').slice(1).join(' ')}` : ''}</div>
+        </div>
+        <div class="pb-price">
+          <span class="pb-odds${m.away <= Math.ceil((R[m.stat]?.within || 10) / 5) ? '' : ' dog'}">${m.away}</span>
+          <span class="pb-pct">from ${m.next.toLocaleString()} ${MS_UNIT[m.stat]}</span>
+        </div>
+      </div>`;
+    }).join('');
+    el.innerHTML = tabs + meta + `<div class="pb-list">${cards}</div>`;
+  }
+
+  // ── Birthdays ──────────────────────────────────────────────────────────
+  const bdF = { tab: 'board' };
+  function setBd(k, v) { bdF[k] = v; renderBirthdays(); }
+  window.setBd = setBd;
+  function renderBirthdays() {
+    const el = document.getElementById('birthdays-content'); if (!el) return;
+    if (D === 'error') { el.innerHTML = `<div class="empty">Couldn't load NHL data. <a href="javascript:void(0)" onclick="loadNhl()">Retry</a></div>`; return; }
+    if (!D) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
+    const F = D.fun || {}, list = F.birthdays || [];
+    const tabs = uiTabs('setBd', bdF.tab);
+    if (bdF.tab === 'results') { el.innerHTML = tabs + bdResults(F, list); return; }
+    if (!list.length) { el.innerHTML = tabs + '<div class="empty">No birthdays this week.</div>'; return; }
+    // `off` is days from the build's date, which is today's ET date; recompute
+    // against the reader's today so a page left open overnight stays right.
+    const t0 = Date.parse(todayET() + 'T00:00:00Z') / 864e5;
+    const off = (b) => Date.parse(b.day + 'T00:00:00Z') / 864e5 - t0;
+    const offLbl = (o) => o === 0 ? 'today' : o === 1 ? 'tomorrow' : o === -1 ? 'yesterday' : o > 0 ? `in ${o} days` : `${-o} days ago`;
+    const rec = (r) => r ? `<span class="bd-rec" title="Games played on his birthday since 2022-23, and games he scored in">${r[0] ? `<b>${r[1]}</b>/${r[0]} on his day` : ''}</span>` : '';
+    const card = (b) => {
+      const o = off(b), g = b.game;
+      const gm = g ? `plays ${g.home ? 'vs' : '@'} ${esc(g.opp)}${g.pre ? ' (preseason)' : ''}${g.start && o >= 0 ? ` · ${gameTime(g.start)}` : ''}` : 'no game that day';
+      return `<div class="bd-card${o === 0 ? ' today' : ''}" onclick="openPlayer(${b.pid})">
+        <span class="bd-cake">${o === 0 ? '🎂' : '🎈'}</span>
+        ${faceHtml(b.mug || mugOf(b.pid, b.team, D.leaderSeason), b.name)}
+        <div class="bd-info">
+          <div class="bd-nm">${esc(b.name)}${posBadge(b.pos)}</div>
+          <div class="bd-sub">${logoImg(b.team, 'bd-logo')}${esc(b.team)} · ${dayLabel(b.day)} (${offLbl(o)}) · ${gm}</div>
+        </div>
+        ${rec(b.rec)}
+        <div class="bd-age">${o < 0 ? b.turning : b.turning}<small>${o < 0 ? 'turned' : 'turning'}</small></div>
+        ${b.p != null ? `<div class="bd-price${b.p < 0.25 ? ' dog' : ''}" title="His goal price on his birthday">${sgOdds(b.p)}</div>` : ''}
+      </div>`;
+    };
+    const today = list.filter(b => off(b) === 0), ahead = list.filter(b => off(b) > 0), past = list.filter(b => off(b) < 0).reverse();
+    const playing = list.filter(b => b.game).length;
+    el.innerHTML = tabs + `
+      <div class="bd-hero"><span class="bd-week">This week</span>
+        <span class="bd-meta">${list.length} birthday${list.length === 1 ? '' : 's'} · ${playing} on a game day</span></div>
+      ${today.length ? `<div class="bd-sec">🎂 Today<span>${today.length}</span></div><div class="bd-list">${today.map(card).join('')}</div>` : ''}
+      ${ahead.length ? `<div class="bd-sec">Coming up<span>${ahead.length}</span></div><div class="bd-list">${ahead.map(card).join('')}</div>` : ''}
+      ${past.length ? `<div class="bd-sec">Just had one<span>${past.length}</span></div><div class="bd-list">${past.map(card).join('')}</div>` : ''}`;
+  }
+
+  /** Results: this week's birthday games once played, then whether any of it matters. */
+  function bdResults(F, list) {
+    const st = F.bdStats || {};
+    const played = list.filter(b => b.game && !b.game.pre && b.res);
+    const skaters = played.filter(b => b.pos !== 'G');
+    const scored = skaters.filter(b => b.res.g > 0);
+    const rows = played.map(b => {
+      const r = b.res;
+      const line = b.pos === 'G' ? `${r.sv} SV · ${r.ga} GA${r.dec ? ` · ${r.dec}` : ''}` : `${r.g} G · ${r.a} A · ${r.s} SOG`;
+      const state = b.pos === 'G' ? (r.dec === 'W' ? 'hit' : 'miss') : r.g > 0 ? 'hit' : 'miss';
+      return `<div class="cp-res ${state}">
+        <span class="cp-res-nm">${esc(b.name)} 🎂<span class="cp-res-tm">${esc(b.team)} ${b.game.home ? 'vs' : '@'} ${esc(b.game.opp)} · turned ${b.turning}</span></span>
+        <span class="cp-res-line">${b.p != null ? sgOdds(b.p) : ''}</span>
+        <span class="cp-res-proj">${dayLabel(b.day)}</span>
+        <span class="cp-res-act">${line}</span>
+        <span class="cp-res-tag">${b.pos === 'G' ? (r.dec === 'W' ? 'WIN' : '—') : r.g > 0 ? 'SCORED' : '—'}</span></div>`;
+    }).join('');
+    const on = st.on || {};
+    return `
+      ${skaters.length ? `<div class="hm-tiles" style="margin-bottom:0.6rem">
+        <div class="hm-tile"><b>${scored.length}/${skaters.length}</b><span>Scored on his birthday this week</span></div>
+      </div>` : ''}
+      ${rows ? `<div class="cp-res head"><span class="cp-res-nm">Player</span><span class="cp-res-line">Price</span><span class="cp-res-proj">Day</span><span class="cp-res-act">Line</span><span class="cp-res-tag"></span></div>${rows}`
+        : '<div class="empty">Birthday games this week grade here once they\'re played.</div>'}
+      <div class="bd-sec">Do birthday boys score?<span>${esc(st.seasons || '')}</span></div>
+      <div class="bd-stat">
+        <div class="bd-tile"><div class="bd-tile-v">${((on.rate ?? 0) * 100).toFixed(1)}%</div><div class="bd-tile-l">scored on his birthday</div></div>
+        <div class="bd-tile"><div class="bd-tile-v">${((on.priced ?? 0) * 100).toFixed(1)}%</div><div class="bd-tile-l">what we priced</div></div>
+        <div class="bd-tile"><div class="bd-tile-v">${on.goals ?? 0}/${on.games ?? 0}</div><div class="bd-tile-l">birthday games</div></div>
+        <div class="bd-tile"><div class="bd-tile-v">${((on.rate ?? 0) / (on.priced || 1)).toFixed(2)}x</div><div class="bd-tile-l">vs price</div></div>
+      </div>
+      <p style="font-size:0.729rem;color:var(--muted);line-height:1.55;margin:0.6rem 0 0">
+        No. Graded against the goals model's own price, birthday boys scored at <b>${((on.rate ?? 0) * 100).toFixed(1)}%</b> on a
+        <b>${((on.priced ?? 0) * 100).toFixed(1)}%</b> price — a z of ${st.z ?? '—'}. The days either side of it
+        (${st.near?.goals ?? 0}/${st.near?.games ?? 0}) say the same. Enjoy it as trivia.</p>`;
   }
 
   document.addEventListener('DOMContentLoaded', () => { updateThemeToggleIcon(); applyRouteState(); loadNhl(); });
