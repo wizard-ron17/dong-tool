@@ -462,8 +462,25 @@
   .gf-ql span { position: absolute; transform: translateX(-50%); }
   .gf-note { margin: 0.35rem 0 0; font-size: 0.8rem; color: var(--muted); }
   .gf-note b { color: var(--text); }
+  /* Wide screens read the card as a table row — matchup, lines, then the pick
+     (or the live win bar) as its own right-hand column; narrow screens keep it
+     as a band underneath, divided by a rule. Ported from /nfl, which had both
+     halves — this page had only the column rule, so the pick hung underneath. */
+  .sc-game > .sc-wp { border-top: 1px solid var(--border); padding-top: 0.45rem; margin: 0; }
+  .sc-imp { font-family: var(--font-m); font-size: 0.66rem; color: var(--muted); margin-top: 0.2rem; white-space: nowrap; }
+  .sc-imp b { color: var(--text); font-weight: 600; }
+  /* Phones: team columns keep their width, the middle takes what's left and its
+     chips wrap — a moved line with its struck-through open is wider than the
+     space a grid's auto column would otherwise steal from the team names. */
+  @media (max-width: 600px) {
+    .sc-top { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+    .sc-mid { min-width: 0; }
+    .sc-top .sc-lines .ln-book, .sc-top .sc-lines .sc-book { display: none; }
+  }
   @media (min-width: 900px) {
-    .sc-game > .sc-pick { border-top: none; border-left: 1px solid var(--border); padding-top: 0; padding-left: 0.9rem; width: 20rem; flex-shrink: 0; }
+    .sc-game { flex-direction: row; align-items: stretch; gap: 0.9rem; }
+    .sc-game > .sc-top { flex: 1; min-width: 0; }
+    .sc-game > .sc-pick, .sc-game > .sc-wp { border-top: none; border-left: 1px solid var(--border); padding-top: 0; padding-left: 0.9rem; width: 20rem; flex-shrink: 0; }
   }
   /* NHL additions: live win-probability bar on the row, the Matchup tab */
   .sc-wp { display: flex; align-items: center; gap: 0.55rem; margin: 0.45rem 0.2rem 0.05rem; font-size: 0.72rem; color: var(--muted); }
@@ -2853,7 +2870,7 @@
       ? `<div class="sc-score">${as}–${hs}</div><div class="sc-when">${pre}${g.end && g.end !== 'REG' ? g.end : 'Final'}</div>`
       : live
         ? `<div class="sc-score" style="color:var(--bad)">${as}–${hs}</div><div class="sc-when"><span class="sc-live">LIVE</span>${L?.detail ? ' ' + esc(L.detail) : ''}</div>`
-        : `${scLines(g)}<div class="sc-score">${gameTime(g.start)}</div><div class="sc-when">${pre}${g.tv[0] ? esc(g.tv[0]) : ''}</div>`;
+        : `${scLines(g)}${g.lam ? `<div class="sc-imp" title="Implied goals: the total split by the moneyline — a puck line is fixed at 1.5, so it can't say who wins by how much">${g.away} <b>${g.lam.a.toFixed(1)}</b> · ${g.home} <b>${g.lam.h.toFixed(1)}</b></div>` : ''}<div class="sc-score">${gameTime(g.start)}</div><div class="sc-when">${pre}${g.tv[0] ? esc(g.tv[0]) : ''}</div>`;
     // Records come off the standings table, which is last season's until a game
     // is played — the caller labels it rather than passing April off as today.
     const side = (ab, end, won) => `<div class="sc-side${end ? ' end' : ''}">

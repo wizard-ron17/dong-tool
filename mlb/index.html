@@ -1149,10 +1149,16 @@
   .sc-lines { display: flex; gap: 0.3rem; justify-content: center; flex-wrap: wrap; }
   .sc-ln { font-family: var(--font-m); font-size: 0.704rem; color: var(--text); background: var(--surface0); border: 1px solid var(--border); border-radius: 5px; padding: 0.1rem 0.34rem; white-space: nowrap; }
   /* ── Sportsbook lines + movement ── */
-  .sc-ln small { font-size: 0.86em; color: var(--dim); margin-left: 0.3rem; }
-  .sc-ln.ln-moved { border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); }
-  /* a total moving isn't good or bad — direction only, one neutral hue */
-  .sc-ln .ln-up, .sc-ln .ln-dn { color: var(--gold); }
+  /* Line movement: one neutral hue (not the good/bad ramp — a line moving is
+     neither), stronger the bigger the move. m0 unchanged, m1 small, m2 real, m3 big. */
+  :root { --mvc: #8b9cff; }
+  :root[data-theme="light"] { --mvc: #4a57d8; }
+  .sc-ln s { color: var(--dim); text-decoration-thickness: 1px; margin-right: 0.1rem; }
+  .sc-ln.ln-m1 { border-color: color-mix(in srgb, var(--mvc) 40%, var(--border)); }
+  .sc-ln.ln-m2 { border-color: color-mix(in srgb, var(--mvc) 70%, var(--border)); background: color-mix(in srgb, var(--mvc) 12%, var(--surface0)); }
+  .sc-ln.ln-m3 { border-color: var(--mvc); background: color-mix(in srgb, var(--mvc) 26%, var(--surface0)); color: var(--text-strong); font-weight: 700; }
+  .sc-imp { font-family: var(--font-m); font-size: 0.66rem; color: var(--muted); margin-top: 0.2rem; white-space: nowrap; }
+  .sc-imp b { color: var(--text); font-weight: 600; }
   .sc-ln.ln-book { color: var(--dim); background: none; border-style: dashed; }
   .ln { background: var(--surface1); border: 1px solid var(--border); border-radius: 12px; padding: 0.6rem 0.8rem; }
   .ln-row { display: grid; grid-template-columns: 5.2rem 1fr 1.2rem 1fr 7.5rem; align-items: center; gap: 0.4rem; padding: 0.42rem 0; border-top: 1px solid var(--border); font-family: var(--font-d); font-weight: 700; }
@@ -1160,19 +1166,20 @@
   .ln-k { font-family: var(--font-b); font-size: 0.74rem; font-weight: 600; color: var(--muted); }
   .ln-o { color: var(--muted); text-align: right; }
   .ln-c { color: var(--text-strong); }
-  .ln-c.moved { color: var(--gold); }
+  .ln-c.moved { color: var(--mvc); }
   .ln-arrow { color: var(--dim); text-align: center; }
   .ln-spark { width: 100%; height: 26px; overflow: visible; }
-  .ln-spark path { fill: none; stroke: var(--gold); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
-  .ln-spark circle { fill: var(--gold); }
+  .ln-spark path { fill: none; stroke: var(--mvc); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+  .ln-spark circle { fill: var(--mvc); }
   .ln-hist-hd { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin: 0.8rem 0 0.3rem; }
   .ln-hist { display: flex; flex-direction: column; gap: 0.15rem; max-height: 16rem; overflow-y: auto; }
   .ln-h { display: grid; grid-template-columns: 7.6rem 1fr 1fr 1fr; gap: 0.4rem; font-family: var(--font-m); font-size: 0.7rem; color: var(--muted); padding: 0.2rem 0; border-bottom: 1px dashed var(--border); }
-  .ln-h .chg { color: var(--gold); font-weight: 700; }
+  .ln-h .chg { color: var(--mvc); font-weight: 700; }
   .ln-t { color: var(--dim); }
   .ln-note { font-size: 0.68rem; color: var(--dim); line-height: 1.5; margin: 0.6rem 0 0; }
   @media (max-width: 560px) { .ln-row { grid-template-columns: 4.4rem 1fr 1rem 1fr 4.5rem; } .ln-h { grid-template-columns: 5.6rem 1fr 1fr; } .ln-h > span:last-child { display: none; } }
-  .sched-lines-row { display: flex; justify-content: flex-start; margin-top: 0.35rem; }
+  .sched-lines-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; justify-content: flex-start; margin-top: 0.35rem; }
+  .sched-lines-row .sc-imp { margin-top: 0; }
   .sched-lines-row .sc-lines { justify-content: flex-start; }
   .sched-lines-head, .sched-lines-panel { display: none; }
   .sched-game.expanded .sched-lines-head { display: block; }
@@ -5821,17 +5828,39 @@ function renderScheduleKeepingOpen() {
     const dTot = o.tot != null && c.tot != null ? +(c.tot - o.tot).toFixed(1) : 0;
     return { dSp, dTot, size: Math.abs(dSp) + Math.abs(dTot), n: Math.max(0, (L?.moves || []).length - 1) };
   }
-  /** Row chips: the line now, and where it opened when it has moved. */
+  // How big a move is, by market: 0 none, 1 small, 2 real, 3 big. a run line only moves by flipping sides (a 3-point swing); totals move in half runs.
+  const LN_TIER = { sp: [1, 3], tot: [1, 1.5] };
+  const lnTier = (d, k) => { const x = Math.abs(d || 0), [a, b] = LN_TIER[k]; return !x ? 0 : x >= b ? 3 : x >= a ? 2 : 1; };
+  /** Implied final score. A run line is fixed at 1.5 — the price moves, not the
+   *  number — so it says nothing about the margin. The moneyline does: de-vig it
+   *  for the home side's win chance, then split the total by the Pythagorean
+   *  share that gives that chance (exponent 1.83, baseball's standard). */
+  function lnImpliedAt(mlH, mlA, tot) {
+    if (mlH == null || mlA == null || tot == null) return null;
+    const imp = (a) => a > 0 ? 100 / (a + 100) : -a / (-a + 100);
+    const p = imp(mlH) / (imp(mlH) + imp(mlA)), x = 1 / 1.83;
+    const s = Math.pow(p, x) / (Math.pow(p, x) + Math.pow(1 - p, x));
+    return { h: tot * s, a: tot * (1 - s) };
+  }
+  const lnImplied = (L) => lnImpliedAt(L?.cur?.mlH, L?.cur?.mlA, L?.cur?.tot);
+  const lnPts = (v) => v == null ? '—' : (Math.round(v * 10) / 10).toFixed(1).replace(/\.0$/, '');
+  /** Row chips: the line now, the opening number struck through before it, and
+   *  a tint whose strength is the size of the move — one hue, not a good/bad
+   *  ramp, since a line moving is neither. */
   function lnChips(L, away, home) {
     if (!L?.cur) return '';
     const c = L.cur, o = L.open || {}, m = lnMove(L);
     const sp = lnFav(c.sp, away, home), spOpen = lnFav(o.sp, away, home);
     const spMoved = o.sp != null && c.sp != null && o.sp !== c.sp;
+    const tSp = spMoved ? lnTier(m.dSp, 'sp') : 0, tTot = lnTier(m.dTot, 'tot');
+    const [spTeam, spNum] = sp ? sp.split(' ') : [];
+    const [opTeam, opNum] = spOpen ? spOpen.split(' ') : [];
+    // same favourite: "DET −9.5 −6.5" with the old number struck; a flip strikes the whole opening line
+    const spHtml = !sp ? '' : !spMoved ? sp
+      : opTeam === spTeam && opNum != null ? `${spTeam} <s>${opNum}</s> ${spNum ?? ''}` : `<s>${spOpen}</s> ${sp}`;
     return `<span class="sc-ln ln-book" title="${L.book || 'Sportsbook'} via ESPN — the book's line, not ours">DK</span>`
-      // same favourite: just the opening number; a flip: the whole opening line
-      + (sp ? `<span class="sc-ln${spMoved ? ' ln-moved' : ''}" title="${spMoved ? `Opened ${spOpen}` : 'Unchanged since open'}">${sp}${spMoved
-          ? `<small>op ${spOpen.split(' ')[0] === sp.split(' ')[0] ? spOpen.split(' ').pop() : spOpen}</small>` : ''}</span>` : '')
-      + (c.tot != null ? `<span class="sc-ln${m.dTot ? ' ln-moved' : ''}" title="${m.dTot ? `Opened ${o.tot}` : 'Unchanged since open'}">O/U ${c.tot}${m.dTot ? `<small class="${m.dTot > 0 ? 'ln-up' : 'ln-dn'}">${m.dTot > 0 ? '▲' : '▼'}${Math.abs(m.dTot)}</small>` : ''}</span>` : '');
+      + (sp ? `<span class="sc-ln ln-m${tSp}" title="${spMoved ? `Opened ${spOpen}` : 'Unchanged since open'}">${spHtml}</span>` : '')
+      + (c.tot != null ? `<span class="sc-ln ln-m${tTot}" title="${m.dTot ? `Opened ${o.tot}` : 'Unchanged since open'}">O/U ${m.dTot ? `<s>${o.tot}</s> ` : ''}${c.tot}</span>` : '');
   }
   /** Tiny line of one market through its moves. */
   function lnSpark(moves, k, fmt) {
@@ -5864,6 +5893,7 @@ function renderScheduleKeepingOpen() {
       ${row('Total', o.tot ?? '—', c.tot ?? '—', lnSpark(moves, 2))}
       ${row(`${away} ML`, lnAm(o.mlA), lnAm(c.mlA), lnSpark(moves, 4))}
       ${row(`${home} ML`, lnAm(o.mlH), lnAm(c.mlH), lnSpark(moves, 3))}
+      ${row(`Implied ${away}–${home}`, (() => { const x = lnImpliedAt(o.mlH, o.mlA, o.tot); return x ? `${lnPts(x.a)}–${lnPts(x.h)}` : '—'; })(), (() => { const x = lnImpliedAt(c.mlH, c.mlA, c.tot); return x ? `${lnPts(x.a)}–${lnPts(x.h)}` : '—'; })(), '')}
       ${hist}
       <p class="ln-note">${L.book || 'DraftKings'} via ESPN — the book's lines, not ours. The open is the book's; the moves are every change our builds caught.</p>
     </div>`;
@@ -6230,7 +6260,7 @@ function renderSchedule() {
           ${homer}
         </div>
       </div>
-      ${g.lines?.cur ? `<div class="sched-lines-row"><div class="sc-lines">${lnChips(g.lines, awayLabel, homeLabel)}</div></div>` : ''}
+      ${g.lines?.cur ? `<div class="sched-lines-row"><div class="sc-lines">${lnChips(g.lines, awayLabel, homeLabel)}</div>${(() => { const x = lnImplied(g.lines); return x ? `<span class="sc-imp" title="Implied runs: the total split by the moneyline (the run line is fixed at 1.5, so it can't say who wins by how much)">${awayLabel} <b>${lnPts(x.a)}</b> · ${homeLabel} <b>${lnPts(x.h)}</b></span>` : ''; })()}</div>` : ''}
       <div class="sched-venue-row">${g.venue}${venueGames ? ` · <span class="hrg-val ${venueCls}">${venueHRG.toFixed(2)}</span> HR/G` : ''}${schedWeatherChip(g.weather)}</div>
       ${schedPitchersRow(g)}
       <div class="sched-expand-row" onclick="toggleSchedGame(${g.gamePk})">
