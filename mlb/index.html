@@ -5708,7 +5708,8 @@ function renderRecap() {
 // ── SCHEDULE ───────────────────────────────────────────────────────────
 function schedStatusInfo(g) {
   const final = /Final/i.test(g.status);
-  const live  = !final && /In Progress|Live|Manager Challenge|Delayed|Warmup/i.test(g.status);
+  // Warmup, Pre-Game and Delayed Start are MLB's minutes before first pitch — not live yet
+  const live  = !final && !/Warmup|Pre-Game|Delayed Start/i.test(g.status) && /In Progress|Live|Manager Challenge|Delayed/i.test(g.status);
   const scoreTxt = (g.home.score != null && g.away.score != null) ? `${g.away.score}-${g.home.score}` : '';
   if (final) return { cls: 'final', text: `Final${scoreTxt ? ' ' + scoreTxt : ''}` };
   if (live)  return { cls: 'live',  text: `${scoreTxt ? scoreTxt + ' · ' : ''}Live` };
@@ -6499,7 +6500,8 @@ function schedGamesFor(date) {
 function schedState(g) {
   const box = MLB_BOX.games[g.gamePk], info = schedStatusInfo(g);
   const final = box ? box.state === 'Final' : info.cls === 'final';
-  const started = final || (box ? box.state === 'Live' : info.cls === 'live');
+  // MLB files Warmup (and a delayed start) under 'Live' — a game has only started once it's under way
+  const started = final || (box ? box.state === 'Live' && !/Warmup|Pre-Game|Delayed Start/i.test(box.detail || '') : info.cls === 'live');
   return { box, final, started, st: final ? 'final' : started ? 'live' : 'pre' };
 }
 /** HR picks we had on a day, as a Set of pids — the ★ beside a homer. */
