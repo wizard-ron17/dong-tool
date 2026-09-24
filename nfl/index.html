@@ -5152,10 +5152,20 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
     const o = L?.open || {}, c = L?.cur || {};
     const dSp = o.sp != null && c.sp != null ? +(c.sp - o.sp).toFixed(1) : 0;
     const dTot = o.tot != null && c.tot != null ? +(c.tot - o.tot).toFixed(1) : 0;
-    return { dSp, dTot, size: Math.abs(dSp) + Math.abs(dTot), n: Math.max(0, (L?.moves || []).length - 1) };
+    // the favourite's moneyline, as win-chance points moved
+    const imp = (a) => a == null ? null : a > 0 ? 100 / (a + 100) : -a / (-a + 100);
+    const favH = c.mlH != null && c.mlA != null ? imp(c.mlH) >= imp(c.mlA) : true;
+    const mlNow = favH ? c.mlH : c.mlA, mlOpen = favH ? o.mlH : o.mlA;
+    const dMl = mlNow != null && mlOpen != null ? +(100 * (imp(mlNow) - imp(mlOpen))).toFixed(1) : 0;
+    // size for the Line-move sort: the three markets' move tiers added up, so a
+    // flipped run line, a 3-point total and a 6-point moneyline swing all count
+    const size = (dSp ? lnTier(dSp, 'sp') : 0) + (dTot ? lnTier(dTot, 'tot') : 0) + (dMl ? lnTierMl(dMl) : 0);
+    return { dSp, dTot, dMl, favH, mlNow, mlOpen, size, n: Math.max(0, (L?.moves || []).length - 1) };
   }
   // How big a move is, by market: 0 none, 1 small, 2 real, 3 big. half a point is noise, 1+ is a real move, 3+ crosses the key number.
   const LN_TIER = { sp: [1, 3], tot: [1.5, 3] };
+  // moneyline moves in win-chance points: 2+ real, 5+ big
+  const lnTierMl = (pp) => { const x = Math.abs(pp || 0); return !x ? 0 : x >= 5 ? 3 : x >= 2 ? 2 : 1; };
   const lnTier = (d, k) => { const x = Math.abs(d || 0), [a, b] = LN_TIER[k]; return !x ? 0 : x >= b ? 3 : x >= a ? 2 : 1; };
   /** Implied final score. Football: the spread IS the expected margin, so
    *  home = (total - spread) / 2. */
@@ -5182,6 +5192,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
       : opTeam === spTeam && opNum != null ? `${spTeam} <s>${opNum}</s> ${spNum ?? ''}` : `<s>${spOpen}</s> ${sp}`;
     return `<span class="sc-ln ln-book" title="${L.book || 'Sportsbook'} via ESPN — the book's line, not ours">DK</span>`
       + (sp ? `<span class="sc-ln ln-m${tSp}" title="${spMoved ? `Opened ${spOpen}` : 'Unchanged since open'}">${spHtml}</span>` : '')
+      + (m.mlNow != null ? `<span class="sc-ln ln-m${m.dMl ? lnTierMl(m.dMl) : 0}" title="${m.dMl ? `${m.favH ? home : away} opened ${lnAm(m.mlOpen)} — ${m.dMl > 0 ? '+' : ''}${m.dMl} points of win chance since` : 'Moneyline unchanged since open'}">${m.favH ? home : away} ${m.dMl && m.mlOpen !== m.mlNow ? `<s>${lnAm(m.mlOpen)}</s> ` : ''}${lnAm(m.mlNow)}</span>` : '')
       + (c.tot != null ? `<span class="sc-ln ln-m${tTot}" title="${m.dTot ? `Opened ${o.tot}` : 'Unchanged since open'}">O/U ${m.dTot ? `<s>${o.tot}</s> ` : ''}${c.tot}</span>` : '');
   }
   /** Tiny line of one market through its moves. */
