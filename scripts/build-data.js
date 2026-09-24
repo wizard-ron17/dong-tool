@@ -1849,6 +1849,10 @@ async function fetchCatcherCS(pids) {
 
 async function computeSteals(todaySchedule, batMetaMap, stealData, injuryStatus = {}) {
   const { sprint, runners, catchers } = stealData;
+  // regular-season steals from the box scores (fetchDay), postseason left out
+  const officialSB = {};
+  for (const [d, m] of Object.entries(dailySB)) if (!postDates.has(d)) for (const [pid, n] of Object.entries(m)) (officialSB[pid] ??= { sb: 0, cs: 0 }).sb += n;
+  for (const [d, m] of Object.entries(dailyCS)) if (!postDates.has(d)) for (const [pid, n] of Object.entries(m)) (officialSB[pid] ??= { sb: 0, cs: 0 }).cs += n;
   if (!Object.keys(runners).length) return [];
 
   // Likely everyday bats for a team whose lineup hasn't posted (no power floor —
@@ -1894,12 +1898,17 @@ async function computeSteals(todaySchedule, batMetaMap, stealData, injuryStatus 
       for (const pid of battersPids) {
         const run = runners[pid];
         if (!run) continue;
-        const att = run.sb + run.cs;
+        // Official SB / CS, summed off the season's box scores. Savant's runner
+        // board counts only the steal situations it tracks (Crow-Armstrong: 31
+        // SB there, 39 official), so it stays the source for attempt RATE and
+        // leads, while the counts shown — and the success rate — are the real ones.
+        const off = officialSB[pid], sb = off ? off.sb : run.sb, cs = off ? off.cs : run.cs;
+        const att = sb + cs;
         if (att < STEAL_MIN_ATT) continue;               // hasn't run — not a threat
         // Stage 1 — P(attempt) per time-on-base, adjusted for pitcher hand.
         const runPct = Math.min(25, run.rate * STEAL_HAND_MULT[pHand] * 100);
         // Stage 2 — P(success) from runner (shrunk) vs catcher (shrunk) via log5.
-        const runnerSucc = (run.sb + STEAL_SUCC_SHRINK * LEAGUE_SB_SUCC) / (att + STEAL_SUCC_SHRINK);
+        const runnerSucc = (sb + STEAL_SUCC_SHRINK * LEAGUE_SB_SUCC) / (att + STEAL_SUCC_SHRINK);
         const catCs = cat && cat.att > 0
           ? (cat.cs + STEAL_CS_SHRINK * LEAGUE_CS_RATE) / (cat.att + STEAL_CS_SHRINK)
           : LEAGUE_CS_RATE;
@@ -1908,7 +1917,7 @@ async function computeSteals(todaySchedule, batMetaMap, stealData, injuryStatus 
         const ev = (successPct / 100) * STEAL_RUN_VALUE - (1 - successPct / 100) * STEAL_CS_COST;
         rows.push({
           pid, name: playerNames[pid] || pid, team: me.teamAbbr,
-          sprint: sprint[pid] ?? null, sb: run.sb, cs: run.cs, pk: run.pk,
+          sprint: sprint[pid] ?? null, sb, cs, pk: run.pk,
           prim: run.prim != null ? Math.round(run.prim * 10) / 10 : null,
           sec: run.sec != null ? Math.round(run.sec * 10) / 10 : null,
           oppTeam: opp.teamAbbr, oppPid: opp.probablePitcherId, oppName: opp.probablePitcher, pHand,
