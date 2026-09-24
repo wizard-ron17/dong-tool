@@ -941,7 +941,6 @@
   /* Logos use MLB's "cap-on-dark" light variant (see teamLogoUrl), so they
      read cleanly on the dark background with no chip behind them. */
   .team-logo { width: 1.05em; height: 1.05em; object-fit: contain; vertical-align: -0.22em; margin-right: 0.3rem; flex-shrink: 0; }
-  .sched-team-logo { width: 24px; height: 24px; object-fit: contain; flex-shrink: 0; }
   .now-ab-longest { color: #ff7040 !important; }
   .flame-badge { font-size: 0.704rem; margin-left: 0.1rem; }
   .due-longest-banner { background: rgba(255,112,64,0.08); border: 1px solid rgba(255,112,64,0.4); color: #ff8a5c; border-radius: 6px; padding: 0.45rem 0.6rem; font-size: 0.729rem; font-weight: 700; line-height: 1.4; margin-bottom: 0.9rem; }
@@ -1138,71 +1137,80 @@
   .sched-list { display: flex; flex-direction: column; gap: 0.5rem; }
   .sched-game { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.8rem; transition: border-color 0.15s; }
   .sched-game.expanded { border-color: var(--border2); }
-  .sched-right { display: flex; align-items: center; gap: 0.55rem; flex-shrink: 0; }
-  .sched-matchup { display: flex; align-items: center; gap: 0.4rem; font-family: var(--font-d); font-size: 1rem; font-weight: 700; color: var(--text-strong); }
-  .sched-at { color: var(--muted); font-size: 0.754rem; font-weight: 400; }
-  .sched-status { font-size: 0.704rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.15rem 0.55rem; border-radius: 10px; background: var(--surface2); color: var(--muted); white-space: nowrap; flex-shrink: 0; }
-  .sched-status.live  { background: rgba(255,112,64,0.12); color: #ff7040; }
-  .sched-status.final { background: rgba(53,201,110,0.12); color: var(--accent); }
   .sched-venue-row { font-size: 0.692rem; color: var(--muted); margin-top: 0.35rem; }
   /* ── Sportsbook lines + movement ── */
   /* Line movement: one neutral hue (not the good/bad ramp — a line moving is
      neither), stronger the bigger the move. m0 unchanged, m1 small, m2 real, m3 big. */
   :root { --mvc: #8b9cff; }
   :root[data-theme="light"] { --mvc: #4a57d8; }
-  /* ── The card's top: matchup (or scoreboard) and game info left, the book's box, status right ── */
-  .sched-top { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "head box side" "info box side"; gap: 0.45rem 1.1rem; align-items: start; cursor: pointer; }
-  .sched-head { grid-area: head; min-width: 0; }
-  .sched-info { grid-area: info; min-width: 0; }
-  .sched-top > .mob { grid-area: box; }
-  .sched-top > .sched-right { grid-area: side; }
-  .sched-info > .sched-venue-row:first-child { margin-top: 0; }
-  /* odds box: teams are the columns (logos head them), markets the rows */
-  .mob { display: grid; grid-template-columns: auto 4.6rem 4.6rem; align-items: center; column-gap: 0.35rem; row-gap: 0.12rem; flex-shrink: 0;
-         background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.35rem 0.55rem 0.4rem; font-family: var(--font-m); font-size: 0.74rem; }
-  .mob-k { font-family: var(--font-b); font-size: 0.66rem; font-weight: 600; color: var(--muted); padding-right: 0.3rem; white-space: nowrap; }
-  .mob-bk { font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); font-weight: 700; }
-  .mob-h { text-align: center; }
-  .mob-logo { width: 18px; height: 18px; object-fit: contain; vertical-align: -4px; }
-  .mob-v { text-align: center; font-weight: 600; color: var(--text); background: var(--surface0); border-radius: 5px; padding: 0.12rem 0; white-space: nowrap; }
-  .mob-v small { font-size: 0.6rem; color: var(--muted); font-weight: 500; margin-left: 0.2rem; }
-  .mob .mv1 { color: color-mix(in srgb, var(--mvc) 60%, var(--text)); }
-  .mob .mv2 { color: var(--mvc); }
-  .mob .mv3 { color: var(--mvc); font-weight: 800; }
-  .mob-o { grid-column: 1 / -1; font-size: 0.62rem; color: var(--dim); text-align: right; margin-top: 0.1rem; }
-  /* finals: how the closing lines settled, one market a row */
-  .mob-set { grid-template-columns: auto auto; }
-  .mob-span { grid-column: 1 / -1; }
-  .mob-w { color: var(--text); white-space: nowrap; }
-  .mob-w .mob-logo { margin-right: 0.25rem; }
-  .mob-w b { color: var(--text-strong); margin-left: 0.2rem; }
-  .mob-w small { font-size: 0.62rem; color: var(--muted); margin-left: 0.35rem; }
-  /* ── Scoreboard for started games ── */
-  .sb { display: inline-grid; grid-template-columns: minmax(4.6rem, auto) repeat(var(--sb-n), 1.35rem) 2.4rem 1.5rem 1.5rem; row-gap: 0.1rem; align-items: center; min-width: 0; }
+  /* ── Game cards, scoreboard-style: away left, home right, runs big, the game's state between ──
+     Each side takes a soft wash of its club colour (categorical, not the good/bad ramp). */
+  .sched-list.gc-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); grid-auto-flow: dense; gap: 0.55rem; }
+  .gc-list .sched-game.expanded { grid-column: 1 / -1; }
+  .gc-card { --wash: 20%; background: linear-gradient(90deg, color-mix(in srgb, var(--ca) var(--wash), var(--surface0)) 0%, var(--surface0) 42%, var(--surface0) 58%, color-mix(in srgb, var(--cb) var(--wash), var(--surface0)) 100%); padding: 0.45rem 0.7rem 0.5rem; }
+  :root[data-theme="light"] .gc-card { --wash: 11%; }
+  .gc-hit { cursor: pointer; }
+  .gc { display: grid; grid-template-columns: 4.2rem 1fr 6.6rem 1fr 4.2rem; grid-template-rows: auto auto; align-items: center; }
+  .gc-homer { grid-column: 1 / -1; text-align: center; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--dim); margin-bottom: 0.1rem; }
+  .gc-homer b { font-family: var(--font-d); font-size: 0.78rem; letter-spacing: 0; margin-left: 0.15rem; }
+  .gc-homer b.great { color: var(--accent); }
+  .gc-homer b.good  { color: var(--good-2); }
+  .gc-homer b.avg   { color: var(--gold); }
+  .gc-homer b.below { color: var(--warn); }
+  .gc-homer b.bad   { color: var(--bad); }
+  .gc-team { display: flex; flex-direction: column; align-items: center; gap: 0.12rem; min-width: 0; }
+  .gc-logo { width: 36px; height: 36px; object-fit: contain; }
+  .gc-ab { font-family: var(--font-d); font-weight: 700; font-size: 0.8rem; color: var(--text-strong); line-height: 1; }
+  .gc-sub { font-size: 0.6rem; color: var(--muted); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; }
+  .gc-sub:empty { display: none; }
+  .gc-hand { font-weight: 700; color: var(--dim); }
+  .gc-team.lost .gc-ab { color: var(--muted); }
+  .gc-team.lost .gc-logo { opacity: 0.55; }
+  .gc-r { font-family: var(--font-d); font-size: 2.3rem; font-weight: 700; line-height: 1; text-align: center; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+  .gc-r.lost { color: var(--dim); }
+  .gc-ml { font-family: var(--font-m); font-size: 0.9rem; font-weight: 600; text-align: center; color: var(--text); }
+  .gc-mid { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; text-align: center; min-width: 0; }
+  .gc-st { font-family: var(--font-d); font-weight: 700; font-size: 0.95rem; color: var(--text-strong); white-space: nowrap; }
+  .gc-st.live { color: #ff7040; font-size: 0.85rem; }
+  .gc-st.final { color: var(--muted); font-size: 0.85rem; }
+  .gc-ln { font-family: var(--font-m); font-size: 0.66rem; color: var(--muted); white-space: nowrap; }
+  .gc-cash { color: var(--text); }
+  .gc .mv1 { color: color-mix(in srgb, var(--mvc) 60%, var(--text)); }
+  .gc .mv2 { color: var(--mvc); }
+  .gc .mv3 { color: var(--mvc); font-weight: 800; }
+  .gc-bases { width: 30px; height: 20px; }
+  .gc-bases rect { fill: none; stroke: var(--muted); stroke-width: 1.2; }
+  .gc-bases rect.on { fill: #ff7040; stroke: #ff7040; }
+  .gc-card .sched-venue-row { text-align: center; margin-top: 0.35rem; }
+  /* the game's homers, one line */
+  .gc-hrs { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 0.1rem 0.3rem; margin-top: 0.35rem; font-size: 0.7rem; color: var(--text); }
+  .gc-hrs-k { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.08em; color: var(--dim); margin-right: 0.1rem; }
+  .gc-hr b { color: var(--text-strong); }
+  .gc-hr.ours { color: var(--gold); font-weight: 600; }
+  .gc-dot { color: var(--dim); }
+  .gc-card .sched-expand-row { margin-top: 0.3rem; }
+  .gc-card { position: relative; }
+  .gc-card.started .sched-expand-row { position: absolute; right: 0.7rem; bottom: 0.5rem; margin: 0; }
+  .gc-card.started .gc-hrs { padding: 0 1.1rem; }
+  .gc-card.started.expanded .sched-expand-row { top: 0.5rem; bottom: auto; }
+  .gc-list .sched-game.expanded .gc-hit { max-width: 520px; margin: 0 auto; }
+  /* expanded: the full line score (started) or the starters (before) */
+  .gc-exp { display: none; margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
+  .sched-game.expanded .gc-exp { display: flex; justify-content: center; }
+  /* ── Line score ── */
+  .sb { display: inline-grid; grid-template-columns: minmax(4.2rem, auto) repeat(var(--sb-n), 1.5rem) 2rem 1.6rem 1.6rem; row-gap: 0.15rem; align-items: center; max-width: 100%; overflow-x: auto; }
   .sb-row { display: contents; }
   .sb-head > span { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.06em; color: var(--dim); text-align: center; }
-  .sb-team { display: flex; align-items: center; gap: 0.45rem; font-family: var(--font-d); font-weight: 700; font-size: 1rem; color: var(--text-strong); }
-  .sb-logo { width: 28px; height: 28px; object-fit: contain; }
-  .sb-i { font-family: var(--font-m); font-size: 0.72rem; color: var(--muted); text-align: center; }
-  .sb-r { font-family: var(--font-d); font-size: 1.7rem; font-weight: 700; line-height: 1.1; color: var(--text-strong); text-align: center; }
-  .sb-he { font-family: var(--font-m); font-size: 0.78rem; color: var(--muted); text-align: center; }
-  .sb-row.lost .sb-team, .sb-row.lost .sb-r { color: var(--muted); font-weight: 600; }
-  .sb-row.lost .sb-logo { opacity: 0.6; }
-  /* the game's homers */
-  .sb-hrs { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.45rem; margin-bottom: 0.4rem; }
-  .sb-hrs-k { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--dim); margin-right: 0.1rem; }
-  .sb-hr { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.74rem; font-weight: 600; color: var(--text); background: var(--surface1); border: 1px solid var(--border); border-radius: 12px; padding: 0.12rem 0.5rem 0.12rem 0.3rem; white-space: nowrap; }
-  .sb-hr small { font-size: 0.62rem; font-weight: 500; color: var(--muted); }
-  .sb-hr.ours { border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); }
-  .sb-none { font-size: 0.72rem; color: var(--muted); }
+  .sb-team { display: flex; align-items: center; gap: 0.4rem; font-family: var(--font-d); font-weight: 700; font-size: 0.85rem; color: var(--text-strong); }
+  .sb-logo { width: 20px; height: 20px; object-fit: contain; }
+  .sb-i { font-family: var(--font-m); font-size: 0.74rem; color: var(--muted); text-align: center; }
+  .sb-r { font-family: var(--font-d); font-size: 1rem; font-weight: 700; color: var(--text-strong); text-align: center; }
+  .sb-he { font-family: var(--font-m); font-size: 0.74rem; color: var(--muted); text-align: center; }
+  .sb-row.lost .sb-team, .sb-row.lost .sb-r { color: var(--muted); }
   @media (max-width: 600px) {
-    .sched-top { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "head side" "info info" "box box"; }
-    .mob { grid-template-columns: auto 1fr 1fr; }
-    .mob-set { grid-template-columns: auto 1fr; }
-    /* phones: runs, hits, errors — the inning-by-inning line doesn't fit */
-    .sb { grid-template-columns: minmax(4.4rem, auto) 2.2rem 1.4rem 1.4rem; }
-    .sb-i { display: none; }
-    .sb-r { font-size: 1.5rem; }
+    .sched-list.gc-list { grid-template-columns: 1fr; }
+    .sb { grid-template-columns: minmax(3.6rem, auto) repeat(var(--sb-n), 1.15rem) 1.6rem 1.3rem 1.3rem; }
+    .sb-i { font-size: 0.66rem; }
   }
   .ln { background: var(--surface1); border: 1px solid var(--border); border-radius: 12px; padding: 0.6rem 0.8rem; }
   .ln-row { display: grid; grid-template-columns: 5.2rem 1fr 1.2rem 1fr 7.5rem; align-items: center; gap: 0.4rem; padding: 0.42rem 0; border-top: 1px solid var(--border); font-family: var(--font-d); font-weight: 700; }
@@ -1228,15 +1236,6 @@
   .sched-wx { margin-left: 0.15rem; white-space: nowrap; }
   .sched-wx-sep { opacity: 0.5; margin: 0 0.15rem; }
   .wx-favor { color: var(--accent); font-weight: 700; }
-  /* Homer Score: per-game HR-betting confidence, red→yellow→green gradient. */
-  .sched-homer { display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0; }
-  .sched-homer-lbl { font-size: 0.630rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); line-height: 1; text-align: right; }
-  .sched-homer-num { font-family: var(--font-d); font-weight: 600; font-size: 1.15rem; line-height: 1; min-width: 1.9rem; text-align: center; }
-  .sched-homer-num.great { color: var(--accent); }
-  .sched-homer-num.good  { color: var(--good-2); }
-  .sched-homer-num.avg   { color: var(--gold); }
-  .sched-homer-num.below { color: var(--warn); }
-  .sched-homer-num.bad   { color: var(--bad); }
   .sched-meta-avg { font-family: var(--font-d); font-weight: 700; font-size: 0.85rem; }
   .sched-meta-avg.great { color: var(--accent); }
   .sched-meta-avg.good  { color: var(--good-2); }
@@ -5917,6 +5916,7 @@ function renderScheduleKeepingOpen() {
       <div class="ln-row ln-head"><span class="ln-k"></span><span class="ln-o">Open</span><span class="ln-arrow"></span><span class="ln-c">Now</span><span class="ln-sp"></span></div>
       ${row('Spread', lnFav(o.sp, away, home) || '—', lnFav(c.sp, away, home) || '—', lnSpark(moves, 1))}
       ${row('Total', o.tot ?? '—', c.tot ?? '—', lnSpark(moves, 2))}
+      ${c.oO != null || c.uO != null ? row('Over / Under', `${lnAm(o.oO)} / ${lnAm(o.uO)}`, `${lnAm(c.oO)} / ${lnAm(c.uO)}`, lnSpark(moves, 5)) : ''}
       ${row(`${away} ML`, lnAm(o.mlA), lnAm(c.mlA), lnSpark(moves, 4))}
       ${row(`${home} ML`, lnAm(o.mlH), lnAm(c.mlH), lnSpark(moves, 3))}
       ${hist}
@@ -6239,6 +6239,7 @@ function loadMlbBox() {
         MLB_BOX.games[g.gamePk] = {
           state: g.status?.abstractGameState, detail: g.status?.detailedState,
           inning: ls.currentInningOrdinal || null, half: ls.inningState || ls.inningHalf || null, outs: ls.outs,
+          bases: { first: !!ls.offense?.first, second: !!ls.offense?.second, third: !!ls.offense?.third },
           innings: (ls.innings || []).map(i => [i.away?.runs, i.home?.runs]),
           away: side(t.away), home: side(t.home),
           hrs: (g.scoringPlays || []).filter(p => p.result?.event === 'Home Run').map(p => ({
@@ -6258,31 +6259,6 @@ function loadMlbBox() {
     });
 }
 const mlbOrd = (i) => i + (['th', 'st', 'nd', 'rd'][(i % 100 - 20) % 10] || ['th', 'st', 'nd', 'rd'][i % 100] || 'th');
-
-/** The book's lines as a small box: the two teams are the columns (their logos
- *  head them, as the card's header already names them), markets are the rows.
- *  Moved numbers take the neutral move hue, stronger the bigger the move. */
-function mlbOddsBox(g, away, home) {
-  const L = g.lines; if (!L?.cur) return '';
-  const c = L.cur, o = L.open || {};
-  const imp = (a) => a == null ? null : a > 0 ? 100 / (a + 100) : -a / (-a + 100);
-  const mv = (t) => t ? ` mv${t}` : '';
-  const spT = o.sp != null && c.sp != null && o.sp !== c.sp ? lnTier(c.sp - o.sp, 'sp') : 0;
-  const mlT = (now, then) => now != null && then != null && now !== then ? lnTierMl(100 * (imp(now) - imp(then))) : 0;
-  const totT = o.tot != null && c.tot != null && o.tot !== c.tot ? lnTier(c.tot - o.tot, 'tot') : 0;
-  const sp = (v) => v == null ? '—' : v === 0 ? 'PK' : (v > 0 ? '+' : '') + lnNum(v);
-  const opened = [];
-  if (spT) opened.push(`run line ${lnFav(o.sp, away, home)}`);
-  if (mlT(c.mlA, o.mlA) || mlT(c.mlH, o.mlH)) opened.push(`${away} ${lnAm(o.mlA)} / ${home} ${lnAm(o.mlH)}`);
-  if (totT) opened.push(`total ${o.tot}`);
-  return `<div class="mob" title="${L.book || 'DraftKings'} via ESPN — the book's lines, not ours">
-    <span class="mob-k mob-bk">DK</span><span class="mob-h">${teamLogoImg(away, 'mob-logo')}</span><span class="mob-h">${teamLogoImg(home, 'mob-logo')}</span>
-    <span class="mob-k">Run line</span><span class="mob-v${mv(spT)}">${sp(c.sp == null ? null : -c.sp)}</span><span class="mob-v${mv(spT)}">${sp(c.sp)}</span>
-    <span class="mob-k">Moneyline</span><span class="mob-v${mv(mlT(c.mlA, o.mlA))}">${lnAm(c.mlA)}</span><span class="mob-v${mv(mlT(c.mlH, o.mlH))}">${lnAm(c.mlH)}</span>
-    ${c.tot != null ? `<span class="mob-k">Total</span><span class="mob-v${mv(totT)}">o${c.tot}<small>${lnAm(c.oO)}</small></span><span class="mob-v${mv(totT)}">u${c.tot}<small>${lnAm(c.uO)}</small></span>` : ''}
-    ${opened.length ? `<span class="mob-o">opened ${opened.join(' · ')}</span>` : ''}
-  </div>`;
-}
 
 /** A started game as a scoreboard: logos, the line score by inning (wide
  *  screens), runs big, then hits and errors. The winner's row is bright. */
@@ -6306,41 +6282,63 @@ function mlbScoreboard(g, away, home, box, final) {
   </div>`;
 }
 
-/** How DraftKings' closing lines settled — the bettor's box score. */
-function mlbSettled(g, away, home, box) {
-  const L = g.lines?.cur; if (!L) return '';
+/** The card itself, scoreboard-style: away on the left, home on the right, big
+ *  runs beside each, the state of the game in the middle. Before first pitch
+ *  the runs' place holds each side's moneyline and the middle the run line and
+ *  total; after, the middle says which run-line side and total cashed. */
+function mlbGameCard(g, away, home, box, st, homer) {
+  const L = g.lines?.cur, o = g.lines?.open || {};
+  const imp = (a) => a == null ? null : a > 0 ? 100 / (a + 100) : -a / (-a + 100);
+  const mv = (t) => t ? ` mv${t}` : '';
+  const mlT = (now, then) => now != null && then != null && now !== then ? lnTierMl(100 * (imp(now) - imp(then))) : 0;
+  const spT = L && o.sp != null && L.sp != null && o.sp !== L.sp ? lnTier(L.sp - o.sp, 'sp') : 0;
+  const totT = L && o.tot != null && L.tot != null && o.tot !== L.tot ? lnTier(L.tot - o.tot, 'tot') : 0;
+  const favSp = L?.sp != null ? `<span class="${mv(spT).trim()}">${lnFav(L.sp, away, home)}</span>` : '';
   const aR = box?.away.r ?? g.away.score, hR = box?.home.r ?? g.home.score;
-  if (aR == null || hR == null) return '';
-  const out = [];
-  if (L.mlA != null && L.mlH != null) {
-    const hw = hR > aR;
-    out.push(['Moneyline', `${teamLogoImg(hw ? home : away, 'mob-logo')}${hw ? home : away} <b>${lnAm(hw ? L.mlH : L.mlA)}</b>`]);
+  const started = st !== 'pre', final = st === 'final';
+  const aWin = final && aR > hR, hWin = final && hR > aR;
+  const pShort = (side) => side.probablePitcher ? `${compactPlayerName(side.probablePitcher)}${side.probablePitcherThrows ? ` <span class="gc-hand">${side.probablePitcherThrows}</span>` : ''}` : 'TBD';
+  const team = (ab, side, won, lost, cls) => `<div class="gc-team ${cls}${lost ? ' lost' : ''}">${teamLogoImg(ab, 'gc-logo')}<span class="gc-ab">${ab}</span>
+      <span class="gc-sub">${started ? '' : pShort(side)}</span></div>`;
+  const score = (r, ml, mlOpen, lost) => started
+    ? `<div class="gc-r${lost ? ' lost' : ''}">${r ?? 0}</div>`
+    : `<div class="gc-ml${mv(mlT(ml, mlOpen))}" title="Moneyline">${ml != null ? lnAm(ml) : ''}</div>`;
+  let mid;
+  if (!started) {
+    const time = new Date(g.gameDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    mid = `<div class="gc-st">${/Postponed|Suspended|Delayed/i.test(g.status) ? g.status : time}</div>
+      ${L ? `<div class="gc-ln">${favSp}</div>${L.tot != null ? `<div class="gc-ln" title="Over ${lnAm(L.oO)} · Under ${lnAm(L.uO)}">O/U <span class="${mv(totT).trim()}">${L.tot}</span></div>` : ''}` : ''}`;
+  } else if (!final) {
+    const top = /top|mid/i.test(box?.half || ''), b = box?.bases || {};
+    const base = (on, x, y) => `<rect x="${x}" y="${y}" width="7" height="7" transform="rotate(45 ${x + 3.5} ${y + 3.5})" class="${on ? 'on' : ''}"/>`;
+    mid = `<svg class="gc-bases" viewBox="0 0 30 20" aria-label="runners">${base(b.second, 11.5, 1.5)}${base(b.third, 3, 10)}${base(b.first, 20, 10)}</svg>
+      <div class="gc-st live">${box?.inning ? `${top ? '▲' : '▼'} ${box.inning}` : 'Live'}</div>
+      ${box?.outs != null && !/mid|end/i.test(box?.half || '') ? `<div class="gc-ln">${box.outs} out${box.outs === 1 ? '' : 's'}</div>` : ''}`;
+  } else {
+    // how the closing run line and total settled
+    const out = [];
+    const sgn = (v) => (v > 0 ? '+' : '') + lnNum(v);
+    if (L?.sp != null && aR != null) { const m = (hR - aR) + L.sp; out.push(m === 0 ? 'Run line push' : m > 0 ? `${home} ${sgn(L.sp)}` : `${away} ${sgn(-L.sp)}`); }
+    if (L?.tot != null && aR != null) { const d = aR + hR - L.tot; out.push(d === 0 ? `Push ${L.tot}` : `${d > 0 ? 'Over' : 'Under'} ${L.tot}`); }
+    const extra = box?.innings?.length > 9 ? `/${box.innings.length}` : '';
+    mid = `<div class="gc-st final">Final${extra}</div>${out.map(x => `<div class="gc-ln gc-cash" title="Cashed at DraftKings' closing line">${x} ✓</div>`).join('')}`;
   }
-  if (L.sp != null) {
-    const m = (hR - aR) + L.sp;
-    const hc = m > 0, ab = hc ? home : away, line = hc ? L.sp : -L.sp;
-    out.push(['Run line', m === 0 ? `push ${lnFav(L.sp, away, home)}` : `${teamLogoImg(ab, 'mob-logo')}${ab} <b>${line === 0 ? 'PK' : (line > 0 ? '+' : '') + lnNum(line)}</b>`]);
-  }
-  if (L.tot != null) {
-    const t = aR + hR, d = t - L.tot, ov = d > 0;
-    out.push(['Total', d === 0 ? `push ${L.tot}` : `${ov ? 'Over' : 'Under'} ${L.tot} <b>${lnAm(ov ? L.oO : L.uO)}</b><small>${t} run${t === 1 ? '' : 's'}</small>`]);
-  }
-  return `<div class="mob mob-set" title="How ${g.lines.book || 'DraftKings'}' closing lines settled">
-    <span class="mob-k mob-bk mob-span">Closing lines · who cashed</span>
-    ${out.map(([k, v]) => `<span class="mob-k">${k}</span><span class="mob-w">${v}</span>`).join('')}
+  return `<div class="gc">
+    ${homer}
+    ${team(away, g.away, aWin, hWin, 'a')}${score(aR, L?.mlA, o.mlA, hWin)}
+    <div class="gc-mid">${mid}</div>
+    ${score(hR, L?.mlH, o.mlH, aWin)}${team(home, g.home, hWin, aWin, 'h')}
   </div>`;
 }
 
-/** The game's home runs, a ★ on anyone our HR Picks board had today. */
+/** The game's home runs on one line, a ★ on anyone our HR Picks board had today. */
 function mlbHomers(g, away, home, box) {
-  const hrs = box?.hrs || []; if (!box) return '';
-  if (!hrs.length) return `<div class="sb-hrs"><span class="sb-hrs-k">Home runs</span><span class="sb-none">none${box.state === 'Final' ? '' : ' yet'}</span></div>`;
+  const hrs = box?.hrs || []; if (!hrs.length) return '';
   const ours = new Set([...(picks || []), ...(value || [])].map(p => String(p.pid)));
-  const kind = (r) => r >= 4 ? 'slam' : r === 1 ? 'solo' : `${r}-run`;
-  return `<div class="sb-hrs"><span class="sb-hrs-k">Home runs · ${hrs.length}</span>
-    ${hrs.map(h => { const our = ours.has(h.pid);
-      return `<span class="sb-hr${our ? ' ours' : ''}"${our ? ' title="On our HR Picks board today"' : ''}>${teamLogoImg(h.top ? away : home, 'mob-logo')}${our ? '★ ' : ''}${compactPlayerName(h.name)}<small>${kind(h.rbi)} · ${mlbOrd(h.inning)}</small></span>`; }).join('')}
-  </div>`;
+  const by = new Map();
+  for (const h of hrs) { const x = by.get(h.pid) || { ...h, n: 0, inn: [] }; x.n++; x.inn.push(mlbOrd(h.inning)); by.set(h.pid, x); }
+  return `<div class="gc-hrs"><span class="gc-hrs-k">HR</span>${[...by.values()].map(h => { const our = ours.has(h.pid);
+    return `<span class="gc-hr${our ? ' ours' : ''}" title="${h.name} (${h.top ? away : home}) — ${h.inn.join(', ')}${our ? ' · on our HR Picks board today' : ''}">${our ? '★ ' : ''}${compactPlayerName(h.name)}${h.n > 1 ? ` <b>×${h.n}</b>` : ''}</span>`; }).join('<span class="gc-dot">·</span>')}</div>`;
 }
 
 function renderSchedule() {
@@ -6382,7 +6380,7 @@ function renderSchedule() {
   </div>` : '';
   const digestBtn = `<button class="dinger-digest-btn" onclick="openDingerDigest()" title="A GMG-style slate sheet of today's pitching matchups, park/weather, Homer Scores, and our best HR leans — screenshot &amp; share">🚀 Dinger Digest</button>`;
   const toolbar = `<div class="sched-toolbar">${sortBar || '<span></span>'}${digestBtn}</div>`;
-  contentEl.innerHTML = legend + toolbar + `<div class="sched-list">${sorted.map(g => {
+  contentEl.innerHTML = legend + toolbar + `<div class="sched-list gc-list">${sorted.map(g => {
     const info = schedStatusInfo(g);
     const lineupStatus = schedLineupStatus(g);
     const awayLabel = g.away.teamAbbr || g.away.teamName, homeLabel = g.home.teamAbbr || g.home.teamName;
@@ -6390,39 +6388,23 @@ function renderSchedule() {
     const venueHRs = Object.values(venueHRsByDate[g.venue] ?? {}).reduce((a,b)=>a+b, 0);
     const venueHRG = venueGames ? venueHRs / venueGames : 0;
     const venueCls = hrgClass(venueHRG, leagueAvg);
-    const homer = g.homer ? `<div class="sched-homer" title="Homer Score — HR-betting confidence for this game (park ${g.homer.park}× · weather ${g.homer.weather}× · lineups ${g.homer.bat}× · starters ${g.homer.sp}× · pens ${g.homer.pen}×)">
-        <span class="sched-homer-lbl">Homer<br>Score</span>
-        <span class="sched-homer-num ${homerScoreClass(g.homer.score)}">${g.homer.score}</span>
-      </div>` : '';
     // a started game is a scoreboard; before first pitch, the matchup and the book's lines
     const box = MLB_BOX.games[g.gamePk];
     const final = box ? box.state === 'Final' : info.cls === 'final';
     const started = final || (box ? box.state === 'Live' : info.cls === 'live');
-    const status = !started ? info : final ? { cls: 'final', text: box?.detail && box.detail !== 'Final' ? box.detail : 'Final' }
-      : { cls: 'live', text: box?.inning ? `${box.half ? box.half + ' ' : ''}${box.inning}` : 'Live' };
     const venue = `<div class="sched-venue-row">${g.venue}${venueGames ? ` · <span class="hrg-val ${venueCls}">${venueHRG.toFixed(2)}</span> HR/G` : ''}${schedWeatherChip(g.weather)}</div>`;
-    return `<div class="sched-game${started ? ' started' : ''}" id="sched-game-${g.gamePk}">
-      <div class="sched-top" onclick="toggleSchedGame(${g.gamePk})">
-        <div class="sched-head">
-          ${started ? mlbScoreboard(g, awayLabel, homeLabel, box, final) : `<div class="sched-matchup">
-            ${teamLogoImg(awayLabel, 'sched-team-logo')}
-            <span class="sched-team">${awayLabel}</span>
-            <span class="sched-at">@</span>
-            ${teamLogoImg(homeLabel, 'sched-team-logo')}
-            <span class="sched-team">${homeLabel}</span>
-          </div>`}
-        </div>
-        <div class="sched-info">${started ? mlbHomers(g, awayLabel, homeLabel, box) + venue : venue + schedPitchersRow(g)}</div>
-        ${final ? mlbSettled(g, awayLabel, homeLabel, box) : mlbOddsBox(g, awayLabel, homeLabel)}
-        <div class="sched-right">
-          <div class="sched-status ${status.cls}">${status.text}</div>
-          ${homer}
-        </div>
+    const st = final ? 'final' : started ? 'live' : 'pre';
+    const homerTag = g.homer ? `<div class="gc-homer" title="Homer Score — HR-betting confidence for this game (park ${g.homer.park}× · weather ${g.homer.weather}× · lineups ${g.homer.bat}× · starters ${g.homer.sp}× · pens ${g.homer.pen}×)">Homer Score <b class="${homerScoreClass(g.homer.score)}">${g.homer.score}</b></div>` : '';
+    return `<div class="sched-game gc-card${started ? ' started' : ''}" id="sched-game-${g.gamePk}" style="--ca:${teamColor(awayLabel)};--cb:${teamColor(homeLabel)}">
+      <div class="gc-hit" onclick="toggleSchedGame(${g.gamePk})">
+        ${mlbGameCard(g, awayLabel, homeLabel, box, st, homerTag)}
+        ${started ? mlbHomers(g, awayLabel, homeLabel, box) : venue}
       </div>
       <div class="sched-expand-row" onclick="toggleSchedGame(${g.gamePk})">
-        <span class="sched-lineup-status ${lineupStatus.cls}">${lineupStatus.text}</span>
+        ${started ? '<span></span>' : `<span class="sched-lineup-status ${lineupStatus.cls}">${lineupStatus.text}</span>`}
         <span class="sched-expand-hint">▶</span>
       </div>
+      <div class="gc-exp">${started ? mlbScoreboard(g, awayLabel, homeLabel, box, final) : schedPitchersRow(g)}</div>
       <div class="sched-lineups">
         ${schedLineupHtml(g.away, g.home, g.venue)}
         ${schedLineupHtml(g.home, g.away, g.venue)}
