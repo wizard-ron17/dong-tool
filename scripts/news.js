@@ -54,6 +54,8 @@ const espnIdOf = (a) => { const h = (a?.links || []).map(l => l.href || '').find
  * @returns { generated, injuries: { pid: {s, st, t, r, d, c} }, espn: { pid: espnId }, tx: [{d, team, text}], matched, total }
  */
 export async function buildNews(sport, { players = [], espnToOurs = null } = {}) {
+  let prev = null;
+  try { prev = JSON.parse((await import('node:fs')).readFileSync(new URL(`../${sport}/news.json`, import.meta.url), 'utf8')); } catch (e) { /* first build */ }
   const fix = TEAM_FIX[sport] || {};
   const ours = (ab) => fix[ab] || ab;
   const byNameTeam = new Map(), byName = new Map();
@@ -118,8 +120,28 @@ export async function buildNews(sport, { players = [], espnToOurs = null } = {})
   }
   tx.sort((a, b) => b.d.localeCompare(a.d));
 
+  // RotoWire's player-news feed holds only its newest five, so each build
+  // keeps what it has seen (carried in the previous news.json, 48 hours, 60
+  // items): the ticker opens on a backlog, not just the last hour.
+  const RW = { mlb: 'MLB', nfl: 'NFL', nhl: 'NHL' }[sport];
+  const rw = (prev?.rw || []).filter(x => Date.now() - Date.parse(x.t) < 48 * 3600e3);
+  try {
+    const r = await fetch(`https://www.rotowire.com/rss/news.php?sport=${RW}`, { headers: { 'User-Agent': 'Mozilla/5.0 (dong-tool)' } });
+    const xml = r.ok ? await r.text() : '';
+    const tag = (it, k) => (it.match(new RegExp(`<${k}>([\\s\\S]*?)</${k}>`)) || [])[1] || '';
+    const clean = (t) => t.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/<[^>]+>/g, ' ').replace(/&lt;[\s\S]*?&gt;/g, ' ').replace(/Visit RotoWire[\s\S]*$/, '')
+      .replace(/&amp;/g, '&').replace(/&#0?39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim();
+    for (const it of xml.match(/<item>[\s\S]*?<\/item>/g) || []) {
+      const title = clean(tag(it, 'title')), id = clean(tag(it, 'guid')) || clean(tag(it, 'link')) || title;
+      if (!title || rw.some(x => x.id === id)) continue;
+      const [name, ...rest] = title.split(':');
+      rw.push({ id, name: name.trim(), head: rest.join(':').trim(), blurb: clean(tag(it, 'description')), t: new Date(clean(tag(it, 'pubDate')) || Date.now()).toISOString(), link: clean(tag(it, 'link')) });
+    }
+  } catch (e) { /* keep what we had */ }
+  rw.sort((a, b) => b.t.localeCompare(a.t));
+
   // name -> our id, for the page to tie a RotoWire headline ("Zay Flowers: …") to a card
   const names = {};
   for (const [k, pid] of byName) if (pid) names[k] = +pid || pid;
-  return { generated: new Date().toISOString(), injuries, espn, names, tx: tx.slice(0, 60), matched, total };
+  return { generated: new Date().toISOString(), injuries, espn, names, tx: tx.slice(0, 60), rw: rw.slice(0, 60), matched, total };
 }

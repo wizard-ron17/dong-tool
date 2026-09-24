@@ -6598,6 +6598,7 @@ const NW = { sport: 'mlb', rw: 'MLB', fantasy: 'flb', data: null, state: 'idle',
 const nwEsc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const nwNorm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
   .replace(/[.'’`-]/g, ' ').replace(/\b(jr|sr|ii|iii|iv|v)\b/g, ' ').replace(/\s+/g, ' ').trim();
+const nwToTitle = (s) => String(s || '').replace(/\b\w/g, c => c.toUpperCase());
 const nwAgo = (t) => { const m = Math.max(0, Math.round((Date.now() - t) / 60000)); return m < 60 ? `${m || 1}m` : m < 1440 ? `${Math.round(m / 60)}h` : `${Math.round(m / 1440)}d`; };
 const nwOpen = (pid) => { openMlbPlayer(String(pid)); return true; };
 function loadNews() {
@@ -6671,10 +6672,23 @@ function pollRotowire() {
     }).catch(() => { /* next poll */ });
 }
 function ntEntries() {
-  const out = NW.items.map(x => ({ ...x, kind: 'rw' }));
+  // RotoWire: what this visit has polled, plus the build's backlog (48h)
+  const seen = new Set(), out = [];
+  for (const x of [...NW.items, ...(NW.data?.rw || []).map(r => ({ ...r, t: Date.parse(r.t) }))])
+    if (!seen.has(x.id)) { seen.add(x.id); out.push({ ...x, kind: 'rw' }); }
+  // injury-report updates in the last day (RotoWire's line on each), for anyone not already in the feed
+  const inFeed = new Set(out.map(x => nwNorm(x.name)));
+  const nameOf = {}; for (const [n, pid] of Object.entries(NW.data?.names || {})) nameOf[pid] = n;
+  for (const [pid, x] of Object.entries(NW.data?.injuries || {})) {
+    const t = Date.parse(x.d || ''); if (!(Date.now() - t < 24 * 3600e3) || !x.c) continue;
+    const nm = x.c.match(/^([A-Z][\w.'’-]+(?: [A-Z][\w.'’-]+)?)/)?.[1] || '';
+    const full = nwToTitle(nameOf[pid] || nameOf[+pid] || nm);
+    if (inFeed.has(nwNorm(full))) continue;
+    out.push({ id: 'inj' + pid + x.d, name: full, head: `${x.st || x.s}${x.t ? ' · ' + x.t : ''}`, blurb: x.c, t, kind: 'rw', pid });
+  }
   // the build's transaction wire, the newest few, as a second voice
   for (const t of (NW.data?.tx || []).slice(0, 6)) out.push({ id: 'tx' + t.d + t.text.slice(0, 20), name: t.team || '', head: t.text, t: Date.parse(t.d), kind: 'tx' });
-  return out.sort((a, b) => b.t - a.t).slice(0, 24);
+  return out.sort((a, b) => b.t - a.t).slice(0, 30);
 }
 function renderTicker() {
   const el = document.getElementById('news-ticker'); if (!el) return;
@@ -6684,7 +6698,7 @@ function renderTicker() {
   const E = ntEntries();
   if (!E.length) { el.innerHTML = ''; el.classList.add('empty'); return; }
   el.classList.remove('empty');
-  const item = (x) => { const pid = x.kind === 'rw' ? ntPid(x.name) : null;
+  const item = (x) => { const pid = x.pid ?? (x.kind === 'rw' ? ntPid(x.name) : null);
     return `<span class="nt-i" onclick="ntOpen('${nwEsc(x.id).replace(/'/g, '&#39;')}')"><em>${nwAgo(x.t)}</em><b>${nwEsc(x.name)}</b>${pid != null ? injChip(pid) : ''}${nwEsc(x.head)}</span>`; };
   const run = E.map(item).join('<span class="nt-sep">•</span>');
   el.innerHTML = `<span class="nt-tag">News</span><div class="nt-view"><div class="nt-track" style="--nt-dur:${Math.max(40, E.length * 7)}s">${run}<span class="nt-sep">•</span>${run}<span class="nt-sep">•</span></div></div>
@@ -6694,7 +6708,7 @@ function ntToggle(off) { try { localStorage.setItem(NT_OFF, off ? '1' : '0'); } 
 /** A ticker item: his card if we know him, else the item in full. */
 function ntOpen(id) {
   const x = ntEntries().find(e => e.id === id); if (!x) return;
-  const pid = x.kind === 'rw' ? ntPid(x.name) : null;
+  const pid = x.pid ?? (x.kind === 'rw' ? ntPid(x.name) : null);
   if (pid != null && nwOpen(pid) !== false) return;
   nwToast(`<b>${nwEsc(x.name)}</b> ${nwEsc(x.head)}${x.blurb ? `<div>${nwEsc(x.blurb)}</div>` : ''}`, x.link);
 }
