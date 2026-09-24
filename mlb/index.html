@@ -1204,6 +1204,15 @@
   .sgk-l { font-family: var(--font-m); font-size: 0.76rem; color: var(--muted); white-space: nowrap; }
   .sgk-l b { color: var(--text-strong); }
   .sgk-l small { font-size: 0.68rem; }
+  /* Pick / matchup scores on one continuous ramp (psRamp sets the hue) */
+  .ps-ramp, .sgp-v .ps-ramp, .gc-pick-sc .ps-ramp { color: hsl(var(--rh, 60) 72% 58%); }
+  :root[data-theme="light"] .ps-ramp, :root[data-theme="light"] .sgp-v .ps-ramp, :root[data-theme="light"] .gc-pick-sc .ps-ramp { color: hsl(var(--rh, 60) 70% 36%); }
+  .sg-note { font-size: 0.72rem; color: var(--muted); margin: 0.1rem 0 0.2rem; }
+  .sg-h-row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+  .sg-link { background: none; border: none; padding: 0; cursor: pointer; font-family: var(--font-b); font-size: 0.7rem; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--accent); }
+  .sg-link:hover { text-decoration: underline; }
+  .sgp-row .sg-play { position: static; margin-left: auto; flex-shrink: 0; width: 26px; height: 26px; font-size: 0.72rem; }
+  .dd-lean-mu b { font-family: var(--font-d); }
   .sg-none { color: var(--muted); font-size: 0.78rem; padding: 0.7rem 0; text-align: center; }
   .sg-homer { display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; justify-content: center; font-size: 0.7rem; color: var(--muted); margin-top: 0.35rem; }
   .sg-homer b { color: var(--text-strong); font-family: var(--font-m); }
@@ -1338,8 +1347,7 @@
   /* Matchup score vs today's starter — the widest number here, and the one
      worth reading, so it carries the pick ramp rather than the HR/AB grey. */
   .sched-lineup-mu { width: 2.1rem; flex-shrink: 0; text-align: right; font-family: var(--font-d); font-size: 0.72rem; font-weight: 700; }
-  .sched-lineup-mu.great { color: var(--accent); } .sched-lineup-mu.good { color: var(--gold); }
-  .sched-lineup-mu.ok { color: #ff7040; } .sched-lineup-mu.off { color: var(--dim); font-weight: 400; }
+  .sched-lineup-mu.off { color: var(--dim); font-weight: 400; }
   /* A bat opens his card. The row is inside a header that toggles the game, so
      the handler stops propagation — without it a tap would open the card and
      collapse the lineup out from under it. */
@@ -5766,7 +5774,7 @@ function schedLineupHtml(side, oppSide, venue) {
   const scoreCell = (pid) => {
     if (!scored) return '';
     const v = schedScoreFor(pid, oppSide, venue);
-    return `<span class="sched-lineup-mu ${v == null ? 'off' : pickScoreClass(v)}">${v == null ? '—' : v.toFixed(1)}</span>`;
+    return v == null ? '<span class="sched-lineup-mu off">—</span>' : `<span class="sched-lineup-mu ps-ramp" ${psRamp(v)}>${v.toFixed(1)}</span>`;
   };
   const hdr = `<div class="sched-lineup-row sched-lineup-hdr"><span class="sched-lineup-hdr-spacer"></span><span class="sched-lineup-hrval">HR</span><span class="sched-lineup-abhr">AB/HR</span>${scored ? '<span class="sched-lineup-mu" title="Matchup score vs today\'s starter — the Picks board number">MU</span>' : ''}</div>`;
   // No posted lineup — project the likely bats instead of a blank TBD block.
@@ -6057,7 +6065,11 @@ function ddGameRows(g) {
   // Away leans, a divider, then home leans — a thin rule splits the two clubs.
   const awayHR = awayLeans.slice(0, 2).map(l => ddLeanLine(l)).join('');
   const homeHR = homeLeans.slice(0, 2).map(l => ddLeanLine(l)).join('');
-  const hrHtml = (awayHR + (awayHR && homeHR ? '<div class="dd-lean-sep"></div>' : '') + homeHR) || '<span class="dd-empty">—</span>';
+  // no leans in this game: its best matchup vs the starters instead, so every row has a name
+  const muTop = !awayHR && !homeHR ? schedTopMatchups(g, 1)[0] : null;
+  const hrHtml = (awayHR + (awayHR && homeHR ? '<div class="dd-lean-sep"></div>' : '') + homeHR)
+    || (muTop ? `<div class="dd-lean dd-lean-mu" title="Nobody in this game made a board — the best matchup score vs the starters">📈 ${ddAbbrevName(playerNames[muTop.pid] || muTop.pid)} <b class="ps-ramp" ${psRamp(muTop.score)}>${muTop.score.toFixed(1)}</b></div>` : '')
+    || '<span class="dd-empty">—</span>';
   const otherHtml = [...awayLeans.slice(2), ...homeLeans.slice(2)].map(l => ddLeanLine(l)).join('') || '<span class="dd-empty">—</span>';
   // Each row: the team's logo, THEIR OWN pitcher, then a dot grading how good a
   // HR spot THAT TEAM'S BATS are in vs the opposing starter they face. So the
@@ -6118,7 +6130,7 @@ function dingerDigestHtml() {
           </table>
         </div>
         <div class="dd-legend">
-          <span>🔒 Chalk</span><span>🎯 Value</span><span>⏳ Due</span>
+          <span>🔒 Chalk</span><span>🎯 Value</span><span>⏳ Due</span><span>📈 Top matchup (no board pick)</span>
           <span class="dd-legend-sep"></span>
           <span>Bat Matchup vs Opp. SP:</span><span>${ddDot('green')} Good spot</span><span>${ddDot('yellow')} Even</span><span>${ddDot('red')} Tough</span>
         </div>
@@ -6152,6 +6164,8 @@ function closeDingerDigest() {
   window.removeEventListener('resize', ddFitSheet);
 }
 function openDingerDigest() {
+  // the top-matchup fallback scores lineups off matchup-cards.json; re-draw once it lands
+  if (!matchupCards) ensureMatchupCards().then?.(() => { if (document.getElementById('dd-backdrop')) { closeDingerDigest(); openDingerDigest(); } });
   document.body.insertAdjacentHTML('beforeend', dingerDigestHtml());
   document.addEventListener('keydown', dingerDigestEscHandler);
   requestAnimationFrame(ddFitSheet);
@@ -6354,6 +6368,30 @@ function schedTopPick(g, date) {
   const c = (day?.picks || []).filter(p => tms.has(playerTeams[p.pid])).sort((a, b) => b.score - a.score)[0];
   return c ? { pid: c.pid, name: c.name, team: playerTeams[c.pid], score: c.score, hit: c.hit } : null;
 }
+/**
+ * A Pick / matchup score's colour on one continuous ramp — red at 3 and under,
+ * through orange and gold, to green at 15 and up (the Chalk board's top tier).
+ * Returned as an inline --rh hue for the .ps-ramp class, so both themes can set
+ * their own lightness.
+ */
+const psRamp = (s) => `style="--rh:${Math.round(Math.max(0, Math.min(1, ((+s || 0) - 3) / 12)) * 130)}"`;
+/**
+ * The game's best matchups when nobody in it made the HR boards: every bat in
+ * both lineups (posted, or projected) scored against the starter he faces — the
+ * same number the Picks board and the lineups' MU column show. Needs
+ * matchup-cards.json; until it lands, the build's top pick stands in.
+ */
+function schedTopMatchups(g, n = 5) {
+  const out = [];
+  if (matchupCards && matchupCards !== 'error') {
+    for (const [side, opp] of [[g.away, g.home], [g.home, g.away]]) {
+      const bats = side.lineup?.length ? side.lineup.map(b => String(b.pid)) : projectedLineupFor(side.teamAbbr);
+      for (const pid of bats) { const v = schedScoreFor(pid, opp, g.venue); if (v != null) out.push({ pid: String(pid), team: side.teamAbbr, score: v, vs: opp.probablePitcher }); }
+    }
+  }
+  if (!out.length && g.topPick) out.push({ pid: String(g.topPick.pid), team: g.topPick.team, score: g.topPick.score });
+  return out.sort((a, b) => b.score - a.score).slice(0, n);
+}
 /** Graded once he homers (live) or the game ends; null while it's still open. */
 function schedPickResult(t, box, final) {
   const n = (box?.hrs || []).filter(h => h.pid === String(t.pid)).length;
@@ -6366,7 +6404,7 @@ function schedPickStrip(g, date, S) {
   const r = schedPickResult(t, S.box, S.final);
   return `<div class="gc-pick${r ? ' ' + r.cls : ''}" title="The game's top HR pick by Pick Score${S.started ? ' — as it stood at first pitch' : ''}">
     <span class="gc-pick-star">★</span><span class="gc-pick-lbl">Top pick</span>${teamLogoImg(t.team, 'gc-pick-logo')}
-    <span class="gc-pick-nm">${compactPlayerName(t.name)}</span><span class="gc-pick-sc">Pick <b>${Number(t.score).toFixed(1)}</b></span>
+    <span class="gc-pick-nm">${compactPlayerName(t.name)}</span><span class="gc-pick-sc">Pick <b class="ps-ramp" ${psRamp(t.score)}>${Number(t.score).toFixed(1)}</b></span>
     ${r ? `<span class="gc-pick-res">${r.txt}</span>` : S.started ? '<span class="gc-pick-res pend">live</span>' : ''}
   </div>`;
 }
@@ -6577,10 +6615,10 @@ function sgRender() {
   const away = g.away.teamAbbr || g.away.teamName, home = g.home.teamAbbr || g.home.teamName;
   const S = schedState(g);
   const tab = sg.tab || (S.started ? 'game' : 'picks');
-  const TABS = [['picks', 'Picks'], ['matchup', 'Matchup'], ['lines', 'Lines'], ['game', 'Game']];
+  const TABS = [['picks', 'Picks'], ['matchup', 'Matchup'], ['pens', 'Bullpens'], ['game', 'Game']];
   const body = tab === 'picks' ? sgPicks(g, date, S, away, home)
     : tab === 'matchup' ? sgMatchup(g, date)
-    : tab === 'lines' ? lnPanel(g.lines, away, home)
+    : tab === 'pens' ? sgPens(g, date)
     : sgGame(g, date, S, away, home);
   const at = schedOrder.indexOf(g.gamePk);
   el.innerHTML = `<button class="pm-x" onclick="closeSchedGame()" aria-label="Close">×</button>
@@ -6608,12 +6646,12 @@ function sgPicks(g, date, S, away, home) {
     hr = rows.map(([r, board]) => `<div class="sgp-row" onclick="openPickModal('${r.pid}','${board}')">
         ${teamLogoImg(r.team, 'gc-pick-logo')}<span class="sgp-nm">${compactPlayerName(playerNames[r.pid] || r.pid)}</span>
         <span class="sgp-sub">${r.lineupOrder ? `#${r.lineupOrder} · ` : ''}vs ${r.oppName ? compactPlayerName(r.oppName) : r.oppTeam}${board === 'value' ? ' · Value' : ''}</span>
-        <span class="sgp-v">Pick <b>${r.pickScore.toFixed(1)}</b></span>${res(r.pid)}</div>`).join('');
+        <span class="sgp-v">Pick <b class="ps-ramp" ${psRamp(r.pickScore)}>${r.pickScore.toFixed(1)}</b></span>${res(r.pid)}</div>`).join('');
   } else {
     const day = (picksHistory || []).find(e => e.date === date);
     hr = (day?.picks || []).filter(p => tms.has(playerTeams[p.pid])).sort((a, b) => b.score - a.score).map(p => `<div class="sgp-row" onclick="openMlbPlayer('${p.pid}')">
         ${teamLogoImg(playerTeams[p.pid], 'gc-pick-logo')}<span class="sgp-nm">${compactPlayerName(p.name)}</span><span class="sgp-sub"></span>
-        <span class="sgp-v">Pick <b>${Number(p.score).toFixed(1)}</b></span>${res(p.pid, p.hit)}</div>`).join('');
+        <span class="sgp-v">Pick <b class="ps-ramp" ${psRamp(p.score)}>${Number(p.score).toFixed(1)}</b></span>${res(p.pid, p.hit)}</div>`).join('');
   }
   // starters: his own K and walk lines (the rung nearest even money), fair odds
   let arms = '';
@@ -6628,6 +6666,14 @@ function sgPicks(g, date, S, away, home) {
         <span class="sgk">${line(K.find(r => String(r.pid) === pid), 'K')}${line(B.find(r => String(r.pid) === pid), 'BB')}</span></div>`;
     }).join('');
   }
+  // nobody made the boards: the game's best matchups, so every game has something to read
+  if (!hr && date === todayDate) {
+    const mu = schedTopMatchups(g);
+    if (mu.length) hr = `<div class="sg-note">Nobody in this game made the HR boards — its best matchups vs the starters:</div>` + mu.map(m => `<div class="sgp-row" onclick="openMlbPlayer('${m.pid}')">
+        ${teamLogoImg(m.team, 'gc-pick-logo')}<span class="sgp-nm">${compactPlayerName(playerNames[m.pid] || m.pid)}</span>
+        <span class="sgp-sub">${m.vs ? `vs ${compactPlayerName(m.vs)}` : ''}</span>
+        <span class="sgp-v">MU <b class="ps-ramp" ${psRamp(m.score)}>${m.score.toFixed(1)}</b></span>${res(m.pid)}</div>`).join('');
+  }
   return `${top ? `<div class="sg-sec">${top}</div>` : ''}
     <div class="sg-h">HR picks in this game</div>
     ${hr || `<div class="sg-none">${date === todayDate ? 'Nobody in this game made the HR boards today.' : 'No HR board logged for this game.'}</div>`}
@@ -6637,20 +6683,32 @@ function sgPicks(g, date, S, away, home) {
 function sgMatchup(g, date) {
   const hs = g.homer?.park != null ? `<div class="sg-homer">${[['Park', g.homer.park], ['Weather', g.homer.weather], ['Lineups', g.homer.bat], ['Starters', g.homer.sp], ['Pens', g.homer.pen]]
       .map(([k, v]) => `<span>${k} <b>${v}×</b></span>`).join('')}</div>` : '';
-  if (date !== todayDate) return `${schedPitchersRow(g)}${schedVenueRow(g, date)}<div class="sg-none">Lineups and bullpens are kept for the current slate only.</div>`;
+  if (date !== todayDate) return `${schedPitchersRow(g)}${schedVenueRow(g, date)}<div class="sg-none">Lineups are kept for the current slate only.</div>`;
   return `${schedPitchersRow(g)}${schedVenueRow(g, date)}${hs}
-    <div class="sched-lineups">${schedLineupHtml(g.away, g.home, g.venue)}${schedLineupHtml(g.home, g.away, g.venue)}</div>
-    <div class="sched-bullpen-head">Bullpens</div>
-    <div class="sched-bullpens">${schedBullpenHtml(g.away)}${schedBullpenHtml(g.home)}</div>`;
+    <div class="sched-lineups">${schedLineupHtml(g.away, g.home, g.venue)}${schedLineupHtml(g.home, g.away, g.venue)}</div>`;
 }
-/** Game: the line score and every homer, or when it starts. */
+/** Bullpens: who they bring in after the starter, lefty/righty, fresh or worked (the current slate only). */
+function sgPens(g, date) {
+  if (date !== todayDate) return '<div class="sg-none">Bullpens are kept for the current slate only.</div>';
+  return `<div class="sched-bullpens">${schedBullpenHtml(g.away)}${schedBullpenHtml(g.home)}</div>`;
+}
+/** Game: the line score, every homer with its clip, and the lines — open, now and every move. */
 function sgGame(g, date, S, away, home) {
-  if (!S.started) return `<div class="sg-none">First pitch ${new Date(g.gameDate).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })}.</div>`;
+  const lines = g.lines?.cur ? `<div class="sg-h">Lines</div>${lnPanel(g.lines, away, home)}` : '';
+  if (!S.started) return `<div class="sg-none">First pitch ${new Date(g.gameDate).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })}.</div>${lines}`;
+  // the day's HR clips (MLB's content feed), matched to each homer — loaded once per day
+  const clips = recapClipsCache[date];
+  if (clips === undefined && (S.box?.hrs || []).length) ensureRecapClips(date).then(() => { if (sg.pk != null) sgRender(); });
   const ours = schedOurPids(date), kind = (r) => r >= 4 ? 'grand slam' : r === 1 ? 'solo' : `${r}-run`;
-  const hrs = (S.box?.hrs || []).map(h => `<div class="sgp-row" onclick="openMlbPlayer('${h.pid}')">${teamLogoImg(h.top ? away : home, 'gc-pick-logo')}
-      <span class="sgp-nm">${ours.has(h.pid) ? '★ ' : ''}${compactPlayerName(h.name)}</span><span class="sgp-sub">${kind(h.rbi)} · ${mlbOrd(h.inning)}</span></div>`).join('');
+  const hrs = (S.box?.hrs || []).map(h => {
+    const has = typeof clips === 'object' && clips?.[h.pid]?.length;
+    return `<div class="sgp-row" onclick="openMlbPlayer('${h.pid}')">${teamLogoImg(h.top ? away : home, 'gc-pick-logo')}
+      <span class="sgp-nm">${ours.has(h.pid) ? '★ ' : ''}${compactPlayerName(h.name)}</span><span class="sgp-sub">${kind(h.rbi)} · ${mlbOrd(h.inning)}</span>
+      ${has ? `<button class="recap-play sg-play" onclick="event.stopPropagation();openHRVideo('${date}','${h.pid}')" title="Watch the homer">▶</button>` : ''}</div>`; }).join('');
+  const clipLink = (S.box?.hrs || []).length ? `<button class="sg-link" onclick="closeSchedGame();openRecapFor('${date}')">All of ${date === todayDate ? "today's" : schedDayLabel(date) + "'s"} dong clips →</button>` : '';
   return `<div class="sg-ls">${mlbScoreboard(g, away, home, S.box, S.final)}</div>
-    <div class="sg-h">Home runs${S.box?.hrs?.length ? ` · ${S.box.hrs.length}` : ''}</div>${hrs || `<div class="sg-none">None${S.final ? '' : ' yet'}.</div>`}`;
+    <div class="sg-h sg-h-row"><span>Home runs${S.box?.hrs?.length ? ` · ${S.box.hrs.length}` : ''}</span>${clipLink}</div>${hrs || `<div class="sg-none">None${S.final ? '' : ' yet'}.</div>`}
+    ${lines}`;
 }
 
 // ── DUE ────────────────────────────────────────────────────────────────
