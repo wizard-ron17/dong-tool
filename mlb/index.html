@@ -1932,6 +1932,7 @@
     border:1px solid #8f8f8f; text-align:center; font-size:11px; white-space:nowrap; }
   .dd-table td { border:1px solid #d2d2d2; padding:6px 9px; vertical-align:middle; }
   .dd-team { text-align:center; width:32px; }
+  .dd-time { text-align:center; font-weight:700; font-size:12px; line-height:1.15; white-space:nowrap; color:#333; }
   .dd-team .dd-logo { margin:0; }
   .dd-pitcher { white-space:nowrap; }
   .dd-logo { width:19px; height:19px; vertical-align:middle; }
@@ -1950,6 +1951,7 @@
   .dd-leans { line-height:1.55; }
   .dd-lean { white-space:nowrap; }
   .dd-lean-top { font-weight:900; }
+  .dd-sheet .ps-ramp { color: hsl(var(--rh, 60) 72% 34%); }  /* the sheet is white in both themes */
   .dd-lean-sep { border-top:1px solid #cbcbcb; margin:4px 0; }
   .dd-other { color:#555; font-size:11.5px; line-height:1.5; }
   .dd-notes { min-width:70px; }
@@ -6069,7 +6071,21 @@ function ddPitcherCell(side) {
   const sub = stat ? `<span class="dd-p-sub">${stat.hr9} HR9</span>` : '';
   return `<td class="dd-pitcher"><span class="dd-p-name">${side.probablePitcher ? nm : 'TBD'}</span>${sub}</td>`;
 }
-function ddGameRows(g) {
+// The day's top strikeout and walk arms — the boards' tracked set (top
+// ${PP_TRACKED} by projection), each on his own line: the rung nearest even money.
+function ddPropArms() {
+  const top = (kind) => {
+    const { rows } = ppRankStarters(kind);
+    return new Map([...rows].filter(r => r.rawProj != null).sort((a, b) => b.rawProj - a.rawProj).slice(0, PP_TRACKED).map((r, i) => [String(r.pid), { r, rk: i + 1 }]));
+  };
+  return { k: top('k'), bb: top('bb') };
+}
+function ddArmLine(x, kind) {
+  const need = ppEven(x.r.proj), p = kbbWinProb(x.r.proj, need);
+  const k = kind === 'k';
+  return `<div class="dd-lean" title="#${x.rk} on the ${k ? 'Strikeouts' : 'Walks'} board · projects ${x.r.proj.toFixed(1)} ${k ? 'K' : 'BB'}">${k ? '🔥' : '🚶'} ${ddLastName(playerNames[x.r.pid] || x.r.name)} o${need - 0.5} ${k ? 'K' : 'BB'} <b>${kbbOdds(p)}</b></div>`;
+}
+function ddGameRows(g, arms = ddPropArms()) {
   const awayLeans = ddTeamLeans(g.away.teamAbbr), homeLeans = ddTeamLeans(g.home.teamAbbr);
   // Away leans, a divider, then home leans — a thin rule splits the two clubs.
   const awayHR = awayLeans.slice(0, 2).map(l => ddLeanLine(l)).join('');
@@ -6085,8 +6101,12 @@ function ddGameRows(g) {
     || (muTop ? muLine(muTop, 'Nobody in this game made a board — the best matchup score vs the starters') : '')
     || '<span class="dd-empty">—</span>';
   const muOther = mus[0];
+  // both starters, if either is among the day's top strikeout or walk arms
+  const armHtml = [g.away, g.home].flatMap(sd => { const pid = String(sd.probablePitcherId || '');
+    return [['k', arms.k.get(pid)], ['bb', arms.bb.get(pid)]].filter(([, x]) => x).map(([kind, x]) => ddArmLine(x, kind)); }).join('');
   const otherHtml = [...awayLeans.slice(2), ...homeLeans.slice(2)].map(l => ddLeanLine(l)).join('')
     + (muOther ? muLine(muOther, 'The best matchup score in this game not already on the sheet') : '')
+    + armHtml
     || '<span class="dd-empty">—</span>';
 
   // Each row: the team's logo, THEIR OWN pitcher, then a dot grading how good a
@@ -6111,7 +6131,9 @@ function ddGameRows(g) {
   } else {
     wpCell = `<td rowspan="2" class="dd-wp"><span class="dd-empty">—</span></td>`;
   }
+  const time = new Date(g.gameDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   return `<tr class="dd-g-top">
+      <td rowspan="2" class="dd-time">${time.replace(' ', '<br>')}</td>
       ${ddTeamCell(g.away)}
       ${ddPitcherCell(g.away)}
       <td class="dd-mm dd-cell-${awayDot}" title="How ${awayAb}'s bats project for HRs vs ${homeSP}">${ddDot(awayDot)}</td>
@@ -6129,7 +6151,8 @@ function ddGameRows(g) {
 }
 function dingerDigestHtml() {
   const games = [...todaySchedule].sort((a, b) => new Date(a.gameDate) - new Date(b.gameDate));
-  const rows = games.map(ddGameRows).join('');
+  const arms = ddPropArms();
+  const rows = games.map(g => ddGameRows(g, arms)).join('');
   const dateStr = todayDate ? fmtDateLong(todayDate) : '';
   return `<div class="dd-backdrop" id="dd-backdrop" onclick="if(event.target===this) closeDingerDigest()">
     <div class="dd-modal">
@@ -6142,13 +6165,13 @@ function dingerDigestHtml() {
         <div class="dd-scroll">
           <table class="dd-table">
             <thead><tr>
-              <th>Team</th><th>Pitcher</th><th>Bat<br>Matchup</th><th>Weather / Park</th><th>Overall</th><th>HR Leans</th><th>Notes</th><th>Other Leans</th>
+              <th>Time</th><th>Team</th><th>Pitcher</th><th>Bat<br>Matchup</th><th>Weather / Park</th><th>Overall</th><th>HR Leans</th><th>Notes</th><th>Other Leans</th>
             </tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>
         <div class="dd-legend">
-          <span>🔒 Chalk</span><span>🎯 Value</span><span>⏳ Due</span><span>📈 Top matchup not already listed</span>
+          <span>🔒 Chalk</span><span>🎯 Value</span><span>⏳ Due</span><span>📈 Top matchup not already listed</span><span>🔥 Top K arm</span><span>🚶 Top walk arm</span>
           <span class="dd-legend-sep"></span>
           <span>Bat Matchup vs Opp. SP:</span><span>${ddDot('green')} Good spot</span><span>${ddDot('yellow')} Even</span><span>${ddDot('red')} Tough</span>
         </div>
