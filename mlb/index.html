@@ -1134,9 +1134,18 @@
   .recap-stat-num { font-family: var(--font-d); font-size: 1.25rem; font-weight: 700; color: var(--accent); line-height: 1; display: block; }
   .recap-stat-label { font-size: 0.673rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
 
+  .rc-wknav { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin: 0.2rem 0 0.7rem; }
+  .rc-wknav-center { display: flex; align-items: center; gap: 0.5rem; }
+  .rc-arrow { background: var(--surface1); border: 1px solid var(--border2); color: var(--text); font-size: 1.25rem; font-weight: 700; width: 2.1rem; height: 2.1rem; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; transition: background 0.15s; }
+  .rc-arrow:hover:not(:disabled) { background: var(--surface2); }
+  .rc-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
+  .rc-wklabel { font-family: var(--font-d); font-weight: 700; font-size: 0.98rem; color: var(--text); min-width: 6.8rem; text-align: center; }
+  .rc-jump { border: 1px solid transparent; background: var(--accent); color: #06210f; font-family: var(--font-d); font-size: 0.704rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.5rem 0.7rem; border-radius: 8px; cursor: pointer; white-space: nowrap; transition: filter 0.15s, background 0.15s; }
+  .rc-jump:hover:not(:disabled) { filter: brightness(1.08); }
+  .rc-jump:disabled { background: var(--surface1); border: 1px solid var(--border2); color: var(--muted); cursor: default; }
+  @media (max-width: 430px) { .rc-wklabel { min-width: 5.2rem; font-size: 0.88rem; } .rc-wknav { gap: 0.3rem; } }
   .sched-list { display: flex; flex-direction: column; gap: 0.5rem; }
   .sched-game { background: var(--surface0); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.8rem; transition: border-color 0.15s; }
-  .sched-game.expanded { border-color: var(--border2); }
   .sched-venue-row { font-size: 0.692rem; color: var(--muted); margin-top: 0.35rem; }
   /* ── Sportsbook lines + movement ── */
   /* Line movement: one neutral hue (not the good/bad ramp — a line moving is
@@ -1145,7 +1154,66 @@
   :root[data-theme="light"] { --mvc: #4a57d8; }
   /* ── Game cards, scoreboard-style: away left, home right, runs big, the game's state between ── */
   .gc-card { position: relative; padding: 0.45rem 0.7rem 0.5rem; }
-  .gc-hit { cursor: pointer; }
+  .gc-card { cursor: pointer; }
+  .gc-card:hover { border-color: var(--border2); }
+  .gc-chev { position: absolute; top: 0.5rem; right: 0.7rem; color: var(--dim); font-size: 0.8rem; }
+  /* desktop: two cards a row, so a wide screen isn't mostly empty card */
+  @media (min-width: 900px) { .sched-list.gc-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; } }
+  .gc-lu { font-weight: 700; }
+  .gc-lu.set { color: var(--accent); }
+  .gc-lu.partial { color: var(--gold); }
+  .gc-lu.pending { color: var(--muted); }
+  /* every game's top HR pick, graded once it homers or the game ends */
+  .gc-pick { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.45rem; padding-top: 0.4rem; border-top: 1px solid var(--border); font-size: 0.76rem; min-width: 0; }
+  .gc-pick-star { color: var(--gold); }
+  .gc-pick-lbl { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+  .gc-pick-logo { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
+  .gc-pick-nm { font-weight: 700; color: var(--text-strong); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gc-pick-sc { margin-left: auto; font-family: var(--font-m); font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
+  .gc-pick-sc b { color: var(--text-strong); }
+  .gc-pick-res { font-family: var(--font-d); font-weight: 700; font-size: 0.72rem; padding: 0.08rem 0.45rem; border-radius: 10px; white-space: nowrap; }
+  .gc-pick.hit .gc-pick-res { background: rgba(53,201,110,0.14); color: var(--accent); }
+  .gc-pick.miss .gc-pick-res { background: var(--surface2); color: var(--muted); }
+  .gc-pick-res.pend { background: rgba(255,112,64,0.1); color: #ff7040; }
+  /* ── The game card (pop-up) ── */
+  .pm.sgm { max-width: 760px; padding: 0.9rem 1rem 1.1rem; }
+  #sg-back .pk-side-prev { left: max(6px, calc(50% - 380px - 52px)); }
+  #sg-back .pk-side-next { right: max(6px, calc(50% - 380px - 52px)); }
+  .sg-hero { padding: 0.2rem 1.6rem 0.65rem; border-bottom: 1px solid var(--border); margin-bottom: 0.75rem; }
+  .sg-hero .gc-logo { width: 48px; height: 48px; }
+  .sg-hero .gc-r { font-size: 2.8rem; }
+  .sg-sub { text-align: center; font-size: 0.64rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); margin-top: 0.4rem; }
+  .sg-tabs { margin: 0 0 0.8rem; }
+  .sg-h { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin: 0.9rem 0 0.25rem; }
+  .sg-sec .gc-pick { margin-top: 0; padding: 0.5rem 0.65rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; }
+  .sgp-row { display: flex; align-items: center; gap: 0.45rem; padding: 0.42rem 0.3rem; border-bottom: 1px solid var(--border); font-size: 0.8rem; cursor: pointer; border-radius: 4px; }
+  .sgp-row:hover { background: var(--surface1); }
+  .sgp-nm { font-weight: 700; color: var(--text-strong); white-space: nowrap; }
+  .sgp-sub { color: var(--muted); font-size: 0.7rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sgp-v { font-family: var(--font-m); font-size: 0.74rem; color: var(--muted); white-space: nowrap; }
+  .sgp-v b { color: var(--text-strong); }
+  .sgp-res { font-family: var(--font-d); font-weight: 700; font-size: 0.72rem; min-width: 2.6rem; text-align: right; }
+  .sgp-res.hit { color: var(--accent); }
+  .sgp-res.miss { color: var(--dim); }
+  .sgk { margin-left: auto; display: flex; gap: 0.9rem; }
+  .sgk-l { font-family: var(--font-m); font-size: 0.76rem; color: var(--muted); white-space: nowrap; }
+  .sgk-l b { color: var(--text-strong); }
+  .sgk-l small { font-size: 0.68rem; }
+  .sg-none { color: var(--muted); font-size: 0.78rem; padding: 0.7rem 0; text-align: center; }
+  .sg-homer { display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; justify-content: center; font-size: 0.7rem; color: var(--muted); margin-top: 0.35rem; }
+  .sg-homer b { color: var(--text-strong); font-family: var(--font-m); }
+  .sg-ls { display: flex; justify-content: center; padding: 0.3rem 0 0.2rem; }
+  .sgm .sched-venue-row { text-align: center; }
+  @media (max-width: 600px) {
+    .pm.sgm { padding: 0.8rem 0.7rem 1rem; }
+    .sg-hero { padding: 0.2rem 1.4rem 0.6rem; }
+    .sg-hero .gc-logo { width: 40px; height: 40px; }
+    .sg-hero .gc-r { font-size: 2.3rem; }
+    .sg-tabs .sub-btn { font-size: 0.82rem; }
+    .sgp-arm { flex-wrap: wrap; }
+    .sgp-arm .sgk { width: 100%; padding-left: 1.6rem; justify-content: space-between; }
+    .sg-sec .gc-pick-lbl { display: none; }
+  }
   .gc { display: grid; max-width: 560px; margin: 0 auto; grid-template-columns: 4.2rem 1fr 6.6rem 1fr 4.2rem; grid-template-rows: auto auto; align-items: center; }
   .gc-homer { grid-column: 1 / -1; text-align: center; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--dim); margin-bottom: 0.1rem; }
   .gc-homer b { font-family: var(--font-d); font-size: 0.78rem; letter-spacing: 0; margin-left: 0.15rem; }
@@ -1187,13 +1255,6 @@
   .gc-hr b { color: var(--text-strong); }
   .gc-hr.ours { color: var(--gold); font-weight: 600; }
   .gc-dot { color: var(--dim); }
-  .gc-card .sched-expand-row { margin-top: 0.3rem; }
-  .gc-card.started .sched-expand-row { position: absolute; right: 0.7rem; bottom: 0.5rem; margin: 0; }
-  .gc-card.started .gc-hrs { padding: 0 1.1rem; }
-  .gc-card.started.expanded .sched-expand-row { top: 0.5rem; bottom: auto; }
-  /* expanded: the full line score (started) or the starters (before) */
-  .gc-exp { display: none; margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
-  .sched-game.expanded .gc-exp { display: flex; justify-content: center; }
   /* ── Line score ── */
   .sb { display: inline-grid; grid-template-columns: minmax(4.2rem, auto) repeat(var(--sb-n), 1.5rem) 2rem 1.6rem 1.6rem; row-gap: 0.15rem; align-items: center; max-width: 100%; overflow-x: auto; }
   .sb-row { display: contents; }
@@ -1226,9 +1287,6 @@
   .ln-t { color: var(--dim); }
   .ln-note { font-size: 0.68rem; color: var(--dim); line-height: 1.5; margin: 0.6rem 0 0; }
   @media (max-width: 560px) { .ln-row { grid-template-columns: 4.4rem 1fr 1rem 1fr 4.5rem; } .ln-h { grid-template-columns: 5.6rem 1fr 1fr; } .ln-h > span:last-child { display: none; } }
-  .sched-lines-head, .sched-lines-panel { display: none; }
-  .sched-game.expanded .sched-lines-head { display: block; }
-  .sched-game.expanded .sched-lines-panel { display: block; margin: 0.4rem auto 0; max-width: 640px; }
   .sched-wx { margin-left: 0.15rem; white-space: nowrap; }
   .sched-wx-sep { opacity: 0.5; margin: 0 0.15rem; }
   .wx-favor { color: var(--accent); font-weight: 700; }
@@ -1250,16 +1308,11 @@
   .sched-pitcher.sched-tbd { color: var(--dim); font-size: 0.704rem; font-style: italic; }
   .sched-tbd-row { justify-content: center; color: var(--dim); font-size: 0.704rem; font-style: italic; letter-spacing: 0.04em; }
   .sched-vs { font-size: 0.673rem; color: var(--dim); flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.05em; }
-  .sched-expand-row { margin-top: 0.4rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
-  .sched-expand-hint { color: var(--muted); font-size: 1rem; font-weight: 900; line-height: 1; display: inline-block; transition: transform 0.18s ease, color 0.15s; }
-  .sched-expand-row:hover .sched-expand-hint { color: var(--accent); }
-  .sched-game.expanded .sched-expand-hint { transform: rotate(90deg); }
   .sched-lineup-status { font-size: 0.680rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.12rem 0.5rem; border-radius: 10px; }
   .sched-lineup-status.set     { background: rgba(53,201,110,0.12); color: var(--accent); }
   .sched-lineup-status.partial { background: rgba(240,192,64,0.1); color: var(--gold); }
   .sched-lineup-status.pending { background: var(--surface2); color: var(--muted); }
-  .sched-lineups { display: none; gap: 1.2rem; margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
-  .sched-game.expanded .sched-lineups { display: flex; }
+  .sched-lineups { display: flex; gap: 1.2rem; margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
   .sched-lineup-col { flex: 1; min-width: 0; }
   .sched-lineup-head { font-size: 0.704rem; font-weight: 700; color: #bdd0e8; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 0.35rem; }
   .sched-lineup-row { display: flex; align-items: center; gap: 0.2rem; font-size: 0.742rem; color: var(--text); padding: 0.12rem 0; }
@@ -1294,10 +1347,8 @@
   .sched-proj-tag { font-size: 0.661rem; font-weight: 700; letter-spacing: 0.03em; color: var(--gold); background: rgba(240,192,64,0.1); border: 1px solid rgba(240,192,64,0.3); border-radius: 8px; padding: 0.05rem 0.4rem; text-transform: none; }
   @media (max-width: 600px) { .sched-lineups { flex-direction: column; gap: 0.7rem; } .sched-pitchers-row { flex-wrap: wrap; } }
 
-  .sched-bullpen-head { display: none; font-size: 0.692rem; font-weight: 700; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; padding: 0.55rem 0 0.1rem; text-align: center; border-top: 1px solid var(--border); margin-top: 0.6rem; }
-  .sched-game.expanded .sched-bullpen-head { display: block; }
-  .sched-bullpens { display: none; gap: 1.2rem; margin-top: 0.5rem; }
-  .sched-game.expanded .sched-bullpens { display: flex; }
+  .sched-bullpen-head { display: block; font-size: 0.692rem; font-weight: 700; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; padding: 0.55rem 0 0.1rem; text-align: center; border-top: 1px solid var(--border); margin-top: 0.6rem; }
+  .sched-bullpens { display: flex; gap: 1.2rem; margin-top: 0.5rem; }
   .sched-bullpen-row { display: flex; align-items: flex-start; gap: 0.4rem; padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
   .sched-bullpen-row:last-child { border-bottom: none; }
   .sched-bullpen-hand { flex-shrink: 0; width: 1.25rem; height: 1.25rem; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 0.680rem; font-weight: 700; background: var(--surface2); color: var(--muted); margin-top: 0.1rem; }
@@ -2559,11 +2610,13 @@
         <span class="due-explainer-cta"></span>
         <span class="due-explainer-chevron" id="schedule-explainer-chevron">▶</span>
       </div>
-      <div class="due-explainer-teaser">Today's slate with a per-game Homer Score, park, weather, and probable pitchers — tap a game to expand.</div>
+      <div class="due-explainer-teaser">Every game with its lines, Homer Score and top HR pick, graded once it's played — page through the days, and tap a game for its card.</div>
       <div class="due-explainer-body" id="schedule-explainer-body" style="display:none">
         <ul>
           <li><b>Homer Score.</b> Each game blends both probable pitchers' HR-vulnerability (HR/9, with K/9 as a cue), the park's HR factor, and game-time weather into one number — how homer-friendly the game projects overall. Greener = juicier.</li>
-          <li><b>Tap to expand.</b> Open any game for its lineups (confirmed, or projected one-per-position when they haven't posted), a bullpen scan, and the full park + weather detail.</li>
+          <li><b>Top pick.</b> Every game's best HR bat by Pick Score — the better of the two clubs' — frozen at first pitch and graded: ✓ once he homers, ✗ if the game ends without one.</li>
+          <li><b>The game card.</b> Tap any game: <b>Picks</b> (every HR candidate in it and both starters' strikeout and walk lines), <b>Matchup</b> (starters, lineups — confirmed or projected — bullpens, park and weather), <b>Lines</b> (open, now and every move) and <b>Game</b> (the line score and every homer).</li>
+          <li><b>Other days.</b> ‹ › pages back to results and ahead to probable starters. Lineups, pens and live Homer Scores are the current slate's; a finished day keeps its closing lines, Homer Scores and graded picks.</li>
         </ul>
       </div>
     </div>
@@ -3066,6 +3119,7 @@ let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questi
 let returningInjured = []; // injured hitters (IL + DTD) with ESPN's estimated return dates — Returning Boppers tool
 let justBack = [];         // [{ pid, backDate, from, type }] — activated in the last 3 days, the first-game-back window
 let returningHistory = []; // [{ pid, name, team, backDate, from, type, hrDate, done }] — graded return-window HR log
+let schedHistory  = [];     // finished slates: closing lines, Homer Scores, graded top picks (build)
 let todayDate     = null;   // YYYY-MM-DD, ET — the same "today" build-data.js used for todaySchedule
 let todaySchedule = [];     // [{ gamePk, gameDate, status, venue, home:{...}, away:{...} }]
 let todayTeamsPlaying      = new Set(); // team abbrs with a game today, regardless of lineup status
@@ -3513,6 +3567,7 @@ function applyData(data) {
   justBack = data.justBack ?? [];
   returningHistory = data.returningHistory ?? [];
   todayDate = data.todayDate ?? null;
+  schedHistory = data.schedHistory ?? [];
   todaySchedule = data.todaySchedule ?? [];
   teamIds = data.teamIds ?? {};
   pitcherStats = data.pitcherStats ?? {};
@@ -3852,7 +3907,7 @@ function renderCurrentPanel() {
   if (activeNav === 'pairs')   _render(activePairSize);
   if (activeNav === 'stats')   renderStatsView();
   if (activeNav === 'recap') renderRecap();
-  if (activeNav === 'schedule') renderSchedule();
+  if (activeNav === 'schedule') renderScheduleKeepingOpen();
   if (activeNav === 'due')     { renderDue(); applyDueSub(dueSubTab); }
   if (activeNav === 'picks')   { renderPicks(); applyPicksSub(picksSubTab); }
   if (activeNav === 'matchups') renderMatchups();
@@ -5836,24 +5891,10 @@ function schedBullpenHtml(side) {
   }).join('');
   return `<div class="sched-lineup-col"><div class="sched-lineup-head">${label} Bullpen</div>${rows}</div>`;
 }
-function toggleSchedGame(pk) {
-  const el = document.getElementById(`sched-game-${pk}`);
-  el?.classList.toggle('expanded');
-  // Matchup scores need matchup-cards.json (668 KB). Opening a lineup is the
-  // first moment we know it's wanted — someone checking first pitch pays
-  // nothing. ensureMatchupCards re-renders this page when it lands.
-  if (el?.classList.contains('expanded')) ensureMatchupCards();
-}
-/**
- * Re-render the slate without collapsing what the user has open. renderSchedule
- * rebuilds every game's markup, so the `expanded` class — which lives only in
- * the DOM — would otherwise be wiped by the very fetch the user triggered by
- * expanding a game.
- */
+/** Re-render the slate, and the open game card with it, when fresh data lands. */
 function renderScheduleKeepingOpen() {
-  const open = [...document.querySelectorAll('.sched-game.expanded')].map(el => el.id);
   renderSchedule();
-  for (const id of open) document.getElementById(id)?.classList.add('expanded');
+  if (sg.pk != null) sgRender();
 }
   // ── Sportsbook lines: open, now, and every move ─────────────────────────
   // DraftKings via ESPN (scripts/espn-lines.js). `open` is the book's opening
@@ -6217,18 +6258,28 @@ function statusHtml() {
     </div>
   </div>`;
 }
-// ── Scoreboard + odds box ─────────────────────────────────────────────────
-// data.json refreshes twice an hour; a scoreboard can't wait that long. One
-// call to MLB's schedule endpoint (CORS-open), hydrated with each game's line
-// score and scoring plays, gives the whole slate's innings, R/H/E, live state
-// and every home run — refreshed each minute while a game is on.
-const MLB_BOX = { at: 0, busy: false, timer: null, games: {} };
-function loadMlbBox() {
-  if (MLB_BOX.busy || !todayDate || Date.now() - MLB_BOX.at < 55e3) return;
-  MLB_BOX.busy = true;
-  fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${todayDate}&hydrate=linescore,scoringplays`)
+// ── The schedule, any day ─────────────────────────────────────────────────
+// data.json carries one slate (todayDate) in full — lineups, Homer Scores,
+// pens, lines. Any other day comes straight from MLB's schedule endpoint
+// (CORS-open): who played, the probable starters, the line score and every
+// home run. The build's schedHistory adds a finished day's closing lines,
+// Homer Scores and graded top picks. The same call keeps the viewed day's
+// scores current, refreshed each minute while a game is live.
+const MLB_BOX = { games: {}, days: {}, timer: null };
+let schedDate = null;                         // null = the data's own slate
+const schedDay = () => schedDate || todayDate;
+const schedAddDays = (d, n) => { const t = new Date(d + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+function shiftSchedDate(n) { const d = schedAddDays(schedDay(), n); schedDate = d === todayDate ? null : d; renderSchedule(); }
+function schedGoToday() { schedDate = null; renderSchedule(); }
+function loadMlbDay(date) {
+  if (!date) return;
+  const D = MLB_BOX.days[date] ||= { at: 0, busy: false, games: null, err: false };
+  if (D.busy || Date.now() - D.at < 55e3) return;
+  D.busy = true;
+  fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${date}&hydrate=linescore,scoringplays,probablePitcher,team`)
     .then(r => r.ok ? r.json() : Promise.reject())
     .then(j => {
+      const list = [];
       for (const g of j.dates?.[0]?.games || []) {
         const ls = g.linescore || {}, t = ls.teams || {};
         const side = (x) => ({ r: x?.runs ?? null, h: x?.hits ?? null, e: x?.errors ?? null });
@@ -6242,19 +6293,78 @@ function loadMlbBox() {
             pid: String(p.matchup?.batter?.id), name: p.matchup?.batter?.fullName || '', top: p.about?.halfInning === 'top',
             inning: p.about?.inning, rbi: p.result?.rbi || 1 })),
         };
+        const tm = (s) => ({ teamName: s.team?.name || '', teamAbbr: s.team?.abbreviation || s.team?.name || '', score: s.score ?? null,
+          probablePitcher: s.probablePitcher?.fullName || null, probablePitcherId: s.probablePitcher?.id ? String(s.probablePitcher.id) : null,
+          probablePitcherThrows: null, lineup: [] });
+        list.push({ gamePk: g.gamePk, gameDate: g.gameDate, status: g.status?.detailedState || '', venue: g.venue?.name || '',
+          away: tm(g.teams.away), home: tm(g.teams.home) });
       }
+      D.games = list; D.err = false;
     })
-    .catch(() => {})
+    .catch(() => { D.err = true; })
     .finally(() => {
-      MLB_BOX.at = Date.now(); MLB_BOX.busy = false;             // a failure waits a minute too, not every render
+      D.at = Date.now(); D.busy = false;
       if (activeNav === 'schedule') renderScheduleKeepingOpen();
-      // keep a live slate ticking while the schedule is on screen
+      // keep a live day ticking while it's the one on screen
       clearTimeout(MLB_BOX.timer);
-      if (Object.values(MLB_BOX.games).some(x => x.state === 'Live'))
-        MLB_BOX.timer = setTimeout(() => { if (activeNav === 'schedule') loadMlbBox(); }, 60e3);
+      if ((D.games || []).some(g => MLB_BOX.games[g.gamePk]?.state === 'Live'))
+        MLB_BOX.timer = setTimeout(() => { if (activeNav === 'schedule' && schedDay() === date) loadMlbDay(date); }, 60e3);
     });
 }
+/** The day's games: the data's slate in full, any other day from MLB plus our history. null while loading. */
+function schedGamesFor(date) {
+  if (date === todayDate) return todaySchedule;
+  const D = MLB_BOX.days[date]; if (!D?.games) return null;
+  const hist = new Map(((schedHistory || []).find(e => e.date === date)?.games || []).map(x => [x.pk, x]));
+  return D.games.map(g => { const h = hist.get(g.gamePk);
+    return h ? { ...g, lines: h.lines, homer: h.homer != null ? { score: h.homer } : null, topPick: h.top } : g; });
+}
+/** Where a game stands: the live feed's word first, the data's as a fallback. */
+function schedState(g) {
+  const box = MLB_BOX.games[g.gamePk], info = schedStatusInfo(g);
+  const final = box ? box.state === 'Final' : info.cls === 'final';
+  const started = final || (box ? box.state === 'Live' : info.cls === 'live');
+  return { box, final, started, st: final ? 'final' : started ? 'live' : 'pre' };
+}
+/** HR picks we had on a day, as a Set of pids — the ★ beside a homer. */
+function schedOurPids(date) {
+  if (date === todayDate) return new Set([...(picks || []), ...(value || [])].map(p => String(p.pid)));
+  return new Set(((picksHistory || []).find(e => e.date === date)?.picks || []).map(p => String(p.pid)));
+}
+/**
+ * The game's top HR pick: the build's (the better of the two clubs' best bats
+ * by Pick Score, frozen at first pitch). Days logged before it existed fall
+ * back to that day's Chalk board, which covered about half the slate.
+ */
+function schedTopPick(g, date) {
+  if (g.topPick) return g.topPick;
+  const tms = new Set([g.away.teamAbbr, g.home.teamAbbr]);
+  if (date === todayDate) {
+    const c = (picks || []).find(p => tms.has(p.team));
+    return c ? { pid: c.pid, name: playerNames[c.pid] || c.pid, team: c.team, score: Math.round(c.pickScore * 10) / 10 } : null;
+  }
+  const day = (picksHistory || []).find(e => e.date === date);
+  const c = (day?.picks || []).filter(p => tms.has(playerTeams[p.pid])).sort((a, b) => b.score - a.score)[0];
+  return c ? { pid: c.pid, name: c.name, team: playerTeams[c.pid], score: c.score, hit: c.hit } : null;
+}
+/** Graded once he homers (live) or the game ends; null while it's still open. */
+function schedPickResult(t, box, final) {
+  const n = (box?.hrs || []).filter(h => h.pid === String(t.pid)).length;
+  if (n || t.hit === true) return { cls: 'hit', txt: n > 1 ? `✓ ${n} HR` : '✓ HR' };
+  if (final) return { cls: 'miss', txt: '✗ no HR' };
+  return null;
+}
+function schedPickStrip(g, date, S) {
+  const t = schedTopPick(g, date); if (!t) return '';
+  const r = schedPickResult(t, S.box, S.final);
+  return `<div class="gc-pick${r ? ' ' + r.cls : ''}" title="The game's top HR pick by Pick Score${S.started ? ' — as it stood at first pitch' : ''}">
+    <span class="gc-pick-star">★</span><span class="gc-pick-lbl">Top pick</span>${teamLogoImg(t.team, 'gc-pick-logo')}
+    <span class="gc-pick-nm">${compactPlayerName(t.name)}</span><span class="gc-pick-sc">Pick <b>${Number(t.score).toFixed(1)}</b></span>
+    ${r ? `<span class="gc-pick-res">${r.txt}</span>` : S.started ? '<span class="gc-pick-res pend">live</span>' : ''}
+  </div>`;
+}
 const mlbOrd = (i) => i + (['th', 'st', 'nd', 'rd'][(i % 100 - 20) % 10] || ['th', 'st', 'nd', 'rd'][i % 100] || 'th');
+const schedDayLabel = (d) => new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
 
 /** A started game as a scoreboard: logos, the line score by inning (wide
  *  screens), runs big, then hits and errors. The winner's row is bright. */
@@ -6327,27 +6437,48 @@ function mlbGameCard(g, away, home, box, st, homer) {
   </div>`;
 }
 
-/** The game's home runs on one line, a ★ on anyone our HR Picks board had today. */
-function mlbHomers(g, away, home, box) {
+/** The game's home runs on one line, a ★ on anyone our HR boards had that day. */
+function mlbHomers(g, away, home, box, ours) {
   const hrs = box?.hrs || []; if (!hrs.length) return '';
-  const ours = new Set([...(picks || []), ...(value || [])].map(p => String(p.pid)));
   const by = new Map();
   for (const h of hrs) { const x = by.get(h.pid) || { ...h, n: 0, inn: [] }; x.n++; x.inn.push(mlbOrd(h.inning)); by.set(h.pid, x); }
   return `<div class="gc-hrs"><span class="gc-hrs-k">HR</span>${[...by.values()].map(h => { const our = ours.has(h.pid);
-    return `<span class="gc-hr${our ? ' ours' : ''}" title="${h.name} (${h.top ? away : home}) — ${h.inn.join(', ')}${our ? ' · on our HR Picks board today' : ''}">${our ? '★ ' : ''}${compactPlayerName(h.name)}${h.n > 1 ? ` <b>×${h.n}</b>` : ''}</span>`; }).join('<span class="gc-dot">·</span>')}</div>`;
+    return `<span class="gc-hr${our ? ' ours' : ''}" title="${h.name} (${h.top ? away : home}) — ${h.inn.join(', ')}${our ? ' · on our HR board that day' : ''}">${our ? '★ ' : ''}${compactPlayerName(h.name)}${h.n > 1 ? ` <b>×${h.n}</b>` : ''}</span>`; }).join('<span class="gc-dot">·</span>')}</div>`;
 }
-
+const schedHomerTag = (g) => g.homer ? `<div class="gc-homer"${g.homer.park != null ? ` title="Homer Score — HR-betting confidence for this game (park ${g.homer.park}× · weather ${g.homer.weather}× · lineups ${g.homer.bat}× · starters ${g.homer.sp}× · pens ${g.homer.pen}×)"` : ''}>Homer Score <b class="${homerScoreClass(g.homer.score)}">${g.homer.score}</b></div>` : '';
+function schedVenueRow(g, date) {
+  const games = Object.values(venueGameDays[g.venue] ?? {}).reduce((a, b) => a + b, 0);
+  const hrs = Object.values(venueHRsByDate[g.venue] ?? {}).reduce((a, b) => a + b, 0);
+  const hrg = games ? hrs / games : 0;
+  return `<div class="sched-venue-row">${g.venue}${games ? ` · <span class="hrg-val ${hrgClass(hrg, leagueHRPerGame())}">${hrg.toFixed(2)}</span> HR/G` : ''}${date === todayDate ? schedWeatherChip(g.weather) : ''}</div>`;
+}
+let schedOrder = [];                          // the list as shown — the game card's ‹ › deck
 function renderSchedule() {
   const metaEl = document.getElementById('schedule-meta');
   const contentEl = document.getElementById('schedule-content');
-  if (!todaySchedule.length) {
+  const date = schedDay();
+  if (!date) { metaEl.textContent = ''; contentEl.innerHTML = '<div class="empty">Loading data…</div>'; return; }
+  loadMlbDay(date);
+  const isSlate = date === todayDate;
+  const nav = `<div class="rc-wknav">
+      <button class="rc-jump" onclick="schedGoToday()" ${isSlate ? 'disabled' : ''} title="Back to the current slate">Today</button>
+      <div class="rc-wknav-center">
+        <button class="rc-arrow" onclick="shiftSchedDate(-1)" aria-label="Previous day">‹</button>
+        <span class="rc-wklabel">${schedDayLabel(date)}</span>
+        <button class="rc-arrow" onclick="shiftSchedDate(1)" aria-label="Next day">›</button>
+      </div>
+      <button class="rc-jump" style="visibility:hidden" aria-hidden="true">Today</button>
+    </div>`;
+  const games = schedGamesFor(date);
+  const D = MLB_BOX.days[date];
+  if (!games || !games.length) {
     metaEl.textContent = '';
-    contentEl.innerHTML = '<div class="empty">No games scheduled today — the slate returns when the next game day does. Head to <a href="javascript:void(0)" onclick="switchNav(\'recap\')">Recap</a> for the last one.</div>';
+    contentEl.innerHTML = nav + (games ? `<div class="empty">No games on ${schedDayLabel(date)}.</div>`
+      : D?.err ? `<div class="empty">Couldn't reach MLB for ${schedDayLabel(date)}. <a href="javascript:void(0)" onclick="MLB_BOX.days['${date}'].at=0;renderSchedule()">Retry</a></div>`
+      : '<div class="empty">Loading…</div>');
     return;
   }
-  loadMlbBox();
-  const leagueAvg = leagueHRPerGame();
-  const homerScores = todaySchedule.filter(g => g.homer).map(g => g.homer.score);
+  const homerScores = games.filter(g => g.homer).map(g => g.homer.score);
   const anyHomer = homerScores.length > 0;
   const dayAvg = anyHomer ? Math.round(homerScores.reduce((a, b) => a + b, 0) / homerScores.length) : null;
   const byTime = (a, b) => new Date(a.gameDate) - new Date(b.gameDate);
@@ -6358,61 +6489,144 @@ function renderSchedule() {
   const bySpread = (a, b) => Math.abs(b.lines?.cur?.sp ?? -1) - Math.abs(a.lines?.cur?.sp ?? -1) || favMl(a) - favMl(b) || byTime(a, b);
   const byTotal = (a, b) => (b.lines?.cur?.tot ?? -1) - (a.lines?.cur?.tot ?? -1) || byTime(a, b);
   const byMove = (a, b) => lnMove(b.lines).size - lnMove(a.lines).size || byTime(a, b);
-  const anyLines = todaySchedule.some(g => g.lines?.cur);
-  const SORTS = { time: byTime, homer: anyHomer ? byHomer : byTime, spread: bySpread, total: byTotal, moved: byMove };
-  const sorted = [...todaySchedule].sort(SORTS[schedSort] || byTime);
-  metaEl.innerHTML = `${sorted.length} game${sorted.length === 1 ? '' : 's'}`
-    + (todayDate ? ` · ${fmtDateLong(todayDate)}` : '')
-    + (anyHomer ? ` · Avg Homer Score <span class="sched-meta-avg ${homerScoreClass(dayAvg)}" title="Average Homer Score across all ${homerScores.length} scored games today (50 = average day)">${dayAvg}</span>` : '');
-  const sortBar = anyHomer || anyLines ? `<div class="picks-sort">
-    <span class="due-filter-label">Sort</span>
-    <button class="due-filter-chip${schedSort==='time'?' active':''}" onclick="setSchedSort('time')">Game Time</button>
-    ${anyHomer ? `<button class="due-filter-chip${schedSort==='homer'?' active':''}" onclick="setSchedSort('homer')">Homer Score</button>` : ''}
-    ${anyLines ? [['spread', 'Run Line'], ['total', 'Total'], ['moved', 'Line Move']].map(([v, l]) => `<button class="due-filter-chip${schedSort===v?' active':''}" onclick="setSchedSort('${v}')">${l}</button>`).join('') : ''}
-  </div>` : '';
-  const legend = anyHomer ? `<div class="homer-legend">
+  const anyLines = games.some(g => g.lines?.cur);
+  const SORTS = { time: byTime, homer: anyHomer ? byHomer : byTime, spread: anyLines ? bySpread : byTime, total: anyLines ? byTotal : byTime, moved: anyLines ? byMove : byTime };
+  const sorted = [...games].sort(SORTS[schedSort] || byTime);
+  schedOrder = sorted.map(g => g.gamePk);
+  metaEl.innerHTML = `${sorted.length} game${sorted.length === 1 ? '' : 's'} · ${fmtDateLong(date)}`
+    + (anyHomer ? ` · Avg Homer Score <span class="sched-meta-avg ${homerScoreClass(dayAvg)}" title="Average Homer Score across all ${homerScores.length} scored games (50 = average day)">${dayAvg}</span>` : '');
+  const chip = (v, l) => `<button class="due-filter-chip${schedSort === v ? ' active' : ''}" onclick="setSchedSort('${v}')">${l}</button>`;
+  const sortBar = `<div class="picks-sort"><span class="due-filter-label">Sort</span>${chip('time', 'Game Time')}${anyHomer ? chip('homer', 'Homer Score') : ''}${anyLines ? chip('spread', 'Run Line') + chip('total', 'Total') + chip('moved', 'Line Move') : ''}</div>`;
+  const legend = isSlate && anyHomer ? `<div class="homer-legend">
     <b>Homer Score</b> = HR-betting confidence per game (park, weather, both lineups, starters, pens). 50 = average.
     <span class="hl-scale"></span> <span>colder → hotter</span>
   </div>` : '';
-  const digestBtn = `<button class="dinger-digest-btn" onclick="openDingerDigest()" title="A GMG-style slate sheet of today's pitching matchups, park/weather, Homer Scores, and our best HR leans — screenshot &amp; share">🚀 Dinger Digest</button>`;
-  const toolbar = `<div class="sched-toolbar">${sortBar || '<span></span>'}${digestBtn}</div>`;
-  contentEl.innerHTML = legend + toolbar + `<div class="sched-list">${sorted.map(g => {
-    const info = schedStatusInfo(g);
-    const lineupStatus = schedLineupStatus(g);
-    const awayLabel = g.away.teamAbbr || g.away.teamName, homeLabel = g.home.teamAbbr || g.home.teamName;
-    const venueGames = Object.values(venueGameDays[g.venue] ?? {}).reduce((a,b)=>a+b, 0);
-    const venueHRs = Object.values(venueHRsByDate[g.venue] ?? {}).reduce((a,b)=>a+b, 0);
-    const venueHRG = venueGames ? venueHRs / venueGames : 0;
-    const venueCls = hrgClass(venueHRG, leagueAvg);
-    // a started game is a scoreboard; before first pitch, the matchup and the book's lines
-    const box = MLB_BOX.games[g.gamePk];
-    const final = box ? box.state === 'Final' : info.cls === 'final';
-    const started = final || (box ? box.state === 'Live' : info.cls === 'live');
-    const venue = `<div class="sched-venue-row">${g.venue}${venueGames ? ` · <span class="hrg-val ${venueCls}">${venueHRG.toFixed(2)}</span> HR/G` : ''}${schedWeatherChip(g.weather)}</div>`;
-    const st = final ? 'final' : started ? 'live' : 'pre';
-    const homerTag = g.homer ? `<div class="gc-homer" title="Homer Score — HR-betting confidence for this game (park ${g.homer.park}× · weather ${g.homer.weather}× · lineups ${g.homer.bat}× · starters ${g.homer.sp}× · pens ${g.homer.pen}×)">Homer Score <b class="${homerScoreClass(g.homer.score)}">${g.homer.score}</b></div>` : '';
-    return `<div class="sched-game gc-card${started ? ' started' : ''}" id="sched-game-${g.gamePk}">
-      <div class="gc-hit" onclick="toggleSchedGame(${g.gamePk})">
-        ${mlbGameCard(g, awayLabel, homeLabel, box, st, homerTag)}
-        ${started ? mlbHomers(g, awayLabel, homeLabel, box) : venue}
-      </div>
-      <div class="sched-expand-row" onclick="toggleSchedGame(${g.gamePk})">
-        ${started ? '<span></span>' : `<span class="sched-lineup-status ${lineupStatus.cls}">${lineupStatus.text}</span>`}
-        <span class="sched-expand-hint">▶</span>
-      </div>
-      <div class="gc-exp">${started ? mlbScoreboard(g, awayLabel, homeLabel, box, final) : schedPitchersRow(g)}</div>
-      <div class="sched-lineups">
-        ${schedLineupHtml(g.away, g.home, g.venue)}
-        ${schedLineupHtml(g.home, g.away, g.venue)}
-      </div>
-      <div class="sched-bullpen-head">Bullpens</div>
-      <div class="sched-bullpens">
-        ${schedBullpenHtml(g.away)}
-        ${schedBullpenHtml(g.home)}
-      </div>
-      ${g.lines?.cur ? `<div class="sched-bullpen-head sched-lines-head">Lines</div><div class="sched-lines-panel">${lnPanel(g.lines, awayLabel, homeLabel)}</div>` : ''}
+  const digestBtn = isSlate ? `<button class="dinger-digest-btn" onclick="openDingerDigest()" title="A GMG-style slate sheet of today's pitching matchups, park/weather, Homer Scores, and our best HR leans — screenshot &amp; share">🚀 Dinger Digest</button>` : '';
+  const ours = schedOurPids(date);
+  contentEl.innerHTML = nav + legend + `<div class="sched-toolbar">${sortBar}${digestBtn}</div><div class="sched-list gc-list">${sorted.map(g => {
+    const away = g.away.teamAbbr || g.away.teamName, home = g.home.teamAbbr || g.home.teamName;
+    const S = schedState(g);
+    const lu = isSlate && !S.started ? schedLineupStatus(g) : null;
+    return `<div class="sched-game gc-card${S.started ? ' started' : ''}" id="sched-game-${g.gamePk}" onclick="openSchedGame(${g.gamePk})" role="button" tabindex="0">
+      <span class="gc-chev">▶</span>
+      ${mlbGameCard(g, away, home, S.box, S.st, schedHomerTag(g))}
+      ${S.started ? mlbHomers(g, away, home, S.box, ours) : schedVenueRow(g, date).replace('</div>', lu ? ` · <span class="gc-lu ${lu.cls}">${lu.text}</span></div>` : '</div>')}
+      ${schedPickStrip(g, date, S)}
     </div>`;
   }).join('')}</div>`;
+}
+
+// ── The game card ─────────────────────────────────────────────────────────
+// Every sport's schedule opens a game the same way: the scoreboard on top,
+// then Picks (our boards for this game), Matchup, Lines and Game.
+const sg = { pk: null, tab: null };
+function openSchedGame(pk) {
+  sg.pk = pk; sg.tab = null;
+  if (!document.getElementById('sg-back')) {
+    document.body.insertAdjacentHTML('beforeend', `
+      <div class="pm-back" id="sg-back" onclick="if(event.target===this)closeSchedGame()">
+        <button class="pk-side-nav pk-side-prev" onclick="sgStep(-1)" aria-label="Previous game">‹</button>
+        <button class="pk-side-nav pk-side-next" onclick="sgStep(1)" aria-label="Next game">›</button>
+        <div class="pm sgm" role="dialog" aria-modal="true"></div>
+      </div>`);
+    document.addEventListener('keydown', sgKey);
+  }
+  document.body.style.overflow = 'hidden';
+  // lineup matchup scores need matchup-cards.json (668 KB): only once a game is opened
+  if (schedDay() === todayDate) ensureMatchupCards();
+  sgRender();
+}
+function sgKey(e) {
+  if (!document.getElementById('sg-back') || document.getElementById('mp-back') || document.getElementById('pick-modal-backdrop')) return;
+  if (e.key === 'Escape') closeSchedGame(); else if (e.key === 'ArrowLeft') sgStep(-1); else if (e.key === 'ArrowRight') sgStep(1);
+}
+function closeSchedGame() {
+  document.getElementById('sg-back')?.remove(); document.removeEventListener('keydown', sgKey);
+  document.body.style.overflow = ''; sg.pk = null;
+}
+function sgStep(d) { const i = schedOrder.indexOf(sg.pk), nx = schedOrder[i + d]; if (nx == null) return; sg.pk = nx; sgRender(); }
+function setSgTab(t) { sg.tab = t; sgRender(); }
+function sgRender() {
+  const el = document.querySelector('#sg-back .sgm'); if (!el) return;
+  const date = schedDay(), g = (schedGamesFor(date) || []).find(x => x.gamePk === sg.pk);
+  if (!g) { closeSchedGame(); return; }
+  const away = g.away.teamAbbr || g.away.teamName, home = g.home.teamAbbr || g.home.teamName;
+  const S = schedState(g);
+  const tab = sg.tab || (S.started ? 'game' : 'picks');
+  const TABS = [['picks', 'Picks'], ['matchup', 'Matchup'], ['lines', 'Lines'], ['game', 'Game']];
+  const body = tab === 'picks' ? sgPicks(g, date, S, away, home)
+    : tab === 'matchup' ? sgMatchup(g, date)
+    : tab === 'lines' ? lnPanel(g.lines, away, home)
+    : sgGame(g, date, S, away, home);
+  const at = schedOrder.indexOf(g.gamePk);
+  el.innerHTML = `<button class="pm-x" onclick="closeSchedGame()" aria-label="Close">×</button>
+    <div class="sg-hero">${mlbGameCard(g, away, home, S.box, S.st, schedHomerTag(g))}
+      <div class="sg-sub">${schedDayLabel(date)} · ${g.venue}${at >= 0 ? ` · ${at + 1} / ${schedOrder.length}` : ''}</div></div>
+    <div class="sub-tabs sg-tabs">${TABS.map(([v, l]) => `<button class="sub-btn${tab === v ? ' active' : ''}" onclick="setSgTab('${v}')">${l}</button>`).join('')}</div>
+    <div class="sg-body">${body}</div>`;
+  const back = document.getElementById('sg-back');
+  back.querySelector('.pk-side-prev').disabled = at <= 0;
+  back.querySelector('.pk-side-next').disabled = at < 0 || at >= schedOrder.length - 1;
+}
+/** Picks: the top pick, every HR candidate in this game, both starters' K and walk lines. */
+function sgPicks(g, date, S, away, home) {
+  const tms = new Set([away, home]);
+  const top = schedPickStrip(g, date, S);
+  const homered = (pid) => (S.box?.hrs || []).filter(h => h.pid === String(pid)).length;
+  const res = (pid, hit) => { const n = homered(pid);
+    return n || hit === true ? `<span class="sgp-res hit">✓ ${n > 1 ? n + ' HR' : 'HR'}</span>` : S.final || hit === false ? '<span class="sgp-res miss">✗</span>' : ''; };
+  let hr;
+  if (date === todayDate) {
+    const seen = new Set(), rows = [];
+    for (const [r, board] of [...(picks || []).map(r => [r, 'chalk']), ...(value || []).map(r => [r, 'value'])])
+      if (tms.has(r.team) && !seen.has(r.pid)) { seen.add(r.pid); rows.push([r, board]); }
+    rows.sort((a, b) => b[0].pickScore - a[0].pickScore);
+    hr = rows.map(([r, board]) => `<div class="sgp-row" onclick="openPickModal('${r.pid}','${board}')">
+        ${teamLogoImg(r.team, 'gc-pick-logo')}<span class="sgp-nm">${compactPlayerName(playerNames[r.pid] || r.pid)}</span>
+        <span class="sgp-sub">${r.lineupOrder ? `#${r.lineupOrder} · ` : ''}vs ${r.oppName ? compactPlayerName(r.oppName) : r.oppTeam}${board === 'value' ? ' · Value' : ''}</span>
+        <span class="sgp-v">Pick <b>${r.pickScore.toFixed(1)}</b></span>${res(r.pid)}</div>`).join('');
+  } else {
+    const day = (picksHistory || []).find(e => e.date === date);
+    hr = (day?.picks || []).filter(p => tms.has(playerTeams[p.pid])).sort((a, b) => b.score - a.score).map(p => `<div class="sgp-row" onclick="openMlbPlayer('${p.pid}')">
+        ${teamLogoImg(playerTeams[p.pid], 'gc-pick-logo')}<span class="sgp-nm">${compactPlayerName(p.name)}</span><span class="sgp-sub"></span>
+        <span class="sgp-v">Pick <b>${Number(p.score).toFixed(1)}</b></span>${res(p.pid, p.hit)}</div>`).join('');
+  }
+  // starters: his own K and walk lines (the rung nearest even money), fair odds
+  let arms = '';
+  if (date === todayDate) {
+    const K = ppRankStarters('k').rows, B = ppRankStarters('bb').rows;
+    arms = [g.away, g.home].map(sd => {
+      const pid = sd.probablePitcherId ? String(sd.probablePitcherId) : null; if (!pid) return '';
+      const line = (r, lbl) => { if (r?.proj == null) return `<span class="sgk-l">${lbl} —</span>`;
+        const need = ppEven(r.proj), p = kbbWinProb(r.proj, need);
+        return `<span class="sgk-l">${lbl} <b>${r.proj.toFixed(1)}</b> <small>o${need - 0.5} ${kbbOdds(p)}</small></span>`; };
+      return `<div class="sgp-row sgp-arm" onclick="openPitcher('${pid}')">${teamLogoImg(sd.teamAbbr, 'gc-pick-logo')}<span class="sgp-nm">${compactPlayerName(sd.probablePitcher)}</span>
+        <span class="sgk">${line(K.find(r => String(r.pid) === pid), 'K')}${line(B.find(r => String(r.pid) === pid), 'BB')}</span></div>`;
+    }).join('');
+  }
+  return `${top ? `<div class="sg-sec">${top}</div>` : ''}
+    <div class="sg-h">HR picks in this game</div>
+    ${hr || `<div class="sg-none">${date === todayDate ? 'Nobody in this game made the HR boards today.' : 'No HR board logged for this game.'}</div>`}
+    ${arms ? `<div class="sg-h">Starters · strikeouts and walks</div>${arms}` : ''}`;
+}
+/** Matchup: the starters, park and weather, both lineups and pens (the current slate only). */
+function sgMatchup(g, date) {
+  const hs = g.homer?.park != null ? `<div class="sg-homer">${[['Park', g.homer.park], ['Weather', g.homer.weather], ['Lineups', g.homer.bat], ['Starters', g.homer.sp], ['Pens', g.homer.pen]]
+      .map(([k, v]) => `<span>${k} <b>${v}×</b></span>`).join('')}</div>` : '';
+  if (date !== todayDate) return `${schedPitchersRow(g)}${schedVenueRow(g, date)}<div class="sg-none">Lineups and bullpens are kept for the current slate only.</div>`;
+  return `${schedPitchersRow(g)}${schedVenueRow(g, date)}${hs}
+    <div class="sched-lineups">${schedLineupHtml(g.away, g.home, g.venue)}${schedLineupHtml(g.home, g.away, g.venue)}</div>
+    <div class="sched-bullpen-head">Bullpens</div>
+    <div class="sched-bullpens">${schedBullpenHtml(g.away)}${schedBullpenHtml(g.home)}</div>`;
+}
+/** Game: the line score and every homer, or when it starts. */
+function sgGame(g, date, S, away, home) {
+  if (!S.started) return `<div class="sg-none">First pitch ${new Date(g.gameDate).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })}.</div>`;
+  const ours = schedOurPids(date), kind = (r) => r >= 4 ? 'grand slam' : r === 1 ? 'solo' : `${r}-run`;
+  const hrs = (S.box?.hrs || []).map(h => `<div class="sgp-row" onclick="openMlbPlayer('${h.pid}')">${teamLogoImg(h.top ? away : home, 'gc-pick-logo')}
+      <span class="sgp-nm">${ours.has(h.pid) ? '★ ' : ''}${compactPlayerName(h.name)}</span><span class="sgp-sub">${kind(h.rbi)} · ${mlbOrd(h.inning)}</span></div>`).join('');
+  return `<div class="sg-ls">${mlbScoreboard(g, away, home, S.box, S.final)}</div>
+    <div class="sg-h">Home runs${S.box?.hrs?.length ? ` · ${S.box.hrs.length}` : ''}</div>${hrs || `<div class="sg-none">None${S.final ? '' : ' yet'}.</div>`}`;
 }
 
 // ── DUE ────────────────────────────────────────────────────────────────

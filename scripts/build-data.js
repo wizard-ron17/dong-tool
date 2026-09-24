@@ -1432,7 +1432,11 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
     // (silently sinking every score under the Chalk floor).
     const starterPids = [...new Set(uniq.map(c => c.oppPid).filter(Boolean))];
     const stuff = { ok: starterPids.filter(pid => pitcherStuffByPid[pid]).length, total: starterPids.length };
-    return { picks: rows.filter(r => Math.round(r.pickScore * 10) / 10 >= PICKS_MIN_SCORE), value, cards, stuff };
+    // Each club's best-scoring bat, floor or not — the schedule shows a top
+    // pick for EVERY game, and the Chalk floor leaves half the slate uncovered.
+    const topByTeam = {};
+    for (const r of rows) if (!topByTeam[r.team]) topByTeam[r.team] = { pid: r.pid, team: r.team, score: Math.round(r.pickScore * 10) / 10 };
+    return { picks: rows.filter(r => Math.round(r.pickScore * 10) / 10 >= PICKS_MIN_SCORE), value, cards, stuff, topByTeam };
   } catch (e) { return { picks: [], value: [] }; }
 }
 
@@ -3096,7 +3100,7 @@ async function main() {
   // yesterday's picks and score them against actual HR results. This runs before
   // fetchAll() so we have the old data in hand; we cross-reference after fetchAll
   // once dailyHRs is fully populated for the previous date.
-  let prevPicks = [], prevValue = [], prevDate = null, picksHistory = [], valueHistory = [], prevSchedule = [];
+  let prevPicks = [], prevValue = [], prevDate = null, picksHistory = [], valueHistory = [], prevSchedule = [], schedHistory = [];
   let prevBirthdays = [], birthdayHistory = [];
   let prevDueRows = [], dueStreaks = null, dueHistory = [];
   let prevReturning = [], prevJustBack = [], prevReturningHistory = [];
@@ -3111,6 +3115,7 @@ async function main() {
     prevValue    = old.value       ?? [];
     prevDate     = old.todayDate   ?? null;
     picksHistory = old.picksHistory ?? [];
+    schedHistory = old.schedHistory ?? [];
     valueHistory = old.valueHistory ?? [];
     prevBirthdays    = old.birthdays ?? [];
     birthdayHistory  = old.birthdayHistory ?? [];
@@ -3219,7 +3224,7 @@ async function main() {
   const injuryStatus = await fetchInjuryStatus();
 
   console.log("Computing today's HR picks (matchups, splits, pitch-type profiles)...");
-  const { picks: freshPicks, value: freshValue, cards: matchupCards, stuff: stuffCov } = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue, batMeta, injuryStatus);
+  const { picks: freshPicks, value: freshValue, cards: matchupCards, stuff: stuffCov, topByTeam = {} } = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue, batMeta, injuryStatus);
   // Degraded-build guard #2: fetchPlatoonSplits swallows fetch errors into {},
   // which once collapsed a 28-pick slate to 1 pick (every pick null-handed,
   // platoon factors gone, scores under the floor). On a real build with games,
@@ -3244,6 +3249,18 @@ async function main() {
   const picks = freezeStartedRows(freshPicks, prevPicks, sameSlate, started, (a, b) => b.pickScore - a.pickScore);
   // Value board freezes the same way — a started game shouldn't shift the board.
   const value = freezeStartedRows(freshValue, prevValue, sameSlate, started, (a, b) => b.valueScore - a.valueScore);
+
+  // The schedule's top pick per game: the better of the two clubs' best bats.
+  // A started game keeps the pick it had at first pitch, so it grades honestly.
+  {
+    const prevTop = new Map(sameSlate ? prevSchedule.filter(g => g.topPick).map(g => [g.gamePk, g.topPick]) : []);
+    for (const g of todaySchedule) {
+      if (g.started && prevTop.has(g.gamePk)) { g.topPick = prevTop.get(g.gamePk); continue; }
+      const a = topByTeam[g.away.teamAbbr], h = topByTeam[g.home.teamAbbr];
+      const t = !a ? h : !h ? a : a.score >= h.score ? a : h;
+      if (t) g.topPick = { ...t, name: playerNames[t.pid] ?? t.pid };
+    }
+  }
 
   console.log('Scoring per-game Homer Scores...');
   computeHomerScores(todaySchedule, pitcherStats, bullpens);
@@ -3356,6 +3373,19 @@ async function main() {
   // Score the previous build's picks against actual HR results now that dailyHRs
   // is fresh. Guard: only once per date (cron fires many times a day), and only
   // once that slate is complete (see scorable).
+  // The schedule's memory of a finished slate: each game's closing line, Homer
+  // Score and top pick (graded), so paging back a day still shows them — ESPN
+  // drops a game's odds once it's played. Scores come live from MLB, not here.
+  if (prevSchedule.length && scorable(prevDate) && !schedHistory.some(e => e.date === prevDate)) {
+    const dayHRs = dailyHRs[prevDate] ?? {};
+    schedHistory = [...schedHistory, { date: prevDate, games: prevSchedule.map(g => ({
+      pk: g.gamePk, away: g.away.teamAbbr, home: g.home.teamAbbr,
+      lines: g.lines?.cur ? { cur: g.lines.cur, open: g.lines.open ?? null } : null,
+      homer: g.homer?.score ?? null,
+      top: g.topPick ? { ...g.topPick, hit: !!dayHRs[g.topPick.pid] } : null,
+    })) }].slice(-14);
+    console.log(`Schedule history: logged ${prevDate} (${prevSchedule.length} games)`);
+  }
   if (prevPicks.length && scorable(prevDate) && !picksHistory.some(e => e.date === prevDate)) {
     const dayHRs = dailyHRs[prevDate] ?? {};
     const entry = {
@@ -3579,7 +3609,7 @@ async function main() {
     totalHRCount,
     dailyHRs, hrTypes, hrDetails, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR, playerLastGame,
     teamGameDays, venueGameDays, venueHRsByDate, groupSummary, dueRows, prospects, injuryStatus, dtdStatus,
-    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, teamStatus, teamOffense, batterDiscipline, bullpens, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, birthdays, birthdayHistory,
+    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, teamStatus, teamOffense, batterDiscipline, bullpens, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, schedHistory, birthdays, birthdayHistory,
     // { venue -> { carry, windForL, windForR } }. The picks rows already bake
     // this into weatherRatio, but only for the two dozen bats on those boards —
     // the Matchup tool has to score anyone in a posted lineup, so it needs the
