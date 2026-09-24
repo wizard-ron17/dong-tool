@@ -304,6 +304,14 @@
      and card-like so it reads as the primary selector, distinct from the
      underline view tabs below it. */
   .picks-mode { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; }
+  /* share sheet: the rendered image, then copy / save / share */
+  .ps-back { position: fixed; inset: 0; z-index: 400; background: rgba(0,0,0,0.72); backdrop-filter: blur(3px); display: flex; align-items: flex-start; justify-content: center; padding: 1.2rem 0.8rem; overflow-y: auto; }
+  .ps-modal { position: relative; width: 100%; max-width: 900px; background: var(--surface0); border: 1px solid var(--border2); border-radius: 14px; padding: 0.9rem; }
+  .ps-img { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--border); background: #070b14; min-height: 8rem; }
+  .ps-acts { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin-top: 0.75rem; }
+  .ps-act { background: var(--accent); color: #06210f; border: none; font-family: var(--font-d); font-weight: 700; font-size: 0.9rem; padding: 0.55rem 1rem; border-radius: 9px; cursor: pointer; }
+  .ps-act.alt { background: var(--surface1); color: var(--text); border: 1px solid var(--border2); }
+  .ps-note { text-align: center; font-size: 0.72rem; color: var(--muted); margin-top: 0.5rem; min-height: 1em; }
   .picks-mode-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.4rem; background: var(--surface0); border: 1px solid var(--border); color: var(--muted); font-family: var(--font-d); font-size: 1.08rem; font-weight: 700; letter-spacing: 0.02em; padding: 0.62rem; border-radius: 11px; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s; }
   .picks-mode-btn:hover:not(.active) { color: var(--text); border-color: var(--border2); }
   .picks-mode-btn.active { color: #fff; }
@@ -6174,6 +6182,150 @@ function openDingerDigest() {
   window.addEventListener('resize', ddFitSheet);
 }
 
+
+// ── Share: Chalk + Value as one image ─────────────────────────────────────
+// Drawn straight onto a canvas (fixed dark palette, big type) so it reads in a
+// Discord embed at a glance, then offered as a PNG: copy to the clipboard,
+// save, or the phone's share sheet. Both boards as the Picks page shows them
+// (its filters apply), with games already underway graded off MLB's feed.
+const PS_C = { bg: '#070b14', card: '#0e1626', line: '#1c2740', text: '#eef3fb', muted: '#8d9bb2', dim: '#5d6b84', accent: '#35c96e', miss: '#6b7890' };
+let psBlob = null;
+function psLoadImg(src) {
+  return new Promise(res => {
+    if (!src) return res(null);
+    const im = new Image(); im.crossOrigin = 'anonymous';
+    const t = setTimeout(() => res(null), 5000);
+    im.onload = () => { clearTimeout(t); res(im); }; im.onerror = () => { clearTimeout(t); res(null); };
+    im.src = src;
+  });
+}
+const psHue = (s, lo, hi) => Math.round(Math.max(0, Math.min(1, ((+s || 0) - lo) / (hi - lo))) * 130);
+async function psRender(withImages = true) {
+  const chalk = applyPicksFilters(picks).slice(0, 12);
+  const val = applyValueFilters(value).sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0)).slice(0, 12);
+  const nChalk = applyPicksFilters(picks).length, nVal = applyValueFilters(value).length;
+  if (todayDate) await Promise.race([loadMlbDay(todayDate), new Promise(r => setTimeout(r, 3000))]);
+  const hrs = new Set(), finals = new Set();
+  for (const g of todaySchedule) {
+    const b = MLB_BOX.games[g.gamePk]; if (!b) continue;
+    for (const h of b.hrs || []) hrs.add(h.pid);
+    if (b.state === 'Final') { finals.add(g.away.teamAbbr); finals.add(g.home.teamAbbr); }
+  }
+  const W = 1200, PAD = 36, COLW = (W - PAD * 3) / 2, ROW = 66, HEAD = 128, COLHEAD = 58;
+  const rows = Math.max(chalk.length, val.length, 1);
+  const H = HEAD + COLHEAD + rows * ROW + 92;
+  const cv = document.createElement('canvas'); cv.width = W * 2; cv.height = H * 2;
+  const x = cv.getContext('2d'); x.scale(2, 2);
+  await document.fonts?.ready;
+  const F = (w, px, fam) => `${w} ${px}px ${fam === 'd' ? "'Chakra Petch'" : fam === 'm' ? "'JetBrains Mono'" : "'Plus Jakarta Sans'"}, sans-serif`;
+  x.fillStyle = PS_C.bg; x.fillRect(0, 0, W, H);
+  // header
+  x.fillStyle = PS_C.text; x.font = F(700, 38, 'd'); x.textBaseline = 'alphabetic';
+  x.fillText('HR Picks', PAD, 62);
+  const dLabel = todayDate ? new Date(todayDate + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' }) : '';
+  x.fillStyle = PS_C.muted; x.font = F(600, 20, 'b'); x.fillText(dLabel, PAD, 94);
+  x.textAlign = 'right'; x.fillStyle = PS_C.accent; x.font = F(700, 24, 'd'); x.fillText("Ron's Dong Tool", W - PAD, 62);
+  x.fillStyle = PS_C.dim; x.font = F(500, 16, 'b'); x.fillText(`${todaySchedule.length} games`, W - PAD, 92);
+  x.textAlign = 'left';
+  // load every picture first
+  const imgs = new Map();
+  if (withImages) await Promise.all([...chalk, ...val].flatMap(r => [
+    psLoadImg(playerPhotoUrl(r.pid)).then(im => imgs.set('p' + r.pid, im)),
+    psLoadImg(teamLogoUrl(r.team)?.replace('team-cap-on-light', 'team-cap-on-dark')).then(im => imgs.set('t' + r.team, im)),
+  ]));
+  const col = (list, cx, title, sub, scoreOf, lo, hi, lab, total) => {
+    const y0 = HEAD;
+    x.fillStyle = PS_C.text; x.font = F(700, 26, 'd'); x.fillText(title, cx, y0 + 24);
+    const tw = x.measureText(title).width;
+    x.fillStyle = PS_C.muted; x.font = F(500, 15, 'b'); x.fillText(sub, cx + tw + 12, y0 + 23);
+    list.forEach((r, i) => {
+      const y = y0 + COLHEAD + i * ROW;
+      x.fillStyle = PS_C.card; x.beginPath(); x.roundRect(cx, y, COLW, ROW - 8, 10); x.fill();
+      // rank
+      x.fillStyle = i < 3 ? PS_C.text : PS_C.dim; x.font = F(700, 20, 'd'); x.textAlign = 'center'; x.fillText(String(i + 1), cx + 22, y + 36); x.textAlign = 'left';
+      // headshot
+      const ph = imgs.get('p' + r.pid), px0 = cx + 44, py0 = y + 7, ps = 44;
+      x.save(); x.beginPath(); x.arc(px0 + ps / 2, py0 + ps / 2, ps / 2, 0, Math.PI * 2); x.fillStyle = PS_C.line; x.fill(); x.clip();
+      if (ph) x.drawImage(ph, px0, py0, ps, ps); x.restore();
+      // name + game line
+      const nx = px0 + ps + 12;
+      const hit = hrs.has(String(r.pid)), done = finals.has(r.team);
+      const res = hit ? '✓ HR' : done ? '✗' : '';
+      x.fillStyle = PS_C.text; x.font = F(700, 20, 'b');
+      const name = playerNames[r.pid] || r.pid;
+      const maxName = COLW - (nx - cx) - 120;
+      let nm = name; while (x.measureText(nm).width > maxName && nm.length > 4) nm = nm.slice(0, -2);
+      x.fillText(nm === name ? nm : nm.trimEnd() + '…', nx, y + 28);
+      const lg = imgs.get('t' + r.team);
+      if (lg) x.drawImage(lg, nx, y + 36, 16, 16);
+      x.fillStyle = PS_C.muted; x.font = F(500, 14, 'b');
+      const spot = r.lineupOrder ? `#${r.lineupOrder}${r.projected ? ' proj' : ''} · ` : '';
+      x.fillText(`${r.team} · ${spot}vs ${r.oppName ? compactPlayerName(r.oppName) : r.oppTeam}${r.oppHand ? ` (${r.oppHand})` : ''}`, nx + (lg ? 21 : 0), y + 49);
+      // score, on the ramp; the result beside it once the game is underway
+      const sc = scoreOf(r);
+      x.textAlign = 'right';
+      if (res) {
+        x.font = F(700, 15, 'd'); const rw = x.measureText(res).width + 16;
+        x.fillStyle = hit ? 'rgba(53,201,110,0.18)' : 'rgba(141,155,178,0.14)';
+        x.beginPath(); x.roundRect(cx + COLW - 12 - rw, y + 18, rw, 24, 12); x.fill();
+        x.fillStyle = hit ? PS_C.accent : PS_C.miss; x.fillText(res, cx + COLW - 20, y + 36);
+      }
+      const sx = cx + COLW - (res ? 30 + x.measureText(res).width + 16 : 16);
+      x.fillStyle = `hsl(${psHue(sc, lo, hi)} 72% 58%)`; x.font = F(700, 26, 'd'); x.fillText(sc.toFixed(1), sx, y + 34);
+      x.fillStyle = PS_C.dim; x.font = F(600, 11, 'b'); x.fillText(lab, sx, y + 50);
+      x.textAlign = 'left';
+    });
+    if (!list.length) { x.fillStyle = PS_C.muted; x.font = F(500, 18, 'b'); x.fillText('No picks on this board yet.', cx, y0 + COLHEAD + 30); }
+    if (total > list.length) { x.fillStyle = PS_C.dim; x.font = F(500, 14, 'b'); x.fillText(`+${total - list.length} more on the board`, cx + 4, y0 + COLHEAD + list.length * ROW + 10); }
+  };
+  col(chalk, PAD, '🔒 Chalk', 'proven power', r => r.pickScore ?? 0, 3, 15, 'PICK', nChalk);
+  col(val, PAD * 2 + COLW, '🎯 Value', 'underpriced power', r => r.valueScore ?? 0, 20, 100, 'VALUE', nVal);
+  // footer
+  x.fillStyle = PS_C.line; x.fillRect(PAD, H - 58, W - PAD * 2, 1);
+  x.fillStyle = PS_C.dim; x.font = F(500, 15, 'b');
+  x.fillText('Pick = HR matchup grade (power × platoon, arm, park, weather) · Value = power the results haven’t caught up to', PAD, H - 28);
+  x.textAlign = 'right'; x.fillStyle = PS_C.muted; x.font = F(700, 16, 'd'); x.fillText('dong-tool.netlify.app', W - PAD, H - 28); x.textAlign = 'left';
+  return new Promise((res, rej) => { try { cv.toBlob(b => b ? res(b) : rej(new Error('empty')), 'image/png'); } catch (e) { rej(e); } });
+}
+async function openPicksShare() {
+  closePicksShare();
+  document.body.insertAdjacentHTML('beforeend', `<div class="ps-back" id="ps-back" onclick="if(event.target===this)closePicksShare()">
+    <div class="ps-modal"><button class="pm-x" onclick="closePicksShare()" aria-label="Close">×</button>
+      <img class="ps-img" id="ps-img" alt="Chalk and Value picks">
+      <div class="ps-acts">
+        <button class="ps-act" id="ps-copy" onclick="psCopy()">Copy image</button>
+        <button class="ps-act alt" onclick="psSave()">Save PNG</button>
+        ${navigator.canShare ? '<button class="ps-act alt" onclick="psShare()">Share…</button>' : ''}
+        <button class="ps-act alt" onclick="${picksMode === 'value' ? 'shareValueText' : 'sharePicksText'}()">Copy ${picksMode === 'value' ? 'Value' : 'Chalk'} as text</button>
+      </div>
+      <div class="ps-note" id="ps-note">Drawing…</div></div></div>`);
+  document.addEventListener('keydown', psKey);
+  try { psBlob = await psRender(true); }
+  catch (e) { psBlob = await psRender(false).catch(() => null); }   // a picture that won't export: draw without them
+  const img = document.getElementById('ps-img'), note = document.getElementById('ps-note');
+  if (!img) return;
+  if (!psBlob) { note.textContent = "Couldn't draw the image."; return; }
+  img.src = URL.createObjectURL(psBlob);
+  note.textContent = 'Copy it and paste straight into Discord — or long-press the image on a phone.';
+}
+function psKey(e) { if (e.key === 'Escape') closePicksShare(); }
+function closePicksShare() { document.getElementById('ps-back')?.remove(); document.removeEventListener('keydown', psKey); }
+const psSay = (t) => { const n = document.getElementById('ps-note'); if (n) n.textContent = t; };
+async function psCopy() {
+  if (!psBlob) return;
+  try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': psBlob })]); psSay('Copied — paste it into Discord.'); }
+  catch (e) { psSay('This browser won’t copy images — use Save PNG (or long-press the image).'); }
+}
+function psSave() {
+  if (!psBlob) return;
+  const a = document.createElement('a'); a.href = URL.createObjectURL(psBlob); a.download = `hr-picks-${todayDate || 'today'}.png`; a.click();
+}
+async function psShare() {
+  if (!psBlob) return;
+  const f = new File([psBlob], `hr-picks-${todayDate || 'today'}.png`, { type: 'image/png' });
+  try { if (navigator.canShare?.({ files: [f] })) await navigator.share({ files: [f], title: 'HR Picks' }); else psSave(); } catch (e) { /* cancelled */ }
+}
+
 // ── Hidden health/status view (read-only) ───────────────────────────────
 // Open with ?status in the URL or by calling openStatus() from the console.
 // Everything is derived from data.json + the client's own state — no backend,
@@ -6294,9 +6446,9 @@ function schedGoToday() { schedDate = null; renderSchedule(); }
 function loadMlbDay(date) {
   if (!date) return;
   const D = MLB_BOX.days[date] ||= { at: 0, busy: false, games: null, err: false };
-  if (D.busy || Date.now() - D.at < 55e3) return;
+  if (D.busy || Date.now() - D.at < 55e3) return D.p || Promise.resolve();
   D.busy = true;
-  fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${date}&hydrate=linescore,scoringplays,probablePitcher,team`)
+  return D.p = fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${date}&hydrate=linescore,scoringplays,probablePitcher,team`)
     .then(r => r.ok ? r.json() : Promise.reject())
     .then(j => {
       const list = [];
@@ -9028,7 +9180,11 @@ async function shareText(text) {
     window.prompt('Copy this:', text);
   }
 }
-function sharePicks() {
+// Picks and Value share one sheet: both boards as an image (see openPicksShare),
+// with the plain-text lists a tap away for anywhere an image won't go.
+function sharePicks() { if (!applyPicksFilters(picks).length && !applyValueFilters(value).length) { dtToast('No picks to share'); return; } openPicksShare(); }
+function shareValue() { sharePicks(); }
+function sharePicksText() {
   const filtered = applyPicksFilters(picks);
   if (!filtered.length) { dtToast('No picks to share'); return; }
   const ranked = [...filtered].sort((a, b) => b.pickScore - a.pickScore).slice(0, 15);
@@ -9037,7 +9193,7 @@ function sharePicks() {
   const more = filtered.length > ranked.length ? `\n…+${filtered.length - ranked.length} more` : '';
   shareText(`🌭 Dong Tool — HR Picks · ${fmtDateLong(todayDate)}\n\n${lines.join('\n')}${more}`);
 }
-function shareValue() {
+function shareValueText() {
   const filtered = applyValueFilters(value);
   if (!filtered.length) { dtToast('No value bats to share'); return; }
   const ranked = [...filtered].sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0)).slice(0, 15);
