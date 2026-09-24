@@ -27,21 +27,33 @@ def load():
         season = int(os.path.basename(season_dir))
         for date_dir in sorted(glob.glob(os.path.join(season_dir, "20*-*-*"))):
             date = os.path.basename(date_dir)
-            need = [os.path.join(date_dir, f + ".json") for f in ("summary", "realtime", "timeonice", "team")]
+            # Per-game files (research/nhl_game_fetch.py) when the date has them:
+            # stable paging, and the club, opponent and home/away are on the row.
+            # The old date-partitioned files paged without a sort (duplicated and
+            # dropped rows) and guessed traded players' clubs — fallback only.
+            per_game = all(os.path.exists(os.path.join(date_dir, f"g_{f}.json")) for f in ("summary", "realtime", "timeonice"))
+            need = [os.path.join(date_dir, (("g_" + f) if per_game and f != "team" else f) + ".json") for f in ("summary", "realtime", "timeonice", "team")]
             if not all(os.path.exists(p) for p in need):
                 continue
             s, r, t, m = [json.load(open(p)) for p in need]
             if not s:
                 continue
-            by_r = {x["playerId"]: x for x in r}
-            by_t = {x["playerId"]: x for x in t}
+            k_ = (lambda x: (x["playerId"], x.get("gameId"))) if per_game else (lambda x: x["playerId"])
+            by_r = {k_(x): x for x in r}
+            by_t = {k_(x): x for x in t}
+            seen = set()
             for row in s:
                 pid = row["playerId"]
-                rr, tt = by_r.get(pid, {}), by_t.get(pid, {})
+                if k_(row) in seen: continue          # belt and braces: one row per player-game
+                seen.add(k_(row))
+                rr, tt = by_r.get(k_(row), {}), by_t.get(k_(row), {})
                 sk.append(dict(
                     season=season, date=date, pid=pid,
                     name=row.get("skaterFullName"), pos=row.get("positionCode"),
-                    teams=(row.get("teamAbbrevs") or "").strip(),
+                    teams=(row.get("teamAbbrev") or row.get("teamAbbrevs") or "").strip(),
+                    team_g=row.get("teamAbbrev") if per_game else None,
+                    opp_g=row.get("opponentTeamAbbrev") if per_game else None,
+                    home_g=(row.get("homeRoad") == "H") if per_game else None,
                     sog=row.get("shots") or 0, goals=row.get("goals") or 0,
                     evg=row.get("evGoals") or 0, ppg=row.get("ppGoals") or 0,
                     toi=row.get("timeOnIcePerGame") or 0.0,
@@ -88,7 +100,9 @@ def build():
             if (season, date, t) in playing:
                 return t
         return opts[-1] if opts else ""
-    sk["team"] = [resolve(s_, d, t) for s_, d, t in zip(sk.season, sk.date, sk.teams)]
+    sk["team"] = [tg if tg else resolve(s_, d, t) for tg, s_, d, t in zip(sk.team_g, sk.season, sk.date, sk.teams)]
+    n_pg = sk.team_g.notna().sum()
+    print(f"{n_pg:,} of {len(sk):,} rows from per-game files (club on the row); {len(sk) - n_pg:,} resolved off the schedule")
     sk = sk.sort_values(["pid", "season", "date"]).reset_index(drop=True)
     sk["one"] = 1.0
     sk["iff"] = sk.icf - sk.blk                       # Individual Fenwick For
@@ -165,7 +179,7 @@ def build():
         om = tm.set_index(["season", "date", "team"])["opp"].to_dict()
         key = list(zip(sk.season, sk.date, sk.team))
         sk["team_sf_prior"] = [sf.get(k, np.nan) for k in key]
-        sk["opp"] = [opp.get(k) for k in key]
+        sk["opp"] = [og if og else opp.get(k) for og, k in zip(sk.opp_g, key)]
         sk["opp_sa_prior"] = [sa.get((s, d, o), np.nan) if o else np.nan
                               for s, d, o in zip(sk.season, sk.date, sk.opp)]
         for col, src in (("opp_ga_prior", "ga_prior"), ("opp_pk_prior", "pk_prior")):
@@ -173,7 +187,7 @@ def build():
             sk[col] = [mp.get((s, d, o), np.nan) if o else np.nan for s, d, o in zip(sk.season, sk.date, sk.opp)]
         gfm = tm.set_index(["season", "date", "team"])["gf_prior"].to_dict()
         sk["team_gf_prior"] = [gfm.get(k, np.nan) for k in key]
-        sk["is_home"] = [1.0 if home.get((s, d, t)) else 0.0 for s, d, t in key]
+        sk["is_home"] = [float(hg) if hg is not None and hg == hg else (1.0 if home.get(k) else 0.0) for hg, k in zip(sk.home_g, key)]
     for c in ("team_sf_prior", "opp_sa_prior", "opp_ga_prior", "opp_pk_prior", "team_gf_prior"):
         sk[c] = sk[c].fillna(sk[c].mean())
 

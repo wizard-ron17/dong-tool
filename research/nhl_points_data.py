@@ -20,8 +20,13 @@ K = 16.0       # games of prior weight, as the goals model uses
 
 def load():
     rows = []
-    for p in glob.glob(os.path.join(CACHE, "20*", "20*-*-*", "summary.json")):
-        season, date = int(p.split(os.sep)[-3]), p.split(os.sep)[-2]
+    for d in glob.glob(os.path.join(CACHE, "20*", "20*-*-*")):
+        season, date = int(d.split(os.sep)[-2]), d.split(os.sep)[-1]
+        # per-game file when the date has one (research/nhl_game_fetch.py): the
+        # old date-partitioned pages duplicated and dropped rows
+        p = os.path.join(d, "g_summary.json")
+        if not os.path.exists(p): p = os.path.join(d, "summary.json")
+        if not os.path.exists(p): continue
         for r in json.load(open(p)):
             rows.append(dict(season=season, date=date, pid=r["playerId"], a=r.get("assists") or 0,
                              pts=r.get("points") or 0, ppp=r.get("ppPoints") or 0))
@@ -39,8 +44,8 @@ def load():
 
 
 def build():
-    # nhl_sog.parquet carries 555 repeated rows (0.3%) from the same paging repeat
-    D = pd.read_parquet(os.path.join(HERE, "nhl_sog.parquet")).drop_duplicates(["season", "date", "pid"])
+    D = pd.read_parquet(os.path.join(HERE, "nhl_sog.parquet"))
+    assert not D.duplicated(["season", "date", "pid"]).any(), "nhl_sog.parquet has repeated player-games — rebuild it"
     P, T = load()
     # the per-date warehouse pages occasionally repeat a row; one per player per night
     P = P.drop_duplicates(["season", "date", "pid"]); T = T.drop_duplicates(["season", "date", "team"])
