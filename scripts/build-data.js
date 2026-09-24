@@ -2276,6 +2276,32 @@ async function fetchBatMeta() {
 
 // HR-focused season line for each of today's probable pitchers — just enough
 // to answer "is this guy a homer-prone matchup or not" at a glance.
+// Each club's playoff status going into today — clinched, eliminated (out of the
+// division AND the wild card), or in the race — off last night's standings. The
+// Walks and Ks boards flag the matchups research/mlb_motivation.py measured
+// (Aug-Sep 2023-26, every club and starter against itself): clinched clubs pull
+// starters 5.4 pitches early, eliminated 2.5; clinched and eliminated lineups
+// strike out 1.6-1.9pp more; starters facing an eliminated lineup walk 1.2pp
+// less. Flags only — folded into the price, the effects didn't beat the live
+// projection on held-out 2026 starts.
+async function fetchTeamStatus(idToAbbr) {
+  try {
+    const y = new Date(Date.parse(todayET() + 'T12:00:00Z') - 864e5);
+    const mdY = `${String(y.getUTCMonth() + 1).padStart(2, '0')}/${String(y.getUTCDate()).padStart(2, '0')}/${y.getUTCFullYear()}`;
+    const res = await fetch(`${MLB}/standings?leagueId=103,104&season=${SEASON_YEAR}&date=${mdY}&standingsTypes=regularSeason&hydrate=team`).then(r => r.json());
+    const out = {};
+    for (const rec of res.records || []) for (const t of rec.teamRecords || []) {
+      const ab = idToAbbr?.[t.team?.id] || t.team?.abbreviation;     // the build's own codes (AZ, CWS, ATH …)
+      if (!ab) continue;
+      const elim = t.eliminationNumber === 'E' && (t.wildCardEliminationNumber === 'E' || t.wildCardEliminationNumber == null);
+      out[ab] = t.clinched ? 'clinched' : elim ? 'eliminated' : 'race';
+    }
+    const n = (s) => Object.values(out).filter(x => x === s).length;
+    console.log(`  team status: ${n('clinched')} clinched, ${n('eliminated')} eliminated, ${n('race')} in the race`);
+    return out;
+  } catch (e) { console.warn(`  team status skipped: ${e.message}`); return {}; }
+}
+
 async function fetchPitcherHRStats(pids) {
   const stats = {};
   const BATCH = 6;
@@ -2295,6 +2321,10 @@ async function fetchPitcherHRStats(pids) {
           k: stat.strikeOuts ?? 0, bb: stat.baseOnBalls ?? 0, bf: stat.battersFaced ?? null,
           bb9: stat.walksPer9Inn ?? (ipToFloat(stat.inningsPitched) ? Math.round((stat.baseOnBalls ?? 0) / ipToFloat(stat.inningsPitched) * 90) / 10 : null),
           ip: stat.inningsPitched ?? '0.0', era: stat.era ?? null,
+          // pitches and strikes, for his ball rate on the Walks board — shown,
+          // not priced: research/mlb_walks_discipline.py found it adds only when
+          // the whole projection is refit, which mis-prices the top of the board
+          pitches: stat.numberOfPitches ?? null, strikes: stat.strikes ?? null,
           gamesStarted: stat.gamesStarted ?? 0,
           gamesPlayed: stat.gamesPlayed ?? 0,
         };
@@ -3165,6 +3195,7 @@ async function main() {
   console.log("Fetching today's probable pitchers' HR stats...");
   const probablePitcherIds = todaySchedule.flatMap(g => [g.home.probablePitcherId, g.away.probablePitcherId]).filter(Boolean);
   const pitcherStats = await fetchPitcherHRStats(probablePitcherIds);
+  const teamStatus = await fetchTeamStatus(teamIdToAbbr);
 
   console.log('Fetching team plate discipline (K% / BB%) for the Pitcher Ks/Walks tools...');
   const teamOffense = await fetchTeamOffense(teamIdToAbbr);
@@ -3548,7 +3579,7 @@ async function main() {
     totalHRCount,
     dailyHRs, hrTypes, hrDetails, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR, playerLastGame,
     teamGameDays, venueGameDays, venueHRsByDate, groupSummary, dueRows, prospects, injuryStatus, dtdStatus,
-    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, teamOffense, batterDiscipline, bullpens, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, birthdays, birthdayHistory,
+    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, teamStatus, teamOffense, batterDiscipline, bullpens, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, birthdays, birthdayHistory,
     // { venue -> { carry, windForL, windForR } }. The picks rows already bake
     // this into weatherRatio, but only for the two dozen bats on those boards —
     // the Matchup tool has to score anyone in a posted lineup, so it needs the

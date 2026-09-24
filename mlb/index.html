@@ -1523,6 +1523,8 @@
   .pv-rankflag, .pv-capflag { font-family: var(--font-m); font-size: 0.64rem; color: var(--text); border: 1px dashed var(--border2); border-radius: 5px; padding: 0.05rem 0.3rem; white-space: nowrap; }
   .pv-rankflag b { color: var(--accent); }
   .pv-capflag { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 45%, transparent); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; }
+  /* late-season status: a situation, not a good/bad signal — the neutral move hue */
+  .pv-stflag { font-family: var(--font-m); font-size: 0.64rem; color: var(--mvc); border: 1px solid color-mix(in srgb, var(--mvc) 45%, transparent); background: color-mix(in srgb, var(--mvc) 9%, transparent); border-radius: 5px; padding: 0.05rem 0.3rem; white-space: nowrap; cursor: help; }
   .kbb-rank { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin: 0.3rem 0 1rem; }
   .kbb-rank th, .kbb-rank td { padding: 0.35rem 0.5rem; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
   .kbb-rank th:first-child, .kbb-rank td:first-child { text-align: left; }
@@ -2875,6 +2877,8 @@
           <li><b>~Proj BB</b> estimates the walks for his start: Exp BB% × the batters he actually averages per start (measured, not innings × a constant).</li>
           <li><b>Projections are priced capped at 2.4.</b> Replaying every start this season, a pitcher projected above about 2.4 walks doesn't actually walk more &mdash; extreme walk rates regress, and a wild arm tends to get pulled before the walks pile up. Uncapped, arms projected 2.7+ were quoted around <b>&minus;360</b> on Over 1.5 and went over like <b>&minus;212 (68%)</b>; capped, the price is about &minus;224. The board still ranks by the raw projection, so the order doesn't change &mdash; a capped arm is marked <b>cap</b> with his raw number beside it.</li>
           <li><b>Rank history on the top 8.</b> Each of the board's top 8 carries a small flag: how the board's arm at that spot has done on <b>Over 1.5</b> across every graded slate, in odds and percent (e.g. <b>#1 o1.5 hist &minus;229 · 70%</b>). The top three have gone over about 70% of the time however steep their own price looked, so it's a useful check against the book. It's a record of the rank &mdash; it isn't part of our price. The full table is on the Results tab.</li>
+          <li><b>Late-season flags.</b> From mid-September a start can carry a status flag, off last night's standings. Measured over the last four Augusts and Septembers, every club and starter against itself: starters <b>facing an eliminated lineup</b> walk about <b>1.2 points less</b> (a lineup with nothing to play for swings early); starters on <b>clinched</b> clubs are pulled about <b>5.4 pitches early</b>, on <b>eliminated</b> clubs about 2.5. Clubs still in the race are normal &mdash; teams in the hunt don't leave starters in longer. The flags are <b>information, not price</b>: folded into the projection they pointed the right way but over-corrected on 2026's starts.</li>
+          <li><b>Ball rate</b> sits in the pitcher card: how often his pitches are called balls (league ~36%). It does carry signal beyond his walk rate, but only with the whole projection refit around it, and that version priced the top of the board too low &mdash; so it's context, not an input. Chase rate was tested too and adds nothing: it's already inside the walk rates.</li>
           <li><b>Why season-long?</b> Like K%, walk rate stabilizes fast (~120 batters faced), so a season rate is reliable and recency mostly adds noise. Rates are lightly regressed toward league for small samples.</li>
           <li><b>Flip the scope</b> with the By Pitcher / By Batter toggle: By Batter ranks today's <b>hitters</b> by their expected BB% vs the starter they face — the likeliest bats to draw a walk today.</li>
           <li><b>Results.</b> Every past slate is replayed and graded — the board is rebuilt from the rates that were known that morning, then checked against what those arms actually did. See the <b>Results</b> tab for the running hit rate.</li>
@@ -3031,6 +3035,7 @@ let todayLineupsPostedTeams = new Set(); // team abbrs whose lineup has actually
 let todayStarterPids       = new Set(); // pids confirmed in a posted starting lineup today
 let teamIds = {}; // team abbr -> MLB team id, for team-logos/{id}.svg
 let pitcherStats = {}; // pid -> { hr, hr9, ip, era } for today's probable pitchers
+let teamStatus = {};   // club -> 'clinched' | 'eliminated' | 'race', going into today
 let teamOffense = { teams: {}, lg: { kPct: 0.22, bbPct: 0.083 } }; // team K%/BB% for the Pitcher Ks/Walks tools
 let batterDiscipline = {}; // pid -> { k, bb, pa } for the Ks/Walks drill-down (bats most likely to whiff/walk)
 let bullpens = {}; // team abbr -> [{ pid, name, hand, era, saves, holds, gamesPitched, lastOuting, pitchMix }]
@@ -3473,6 +3478,7 @@ function applyData(data) {
   todaySchedule = data.todaySchedule ?? [];
   teamIds = data.teamIds ?? {};
   pitcherStats = data.pitcherStats ?? {};
+  teamStatus = data.teamStatus ?? {};
   teamOffense  = data.teamOffense  ?? teamOffense;
   batterDiscipline = data.batterDiscipline ?? {};
   bullpens = data.bullpens ?? {};
@@ -9869,6 +9875,7 @@ function ppRankStarters(kind, sort = ppSort) {
       const rawProj = projBF != null ? exp * projBF : null;
       rows.push({ pid, name: playerNames[pid] || pid, team: me.teamAbbr, oppTeam: opp.teamAbbr, venue: g.venue,
                   status: g.status, throws: me.probablePitcherThrows, raw, tRate: t, exp, bf: projBF,
+                  own: teamStatus[me.teamAbbr] || null, oppStatus: teamStatus[opp.teamAbbr] || null,
                   rawProj, proj: rawProj != null && !isK ? Math.min(rawProj, KBB_BB_CAP) : rawProj,
                   lineupPids: opp.lineup?.length ? opp.lineup.map(b => String(b.pid)) : null });
     }
@@ -9879,6 +9886,25 @@ function ppRankStarters(kind, sort = ppSort) {
     ? (a, b) => (b.rawProj ?? -1) - (a.rawProj ?? -1) || b.exp - a.exp
     : (a, b) => b.exp - a.exp);
   return { rows, lg, K0, log5 };
+}
+
+// Late-season matchups, measured in research/mlb_motivation.py (Aug-Sep
+// 2023-26, every club and starter against itself). SHOWN, NOT PRICED: folded
+// into the projection, the effects pointed the right way but over-corrected on
+// held-out 2026 starts and didn't beat the live price.
+function kbbStatusFlags(r, isK) {
+  const f = [];
+  const note = ' Shown, not priced — folded into the projection it over-corrected on 2026 starts.';
+  if (r.oppStatus === 'eliminated') f.push(isK
+    ? ['vs eliminated lineup', `Eliminated lineups struck out 1.6 points above their own season rate (Aug–Sep 2023-26, t +3.0).${note}`]
+    : ['vs eliminated lineup', `Starters facing an eliminated lineup walked 1.2 points less often than against a club still in the race (Aug–Sep 2023-26, t −3.5) — a lineup with nothing to play for swings early.${note}`]);
+  if (r.oppStatus === 'clinched' && isK)
+    f.push(['vs clinched lineup', `Clinched lineups struck out 1.9 points above their own season rate and chased more — regulars get rest (t +2.5).${note}`]);
+  if (r.own === 'clinched')
+    f.push(['clinched · short leash', `Starters on clinched clubs threw 5.4 fewer pitches than their own average — about 1.5 fewer batters (t −3.9). Fewer batters, fewer chances for ${isK ? 'strikeouts' : 'walks'}.${note}`]);
+  if (r.own === 'eliminated')
+    f.push(['eliminated · shorter leash', `Starters on eliminated clubs threw 2.5 fewer pitches than their own average (t −2.8).${note}`]);
+  return f.map(([t, tip]) => `<span class="pv-stflag" title="${tip}">${t}</span>`).join('');
 }
 
 /** Which market the open tool is about — the card opens on that tab. */
@@ -10037,6 +10063,9 @@ function pcMetrics(r) {
   if (r.bf != null) out.push(['clock', r.bf.toFixed(1), 'Batters / start']);
   const ps = pitcherStats[r.pid];
   if (ps?.bf) out.push(['ball', String(ps.bf), 'Batters faced, season']);
+  // ball rate: how often he misses the zone's call. A context number, not a
+  // price input (research/mlb_walks_discipline.py); the league runs ~36%.
+  if (ps?.pitches >= 300 && ps.strikes != null) out.push(['target', pct(1 - ps.strikes / ps.pitches), 'Ball rate (lg ~36%)']);
   return out.map(([ic, v, l]) => `<div class="ydk"><span class="ydk-ic">${ydIco(ic)}</span><b>${v}</b><span>${l}</span></div>`).join('');
 }
 
@@ -10241,7 +10270,7 @@ function renderPitcherProp(kind) {
         <div class="pv-id">
           <div class="pv-name">${compactPlayerName(r.name)} ${hand}${statusChip}</div>
           <div class="pv-sub">${teamLogoImg(r.team, 'team-logo')}${r.team} vs ${r.oppTeam}${r.venue ? `<span class="pv-venue"> · ${r.venue}</span>` : ''}</div>
-          ${rankFlag || capped ? `<div class="pv-flags">${rankFlag}${capped ? `<span class="pv-capflag" title="Raw projection ${r.rawProj.toFixed(1)} walks — priced as ${KBB_BB_CAP}">cap · ${r.rawProj.toFixed(1)} raw</span>` : ''}</div>` : ''}
+          ${(() => { const st = kbbStatusFlags(r, isK); return rankFlag || capped || st ? `<div class="pv-flags">${rankFlag}${capped ? `<span class="pv-capflag" title="Raw projection ${r.rawProj.toFixed(1)} walks — priced as ${KBB_BB_CAP}">cap · ${r.rawProj.toFixed(1)} raw</span>` : ''}${st}</div>` : ''; })()}
         </div>
         <div class="pv-facts">
           ${r.proj == null ? '' : `<span class="pv-f${capped ? ' pv-capped' : ''}" title="${capped

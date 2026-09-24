@@ -111,7 +111,7 @@ def row_ll(mu, y):
     return np.mean(out, axis=0)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and "--ship" not in sys.argv:
     D = build().dropna(subset=["log_t_chase"]).copy()
     D["log_lu_chase"] = D.log_lu_chase.fillna(D.log_t_chase)
     base = ["log_proj"]
@@ -129,3 +129,55 @@ if __name__ == "__main__":
         t = d.mean() / (d.std() / np.sqrt(len(d)))
         tt = top(m1); tt = tt[tt.rk <= 8]
         print(f"  + {lab:28s} {d.mean() * 1000:+.3f} per 1,000   t {t:+.2f}{'  <-- counts' if t > 2.5 else ''}   top-8 o1.5 hit {(tt.bb >= 2).mean() * 100:.1f}%")
+
+
+# ── Shipped form: a multiplier on the live projection ─────────────────────
+# The ladder above refits the whole projection. What ships is narrower: the
+# live price (projection capped at 2.4) stays as it is — its log enters as an
+# OFFSET, coefficient fixed at 1 — and ball rate becomes one multiplier on it,
+# exp(b * z) with z his as-of ball rate standardised on the months before.
+def offset_irls(X, y, off, ridge=1.0, it=50):
+    b = np.zeros(X.shape[1])
+    for _ in range(it):
+        eta = np.clip(off + X @ b, -8, 4); mu = np.exp(eta)
+        z = (eta - off) + (y - mu) / np.maximum(mu, 1e-9)
+        A = X.T @ (X * mu[:, None]) + ridge * np.eye(X.shape[1]); A[0, 0] -= ridge
+        nb = np.linalg.solve(A, X.T @ (mu * z))
+        if np.max(np.abs(nb - b)) < 1e-10: b = nb; break
+        b = nb
+    return b
+
+
+def shipped_form(D):
+    D = D.copy(); D["proj_cap"] = np.minimum(D.proj, 2.4); off = np.log(D.proj_cap)
+    mu0 = pd.Series(np.nan, index=D.index); mu1 = mu0.copy(); coefs = []
+    for m in sorted(D.date.str[:7].unique()):
+        tr, te = D[D.date < m + "-01"], D[D.date.str[:7] == m]
+        if len(tr) < 400 or not len(te): continue
+        mean, sd = tr.log_p_ball.mean(), tr.log_p_ball.std()
+        Xtr = np.column_stack([np.ones(len(tr)), (tr.log_p_ball - mean) / sd]); Xte = np.column_stack([np.ones(len(te)), (te.log_p_ball - mean) / sd])
+        b = offset_irls(Xtr, tr.bb.to_numpy(float), np.log(tr.proj_cap).to_numpy())
+        mu1[te.index] = np.exp(np.log(te.proj_cap) + b[0] + Xte[:, 1] * b[1])
+        mu0[te.index] = te.proj_cap                                   # the live price, untouched
+        coefs.append((m, round(b[1], 3)))
+    idx = mu0.dropna().index; y = D.loc[idx, "bb"].to_numpy(float)
+    d = row_ll(mu0[idx].to_numpy(), y) - row_ll(mu1[idx].to_numpy(), y)
+    t = d.mean() / (d.std() / np.sqrt(len(d)))
+    rk = lambda mu: D.loc[idx].assign(mu=mu[idx]).assign(rk=lambda x: x.groupby("date").mu.rank(ascending=False, method="first")).query("rk <= 8")
+    a, b_ = rk(mu0), rk(mu1)
+    print(f"\nshipped form (multiplier on the live capped price), {len(idx):,} held-out starts:")
+    print(f"  ball-rate coefficient by month: {coefs}")
+    print(f"  gain {d.mean() * 1000:+.3f} per 1,000, t {t:+.2f} · top-8 Over 1.5: live {(a.bb >= 2).mean() * 100:.1f}% -> {(b_.bb >= 2).mean() * 100:.1f}%")
+    # full-season numbers to ship
+    mean, sd = D.log_p_ball.mean(), D.log_p_ball.std()
+    X = np.column_stack([np.ones(len(D)), (D.log_p_ball - mean) / sd])
+    b = offset_irls(X, D.bb.to_numpy(float), np.log(D.proj_cap).to_numpy())
+    out = {"ball_mean_log": round(float(mean), 5), "ball_sd_log": round(float(sd), 5), "ball_coef": round(float(b[1]), 4),
+           "shrink_pitches": 600, "league_ball": round(float(np.exp(mean)), 4)}
+    print(f"  ship: {out} (intercept {b[0]:+.3f} left out — the live price's level stays as it is)")
+    return out
+
+
+if __name__ == "__main__" and "--ship" in sys.argv:
+    D = build().dropna(subset=["log_t_chase"]).copy()
+    json.dump(shipped_form(D), open(os.path.join(HERE, "mlb_walks_ball_model.json"), "w"), indent=1)
