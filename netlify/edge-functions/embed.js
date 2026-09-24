@@ -34,7 +34,7 @@ const ROUTES = {
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 // The multi-sport landing + the Tud and Goal Tools live outside the MLB (/mlb) route tree.
-const LANDING = { title: "Ron's Tools", desc: "Ron's sports tools — MLB home run picks (Dong Tool), football touchdowns (Tud Tool), and more. Inspired by Green Means Go." };
+const LANDING = { title: "Ron's Tools", desc: "Pick your sport — MLB home runs, strikeouts and walks; NFL touchdowns and yards; NHL goals, shots, saves and hits. Every prop priced, with parlays and line movement. Inspired by Green Means Go." };
 const NFL_ROUTES = {
   '':      { title: "Ron's Tud Tool", desc: "NFL touchdown prices, receptions and completions projections, TD leaders, schedule, and the correlated-parlay Pairs tool." },
   picks:   { title: "TD Picks · Ron's Tud Tool", desc: "Every skill player on the slate, priced to score a touchdown — and every starting QB, priced to throw one." },
@@ -54,10 +54,21 @@ const NFL_ROUTES = {
 };
 
 const NHL_ROUTES = {
-  '':       { title: "Ron's Goal Tool", desc: "NHL schedule, skater and goalie leaders, and a goal-by-goal recap of every night." },
-  stats:    { title: "Leaders · Ron's Goal Tool", desc: "Season skater and goalie leaders — goals, points, shots, ice time, save percentage and GAA." },
-  recap:    { title: "Goal Recap · Ron's Goal Tool", desc: "Every goal of the night, game by game — scorer, assists, strength and the clip." },
-  schedule: { title: "Schedule · Ron's Goal Tool", desc: "The full NHL slate night by night, with records, venue and broadcast." },
+  '':         { title: "Ron's Goal Tool", desc: "NHL player props, every line priced — anytime goals, points, shots on goal, saves, hits and blocked shots — plus parlays, live win probability and a goal-by-goal recap with clips." },
+  picks:      { title: "Goal Picks · Ron's Goal Tool", desc: "Every skater on the slate priced to score — anytime, 2+, first goal, last goal, first period and power-play goal." },
+  points:     { title: "Points · Ron's Goal Tool", desc: "Projected points, assists and power-play points for every skater, priced at every line." },
+  shots:      { title: "Shots on Goal · Ron's Goal Tool", desc: "Projected shots on goal for every skater, priced at every line — with a nightly Results tab." },
+  hits:       { title: "Hits · Ron's Goal Tool", desc: "Projected hits for every skater, priced at every line — with each rink's scorekeeper built in." },
+  blocks:     { title: "Blocked Shots · Ron's Goal Tool", desc: "Projected blocked shots for every skater, priced at every line — defencemen and penalty-killers first." },
+  saves:      { title: "Saves · Ron's Goal Tool", desc: "Projected saves for every projected starting goalie, priced at every line." },
+  allowed:    { title: "Goals Allowed · Ron's Goal Tool", desc: "Projected goals against for every projected starting goalie, priced at every line." },
+  pairs:      { title: "Pairs · Ron's Goal Tool", desc: "Which skaters score together and who sets up whom — priced with the correlation straight multiplication misses." },
+  due:        { title: "Due · Ron's Goal Tool", desc: "Goal droughts on tonight's board — games, shots and ice time since his last goal (and why nobody is owed one)." },
+  milestones: { title: "Milestones · Ron's Goal Tool", desc: "Who's closing on a round number — career goals, assists, points, games and goalie wins — and who just got there 🏆." },
+  birthdays:  { title: "Birthdays · Ron's Goal Tool", desc: "Who's celebrating this week, who plays on the day, and whether birthday boys actually score 🎂." },
+  stats:      { title: "Leaders · Ron's Goal Tool", desc: "Season skater and goalie leaders — goals, points, shots, ice time, save percentage and GAA." },
+  recap:      { title: "Goal Recap · Ron's Goal Tool", desc: "Every goal of the night, game by game — scorer, assists, distance, shot speed and the clip." },
+  schedule:   { title: "Schedule · Ron's Goal Tool", desc: "Every game with its DraftKings lines and line movement, our favourite to score, projections, the matchup, and live win probability." },
 };
 
 function metaFor(pathname) {

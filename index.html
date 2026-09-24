@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Ron's Tools</title>
-<meta name="description" content="Ron's sports tools — MLB home run picks (Dong Tool), football touchdowns (Tud Tool), and more.">
+<meta name="description" content="Ron's sports tools — priced player props, parlays and line movement for MLB (Dong Tool), the NFL (Tud Tool) and the NHL (Goal Tool). Inspired by Green Means Go.">
 <meta property="og:title" content="Ron's Tools">
-<meta property="og:description" content="Pick your sport — MLB home run picks, football touchdowns, and more.">
+<meta property="og:description" content="Pick your sport — MLB home runs, strikeouts and walks; NFL touchdowns and yards; NHL goals, shots, saves and hits. Every prop priced, with parlays and line movement.">
 <meta property="og:url" content="https://dong-tool.netlify.app/">
 <meta property="og:image" content="https://dong-tool.netlify.app/icons/icon-512.png">
 <meta name="twitter:card" content="summary">
@@ -58,7 +58,11 @@
   .badge.go { color: #06210f; background: var(--green); }
   .badge.soon { color: var(--dim); background: rgba(138,148,166,0.12); border: 1px solid var(--border); }
   .badge.count { color: var(--gold); background: rgba(240,192,64,0.10); border: 1px solid rgba(240,192,64,0.32); }
-  .badge.post { color: #2a1c00; background: var(--gold); }
+  /* preseason and postseason are phases, not good/bad — their own two hues */
+  .badge.pre { color: #061a36; background: #6aa9ff; }
+  .badge.post { color: #1c0b38; background: #b48cff; }
+  .tile-status.pre { color: #6aa9ff; } .tile-status.pre .dot { background: #6aa9ff; }
+  .tile-status.post { color: #b48cff; } .tile-status.post .dot { background: #b48cff; }
   /* A live season gets a quiet pulse so the eye lands on what's playable now. */
   .badge.go.now { animation: pulse 2.4s ease-in-out infinite; }
   @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(51,208,124,0.45); } 50% { box-shadow: 0 0 0 5px rgba(51,208,124,0); } }
@@ -76,21 +80,21 @@
         <span class="badge go">Live</span>
         <span class="tile-ico">🏈</span>
         <span class="tile-name">Ron's Tud Tool</span>
-        <span class="tile-sub">NFL · touchdown picks</span>
+        <span class="tile-sub">NFL · touchdowns, yards, receptions, passing &amp; kickers</span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
       </a>
       <a class="tile live" href="/mlb/" data-sport="mlb">
         <span class="badge go">Live</span>
         <span class="tile-ico">⚾</span>
         <span class="tile-name">Ron's Dong Tool</span>
-        <span class="tile-sub">MLB · home run picks, value bats, matchups</span>
+        <span class="tile-sub">MLB · home runs, strikeouts, walks, steals &amp; matchups</span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
       </a>
       <a class="tile live" href="/nhl/" data-sport="nhl">
         <span class="badge go">Live</span>
         <span class="tile-ico">🏒</span>
         <span class="tile-name">Ron's Goal Tool</span>
-        <span class="tile-sub">NHL · schedule, stats, goal recaps</span>
+        <span class="tile-sub">NHL · goals, points, shots, saves, hits &amp; blocks</span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
       </a>
       <div class="tile soon" data-sport="nba">
@@ -112,12 +116,17 @@
   //   NBA  — ESPN scoreboard; preseason opens 10-03, REGULAR season 10-20
   // These need refreshing once a year. If a date passes with no update the tile
   // degrades to "in development" rather than showing something wrong.
+  // preStart: preseason games begin. postStart / postEnd: the playoffs — the
+  // NFL, NHL and NBA dates are the leagues' usual windows until they publish.
   var SPORTS = {
-    nfl: { start: '2026-09-09T20:20:00-04:00', regEnd: '2027-01-10T23:59:59-05:00', post: 'Playoffs' },
+    nfl: { start: '2026-09-09T20:20:00-04:00', regEnd: '2027-01-10T23:59:59-05:00',
+           postStart: '2027-01-16T00:00:00-05:00', postEnd: '2027-02-14T23:59:59-05:00', post: 'Playoffs' },
     mlb: { start: '2026-03-25T00:00:00-04:00', regEnd: '2026-09-27T23:59:59-04:00',
            postStart: '2026-09-28T00:00:00-04:00', postEnd: '2026-10-31T23:59:59-04:00', post: 'Postseason' },
-    nhl: { start: '2026-09-29T00:00:00-04:00', regEnd: '2027-04-10T23:59:59-04:00' },
-    nba: { start: '2026-10-20T00:00:00-04:00', regEnd: '2027-04-12T23:59:59-04:00' }
+    nhl: { preStart: '2026-09-19T00:00:00-04:00', start: '2026-09-29T00:00:00-04:00', regEnd: '2027-04-10T23:59:59-04:00',
+           postStart: '2027-04-17T00:00:00-04:00', postEnd: '2027-06-20T23:59:59-04:00', post: 'Playoffs' },
+    nba: { preStart: '2026-10-03T00:00:00-04:00', start: '2026-10-20T00:00:00-04:00', regEnd: '2027-04-11T23:59:59-04:00',
+           postStart: '2027-04-14T00:00:00-04:00', postEnd: '2027-06-20T23:59:59-04:00', post: 'Playoffs' }
   };
   (function () {
     var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -135,7 +144,13 @@
         var postEnd = s.postEnd ? new Date(s.postEnd) : null;
         var label, cls, note;
 
-        if (now < start) {
+        var preStart = s.preStart ? new Date(s.preStart) : null;
+        var toStart = Math.ceil((start - now) / 86400000);
+        if (preStart && now >= preStart && now < start) {
+          // preseason: its own badge, and the regular season's countdown in the status line
+          cls = 'badge pre'; label = 'Pre';
+          note = 'Preseason · regular season ' + (live ? 'opens ' : 'starts ') + fmt(start) + ' (' + toStart + (toStart === 1 ? ' day)' : ' days)');
+        } else if (now < start) {
           var ms = start - now, days = Math.ceil(ms / 86400000);
           if (ms < 36e5) {                      // inside the hour — count minutes
             label = Math.max(1, Math.round(ms / 6e4)) + ' MIN';
@@ -153,6 +168,9 @@
             note = d2 <= 30 ? ('Regular season · ' + (s.post || 'Playoffs') + ' ' + fmt(postStart))
                             : 'Regular season';
           } else { note = 'Regular season'; }
+        } else if (postStart && now < postStart) {
+          // between the last regular-season game and the first playoff game
+          cls = 'badge post'; label = 'Post'; note = (s.post || 'Playoffs') + ' start ' + fmt(postStart);
         } else if (postEnd && now <= postEnd) {
           cls = 'badge post'; label = 'Post'; note = (s.post || 'Playoffs') + ' · through ' + fmt(postEnd);
         } else if (!postEnd && now <= regEnd) {
@@ -169,7 +187,7 @@
         }
         badge.className = cls; badge.textContent = label;
         var st = tile.querySelector('.tile-status');
-        st.className = 'tile-status' + (cls.indexOf('go') > -1 ? ' on' : (cls.indexOf('count') > -1 || cls.indexOf('post') > -1 ? ' up' : ''));
+        st.className = 'tile-status' + (cls.indexOf('go') > -1 ? ' on' : cls.indexOf('pre') > -1 ? ' pre' : cls.indexOf('post') > -1 ? ' post' : cls.indexOf('count') > -1 ? ' up' : '');
         st.querySelector('.txt').textContent = note;
       });
     }
