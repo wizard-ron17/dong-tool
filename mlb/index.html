@@ -1163,7 +1163,11 @@
   .gc-team.lost .gc-ab { color: var(--muted); }
   .gc-r { font-family: var(--font-d); font-size: 2.3rem; font-weight: 700; line-height: 1; text-align: center; color: var(--text-strong); font-variant-numeric: tabular-nums; }
   .gc-r.lost { color: var(--dim); }
-  .gc-ml { font-family: var(--font-m); font-size: 0.9rem; font-weight: 600; text-align: center; color: var(--text); }
+  .gc-odds { display: flex; flex-direction: column; align-items: center; font-family: var(--font-m); line-height: 1.2; }
+  .gc-odds b { font-size: 1.05rem; font-weight: 700; color: var(--text-strong); }
+  .gc-odds span { font-size: 0.85rem; color: var(--text); }
+  .gc-ou { font-family: var(--font-m); font-size: 0.8rem; color: var(--muted); margin-top: 0.1rem; white-space: nowrap; }
+  .gc-ou b { color: var(--text-strong); font-weight: 700; }
   .gc-mid { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; text-align: center; min-width: 0; }
   .gc-st { font-family: var(--font-d); font-weight: 700; font-size: 0.95rem; color: var(--text-strong); white-space: nowrap; }
   .gc-st.live { color: #ff7040; font-size: 0.85rem; }
@@ -6285,21 +6289,21 @@ function mlbGameCard(g, away, home, box, st, homer) {
   const mlT = (now, then) => now != null && then != null && now !== then ? lnTierMl(100 * (imp(now) - imp(then))) : 0;
   const spT = L && o.sp != null && L.sp != null && o.sp !== L.sp ? lnTier(L.sp - o.sp, 'sp') : 0;
   const totT = L && o.tot != null && L.tot != null && o.tot !== L.tot ? lnTier(L.tot - o.tot, 'tot') : 0;
-  const favSp = L?.sp != null ? `<span class="${mv(spT).trim()}">${lnFav(L.sp, away, home)}</span>` : '';
   const aR = box?.away.r ?? g.away.score, hR = box?.home.r ?? g.home.score;
   const started = st !== 'pre', final = st === 'final';
   const aWin = final && aR > hR, hWin = final && hR > aR;
   const pShort = (side) => side.probablePitcher ? `${compactPlayerName(side.probablePitcher)}${side.probablePitcherThrows ? ` <span class="gc-hand">${side.probablePitcherThrows}</span>` : ''}` : 'TBD';
   const team = (ab, side, won, lost, cls) => `<div class="gc-team ${cls}${lost ? ' lost' : ''}">${teamLogoImg(ab, 'gc-logo')}<span class="gc-ab">${ab}</span>
       <span class="gc-sub">${started ? '' : pShort(side)}</span></div>`;
-  const score = (r, ml, mlOpen, lost) => started
+  // before first pitch the runs' place holds the team's own line: run line over moneyline
+  const score = (r, ml, mlOpen, lost, sp) => started
     ? `<div class="gc-r${lost ? ' lost' : ''}">${r ?? 0}</div>`
-    : `<div class="gc-ml${mv(mlT(ml, mlOpen))}" title="Moneyline">${ml != null ? lnAm(ml) : ''}</div>`;
+    : L ? `<div class="gc-odds"><b class="${mv(spT).trim()}">${sp == null ? '—' : sp === 0 ? 'PK' : (sp > 0 ? '+' : '') + lnNum(sp)}</b><span class="${mv(mlT(ml, mlOpen)).trim()}">${lnAm(ml)}</span></div>` : '<div></div>';
   let mid;
   if (!started) {
     const time = new Date(g.gameDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     mid = `<div class="gc-st">${/Postponed|Suspended|Delayed/i.test(g.status) ? g.status : time}</div>
-      ${L ? `<div class="gc-ln">${favSp}</div>${L.tot != null ? `<div class="gc-ln" title="Over ${lnAm(L.oO)} · Under ${lnAm(L.uO)}">O/U <span class="${mv(totT).trim()}">${L.tot}</span></div>` : ''}` : ''}`;
+      ${L?.tot != null ? `<div class="gc-ou" title="Over ${lnAm(L.oO)} · Under ${lnAm(L.uO)}">O/U <b class="${mv(totT).trim()}">${L.tot}</b></div>` : ''}`;
   } else if (!final) {
     const top = /top|mid/i.test(box?.half || ''), b = box?.bases || {};
     const base = (on, x, y) => `<rect x="${x}" y="${y}" width="7" height="7" transform="rotate(45 ${x + 3.5} ${y + 3.5})" class="${on ? 'on' : ''}"/>`;
@@ -6317,9 +6321,9 @@ function mlbGameCard(g, away, home, box, st, homer) {
   }
   return `<div class="gc">
     ${homer}
-    ${team(away, g.away, aWin, hWin, 'a')}${score(aR, L?.mlA, o.mlA, hWin)}
+    ${team(away, g.away, aWin, hWin, 'a')}${score(aR, L?.mlA, o.mlA, hWin, L?.sp == null ? null : -L.sp)}
     <div class="gc-mid">${mid}</div>
-    ${score(hR, L?.mlH, o.mlH, aWin)}${team(home, g.home, hWin, aWin, 'h')}
+    ${score(hR, L?.mlH, o.mlH, aWin, L?.sp)}${team(home, g.home, hWin, aWin, 'h')}
   </div>`;
 }
 

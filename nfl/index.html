@@ -2551,8 +2551,6 @@
   .sc-ln.ln-m1 { border-color: color-mix(in srgb, var(--mvc) 40%, var(--border)); }
   .sc-ln.ln-m2 { border-color: color-mix(in srgb, var(--mvc) 70%, var(--border)); background: color-mix(in srgb, var(--mvc) 12%, var(--surface0)); }
   .sc-ln.ln-m3 { border-color: var(--mvc); background: color-mix(in srgb, var(--mvc) 26%, var(--surface0)); color: var(--text-strong); font-weight: 700; }
-  .sc-imp { font-family: var(--font-m); font-size: 0.66rem; color: var(--muted); margin-top: 0.2rem; white-space: nowrap; }
-  .sc-imp b { color: var(--text); font-weight: 600; }
   /* Phones: team columns keep their width, the middle takes what's left and its
      chips wrap — a moved line with its struck-through open is wider than the
      space a grid's auto column would otherwise steal from the team names. */
@@ -2562,28 +2560,25 @@
     .sc-top .sc-lines .ln-book, .sc-top .sc-lines .sc-book { display: none; }
   }
   .sc-ln.ln-book { color: var(--dim); background: none; border-style: dashed; }
-  /* the lines grid: team | spread | ML, total beneath, what opened differently in one quiet line */
-  .lnx { display: inline-grid; gap: 0.05rem; font-family: var(--font-m); font-size: 0.72rem; color: var(--text); text-align: left; }
-  .lnx-r { display: grid; grid-template-columns: 2.6rem 3.4rem 3.4rem; align-items: baseline; }
-  .lnx-r > span:not(:first-child) { text-align: right; }
-  .lnx-h { font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
-  .lnx-h > span:first-child { font-weight: 700; }
-  .lnx-t { color: var(--muted); font-weight: 700; }
-  .lnx-v { font-weight: 600; }
-  .lnx-f { font-size: 0.68rem; color: var(--muted); margin-top: 0.1rem; }
-  .lnx-f b { color: var(--text); font-weight: 600; }
-  .lnx-o { font-size: 0.62rem; color: var(--dim); }
+  /* each team's line beside its name: spread big, moneyline under it */
+  .sc-odds { display: flex; flex-direction: column; align-items: center; font-family: var(--font-m); line-height: 1.2; flex-shrink: 0; min-width: 3.2rem; }
+  .sc-odds b { font-size: 0.98rem; font-weight: 700; color: var(--text-strong); }
+  .sc-odds span { font-size: 0.8rem; color: var(--text); }
+  .sc-ou { font-family: var(--font-m); font-size: 0.8rem; color: var(--muted); margin-top: 0.15rem; white-space: nowrap; }
+  .sc-ou b { color: var(--text-strong); font-weight: 700; }
   /* moved numbers: one neutral hue, stronger with the size of the move */
-  .lnx .mv1 { color: color-mix(in srgb, var(--mvc) 60%, var(--text)); }
-  .lnx .mv2 { color: var(--mvc); }
-  .lnx .mv3 { color: var(--mvc); font-weight: 800; }
-  .lnx-i { font-size: 0.62rem; color: var(--dim); }
-  /* phones: the grid shares the row with the teams and the time — hide the
-     "opened" line (the blue still says it moved; the game card has the detail) */
-  @media (max-width: 600px) {
-    .lnx { font-size: 0.68rem; }
-    .lnx-r { grid-template-columns: 2.3rem 2.9rem 3.1rem; }
-    .lnx-o { display: none; }
+  .sc-odds .mv1, .sc-ou .mv1 { color: color-mix(in srgb, var(--mvc) 60%, var(--text)); }
+  .sc-odds .mv2, .sc-ou .mv2 { color: var(--mvc); }
+  .sc-odds .mv3, .sc-ou .mv3 { color: var(--mvc); font-weight: 800; }
+  /* phones: tighter sides so the middle keeps room for the time */
+  @media (max-width: 430px) {
+    .sc-top .sc-side { gap: 0.3rem; }
+    .sc-top .sc-logo { width: 28px; height: 28px; }
+    .sc-odds { min-width: 0; }
+    .sc-odds b { font-size: 0.88rem; }
+    .sc-odds span { font-size: 0.74rem; }
+    .sc-mid .sc-score { font-size: 0.9rem; white-space: nowrap; }
+    .sc-ou { font-size: 0.74rem; }
   }
   .ln { background: var(--surface1); border: 1px solid var(--border); border-radius: 12px; padding: 0.6rem 0.8rem; }
   .ln-row { display: grid; grid-template-columns: 5.2rem 1fr 1.2rem 1fr 7.5rem; align-items: center; gap: 0.4rem; padding: 0.42rem 0; border-top: 1px solid var(--border); font-family: var(--font-d); font-weight: 700; }
@@ -5066,14 +5061,14 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
     box.innerHTML = `
       <button class="pm-x" onclick="closeGame()" aria-label="Close">×</button>
       <header class="gm-hero">
-        <div class="gm-team"><img src="${teamLogo(g.away)}" alt="" loading="lazy"><b>${g.away}</b></div>
+        <div class="gm-team"><img src="${teamLogo(g.away)}" alt="" loading="lazy"><b>${g.away}</b>${played ? '' : lnSide(g.lines, false)}</div>
         <div class="gm-mid">
           ${played ? `<div class="gm-score"><span${g.awayScore > g.homeScore ? ' class="win"' : ''}>${g.awayScore}</span><i>–</i><span${g.homeScore > g.awayScore ? ' class="win"' : ''}>${g.homeScore}</span></div><div class="gm-when">Final</div>`
-            : `${g.lines?.cur ? lnGrid(g.lines, g.away, g.home) : `<div class="gm-lines">${g.spread != null ? `<span>${spreadLabel(g)}</span>` : ''}${g.total != null ? `<span>O/U ${g.total}</span>` : ''}</div>`}
+            : `${g.lines?.cur ? lnOU(g.lines) : `<div class="gm-lines">${g.spread != null ? `<span>${spreadLabel(g)}</span>` : ''}${g.total != null ? `<span>O/U ${g.total}</span>` : ''}</div>`}
                <div class="gm-when">${live ? '<b class="gm-live">In progress</b>' : `${g.weekday || ''} ${g.gameday ? g.gameday.slice(5) : ''}${g.gametime ? ' · ' + g.gametime.slice(0, 5) : ''}`}</div>`}
           <div class="gm-wx">${WK_LABEL(g.week)} · ${wx}${at >= 0 ? ` · ${at + 1} / ${deck.length}` : ''}</div>
         </div>
-        <div class="gm-team end"><b>${g.home}</b><img src="${teamLogo(g.home)}" alt="" loading="lazy"></div>
+        <div class="gm-team end">${played ? '' : lnSide(g.lines, true)}<b>${g.home}</b><img src="${teamLogo(g.home)}" alt="" loading="lazy"></div>
       </header>
       <div class="sub-tabs u-tabs gm-tabs">${tabs.map(([v, l]) => `<button class="sub-btn${gm.tab === v ? ' active' : ''}" onclick="setGmTab('${v}')">${l}</button>`).join('')}</div>
       ${body}`;
@@ -5190,44 +5185,26 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
   // moneyline moves in win-chance points: 2+ real, 5+ big
   const lnTierMl = (pp) => { const x = Math.abs(pp || 0); return !x ? 0 : x >= 5 ? 3 : x >= 2 ? 2 : 1; };
   const lnTier = (d, k) => { const x = Math.abs(d || 0), [a, b] = LN_TIER[k]; return !x ? 0 : x >= b ? 3 : x >= a ? 2 : 1; };
-  /** Implied final score. Football: the spread IS the expected margin, so
-   *  home = (total - spread) / 2. */
-  function lnImplied(L, g) {
-    const sp = L?.cur?.sp ?? (g && g.spread != null ? -g.spread : null), tot = L?.cur?.tot ?? g?.total ?? null;
-    if (sp == null || tot == null) return null;
-    return { h: (tot - sp) / 2, a: (tot + sp) / 2 };
-  }
   const lnImpliedAt = (sp, tot) => sp == null || tot == null ? null : { h: (tot - sp) / 2, a: (tot + sp) / 2 };
   const lnPts = (v) => v == null ? '—' : (Math.round(v * 10) / 10).toFixed(1).replace(/\.0$/, '');
-  /** The book's lines as a small sportsbook grid: each team's spread and
-   *  moneyline on its own row, the total beneath, and one quiet "opened" line
-   *  naming only what moved. A moved number is drawn in the neutral move hue,
-   *  stronger the bigger the move (tiers above) — no boxes, no good/bad colour. */
-  function lnGrid(L, away, home, { spLabel = 'Spread', note = '' } = {}) {
+  /** One team's line, set beside its name: spread over moneyline. Moved
+   *  numbers take the neutral move hue, stronger the bigger the move. */
+  function lnSide(L, home) {
     if (!L?.cur) return '';
     const c = L.cur, o = L.open || {};
     const imp = (a) => a == null ? null : a > 0 ? 100 / (a + 100) : -a / (-a + 100);
-    const cls = (t) => t ? ` mv${t}` : '';
-    const spTxt = (v) => v == null ? '—' : v === 0 ? 'PK' : (v > 0 ? '+' : '') + lnNum(v);
-    const spMoved = o.sp != null && c.sp != null && o.sp !== c.sp;
-    const spT = spMoved ? lnTier(c.sp - o.sp, 'sp') : 0;
-    const mlT = (now, then) => now != null && then != null && now !== then ? lnTierMl(100 * (imp(now) - imp(then))) : 0;
-    const totMoved = o.tot != null && c.tot != null && o.tot !== c.tot;
-    const totT = totMoved ? lnTier(c.tot - o.tot, 'tot') : 0;
-    const row = (ab, sp, ml, mlOpen) => `<div class="lnx-r"><span class="lnx-t">${ab}</span>`
-      + `<span class="lnx-v${cls(spT)}">${spTxt(sp)}</span><span class="lnx-v${cls(mlT(ml, mlOpen))}">${lnAm(ml)}</span></div>`;
-    // what moved, in words, off the opening line
-    const opened = [];
-    if (spMoved) opened.push(lnFav(o.sp, away, home));
-    const favH = imp(c.mlH) >= imp(c.mlA);
-    if (mlT(c.mlH, o.mlH) || mlT(c.mlA, o.mlA)) opened.push(`${favH ? home : away} ${lnAm(favH ? o.mlH : o.mlA)}`);
-    if (totMoved) opened.push(`O/U ${o.tot}`);
-    return `<div class="lnx" title="${L.book || 'DraftKings'} via ESPN — the book's lines, not ours">
-      <div class="lnx-r lnx-h"><span>DK</span><span>${spLabel}</span><span>ML</span></div>
-      ${row(away, c.sp == null ? null : -c.sp, c.mlA, o.mlA)}${row(home, c.sp, c.mlH, o.mlH)}
-      ${c.tot != null ? `<div class="lnx-f">O/U <b class="${cls(totT).trim()}">${c.tot}</b></div>` : ''}${note}
-      ${opened.length ? `<div class="lnx-o">opened ${opened.join(' · ')}</div>` : ''}
-    </div>`;
+    const mv = (t) => t ? `mv${t}` : '';
+    const sp = c.sp == null ? null : home ? c.sp : -c.sp;
+    const spT = o.sp != null && c.sp != null && o.sp !== c.sp ? lnTier(c.sp - o.sp, 'sp') : 0;
+    const ml = home ? c.mlH : c.mlA, mlO = home ? o.mlH : o.mlA;
+    const mlT = ml != null && mlO != null && ml !== mlO ? lnTierMl(100 * (imp(ml) - imp(mlO))) : 0;
+    return `<span class="sc-odds" title="${L.book || 'DraftKings'} via ESPN"><b class="${mv(spT)}">${sp == null ? '—' : sp === 0 ? 'PK' : (sp > 0 ? '+' : '') + lnNum(sp)}</b><span class="${mv(mlT)}">${lnAm(ml)}</span></span>`;
+  }
+  /** The total for the middle of a row: "O/U 42.5", moved in the move hue. */
+  function lnOU(L) {
+    const c = L?.cur, o = L?.open || {}; if (c?.tot == null) return '';
+    const t = o.tot != null && o.tot !== c.tot ? lnTier(c.tot - o.tot, 'tot') : 0;
+    return `<div class="sc-ou" title="Over ${lnAm(c.oO)} · Under ${lnAm(c.uO)}">O/U <b class="${t ? 'mv' + t : ''}">${c.tot}</b></div>`;
   }
   /** Tiny line of one market through its moves. */
   function lnSpark(moves, k, fmt) {
@@ -5270,7 +5247,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
   function gameRow(g) {
     const played = g.homeScore != null && g.awayScore != null;
     const time = g.gametime ? g.gametime.slice(0, 5) : '';
-    const when = `${g.weekday || ''}${g.gameday ? ' ' + g.gameday.slice(5) : ''}${time ? ' · ' + time : ''}`.trim();
+    const when = `${(g.weekday || '').slice(0, 3)}${g.gameday ? ' ' + g.gameday.slice(5) : ''}${time ? ' · ' + time : ''}`.trim();
 
     // Records. The current season's, once it has games; before that the last
     // completed season's, marked, since "0-0" for all 32 teams says nothing.
@@ -5295,20 +5272,18 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
       const logo = `<img class="sc-logo" src="${teamLogo(abbr)}" alt="" loading="lazy">`;
       const id = `<span class="sc-side-id"><span class="sc-side-ab">${abbr}</span>${
         r ? `<span class="sc-side-rec${r.old ? ' old' : ''}">${r.txt}</span>` : ''}</span>`;
-      // Logos face outward, records sit inboard against the middle column.
-      return `<div class="sc-side${alignEnd ? ' end' : ''}">${alignEnd ? id + logo : logo + id}</div>`;
+      // Logos face outward, records sit inboard; before kickoff the team's own
+      // spread and moneyline sit right beside its name.
+      const odds = played ? '' : lnSide(g.lines, alignEnd);
+      return `<div class="sc-side${alignEnd ? ' end' : ''}">${alignEnd ? odds + id + logo : logo + id + odds}</div>`;
     };
 
     const mid = played
       ? `<div class="sc-mid"><div class="sc-score">${g.awayScore}–${g.homeScore}</div><div class="sc-when">Final</div></div>`
       : `<div class="sc-mid">
-          ${(() => {
-            const x = lnImplied(g.lines, g);
-            const imp = x ? `<div class="lnx-i" title="Implied final score: the total split by the spread">implied ${g.away} ${lnPts(x.a)} – ${g.home} ${lnPts(x.h)}</div>` : '';
-            return g.lines?.cur ? lnGrid(g.lines, g.away, g.home, { note: imp })
-              : `<div class="sc-lines">${g.spread != null ? `<span class="sc-ln">${spreadLabel(g)}</span>` : ''}${g.total != null ? `<span class="sc-ln">O/U ${g.total}</span>` : ''}</div>${x ? `<div class="sc-imp">${g.away} <b>${lnPts(x.a)}</b> · ${g.home} <b>${lnPts(x.h)}</b></div>` : ''}`;
-          })()}
+          ${g.lines?.cur ? '' : `<div class="sc-lines">${g.spread != null ? `<span class="sc-ln">${spreadLabel(g)}</span>` : ''}</div>`}
           <div class="sc-when">${when}</div>
+          ${g.lines?.cur ? lnOU(g.lines) : g.total != null ? `<div class="sc-ou">O/U <b>${g.total}</b></div>` : ''}
         </div>`;
 
     // the board's shortest price in this game, so the slate is scannable for

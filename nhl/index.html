@@ -366,28 +366,25 @@
   .sc-ln.ln-m1 { border-color: color-mix(in srgb, var(--mvc) 40%, var(--border)); }
   .sc-ln.ln-m2 { border-color: color-mix(in srgb, var(--mvc) 70%, var(--border)); background: color-mix(in srgb, var(--mvc) 12%, var(--surface0)); }
   .sc-ln.ln-m3 { border-color: var(--mvc); background: color-mix(in srgb, var(--mvc) 26%, var(--surface0)); color: var(--text-strong); font-weight: 700; }
-  /* the lines grid: team | spread | ML, total beneath, what opened differently in one quiet line */
-  .lnx { display: inline-grid; gap: 0.05rem; font-family: var(--font-m); font-size: 0.72rem; color: var(--text); text-align: left; }
-  .lnx-r { display: grid; grid-template-columns: 2.6rem 3.4rem 3.4rem; align-items: baseline; }
-  .lnx-r > span:not(:first-child) { text-align: right; }
-  .lnx-h { font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
-  .lnx-h > span:first-child { font-weight: 700; }
-  .lnx-t { color: var(--muted); font-weight: 700; }
-  .lnx-v { font-weight: 600; }
-  .lnx-f { font-size: 0.68rem; color: var(--muted); margin-top: 0.1rem; }
-  .lnx-f b { color: var(--text); font-weight: 600; }
-  .lnx-o { font-size: 0.62rem; color: var(--dim); }
+  /* each team's line beside its name: spread big, moneyline under it */
+  .sc-odds { display: flex; flex-direction: column; align-items: center; font-family: var(--font-m); line-height: 1.2; flex-shrink: 0; min-width: 3.2rem; }
+  .sc-odds b { font-size: 0.98rem; font-weight: 700; color: var(--text-strong); }
+  .sc-odds span { font-size: 0.8rem; color: var(--text); }
+  .sc-ou { font-family: var(--font-m); font-size: 0.8rem; color: var(--muted); margin-top: 0.15rem; white-space: nowrap; }
+  .sc-ou b { color: var(--text-strong); font-weight: 700; }
   /* moved numbers: one neutral hue, stronger with the size of the move */
-  .lnx .mv1 { color: color-mix(in srgb, var(--mvc) 60%, var(--text)); }
-  .lnx .mv2 { color: var(--mvc); }
-  .lnx .mv3 { color: var(--mvc); font-weight: 800; }
-  .lnx-i { font-size: 0.62rem; color: var(--dim); }
-  /* phones: the grid shares the row with the teams and the time — hide the
-     "opened" line (the blue still says it moved; the game card has the detail) */
-  @media (max-width: 600px) {
-    .lnx { font-size: 0.68rem; }
-    .lnx-r { grid-template-columns: 2.3rem 2.9rem 3.1rem; }
-    .lnx-o { display: none; }
+  .sc-odds .mv1, .sc-ou .mv1 { color: color-mix(in srgb, var(--mvc) 60%, var(--text)); }
+  .sc-odds .mv2, .sc-ou .mv2 { color: var(--mvc); }
+  .sc-odds .mv3, .sc-ou .mv3 { color: var(--mvc); font-weight: 800; }
+  /* phones: tighter sides so the middle keeps room for the time */
+  @media (max-width: 430px) {
+    .sc-top .sc-side { gap: 0.3rem; }
+    .sc-top .sc-logo { width: 28px; height: 28px; }
+    .sc-odds { min-width: 0; }
+    .sc-odds b { font-size: 0.88rem; }
+    .sc-odds span { font-size: 0.74rem; }
+    .sc-mid .sc-score { font-size: 0.9rem; white-space: nowrap; }
+    .sc-ou { font-size: 0.74rem; }
   }
   .scm { margin-top: 0.7rem; border-top: 1px solid var(--border); padding-top: 0.5rem; }
   .scm-row { display: grid; grid-template-columns: 6rem 1fr 1.2rem 1fr; gap: 0.4rem; font-family: var(--font-m); font-size: 0.74rem; padding: 0.18rem 0; color: var(--muted); }
@@ -2941,29 +2938,23 @@
    *  over's price beneath, and one quiet "opened" line naming only what moved.
    *  A moved number is drawn in the neutral move hue, stronger the further it
    *  went (win-chance points) — no boxes, no good/bad colour. */
-  function scLines(g) {
+  /** One team's line, set beside its name: puck line over moneyline. A moved
+   *  moneyline takes the neutral move hue, stronger the bigger the move. */
+  function scSide(g, home) {
     const L = g.lines; if (!L) return '';
     const c = g.move?.cur || {}, o = g.move?.open || {};
-    const mlA = c.mlA ?? L.ml.a, mlH = c.mlH ?? L.ml.h;
-    const cls = (t) => t ? ` mv${t}` : '';
-    const mlT = (now, then) => now != null && then != null && now !== then ? mvTier(100 * (mvImp(now) - mvImp(then))) : 0;
-    const pl = (x) => x.line == null ? '—' : (x.line > 0 ? '+' : '') + String(x.line).replace('-', '−');
-    const row = (ab, p, ml, mlOpen) => `<div class="lnx-r"><span class="lnx-t">${esc(ab)}</span>`
-      + `<span class="lnx-v" title="${pl(p)} at ${amer(p.odds)}">${pl(p)}</span><span class="lnx-v${cls(mlT(ml, mlOpen))}">${amer(ml)}</span></div>`;
-    const totMoved = o.tot != null && c.tot != null && o.tot !== c.tot;
-    const oMoved = !totMoved && o.oO != null && c.oO != null && o.oO !== c.oO;
-    const oT = oMoved ? mvTier(100 * (mvImp(c.oO) - mvImp(o.oO))) : 0;
-    const opened = [];
-    const favH = mvImp(mlH) >= mvImp(mlA);
-    if (mlT(mlH, o.mlH) || mlT(mlA, o.mlA)) opened.push(`${favH ? g.home : g.away} ${amer(favH ? o.mlH : o.mlA)}`);
-    if (totMoved) opened.push(`O/U ${o.tot}`);
-    else if (oMoved) opened.push(`over ${amer(o.oO)}`);
-    return `<div class="lnx" title="${esc(L.book || 'DraftKings')} via ESPN — the book's lines, not ours">
-      <div class="lnx-r lnx-h"><span>${L.book === 'DraftKings' || !L.book ? 'DK' : esc(L.book.split(' ')[0])}</span><span>Puck</span><span>ML</span></div>
-      ${row(g.away, L.pl.a, mlA, o.mlA)}${row(g.home, L.pl.h, mlH, o.mlH)}
-      ${L.tot.line != null ? `<div class="lnx-f">O/U <b class="${totMoved ? 'mv3' : ''}">${L.tot.line}</b> <span class="${cls(oT).trim()}">o ${amer(c.oO ?? L.tot.o)}</span></div>` : ''}
-      ${opened.length ? `<div class="lnx-o">opened ${opened.join(' · ')}</div>` : ''}
-    </div>`;
+    const ml = home ? c.mlH ?? L.ml.h : c.mlA ?? L.ml.a, mlO = home ? o.mlH : o.mlA;
+    const t = ml != null && mlO != null && ml !== mlO ? mvTier(100 * (mvImp(ml) - mvImp(mlO))) : 0;
+    const p = home ? L.pl.h : L.pl.a;
+    const pl = p?.line == null ? '—' : (p.line > 0 ? '+' : '') + String(p.line).replace('-', '−');
+    return `<span class="sc-odds" title="${esc(L.book || 'DraftKings')} via ESPN · puck line ${pl} at ${amer(p?.odds)}"><b>${pl}</b><span class="${t ? 'mv' + t : ''}">${amer(ml)}</span></span>`;
+  }
+  /** The total for the middle of a row: "O/U 6.5", moved in the move hue. */
+  function scOU(g) {
+    const L = g.lines; if (L?.tot?.line == null) return '';
+    const c = g.move?.cur || {}, o = g.move?.open || {};
+    const t = o.tot != null && c.tot != null && o.tot !== c.tot ? 3 : 0;
+    return `<div class="sc-ou" title="Over ${amer(c.oO ?? L.tot.o)} · Under ${amer(c.uO ?? L.tot.u)}">O/U <b class="${t ? 'mv' + t : ''}">${c.tot ?? L.tot.line}</b></div>`;
   }
   /** Open vs now, and every move a build caught — the game card's lines panel. */
   function scMoves(g) {
@@ -3005,16 +2996,17 @@
       ? `<div class="sc-score">${as}–${hs}</div><div class="sc-when">${pre}${g.end && g.end !== 'REG' ? g.end : 'Final'}</div>`
       : live
         ? `<div class="sc-score" style="color:var(--bad)">${as}–${hs}</div><div class="sc-when"><span class="sc-live">LIVE</span>${L?.detail ? ' ' + esc(L.detail) : ''}</div>`
-        : `${scLines(g)}<div class="sc-score">${gameTime(g.start)}</div><div class="sc-when">${pre}${g.tv[0] ? esc(g.tv[0]) : ''}</div>`;
+        : `<div class="sc-score">${gameTime(g.start)}</div>${scOU(g)}<div class="sc-when">${pre}${g.tv[0] ? esc(g.tv[0]) : ''}</div>`;
     // Records come off the standings table, which is last season's until a game
     // is played — the caller labels it rather than passing April off as today.
+    // before puck drop, each team's own puck line and moneyline sit beside its name
     const side = (ab, end, won) => `<div class="sc-side${end ? ' end' : ''}">
-        ${end ? '' : logoImg(ab, 'sc-logo')}
+        ${end ? (state === 'pre' ? scSide(g, true) : '') : logoImg(ab, 'sc-logo')}
         <div class="sc-side-id">
           <span class="sc-side-ab"${won ? ' style="color:var(--accent)"' : ''}>${esc(ab)}</span>
           <span class="sc-side-rec">${record(ab)}</span>
         </div>
-        ${end ? logoImg(ab, 'sc-logo') : ''}
+        ${end ? logoImg(ab, 'sc-logo') : state === 'pre' ? scSide(g, false) : ''}
       </div>`;
     // Before puck drop: the board's likeliest scorer in this game, so the slate
     // scans for who to bet without opening anything. Live: who's winning.
@@ -5990,14 +5982,14 @@
     box.innerHTML = `
       <button class="pm-x" onclick="closeGame()" aria-label="Close">×</button>
       <header class="gm-hero">
-        <div class="gm-team">${logoImg(g.away, '')}<b>${g.away}</b></div>
+        <div class="gm-team">${logoImg(g.away, '')}<b>${g.away}</b>${state === 'pre' ? scSide(g, false) : ''}</div>
         <div class="gm-mid">
           ${state !== 'pre' ? `<div class="gm-score"><span${as > hs ? ' class="win"' : ''}>${as ?? 0}</span><i>–</i><span${hs > as ? ' class="win"' : ''}>${hs ?? 0}</span></div>
               <div class="gm-when">${state === 'live' ? `<b class="gm-live">${esc(L?.detail || 'In progress')}</b>` : (g.end && g.end !== 'REG' ? `Final/${g.end}` : 'Final')}</div>`
-            : `${scLines(g)}<div class="gm-when">${dayLabel(g.date)} · ${gameTime(g.start)}</div>`}
+            : `${scOU(g)}<div class="gm-when">${dayLabel(g.date)} · ${gameTime(g.start)}</div>`}
           <div class="gm-wx">${esc(g.venue || '')}${at >= 0 ? ` · ${at + 1} / ${deck.length}` : ''}</div>
         </div>
-        <div class="gm-team end"><b>${g.home}</b>${logoImg(g.home, '')}</div>
+        <div class="gm-team end">${state === 'pre' ? scSide(g, true) : ''}<b>${g.home}</b>${logoImg(g.home, '')}</div>
       </header>
       <div class="sub-tabs u-tabs gm-tabs">${tabs.map(([v, l]) => `<button class="sub-btn${gm.tab === v ? ' active' : ''}" onclick="setGmTab('${v}')">${l}</button>`).join('')}</div>
       ${body}`;
