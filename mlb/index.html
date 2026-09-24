@@ -6230,7 +6230,7 @@ async function psRender(withImages = true) {
   // load every picture first
   const imgs = new Map();
   if (withImages) await Promise.all([...chalk, ...val].flatMap(r => [
-    psLoadImg(playerPhotoUrl(r.pid)).then(im => imgs.set('p' + r.pid, im)),
+    psLoadImg(playerPhotoUrl(r.pid).replace('/w_60,', '/w_180,')).then(im => imgs.set('p' + r.pid, im)),
     psLoadImg(teamLogoUrl(r.team)?.replace('team-cap-on-light', 'team-cap-on-dark')).then(im => imgs.set('t' + r.team, im)),
   ]));
   const col = (list, cx, title, sub, scoreOf, lo, hi, lab, total) => {
@@ -6246,7 +6246,10 @@ async function psRender(withImages = true) {
       // headshot
       const ph = imgs.get('p' + r.pid), px0 = cx + 44, py0 = y + 7, ps = 44;
       x.save(); x.beginPath(); x.arc(px0 + ps / 2, py0 + ps / 2, ps / 2, 0, Math.PI * 2); x.fillStyle = PS_C.line; x.fill(); x.clip();
-      if (ph) x.drawImage(ph, px0, py0, ps, ps); x.restore();
+      // MLB headshots are portrait (about 2:3): crop a square off the top — the face — rather than squash it
+      if (ph) { const w = ph.naturalWidth, h = ph.naturalHeight, side = Math.min(w, h);
+        x.drawImage(ph, (w - side) / 2, Math.min(h - side, h * 0.08), side, side, px0, py0, ps, ps); }
+      x.restore();
       // name + game line
       const nx = px0 + ps + 12;
       const hit = hrs.has(String(r.pid)), done = finals.has(r.team);
