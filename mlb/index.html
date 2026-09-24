@@ -115,6 +115,47 @@
   .eyebrow { font-size: 0.692rem; letter-spacing: 0.4em; color: var(--muted); margin-bottom: 0.4rem; text-transform: uppercase; display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; }
   h1 { font-family: var(--font-d); font-size: clamp(1.15rem, 1.9vw, 1.5rem); font-weight: 700; line-height: 1; color: var(--text-strong); margin: 0; display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; }
   h1 em { color: var(--accent); font-style: normal; }
+  /* ── Postseason: October gold on the brand touches only (the good/bad ramp keeps its green) ── */
+  :root.postseason { --psg: #f2b632; --psg-ink: #1d1400; }
+  :root.postseason[data-theme="light"] { --psg: #b07d0a; --psg-ink: #fff; }
+  .postseason h1 em, .postseason .due-explainer-title { color: var(--psg); }
+  .postseason .brand-logo { border: none !important; border-radius: 0; filter: drop-shadow(0 0 5px rgba(242,182,50,0.6)); }
+  .postseason .nav-btn.active::after, .postseason #picks-sub-tabs .sub-btn.active::after { background: var(--psg); }
+  .postseason .sub-btn.active, .postseason .due-filter-chip.active, .postseason .view-btn.active, .postseason .rc-jump:not(:disabled),
+  .postseason #nav-tools-btn.active, .postseason .ps-act:not(.alt), .postseason .recap-jump-btn, .postseason .par-mode-btn.on,
+  .postseason .filter-mode-toggle button.active, .postseason #picks-mode-value.active { background: var(--psg); border-color: var(--psg); color: var(--psg-ink); box-shadow: none; }
+  .ps-badge { font-family: var(--font-d); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--psg-ink); background: var(--psg);
+              padding: 0.18rem 0.5rem; border-radius: 999px; cursor: pointer; box-shadow: 0 0 10px rgba(242,182,50,0.35); }
+  .gc-round { color: var(--psg, var(--gold)); font-weight: 800; margin-right: 0.55rem; letter-spacing: 0.08em; }
+  .gc-series b { color: var(--psg, var(--gold)); }
+  .sched-tb-r { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+  .ps-sheet-btn { background: transparent; border: 1px solid var(--psg); color: var(--psg); font-family: var(--font-d); font-weight: 700; font-size: 0.82rem; padding: 0.4rem 0.75rem; border-radius: 8px; cursor: pointer; }
+  /* welcome, once a season */
+  .pm.pw { max-width: 480px; padding: 1.4rem 1.3rem 1.2rem; text-align: center; }
+  .pw-trophy { width: 84px; height: 84px; filter: drop-shadow(0 0 14px rgba(242,182,50,0.55)); }
+  .pw-title { font-family: var(--font-d); font-size: 1.55rem; font-weight: 700; color: var(--psg, var(--gold)); margin-top: 0.4rem; }
+  .pw-sub { color: var(--muted); font-size: 0.86rem; margin-top: 0.2rem; }
+  .pw-list { text-align: left; margin: 1rem 0 0; padding-left: 1.1rem; font-size: 0.82rem; line-height: 1.5; color: var(--text); }
+  .pw-list li { margin-bottom: 0.45rem; }
+  .pw-acts { display: flex; gap: 0.5rem; justify-content: center; margin-top: 0.9rem; }
+  /* bracket + HR leaders */
+  .pm.ppm { max-width: 760px; padding: 1rem 1.1rem 1.2rem; }
+  .pp-head { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.8rem; }
+  .pp-trophy { width: 44px; height: 44px; filter: drop-shadow(0 0 8px rgba(242,182,50,0.5)); }
+  .pp-title { font-family: var(--font-d); font-size: 1.3rem; font-weight: 700; color: var(--text-strong); }
+  .pp-sub { font-size: 0.74rem; color: var(--muted); }
+  .pb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.5rem; }
+  .pb-card { background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.55rem 0.7rem; }
+  .pb-card.over { opacity: 0.85; }
+  .pb-desc { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; color: var(--psg, var(--gold)); }
+  .pb-teams { display: flex; align-items: center; gap: 0.45rem; margin: 0.3rem 0; font-family: var(--font-d); font-size: 0.95rem; }
+  .pb-team { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--muted); }
+  .pb-team b { font-weight: 700; }
+  .pb-card:not(.over) .pb-team, .pb-team.won { color: var(--text-strong); }
+  .pb-vs { color: var(--dim); font-size: 0.7rem; }
+  .pb-res { font-size: 0.72rem; color: var(--muted); }
+  .pb-rk { width: 1.3rem; text-align: right; font-family: var(--font-d); color: var(--dim); }
+  .pb-n { margin-left: auto; font-family: var(--font-d); font-size: 1.05rem; font-weight: 700; color: var(--text-strong); }
   .brand-logo { width: 1.5em; height: 1.5em; border-radius: 50%; flex-shrink: 0; }
   /* Logo has a transparent background now; on light mode a thin dark circular
      outline delineates it from the page (dark mode needs none — it floats). */
@@ -261,6 +302,7 @@
     .nav-btn svg { display: block; }
     /* App-style active state: tinted icon+label, no filled pill. */
     .nav-btn.active { color: var(--accent); background: transparent; box-shadow: none; }
+    .postseason .nav-btn.active { color: var(--psg); }
     .nav-caret { display: none; }
     body { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
     /* Tools is a floating card docked just above the floating bar — the bar
@@ -3143,6 +3185,7 @@ let dtdStatus = {};     // pid -> { status, type } — day-to-day / out / questi
 let returningInjured = []; // injured hitters (IL + DTD) with ESPN's estimated return dates — Returning Boppers tool
 let justBack = [];         // [{ pid, backDate, from, type }] — activated in the last 3 days, the first-game-back window
 let returningHistory = []; // [{ pid, name, team, backDate, from, type, hrDate, done }] — graded return-window HR log
+let postDates     = [];     // dates with a postseason game (build)
 let schedHistory  = [];     // finished slates: closing lines, Homer Scores, graded top picks (build)
 let todayDate     = null;   // YYYY-MM-DD, ET — the same "today" build-data.js used for todaySchedule
 let todaySchedule = [];     // [{ gamePk, gameDate, status, venue, home:{...}, away:{...} }]
@@ -3591,6 +3634,9 @@ function applyData(data) {
   justBack = data.justBack ?? [];
   returningHistory = data.returningHistory ?? [];
   todayDate = data.todayDate ?? null;
+  postDates = data.postDates ?? [];
+  applyPostseason(data.postseason);
+  setTimeout(maybePostWelcome, 700);
   schedHistory = data.schedHistory ?? [];
   todaySchedule = data.todaySchedule ?? [];
   teamIds = data.teamIds ?? {};
@@ -6362,6 +6408,122 @@ async function psShare() {
   try { if (navigator.canShare?.({ files: [f] })) await navigator.share({ files: [f], title: 'HR Picks' }); else psSave(); } catch (e) { /* cancelled */ }
 }
 
+// ── Postseason mode ───────────────────────────────────────────────────────
+// On from the first playoff slate (data.postseason, set by the build) — or
+// ?postseason in the URL to preview it. The site keeps its own UI but takes
+// October's colour: a gold trophy for the logo, gold on the brand touches
+// (never on the good/bad ramp), a POSTSEASON badge, a welcome once a season,
+// the schedule grouped by series, and a sheet with the bracket and the
+// postseason's home-run leaders by round.
+let postseasonOn = false;
+const PS_ROUNDS = [['F', 'Wild Card'], ['D', 'Division Series'], ['L', 'Championship Series'], ['W', 'World Series']];
+/** "AL Division Series" → "ALDS", "World Series" → "WS" */
+const psShort = (d) => (d || '').replace('Wild Card Series', 'WC').replace('Division Series', 'DS').replace('Championship Series', 'CS').replace('World Series', 'WS').replace(/\s+/g, '');
+function applyPostseason(on) {
+  postseasonOn = !!on || /[?&]postseason\b/.test(location.search);
+  document.documentElement.classList.toggle('postseason', postseasonOn);
+  const logo = document.querySelector('.brand-logo');
+  if (logo) logo.src = postseasonOn ? '/icons/trophy.svg' : '/icons/logo.svg';
+  const h1 = document.querySelector('.tb-brand h1');
+  if (h1 && postseasonOn && !h1.querySelector('.ps-badge')) h1.insertAdjacentHTML('beforeend', '<span class="ps-badge" onclick="openPostSheet()" title="The bracket and the postseason’s home-run leaders">Postseason</span>');
+  if (!postseasonOn) h1?.querySelector('.ps-badge')?.remove();
+}
+const psSeason = () => (schedDay() || todayDate || String(new Date().getFullYear())).slice(0, 4);
+/** Once a season, the first visit after the playoffs start. */
+function maybePostWelcome() {
+  if (!postseasonOn) return;
+  const key = `dt-mlb-post-${psSeason()}`;
+  try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch (e) { /* private mode: show it, it's once per load at most */ }
+  document.body.insertAdjacentHTML('beforeend', `<div class="pm-back" id="pw-back" onclick="if(event.target===this)closePostWelcome()">
+    <div class="pm pw"><button class="pm-x" onclick="closePostWelcome()" aria-label="Close">×</button>
+      <img src="/icons/trophy.svg" alt="" class="pw-trophy">
+      <div class="pw-title">Welcome to the Postseason</div>
+      <div class="pw-sub">October baseball is here — every swing counts double.</div>
+      <ul class="pw-list">
+        <li><b>A full board every day.</b> With two to four games a slate, Picks ranks every lineup bat instead of only those clearing the Chalk bar.</li>
+        <li><b>The schedule by series.</b> Each game under its round, the game number and where the series stands.</li>
+        <li><b>Bracket &amp; HR leaders.</b> Who's alive, and who's gone deep — this postseason and this round. Tap the gold <b>Postseason</b> badge any time.</li>
+        <li><b>Same tools.</b> Top pick on every game, graded; the game card, Dinger Digest and the share image all work on playoff games.</li>
+      </ul>
+      <div class="pw-acts"><button class="ps-act" onclick="closePostWelcome();openPostSheet()">See the bracket</button><button class="ps-act alt" onclick="closePostWelcome()">Let's go</button></div>
+    </div></div>`);
+}
+function closePostWelcome() { document.getElementById('pw-back')?.remove(); }
+
+// The bracket and the home runs, straight from MLB (CORS-open), once a season per visit.
+const PSD = {};                               // season -> { series, hrs, state }
+function loadPostData(season) {
+  const P = PSD[season] ||= { state: 'idle' };
+  if (P.state !== 'idle') return;
+  P.state = 'loading';
+  Promise.all([
+    fetch(`https://statsapi.mlb.com/api/v1/schedule/postseason/series?season=${season}&sportId=1&hydrate=seriesStatus,team`).then(r => r.json()),
+    fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&gameType=F,D,L,W&startDate=${season}-09-20&endDate=${season}-11-20&hydrate=scoringplays,team`).then(r => r.json()),
+  ]).then(([ser, sch]) => {
+    P.series = (ser.series || []).map(x => {
+      const gs = x.games || [], last = gs[gs.length - 1] || {}, st = last.seriesStatus || {};
+      const side = (k) => { const t = last.teams?.[k]?.team || {}; return { ab: t.abbreviation || null, name: t.teamName || t.name || 'TBD' }; };
+      return { id: x.series?.id, type: x.series?.gameType, desc: last.seriesDescription || '', away: side('away'), home: side('home'),
+               result: st.result || null, over: !!st.isOver, played: gs.filter(g => g.status?.abstractGameState === 'Final').length,
+               of: last.gamesInSeries || null, next: gs.find(g => g.status?.abstractGameState !== 'Final')?.gameDate || null };
+    });
+    const hrs = [];
+    for (const d of sch.dates || []) for (const g of d.games || []) for (const p of g.scoringPlays || [])
+      if (p.result?.event === 'Home Run') hrs.push({ pid: String(p.matchup?.batter?.id), name: p.matchup?.batter?.fullName || '', type: g.gameType,
+        team: (p.about?.halfInning === 'top' ? g.teams?.away : g.teams?.home)?.team?.abbreviation || '', date: d.date, desc: g.seriesDescription || '' });
+    P.hrs = hrs; P.state = 'ready';
+  }).catch(() => { P.state = 'error'; })
+    .finally(() => { if (document.getElementById('pp-back')) renderPostSheet(); });
+}
+const pp = { tab: 'bracket', round: 'all' };
+function openPostSheet(tab) {
+  if (tab) pp.tab = tab;
+  if (!document.getElementById('pp-back')) {
+    document.body.insertAdjacentHTML('beforeend', `<div class="pm-back" id="pp-back" onclick="if(event.target===this)closePostSheet()"><div class="pm ppm" role="dialog" aria-modal="true"></div></div>`);
+    document.addEventListener('keydown', ppKey);
+  }
+  loadPostData(psSeason());
+  renderPostSheet();
+}
+function ppKey(e) { if (e.key === 'Escape') closePostSheet(); }
+function closePostSheet() { document.getElementById('pp-back')?.remove(); document.removeEventListener('keydown', ppKey); }
+function setPpTab(t) { pp.tab = t; renderPostSheet(); }
+function setPpRound(r) { pp.round = r; renderPostSheet(); }
+function renderPostSheet() {
+  const el = document.querySelector('#pp-back .ppm'); if (!el) return;
+  const season = psSeason(), P = PSD[season] || {};
+  const tabs = [['bracket', 'Bracket'], ['hr', 'HR leaders']];
+  let body;
+  if (P.state !== 'ready') body = `<div class="sg-none">${P.state === 'error' ? "Couldn't reach MLB for the bracket." : 'Loading the bracket…'}</div>`;
+  else if (pp.tab === 'bracket') {
+    const team = (t, won) => `<span class="pb-team${won ? ' won' : ''}">${t.ab ? teamLogoImg(t.ab, 'gc-pick-logo') : ''}<b>${t.ab || t.name}</b></span>`;
+    body = PS_ROUNDS.map(([k, lab]) => {
+      const list = P.series.filter(x => x.type === k); if (!list.length) return '';
+      return `<div class="sg-h">${lab}</div><div class="pb-grid">${list.map(x => {
+        const w = x.over && x.result ? x.result.split(' ')[0] : null;
+        const next = !x.over && x.next ? new Date(x.next).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '';
+        return `<div class="pb-card${x.over ? ' over' : ''}"><div class="pb-desc">${psShort(x.desc) || lab}</div>
+          <div class="pb-teams">${team(x.away, w && w === x.away.ab)}<span class="pb-vs">vs</span>${team(x.home, w && w === x.home.ab)}</div>
+          <div class="pb-res">${x.result || (x.played ? `${x.played} played` : next ? `Starts ${next}` : 'Best of ' + (x.of || '—'))}</div></div>`;
+      }).join('')}</div>`;
+    }).join('') || '<div class="sg-none">No bracket posted yet.</div>';
+  } else {
+    const rounds = [['all', 'All'], ...PS_ROUNDS.filter(([k]) => P.hrs.some(h => h.type === k))];
+    const list = P.hrs.filter(h => pp.round === 'all' || h.type === pp.round);
+    const by = new Map();
+    for (const h of list) { const x = by.get(h.pid) || { ...h, n: 0 }; x.n++; by.set(h.pid, x); }
+    const rows = [...by.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name)).slice(0, 25);
+    const ours = new Set((picksHistory || []).filter(e => postDates.includes(e.date)).flatMap(e => e.picks.filter(p => p.hit).map(p => String(p.pid))));
+    body = `<div class="picks-sort">${rounds.map(([k, l]) => `<button class="due-filter-chip${pp.round === k ? ' active' : ''}" onclick="setPpRound('${k}')">${l}</button>`).join('')}</div>
+      <div class="sg-h">${list.length} home run${list.length === 1 ? '' : 's'}${pp.round === 'all' ? ' this postseason' : ' · ' + PS_ROUNDS.find(([k]) => k === pp.round)[1]}</div>
+      ${rows.map((r, i) => `<div class="sgp-row" onclick="closePostSheet();openMlbPlayer('${r.pid}')"><span class="pb-rk">${i + 1}</span>${teamLogoImg(r.team, 'gc-pick-logo')}
+        <span class="sgp-nm">${ours.has(r.pid) ? '★ ' : ''}${r.name}</span><span class="sgp-sub">${r.team}</span><span class="pb-n">${r.n}</span></div>`).join('') || '<div class="sg-none">No home runs yet — first pitch is coming.</div>'}`;
+  }
+  el.innerHTML = `<button class="pm-x" onclick="closePostSheet()" aria-label="Close">×</button>
+    <div class="pp-head"><img src="/icons/trophy.svg" alt="" class="pp-trophy"><div><div class="pp-title">${season} Postseason</div><div class="pp-sub">The bracket, and who's gone deep</div></div></div>
+    <div class="sub-tabs sg-tabs">${tabs.map(([v, l]) => `<button class="sub-btn${pp.tab === v ? ' active' : ''}" onclick="setPpTab('${v}')">${l}</button>`).join('')}</div>${body}`;
+}
+
 // ── Hidden health/status view (read-only) ───────────────────────────────
 // Open with ?status in the URL or by calling openStatus() from the console.
 // Everything is derived from data.json + the client's own state — no backend,
@@ -6484,7 +6646,7 @@ function loadMlbDay(date) {
   const D = MLB_BOX.days[date] ||= { at: 0, busy: false, games: null, err: false };
   if (D.busy || Date.now() - D.at < 55e3) return D.p || Promise.resolve();
   D.busy = true;
-  return D.p = fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${date}&hydrate=linescore,scoringplays,probablePitcher,team`)
+  return D.p = fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${date}&hydrate=linescore,scoringplays,probablePitcher,team,seriesStatus`)
     .then(r => r.ok ? r.json() : Promise.reject())
     .then(j => {
       const list = [];
@@ -6506,7 +6668,8 @@ function loadMlbDay(date) {
           probablePitcher: s.probablePitcher?.fullName || null, probablePitcherId: s.probablePitcher?.id ? String(s.probablePitcher.id) : null,
           probablePitcherThrows: null, lineup: [] });
         list.push({ gamePk: g.gamePk, gameDate: g.gameDate, status: g.status?.detailedState || '', venue: g.venue?.name || '',
-          away: tm(g.teams.away), home: tm(g.teams.home) });
+          away: tm(g.teams.away), home: tm(g.teams.home), gameType: g.gameType || 'R',
+          series: g.gameType && g.gameType !== 'R' ? { round: g.seriesDescription || null, num: g.seriesGameNumber || null, of: g.gamesInSeries || null, status: g.seriesStatus?.result || null } : null });
       }
       D.games = list; D.err = false;
     })
@@ -6680,7 +6843,8 @@ function mlbHomers(g, away, home, box, ours) {
   return `<div class="gc-hrs"><span class="gc-hrs-k">HR</span>${[...by.values()].map(h => { const our = ours.has(h.pid);
     return `<span class="gc-hr${our ? ' ours' : ''}" title="${h.name} (${h.top ? away : home}) — ${h.inn.join(', ')}${our ? ' · on our HR board that day' : ''}">${our ? '★ ' : ''}${compactPlayerName(h.name)}${h.n > 1 ? ` <b>×${h.n}</b>` : ''}</span>`; }).join('<span class="gc-dot">·</span>')}</div>`;
 }
-const schedHomerTag = (g) => g.homer ? `<div class="gc-homer"${g.homer.park != null ? ` title="Homer Score — HR-betting confidence for this game (park ${g.homer.park}× · weather ${g.homer.weather}× · lineups ${g.homer.bat}× · starters ${g.homer.sp}× · pens ${g.homer.pen}×)"` : ''}>Homer Score <b class="${homerScoreClass(g.homer.score)}">${g.homer.score}</b></div>` : '';
+const schedRoundTag = (g) => g.series ? `<span class="gc-round">${psShort(g.series.round)}${g.series.num ? ` · Gm ${g.series.num}` : ''}</span>` : '';
+const schedHomerTag = (g) => !g.homer ? (g.series ? `<div class="gc-homer">${schedRoundTag(g)}</div>` : '') : `<div class="gc-homer"${g.homer.park != null ? ` title="Homer Score — HR-betting confidence for this game (park ${g.homer.park}× · weather ${g.homer.weather}× · lineups ${g.homer.bat}× · starters ${g.homer.sp}× · pens ${g.homer.pen}×)"` : ''}>${schedRoundTag(g)}Homer Score <b class="${homerScoreClass(g.homer.score)}">${g.homer.score}</b></div>`;
 function schedVenueRow(g, date) {
   const games = Object.values(venueGameDays[g.venue] ?? {}).reduce((a, b) => a + b, 0);
   const hrs = Object.values(venueHRsByDate[g.venue] ?? {}).reduce((a, b) => a + b, 0);
@@ -6689,6 +6853,15 @@ function schedVenueRow(g, date) {
 }
 /** A day's windows by Eastern start time, as a header keyed to each window's first game. */
 function schedSlates(games) {
+  // the postseason reads by series: each game under its round and where the series stands
+  if (games.some(g => g.series)) {
+    const out = new Map();
+    for (const g of games) if (g.series) {
+      const x = g.series;
+      out.set(g.gamePk, `<div class="gc-slate gc-series"><b>${x.round || 'Postseason'}</b><span>${x.num ? `Game ${x.num}${x.of ? ` of ${x.of}` : ''}` : ''}${x.status ? ` · ${x.status}` : ''}</span></div>`);
+    }
+    return out;
+  }
   const etH = (d) => +new Date(d).toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/New_York' }) % 24;
   const win = (g) => { const h = etH(g.gameDate); return h < 17 ? 'Afternoon' : h < 21 ? 'Evening' : 'Late'; };
   const t = (d) => new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
@@ -6749,11 +6922,12 @@ function renderSchedule() {
     <b>Homer Score</b> = HR-betting confidence per game (park, weather, both lineups, starters, pens). 50 = average.
     <span class="hl-scale"></span> <span>colder → hotter</span>
   </div>` : '';
+  const postBtn = postseasonOn ? `<button class="ps-sheet-btn" onclick="openPostSheet()">🏆 Bracket &amp; HR leaders</button>` : '';
   const digestBtn = isSlate ? `<button class="dinger-digest-btn" onclick="openDingerDigest()" title="A GMG-style slate sheet of today's pitching matchups, park/weather, Homer Scores, and our best HR leans — screenshot &amp; share">🚀 Dinger Digest</button>` : '';
   const ours = schedOurPids(date);
   // in time order the day splits into its windows — afternoon, evening, late (Eastern)
   const slate = schedSort === 'time' ? schedSlates(sorted) : null;
-  contentEl.innerHTML = nav + legend + `<div class="sched-toolbar">${sortBar}${digestBtn}</div><div class="sched-list gc-list">${sorted.map(g => {
+  contentEl.innerHTML = nav + legend + `<div class="sched-toolbar">${sortBar}<span class="sched-tb-r">${postBtn}${digestBtn}</span></div><div class="sched-list gc-list">${sorted.map(g => {
     const head = slate?.get(g.gamePk) || '';
     const away = g.away.teamAbbr || g.away.teamName, home = g.home.teamAbbr || g.home.teamName;
     const S = schedState(g);

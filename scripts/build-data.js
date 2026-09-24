@@ -47,14 +47,21 @@ function dateRange(start, end) {
   return dates;
 }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+// Regular season plus the postseason rounds: Wild Card, Division Series, LCS, World Series.
+const GAME_TYPES = 'R,F,D,L,W';
+const postDates = new Set();   // dates that had a postseason game
 function daysSince(d) {
   const [y,m,day] = d.split('-').map(Number);
   return Math.round((new Date() - new Date(y,m-1,day)) / 86400000);
 }
 
 async function fetchDay(date) {
-  const sched = await fetch(`${MLB}/schedule?sportId=1&date=${date}&gameType=R`).then(r => r.json());
+  const sched = await fetch(`${MLB}/schedule?sportId=1&date=${date}&gameType=${GAME_TYPES}`).then(r => r.json());
   const games = sched.dates?.[0]?.games ?? [];
+  // Postseason games count for the day — Recap, clips, grading every board —
+  // but not toward the season's totals (HR, AB, games, park and club rates):
+  // player power and park factors stay regular-season, the bigger sample.
+  const postIds = new Set(games.filter(g => g.gameType && g.gameType !== 'R').map(g => g.gamePk));
   // A postponed/cancelled game still reports abstractGameState 'Final' on its
   // ORIGINAL date (detailedState 'Postponed'), with the SAME gamePk it keeps
   // when made up later. Without the detailedState guard the build counts it on
@@ -74,7 +81,9 @@ async function fetchDay(date) {
   await Promise.all(ids.map(async id => {
     try {
       const box = await fetch(`${MLB}/game/${id}/boxscore`).then(r => r.json());
-      const venue = venueByGame[id];
+      const post = postIds.has(id);
+      if (post) postDates.add(date);
+      const venue = post ? null : venueByGame[id];
       let gameHadHR = false;
       if (venue) {
         if (!venueGameDays[venue]) venueGameDays[venue] = {};
@@ -85,7 +94,7 @@ async function fetchDay(date) {
         const teamAbbr = t.team?.abbreviation ?? '';
         const batters  = t.batters ?? [];
         const players  = t.players ?? {};
-        if (teamAbbr) {
+        if (teamAbbr && !post) {
           if (!teamGameDays[teamAbbr]) teamGameDays[teamAbbr] = {};
           teamGameDays[teamAbbr][date] = (teamGameDays[teamAbbr][date] || 0) + 1;
         }
@@ -114,8 +123,10 @@ async function fetchDay(date) {
           const abs    = p?.stats?.batting?.atBats   ?? 0;
           const name   = p.person?.fullName ?? `ID${pid}`;
           const pidStr = String(pid);
-          playerABs[pidStr]   = (playerABs[pidStr]   || 0) + abs;
-          playerGames[pidStr] = (playerGames[pidStr]  || 0) + 1;
+          if (!post) {
+            playerABs[pidStr]   = (playerABs[pidStr]   || 0) + abs;
+            playerGames[pidStr] = (playerGames[pidStr]  || 0) + 1;
+          }
           playerNames[pidStr] = name;
           if (teamAbbr) playerTeams[pidStr] = teamAbbr;
           if (!playerLastGame[pidStr] || date > playerLastGame[pidStr]) playerLastGame[pidStr] = date;
@@ -130,7 +141,7 @@ async function fetchDay(date) {
           gameHadHR = true;
           if (!dailyHRs[date]) dailyHRs[date] = {};
           dailyHRs[date][pidStr] = (dailyHRs[date][pidStr] || 0) + hrs;
-          hrTotals[pidStr] = (hrTotals[pidStr] || 0) + hrs;
+          if (!post) hrTotals[pidStr] = (hrTotals[pidStr] || 0) + hrs;
           if (!playerLastHR[pidStr] || date > playerLastHR[pidStr]) playerLastHR[pidStr] = date;
           if (venue) {
             if (!venueHRsByDate[venue]) venueHRsByDate[venue] = {};
@@ -1436,7 +1447,11 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
     // pick for EVERY game, and the Chalk floor leaves half the slate uncovered.
     const topByTeam = {};
     for (const r of rows) if (!topByTeam[r.team]) topByTeam[r.team] = { pid: r.pid, team: r.team, score: Math.round(r.pickScore * 10) / 10 };
-    return { picks: rows.filter(r => Math.round(r.pickScore * 10) / 10 >= PICKS_MIN_SCORE), value, cards, stuff, topByTeam };
+    // Postseason: two to four games a day would leave the Chalk floor with a
+    // handful of names, so the board ranks every scored bat (top 20) instead.
+    const post = todaySchedule.some(g => g.gameType && g.gameType !== 'R');
+    const board = post ? rows.slice(0, 20) : rows.filter(r => Math.round(r.pickScore * 10) / 10 >= PICKS_MIN_SCORE);
+    return { picks: board, value, cards, stuff, topByTeam };
   } catch (e) { return { picks: [], value: [] }; }
 }
 
@@ -2047,7 +2062,7 @@ async function resolveActiveGameDate() {
   const cal = calDateET();
   try {
     const prev = shiftDateStr(cal, -1);
-    const sched = await fetch(`${MLB}/schedule?sportId=1&date=${prev}&gameType=R`).then(r => r.json());
+    const sched = await fetch(`${MLB}/schedule?sportId=1&date=${prev}&gameType=${GAME_TYPES}`).then(r => r.json());
     const games = sched.dates?.[0]?.games ?? [];
     // Any of yesterday's games still being played (past midnight)? Then the
     // slate isn't over and we're still on that day. Postponed/suspended games
@@ -2203,7 +2218,7 @@ function computeHomerScores(games, pitcherStats, bullpens) {
 
 async function fetchTodaySchedule(teamIdToAbbr) {
   try {
-    const sched = await fetch(`${MLB}/schedule?sportId=1&date=${todayET()}&gameType=R&hydrate=lineups,probablePitcher,venue(location,fieldInfo)`).then(r => r.json());
+    const sched = await fetch(`${MLB}/schedule?sportId=1&date=${todayET()}&gameType=${GAME_TYPES}&hydrate=lineups,probablePitcher,venue(location,fieldInfo),seriesStatus`).then(r => r.json());
     const games = sched.dates?.[0]?.games ?? [];
     return games.map(g => {
       const side = s => {
@@ -2232,6 +2247,12 @@ async function fetchTodaySchedule(teamIdToAbbr) {
         lon: loc.defaultCoordinates?.longitude ?? null,
         cfAzimuth: loc.azimuthAngle ?? null,
         roofType: g.venue?.fieldInfo?.roofType ?? null,
+        gameType: g.gameType ?? 'R',
+        // postseason: the round, which game of the series, and where it stands
+        series: g.gameType && g.gameType !== 'R' ? {
+          round: g.seriesDescription ?? null, num: g.seriesGameNumber ?? null, of: g.gamesInSeries ?? null,
+          status: g.seriesStatus?.result ?? null,
+        } : null,
       };
     });
   } catch (e) { return []; }
@@ -3157,7 +3178,7 @@ async function main() {
   // endpoint — if MLB says games exist, abort so the previous build survives
   // (cron only commits on a zero exit).
   if (!todaySchedule.length) {
-    const check = await fetch(`${MLB}/schedule?sportId=1&date=${todayET()}&gameType=R`).then(r => r.json()).catch(() => null);
+    const check = await fetch(`${MLB}/schedule?sportId=1&date=${todayET()}&gameType=${GAME_TYPES}`).then(r => r.json()).catch(() => null);
     const expected = check?.totalGames ?? 0;
     if (expected > 0) throw new Error(`Degraded build: schedule hydrate returned 0 games but MLB lists ${expected} for ${todayET()} — refusing to write data.json`);
   }
@@ -3609,7 +3630,9 @@ async function main() {
     totalHRCount,
     dailyHRs, hrTypes, hrDetails, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR, playerLastGame,
     teamGameDays, venueGameDays, venueHRsByDate, groupSummary, dueRows, prospects, injuryStatus, dtdStatus,
-    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, teamStatus, teamOffense, batterDiscipline, bullpens, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, schedHistory, birthdays, birthdayHistory,
+    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, teamStatus, teamOffense, batterDiscipline, bullpens, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, schedHistory,
+    // postseason mode: on from the first playoff slate, and through the off days between rounds
+    postseason: postDates.size > 0 || todaySchedule.some(g => g.gameType && g.gameType !== 'R') || null, postDates: [...postDates].sort(), birthdays, birthdayHistory,
     // { venue -> { carry, windForL, windForR } }. The picks rows already bake
     // this into weatherRatio, but only for the two dozen bats on those boards —
     // the Matchup tool has to score anyone in a posted lineup, so it needs the
