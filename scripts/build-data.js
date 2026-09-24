@@ -3657,6 +3657,18 @@ async function main() {
   // one-line summary, which stays in data.json.
   fs.writeFileSync(new URL('../mlb/groups.json', import.meta.url), JSON.stringify(groups));
   fs.writeFileSync(new URL('../mlb/data.json', import.meta.url), JSON.stringify(output));
+
+  // News for the boards: ESPN's injury report + transaction wire, matched to
+  // our ids (scripts/news.js) — every bat seen this season and every starter.
+  try {
+    const { buildNews } = await import('./news.js');
+    const seen = new Map();
+    for (const pid of Object.keys(playerNames)) seen.set(pid, { pid, name: playerNames[pid], team: playerTeams[pid] });
+    for (const day of Object.values(dailyStarts)) for (const st of day) if (!seen.has(st.pid)) seen.set(st.pid, { pid: st.pid, name: st.name, team: st.team });
+    const news = await buildNews('mlb', { players: [...seen.values()] });
+    fs.writeFileSync(new URL('../mlb/news.json', import.meta.url), JSON.stringify(news));
+    console.log(`News: ${news.matched}/${news.total} injuries matched, ${news.tx.length} transactions, ${Object.keys(news.espn).length} ESPN ids`);
+  } catch (e) { console.warn('News skipped:', e.message); }
   console.log(`Wrote data.json — ${allDates.length} game days, ${totalHRCount} HRs, ${dueRows.length} due rows, ${prospects.history.length} callup graduations, ${prospects.justCalledUp.length} on watch, ${todaySchedule.length} games today, ${picks.length} picks`);
 
   // Matchup Lab cards ship as a SEPARATE file, lazy-loaded only when the tool is

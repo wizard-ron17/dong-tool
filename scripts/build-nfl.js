@@ -642,6 +642,19 @@ async function main() {
     console.log(`  player game logs: ${Object.keys(keep).length} players -> nfl/players.json`);
   }
   console.log(`  play detail: ${Object.keys(playDetail).filter(k => !k.startsWith('wp|')).length} touchdowns + win-probability lines -> nfl/plays.json`);
+  // News for the boards: ESPN's injury report + transaction wire, matched to
+  // gsis ids through nflverse's espn_id (scripts/news.js). ESPN ids ship for
+  // everyone we can show a card for, so the card can pull his RotoWire news.
+  try {
+    const { buildNews } = await import('./news.js');
+    const { espn: espnToGsis } = await loadPlayers();
+    const roster = new Map(Object.entries(playerGames).map(([pid, v]) => [pid, { pid, name: v.n || '', team: v.tm || '' }]));
+    for (const p of picks?.picks ?? []) roster.set(p.pid, { pid: p.pid, name: p.name, team: p.team });
+    for (const pid of referenced) if (!roster.has(pid)) roster.set(pid, { pid, name: '', team: '' });
+    const news = await buildNews('nfl', { players: [...roster.values()], espnToOurs: espnToGsis });
+    fs.writeFileSync(new URL('../nfl/news.json', import.meta.url), JSON.stringify(news));
+    console.log(`  news: ${news.matched}/${news.total} injuries matched, ${news.tx.length} transactions, ${Object.keys(news.espn).length} ESPN ids`);
+  } catch (e) { console.warn('  news skipped:', e.message); }
   console.log(`Wrote nfl/data.json — ${schedule.length} ${UPCOMING_SEASON} games, ${tdTotal} TDs across ${weeks.length} weeks, ${tdLeaders.length} TD leaders, ${picks?.picks.length ?? 0} picks.`);
 }
 main().catch(e => { console.error(e); process.exit(1); });

@@ -596,6 +596,17 @@ async function main() {
   const out = new URL('../nhl/data.json', import.meta.url);
   fs.mkdirSync(new URL('../nhl/', import.meta.url), { recursive: true });
   fs.writeFileSync(out, JSON.stringify(output));
+  // News for the boards: ESPN's injury report + transaction wire, matched to
+  // our ids by name and club off every current roster (scripts/news.js).
+  try {
+    const { buildNews } = await import('./news.js');
+    const seen = new Map();
+    for (const r of fun?.roster || []) seen.set(String(r.pid), r);
+    for (const r of picks.picks || []) if (!seen.has(String(r.pid))) seen.set(String(r.pid), { pid: r.pid, name: r.name, team: r.team });
+    const news = await buildNews('nhl', { players: [...seen.values()] });
+    fs.writeFileSync(new URL('../nhl/news.json', import.meta.url), JSON.stringify(news));
+    console.log(`  news: ${news.matched}/${news.total} injuries matched, ${news.tx.length} transactions, ${Object.keys(news.espn).length} ESPN ids`);
+  } catch (e) { console.warn('  news skipped:', e.message); }
   const kb = (fs.statSync(out).size / 1024).toFixed(0);
   console.log(`Wrote nhl/data.json — ${kb} KB`);
 

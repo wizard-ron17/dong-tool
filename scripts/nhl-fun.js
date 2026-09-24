@@ -183,5 +183,6 @@ export async function buildFun({ season, hist, today, schedule, picks, log }) {
   }
   birthdays.sort((a, b) => a.off - b.off || (b.game ? 1 : 0) - (a.game ? 1 : 0) || a.name.localeCompare(b.name));
 
-  return { birthdays, bdStats: FUN.bday.stats, milestones, rungs: MS_RUNGS, msReached: msLog.reached, due, through: FUN.through };
+  return { birthdays, bdStats: FUN.bday.stats, milestones, rungs: MS_RUNGS, msReached: msLog.reached, due, through: FUN.through,
+    roster: [...roster].map(([pid, r]) => ({ pid, name: r.name, team: r.team })) };
 }

@@ -2369,6 +2369,58 @@
   .ydm-hero .mu-photo { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; object-position: center 25%; margin: 0; border-width: 3px; border-style: solid; }
   @media (max-width: 760px) { .ydm-hero .mu-photo { width: 62px; height: 62px; } }
   @media (max-width: 520px) { .ydm-hero .mu-photo { width: 50px; height: 50px; border-width: 2px; } }
+  /* ── News: injury chips, the ticker, alerts, card news ── */
+  .inj-chip { font-family: var(--font-d); font-size: 0.58rem; font-weight: 800; letter-spacing: 0.04em; padding: 0.05rem 0.32rem; border-radius: 4px; margin-left: 0.3rem; white-space: nowrap; cursor: help; line-height: 1.3; }
+  .inj-chip.out { background: rgba(229,83,75,0.17); color: #ff6b61; }
+  .inj-chip.d { background: rgba(255,140,60,0.17); color: #ff9147; }
+  .inj-chip.q { background: rgba(240,192,64,0.17); color: #f2c94c; }
+  .inj-chip.dtd { background: var(--surface2); color: var(--muted); }
+  :root[data-theme="light"] .inj-chip.out { color: #c0392b; }
+  :root[data-theme="light"] .inj-chip.d { color: #c25e14; }
+  :root[data-theme="light"] .inj-chip.q { color: #9a6d00; }
+  .nw-inj { border: 1px solid var(--border); border-left: 3px solid var(--muted); background: var(--surface1); border-radius: 8px; padding: 0.55rem 0.7rem; margin: 0 0 0.7rem; font-size: 0.8rem; color: var(--text); line-height: 1.45; }
+  .nw-inj.out { border-left-color: #e5534b; } .nw-inj.d { border-left-color: #ff8c3c; } .nw-inj.q { border-left-color: #f0c040; }
+  .nw-inj b { color: var(--text-strong); }
+  .nw-inj div { margin-top: 0.25rem; }
+  .nw-inj small { display: block; margin-top: 0.3rem; color: var(--dim); font-size: 0.66rem; }
+  .nw-item { padding: 0.6rem 0.1rem; border-bottom: 1px solid var(--border); }
+  .nw-h { font-weight: 700; font-size: 0.84rem; color: var(--text-strong); line-height: 1.4; }
+  .nw-h a { color: inherit; text-decoration: none; } .nw-h a:hover { text-decoration: underline; }
+  .nw-s { font-size: 0.78rem; color: var(--text); line-height: 1.5; margin-top: 0.25rem; }
+  .nw-m { font-size: 0.66rem; color: var(--dim); margin-top: 0.3rem; }
+  .nw-item.story .nw-h { font-weight: 600; }
+  /* the ticker: under the header, pauses on hover, folds to a pill */
+  .nt { display: flex; align-items: center; gap: 0.6rem; height: 2rem; margin: -0.4rem 0 0.8rem; padding: 0 0.3rem 0 0.1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface0); overflow: hidden; }
+  .nt.empty { display: none; }
+  .nt.off { justify-content: flex-end; border: none; background: none; height: 1.6rem; margin-bottom: 0.4rem; }
+  .nt-tag { flex-shrink: 0; font-family: var(--font-d); font-size: 0.6rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #fff; background: #e5534b; padding: 0.18rem 0.45rem; border-radius: 5px; margin-left: 0.3rem; }
+  .nt-view { flex: 1; min-width: 0; overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 2%, #000 96%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 2%, #000 96%, transparent); }
+  .nt-track { display: inline-flex; align-items: center; white-space: nowrap; animation: nt-scroll var(--nt-dur, 60s) linear infinite; }
+  .nt:hover .nt-track { animation-play-state: paused; }
+  @keyframes nt-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @media (prefers-reduced-motion: reduce) { .nt-view { overflow-x: auto; } .nt-track { animation: none; } }
+  .nt-i { display: inline-flex; align-items: baseline; gap: 0.35rem; font-size: 0.76rem; color: var(--text); cursor: pointer; }
+  .nt-i:hover b { text-decoration: underline; }
+  .nt-i em { font-style: normal; font-family: var(--font-m); font-size: 0.64rem; color: var(--dim); }
+  .nt-i b { color: var(--text-strong); font-weight: 700; }
+  .nt-i .inj-chip { margin-left: 0; }
+  .nt-sep { color: var(--dim); margin: 0 0.9rem; }
+  .nt-cr { flex-shrink: 0; font-size: 0.6rem; color: var(--dim); text-decoration: none; white-space: nowrap; }
+  @media (max-width: 600px) { .nt-cr { display: none; } }
+  .nt-x { flex-shrink: 0; background: none; border: none; color: var(--dim); font-size: 1.1rem; cursor: pointer; padding: 0 0.3rem; line-height: 1; }
+  .nt-pill { background: var(--surface1); border: 1px solid var(--border); color: var(--muted); font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.55rem; border-radius: 999px; cursor: pointer; }
+  .nw-toast { position: fixed; right: 1rem; bottom: 1rem; z-index: 450; max-width: 380px; background: var(--surface0); border: 1px solid var(--border2); border-radius: 12px; padding: 0.8rem 0.9rem 0.7rem; box-shadow: 0 12px 34px rgba(0,0,0,0.5); font-size: 0.8rem; color: var(--text); line-height: 1.45; }
+  .nw-toast.alert { border-color: #e5534b; }
+  .nw-toast-b b { color: var(--text-strong); }
+  .nw-toast-b div { margin-top: 0.3rem; color: var(--muted); font-size: 0.76rem; }
+  .nw-alert-k { display: block; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #ff6b61; margin-bottom: 0.2rem; }
+  .nw-toast-a { display: flex; justify-content: flex-end; gap: 0.8rem; margin-top: 0.55rem; font-size: 0.74rem; }
+  .nw-toast-a a { color: var(--muted); }
+  .nw-toast-a button { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 7px; padding: 0.2rem 0.6rem; cursor: pointer; font-size: 0.74rem; }
+  @media (max-width: 600px) {
+    .nt { margin-top: -0.2rem; }
+    .nw-toast { left: 0.75rem; right: 0.75rem; max-width: none; bottom: calc(5rem + env(safe-area-inset-bottom)); }
+  }
 </style>
 <script>
   // Set the theme before first paint to avoid a flash: saved choice wins,
@@ -3520,6 +3572,7 @@ function valueRank(pid) {
 // the full label still lives in the hover tooltip.
 function crossTabBadge(pid, exclude = {}, compact = false) {
   const parts = [];
+  if (!exclude.inj) { const ic = injChip(pid); if (ic) parts.push(ic); }   // ESPN's injury report (news.json)
   const c = compact ? ' ctb-compact' : '';
   if (!exclude.birthday) { const bd = birthdayBadge(pid); if (bd) parts.push(bd); } // rides along next to the name on every board
   if (!exclude.chalk) {
@@ -6533,6 +6586,153 @@ function renderPostSheet() {
     <div class="sub-tabs sg-tabs">${tabs.map(([v, l]) => `<button class="sub-btn${pp.tab === v ? ' active' : ''}" onclick="setPpTab('${v}')">${l}</button>`).join('')}</div>${body}`;
 }
 
+// ── News: injury chips, the ticker, board alerts, player-card news ────────
+// news.json (the build: ESPN's injury report and transaction wire, matched to
+// our ids) drives the chips beside a name and the card's status line. The
+// ticker is live: RotoWire's player-news feed, polled every two minutes while
+// the tab is open (it only ever holds the newest five, so the page keeps what
+// it has seen), with the build's injury and transaction wire mixed in. A
+// board player ruled out, scratched or placed on the IL gets a one-time alert.
+// A card's News tab reads his full RotoWire history off ESPN.
+const NW = { sport: 'mlb', rw: 'MLB', fantasy: 'flb', data: null, state: 'idle', items: [] };
+const nwEsc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const nwNorm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  .replace(/[.'’`-]/g, ' ').replace(/\b(jr|sr|ii|iii|iv|v)\b/g, ' ').replace(/\s+/g, ' ').trim();
+const nwAgo = (t) => { const m = Math.max(0, Math.round((Date.now() - t) / 60000)); return m < 60 ? `${m || 1}m` : m < 1440 ? `${Math.round(m / 60)}h` : `${Math.round(m / 1440)}d`; };
+const nwOpen = (pid) => { openMlbPlayer(String(pid)); return true; };
+function loadNews() {
+  if (NW.state !== 'idle') return;
+  NW.state = 'loading';
+  dataFetch('news.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
+    .then(j => { NW.data = j; NW.state = 'ready'; nwReady(); })
+    .catch(() => { NW.state = 'error'; });
+}
+const injOf = (pid) => { const x = NW.data?.injuries?.[String(pid)]; return x && !/^active$/i.test(x.st || '') ? x : null; };
+const nwSev = (s) => /^(O|IR|IL\d*|SUSP|PUP|NFI)$/.test(s) ? 'out' : s === 'D' ? 'd' : s === 'Q' ? 'q' : 'dtd';
+const nwDate = (iso) => iso ? new Date(iso.length <= 10 ? iso + 'T12:00:00Z' : iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+/** The chip beside a name: O / Q / D / DTD / IL10 …, the injury and RotoWire's line on hover. */
+function injChip(pid) {
+  const x = injOf(pid); if (!x) return '';
+  const tip = `${x.st || x.s}${x.t ? ' · ' + x.t : ''}${x.r ? ' · expected back ~' + nwDate(x.r) : ''}${x.c ? ' — ' + x.c : ''}`;
+  return `<span class="inj-chip ${nwSev(x.s)}" title="${nwEsc(tip)}">${nwEsc(x.s)}</span>`;
+}
+/** A card's status block: the injury in full, when there is one. */
+function injBlock(pid) {
+  const x = injOf(pid); if (!x) return '';
+  return `<div class="nw-inj ${nwSev(x.s)}"><b>${nwEsc(x.st || x.s)}</b>${x.t ? ` · ${nwEsc(x.t)}` : ''}${x.r ? ` · expected back ~${nwDate(x.r)}` : ''}
+    ${x.c ? `<div>${nwEsc(x.c)}</div>` : ''}<small>${x.d ? `Updated ${nwDate(x.d)} · ` : ''}via ESPN / RotoWire</small></div>`;
+}
+/** The card's News tab: his RotoWire history (and ESPN stories), loaded on open. */
+const NWP = {};
+function newsPanel(pid) {
+  const eid = NW.data?.espn?.[String(pid)];
+  const head = injBlock(pid);
+  if (!eid) return head + `<div class="empty" style="padding:1.6rem 0">${NW.state === 'ready' ? 'No news feed for this player.' : 'Loading news…'}</div>`;
+  const P = NWP[eid];
+  if (!P) {
+    NWP[eid] = { state: 'loading' };
+    fetch(`https://site.api.espn.com/apis/fantasy/v2/games/${NW.fantasy}/news/players?playerId=${eid}`).then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { NWP[eid] = { state: 'ready', feed: (j.feed || []).filter(x => x.type === 'Rotowire' || x.type === 'Story').slice(0, 12) }; })
+      .catch(() => { NWP[eid] = { state: 'error' }; })
+      .finally(() => { const el = document.getElementById(`nwp-${pid}`); if (el) el.outerHTML = newsPanel(pid); });
+  }
+  const Q = NWP[eid];
+  const list = Q.state !== 'ready' ? `<div class="empty" style="padding:1.6rem 0">${Q.state === 'error' ? "Couldn't reach ESPN for his news." : 'Loading news…'}</div>`
+    : !Q.feed.length ? '<div class="empty" style="padding:1.6rem 0">Nothing new on him.</div>'
+    : Q.feed.map(x => `<div class="nw-item${x.type === 'Story' ? ' story' : ''}">
+        <div class="nw-h">${x.type === 'Story' && x.links?.web?.href ? `<a href="${nwEsc(x.links.web.href)}" target="_blank" rel="noopener">${nwEsc(x.headline)}</a>` : nwEsc(x.headline)}</div>
+        ${x.type === 'Rotowire' && x.story ? `<div class="nw-s">${nwEsc(x.story)}</div>` : x.description && x.description !== x.headline ? `<div class="nw-s">${nwEsc(x.description)}</div>` : ''}
+        <div class="nw-m">${nwAgo(Date.parse(x.published))} ago · ${x.type === 'Rotowire' ? 'RotoWire' : 'ESPN'}</div></div>`).join('');
+  return `<div id="nwp-${pid}">${head}${list}</div>`;
+}
+
+// ── The ticker ──
+const NT_KEY = `nt-${NW.sport}`, NT_OFF = `nt-off-${NW.sport}`;
+try { NW.items = JSON.parse(localStorage.getItem(NT_KEY) || '[]'); } catch (e) { NW.items = []; }
+function ntSave() { try { localStorage.setItem(NT_KEY, JSON.stringify(NW.items.slice(0, 40))); } catch (e) { /* private mode */ } }
+function ntPid(name) { return NW.data?.names?.[nwNorm(name)] ?? null; }
+/** RotoWire's feed: "Name: headline", the blurb in the description. */
+function pollRotowire() {
+  if (document.hidden) return;
+  fetch(`https://www.rotowire.com/rss/news.php?sport=${NW.rw}`, { cache: 'no-store' }).then(r => r.ok ? r.text() : Promise.reject())
+    .then(t => {
+      const doc = new DOMParser().parseFromString(t, 'text/xml');
+      let added = 0;
+      for (const it of [...doc.querySelectorAll('item')]) {
+        const title = it.querySelector('title')?.textContent?.trim() || '';
+        const id = it.querySelector('guid')?.textContent || it.querySelector('link')?.textContent || title;
+        if (!title || NW.items.some(x => x.id === id)) continue;
+        const [name, ...rest] = title.split(':');
+        const blurb = (it.querySelector('description')?.textContent || '').replace(/<[^>]+>/g, ' ').replace(/Visit RotoWire.*$/s, '').replace(/\s+/g, ' ').trim();
+        NW.items.push({ id, name: name.trim(), head: rest.join(':').trim(), blurb, t: Date.parse(it.querySelector('pubDate')?.textContent || '') || Date.now(), link: it.querySelector('link')?.textContent || '' });
+        added++;
+      }
+      if (added) { NW.items.sort((a, b) => b.t - a.t); NW.items = NW.items.slice(0, 40); ntSave(); renderTicker(); nwAlerts(); }
+    }).catch(() => { /* next poll */ });
+}
+function ntEntries() {
+  const out = NW.items.map(x => ({ ...x, kind: 'rw' }));
+  // the build's transaction wire, the newest few, as a second voice
+  for (const t of (NW.data?.tx || []).slice(0, 6)) out.push({ id: 'tx' + t.d + t.text.slice(0, 20), name: t.team || '', head: t.text, t: Date.parse(t.d), kind: 'tx' });
+  return out.sort((a, b) => b.t - a.t).slice(0, 24);
+}
+function renderTicker() {
+  const el = document.getElementById('news-ticker'); if (!el) return;
+  let off = false; try { off = localStorage.getItem(NT_OFF) === '1'; } catch (e) { /* */ }
+  el.classList.toggle('off', off);
+  if (off) { el.innerHTML = `<button class="nt-pill" onclick="ntToggle(false)" title="Show the news ticker">📰 News</button>`; return; }
+  const E = ntEntries();
+  if (!E.length) { el.innerHTML = ''; el.classList.add('empty'); return; }
+  el.classList.remove('empty');
+  const item = (x) => { const pid = x.kind === 'rw' ? ntPid(x.name) : null;
+    return `<span class="nt-i" onclick="ntOpen('${nwEsc(x.id).replace(/'/g, '&#39;')}')"><em>${nwAgo(x.t)}</em><b>${nwEsc(x.name)}</b>${pid != null ? injChip(pid) : ''}${nwEsc(x.head)}</span>`; };
+  const run = E.map(item).join('<span class="nt-sep">•</span>');
+  el.innerHTML = `<span class="nt-tag">News</span><div class="nt-view"><div class="nt-track" style="--nt-dur:${Math.max(40, E.length * 7)}s">${run}<span class="nt-sep">•</span>${run}<span class="nt-sep">•</span></div></div>
+    <a class="nt-cr" href="https://www.rotowire.com" target="_blank" rel="noopener">via RotoWire</a><button class="nt-x" onclick="ntToggle(true)" title="Hide the ticker" aria-label="Hide the news ticker">×</button>`;
+}
+function ntToggle(off) { try { localStorage.setItem(NT_OFF, off ? '1' : '0'); } catch (e) { /* */ } renderTicker(); }
+/** A ticker item: his card if we know him, else the item in full. */
+function ntOpen(id) {
+  const x = ntEntries().find(e => e.id === id); if (!x) return;
+  const pid = x.kind === 'rw' ? ntPid(x.name) : null;
+  if (pid != null && nwOpen(pid) !== false) return;
+  nwToast(`<b>${nwEsc(x.name)}</b> ${nwEsc(x.head)}${x.blurb ? `<div>${nwEsc(x.blurb)}</div>` : ''}`, x.link);
+}
+function nwToast(html, link, cls = '') {
+  document.getElementById('nw-toast')?.remove();
+  document.body.insertAdjacentHTML('beforeend', `<div class="nw-toast ${cls}" id="nw-toast"><div class="nw-toast-b">${html}</div>
+    <div class="nw-toast-a"><a href="${link ? nwEsc(link) : 'https://www.rotowire.com'}" target="_blank" rel="noopener">via RotoWire →</a><button onclick="document.getElementById('nw-toast')?.remove()">Dismiss</button></div></div>`);
+}
+/**
+ * One alert per item for a player on one of today's boards whose news reads
+ * as out, scratched or IL-bound — the thing a bettor must not miss.
+ */
+const NW_BAD = /\b(ruled out|won'?t play|will not play|out for|scratched|scratch|placed on|to the (?:\d+-day )?(?:il|injured list)|injured reserve|not in (?:the )?lineup|out of (?:the )?lineup|won'?t start|will not start|doubtful|day-to-day|week-to-week)\b/i;
+function nwAlerts() {
+  const board = nwBoardPids(); if (!board.size) return;
+  let seen = []; try { seen = JSON.parse(localStorage.getItem(`nw-seen-${NW.sport}`) || '[]'); } catch (e) { /* */ }
+  const hit = NW.items.find(x => Date.now() - x.t < 6 * 3600e3 && !seen.includes(x.id) && board.has(String(ntPid(x.name))) && NW_BAD.test(`${x.head} ${x.blurb}`));
+  if (!hit) return;
+  seen.push(hit.id); try { localStorage.setItem(`nw-seen-${NW.sport}`, JSON.stringify(seen.slice(-80))); } catch (e) { /* */ }
+  nwToast(`<span class="nw-alert-k">⚠ On today's board</span><b>${nwEsc(hit.name)}</b> ${nwEsc(hit.head)}${hit.blurb ? `<div>${nwEsc(hit.blurb)}</div>` : ''}`, hit.link, 'alert');
+}
+function nwReady() {
+  renderTicker();
+  nwAlerts();
+  try { renderCurrentPanel(); } catch (e) { /* the page re-renders on its next navigation */ }
+}
+function startNews() {
+  if (!document.getElementById('news-ticker')) document.querySelector('header.topbar')?.insertAdjacentHTML('afterend', '<div id="news-ticker" class="nt empty"></div>');
+  loadNews();
+  renderTicker();
+  pollRotowire();
+  setInterval(pollRotowire, 120e3);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) pollRotowire(); });
+}
+
+function nwBoardPids() { const s = new Set([...(picks || []), ...(value || [])].map(p => String(p.pid))); for (const g of todaySchedule || []) for (const sd of [g.away, g.home]) if (sd.probablePitcherId) s.add(String(sd.probablePitcherId)); return s; }
+startNews();
+
 // ── Hidden health/status view (read-only) ───────────────────────────────
 // Open with ?status in the URL or by calling openStatus() from the console.
 // Everything is derived from data.json + the client's own state — no backend,
@@ -6765,7 +6965,7 @@ function schedPickStrip(g, date, S) {
   const r = schedPickResult(t, S.box, S.final);
   return `<div class="gc-pick${r ? ' ' + r.cls : ''}" title="The game's top HR pick by Pick Score${S.started ? ' — as it stood at first pitch' : ''}">
     <span class="gc-pick-star">★</span><span class="gc-pick-lbl">Top pick</span>${teamLogoImg(t.team, 'gc-pick-logo')}
-    <span class="gc-pick-nm">${compactPlayerName(t.name)}</span><span class="gc-pick-sc">Pick <b class="ps-ramp" ${psRamp(t.score)}>${Number(t.score).toFixed(1)}</b></span>
+    <span class="gc-pick-nm">${compactPlayerName(t.name)}</span>${injChip(t.pid)}<span class="gc-pick-sc">Pick <b class="ps-ramp" ${psRamp(t.score)}>${Number(t.score).toFixed(1)}</b></span>
     ${r ? `<span class="gc-pick-res">${r.txt}</span>` : S.started ? '<span class="gc-pick-res pend">live</span>' : ''}
   </div>`;
 }
@@ -7997,7 +8197,7 @@ function pickModalInner(r, board = 'chalk') {
       <div class="pk-face">
         <div class="pk-side">
           ${muPhotoTag(r.pid, r.team)}
-          <div class="pk-name">${playerNames[r.pid] || r.pid}</div>
+          <div class="pk-name">${playerNames[r.pid] || r.pid}${injChip(r.pid)}</div>
           <div class="pk-sub">${teamLogoImg(r.team,'team-logo')}${r.team} · Bats ${batHand}${r.lineupOrder >= 1 ? ` · <span title="Batting ${r.lineupOrder}${r.lineupOrder===1?'st':r.lineupOrder===2?'nd':r.lineupOrder===3?'rd':'th'} — spot in the order drives how many plate appearances he gets">#${r.lineupOrder} spot</span>` : ''}${injuryBadge(r.pid, true)}${lineupBadge(r.pid, true)}</div>
           <div class="pk-stat"><span class="hrg-val great">${r.hrs} HR</span>${abPerHR ? ` <span class="pk-stat-dim">· ${abPerHR} AB/HR</span>` : ''}${r.blastPct != null ? ` <span class="pk-stat-dim">· <span title="Blast% — squared-up + fast-swing rate, the swing that makes homers (leading indicator of power)">💥 ${Math.round(r.blastPct*100)}% Blast</span></span>` : ''}${isValue && r.blastSurplus > 1.04 ? ` <span class="pk-stat-dim" title="Blast surplus — his blast-implied HR rate is this far above his actual HR/AB; the market prices off HR totals, so it hasn't caught up = underpriced">· 📈 +${Math.round((r.blastSurplus-1)*100)}% vs results</span>` : ''}</div>
         </div>
@@ -8506,16 +8706,18 @@ function mpRender() {
   const mu = mpMatchupTarget(pid);
   const tabs = [['today', `Today${today.length ? ` · ${today.length}` : ''}`, `Today${today.length ? ` · ${today.length}` : ''}`],
                 ['season', 'Season', 'Season'],
-                ['dongs', `${isP ? 'Dongs allowed' : 'Dongs'}${n}`, `${isP ? 'HRA' : 'HR'}${n}`]];
+                ['dongs', `${isP ? 'Dongs allowed' : 'Dongs'}${n}`, `${isP ? 'HRA' : 'HR'}${n}`],
+                ['news', `News${injOf(pid) ? ' ·' + injOf(pid).s : ''}`, 'News']];
   let body;
-  if (mp.tab === 'dongs') body = mpDongsPanel(pid, dongs, isP);
+  if (mp.tab === 'news') body = newsPanel(pid);
+  else if (mp.tab === 'dongs') body = mpDongsPanel(pid, dongs, isP);
   else if (mp.tab === 'season') body = mpSeasonPanel(pid, C, isP, dongs);
   else body = mpTodayPanel(pid, today, isP);
   box.innerHTML = `
     <button class="pm-x" onclick="closeMlbPlayer()" aria-label="Close">×</button>
     <header class="ydm-hero">
       ${muPhotoTag(pid, team)}
-      <div class="ydm-id"><h2>${compactPlayerName(name)}</h2>
+      <div class="ydm-id"><h2>${compactPlayerName(name)}${injChip(pid)}</h2>
         <div class="ydm-meta">${hand}${team ? `<span>•</span>${team}${teamLogoImg(team, 'team-logo')}` : ''}${isP ? `<span>•</span>${C?.role || 'P'}` : ''}</div>
         ${mu ? `<button class="mp-cta mp-cta-hero" onclick="${mu.code}">${mu.label}</button>` : ''}</div>
       <div class="ydm-big"><div><span>${new Date().getFullYear()} season</span><span>${isP && C?.ip != null ? `${C.ip} IP` : `${C?.abs ?? 0} AB`}</span></div>
@@ -10246,7 +10448,7 @@ function renderPitcherVuln() {
       <div class="pv-main">
         ${muPhotoTag(r.p.pid, r.team)}
         <div class="pv-id">
-          <div class="pv-name">${compactPlayerName(r.p.name)} ${hand}${statusChip}</div>
+          <div class="pv-name">${compactPlayerName(r.p.name)}${injChip(r.p.pid)} ${hand}${statusChip}</div>
           <div class="pv-sub">${teamLogoImg(r.team, 'team-logo')}${r.team} vs ${r.oppTeam}${r.venue ? ` · ${r.venue}` : ''}</div>
         </div>
         <div class="pv-score">
@@ -11084,7 +11286,7 @@ function renderPitcherProp(kind) {
         <span class="pv-brank${i < PP_TRACKED ? ' on' : ''}">${i + 1}</span>
         ${muPhotoTag(r.pid, r.team)}
         <div class="pv-id">
-          <div class="pv-name">${compactPlayerName(r.name)} ${hand}${statusChip}</div>
+          <div class="pv-name">${compactPlayerName(r.name)}${injChip(r.pid)} ${hand}${statusChip}</div>
           <div class="pv-sub">${teamLogoImg(r.team, 'team-logo')}${r.team} vs ${r.oppTeam}${r.venue ? `<span class="pv-venue"> · ${r.venue}</span>` : ''}</div>
           ${(() => { const st = kbbStatusFlags(r, isK); return rankFlag || capped || st ? `<div class="pv-flags">${rankFlag}${capped ? `<span class="pv-capflag" title="Raw projection ${r.rawProj.toFixed(1)} walks — priced as ${KBB_BB_CAP}">cap · ${r.rawProj.toFixed(1)} raw</span>` : ''}${st}</div>` : ''; })()}
         </div>
@@ -11153,7 +11355,7 @@ function ppBatterBoard(isK, lg, K0, log5, lbl, word) {
         <span class="pv-brank">${i + 1}</span>
         ${muPhotoTag(r.pid, r.team)}
         <div class="pv-id">
-          <div class="pv-name">${compactPlayerName(r.name)} ${hand}</div>
+          <div class="pv-name">${compactPlayerName(r.name)}${injChip(r.pid)} ${hand}</div>
           <div class="pv-sub">${teamLogoImg(r.team, 'team-logo')}${r.team} vs ${compactPlayerName(r.spName)}${r.throws ? ` (${r.throws}HP)` : ''}</div>
         </div>
         <div class="pv-score">
