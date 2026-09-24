@@ -1156,7 +1156,12 @@
   .gc-card { position: relative; padding: 0.45rem 0.7rem 0.5rem; }
   .gc-card { cursor: pointer; }
   .gc-card:hover { border-color: var(--border2); }
-  .gc-chev { position: absolute; top: 0.5rem; right: 0.7rem; color: var(--dim); font-size: 0.8rem; }
+  .gc-chev { position: absolute; top: 50%; right: 0.3rem; transform: translateY(-50%); color: var(--dim); font-size: 0.7rem; }
+  /* slate headers: the day's windows */
+  .gc-slate { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 0.55rem; margin: 0.7rem 0.1rem 0.05rem; font-size: 0.72rem; color: var(--muted); }
+  .gc-list > .gc-slate:first-child { margin-top: 0.1rem; }
+  .gc-slate b { font-family: var(--font-d); font-size: 0.95rem; color: var(--text-strong); }
+  .gc-slate i { font-style: normal; margin-left: auto; color: var(--dim); font-size: 0.66rem; }
   /* desktop: two cards a row, so a wide screen isn't mostly empty card */
   @media (min-width: 900px) { .sched-list.gc-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; } }
   .gc-lu { font-weight: 700; }
@@ -1225,6 +1230,7 @@
   .gc-team { display: flex; flex-direction: column; align-items: center; gap: 0.12rem; min-width: 0; }
   .gc-logo { width: 36px; height: 36px; object-fit: contain; }
   .gc-ab { font-family: var(--font-d); font-weight: 700; font-size: 0.8rem; color: var(--text-strong); line-height: 1; }
+  .gc-rec { font-family: var(--font-m); font-size: 0.62rem; color: var(--dim); line-height: 1; }
   .gc-sub { font-size: 0.6rem; color: var(--muted); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; }
   .gc-sub:empty { display: none; }
   .gc-hand { font-weight: 700; color: var(--dim); }
@@ -6289,6 +6295,7 @@ function loadMlbDay(date) {
           bases: { first: !!ls.offense?.first, second: !!ls.offense?.second, third: !!ls.offense?.third },
           innings: (ls.innings || []).map(i => [i.away?.runs, i.home?.runs]),
           away: side(t.away), home: side(t.home),
+          rec: Object.fromEntries(['away', 'home'].map(k => { const r = g.teams?.[k]?.leagueRecord; return [k, r?.wins != null ? `${r.wins}-${r.losses}` : null]; })),
           hrs: (g.scoringPlays || []).filter(p => p.result?.event === 'Home Run').map(p => ({
             pid: String(p.matchup?.batter?.id), name: p.matchup?.batter?.fullName || '', top: p.about?.halfInning === 'top',
             inning: p.about?.inning, rbi: p.result?.rbi || 1 })),
@@ -6404,6 +6411,7 @@ function mlbGameCard(g, away, home, box, st, homer) {
   const aWin = final && aR > hR, hWin = final && hR > aR;
   const pShort = (side) => side.probablePitcher ? `${compactPlayerName(side.probablePitcher)}${side.probablePitcherThrows ? ` <span class="gc-hand">${side.probablePitcherThrows}</span>` : ''}` : 'TBD';
   const team = (ab, side, won, lost, cls) => `<div class="gc-team ${cls}${lost ? ' lost' : ''}">${teamLogoImg(ab, 'gc-logo')}<span class="gc-ab">${ab}</span>
+      ${box?.rec?.[cls === 'a' ? 'away' : 'home'] ? `<span class="gc-rec">${box.rec[cls === 'a' ? 'away' : 'home']}</span>` : ''}
       <span class="gc-sub">${started ? '' : pShort(side)}</span></div>`;
   // before first pitch the runs' place holds the team's own line: run line over moneyline
   const score = (r, ml, mlOpen, lost, sp) => started
@@ -6451,6 +6459,19 @@ function schedVenueRow(g, date) {
   const hrs = Object.values(venueHRsByDate[g.venue] ?? {}).reduce((a, b) => a + b, 0);
   const hrg = games ? hrs / games : 0;
   return `<div class="sched-venue-row">${g.venue}${games ? ` · <span class="hrg-val ${hrgClass(hrg, leagueHRPerGame())}">${hrg.toFixed(2)}</span> HR/G` : ''}${date === todayDate ? schedWeatherChip(g.weather) : ''}</div>`;
+}
+/** A day's windows by Eastern start time, as a header keyed to each window's first game. */
+function schedSlates(games) {
+  const etH = (d) => +new Date(d).toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/New_York' }) % 24;
+  const win = (g) => { const h = etH(g.gameDate); return h < 17 ? 'Afternoon' : h < 21 ? 'Evening' : 'Late'; };
+  const t = (d) => new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const out = new Map(); let cur = null, group = [];
+  const flush = () => { if (!group.length) return;
+    const a = t(group[0].gameDate), z = t(group[group.length - 1].gameDate);
+    out.set(group[0].gamePk, `<div class="gc-slate"><b>${cur}</b><span>${a === z ? a : `${a} – ${z}`}</span><i>${group.length} game${group.length === 1 ? '' : 's'}</i></div>`); };
+  for (const g of games) { const w = win(g); if (w !== cur) { flush(); cur = w; group = []; } group.push(g); }
+  flush();
+  return out;
 }
 let schedOrder = [];                          // the list as shown — the game card's ‹ › deck
 function renderSchedule() {
@@ -6503,11 +6524,14 @@ function renderSchedule() {
   </div>` : '';
   const digestBtn = isSlate ? `<button class="dinger-digest-btn" onclick="openDingerDigest()" title="A GMG-style slate sheet of today's pitching matchups, park/weather, Homer Scores, and our best HR leans — screenshot &amp; share">🚀 Dinger Digest</button>` : '';
   const ours = schedOurPids(date);
+  // in time order the day splits into its windows — afternoon, evening, late (Eastern)
+  const slate = schedSort === 'time' ? schedSlates(sorted) : null;
   contentEl.innerHTML = nav + legend + `<div class="sched-toolbar">${sortBar}${digestBtn}</div><div class="sched-list gc-list">${sorted.map(g => {
+    const head = slate?.get(g.gamePk) || '';
     const away = g.away.teamAbbr || g.away.teamName, home = g.home.teamAbbr || g.home.teamName;
     const S = schedState(g);
     const lu = isSlate && !S.started ? schedLineupStatus(g) : null;
-    return `<div class="sched-game gc-card${S.started ? ' started' : ''}" id="sched-game-${g.gamePk}" onclick="openSchedGame(${g.gamePk})" role="button" tabindex="0">
+    return `${head}<div class="sched-game gc-card${S.started ? ' started' : ''}" id="sched-game-${g.gamePk}" onclick="openSchedGame(${g.gamePk})" role="button" tabindex="0">
       <span class="gc-chev">▶</span>
       ${mlbGameCard(g, away, home, S.box, S.st, schedHomerTag(g))}
       ${S.started ? mlbHomers(g, away, home, S.box, ours) : schedVenueRow(g, date).replace('</div>', lu ? ` · <span class="gc-lu ${lu.cls}">${lu.text}</span></div>` : '</div>')}

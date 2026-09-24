@@ -2821,6 +2821,11 @@
   /* Stacked, not squeezed. Cramming teams, points and the line onto one row
      collided on a phone; the card is taller now and each band gets its own. */
   .sc-game { display: flex; flex-direction: column; gap: 0.5rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.7rem; }
+  /* slate headers: a day's window, primetime its own */
+  .sc-slate { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 0.55rem; margin: 0.7rem 0.1rem 0.1rem; font-size: 0.72rem; color: var(--muted); }
+  .sc-list > .sc-slate:first-child { margin-top: 0.1rem; }
+  .sc-slate b { font-family: var(--font-d); font-size: 0.95rem; color: var(--text-strong); }
+  .sc-slate i { font-style: normal; margin-left: auto; color: var(--dim); font-size: 0.66rem; }
   /* desktop: two cards a row (the schedule standard, all sports), pick as a band under each */
   @media (min-width: 900px) { #schedule-content .sc-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; } }
   /* a played game: each side's score big and inboard, the loser's dimmed */
@@ -5248,7 +5253,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
   }
 
   const spreadLabel = (g) => g.spread === 0 ? 'PK' : `${g.home} ${g.spread > 0 ? '-' : '+'}${Math.abs(g.spread)}`;
-  function gameRow(g) {
+  function gameRow(g, { noWhen = false } = {}) {
     const played = g.homeScore != null && g.awayScore != null;
     const time = g.gametime ? g.gametime.slice(0, 5) : '';
     const when = `${(g.weekday || '').slice(0, 3)}${g.gameday ? ' ' + g.gameday.slice(5) : ''}${time ? ' · ' + time : ''}`.trim();
@@ -5296,7 +5301,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
       ? `<div class="sc-mid"><div class="sc-st">Final${g.overtime ? '/OT' : ''}</div>${cashed}</div>`
       : `<div class="sc-mid">
           ${g.lines?.cur ? '' : `<div class="sc-lines">${g.spread != null ? `<span class="sc-ln">${spreadLabel(g)}</span>` : ''}</div>`}
-          <div class="sc-when">${when}</div>
+          ${noWhen ? '' : `<div class="sc-when">${when}</div>`}
           ${g.lines?.cur ? lnOU(g.lines) : g.total != null ? `<div class="sc-ou">O/U <b>${g.total}</b></div>` : ''}
         </div>`;
 
@@ -8454,7 +8459,28 @@ let pairStacks = false;
       </div>
       <div class="result-meta"><b>${WK_LABEL(scheduleWeek)}</b> · ${games.length} games · tap a game for the matchup${games.some(g => g.lines?.cur) ? ' · DK lines via ESPN · a number in blue has moved (the stronger, the further) · "opened" shows where it started' : ''}</div>
       ${sortBar}
-      <div class="sc-list">${games.map(gameRow).join('')}</div>`;
+      <div class="sc-list">${schedSort === 'time' ? nflSlates(games) : games.map(g => gameRow(g)).join('')}</div>`;
+  }
+  // The week as its slates: a day's windows (morning, early, late afternoon),
+  // with every primetime game its own. A card inside a one-kickoff slate drops
+  // its date and time — the header says it.
+  function nflSlates(games) {
+    const hm = (t) => { const [h, m] = (t || '00:00').split(':').map(Number); return h * 60 + m; };
+    const t12 = (t) => { const [h, m] = (t || '').split(':').map(Number); return isNaN(h) ? '' : `${(h + 11) % 12 + 1}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; };
+    const win = (g) => { const x = hm(g.gametime); return x < 12 * 60 ? 'morning' : x < 16 * 60 ? 'early' : x < 19 * 60 ? 'late' : 'night'; };
+    const out = [];
+    for (const g of games) {
+      const k = `${g.gameday}|${win(g)}`, last = out[out.length - 1];
+      if (last?.k === k) last.games.push(g); else out.push({ k, games: [g] });
+    }
+    return out.map(({ games: gs }) => {
+      const g = gs[0], w = win(g), day = g.weekday || '';
+      const date = g.gameday ? new Date(g.gameday + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) : '';
+      const times = [...new Set(gs.map(x => x.gametime))].sort();
+      const name = w === 'night' ? `${day} Night` : w === 'morning' ? `${day} morning` : w === 'late' ? `${day} late afternoon` : day;
+      return `<div class="sc-slate"><b>${name}</b><span>${date} · ${times.map(t12).join(' / ')} ET</span><i>${gs.length} game${gs.length === 1 ? '' : 's'}</i></div>`
+        + gs.map(x => gameRow(x, { noWhen: times.length === 1 })).join('');
+    }).join('');
   }
   function renderHome() {
     const el = dataGate('home-content'); if (!el) return;
