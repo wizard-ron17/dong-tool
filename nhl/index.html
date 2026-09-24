@@ -366,6 +366,29 @@
   .sc-ln.ln-m1 { border-color: color-mix(in srgb, var(--mvc) 40%, var(--border)); }
   .sc-ln.ln-m2 { border-color: color-mix(in srgb, var(--mvc) 70%, var(--border)); background: color-mix(in srgb, var(--mvc) 12%, var(--surface0)); }
   .sc-ln.ln-m3 { border-color: var(--mvc); background: color-mix(in srgb, var(--mvc) 26%, var(--surface0)); color: var(--text-strong); font-weight: 700; }
+  /* the lines grid: team | spread | ML, total beneath, what opened differently in one quiet line */
+  .lnx { display: inline-grid; gap: 0.05rem; font-family: var(--font-m); font-size: 0.72rem; color: var(--text); text-align: left; }
+  .lnx-r { display: grid; grid-template-columns: 2.6rem 3.4rem 3.4rem; align-items: baseline; }
+  .lnx-r > span:not(:first-child) { text-align: right; }
+  .lnx-h { font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+  .lnx-h > span:first-child { font-weight: 700; }
+  .lnx-t { color: var(--muted); font-weight: 700; }
+  .lnx-v { font-weight: 600; }
+  .lnx-f { font-size: 0.68rem; color: var(--muted); margin-top: 0.1rem; }
+  .lnx-f b { color: var(--text); font-weight: 600; }
+  .lnx-o { font-size: 0.62rem; color: var(--dim); }
+  /* moved numbers: one neutral hue, stronger with the size of the move */
+  .lnx .mv1 { color: color-mix(in srgb, var(--mvc) 60%, var(--text)); }
+  .lnx .mv2 { color: var(--mvc); }
+  .lnx .mv3 { color: var(--mvc); font-weight: 800; }
+  .lnx-i { font-size: 0.62rem; color: var(--dim); }
+  /* phones: the grid shares the row with the teams and the time — hide the
+     "opened" line (the blue still says it moved; the game card has the detail) */
+  @media (max-width: 600px) {
+    .lnx { font-size: 0.68rem; }
+    .lnx-r { grid-template-columns: 2.3rem 2.9rem 3.1rem; }
+    .lnx-o { display: none; }
+  }
   .scm { margin-top: 0.7rem; border-top: 1px solid var(--border); padding-top: 0.5rem; }
   .scm-row { display: grid; grid-template-columns: 6rem 1fr 1.2rem 1fr; gap: 0.4rem; font-family: var(--font-m); font-size: 0.74rem; padding: 0.18rem 0; color: var(--muted); }
   .scm-head { font-family: var(--font-b); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
@@ -2913,29 +2936,34 @@
   // the total; move size is measured in win-chance points.
   const mvImp = (a) => a == null ? null : a > 0 ? 100 / (a + 100) : -a / (-a + 100);
   const mvTier = (pp) => { const x = Math.abs(pp || 0); return !x ? 0 : x >= 5 ? 3 : x >= 2 ? 2 : 1; };
+  /** The book's lines as a small sportsbook grid (the /nfl and /mlb layout):
+   *  each team's puck line and moneyline on its own row, the total and the
+   *  over's price beneath, and one quiet "opened" line naming only what moved.
+   *  A moved number is drawn in the neutral move hue, stronger the further it
+   *  went (win-chance points) — no boxes, no good/bad colour. */
   function scLines(g) {
     const L = g.lines; if (!L) return '';
-    const M = g.move, c = M?.cur, o = M?.open;
-    const fav = L.pl.h.line != null && L.pl.h.line < 0 ? g.home : g.away;
-    const pl = fav === g.home ? L.pl.h.line : L.pl.a.line;
-    const bk = L.book === 'DraftKings' ? 'DK' : (L.book || 'Book').split(' ')[0];
-    // the favourite's moneyline, with where it opened
-    let ml = '';
-    if (c?.mlH != null && c?.mlA != null) {
-      const homeFav = mvImp(c.mlH) >= mvImp(c.mlA), ab = homeFav ? g.home : g.away;
-      const now = homeFav ? c.mlH : c.mlA, then = o ? (homeFav ? o.mlH : o.mlA) : null;
-      const moved = then != null && then !== now, t = moved ? mvTier(100 * (mvImp(now) - mvImp(then))) : 0;
-      ml = `<span class="sc-ln ln-m${t}" title="${moved ? `${ab} opened ${amer(then)} — ${(100 * (mvImp(now) - mvImp(then))).toFixed(1)} points of win chance since` : 'Moneyline unchanged since open'}">${ab} ${moved ? `<s>${amer(then)}</s> ` : ''}${amer(now)}</span>`;
-    }
-    // the total: its number if that moved, else the over's price
-    let tot = '';
-    if (L.tot.line != null) {
-      const numMoved = o?.tot != null && c?.tot != null && o.tot !== c.tot;
-      const oMoved = !numMoved && o?.oO != null && c?.oO != null && o.oO !== c.oO;
-      const t = numMoved ? 3 : oMoved ? mvTier(100 * (mvImp(c.oO) - mvImp(o.oO))) : 0;
-      tot = `<span class="sc-ln ln-m${t}" title="${numMoved ? `Total opened ${o.tot}` : oMoved ? `Over ${L.tot.line} opened ${amer(o.oO)}` : 'Total unchanged since open'}">O/U ${numMoved ? `<s>${o.tot}</s> ` : ''}${L.tot.line}${oMoved ? ` <small>o <s>${amer(o.oO)}</s> ${amer(c.oO)}</small>` : ''}</span>`;
-    }
-    return `<div class="sc-lines"><span class="sc-ln sc-book" title="${esc(L.book || 'Sportsbook')} line via ESPN — the book's price, not ours">${esc(bk)}</span>${pl != null ? `<span class="sc-ln">${fav} ${pl}</span>` : ''}${ml}${tot}</div>`;
+    const c = g.move?.cur || {}, o = g.move?.open || {};
+    const mlA = c.mlA ?? L.ml.a, mlH = c.mlH ?? L.ml.h;
+    const cls = (t) => t ? ` mv${t}` : '';
+    const mlT = (now, then) => now != null && then != null && now !== then ? mvTier(100 * (mvImp(now) - mvImp(then))) : 0;
+    const pl = (x) => x.line == null ? '—' : (x.line > 0 ? '+' : '') + String(x.line).replace('-', '−');
+    const row = (ab, p, ml, mlOpen) => `<div class="lnx-r"><span class="lnx-t">${esc(ab)}</span>`
+      + `<span class="lnx-v" title="${pl(p)} at ${amer(p.odds)}">${pl(p)}</span><span class="lnx-v${cls(mlT(ml, mlOpen))}">${amer(ml)}</span></div>`;
+    const totMoved = o.tot != null && c.tot != null && o.tot !== c.tot;
+    const oMoved = !totMoved && o.oO != null && c.oO != null && o.oO !== c.oO;
+    const oT = oMoved ? mvTier(100 * (mvImp(c.oO) - mvImp(o.oO))) : 0;
+    const opened = [];
+    const favH = mvImp(mlH) >= mvImp(mlA);
+    if (mlT(mlH, o.mlH) || mlT(mlA, o.mlA)) opened.push(`${favH ? g.home : g.away} ${amer(favH ? o.mlH : o.mlA)}`);
+    if (totMoved) opened.push(`O/U ${o.tot}`);
+    else if (oMoved) opened.push(`over ${amer(o.oO)}`);
+    return `<div class="lnx" title="${esc(L.book || 'DraftKings')} via ESPN — the book's lines, not ours">
+      <div class="lnx-r lnx-h"><span>${L.book === 'DraftKings' || !L.book ? 'DK' : esc(L.book.split(' ')[0])}</span><span>Puck</span><span>ML</span></div>
+      ${row(g.away, L.pl.a, mlA, o.mlA)}${row(g.home, L.pl.h, mlH, o.mlH)}
+      ${L.tot.line != null ? `<div class="lnx-f">O/U <b class="${totMoved ? 'mv3' : ''}">${L.tot.line}</b> <span class="${cls(oT).trim()}">o ${amer(c.oO ?? L.tot.o)}</span></div>` : ''}
+      ${opened.length ? `<div class="lnx-o">opened ${opened.join(' · ')}</div>` : ''}
+    </div>`;
   }
   /** Open vs now, and every move a build caught — the game card's lines panel. */
   function scMoves(g) {

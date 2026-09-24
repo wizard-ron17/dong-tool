@@ -2562,6 +2562,29 @@
     .sc-top .sc-lines .ln-book, .sc-top .sc-lines .sc-book { display: none; }
   }
   .sc-ln.ln-book { color: var(--dim); background: none; border-style: dashed; }
+  /* the lines grid: team | spread | ML, total beneath, what opened differently in one quiet line */
+  .lnx { display: inline-grid; gap: 0.05rem; font-family: var(--font-m); font-size: 0.72rem; color: var(--text); text-align: left; }
+  .lnx-r { display: grid; grid-template-columns: 2.6rem 3.4rem 3.4rem; align-items: baseline; }
+  .lnx-r > span:not(:first-child) { text-align: right; }
+  .lnx-h { font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+  .lnx-h > span:first-child { font-weight: 700; }
+  .lnx-t { color: var(--muted); font-weight: 700; }
+  .lnx-v { font-weight: 600; }
+  .lnx-f { font-size: 0.68rem; color: var(--muted); margin-top: 0.1rem; }
+  .lnx-f b { color: var(--text); font-weight: 600; }
+  .lnx-o { font-size: 0.62rem; color: var(--dim); }
+  /* moved numbers: one neutral hue, stronger with the size of the move */
+  .lnx .mv1 { color: color-mix(in srgb, var(--mvc) 60%, var(--text)); }
+  .lnx .mv2 { color: var(--mvc); }
+  .lnx .mv3 { color: var(--mvc); font-weight: 800; }
+  .lnx-i { font-size: 0.62rem; color: var(--dim); }
+  /* phones: the grid shares the row with the teams and the time — hide the
+     "opened" line (the blue still says it moved; the game card has the detail) */
+  @media (max-width: 600px) {
+    .lnx { font-size: 0.68rem; }
+    .lnx-r { grid-template-columns: 2.3rem 2.9rem 3.1rem; }
+    .lnx-o { display: none; }
+  }
   .ln { background: var(--surface1); border: 1px solid var(--border); border-radius: 12px; padding: 0.6rem 0.8rem; }
   .ln-row { display: grid; grid-template-columns: 5.2rem 1fr 1.2rem 1fr 7.5rem; align-items: center; gap: 0.4rem; padding: 0.42rem 0; border-top: 1px solid var(--border); font-family: var(--font-d); font-weight: 700; }
   .ln-row.ln-head { border-top: none; font-family: var(--font-b); font-size: 0.64rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); padding-bottom: 0.1rem; }
@@ -3205,7 +3228,7 @@
       <div class="due-explainer-body" id="schedule-explainer-body" style="display:none">
         <ul>
           <li><b>Lines.</b> Each game shows DraftKings' spread and total via ESPN — the favorite carries the minus (e.g. <em>SEA -3.5</em>). These are the book's numbers, not ours.</li>
-          <li><b>Line movement.</b> A gold chip has moved since it opened: <em>DET −6.5 op −9.5</em> opened at −9.5; <em>O/U 47.5 ▲3</em> is three points above its open. When the favorite has flipped, the chip names who opened favored. The game card's <b>Lines</b> tab has open vs now for the spread, total and both moneylines, and every move our builds caught with the time they caught it — daily through the week, hourly on game days.</li>
+          <li><b>Line movement.</b> Each game shows both teams' spread and moneyline, with the total beneath. A number drawn in blue has moved since it opened &mdash; the stronger the blue, the bigger the move &mdash; and a quiet <em>opened</em> line under it says where it started (e.g. <em>opened DET −9.5 · DET −440 · O/U 44.5</em>). The game card's <b>Lines</b> tab has open vs now for the spread, total and both moneylines, and every move our builds caught with the time they caught it — daily through the week, hourly on game days.</li>
           <li><b>Sort.</b> By kickoff, by spread (biggest favorite first), by total (highest first), or by line move (whichever game's spread and total have moved furthest from their opens).</li>
           <li><b>Live scores.</b> Once a game is played the card flips to its final score. Step through the season with the week buttons.</li>
         </ul>
@@ -5046,7 +5069,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
         <div class="gm-team"><img src="${teamLogo(g.away)}" alt="" loading="lazy"><b>${g.away}</b></div>
         <div class="gm-mid">
           ${played ? `<div class="gm-score"><span${g.awayScore > g.homeScore ? ' class="win"' : ''}>${g.awayScore}</span><i>–</i><span${g.homeScore > g.awayScore ? ' class="win"' : ''}>${g.homeScore}</span></div><div class="gm-when">Final</div>`
-            : `${g.lines?.cur ? `<div class="sc-lines">${lnChips(g.lines, g.away, g.home)}</div>` : `<div class="gm-lines">${g.spread != null ? `<span>${spreadLabel(g)}</span>` : ''}${g.total != null ? `<span>O/U ${g.total}</span>` : ''}</div>`}
+            : `${g.lines?.cur ? lnGrid(g.lines, g.away, g.home) : `<div class="gm-lines">${g.spread != null ? `<span>${spreadLabel(g)}</span>` : ''}${g.total != null ? `<span>O/U ${g.total}</span>` : ''}</div>`}
                <div class="gm-when">${live ? '<b class="gm-live">In progress</b>' : `${g.weekday || ''} ${g.gameday ? g.gameday.slice(5) : ''}${g.gametime ? ' · ' + g.gametime.slice(0, 5) : ''}`}</div>`}
           <div class="gm-wx">${WK_LABEL(g.week)} · ${wx}${at >= 0 ? ` · ${at + 1} / ${deck.length}` : ''}</div>
         </div>
@@ -5176,24 +5199,35 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
   }
   const lnImpliedAt = (sp, tot) => sp == null || tot == null ? null : { h: (tot - sp) / 2, a: (tot + sp) / 2 };
   const lnPts = (v) => v == null ? '—' : (Math.round(v * 10) / 10).toFixed(1).replace(/\.0$/, '');
-  /** Row chips: the line now, the opening number struck through before it, and
-   *  a tint whose strength is the size of the move — one hue, not a good/bad
-   *  ramp, since a line moving is neither. */
-  function lnChips(L, away, home) {
+  /** The book's lines as a small sportsbook grid: each team's spread and
+   *  moneyline on its own row, the total beneath, and one quiet "opened" line
+   *  naming only what moved. A moved number is drawn in the neutral move hue,
+   *  stronger the bigger the move (tiers above) — no boxes, no good/bad colour. */
+  function lnGrid(L, away, home, { spLabel = 'Spread', note = '' } = {}) {
     if (!L?.cur) return '';
-    const c = L.cur, o = L.open || {}, m = lnMove(L);
-    const sp = lnFav(c.sp, away, home), spOpen = lnFav(o.sp, away, home);
+    const c = L.cur, o = L.open || {};
+    const imp = (a) => a == null ? null : a > 0 ? 100 / (a + 100) : -a / (-a + 100);
+    const cls = (t) => t ? ` mv${t}` : '';
+    const spTxt = (v) => v == null ? '—' : v === 0 ? 'PK' : (v > 0 ? '+' : '') + lnNum(v);
     const spMoved = o.sp != null && c.sp != null && o.sp !== c.sp;
-    const tSp = spMoved ? lnTier(m.dSp, 'sp') : 0, tTot = lnTier(m.dTot, 'tot');
-    const [spTeam, spNum] = sp ? sp.split(' ') : [];
-    const [opTeam, opNum] = spOpen ? spOpen.split(' ') : [];
-    // same favourite: "DET −9.5 −6.5" with the old number struck; a flip strikes the whole opening line
-    const spHtml = !sp ? '' : !spMoved ? sp
-      : opTeam === spTeam && opNum != null ? `${spTeam} <s>${opNum}</s> ${spNum ?? ''}` : `<s>${spOpen}</s> ${sp}`;
-    return `<span class="sc-ln ln-book" title="${L.book || 'Sportsbook'} via ESPN — the book's line, not ours">DK</span>`
-      + (sp ? `<span class="sc-ln ln-m${tSp}" title="${spMoved ? `Opened ${spOpen}` : 'Unchanged since open'}">${spHtml}</span>` : '')
-      + (m.mlNow != null ? `<span class="sc-ln ln-m${m.dMl ? lnTierMl(m.dMl) : 0}" title="${m.dMl ? `${m.favH ? home : away} opened ${lnAm(m.mlOpen)} — ${m.dMl > 0 ? '+' : ''}${m.dMl} points of win chance since` : 'Moneyline unchanged since open'}">${m.favH ? home : away} ${m.dMl && m.mlOpen !== m.mlNow ? `<s>${lnAm(m.mlOpen)}</s> ` : ''}${lnAm(m.mlNow)}</span>` : '')
-      + (c.tot != null ? `<span class="sc-ln ln-m${tTot}" title="${m.dTot ? `Opened ${o.tot}` : 'Unchanged since open'}">O/U ${m.dTot ? `<s>${o.tot}</s> ` : ''}${c.tot}</span>` : '');
+    const spT = spMoved ? lnTier(c.sp - o.sp, 'sp') : 0;
+    const mlT = (now, then) => now != null && then != null && now !== then ? lnTierMl(100 * (imp(now) - imp(then))) : 0;
+    const totMoved = o.tot != null && c.tot != null && o.tot !== c.tot;
+    const totT = totMoved ? lnTier(c.tot - o.tot, 'tot') : 0;
+    const row = (ab, sp, ml, mlOpen) => `<div class="lnx-r"><span class="lnx-t">${ab}</span>`
+      + `<span class="lnx-v${cls(spT)}">${spTxt(sp)}</span><span class="lnx-v${cls(mlT(ml, mlOpen))}">${lnAm(ml)}</span></div>`;
+    // what moved, in words, off the opening line
+    const opened = [];
+    if (spMoved) opened.push(lnFav(o.sp, away, home));
+    const favH = imp(c.mlH) >= imp(c.mlA);
+    if (mlT(c.mlH, o.mlH) || mlT(c.mlA, o.mlA)) opened.push(`${favH ? home : away} ${lnAm(favH ? o.mlH : o.mlA)}`);
+    if (totMoved) opened.push(`O/U ${o.tot}`);
+    return `<div class="lnx" title="${L.book || 'DraftKings'} via ESPN — the book's lines, not ours">
+      <div class="lnx-r lnx-h"><span>DK</span><span>${spLabel}</span><span>ML</span></div>
+      ${row(away, c.sp == null ? null : -c.sp, c.mlA, o.mlA)}${row(home, c.sp, c.mlH, o.mlH)}
+      ${c.tot != null ? `<div class="lnx-f">O/U <b class="${cls(totT).trim()}">${c.tot}</b></div>` : ''}${note}
+      ${opened.length ? `<div class="lnx-o">opened ${opened.join(' · ')}</div>` : ''}
+    </div>`;
   }
   /** Tiny line of one market through its moves. */
   function lnSpark(moves, k, fmt) {
@@ -5268,8 +5302,12 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
     const mid = played
       ? `<div class="sc-mid"><div class="sc-score">${g.awayScore}–${g.homeScore}</div><div class="sc-when">Final</div></div>`
       : `<div class="sc-mid">
-          <div class="sc-lines">${g.lines?.cur ? lnChips(g.lines, g.away, g.home) : `${g.spread != null ? `<span class="sc-ln">${spreadLabel(g)}</span>` : ''}${g.total != null ? `<span class="sc-ln">O/U ${g.total}</span>` : ''}`}</div>
-          ${(() => { const x = lnImplied(g.lines, g); return x ? `<div class="sc-imp" title="Implied final score: the total split by the spread">${g.away} <b>${lnPts(x.a)}</b> · ${g.home} <b>${lnPts(x.h)}</b></div>` : ''; })()}
+          ${(() => {
+            const x = lnImplied(g.lines, g);
+            const imp = x ? `<div class="lnx-i" title="Implied final score: the total split by the spread">implied ${g.away} ${lnPts(x.a)} – ${g.home} ${lnPts(x.h)}</div>` : '';
+            return g.lines?.cur ? lnGrid(g.lines, g.away, g.home, { note: imp })
+              : `<div class="sc-lines">${g.spread != null ? `<span class="sc-ln">${spreadLabel(g)}</span>` : ''}${g.total != null ? `<span class="sc-ln">O/U ${g.total}</span>` : ''}</div>${x ? `<div class="sc-imp">${g.away} <b>${lnPts(x.a)}</b> · ${g.home} <b>${lnPts(x.h)}</b></div>` : ''}`;
+          })()}
           <div class="sc-when">${when}</div>
         </div>`;
 
@@ -8416,7 +8454,7 @@ let pairStacks = false;
         </div>
         <button class="rc-jump" onclick="setScheduleWeek(${firstUpcomingWeek()})" title="Jump to the upcoming week">Upcoming</button>
       </div>
-      <div class="result-meta"><b>${WK_LABEL(scheduleWeek)}</b> · ${games.length} games · tap a game for the matchup${games.some(g => g.lines?.cur) ? ' · DK lines via ESPN · <s>struck</s> = where it opened, the stronger the tint the bigger the move · implied score from spread and total' : ''}</div>
+      <div class="result-meta"><b>${WK_LABEL(scheduleWeek)}</b> · ${games.length} games · tap a game for the matchup${games.some(g => g.lines?.cur) ? ' · DK lines via ESPN · a number in blue has moved (the stronger, the further) · "opened" shows where it started' : ''}</div>
       ${sortBar}
       <div class="sc-list">${games.map(gameRow).join('')}</div>`;
   }
