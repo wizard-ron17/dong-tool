@@ -389,6 +389,26 @@ async function main() {
   }
   // -1 = did not dress (void). The app counts only 0 and 1.
   fs.writeFileSync(HIST_PATH, JSON.stringify(hist));
+  // The schedule's top pick per game — the frozen board's shortest price in it —
+  // with its result, so every played game shows the pick it had at puck drop,
+  // graded. Names ride along from the board they were frozen from (the history
+  // file keeps only ids), carried build to build. Last 30 nights.
+  let schedTops = {};
+  {
+    let prevTops = {};
+    try { prevTops = JSON.parse(fs.readFileSync(new URL('../nhl/data.json', import.meta.url), 'utf8')).schedTops || {}; } catch (e) { /* first build */ }
+    const board = new Map((picks.picks || []).map(r => [r.pid, r]));
+    for (const d of Object.keys(hist).sort().slice(-30)) {
+      const best = {};
+      for (const x of hist[d]) if (!best[x[3]] || x[1] > best[x[3]][1]) best[x[3]] = x;
+      for (const [gid, x] of Object.entries(best)) {
+        const prev = prevTops[gid], r = board.get(x[0]);
+        const name = prev?.pid === x[0] ? prev.name : r?.name, pos = prev?.pid === x[0] ? prev.pos : r?.pos;
+        if (!name) continue;
+        schedTops[gid] = { pid: x[0], name, pos, p: x[1], res: x[2], goals: x[10] ?? null };
+      }
+    }
+  }
   const nGraded = Object.values(hist).filter(r => r.every(x => x[2] != null)).length;
   console.log(`  picks history: ${Object.keys(hist).length} nights frozen, ${nGraded} graded${graded ? ` (${graded} new)` : ''}`);
 
@@ -571,6 +591,7 @@ async function main() {
     // graded nights only, voids dropped, as
     //   [pid, p, scored, p2, p3, pFirst, pLast, pP1, pPP, goals, first, last, p1Goals, ppGoals]
     // (nights frozen before the extra markets carry only the first three)
+    schedTops,
     picksHistory: Object.fromEntries(Object.entries(hist)
       .filter(([, r]) => r.every(x => x[2] != null))
       .map(([d, r]) => [d, r.filter(x => x[2] >= 0).map(x => x.length > 4 ? [x[0], x[1], x[2], ...x.slice(4)] : [x[0], x[1], x[2]])])),

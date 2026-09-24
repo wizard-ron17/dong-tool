@@ -511,11 +511,19 @@
     .sc-mid { min-width: 0; }
     .sc-top .sc-lines .ln-book, .sc-top .sc-lines .sc-book { display: none; }
   }
-  @media (min-width: 900px) {
-    .sc-game { flex-direction: row; align-items: stretch; gap: 0.9rem; }
-    .sc-game > .sc-top { flex: 1; min-width: 0; }
-    .sc-game > .sc-pick, .sc-game > .sc-wp { border-top: none; border-left: 1px solid var(--border); padding-top: 0; padding-left: 0.9rem; width: 20rem; flex-shrink: 0; }
-  }
+  /* desktop: two cards a row (the schedule standard, all sports), pick as a band under each */
+  @media (min-width: 900px) { #schedule-content .sc-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; } }
+  /* a started game: each side's score big and inboard, the loser's dimmed */
+  .sc-r { font-family: var(--font-d); font-size: 2rem; font-weight: 700; line-height: 1; color: var(--text-strong); min-width: 2rem; text-align: center; font-variant-numeric: tabular-nums; }
+  .sc-r.lost { color: var(--dim); }
+  .sc-side.lost .sc-side-ab { color: var(--muted); }
+  .sc-st { font-family: var(--font-d); font-weight: 700; font-size: 0.85rem; color: var(--muted); }
+  .sc-cash { font-family: var(--font-m); font-size: 0.68rem; color: var(--text); white-space: nowrap; }
+  .sc-pick-res { font-family: var(--font-d); font-weight: 700; font-size: 0.72rem; padding: 0.08rem 0.45rem; border-radius: 10px; white-space: nowrap; }
+  .sc-pick.hit .sc-pick-res { background: rgba(53,201,110,0.14); color: var(--accent); }
+  .sc-pick.miss .sc-pick-res { background: var(--surface2); color: var(--muted); }
+  .sc-pick-res.pend { background: rgba(255,112,64,0.1); color: #ff7040; }
+  @media (max-width: 430px) { .sc-r { font-size: 1.6rem; min-width: 1.6rem; } }
   /* NHL additions: live win-probability bar on the row, the Matchup tab */
   .sc-wp { display: flex; align-items: center; gap: 0.55rem; margin: 0.45rem 0.2rem 0.05rem; font-size: 0.72rem; color: var(--muted); }
   .sc-wp b { color: var(--text-strong); font-family: var(--font-d); }
@@ -2992,38 +3000,55 @@
     const as = live ? L?.as ?? g.awayScore ?? 0 : g.awayScore, hs = live ? L?.hs ?? g.homeScore ?? 0 : g.homeScore;
     const aWin = final && as > hs;
     const pre = g.type === 1 ? '<span class="sc-pre">PRE</span> ' : '';
+    // a played game says which side of the closing puck line and total cashed
+    const cashed = (() => {
+      const Ln = g.lines; if (!final || !Ln) return '';
+      const out = [], pl = Ln.pl?.h?.line, tot = g.move?.cur?.tot ?? Ln.tot?.line;
+      const sg = (v) => (v > 0 ? '+' : '') + String(v).replace('-', '−');
+      if (pl != null) { const m = (hs - as) + pl; out.push(m === 0 ? 'Puck line push' : m > 0 ? `${g.home} ${sg(pl)}` : `${g.away} ${sg(-pl)}`); }
+      if (tot != null) { const d = as + hs - tot; out.push(d === 0 ? `Push ${tot}` : `${d > 0 ? 'Over' : 'Under'} ${tot}`); }
+      return out.map(x => `<div class="sc-cash" title="Cashed at DraftKings' closing line">${x} ✓</div>`).join('');
+    })();
     const mid = final
-      ? `<div class="sc-score">${as}–${hs}</div><div class="sc-when">${pre}${g.end && g.end !== 'REG' ? g.end : 'Final'}</div>`
+      ? `<div class="sc-st">${pre}${g.end && g.end !== 'REG' ? 'Final/' + g.end : 'Final'}</div>${cashed}`
       : live
-        ? `<div class="sc-score" style="color:var(--bad)">${as}–${hs}</div><div class="sc-when"><span class="sc-live">LIVE</span>${L?.detail ? ' ' + esc(L.detail) : ''}</div>`
+        ? `<div class="sc-when"><span class="sc-live">LIVE</span>${L?.detail ? ' ' + esc(L.detail) : ''}</div>`
         : `<div class="sc-score">${gameTime(g.start)}</div>${scOU(g)}<div class="sc-when">${pre}${g.tv[0] ? esc(g.tv[0]) : ''}</div>`;
     // Records come off the standings table, which is last season's until a game
     // is played — the caller labels it rather than passing April off as today.
     // before puck drop, each team's own puck line and moneyline sit beside its name
-    const side = (ab, end, won) => `<div class="sc-side${end ? ' end' : ''}">
-        ${end ? (state === 'pre' ? scSide(g, true) : '') : logoImg(ab, 'sc-logo')}
+    // once it starts, each side's score sits there instead, big, the loser's dimmed
+    const inboard = (end) => state === 'pre' ? scSide(g, end)
+      : `<span class="sc-r${final && (end ? aWin : !aWin) ? ' lost' : ''}${live ? ' live' : ''}">${(end ? hs : as) ?? 0}</span>`;
+    const side = (ab, end, won) => `<div class="sc-side${end ? ' end' : ''}${final && !won ? ' lost' : ''}">
+        ${end ? inboard(true) : logoImg(ab, 'sc-logo')}
         <div class="sc-side-id">
-          <span class="sc-side-ab"${won ? ' style="color:var(--accent)"' : ''}>${esc(ab)}</span>
+          <span class="sc-side-ab">${esc(ab)}</span>
           <span class="sc-side-rec">${record(ab)}</span>
         </div>
-        ${end ? logoImg(ab, 'sc-logo') : state === 'pre' ? scSide(g, false) : ''}
+        ${end ? logoImg(ab, 'sc-logo') : inboard(false)}
       </div>`;
-    // Before puck drop: the board's likeliest scorer in this game, so the slate
-    // scans for who to bet without opening anything. Live: who's winning.
+    // Every game's top pick — the board's shortest anytime-goal price in it —
+    // before puck drop from the live board, after it from the board frozen at
+    // puck drop, graded: ✓ once he scores, ✗ if the game ends. Live adds our
+    // win probability.
     let extra = '';
-    if (state === 'pre') {
-      const inGame = (D.picks?.picks || []).filter(p => p.gameId === g.gameId);
-      if (inGame.length) {
-        const best = inGame.reduce((x, y) => (y.p > x.p ? y : x));
-        extra = `<div class="sc-pick" onclick="event.stopPropagation();openPick(${best.pid})">
+    const T = D.schedTops?.[g.gameId];
+    const inGame = (D.picks?.picks || []).filter(p => p.gameId === g.gameId);
+    const best = T || (inGame.length ? inGame.reduce((x, y) => (y.p > x.p ? y : x)) : null);
+    if (best) {
+      const res = !T || T.res == null ? (live ? { cls: 'pend', txt: 'live' } : null)
+        : T.res < 0 ? { cls: 'miss', txt: 'DNP' } : T.res ? { cls: 'hit', txt: (T.goals ?? 1) > 1 ? `✓ ${T.goals} G` : '✓ Goal' } : { cls: 'miss', txt: '✗ no goal' };
+      extra += `<div class="sc-pick${res && res.cls !== 'pend' ? ' ' + res.cls : ''}" onclick="event.stopPropagation();${T ? `openPlayer(${best.pid})` : `openPick(${best.pid})`}">
           <span class="sc-pick-star">★</span><span class="sc-pick-lbl">top pick</span>
           ${posBadge(best.pos)}<span class="sc-pick-nm">${esc(best.name)}</span>
-          <span class="sc-pick-od${best.p < 0.5 ? ' dog' : ''}">${sgOdds(best.p)}</span></div>`;
-      }
-    } else if (live && L) {
+          <span class="sc-pick-od${best.p < 0.5 ? ' dog' : ''}">${sgOdds(best.p)}</span>
+          ${res ? `<span class="sc-pick-res${res.cls === 'pend' ? ' pend' : ''}">${res.txt}</span>` : ''}</div>`;
+    }
+    if (live && L) {
       const lead = (L.hs ?? 0) - (L.as ?? 0), hp = nhlWp(gameLam(g), liveElapsed(L), lead);
       const [HC, AC] = teamPair(g.home, g.away);
-      extra = `<div class="sc-wp" title="Our live win probability"><span>${g.away} <b>${Math.round((1 - hp) * 100)}%</b></span>
+      extra += `<div class="sc-wp" title="Our live win probability"><span>${g.away} <b>${Math.round((1 - hp) * 100)}%</b></span>
         <i class="sc-wpbar" style="--h:${(hp * 100).toFixed(1)}%;--hc:${HC};--ac:${AC}"></i>
         <span><b>${Math.round(hp * 100)}%</b> ${g.home}</span></div>`;
     }
@@ -3050,7 +3075,7 @@
           <span class="rc-wklabel">${dayLabel(scheduleDate)}</span>
           <button class="rc-arrow" onclick="shiftScheduleDate(1)" ${atLast ? 'disabled' : ''} aria-label="Next date">›</button>
         </div>
-        <button class="rc-jump" onclick="setScheduleDate(nextGameDate())" title="Jump to the next date with games">Next up</button>
+        <button class="rc-jump" onclick="setScheduleDate(nextGameDate())" title="Jump to today, or the next date with games">Today</button>
       </div>
       <div class="result-meta"><b>${dayLabel(scheduleDate, true)}</b> · ${games.length} games${pre ? ` · ${pre} preseason` : ''} · tap a game for projections, the matchup and the game flow${
         D.standingsStale ? ` · records are ${esc(D.leaderSeasonLabel)} finals` : ''}</div>
@@ -5961,15 +5986,16 @@
       <div class="gmx-row gmx-gls">${glSide(g.away)}<span class="gmx-k">Goalie</span>${glSide(g.home)}</div>
       <div class="gmx-wp"><div class="gmx-wpbar" style="--h:${(pre * 100).toFixed(1)}%"><i></i></div>
         <div class="gmx-wpl"><span>${g.away} <b>${Math.round((1 - pre) * 100)}%</b></span><span>${lam.src === 'line' ? 'win chance, from the closing line' : 'win chance, from the clubs\' scoring rates'}</span><span><b>${Math.round(pre * 100)}%</b> ${g.home}</span></div></div>
-    </div>${scLinesDetail(g)}`;
+    </div>`;
   }
 
   function gmRender() {
     const g = gmGame(); if (!g) return;
     const box = document.querySelector('#gm-back .gmm'); if (!box) return;
     const state = gmState(g), L = liveOf(g);
-    const tabs = (state === 'pre' ? [['proj', 'Projections'], ['matchup', 'Matchup']] : [['flow', state === 'live' ? 'Live' : 'Game flow'], ['proj', 'Our board'], ['matchup', 'Matchup']]);
-    if (!gm.tab || !tabs.some(([v]) => v === gm.tab)) gm.tab = tabs[0][0];
+    // the standard game card: Picks, Matchup, Lines, Game — opening on Game once it starts
+    const tabs = [['proj', 'Picks'], ['matchup', 'Matchup']].concat(g.lines ? [['lines', 'Lines']] : []).concat(state === 'pre' ? [] : [['flow', state === 'live' ? 'Live' : 'Game']]);
+    if (!gm.tab || !tabs.some(([v]) => v === gm.tab)) gm.tab = state === 'pre' ? 'proj' : 'flow';
     const deck = gmDeck(), at = deck.findIndex(x => x.gameId === g.gameId);
     const as = state === 'live' ? L?.as ?? g.awayScore : g.awayScore, hs = state === 'live' ? L?.hs ?? g.homeScore : g.homeScore;
     const goals = gameGoals(g) || [];
@@ -5977,6 +6003,7 @@
       <div class="sc-goal"><span class="t">${x.so ? 'SO' : x.ot ? 'OT' : gfClock(x.t)}</span><b>${esc(x.name)}</b><span>${x.home ? g.home : g.away}${x.g?.strength && x.g.strength !== 'ev' ? ` · ${x.g.strength.toUpperCase()}` : ''}${x.g?.mod === 'empty-net' ? ' · EN' : ''}</span>
         ${x.vid ? `<button class="vid-btn" style="margin-left:auto" onclick="${x.src === 'recap' ? `openGoalVideo('${g.date}',${x.at})` : `gfWatch(${g.gameId},${x.g.k})`}">▶</button>` : ''}</div>`).join('')}</div>`;
     const body = gm.tab === 'matchup' ? gmMatchup(g)
+      : gm.tab === 'lines' ? scLinesDetail(g)
       : gm.tab === 'flow' ? gameFlow(g, state).replace('<div class="gf"', '<div class="gf flat"') + goalList + (state === 'post' ? gameVidButtons({ ...g, ...(D.recapGames?.[g.gameId] || {}) }, 'sc-vids') : '')
       : gmProjections(g, state);
     box.innerHTML = `

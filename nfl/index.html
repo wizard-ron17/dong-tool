@@ -2821,17 +2821,20 @@
   /* Stacked, not squeezed. Cramming teams, points and the line onto one row
      collided on a phone; the card is taller now and each band gets its own. */
   .sc-game { display: flex; flex-direction: column; gap: 0.5rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.7rem; }
-  /* AFTER the base rule on purpose. A media query adds no specificity, so this
-     block sitting earlier in the file lost to `.sc-game { flex-direction:
-     column }` below it and the row layout silently never applied. */
-  /* Wide screens read the card as a table row — matchup, lines, then the pick
-     as its own right-hand column instead of a band underneath. */
-  @media (min-width: 900px) {
-    .sc-game { flex-direction: row; align-items: stretch; gap: 0.9rem; }
-    .sc-game > .sc-top { flex: 1; min-width: 0; }
-    .sc-game > .sc-pick { border-top: none; border-left: 1px solid var(--border);
-      padding-top: 0; padding-left: 0.9rem; width: 20rem; flex-shrink: 0; }
-  }
+  /* desktop: two cards a row (the schedule standard, all sports), pick as a band under each */
+  @media (min-width: 900px) { #schedule-content .sc-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; } }
+  /* a played game: each side's score big and inboard, the loser's dimmed */
+  .sc-r { font-family: var(--font-d); font-size: 2rem; font-weight: 700; line-height: 1; color: var(--text-strong); min-width: 2.4rem; text-align: center; font-variant-numeric: tabular-nums; }
+  .sc-r.lost { color: var(--dim); }
+  .sc-side.lost .sc-side-ab { color: var(--muted); }
+  .sc-st { font-family: var(--font-d); font-weight: 700; font-size: 0.85rem; color: var(--muted); }
+  .sc-cash { font-family: var(--font-m); font-size: 0.68rem; color: var(--text); white-space: nowrap; }
+  .sc-pick-res { font-family: var(--font-d); font-weight: 700; font-size: 0.72rem; padding: 0.08rem 0.45rem; border-radius: 10px; white-space: nowrap; }
+  .sc-pick.hit .sc-pick-res { background: rgba(53,201,110,0.14); color: var(--accent); }
+  .sc-pick.miss .sc-pick-res { background: var(--surface2); color: var(--muted); }
+  .sc-pick-res.pend { background: rgba(255,112,64,0.1); color: #ff7040; }
+  .sc-pick .sc-pick-od + .sc-pick-res { margin-left: 0.1rem; }
+  @media (max-width: 430px) { .sc-r { font-size: 1.6rem; min-width: 1.8rem; } }
   .sc-when { font-size: 0.692rem; color: var(--muted); margin-top: 0.12rem; }
   .sc-score { font-family: var(--font-d); font-weight: 700; font-size: 1rem; color: var(--text); }
   /* home dashboard */
@@ -4854,7 +4857,8 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
     openGame(gid, true);
   }
   function openGame(gid, fromRoute) {
-    gm.gid = gid; gm.tab = 'proj'; gm.all = false;
+    const og = (nflData?.schedule || []).find(x => x.gameId === gid);
+    gm.gid = gid; gm.tab = og && og.homeScore != null ? 'flow' : 'proj'; gm.all = false;
     if (!fromRoute && location.pathname !== gmPathOf(gid)) { history.pushState({ gm: 1 }, '', gmPathOf(gid)); gmPushed = true; }
     if (!document.getElementById('gm-back')) {
       document.body.insertAdjacentHTML('beforeend', `
@@ -5053,7 +5057,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
       const w = nflData.wind?.[g.gameId], k = (nflData.kickers || []).find(x => x.gameId === g.gameId);
       return [k?.f?.temp != null ? `${k.f.temp}°F` : null, w != null ? `${Math.round(w)} mph` : null].filter(Boolean).join(' · ') || g.roof;
     })();
-    const tabs = [['proj', state === 'pre' ? 'Projections' : 'Our board'], ['matchup', 'Matchup']].concat(g.lines?.cur ? [['lines', 'Lines']] : []).concat(played ? [['flow', 'Game flow']] : []);
+    const tabs = [['proj', 'Picks'], ['matchup', 'Matchup']].concat(g.lines?.cur ? [['lines', 'Lines']] : []).concat(played ? [['flow', 'Game']] : []);
     const body = gm.tab === 'lines' ? lnPanel(g.lines, g.away, g.home)
       : gm.tab === 'matchup' ? matchupPanel(g).replace('<div class="mx"', '<div class="mx flat"')
       : gm.tab === 'flow' ? (gameFlow(g) || '<div class="empty">No win-probability line for this game.</div>').replace('<div class="gf"', '<div class="gf flat"')
@@ -5267,42 +5271,60 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
       if (!t || (t.w == null)) return null;
       return { txt: t.t ? `${t.w}-${t.l}-${t.t}` : `${t.w}-${t.l}`, old: true };
     };
+    const aWin = played && g.awayScore > g.homeScore, hWin = played && g.homeScore > g.awayScore;
     const side = (abbr, alignEnd) => {
       const r = recOf(abbr);
+      const lost = alignEnd ? aWin : hWin;
       const logo = `<img class="sc-logo" src="${teamLogo(abbr)}" alt="" loading="lazy">`;
       const id = `<span class="sc-side-id"><span class="sc-side-ab">${abbr}</span>${
         r ? `<span class="sc-side-rec${r.old ? ' old' : ''}">${r.txt}</span>` : ''}</span>`;
       // Logos face outward, records sit inboard; before kickoff the team's own
       // spread and moneyline sit right beside its name.
-      const odds = played ? '' : lnSide(g.lines, alignEnd);
-      return `<div class="sc-side${alignEnd ? ' end' : ''}">${alignEnd ? odds + id + logo : logo + id + odds}</div>`;
+      const odds = played ? `<span class="sc-r${lost ? ' lost' : ''}">${alignEnd ? g.homeScore : g.awayScore}</span>` : lnSide(g.lines, alignEnd);
+      return `<div class="sc-side${alignEnd ? ' end' : ''}${lost ? ' lost' : ''}">${alignEnd ? odds + id + logo : logo + id + odds}</div>`;
     };
 
+    // a played game says which side of the closing spread and total cashed
+    const cashed = (() => {
+      const c = g.lines?.cur; if (!played || !c) return '';
+      const out = [], sg = (v) => v === 0 ? 'PK' : (v > 0 ? '+' : '') + lnNum(v);
+      if (c.sp != null) { const m = (g.homeScore - g.awayScore) + c.sp; out.push(m === 0 ? 'Spread push' : m > 0 ? `${g.home} ${sg(c.sp)}` : `${g.away} ${sg(-c.sp)}`); }
+      if (c.tot != null) { const d = g.homeScore + g.awayScore - c.tot; out.push(d === 0 ? `Push ${c.tot}` : `${d > 0 ? 'Over' : 'Under'} ${c.tot}`); }
+      return out.map(x => `<div class="sc-cash" title="Cashed at DraftKings' closing line">${x} ✓</div>`).join('');
+    })();
     const mid = played
-      ? `<div class="sc-mid"><div class="sc-score">${g.awayScore}–${g.homeScore}</div><div class="sc-when">Final</div></div>`
+      ? `<div class="sc-mid"><div class="sc-st">Final${g.overtime ? '/OT' : ''}</div>${cashed}</div>`
       : `<div class="sc-mid">
           ${g.lines?.cur ? '' : `<div class="sc-lines">${g.spread != null ? `<span class="sc-ln">${spreadLabel(g)}</span>` : ''}</div>`}
           <div class="sc-when">${when}</div>
           ${g.lines?.cur ? lnOU(g.lines) : g.total != null ? `<div class="sc-ou">O/U <b>${g.total}</b></div>` : ''}
         </div>`;
 
-    // the board's shortest price in this game, so the slate is scannable for
-    // who to bet without opening anything
-    const P = nflData?.picks;
-    let pick = '';
-    // schedule rows carry no season field — the slate IS the upcoming season,
-    // so matching the week is the right (and only) check
-    if (P?.picks && P.week === g.week) {
-      const inGame = P.picks.filter(p => p.gameId === g.gameId);
-      if (inGame.length) {
-        const best = inGame.reduce((x, y) => (y.p > x.p ? y : x));
-        pick = `<div class="sc-pick" onclick="event.stopPropagation();openPick('${best.pid}')">
+    // Every game's top pick — the board's shortest anytime-TD price in it —
+    // before kickoff from the live board, after it from the board logged at
+    // kickoff (results.json), graded: ✓ once he scores, ✗ if the game ends.
+    const pick = (() => {
+      const P = nflData?.picks, L = liveLog?.games?.[g.gameId];
+      let best = null, res = null;
+      if (L?.td?.length) {
+        const r = L.td.reduce((x, y) => (y[4] > x[4] ? y : x));
+        best = { pid: r[0], name: r[1], pos: r[3], p: r[4] };
+        const n = L.res?.td?.[r[0]] ?? 0;
+        res = (L.res?.dnp || []).includes(r[0]) && L.final ? { cls: 'miss', txt: 'DNP' }
+          : n ? { cls: 'hit', txt: n > 1 ? `✓ ${n} TD` : '✓ TD' } : L.final ? { cls: 'miss', txt: '✗ no TD' } : played ? null : L.live ? { cls: 'pend', txt: 'live' } : null;
+      } else if (P?.picks && P.week === g.week) {
+        // schedule rows carry no season field — the slate IS the upcoming season
+        const inGame = P.picks.filter(p => p.gameId === g.gameId);
+        if (inGame.length) best = inGame.reduce((x, y) => (y.p > x.p ? y : x));
+      }
+      if (!best) return '';
+      return `<div class="sc-pick${res && res.cls !== 'pend' ? ' ' + res.cls : ''}" onclick="event.stopPropagation();openPick('${best.pid}')">
           <span class="sc-pick-star">★</span><span class="sc-pick-lbl">top pick</span>
           <span class="posb ${best.pos}">${best.pos}</span>
           <span class="sc-pick-nm">${best.name}</span>
-          <span class="sc-pick-od${best.p < 0.5 ? ' dog' : ''}">${pbOdds(best.p)}</span></div>`;
-      }
-    }
+          <span class="sc-pick-od${best.p < 0.5 ? ' dog' : ''}">${pbOdds(best.p)}</span>
+          ${res ? `<span class="sc-pick-res${res.cls === 'pend' ? ' pend' : ''}">${res.txt}</span>` : ''}</div>`;
+    })();
 
     return `<div class="sc-game" onclick="openGame('${g.gameId}')">
       <div class="sc-top">
@@ -8417,6 +8439,7 @@ let pairStacks = false;
     const SORTS = { time: byTime, spread: (a, b) => spOf(b) - spOf(a) || byTime(a, b), total: (a, b) => totOf(b) - totOf(a) || byTime(a, b),
                     moved: (a, b) => lnMove(b.lines).size - lnMove(a.lines).size || byTime(a, b) };
     const games = (byWeek[scheduleWeek] || []).slice().sort(SORTS[schedSort] || byTime);
+    if (games.some(g => g.homeScore != null || gameStarted(g.gameId))) ensureLiveLog();
     const anyLines = games.some(g => g.lines?.cur || g.spread != null);
     const sortBar = anyLines ? `<div class="pairs-filter-row sc-sort"><span class="due-filter-label">Sort</span>${[['time', 'Kickoff'], ['spread', 'Spread'], ['total', 'Total'], ['moved', 'Line move']]
       .map(([v, l]) => `<button class="due-filter-chip mode-chip${schedSort === v ? ' active' : ''}" onclick="setSchedSort('${v}')">${l}</button>`).join('')}</div>` : '';
@@ -8427,7 +8450,7 @@ let pairStacks = false;
           <span class="rc-wklabel">${WK_LABEL(scheduleWeek)}</span>
           <button class="rc-arrow" onclick="shiftScheduleWeek(1)" ${atLast ? 'disabled' : ''} aria-label="Next week">›</button>
         </div>
-        <button class="rc-jump" onclick="setScheduleWeek(${firstUpcomingWeek()})" title="Jump to the upcoming week">Upcoming</button>
+        <button class="rc-jump" onclick="setScheduleWeek(${firstUpcomingWeek()})" title="Jump to this week">This week</button>
       </div>
       <div class="result-meta"><b>${WK_LABEL(scheduleWeek)}</b> · ${games.length} games · tap a game for the matchup${games.some(g => g.lines?.cur) ? ' · DK lines via ESPN · a number in blue has moved (the stronger, the further) · "opened" shows where it started' : ''}</div>
       ${sortBar}
