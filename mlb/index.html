@@ -6074,12 +6074,21 @@ function ddGameRows(g) {
   // Away leans, a divider, then home leans — a thin rule splits the two clubs.
   const awayHR = awayLeans.slice(0, 2).map(l => ddLeanLine(l)).join('');
   const homeHR = homeLeans.slice(0, 2).map(l => ddLeanLine(l)).join('');
-  // no leans in this game: its best matchup vs the starters instead, so every row has a name
-  const muTop = !awayHR && !homeHR ? schedTopMatchups(g, 1)[0] : null;
+  // The game's best matchups vs the starters: the top one fills HR Leans when
+  // nobody made a board, and the best one not already named anywhere in the
+  // row always joins Other Leans — so every game carries its top matchup.
+  const muLine = (m, tip) => `<div class="dd-lean dd-lean-mu" title="${tip}">📈 ${ddAbbrevName(playerNames[m.pid] || m.pid)} <b class="ps-ramp" ${psRamp(m.score)}>${m.score.toFixed(1)}</b></div>`;
+  const shown = new Set([...awayLeans, ...homeLeans].map(l => String(l.pid)));
+  const mus = schedTopMatchups(g, 12).filter(m => !shown.has(m.pid));
+  const muTop = !awayHR && !homeHR ? mus.shift() : null;
   const hrHtml = (awayHR + (awayHR && homeHR ? '<div class="dd-lean-sep"></div>' : '') + homeHR)
-    || (muTop ? `<div class="dd-lean dd-lean-mu" title="Nobody in this game made a board — the best matchup score vs the starters">📈 ${ddAbbrevName(playerNames[muTop.pid] || muTop.pid)} <b class="ps-ramp" ${psRamp(muTop.score)}>${muTop.score.toFixed(1)}</b></div>` : '')
+    || (muTop ? muLine(muTop, 'Nobody in this game made a board — the best matchup score vs the starters') : '')
     || '<span class="dd-empty">—</span>';
-  const otherHtml = [...awayLeans.slice(2), ...homeLeans.slice(2)].map(l => ddLeanLine(l)).join('') || '<span class="dd-empty">—</span>';
+  const muOther = mus[0];
+  const otherHtml = [...awayLeans.slice(2), ...homeLeans.slice(2)].map(l => ddLeanLine(l)).join('')
+    + (muOther ? muLine(muOther, 'The best matchup score in this game not already on the sheet') : '')
+    || '<span class="dd-empty">—</span>';
+
   // Each row: the team's logo, THEIR OWN pitcher, then a dot grading how good a
   // HR spot THAT TEAM'S BATS are in vs the opposing starter they face. So the
   // dot reads the opposing SP's HR9 + this team's own leans.
@@ -6139,7 +6148,7 @@ function dingerDigestHtml() {
           </table>
         </div>
         <div class="dd-legend">
-          <span>🔒 Chalk</span><span>🎯 Value</span><span>⏳ Due</span><span>📈 Top matchup (no board pick)</span>
+          <span>🔒 Chalk</span><span>🎯 Value</span><span>⏳ Due</span><span>📈 Top matchup not already listed</span>
           <span class="dd-legend-sep"></span>
           <span>Bat Matchup vs Opp. SP:</span><span>${ddDot('green')} Good spot</span><span>${ddDot('yellow')} Even</span><span>${ddDot('red')} Tough</span>
         </div>
