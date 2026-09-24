@@ -3121,7 +3121,7 @@ let groupsState  = 'idle';
 function loadGroups() {
   if (groupsState !== 'idle') return;
   groupsState = 'loading';
-  fetch(APP_BASE + '/groups.json', { cache: 'no-store' })
+  dataFetch('groups.json', { cache: 'no-store' })
     .then(r => r.ok ? r.json() : Promise.reject())
     .then(j => { groups = j; groupsState = 'ready'; })
     .catch(() => { groupsState = 'error'; })
@@ -3598,10 +3598,19 @@ function removeTag(idx) {
 // picker, /mlb is this app, /football is Tud Tool). All routes and same-origin
 // assets are prefixed with this base. Shared branding (/icons) stays at root.
 const APP_BASE = '/mlb';
+// Data files come straight from the repo (raw.githubusercontent.com: CORS-open,
+// gzipped, CDN-cached 5 min), so the builds' hourly data commits don't have to
+// redeploy the site — netlify.toml skips any commit that only touches data.
+// Falls back to the deployed copy if GitHub is unreachable; local dev reads
+// the local files, so a local build is what you see.
+const DATA_RAW = 'https://raw.githubusercontent.com/wizard-ron17/dong-tool/main';
+const dataFetch = (f, opts) => /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
+  ? fetch(`${APP_BASE}/${f}`, opts)
+  : fetch(`${DATA_RAW}${APP_BASE}/${f}`, opts).then(r => r.ok ? r : Promise.reject(r)).catch(() => fetch(`${APP_BASE}/${f}`, opts));
 async function loadData() {
   setStatus('fetching');
   try {
-    const res = await fetch(APP_BASE + '/data.json', { cache: 'no-store' });
+    const res = await dataFetch('data.json', { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     applyData(await res.json());
   } catch (e) {
@@ -8116,7 +8125,7 @@ async function ensureMatchupCards() {
   if (matchupCards || matchupCardsLoading) return;
   matchupCardsLoading = true;
   try {
-    const res = await fetch(APP_BASE + '/matchup-cards.json', { cache: 'no-cache' });
+    const res = await dataFetch('matchup-cards.json', { cache: 'no-cache' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     matchupCards = await res.json();
     matchupCards._bIdx = Object.fromEntries(matchupCards.batters.map(b => [b.pid, b]));
@@ -10070,7 +10079,7 @@ async function ensurePitchArsenal() {
   if (pitchArsenal || pitchArsenalLoading) return;
   pitchArsenalLoading = true;
   try {
-    const res = await fetch(APP_BASE + '/pitch-arsenal.json', { cache: 'no-cache' });
+    const res = await dataFetch('pitch-arsenal.json', { cache: 'no-cache' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     pitchArsenal = await res.json();
     if (!ptPitch && pitchArsenal.pitches?.length) ptPitch = pitchArsenal.pitches[0];

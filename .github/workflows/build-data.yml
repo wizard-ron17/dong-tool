@@ -2,11 +2,11 @@ name: Build data.json
 
 on:
   schedule:
-    # Hourly. Every push is a Netlify deploy and the free tier is 300 build
-    # minutes a month, so a second tick an hour cost ~12 deploys a day for data
-    # that moves slowly once lineups are in. Off-round minutes (:13) are less
-    # contended than :00/:30 on GitHub runners.
-    - cron: '13 * * * *'
+    # Hourly from 7am to 2am ET (no baseball 3-6am). Data commits no longer
+    # redeploy the site (netlify.toml skips data-only commits; pages read data
+    # from the repo), and the gate below skips runs on days without games.
+    # Off-round minutes (:13) are less contended than :00/:30 on GitHub runners.
+    - cron: '13 11-23,0-6 * * *'
   workflow_dispatch: {}      # lets us trigger it manually from the Actions tab
 
 permissions:
@@ -30,10 +30,18 @@ jobs:
         with:
           node-version: 22
 
+      # Game days build on every tick; off days only the morning run; the
+      # offseason only Monday mornings (scripts/should-build.mjs).
+      - name: Anything to build?
+        id: gate
+        run: node scripts/should-build.mjs mlb ${{ github.event_name }} >> "$GITHUB_OUTPUT"
+
       - name: Build data.json
+        if: steps.gate.outputs.run == 'true'
         run: node scripts/build-data.js
 
       - name: Commit and push if changed
+        if: steps.gate.outputs.run == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

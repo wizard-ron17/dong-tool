@@ -82,12 +82,16 @@ function metaFor(pathname) {
 // A shared replay (/nfl/recap/<gameId>-<playId>) previews as that touchdown.
 // plays.json is small and on the same deploy; cached per edge instance.
 const TD_KIND = { rec: 'receiving', rush: 'rushing', pick6: 'pick-six', fumble: 'fumble-return', kick: 'kick-return', punt: 'punt-return', blk: 'blocked-kick' };
+// Data files are read from the repo, like the pages do: data-only commits no
+// longer redeploy the site, so the deployed copies can be hours behind.
+const DATA_RAW = 'https://raw.githubusercontent.com/wizard-ron17/dong-tool/main';
+const dataUrl = (path) => new URL(path, DATA_RAW + '/');
 let playsCache = { at: 0, data: null };
 async function replayMeta(pathname, requestUrl) {
   const m = pathname.match(/^\/nfl\/recap\/(\d{4}_(\d{2})_[A-Z]{2,3}_[A-Z]{2,3})-(\d+)\/?$/);
   if (!m) return null;
   if (!playsCache.data || Date.now() - playsCache.at > 10 * 60 * 1000) {
-    const r = await fetch(new URL('/nfl/plays.json', requestUrl));
+    const r = await fetch(dataUrl('nfl/plays.json')).catch(() => null) ?? await fetch(new URL('/nfl/plays.json', requestUrl));
     if (!r.ok) return null;
     playsCache = { at: Date.now(), data: await r.json() };
   }
@@ -114,7 +118,7 @@ async function playerMeta(pathname, requestUrl) {
   const m = pathname.match(/^\/nfl\/stats\/(\d{2}-\d{7})\/?$/);
   if (!m) return null;
   if (!playersCache.data || Date.now() - playersCache.at > 10 * 60 * 1000) {
-    const r = await fetch(new URL('/nfl/players.json', requestUrl));
+    const r = await fetch(dataUrl('nfl/players.json')).catch(() => null) ?? await fetch(new URL('/nfl/players.json', requestUrl));
     if (!r.ok) return null;
     playersCache = { at: Date.now(), data: await r.json() };
   }

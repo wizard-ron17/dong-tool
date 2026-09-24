@@ -10,6 +10,14 @@
 # mlb/data.json is refreshed every 30 min by GitHub Actions. Tell the CDN not to
 # cache it at the edge, or it serves a stale copy for hours regardless of the
 # browser-side no-store fetch (which only controls the local cache).
+[build]
+  # Skip the deploy when a commit only touches data files (or build-side code):
+  # the GitHub Actions builds commit data every hour or so, and the pages read
+  # data straight from the repo (raw.githubusercontent.com — see dataFetch), so
+  # those commits needn't redeploy anything. Exit 0 = nothing that matters
+  # changed = skip. A code change anywhere else deploys as always.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ':(exclude)mlb/*.json' ':(exclude)nfl/*.json' ':(exclude)nhl/*.json' ':(exclude)scripts' ':(exclude)research' ':(exclude).github'"
+
 [[headers]]
   for = "/mlb/data.json"
   [headers.values]

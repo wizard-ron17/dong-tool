@@ -1850,6 +1850,15 @@
   </div>
 <script>
   const APP_BASE = '/nhl';
+  // Data files come straight from the repo (raw.githubusercontent.com: CORS-open,
+  // gzipped, CDN-cached 5 min), so the builds' hourly data commits don't have to
+  // redeploy the site — netlify.toml skips any commit that only touches data.
+  // Falls back to the deployed copy if GitHub is unreachable; local dev reads
+  // the local files, so a local build is what you see.
+  const DATA_RAW = 'https://raw.githubusercontent.com/wizard-ron17/dong-tool/main';
+  const dataFetch = (f, opts) => /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
+    ? fetch(`${APP_BASE}/${f}`, opts)
+    : fetch(`${DATA_RAW}${APP_BASE}/${f}`, opts).then(r => r.ok ? r : Promise.reject(r)).catch(() => fetch(`${APP_BASE}/${f}`, opts));
 
   // ── Theme ──────────────────────────────────────────────────────────────
   const SUN_SVG  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg>';
@@ -1986,7 +1995,7 @@
   async function loadNhl() {
     setStatus('fetching');
     try {
-      const r = await fetch(APP_BASE + '/data.json', { cache: 'no-store' });
+      const r = await dataFetch('data.json', { cache: 'no-store' });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       D = await r.json();
       const el = document.getElementById('eyebrow-season');
@@ -2512,7 +2521,7 @@
   function loadPlayersLog() {
     if (plState !== 'idle') return;
     plState = 'loading';
-    fetch(APP_BASE + '/players.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
+    dataFetch('players.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
       .then(j => {
         const epoch = Date.parse(j.epoch + 'T00:00:00Z');
         const iso = (n) => new Date(epoch + n * 864e5).toISOString().slice(0, 10);
@@ -3350,7 +3359,7 @@
   function loadShotsHistory() {
     if (shHistState !== 'idle') return;
     shHistState = 'loading';
-    fetch(APP_BASE + '/shots-history.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
+    dataFetch('shots-history.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
       .then(j => { shHist = j; shHistState = 'ready'; }).catch(() => { shHistState = 'error'; })
       .finally(() => { if (activeNav === 'shots' && sgF.tab === 'results') renderShots(); });
   }
@@ -3655,7 +3664,7 @@
   function loadPhysHistory() {
     if (phHistState !== 'idle') return;
     phHistState = 'loading';
-    fetch(APP_BASE + '/phys-history.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
+    dataFetch('phys-history.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
       .then(j => { phHist = j; phHistState = 'ready'; }).catch(() => { phHistState = 'error'; })
       .finally(() => { if (PX[activeNav] && pxF[activeNav].tab === 'results') renderPx(activeNav); });
   }
@@ -3725,7 +3734,7 @@
   function loadSavesHistory() {
     if (svHistState !== 'idle') return;
     svHistState = 'loading';
-    fetch(APP_BASE + '/saves-history.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
+    dataFetch('saves-history.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
       .then(j => { svHist = j; svHistState = 'ready'; }).catch(() => { svHistState = 'error'; })
       .finally(() => { if (GT[activeNav] && gtF[activeNav].tab === 'results') renderGoalie(activeNav); });
   }
@@ -3897,7 +3906,7 @@
   function loadPointsHistory() {
     if (ptHistState !== 'idle') return;
     ptHistState = 'loading';
-    fetch(APP_BASE + '/points-history.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
+    dataFetch('points-history.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
       .then(j => { ptHist = j; ptHistState = 'ready'; }).catch(() => { ptHistState = 'error'; })
       .finally(() => { if (activeNav === 'points' && ptF.tab === 'results') renderPoints(); });
   }
@@ -4888,7 +4897,7 @@
   function loadMsLast() {
     if (mslState !== 'idle') return;
     mslState = 'loading';
-    fetch(APP_BASE + '/milestones-20252026.json').then(r => r.ok ? r.json() : Promise.reject())
+    dataFetch('milestones-20252026.json').then(r => r.ok ? r.json() : Promise.reject())
       .then(j => { MSL = j.events.map(r => Object.fromEntries(j.cols.map((c, i) => [c, r[i]]))); mslState = 'ready'; })
       .catch(() => { mslState = 'error'; })
       .finally(() => { if (activeNav === 'milestones' && msF.tab === 'results') renderMilestones(); });
@@ -5311,7 +5320,7 @@
   function loadPairsLast() {
     if (prlState !== 'idle') return;
     prlState = 'loading';
-    fetch(APP_BASE + '/pairs-20252026.json').then(r => r.ok ? r.json() : Promise.reject())
+    dataFetch('pairs-20252026.json').then(r => r.ok ? r.json() : Promise.reject())
       .then(j => { PRL = j; prlState = 'ready'; })
       .catch(() => { prlState = 'error'; })
       .finally(() => { if (activeNav === 'pairs') renderPairs(); });
@@ -5877,7 +5886,7 @@
   function loadGameHist() {
     if (ghState !== 'idle') return;
     ghState = 'loading';
-    const get = (f) => fetch(`${APP_BASE}/${f}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : {}).catch(() => ({}));
+    const get = (f) => dataFetch(f, { cache: 'no-store' }).then(r => r.ok ? r.json() : {}).catch(() => ({}));
     Promise.all(['picks-history.json', 'shots-history.json', 'points-history.json', 'saves-history.json'].map(get))
       .then(([pk, sh, pt, sv]) => { GH = { pk, sh, pt, sv }; ghState = 'ready'; })
       .finally(() => { if (gm.gid) gmRender(); });

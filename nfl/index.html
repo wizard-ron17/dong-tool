@@ -3482,6 +3482,15 @@
 <script>
   // ── Ron's Tud Tool (NFL) — shell. Mirrors the MLB nav; tools + data TBD. ──
   const APP_BASE = '/nfl';
+  // Data files come straight from the repo (raw.githubusercontent.com: CORS-open,
+  // gzipped, CDN-cached 5 min), so the builds' hourly data commits don't have to
+  // redeploy the site — netlify.toml skips any commit that only touches data.
+  // Falls back to the deployed copy if GitHub is unreachable; local dev reads
+  // the local files, so a local build is what you see.
+  const DATA_RAW = 'https://raw.githubusercontent.com/wizard-ron17/dong-tool/main';
+  const dataFetch = (f, opts) => /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
+    ? fetch(`${APP_BASE}/${f}`, opts)
+    : fetch(`${DATA_RAW}${APP_BASE}/${f}`, opts).then(r => r.ok ? r : Promise.reject(r)).catch(() => fetch(`${APP_BASE}/${f}`, opts));
   const SUN_SVG  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2 12h2.4M19.6 12H22M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/></svg>';
   const MOON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.9A9 9 0 1 1 11.1 3a7 7 0 0 0 9.9 9.9z"/></svg>';
   function currentTheme() { return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'; }
@@ -3686,7 +3695,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
   async function loadNfl() {
     setStatus('fetching');
     try {
-      const r = await fetch(APP_BASE + '/data.json', { cache: 'no-store' });
+      const r = await dataFetch('data.json', { cache: 'no-store' });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       nflData = await r.json();
       setEyebrowSeason();
@@ -4471,7 +4480,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
   function ensureLiveLog() {
     if (liveLogState !== 'idle') return;
     liveLogState = 'loading';
-    fetch(APP_BASE + '/results.json', { cache: 'no-store' })
+    dataFetch('results.json', { cache: 'no-store' })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(j => { liveLog = j; liveLogState = 'ready'; })
       .catch(() => { liveLogState = 'error'; })
@@ -5395,7 +5404,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
   function loadPlays() {
     if (playsState !== 'idle') return;
     playsState = 'loading';
-    fetch(APP_BASE + '/plays.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
+    dataFetch('plays.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
       .then(j => { playsLog = j; playsState = 'ready'; }).catch(() => { playsState = 'error'; })
       .finally(() => { if (tdOpen.gid) tdRender(); if (gm.gid) gmRender(); });
   }
@@ -6210,7 +6219,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
   function loadPlayersLog() {
     if (playersState !== 'idle') return;
     playersState = 'loading';
-    fetch(APP_BASE + '/players.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
+    dataFetch('players.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
       .then(j => { playersLog = j; playersState = 'ready'; }).catch(() => { playersState = 'error'; })
       .finally(() => { if (plOpen.pid) plRender(); });
   }

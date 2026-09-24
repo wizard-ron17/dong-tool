@@ -7,6 +7,9 @@ on:
     # All times UTC; ET is UTC-4 until November, UTC-5 after.
     #   Morning: the night's finals are in, the schedule and standings are settled.
     - cron: '27 11 * * *'
+    #   Pre-game: after morning skate and goalie news (~11:30am ET), mid-afternoon,
+    #   and the last look before a 7pm puck. Boards freeze game by game at puck drop.
+    - cron: '27 15,19,21 * * *'
     #   Game windows: 7pm ET first puck through the last western finish (~1:30am ET).
     - cron: '27 23 * * *'
     - cron: '27 0-6 * * *'
@@ -29,10 +32,18 @@ jobs:
         with:
           node-version: 22
 
+      # Game days build on every tick; off days only the morning run; the
+      # offseason only Monday mornings (scripts/should-build.mjs).
+      - name: Anything to build?
+        id: gate
+        run: node scripts/should-build.mjs nhl ${{ github.event_name }} >> "$GITHUB_OUTPUT"
+
       - name: Build nhl/data.json
+        if: steps.gate.outputs.run == 'true'
         run: node scripts/build-nhl.js
 
       - name: Commit and push if changed
+        if: steps.gate.outputs.run == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
