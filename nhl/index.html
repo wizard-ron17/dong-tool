@@ -4652,8 +4652,11 @@
     // Only until the first regular-season puck drop; after that the page has
     // real games to lead with and this would just be clutter.
     const opener = D.schedule.find(g => g.type === 2);
-    const days = opener ? Math.ceil((new Date(opener.start) - Date.now()) / 86400000) : -1;
-    const countdown = (opener && days >= 0) ? `<div class="cd">
+    // calendar days in Eastern time (the schedule's dates), not hours rounded up —
+    // at 10am on the 24th a 5pm opener on the 29th is 5 days out, not 6
+    const etToday = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    const days = opener ? Math.round((Date.parse(opener.date + 'T12:00:00Z') - Date.parse(etToday + 'T12:00:00Z')) / 86400000) : -1;
+    const countdown = (opener && days >= 0 && Date.now() < Date.parse(opener.start)) ? `<div class="cd">
         <span class="cd-n">${days}</span>
         <div class="cd-t"><b>${days === 0 ? 'Opening night' : days === 1 ? 'day to opening night' : 'days to opening night'}</b>
           <span>${dayLabel(opener.date, true)} · ${D.seasonLabel} · ${D.seasonGames} games each</span></div>

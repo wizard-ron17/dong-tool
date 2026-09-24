@@ -326,11 +326,18 @@ async function main() {
   const HIST_PATH = new URL('../nhl/picks-history.json', import.meta.url);
   let hist = {};
   try { hist = JSON.parse(fs.readFileSync(HIST_PATH, 'utf8')); } catch (e) { hist = {}; }
-  if (upcoming && picks.picks.length) {
-    const started = schedule.some(g => g.date === upcoming && g.type === 2 && !['FUT', 'PRE'].includes(g.state));
-    if (!started) hist[upcoming] = picks.picks.map(r => [r.pid, r.p, null, r.gameId,
-      r.p2, r.p3, r.pFirst, r.pLast, r.pP1, r.pPP, null, null, null, null, null]);
-  }
+  // Every board freezes GAME BY GAME: a game's rows lock at the last build
+  // before its own puck drop, while the night's later games keep refreshing
+  // (goalie confirmations, scratches, line moves). Freezing the whole night at
+  // its first puck priced a 10pm game off the morning build. `gi` is where a
+  // row keeps its gameId.
+  const puckDropped = new Set(schedule.filter(g => g.date === upcoming && g.type === 2 && !['FUT', 'PRE'].includes(g.state)).map(g => g.gameId));
+  const refreeze = (H, fresh, gi) => {
+    const kept = (H[upcoming] || []).filter(x => puckDropped.has(x[gi]));
+    H[upcoming] = [...kept, ...fresh.filter(x => !puckDropped.has(x[gi]))];
+  };
+  if (upcoming && picks.picks.length) refreeze(hist, picks.picks.map(r => [r.pid, r.p, null, r.gameId,
+      r.p2, r.p3, r.pFirst, r.pLast, r.pP1, r.pPP, null, null, null, null, null]), 3);
   // One boxscore read per game, shared by both graders: who dressed, and how
   // many shots each put on net. null when the fetch fails — the next build retries.
   // Goalies ride along in goalieBox: pid -> { starter, saves, ga }.
@@ -423,13 +430,10 @@ async function main() {
   const SH_PATH = new URL('../nhl/shots-history.json', import.meta.url);
   let shHist = {};
   try { shHist = JSON.parse(fs.readFileSync(SH_PATH, 'utf8')); } catch (e) { shHist = {}; }
-  if (upcoming && shots.board.length) {
-    const started = schedule.some(g => g.date === upcoming && g.type === 2 && !['FUT', 'PRE'].includes(g.state));
-    if (!started) shHist[upcoming] = shots.board.map(r => {
+  if (upcoming && shots.board.length) refreeze(shHist, shots.board.map(r => {
       const L = Object.keys(r.p).map(Number).reduce((b, x) => Math.abs(r.p[x] - 0.5) < Math.abs(r.p[b] - 0.5) ? x : b);
       return [r.pid, r.mu, L, r.p[L], null, r.gameId, r.name, r.team, r.opp];
-    });
-  }
+    }), 5);
   let shGraded = 0;
   for (const [d, rows] of Object.entries(shHist)) {
     if (!rows.some(x => x[4] == null)) continue;
@@ -452,11 +456,10 @@ async function main() {
   let phHist = {};
   try { phHist = JSON.parse(fs.readFileSync(PH_PATH, 'utf8')); } catch (e) { phHist = {}; }
   if (upcoming && hits.board.length) {
-    const started = schedule.some(g => g.date === upcoming && g.type === 2 && !['FUT', 'PRE'].includes(g.state));
     const quote = (r) => { const L = Object.keys(r.p).map(Number).reduce((b, x) => Math.abs(r.p[x] - 0.5) < Math.abs(r.p[b] - 0.5) ? x : b); return [r.mu, L, r.p[L]]; };
     const bk = new Map(blocks.board.map(r => [r.pid, r]));
-    if (!started) phHist[upcoming] = hits.board.filter(r => bk.has(r.pid)).map(r =>
-      [r.pid, ...quote(r), null, r.gameId, r.name, r.team, r.opp, ...quote(bk.get(r.pid)), null]);
+    refreeze(phHist, hits.board.filter(r => bk.has(r.pid)).map(r =>
+      [r.pid, ...quote(r), null, r.gameId, r.name, r.team, r.opp, ...quote(bk.get(r.pid)), null]), 5);
   }
   let phGraded = 0;
   for (const [d, rows] of Object.entries(phHist)) {
@@ -484,11 +487,8 @@ async function main() {
   const SV_PATH = new URL('../nhl/saves-history.json', import.meta.url);
   let svHist = {};
   try { svHist = JSON.parse(fs.readFileSync(SV_PATH, 'utf8')); } catch (e) { svHist = {}; }
-  if (upcoming && saves.board.length) {
-    const started = schedule.some(g => g.date === upcoming && g.type === 2 && !['FUT', 'PRE'].includes(g.state));
-    if (!started) svHist[upcoming] = saves.board.map(r =>
-      [r.pid, r.mu, r.q.line, r.q.p, null, r.gameId, r.name, r.team, r.opp, r.muGa, r.qGa.line, r.qGa.p, null]);
-  }
+  if (upcoming && saves.board.length) refreeze(svHist, saves.board.map(r =>
+      [r.pid, r.mu, r.q.line, r.q.p, null, r.gameId, r.name, r.team, r.opp, r.muGa, r.qGa.line, r.qGa.p, null]), 5);
   let svGraded = 0;
   for (const [d, rows] of Object.entries(svHist)) {
     if (!rows.some(x => x[4] == null)) continue;
@@ -517,13 +517,10 @@ async function main() {
   try { ptHist = JSON.parse(fs.readFileSync(PT_PATH, 'utf8')); } catch (e) { ptHist = {}; }
   const pois = (mu, L) => { let t = Math.exp(-mu), c = t; for (let k = 1; k <= Math.floor(L); k++) { t *= mu / k; c += t; } return 1 - c; };
   const quote = (mu) => { let best = 0.5; for (let L = 0.5; L <= 4.5; L++) if (Math.abs(pois(mu, L) - 0.5) < Math.abs(pois(mu, best) - 0.5)) best = L; return [best, +pois(mu, best).toFixed(4)]; };
-  if (upcoming && points.board.length) {
-    const started = schedule.some(g => g.date === upcoming && g.type === 2 && !['FUT', 'PRE'].includes(g.state));
-    if (!started) ptHist[upcoming] = points.board.map(r => {
+  if (upcoming && points.board.length) refreeze(ptHist, points.board.map(r => {
       const [Lp, pp] = quote(r.mu.pts), [La, pa] = quote(r.mu.a), [Lq, pq] = quote(r.mu.ppp);
       return [r.pid, r.gameId, r.name, r.team, r.opp, r.mu.pts, Lp, pp, null, r.mu.a, La, pa, null, r.mu.ppp, Lq, pq, null];
-    });
-  }
+    }), 1);
   let ptGraded = 0;
   for (const [d, rows] of Object.entries(ptHist)) {
     if (!rows.some(x => x[8] == null)) continue;
