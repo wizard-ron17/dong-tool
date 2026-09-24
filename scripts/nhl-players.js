@@ -20,7 +20,8 @@ const MAX_NEW = 60;       // dates fetched per build — a cold start catches up
 
 // A row's first cell is its date as a day number from July 1 of the season's
 // first year — 52,000 game rows by April, and an ISO date is ten bytes of each.
-export const SK_COLS = ['day', 'opp', 'home', 'g', 'a', 's', 'toi', 'ppg', 'pm', 'pim'];
+// hit / bk (hits, blocked shots) feed each rink's scorer factor on /nhl/hits and /nhl/blocks
+export const SK_COLS = ['day', 'opp', 'home', 'g', 'a', 's', 'toi', 'ppg', 'pm', 'pim', 'hit', 'bk'];
 export const GL_COLS = ['day', 'opp', 'home', 'dec', 'sa', 'sv', 'ga', 'toi', 'so'];
 
 /**
@@ -67,15 +68,18 @@ export async function buildPlayersLog({ season, schedule, recap, recapGames, pat
 
   for (const d of todo) {
     const exp = `gameDate>="${d}" and gameDate<="${d}" and gameTypeId>=2`;
-    const [sk, gl] = await Promise.all([
+    const [sk, gl, rt] = await Promise.all([
       restPaged(`/skater/summary?cayenneExp=${exp}`, Infinity, [{ property: 'playerId', direction: 'ASC' }]),
       restPaged(`/goalie/summary?cayenneExp=${exp}`, Infinity, [{ property: 'playerId', direction: 'ASC' }]),
+      restPaged(`/skater/realtime?cayenneExp=${exp}`, Infinity, [{ property: 'playerId', direction: 'ASC' }]),
     ]);
+    const re = Object.fromEntries(rt.map(r => [r.playerId, r]));
     for (const r of sk) {
       const o = oppOn(d, String(r.teamAbbrevs || '').split(','));
       put(r.playerId, { n: r.skaterFullName, pos: r.positionCode, tm: o.team },
         [dayOf(d), o.opp, o.home, r.goals || 0, r.assists || 0, r.shots || 0, Math.round(r.timeOnIcePerGame || 0),
-         r.ppGoals || 0, r.plusMinus || 0, r.penaltyMinutes || 0]);
+         r.ppGoals || 0, r.plusMinus || 0, r.penaltyMinutes || 0,
+         re[r.playerId]?.hits ?? null, re[r.playerId]?.blockedShots ?? null]);
     }
     for (const r of gl) {
       const o = oppOn(d, String(r.teamAbbrevs || '').split(','));

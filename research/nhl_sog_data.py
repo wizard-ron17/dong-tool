@@ -59,8 +59,11 @@ def load():
                     toi=row.get("timeOnIcePerGame") or 0.0,
                     icf=rr.get("totalShotAttempts") or 0,      # Individual Corsi For
                     blk=rr.get("shotAttemptsBlocked") or 0,    # his own attempts blocked
+                    hits=rr.get("hits") or 0,                   # hits he delivered
+                    bks=rr.get("blockedShots") or 0,            # opponents' shots he blocked (the market)
                     miss=rr.get("missedShots") or 0,
                     pptoi=tt.get("ppTimeOnIcePerGame") or 0.0,
+                    shtoi=tt.get("shTimeOnIcePerGame") or 0.0,     # penalty-kill minutes (blocks)
                     shifts=tt.get("shifts") or 0))
             for x in m:
                 tm.append(dict(season=season, date=date, team_name=x["teamFullName"],

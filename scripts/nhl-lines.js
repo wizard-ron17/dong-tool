@@ -71,7 +71,7 @@ function bisect(f, lo, hi) {
   for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2, fm = f(m); if (fm * flo > 0) { lo = m; flo = fm; } else hi = m; }
   return (lo + hi) / 2;
 }
-function homeWin(lh, la) {           // home ahead after regulation, plus half the ties
+export function homeWin(lh, la) {           // home ahead after regulation, plus half the ties
   const ph = poisPmf(lh), pa = poisPmf(la);
   let w = 0, t = 0;
   for (let i = 0; i < ph.length; i++) for (let j = 0; j < pa.length; j++) { if (i > j) w += ph[i] * pa[j]; else if (i === j) t += ph[i] * pa[j]; }

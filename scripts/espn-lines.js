@@ -1,5 +1,6 @@
-// Sportsbook lines off ESPN's public scoreboard, for the MLB and NFL schedules
-// (the NHL's own copy lives in nhl-lines.js): the DraftKings moneyline, spread
+// Sportsbook lines off ESPN's public scoreboard, for the MLB, NFL and NHL
+// schedules (the NHL also keeps nhl-lines.js for its pricing inputs — this is its
+// line MOVEMENT, stored beside it as g.move): the DraftKings moneyline, spread
 // (run line / puck line) and total, each as it OPENED and as it stands now,
 // plus the path in between.
 //
@@ -14,6 +15,7 @@
 const SB = {
   nfl: 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=',
   mlb: 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=',
+  nhl: 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=',
 };
 const num = (x) => { const v = parseFloat(String(x ?? '').replace(/^[ou]/, '')); return Number.isFinite(v) ? v : null; };
 
@@ -54,7 +56,8 @@ export async function fetchEspnLines(sport, dates, ab = {}) {
         spO: num(at(ps.home, 'close').odds), oO: num(at(tt.over, 'close').odds), uO: num(at(tt.under, 'close').odds),
       };
       const open = { sp: num(at(ps.home, 'open').line), tot: num(at(tt.over, 'open').line),
-                     mlH: num(at(ml.home, 'open').odds), mlA: num(at(ml.away, 'open').odds) };
+                     mlH: num(at(ml.home, 'open').odds), mlA: num(at(ml.away, 'open').odds),
+                     oO: num(at(tt.over, 'open').odds), uO: num(at(tt.under, 'open').odds) };
       out.push({ date: d, start: ev.date || c.date || null, away: side.away, home: side.home,
                  line: { book: o.provider?.name || null, cur, open } });
     }
@@ -65,13 +68,14 @@ export async function fetchEspnLines(sport, dates, ab = {}) {
 /**
  * Carry a game's line history forward and append this build's reading when it
  * differs. `prev` is the line object the game had last build (or undefined).
- * Moves are [iso time, home spread, total, home ML, away ML].
+ * Moves are [iso time, home spread, total, home ML, away ML, over price] — the
+ * over price matters most in hockey, where the total's NUMBER rarely moves.
  */
 export function trackLine(prev, fresh, now = new Date().toISOString()) {
   const moves = (prev?.moves || []).slice();
   const c = fresh.cur, last = moves[moves.length - 1];
-  const reading = [now, c.sp, c.tot, c.mlH, c.mlA];
-  if (!last || last[1] !== c.sp || last[2] !== c.tot || last[3] !== c.mlH || last[4] !== c.mlA) moves.push(reading);
+  const reading = [now, c.sp, c.tot, c.mlH, c.mlA, c.oO];
+  if (!last || last[1] !== c.sp || last[2] !== c.tot || last[3] !== c.mlH || last[4] !== c.mlA || (last[5] ?? c.oO) !== c.oO) moves.push(reading);
   // the book's own open when ESPN has it; else the first line we saw
   const first = moves[0] ? { sp: moves[0][1], tot: moves[0][2], mlH: moves[0][3], mlA: moves[0][4] } : null;
   return { ...fresh, open: fresh.open?.sp != null || fresh.open?.tot != null ? fresh.open : prev?.open || first, moves: moves.slice(-60) };

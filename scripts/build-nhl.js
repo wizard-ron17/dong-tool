@@ -16,6 +16,7 @@ import { gameGoalDetail } from './nhl-goal-detail.js';
 import { buildPlayersLog } from './nhl-players.js';
 import { buildSavesBoard } from './nhl-saves.js';
 import { fetchLines, impliedRates } from './nhl-lines.js';
+import { fetchEspnLines, trackLine } from './espn-lines.js';
 import { buildFun } from './nhl-fun.js';
 
 const LEADERS = 300;      // skaters on the Stats board
@@ -140,6 +141,24 @@ async function main() {
     if (kept) console.log(`  lines: ${kept} closing lines carried forward`);
   } catch (e) { /* first build */ }
   for (const g of schedule) { const r = g.lines && impliedRates(g.lines); if (r) g.lam = r; }
+  // Line movement (scripts/espn-lines.js): open and current moneyline, puck line
+  // and total, plus every change a build saw — g.move, beside g.lines. In hockey
+  // the puck line sits at 1.5 and the total at 5.5/6.5, so what moves is the
+  // moneyline and the price on the total. Only read before puck drop; a started
+  // game keeps what it had.
+  try {
+    const prevMove = new Map();
+    try { for (const g of JSON.parse(fs.readFileSync(new URL('../nhl/data.json', import.meta.url), 'utf8')).schedule || []) if (g.move) prevMove.set(g.gameId, g.move); } catch (e) { /* first build */ }
+    const ahead = [...new Set(schedule.filter(g => g.type === 2 && g.date >= today && ['FUT', 'PRE'].includes(g.state)).map(g => g.date))].slice(0, 8);
+    const fresh = await fetchEspnLines('nhl', ahead, { LA: 'LAK', NJ: 'NJD', SJ: 'SJS', TB: 'TBL', UTAH: 'UTA', MON: 'MTL' });
+    let n = 0;
+    for (const g of schedule) {
+      const prev = prevMove.get(g.gameId);
+      const x = ['FUT', 'PRE'].includes(g.state) ? fresh.find(f => f.date === g.date && f.away === g.away && f.home === g.home) : null;
+      if (x) { g.move = trackLine(prev, x.line); n++; } else if (prev) g.move = prev;
+    }
+    console.log(`  line movement: ${n} games tracked, ${prevMove.size} carried`);
+  } catch (e) { console.warn(`  line movement skipped: ${e.message}`); }
   console.log(`  ${schedule.length} games over ${dates.length} dates`);
 
   // ── 4) Recap: every goal, by date ──────────────────────────────────────
@@ -264,6 +283,8 @@ async function main() {
   let shots = { board: [], model: null, date: upcoming || null };
   let picks = { picks: [], model: null, date: upcoming || null };
   let points = { board: [], model: null, date: upcoming || null };
+  let hits = { board: [], model: null, date: upcoming || null };
+  let blocks = { board: [], model: null, date: upcoming || null };
   try {
     const r = await buildShotsBoard({
       season: UP.id, prevSeason: HIST.id, games: slate, playedDates,
@@ -271,6 +292,8 @@ async function main() {
     shots = { board: r.board, model: r.model, date: upcoming || null };
     picks = { picks: r.picks, model: r.picksModel, date: upcoming || null };
     points = { board: r.points, model: r.pointsModel, date: upcoming || null };
+    hits = { board: r.phys.hits, model: r.physModel.hits, date: upcoming || null };
+    blocks = { board: r.phys.bks, model: r.physModel.bks, date: upcoming || null };
     console.log(`  ${r.board.length} skaters priced for ${upcoming} (${slate.length} games), ${r.picks.length} goal prices`);
   } catch (e) {
     console.error('  shots board failed:', e.message);
@@ -312,6 +335,7 @@ async function main() {
   // many shots each put on net. null when the fetch fails — the next build retries.
   // Goalies ride along in goalieBox: pid -> { starter, saves, ga }.
   const boxCache = new Map(), goalieBox = new Map();
+  const physBox = new Map();      // 'pid|gameId' -> { hits, bks }, off the same boxscores (Hits / Blocks grading)
   async function boxscore(id) {
     if (boxCache.has(id)) return boxCache.get(id);
     let out = null;
@@ -320,7 +344,10 @@ async function main() {
       out = new Map();
       for (const side of ['awayTeam', 'homeTeam']) {
         for (const grp of ['forwards', 'defense'])
-          for (const pl of bx.playerByGameStats?.[side]?.[grp] || []) out.set(pl.playerId, pl.sog ?? 0);
+          for (const pl of bx.playerByGameStats?.[side]?.[grp] || []) {
+            out.set(pl.playerId, pl.sog ?? 0);
+            physBox.set(pl.playerId + '|' + id, { hits: pl.hits ?? 0, bks: pl.blockedShots ?? 0 });
+          }
         for (const pl of bx.playerByGameStats?.[side]?.goalies || [])
           goalieBox.set(pl.playerId, { starter: !!pl.starter, saves: pl.saves ?? 0, ga: pl.goalsAgainst ?? 0 });
       }
@@ -396,6 +423,38 @@ async function main() {
   fs.writeFileSync(SH_PATH, JSON.stringify(shHist));
   const shDone = Object.values(shHist).filter(r => r.every(x => x[4] != null)).length;
   console.log(`  shots history: ${Object.keys(shHist).length} nights frozen, ${shDone} graded${shGraded ? ` (${shGraded} new)` : ''}`);
+
+  // ── 7b2) Freeze and grade the Hits and Blocks boards ─────────────────
+  // One row per skater, both markets at their quoted (closest-to-even) lines:
+  //   [pid, muHits, hitsLine, pOver, gotHits, gameId, name, team, opp, muBks, bksLine, pOver, gotBks]
+  // A skater who did not dress is a void (-1) on both, as on Shots.
+  const PH_PATH = new URL('../nhl/phys-history.json', import.meta.url);
+  let phHist = {};
+  try { phHist = JSON.parse(fs.readFileSync(PH_PATH, 'utf8')); } catch (e) { phHist = {}; }
+  if (upcoming && hits.board.length) {
+    const started = schedule.some(g => g.date === upcoming && g.type === 2 && !['FUT', 'PRE'].includes(g.state));
+    const quote = (r) => { const L = Object.keys(r.p).map(Number).reduce((b, x) => Math.abs(r.p[x] - 0.5) < Math.abs(r.p[b] - 0.5) ? x : b); return [r.mu, L, r.p[L]]; };
+    const bk = new Map(blocks.board.map(r => [r.pid, r]));
+    if (!started) phHist[upcoming] = hits.board.filter(r => bk.has(r.pid)).map(r =>
+      [r.pid, ...quote(r), null, r.gameId, r.name, r.team, r.opp, ...quote(bk.get(r.pid)), null]);
+  }
+  let phGraded = 0;
+  for (const [d, rows] of Object.entries(phHist)) {
+    if (!rows.some(x => x[4] == null)) continue;
+    const gids = [...new Set(rows.map(x => x[5]))];
+    if (!gids.every(id => recapGames[id])) continue;
+    const dressed = await dressedIn(gids);
+    if (!dressed) continue;
+    phHist[d] = rows.map(x => {
+      const y = x.slice(), b = physBox.get(x[0] + '|' + x[5]);
+      y[4] = dressed.has(x[0]) && b ? b.hits : -1; y[12] = dressed.has(x[0]) && b ? b.bks : -1;
+      return y;
+    });
+    phGraded++;
+  }
+  fs.writeFileSync(PH_PATH, JSON.stringify(phHist));
+  const phDone = Object.values(phHist).filter(r => r.every(x => x[4] != null)).length;
+  console.log(`  hits/blocks history: ${Object.keys(phHist).length} nights frozen, ${phDone} graded${phGraded ? ` (${phGraded} new)` : ''}`);
 
   // ── 7c) Freeze and grade the Saves board ──────────────────────────────
   // Same cycle again, both markets at their quoted (closest-to-even) lines:
@@ -497,7 +556,7 @@ async function main() {
     teams, schedule, dates,
     recap, recapDates, recapGames,
     leaders: L.skaters, goalies: L.goalies,
-    shots, picks, saves, points, fun,
+    shots, picks, saves, points, hits, blocks, fun,
     // measured parlay multipliers (research/nhl_pairs.py, research/nhl_stacks.py):
     // goal-scorer groups vs the naive product, and scorer + assister stacks by
     // how many games this season the assister has set the scorer up

@@ -14,6 +14,9 @@ import { web, rest, restPaged } from './nhl-api.js';
 import { sogFeatures, projectSog, ladder, SOG_MODEL } from './nhl-sog.js';
 import { goalFeatures, priceGoal, GOAL_MODEL, ppFeatures, pricePp, goalMarkets, MARKET_CUTS } from './nhl-goals.js';
 import { pointsFeatures, projectPoints, PT_MODEL } from './nhl-points.js';
+import { physFeatures, projectPhys, physOver, physMeta } from './nhl-phys.js';
+import { homeWin } from './nhl-lines.js';
+import fs from 'node:fs';
 
 const RECENT_DATES = 22;          // enough to cover a last-10 for everyone
 
@@ -21,16 +24,20 @@ const secs = (v) => (typeof v === 'number' ? v : 0);
 
 /** Season aggregates, keyed by playerId. */
 async function aggregates(season) {
-  const [sum, toi] = await Promise.all([
+  const [sum, toi, rt] = await Promise.all([
     restPaged(`/skater/summary?cayenneExp=seasonId=${season} and gameTypeId=2`, Infinity,
       [{ property: 'playerId', direction: 'ASC' }]),
     restPaged(`/skater/timeonice?cayenneExp=seasonId=${season} and gameTypeId=2`, Infinity,
       [{ property: 'playerId', direction: 'ASC' }]),
+    // realtime: hits, blocked shots and shot attempts, for /nhl/hits and /nhl/blocks
+    restPaged(`/skater/realtime?cayenneExp=seasonId=${season} and gameTypeId=2`, Infinity,
+      [{ property: 'playerId', direction: 'ASC' }]),
   ]);
   const t = Object.fromEntries(toi.map(r => [r.playerId, r]));
+  const re = Object.fromEntries(rt.map(r => [r.playerId, r]));
   const out = {};
   for (const r of sum) {
-    const x = t[r.playerId] || {};
+    const x = t[r.playerId] || {}, y = re[r.playerId] || {};
     out[r.playerId] = {
       pid: r.playerId, name: r.skaterFullName, pos: r.positionCode,
       team: (r.teamAbbrevs || '').split(',').pop().trim(),
@@ -38,6 +45,8 @@ async function aggregates(season) {
       a: r.assists || 0, pts: r.points || 0, ppp: r.ppPoints || 0,
       toi: secs(r.timeOnIcePerGame) * (r.gamesPlayed || 0),
       pptoi: secs(x.ppTimeOnIcePerGame) * (r.gamesPlayed || 0),
+      shtoi: secs(x.shTimeOnIcePerGame) * (r.gamesPlayed || 0),
+      hits: y.hits || 0, bks: y.blockedShots || 0, icf: y.totalShotAttempts || 0,
     };
   }
   return out;
@@ -48,17 +57,20 @@ async function recentGames(dates) {
   const log = new Map();
   for (const d of dates) {
     const exp = `gameDate>="${d}" and gameDate<="${d}" and gameTypeId=2`;
-    const [sum, toi] = await Promise.all([
+    const [sum, toi, rt] = await Promise.all([
       restPaged(`/skater/summary?cayenneExp=${exp}`, Infinity, [{ property: 'playerId', direction: 'ASC' }]),
       restPaged(`/skater/timeonice?cayenneExp=${exp}`, Infinity, [{ property: 'playerId', direction: 'ASC' }]),
+      restPaged(`/skater/realtime?cayenneExp=${exp}`, Infinity, [{ property: 'playerId', direction: 'ASC' }]),
     ]);
     const t = Object.fromEntries(toi.map(r => [r.playerId, r]));
+    const re = Object.fromEntries(rt.map(r => [r.playerId, r]));
     for (const r of sum) {
-      const x = t[r.playerId] || {};
+      const x = t[r.playerId] || {}, y = re[r.playerId] || {};
       if (!log.has(r.playerId)) log.set(r.playerId, []);
       log.get(r.playerId).push({
         date: d, sog: r.shots || 0, a: r.assists || 0, pts: r.points || 0, ppp: r.ppPoints || 0,
-        toi: secs(r.timeOnIcePerGame), pptoi: secs(x.ppTimeOnIcePerGame),
+        toi: secs(r.timeOnIcePerGame), pptoi: secs(x.ppTimeOnIcePerGame), shtoi: secs(x.shTimeOnIcePerGame),
+        hits: y.hits || 0, bks: y.blockedShots || 0,
       });
     }
   }
@@ -112,6 +124,47 @@ export async function buildShotsBoard({ season, prevSeason, games, playedDates }
   const GL = GOAL_MODEL.league;
   const teamGf = (ab) => (teamRates[ab]?.w ? teamRates[ab].gf / teamRates[ab].w : GL.team_gf);
   const teamPk = (ab) => (teamRates[ab]?.w ? teamRates[ab].pk / teamRates[ab].w : null);
+
+  // Shot attempts a club takes per game (its skaters' attempts over its games),
+  // this season and last at the same 1 : 0.35 weights — the hits and blocks
+  // boards' opponent term.
+  const cfRates = {};
+  for (const [agg, rows, w] of [[prev, teamPrev, 0.35], [cur, teamCur, 1.0]]) {
+    const gp = Object.fromEntries(rows.map(r => [TEAM_ABBREV[r.teamFullName], r.gamesPlayed || 0]));
+    const tot = {};
+    for (const x of Object.values(agg)) if (x.team) tot[x.team] = (tot[x.team] || 0) + (x.icf || 0);
+    for (const [ab, n] of Object.entries(tot)) {
+      if (!gp[ab]) continue;
+      const e = (cfRates[ab] ||= { cf: 0, w: 0 });
+      e.cf += n * w; e.w += gp[ab] * w;
+    }
+  }
+  const teamCf = (ab) => (cfRates[ab]?.w ? cfRates[ab].cf / cfRates[ab].w : null);
+
+  // Each rink's hits and blocks per game this season, both clubs, off the season
+  // archive (players.json) — scorekeepers differ by arena and change between
+  // seasons, so it is this season only and neutral until the rink has games.
+  const arenaTot = {};
+  try {
+    const PL = JSON.parse(fs.readFileSync(new URL('../nhl/players.json', import.meta.url), 'utf8'));
+    const ci = Object.fromEntries((PL.cols?.sk || []).map((c, i) => [c, i]));
+    if (PL.season === season && ci.hit != null) {
+      const games = {};
+      for (const e of Object.values(PL.p || {})) {
+        if (e.pos === 'G') continue;
+        for (const r of e.g) {
+          if (r[ci.hit] == null) continue;
+          const rink = r[ci.home] ? e.tm : r[ci.opp];
+          const g = (games[`${r[ci.day]}|${rink}`] ||= { rink, hits: 0, bks: 0 });
+          g.hits += r[ci.hit]; g.bks += r[ci.bk] || 0;
+        }
+      }
+      for (const g of Object.values(games)) {
+        const a = (arenaTot[g.rink] ||= { n: 0, hits: 0, bks: 0 });
+        a.n++; a.hits += g.hits; a.bks += g.bks;
+      }
+    }
+  } catch (e) { /* no archive yet: every rink neutral */ }
   const teamGa = (ab) => (teamRates[ab]?.w ? teamRates[ab].ga / teamRates[ab].w : GL.opp_ga);
   const picks = [];
 
@@ -137,7 +190,7 @@ export async function buildShotsBoard({ season, prevSeason, games, playedDates }
     } catch (e) { /* a missing roster leaves that club off the board, not wrong on it */ }
   }));
 
-  const board = [], points = [];
+  const board = [], points = [], phys = { hits: [], bks: [] };
   for (const [pid, rs] of roster) {
     const a = cur[pid], b = prev[pid];
     const who = a || b;
@@ -219,6 +272,29 @@ export async function buildShotsBoard({ season, prevSeason, games, playedDates }
         recent: { pts: rec.slice(-10).map(x => x.pts), a: rec.slice(-10).map(x => x.a), ppp: rec.slice(-10).map(x => x.ppp) },
       });
     }
+    // Hits and blocked shots, off the same career history and recent games
+    {
+      const rec = (log.get(+pid) || []);
+      const sumk = (k) => (a?.[k] || 0) + (b?.[k] || 0);
+      const role = (rs.pos || who.pos) === 'D' ? 'D' : 'F';
+      const pf = physFeatures({ role, h: { gp, hits: sumk('hits'), bks: sumk('bks'), toi: hist.toi, shtoi: sumk('shtoi') },
+        recent: rec.slice(-10), oppCf: teamCf(opp[team]), isHome: home[team], arena: arenaTot[g.home],
+        winP: g.lam ? (home[team] ? homeWin(g.lam.h, g.lam.a) : 1 - homeWin(g.lam.h, g.lam.a)) : null });
+      if (pf) for (const kind of ['hits', 'bks']) {
+        const m = projectPhys(kind, pf), M = physMeta(kind);
+        phys[kind].push({
+          pid: +pid, name: who.name, pos: rs.pos || who.pos, team, mug: rs.mug || null,
+          opp: opp[team], home: !!home[team], gameId: g.gameId, date: g.date, start: g.start, gp,
+          mu: +m.toFixed(3),
+          f: { prior: +pf[kind + '_prior'].toFixed(3), l5: +pf[kind + '_l5'].toFixed(2), l10: +pf[kind + '_l10'].toFixed(2),
+               toi: +pf.toi_l5.toFixed(0), shtoi: +pf.shtoi_l5.toFixed(0), oppCf: +pf.opp_cf_prior.toFixed(1),
+               arena: +pf['arena_' + kind].toFixed(3), rink: g.home, rinkGames: arenaTot[g.home]?.n || 0,
+               winP: +(0.5 - pf.underdog).toFixed(3) },
+          recent: rec.slice(-10).map(r => r[kind] || 0),
+          p: Object.fromEntries(M.lines.map(L => [L, +physOver(kind, L, m).toFixed(4)])),
+        });
+      }
+    }
     board.push({
       pid: +pid, name: who.name, pos: rs.pos || who.pos, team, mug: rs.mug || null,
       opp: opp[team], home: !!home[team], gameId: g.gameId, date: g.date, start: g.start,
@@ -246,8 +322,10 @@ export async function buildShotsBoard({ season, prevSeason, games, playedDates }
   for (const p of picks) { p.lineup = lineup.has(p); delete p._lastDate; delete p._toi; }
   picks.sort((x, y) => y.p - x.p);
   points.sort((x, y) => y.mu.pts - x.mu.pts);
+  for (const k of ['hits', 'bks']) phys[k].sort((x, y) => y.mu - x.mu);
   return { board, model: meta(), picks, picksModel: picksMeta(), points,
-           pointsModel: { lines: PT_MODEL.lines, rows: PT_MODEL.rows, seasons: PT_MODEL.seasons, backtest: PT_MODEL.backtest } };
+           pointsModel: { lines: PT_MODEL.lines, rows: PT_MODEL.rows, seasons: PT_MODEL.seasons, backtest: PT_MODEL.backtest },
+           phys, physModel: { hits: physMeta('hits'), bks: physMeta('bks') } };
 }
 
 function picksMeta() {
