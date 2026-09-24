@@ -1143,12 +1143,10 @@
      neither), stronger the bigger the move. m0 unchanged, m1 small, m2 real, m3 big. */
   :root { --mvc: #8b9cff; }
   :root[data-theme="light"] { --mvc: #4a57d8; }
-  /* ── Game cards, scoreboard-style: away left, home right, runs big, the game's state between ──
-     Each side takes a soft wash of its club colour (categorical, not the good/bad ramp). */
+  /* ── Game cards, scoreboard-style: away left, home right, runs big, the game's state between ── */
   .sched-list.gc-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); grid-auto-flow: dense; gap: 0.55rem; }
   .gc-list .sched-game.expanded { grid-column: 1 / -1; }
-  .gc-card { --wash: 20%; background: linear-gradient(90deg, color-mix(in srgb, var(--ca) var(--wash), var(--surface0)) 0%, var(--surface0) 42%, var(--surface0) 58%, color-mix(in srgb, var(--cb) var(--wash), var(--surface0)) 100%); padding: 0.45rem 0.7rem 0.5rem; }
-  :root[data-theme="light"] .gc-card { --wash: 11%; }
+  .gc-card { position: relative; padding: 0.45rem 0.7rem 0.5rem; }
   .gc-hit { cursor: pointer; }
   .gc { display: grid; grid-template-columns: 4.2rem 1fr 6.6rem 1fr 4.2rem; grid-template-rows: auto auto; align-items: center; }
   .gc-homer { grid-column: 1 / -1; text-align: center; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--dim); margin-bottom: 0.1rem; }
@@ -1189,7 +1187,6 @@
   .gc-hr.ours { color: var(--gold); font-weight: 600; }
   .gc-dot { color: var(--dim); }
   .gc-card .sched-expand-row { margin-top: 0.3rem; }
-  .gc-card { position: relative; }
   .gc-card.started .sched-expand-row { position: absolute; right: 0.7rem; bottom: 0.5rem; margin: 0; }
   .gc-card.started .gc-hrs { padding: 0 1.1rem; }
   .gc-card.started.expanded .sched-expand-row { top: 0.5rem; bottom: auto; }
@@ -6395,7 +6392,7 @@ function renderSchedule() {
     const venue = `<div class="sched-venue-row">${g.venue}${venueGames ? ` · <span class="hrg-val ${venueCls}">${venueHRG.toFixed(2)}</span> HR/G` : ''}${schedWeatherChip(g.weather)}</div>`;
     const st = final ? 'final' : started ? 'live' : 'pre';
     const homerTag = g.homer ? `<div class="gc-homer" title="Homer Score — HR-betting confidence for this game (park ${g.homer.park}× · weather ${g.homer.weather}× · lineups ${g.homer.bat}× · starters ${g.homer.sp}× · pens ${g.homer.pen}×)">Homer Score <b class="${homerScoreClass(g.homer.score)}">${g.homer.score}</b></div>` : '';
-    return `<div class="sched-game gc-card${started ? ' started' : ''}" id="sched-game-${g.gamePk}" style="--ca:${teamColor(awayLabel)};--cb:${teamColor(homeLabel)}">
+    return `<div class="sched-game gc-card${started ? ' started' : ''}" id="sched-game-${g.gamePk}">
       <div class="gc-hit" onclick="toggleSchedGame(${g.gamePk})">
         ${mlbGameCard(g, awayLabel, homeLabel, box, st, homerTag)}
         ${started ? mlbHomers(g, awayLabel, homeLabel, box) : venue}
