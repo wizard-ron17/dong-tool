@@ -1144,11 +1144,9 @@
   :root { --mvc: #8b9cff; }
   :root[data-theme="light"] { --mvc: #4a57d8; }
   /* ── Game cards, scoreboard-style: away left, home right, runs big, the game's state between ── */
-  .sched-list.gc-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); grid-auto-flow: dense; gap: 0.55rem; }
-  .gc-list .sched-game.expanded { grid-column: 1 / -1; }
   .gc-card { position: relative; padding: 0.45rem 0.7rem 0.5rem; }
   .gc-hit { cursor: pointer; }
-  .gc { display: grid; grid-template-columns: 4.2rem 1fr 6.6rem 1fr 4.2rem; grid-template-rows: auto auto; align-items: center; }
+  .gc { display: grid; max-width: 560px; margin: 0 auto; grid-template-columns: 4.2rem 1fr 6.6rem 1fr 4.2rem; grid-template-rows: auto auto; align-items: center; }
   .gc-homer { grid-column: 1 / -1; text-align: center; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--dim); margin-bottom: 0.1rem; }
   .gc-homer b { font-family: var(--font-d); font-size: 0.78rem; letter-spacing: 0; margin-left: 0.15rem; }
   .gc-homer b.great { color: var(--accent); }
@@ -1190,7 +1188,6 @@
   .gc-card.started .sched-expand-row { position: absolute; right: 0.7rem; bottom: 0.5rem; margin: 0; }
   .gc-card.started .gc-hrs { padding: 0 1.1rem; }
   .gc-card.started.expanded .sched-expand-row { top: 0.5rem; bottom: auto; }
-  .gc-list .sched-game.expanded .gc-hit { max-width: 520px; margin: 0 auto; }
   /* expanded: the full line score (started) or the starters (before) */
   .gc-exp { display: none; margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
   .sched-game.expanded .gc-exp { display: flex; justify-content: center; }
@@ -1205,7 +1202,6 @@
   .sb-he { font-family: var(--font-m); font-size: 0.74rem; color: var(--muted); text-align: center; }
   .sb-row.lost .sb-team, .sb-row.lost .sb-r { color: var(--muted); }
   @media (max-width: 600px) {
-    .sched-list.gc-list { grid-template-columns: 1fr; }
     .sb { grid-template-columns: minmax(3.6rem, auto) repeat(var(--sb-n), 1.15rem) 1.6rem 1.3rem 1.3rem; }
     .sb-i { font-size: 0.66rem; }
   }
@@ -6377,7 +6373,7 @@ function renderSchedule() {
   </div>` : '';
   const digestBtn = `<button class="dinger-digest-btn" onclick="openDingerDigest()" title="A GMG-style slate sheet of today's pitching matchups, park/weather, Homer Scores, and our best HR leans — screenshot &amp; share">🚀 Dinger Digest</button>`;
   const toolbar = `<div class="sched-toolbar">${sortBar || '<span></span>'}${digestBtn}</div>`;
-  contentEl.innerHTML = legend + toolbar + `<div class="sched-list gc-list">${sorted.map(g => {
+  contentEl.innerHTML = legend + toolbar + `<div class="sched-list">${sorted.map(g => {
     const info = schedStatusInfo(g);
     const lineupStatus = schedLineupStatus(g);
     const awayLabel = g.away.teamAbbr || g.away.teamName, homeLabel = g.home.teamAbbr || g.home.teamName;
