@@ -415,6 +415,18 @@ def main():
     for c in ("snap_last3", "snap_last5"):
         df[c] = df[c].fillna(df["snap_share_prior"])
     df["snap_trend"] = df["snap_last3"] - df["snap_share_prior"]
+    # stage 8: the same recency for touches. touches_log2 is a 2-season average,
+    # so a back who lost his job keeps last year's workload in the model; the
+    # market reprices him the week it happens. Debut falls back to the prior.
+    # Same 2-season window as touches_prior2: a window reaching further back (a
+    # player back from a lost season) is no reading at all, because the Node
+    # build only loads two seasons of play-by-play.
+    df = add_recency(df, "touches", 3, "touch_last3")
+    g = df.groupby("pid", sort=False)["season"]
+    oldest = np.where(g.cumcount() >= 3, g.shift(3), g.transform("first"))
+    df.loc[oldest < df["season"] - 1, "touch_last3"] = np.nan
+    df["touch_last3"] = df["touch_last3"].fillna(df["touches_prior2"])
+    df["touch_last3_log"] = np.log1p(df["touch_last3"])
 
     # bucket 2 ("player TD ability") — kept so the null result stays reproducible
     df = df.sort_values(["pid", "season", "week"]).reset_index(drop=True)
@@ -492,7 +504,8 @@ def main():
             "first_td", "last_td",
             "snap_share_prior", "rz_touches_prior", "touches_prior", "touches_prior2", "touches_log2",
             "implied_total", "total_line", "spread_line",
-            "snap_last3", "snap_last5", "snap_trend", "td_per_touch_prior",
+            "snap_last3", "snap_last5", "snap_trend", "touch_last3", "touch_last3_log",
+            "td_per_touch_prior",
             "mates_out", "new_absence",
             "d_td_vs_pos", "d_rz_td_rate", "d_plays_all", "d_rz_trips_all",
             "t_plays", "t_rz_trips", "t_rz_tds"]

@@ -9,7 +9,7 @@
 
 import { REL, fetchText, fetchOptional, parseCsv, num } from './nflverse.js';
 import { loadCrosswalk, loadSnapLog, loadPbpLogs, loadInjuries, absenceFeatures,
-         playerFeatures, score } from './picks.js';
+         playerFeatures, addLogScale, score } from './picks.js';
 
 const season = +process.argv[2];
 const week = +process.argv[3];
@@ -52,10 +52,8 @@ for (const [pid, games] of snapLog) {
     pid, position: g.position, season, week, snapLog, rzLog, tdLog, touchLog,
     impliedTotal: imp, matesOut, newAbsence,
   });
-  if (row) { row.rz_touches_log = Math.log1p(row.rz_touches_prior);
-             row.td_share_log = Math.log1p(row.td_share_prior);
-             row.touches_log2 = Math.log1p(row.touches_prior2); }
   if (!row) continue;
+  addLogScale(row);
   out.push({ pid, team: g.team, ...row, p: score(row) });
 }
 log(`dumped ${out.length} rows for ${season} week ${week}`);

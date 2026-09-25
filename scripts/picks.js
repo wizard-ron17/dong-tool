@@ -335,6 +335,16 @@ export function playerFeatures({ pid, position, season, week, snapLog, rzLog,
     // a debut has no window; build_dataset.py fills it with the shrunk prior
     snap_last3: lastN(snapVals, 3) ?? shrunkPrior(
       0, 0, null, priorFor('snap_share', position, season)),
+    // touches over his last 3 games played — the games from the snap log, so a
+    // game without a touch counts as the zero it is. The touch log only spans
+    // the red-zone window, so a player whose last games predate it (a lost
+    // season) has no reading and falls back to touches_prior2, as a debut does
+    // (filled in by addLogScale, as build_dataset.py fills it).
+    touch_last3: (() => {
+      const last = snaps.slice(-3);
+      if (!last.length || last[0].season < rzFrom) return null;
+      return lastN(last.map(s => tch.find(t => t.season === s.season && t.week === s.week)?.touches ?? 0), 3);
+    })(),
     implied_total: impliedTotal,
     mates_out: matesOut,
     new_absence: newAbsence,
@@ -347,10 +357,12 @@ export function playerFeatures({ pid, position, season, week, snapLog, rzLog,
  * extreme players enormous leverage over the fit. The raw columns stay for
  * display — the modal shows touches per game, not a logarithm.
  */
-function addLogScale(row) {
+export function addLogScale(row) {
   row.rz_touches_log = Math.log1p(row.rz_touches_prior);
   row.td_share_log = Math.log1p(row.td_share_prior);
   row.touches_log2 = Math.log1p(row.touches_prior2);
+  row.touch_last3 ??= row.touches_prior2;
+  row.touch_last3_log = Math.log1p(row.touch_last3);
   return row;
 }
 
@@ -1513,6 +1525,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
         tdShare: +row.td_share_prior.toFixed(6),
         rz: +row.rz_touches_prior.toFixed(6),
         touches: +row.touches_prior2.toFixed(6),
+        touch3: +row.touch_last3.toFixed(3),
         implied: +row.implied_total.toFixed(4),
         matesOut: row.mates_out, newAbsence: row.new_absence,
       },

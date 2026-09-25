@@ -159,8 +159,20 @@ MODELS = {
     "M10 +touches":  ["snap_share_prior", "implied_total", "rz_touches_log",
                       "snap_last3", "mates_out", "new_absence",
                       "td_share_log", "touches_log2"],
+    # stage 8: last-3-game touches, logged — stage 3's recency applied to the
+    # touches term. Found by pricing the board against Kalshi (Sep 2026): our
+    # biggest disagreements were backups who had lost their role (Vidal, Tracy,
+    # B. Smith at ~3x the market), because touches_log2 still carried last
+    # year's workload. Walk-forward 2019-2025, better in 6 of 7 seasons: log
+    # loss 0.39827 -> 0.39742, AUC 0.7468 -> 0.7486. It fixes exactly that bias:
+    # players whose recent touches fell well below their prior hit 8.4%, priced
+    # 10.1% before and 8.6% after; rising usage 17.2% vs 15.1% -> 17.1%.
+    # Last-3 red-zone touches on top adds 0.00008, not worth a second feature.
+    "M11 +touch last3": ["snap_share_prior", "implied_total", "rz_touches_log",
+                         "snap_last3", "mates_out", "new_absence",
+                         "td_share_log", "touches_log2", "touch_last3_log"],
 }
-FINAL = "M10 +touches"
+FINAL = "M11 +touch last3"
 
 
 def run():
