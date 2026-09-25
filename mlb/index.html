@@ -605,6 +605,26 @@
   .pk-pen-chev.open { transform: rotate(90deg); }
   .pick-factor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
   .pick-factor { background: var(--surface1); border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem 0.45rem; }
+  /* Matchup Lab: table view */
+  .mu-viewbar { margin-bottom: 0.7rem; }
+  .mu-tbl-bar { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+  .mu-tbl-meta { font-size: 0.7rem; color: var(--muted); }
+  .mu-tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 0.8rem; }
+  .mu-tbl { min-width: 760px; font-size: 0.78rem; }
+  .mu-tbl td { padding: 0.36rem 0.5rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .mu-tbl td.r { text-align: right; font-family: var(--font-d); }
+  .mu-tbl-row { cursor: pointer; }
+  .mu-tbl-row:hover td { background: var(--surface1); }
+  .mu-tbl-started td { opacity: 0.5; }
+  .mu-tbl-bat { display: flex; align-items: center; gap: 0.3rem; }
+  .mu-tbl-bat .team-logo { width: 16px; height: 16px; }
+  .mu-tbl-vs { font-size: 0.68rem; color: var(--muted); margin-top: 0.1rem; }
+  .mu-tbl-ord i { font-style: normal; font-size: 0.6rem; color: var(--dim); margin-left: 1px; }
+  .mu-tbl-tag { font-size: 0.7rem; }
+  .mu-tbl-na { color: var(--dim); }
+  .mu-tbl th.mu-tbl-hl, .mu-tbl td.mu-tbl-hl { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  .mu-tbl td.mu-tbl-spot { font-weight: 700; }
+  .mu-tbl-pow { color: var(--muted); }
   /* Matchups (Matchup Lab) */
 
   /* Tools button: an invitation, not just another tab — tinted and outlined,
@@ -2565,8 +2585,9 @@
       <div class="due-explainer-body" id="matchups-explainer-body" style="display:none">
         <ul>
           <li>Pick <b>any</b> hitter and <b>any</b> arm → the same breakdown the Picks board runs: base power, both platoon edges, arm stuff, lineup slot, bullpen, park and weather, combined into a matchup score. Tap the <b>?</b> beside <b>Matchup Factors</b> for what every multiplier means <em>on the pairing in front of you</em>. (The Pitch Matchup chart is context only — it hasn't been part of the score since August.)</li>
-          <li><b>It scores the real game when there is one.</b> The Gameday strip says which: <b>matches the Picks board</b> means this exact pairing is on today's board and the number is identical to it; <b>today's real game</b> means he's in a lineup we project but off the board, so his slot, the park, the forecast and that arm's share of the game are all live — only the opposing bullpen's platoon split sits at league average. <b>Neutral</b> means these two aren't matched up today.</li>
+          <li><b>It scores the real game when there is one.</b> The Gameday strip says which: <b>matches the Picks board</b> means this exact pairing is on today's board and the number is identical to it; <b>today's real game</b> means he's in a lineup we project but off the board, so his slot, the park, the forecast, that arm's share of the game and the opposing bullpen's platoon split are all live. <b>Neutral</b> means these two aren't matched up today.</li>
           <li><b>Every lever is yours.</b> Lineup spot, weather and bullpen can each be overridden to ask "what if he hit leadoff", "what if the wind died", "starter only". Any change flips the strip to a <b>Reset to auto</b> button — that's how you know you've left the real game.</li>
+          <li><b>Table view</b> scores every lineup on today's slate at once — one row per batter vs his starter, a column per factor, tap any header to sort. <b>Spot ×</b> is every factor multiplied together with his power left out (Score = Power × Spot), so sorting by it surfaces non-homer hitters in great spots: the longshots a low score hides. <b>Arm ×</b> is just the pitching side. Tap a row to open it here.</li>
           <li>Defaults to today's top Chalk pick vs the arm he's facing. <b>Tap either name</b> (🔍) to search another player, or type a <b>team code</b> like <b>STL</b> in the batter box to see that whole lineup ranked against the loaded arm — which is where a pitcher's player card sends you.</li>
         </ul>
       </div>
@@ -3249,6 +3270,7 @@ let pitcherStats = {}; // pid -> { hr, hr9, ip, era } for today's probable pitch
 let teamStatus = {};   // club -> 'clinched' | 'eliminated' | 'race', going into today
 let teamOffense = { teams: {}, lg: { kPct: 0.22, bbPct: 0.083 } }; // team K%/BB% for the Pitcher Ks/Walks tools
 let batterDiscipline = {}; // pid -> { k, bb, pa } for the Ks/Walks drill-down (bats most likely to whiff/walk)
+let penVuln = {};  // team abbr -> { L, R, S }: that pen's platoon vulnerability to a batter from each side (build's penPlatoon)
 let bullpens = {}; // team abbr -> [{ pid, name, hand, era, saves, holds, gamesPitched, lastOuting, pitchMix }]
 let weatherByVenue = {}; // venue -> { carry, windForL, windForR } — raw forecast, so any batter's wind can be resolved
 let picks    = []; // today's HR pick candidates, pre-scored server-side (Chalk)
@@ -3727,6 +3749,7 @@ function applyData(data) {
   teamOffense  = data.teamOffense  ?? teamOffense;
   batterDiscipline = data.batterDiscipline ?? {};
   bullpens = data.bullpens ?? {};
+  penVuln = data.penVuln ?? {};
   weatherByVenue = data.weatherByVenue ?? {};
   picks        = data.picks        ?? [];
   value        = data.value        ?? [];
@@ -8512,6 +8535,11 @@ function muSchedGame(bpid, ppid) {
       if (String(opp.probablePitcherId || '') !== String(ppid)) continue;
       const spot = (me.lineup || []).find(x => String(x.pid) === String(bpid));
       if (spot) return { g, order: spot.order };
+      // no posted lineup yet: his slot in the projected one (what the table view scores)
+      if (!me.lineup?.length) {
+        const i = projectedLineupFor(me.teamAbbr).findIndex(x => String(x) === String(bpid));
+        if (i >= 0) return { g, order: i + 1 };
+      }
     }
   return null;
 }
@@ -8567,10 +8595,11 @@ function muSchedEnv(b, p) {
   const hit = muSchedGame(b.pid, p.pid);
   if (!hit) return null;
   const { g, order } = hit;
+  const oppTeam = [g.home, g.away].find(sd => String(sd.probablePitcherId || '') === String(p.pid))?.teamAbbr;
   return {
     venue: g.venue, order,
     sW: muStarterShare(p.pid) ?? 1,
-    pen: null,                                   // not reconstructible client-side
+    pen: muPenFor(oppTeam, b.hand),              // the build's per-team pen split (null before it ships)
     pa: muPaFactor(order),
     wx: muWeatherRatio(g.venue, b.hand, p.hand) ?? 1,
   };
@@ -8580,14 +8609,18 @@ function muSchedEnv(b, p) {
  * today's schedule, then neutral. `src` says which, because the difference is
  * a claim the UI makes — only a board row can promise the same number Picks has.
  */
+/** A board row's own environment, pinned to the numbers the board scored. */
+const muBoardEnv = (row) => ({ sW: row.starterShare ?? 1, pen: row.bullpenPlatoonFactor ?? null,
+  pa: row.lineupPAFactor ?? 1, wx: row.weatherRatio ?? 1,
+  pin: { base: row.basePower, form: row.recentFormRatio, batP: row.batterPlatoonRatio,
+         pitP: row.pitcherPlatoonRatio, stuff: row.pitcherStuffRatio } });
+/** The opposing pen's platoon vulnerability for a batter from this side — shipped per team by the build. */
+const muPenFor = (team, hand) => penVuln?.[team]?.[hand] ?? null;
 function muEnvFor(b, p) {
   const row = muGameRow(b, p);
   const sch = row ? null : muSchedEnv(b, p);
   const base = row
-    ? { sW: row.starterShare ?? 1, pen: row.bullpenPlatoonFactor ?? null,
-        pa: row.lineupPAFactor ?? 1, wx: row.weatherRatio ?? 1,
-        pin: { base: row.basePower, form: row.recentFormRatio, batP: row.batterPlatoonRatio,
-               pitP: row.pitcherPlatoonRatio, stuff: row.pitcherStuffRatio } }
+    ? muBoardEnv(row)
     : sch
     ? { sW: sch.sW, pen: sch.pen, pa: sch.pa, wx: sch.wx }
     : { ...MU_NEUTRAL_ENV };
@@ -9103,7 +9136,102 @@ function renderMatchups() {
     muInitialized = true;
   }
   const b = C._bIdx[muBatterPid], p = C._pIdx[muPitcherPid];
-  el.innerHTML = (b && p) ? matchupBreakdownHtml(b, p) : '<div class="empty">Pick a batter and a pitcher.</div>';
+  const bar = `<div class="lb-toolbar mu-viewbar"><div class="view-switch">
+      <button class="view-btn${muView === 'matchup' ? ' active' : ''}" onclick="setMuView('matchup')" title="One batter vs one arm, every factor explained">Matchup</button>
+      <button class="view-btn${muView === 'table' ? ' active' : ''}" onclick="setMuView('table')" title="Every lineup today vs its starter, one row each, sortable by any factor">Table</button>
+    </div></div>`;
+  el.innerHTML = bar + (muView === 'table' ? muTableHtml()
+    : (b && p) ? matchupBreakdownHtml(b, p) : '<div class="empty">Pick a batter and a pitcher.</div>');
+}
+
+// ── Table view: every lineup at once ────────────────────────────────────
+// The single view answers "how does HE look"; this answers "who looks good" —
+// every batter in today's lineups (posted, else projected) against the
+// opposing starter, scored exactly as the Matchup view would score him, one
+// sortable column per factor. Built for reading the factors directly rather
+// than the score: a 3.0 matchup with green across the pitching side is a
+// weak bat facing a very hittable staff — the longshot hunt.
+let muView = (() => { try { return localStorage.getItem('dt_mu_view') === 'table' ? 'table' : 'matchup'; } catch (e) { return 'matchup'; } })();
+let muTbl = { game: 'all', sort: 'spot', dir: -1 };
+function setMuView(v) { muView = v; try { localStorage.setItem('dt_mu_view', v); } catch (e) {} renderMatchups(); }
+function muTblSort(k) { muTbl.dir = muTbl.sort === k ? -muTbl.dir : (k === 'ord' || k === 'name' ? 1 : -1); muTbl.sort = k; renderMatchups(); }
+function muTblGame(v) { muTbl.game = v; renderMatchups(); }
+function muTblOpen(bpid, ppid, venue) { muView = 'matchup'; try { localStorage.setItem('dt_mu_view', 'matchup'); } catch (e) {} muLoadMatchup(bpid, ppid, venue); }
+function muTableRows() {
+  const C = matchupCards, out = [];
+  for (const g of (todaySchedule || [])) {
+    if (muTbl.game !== 'all' && String(g.gamePk) !== muTbl.game) continue;
+    for (const [me, opp] of [[g.away, g.home], [g.home, g.away]]) {
+      const p = opp.probablePitcherId ? C._pIdx[String(opp.probablePitcherId)] : null;
+      if (!p) continue;                                          // starter TBD: nothing to score against
+      const posted = !!me.lineup?.length;
+      const spots = posted ? me.lineup.map(x => [String(x.pid), x.order]) : projectedLineupFor(me.teamAbbr).map((x, i) => [String(x), i + 1]);
+      for (const [bpid, ord] of spots) {
+        const b = C._bIdx[bpid]; if (!b) continue;
+        const row = muGameRow(b, p);
+        const env = row ? { ...muBoardEnv(row), exactMF: row.matchupFactor ?? undefined }
+          : { sW: muStarterShare(p.pid) ?? 1, pen: muPenFor(opp.teamAbbr, b.hand), pa: muPaFactor(ord), wx: muWeatherRatio(g.venue, b.hand, p.hand) ?? 1 };
+        const s = scoreMatchup(b, p, g.venue, env), f = s.factors;
+        out.push({ g, b, p, ord, posted, s, f, board: row ? ((picks || []).includes(row) ? 'chalk' : 'value') : null,
+          arm: f.effPlat != null && f.effStuff != null ? f.effPlat * f.effStuff : (f.effPlat ?? f.effStuff ?? null) });
+      }
+    }
+  }
+  return out;
+}
+function muTableHtml() {
+  const rows = muTableRows();
+  const games = (todaySchedule || []).filter(g => [g.home, g.away].some(sd => sd.probablePitcherId));
+  const gameOpts = `<option value="all"${muTbl.game === 'all' ? ' selected' : ''}>All games (${games.length})</option>` + games.map(g =>
+    `<option value="${g.gamePk}"${muTbl.game === String(g.gamePk) ? ' selected' : ''}>${g.away.teamAbbr} @ ${g.home.teamAbbr} · ${schedTimeLabel(g)}</option>`).join('');
+  const fc = (v) => v == null ? '' : v >= 1.05 ? 'great' : v >= 1.02 ? 'good' : v <= 0.95 ? 'bad' : 'avg';
+  const fx = (v) => v == null ? '<span class="mu-tbl-na">—</span>' : v.toFixed(2);
+  // Spot is a product of ~7 factors, so nearly everyone clears 1.05 — color it
+  // against today's slate instead: top fifth green, bottom fifth red.
+  const spots = rows.map(r => r.s.matchupFactor).filter(v => v != null).sort((x, y) => x - y);
+  const q = (t) => spots.length ? spots[Math.min(spots.length - 1, Math.floor(t * spots.length))] : 1;
+  const [s20, s40, s80] = [q(0.2), q(0.4), q(0.8)];
+  const spotCls = (v) => v == null ? '' : v >= s80 ? 'great' : v > s40 ? 'good' : v <= s20 ? 'bad' : 'avg';
+  const num = (cls, txt, extra = '') => `<td class="r${cls ? ' hrg-val ' + cls : ''}${extra}">${txt}</td>`;
+  const fcol = (k, lbl, get, tip) => ({ k, lbl, get, tip, cell: r => num(fc(get(r)), fx(get(r))) });
+  // Spot, Power and Score lead so they stay on a phone screen; the factors scroll.
+  const COLS = [
+    { k: 'ord', lbl: '#', get: r => r.ord, tip: 'Lineup slot (posted, or projected)',
+      cell: r => `<td class="r mu-tbl-ord">${r.ord}${r.posted ? '' : '<i title="Projected lineup">p</i>'}</td>` },
+    { k: 'name', lbl: 'Batter', get: r => r.b.name, tip: 'Batter vs today\'s opposing starter', left: 1,
+      cell: r => { const tag = r.board === 'chalk' ? '<span class="mu-tbl-tag" title="On the Chalk board">🔒</span>' : r.board === 'value' ? '<span class="mu-tbl-tag" title="On the Value board">🎯</span>' : '';
+        return `<td><div class="mu-tbl-bat">${teamLogoImg(r.b.team, 'team-logo')}<b>${compactPlayerName(r.b.name)}</b>${handBadge(r.b.hand, 'bats')}${tag}</div><div class="mu-tbl-vs">vs ${compactPlayerName(r.p.name)} ${r.p.hand ? `<span class="pk-hand ${r.p.hand.toLowerCase()}">${r.p.hand}</span>` : ''}</div></td>`; } },
+    { k: 'spot', lbl: 'Spot ×', get: r => r.s.matchupFactor, hl: 1,
+      tip: 'Every factor multiplied together WITHOUT his power — how good his spot is today. Score = Power × Spot. A high Spot on a low-power bat is the longshot: a non-homer hitter in a great spot. Colored against today\'s slate (top fifth green).',
+      cell: r => num(spotCls(r.s.matchupFactor), fx(r.s.matchupFactor), ' mu-tbl-spot') },
+    { k: 'power', lbl: 'Power', get: r => r.b.basePower, tip: 'Base power — his HR rate per AB (blended toward Blast%), before any matchup factor. The one thing Spot leaves out.',
+      cell: r => num('', r.b.basePower != null ? (r.b.basePower * 100).toFixed(1) + '%' : '—', ' mu-tbl-pow') },
+    { k: 'score', lbl: 'Score', get: r => r.s.pickScore, tip: 'Matchup score — Power × Spot, the Picks board number',
+      cell: r => `<td class="r"><b class="ps-ramp" ${psRamp(r.s.pickScore)}>${r.s.pickScore.toFixed(1)}</b></td>` },
+    { ...fcol('arm', 'Arm ×', r => r.arm, 'Pitching Vuln × Arm Stuff — just who is on the mound, in one number.'), hl: 1 },
+    fcol('vuln', 'P. Vuln', r => r.f.effPlat, 'Pitching vulnerability: the starter\'s split vs his side blended with the bullpen\'s over their shares of the game'),
+    fcol('stuff', 'Stuff', r => r.f.effStuff, 'Arm stuff: barrels allowed and velocity, over the starter\'s innings'),
+    fcol('batP', 'Platoon', r => r.f.batP, 'His own split vs this arm\'s hand'),
+    fcol('form', 'Contact', r => r.f.form, 'Recent contact quality'),
+    fcol('pa', 'PA', r => r.f.pa, 'Lineup slot — more trips to the plate up top'),
+    fcol('park', 'Park', r => r.f.park, 'Park HR factor'),
+    fcol('wx', 'Wx', r => r.f.wx, 'Weather: air density and wind along his pull side'),
+    { k: 'hrs', lbl: 'HR', get: r => r.b.hrs ?? 0, tip: 'Season home runs', cell: r => num('', r.b.hrs ?? 0) },
+  ];
+  const col = COLS.find(c => c.k === muTbl.sort) || COLS.find(c => c.k === 'spot');
+  rows.sort((a, b) => { const x = col.get(a), y = col.get(b);
+    if (x == null) return 1; if (y == null) return -1;
+    return (typeof x === 'string' ? x.localeCompare(y) : x - y) * muTbl.dir || b.s.pickScore - a.s.pickScore; });
+  const th = COLS.map(c => `<th class="${c.left ? '' : 'r'}${c.k === muTbl.sort ? (muTbl.dir > 0 ? ' sort-asc' : ' sort-desc') : ''}${c.hl ? ' mu-tbl-hl' : ''}" onclick="muTblSort('${c.k}')" title="${c.tip}">${c.lbl}</th>`).join('');
+  const body = rows.map(r => `<tr class="mu-tbl-row${r.g.started ? ' mu-tbl-started' : ''}" onclick="muTblOpen('${r.b.pid}','${r.p.pid}','${(r.g.venue || '').replace(/'/g, "\\'")}')" title="Open ${r.b.name.replace(/"/g, '&quot;')} vs ${r.p.name.replace(/"/g, '&quot;')} in the Matchup view">${COLS.map(c => c.cell(r).replace('<td class="r', c.hl ? '<td class="r mu-tbl-hl' : '<td class="r')).join('')}</tr>`).join('');
+  const posted = rows.filter(r => r.posted).length;
+  return `<div class="mu-tbl-bar">
+      <select class="mu-select" onchange="muTblGame(this.value)" aria-label="Game">${gameOpts}</select>
+      <span class="mu-tbl-meta">${rows.length} bats · ${posted} from posted lineups, ${rows.length - posted} projected${Object.keys(penVuln || {}).length ? '' : ' · pen splits at league average until the next data build'}</span>
+    </div>
+    ${rows.length ? `<div class="mu-tbl-wrap"><table class="lb-table mu-tbl"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`
+      : '<div class="empty">No scoreable lineups — starters are still TBD.</div>'}
+    <div class="mu-note">Each row is scored exactly as the Matchup view scores that pairing. Score = <b>Power</b> × <b>Spot</b>. Spot is every factor with his power left out, so sorting by it (the default) surfaces non-homer hitters in great spots — the longshots a low score hides. <b>Arm ×</b> is just the pitching side (vulnerability × stuff). Green helps the hitter, red hurts him (≥1.05 / ≤0.95). Tap a row to open it.</div>`;
 }
 // Today's opposing SP + venue for each team, from the schedule — lets us turn any
 // hitter (e.g. a Due-list bat, whose row carries no opponent) into a full matchup.
@@ -9248,7 +9376,7 @@ function matchupBreakdownHtml(b, p) {
     <div class="mu-note">${live
       ? `Scored in today's real environment, so this is the same number the <a href="javascript:void(0)" onclick="switchNav('picks')">Picks</a> board has for him${row && row.pickScore != null ? ` (<b>${row.pickScore.toFixed(1)}</b>)` : ''} — his lineup spot, the forecast, and ${p.name.split(' ').pop()}'s share of the game against that bullpen.`
       : onSched
-      ? `Scored in today's real game — he bats <b>${ordinal(sch.order)}</b> against ${p.name.split(' ').pop()} at <b>${sch.venue}</b>, with ${sch.wx !== 1 ? 'the forecast and ' : ''}that arm's share of the game already in the number. He isn't on the <a href="javascript:void(0)" onclick="switchNav('picks')">Picks</a> board, so ${sch.wx !== 1 ? 'the opposing bullpen\'s platoon split is the one piece' : 'the forecast and the opposing bullpen\'s platoon split are the pieces'} left at league average.`
+      ? `Scored in today's real game — he bats <b>${ordinal(sch.order)}</b> against ${p.name.split(' ').pop()} at <b>${sch.venue}</b>, with ${sch.wx !== 1 ? 'the forecast and ' : ''}that arm's share of the game already in the number. He isn't on the <a href="javascript:void(0)" onclick="switchNav('picks')">Picks</a> board, ${sch.pen != null && sch.wx !== 1 ? 'but every piece is live — the same arithmetic the board runs, he\'s just below its cut.' : `so ${[sch.wx !== 1 ? null : 'the forecast', sch.pen != null ? null : 'the opposing bullpen\'s platoon split'].filter(Boolean).join(' and ')} ${sch.wx !== 1 || sch.pen != null ? 'is' : 'are'} left at league average.`}`
       : touched
       ? 'Scored in the environment set above — change any control back to Auto to return to the real game.'
       : p.role === 'RP' || p.role === 'CL'

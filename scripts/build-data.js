@@ -1141,6 +1141,26 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
     const synergyScores = rows.map(r => r.synergyScore).filter(s => s > 0).sort((a, b) => a - b);
     const medianSynergy = synergyScores.length ? synergyScores[Math.floor(synergyScores.length / 2)] : 0;
     const avgPitcherRate = (leaguePitcherRateSame + leaguePitcherRateOpp) / 2 || 1;
+    // A club's available relievers (skipping arms that worked yesterday with 25+
+    // pitches), and how hittable they are for a batter from one side: each arm's
+    // league platoon rate vs that side, weighted by games pitched. It depends
+    // only on the pen and the batter's side, so it also ships per team (penVuln)
+    // for the Matchup Lab's table, which scores bats that never reach a board.
+    const penArms = (team) => (bullpensMap?.[team] ?? []).filter(rel => {
+      if (!rel.lastOuting) return true;
+      return !(daysSince(rel.lastOuting.date) <= 1 && (rel.lastOuting.pitches ?? 0) >= 25);
+    });
+    const penPlatoon = (arms, bHand) => {
+      if (!arms.length) return null;
+      let totalW = 0, platoonSum = 0;
+      for (const rel of arms) {
+        const w = rel.gamesPitched || 1;
+        totalW += w;
+        const effectiveSide = bHand === 'S' ? (rel.hand === 'L' ? 'R' : 'L') : bHand;
+        platoonSum += ((rel.hand === effectiveSide ? leaguePitcherRateSame : leaguePitcherRateOpp) / avgPitcherRate) * w;
+      }
+      return Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, platoonSum / totalW));
+    };
 
     // Pitcher stuff → HR-vulnerability. Baseline is the median 4-seam velo /
     // hard-hit% across today's actual starters (deduped), self-calibrating like
@@ -1171,24 +1191,16 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
 
       // Blend starter and bullpen for the two pitcher-side components.
       // Skip fatigued arms (worked yesterday with 25+ pitches — likely unavailable).
-      const bullpenArms = (bullpensMap?.[r.oppTeam] ?? []).filter(rel => {
-        if (!rel.lastOuting) return true;
-        return !(daysSince(rel.lastOuting.date) <= 1 && (rel.lastOuting.pitches ?? 0) >= 25);
-      });
-
-      let bullpenPlatoonFactor = null, bullpenSynergyRaw = 0;
+      const bullpenArms = penArms(r.oppTeam);
+      const bullpenPlatoonFactor = penPlatoon(bullpenArms, r.bHand);
+      let bullpenSynergyRaw = 0;
       if (bullpenArms.length) {
-        let totalW = 0, platoonSum = 0, synergySum = 0;
+        let totalW = 0, synergySum = 0;
         for (const rel of bullpenArms) {
           const w = rel.gamesPitched || 1;
           totalW += w;
-          // League-prior platoon effect for this reliever vs this batter
-          const effectiveSide = r.bHand === 'S' ? (rel.hand === 'L' ? 'R' : 'L') : r.bHand;
-          const isSame = rel.hand === effectiveSide;
-          platoonSum += ((isSame ? leaguePitcherRateSame : leaguePitcherRateOpp) / avgPitcherRate) * w;
           synergySum += pitchSynergyScore(r.hrProfile, rel.pitchMix) * w;
         }
-        bullpenPlatoonFactor = Math.max(PICKS_RATIO_MIN, Math.min(PICKS_RATIO_MAX, platoonSum / totalW));
         bullpenSynergyRaw = synergySum / totalW;
       }
       r.bullpenPlatoonFactor = bullpenPlatoonFactor;
@@ -1456,7 +1468,12 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
     // handful of names, so the board ranks every scored bat (top 20) instead.
     const post = todaySchedule.some(g => g.gameType && g.gameType !== 'R');
     const board = post ? rows.slice(0, 20) : rows.filter(r => Math.round(r.pickScore * 10) / 10 >= PICKS_MIN_SCORE);
-    return { picks: board, value, cards, stuff, topByTeam };
+    const penVuln = {};
+    for (const team of Object.keys(bullpensMap || {})) {
+      const arms = penArms(team);
+      if (arms.length) penVuln[team] = { L: penPlatoon(arms, 'L'), R: penPlatoon(arms, 'R'), S: penPlatoon(arms, 'S') };
+    }
+    return { picks: board, value, cards, stuff, topByTeam, penVuln };
   } catch (e) { return { picks: [], value: [] }; }
 }
 
@@ -3263,7 +3280,7 @@ async function main() {
   const injuryStatus = await fetchInjuryStatus();
 
   console.log("Computing today's HR picks (matchups, splits, pitch-type profiles)...");
-  const { picks: freshPicks, value: freshValue, cards: matchupCards, stuff: stuffCov, topByTeam = {} } = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue, batMeta, injuryStatus);
+  const { picks: freshPicks, value: freshValue, cards: matchupCards, stuff: stuffCov, topByTeam = {}, penVuln = {} } = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue, batMeta, injuryStatus);
   // Degraded-build guard #2: fetchPlatoonSplits swallows fetch errors into {},
   // which once collapsed a 28-pick slate to 1 pick (every pick null-handed,
   // platoon factors gone, scores under the floor). On a real build with games,
@@ -3659,7 +3676,7 @@ async function main() {
     totalHRCount,
     dailyHRs, hrTypes, hrDetails, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR, playerLastGame,
     teamGameDays, venueGameDays, venueHRsByDate, groupSummary, dueRows, prospects, injuryStatus, dtdStatus,
-    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, teamStatus, teamOffense, batterDiscipline, bullpens, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, schedHistory,
+    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, teamStatus, teamOffense, batterDiscipline, bullpens, penVuln, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, schedHistory,
     // postseason mode: on from the first playoff slate, and through the off days between rounds
     postseason: postDates.size > 0 || todaySchedule.some(g => g.gameType && g.gameType !== 'R') || null, postDates: [...postDates].sort(), birthdays, birthdayHistory,
     // { venue -> { carry, windForL, windForR } }. The picks rows already bake
