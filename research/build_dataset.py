@@ -45,7 +45,7 @@ PBP_COLS = [
     "play_type", "touchdown", "pass_touchdown", "rush_touchdown",
     "td_player_id", "yardline_100", "rush_attempt", "pass_attempt",
     "rusher_player_id", "receiver_player_id", "spread_line", "total_line",
-    "drive", "play_id",
+    "drive", "play_id", "qb_scramble", "qb_kneel",
 ]
 
 
@@ -72,15 +72,21 @@ def game_level(pbp):
 def player_game_events(pbp):
     """Per (game_id, player): offensive TDs, red-zone touches, touches."""
     rush = pbp[(pbp["rush_attempt"] == 1) & pbp["rusher_player_id"].notna()][
-        ["game_id", "posteam", "rusher_player_id", "yardline_100"]
+        ["game_id", "posteam", "rusher_player_id", "yardline_100", "qb_scramble", "qb_kneel"]
     ].rename(columns={"rusher_player_id": "pid"})
+    # designed carries inside the 5: a called run at the goal line, not a
+    # scramble or a kneel. The model uses it for quarterbacks only (stage 9).
+    rush["gl5"] = ((rush["yardline_100"] <= 5) & (rush["qb_scramble"] != 1)
+                   & (rush["qb_kneel"] != 1)).astype(int)
+    rush = rush.drop(columns=["qb_scramble", "qb_kneel"])
     rec = pbp[(pbp["pass_attempt"] == 1) & pbp["receiver_player_id"].notna()][
         ["game_id", "posteam", "receiver_player_id", "yardline_100"]
     ].rename(columns={"receiver_player_id": "pid"})
+    rec["gl5"] = 0
     touch = pd.concat([rush, rec], ignore_index=True)
     touch["rz"] = (touch["yardline_100"] <= 20).astype(int)
     agg = touch.groupby(["game_id", "pid"], as_index=False).agg(
-        touches=("rz", "size"), rz_touches=("rz", "sum")
+        touches=("rz", "size"), rz_touches=("rz", "sum"), gl5=("gl5", "sum")
     )
 
     td = pbp[((pbp["rush_touchdown"] == 1) | (pbp["pass_touchdown"] == 1))
@@ -99,7 +105,7 @@ def player_game_events(pbp):
     out = agg.merge(tds, on=["game_id", "pid"], how="outer")
     out = out.merge(first, on=["game_id", "pid"], how="left")
     out = out.merge(last, on=["game_id", "pid"], how="left")
-    return out.fillna({"touches": 0, "rz_touches": 0, "tds": 0,
+    return out.fillna({"touches": 0, "rz_touches": 0, "gl5": 0, "tds": 0,
                        "first_td": 0, "last_td": 0})
 
 
@@ -330,8 +336,8 @@ def main():
 
     df = pool.merge(ev.drop(columns=["season"]), on=["game_id", "pid"],
                     how="left")
-    df[["touches", "rz_touches", "tds", "first_td", "last_td"]] = df[
-        ["touches", "rz_touches", "tds", "first_td", "last_td"]].fillna(0)
+    df[["touches", "rz_touches", "gl5", "tds", "first_td", "last_td"]] = df[
+        ["touches", "rz_touches", "gl5", "tds", "first_td", "last_td"]].fillna(0)
     df = df.merge(
         gm[["game_id", "posteam", "implied_total", "total_line", "spread_line",
             "defteam"]],
@@ -373,6 +379,7 @@ def main():
     # term. Logged, walk-forward 2017-2025, better in 8 of 9 seasons.
     df = add_form(df, "touches", "touches_prior2", window_seasons=2)
     df = add_form(df, "td_share", "td_share_prior", window_seasons=2)
+    df = add_form(df, "gl5", "gl5_prior", window_seasons=2)
 
     # Both of these are heavily right-skewed — rz_touches_prior has skew 2.05 and
     # reaches z=+6.5, td_share_prior reaches z=+11.3 — while the logistic term is
@@ -387,12 +394,17 @@ def main():
     df["rz_touches_log"] = np.log1p(df["rz_touches_prior"])
     df["td_share_log"] = np.log1p(df["td_share_prior"])
     df["touches_log2"] = np.log1p(df["touches_prior2"])
+    # stage 9: a quarterback's designed carries inside the 5, zero for every
+    # other position (a back's goal-line work is already in rz_touches — the
+    # all-position version is a null). See backtest.py "M12".
+    df["qb_gl5"] = np.log1p(df["gl5_prior"]) * (df["position"] == "QB")
 
     # Snapshot the position priors as add_form saw them (pre-filter frame), so
     # the Node build reproduces the rookie fallback exactly.
     snap = {}
     for col, label in (("snap_pct", "snap_share"), ("rz_touches", "rz_touches"),
-                       ("td_share", "td_share"), ("touches", "touches")):
+                       ("td_share", "td_share"), ("touches", "touches"),
+                       ("gl5", "gl5")):
         t = position_prior(df, col)
         by = {}
         for _, r in t.iterrows():
@@ -498,7 +510,7 @@ def main():
     df = df[keep]
 
     cols = ["season", "week", "game_id", "pid", "player", "position", "team",
-            "defteam", "scored", "tds", "snap_pct", "touches", "rz_touches",
+            "defteam", "scored", "tds", "snap_pct", "touches", "rz_touches", "gl5", "gl5_prior", "qb_gl5",
             "team_tds", "td_share", "td_share_prior",
             "rz_touches_log", "td_share_log",
             "first_td", "last_td",

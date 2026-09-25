@@ -171,8 +171,22 @@ MODELS = {
     "M11 +touch last3": ["snap_share_prior", "implied_total", "rz_touches_log",
                          "snap_last3", "mates_out", "new_absence",
                          "td_share_log", "touches_log2", "touch_last3_log"],
+    # stage 9: quarterback goal-line carries. The board had Josh Allen at 37%
+    # against a 56% market, and out of sample the top eighth of QB prices ran
+    # 30.3% against 35.5% actual: rushing QBs (Allen 2023 hit 73.7% on a 29.9%
+    # price, Hurts 2024 68% on 38%, Dart 2025 50% on 18%). Designed carries
+    # inside the 5, 2-season window, logged, for QBs only. Walk-forward
+    # 2019-2025, better in 6 of 7 seasons: QB log loss 0.37567 -> 0.37310, QB
+    # AUC 0.6949 -> 0.6999, and the QB top eighth 35.6% vs 36.0% actual. Inside
+    # the 10 fits QBs a hair better but overshoots the top (38.0% vs 35.9%);
+    # all designed carries and scrambles add nothing on top; the same feature
+    # for every position is a null (a back's goal-line work is in rz_touches).
+    "M12 +qb goal line": ["snap_share_prior", "implied_total", "rz_touches_log",
+                          "snap_last3", "mates_out", "new_absence",
+                          "td_share_log", "touches_log2", "touch_last3_log",
+                          "qb_gl5"],
 }
-FINAL = "M11 +touch last3"
+FINAL = "M12 +qb goal line"
 
 
 def run():

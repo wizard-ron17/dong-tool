@@ -25,7 +25,7 @@ const xwalk = await loadCrosswalk();
 const snapSeasons = [];
 for (let y = 2016; y <= season; y++) snapSeasons.push(y);
 const snapLog = await loadSnapLog(snapSeasons, xwalk);
-const { rzLog, tdLog, touchLog } = await loadPbpLogs([season - 1, season]);
+const { rzLog, tdLog, touchLog, glLog } = await loadPbpLogs([season - 1, season]);
 const { byWeek } = await loadInjuries(season, week);
 
 // implied total for each team in that week, from pbp's closing lines
@@ -49,7 +49,7 @@ for (const [pid, games] of snapLog) {
   const { matesOut, newAbsence } = absenceFeatures({
     byWeek, snapLog, pid, team: g.team, position: g.position, season, week });
   const row = playerFeatures({
-    pid, position: g.position, season, week, snapLog, rzLog, tdLog, touchLog,
+    pid, position: g.position, season, week, snapLog, rzLog, tdLog, touchLog, glLog,
     impliedTotal: imp, matesOut, newAbsence,
   });
   if (!row) continue;
