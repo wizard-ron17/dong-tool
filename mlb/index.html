@@ -622,7 +622,8 @@
   .mu-tbl-ord i { font-style: normal; font-size: 0.6rem; color: var(--dim); margin-left: 1px; }
   .mu-tbl-tag { font-size: 0.7rem; }
   .mu-tbl-na { color: var(--dim); }
-  .mu-tbl th.mu-tbl-hl, .mu-tbl td.mu-tbl-hl { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  /* a neutral rule, not a tint: green already means "helps the hitter" in this table */
+  .mu-tbl th.mu-tbl-div, .mu-tbl td.mu-tbl-div { border-right: 1px solid var(--border2); }
   .mu-tbl td.mu-tbl-spot { font-weight: 700; }
   .mu-tbl-pow { color: var(--muted); }
   /* Matchups (Matchup Lab) */
@@ -9201,14 +9202,15 @@ function muTableHtml() {
     { k: 'name', lbl: 'Batter', get: r => r.b.name, tip: 'Batter vs today\'s opposing starter', left: 1,
       cell: r => { const tag = r.board === 'chalk' ? '<span class="mu-tbl-tag" title="On the Chalk board">🔒</span>' : r.board === 'value' ? '<span class="mu-tbl-tag" title="On the Value board">🎯</span>' : '';
         return `<td><div class="mu-tbl-bat">${teamLogoImg(r.b.team, 'team-logo')}<b>${compactPlayerName(r.b.name)}</b>${handBadge(r.b.hand, 'bats')}${tag}</div><div class="mu-tbl-vs">vs ${compactPlayerName(r.p.name)} ${r.p.hand ? `<span class="pk-hand ${r.p.hand.toLowerCase()}">${r.p.hand}</span>` : ''}</div></td>`; } },
-    { k: 'spot', lbl: 'Spot ×', get: r => r.s.matchupFactor, hl: 1,
+    { k: 'spot', lbl: 'Spot ×', get: r => r.s.matchupFactor,
       tip: 'Every factor multiplied together WITHOUT his power — how good his spot is today. Score = Power × Spot. A high Spot on a low-power bat is the longshot: a non-homer hitter in a great spot. Colored against today\'s slate (top fifth green).',
       cell: r => num(spotCls(r.s.matchupFactor), fx(r.s.matchupFactor), ' mu-tbl-spot') },
     { k: 'power', lbl: 'Power', get: r => r.b.basePower, tip: 'Base power — his HR rate per AB (blended toward Blast%), before any matchup factor. The one thing Spot leaves out.',
       cell: r => num('', r.b.basePower != null ? (r.b.basePower * 100).toFixed(1) + '%' : '—', ' mu-tbl-pow') },
     { k: 'score', lbl: 'Score', get: r => r.s.pickScore, tip: 'Matchup score — Power × Spot, the Picks board number',
       cell: r => `<td class="r"><b class="ps-ramp" ${psRamp(r.s.pickScore)}>${r.s.pickScore.toFixed(1)}</b></td>` },
-    { ...fcol('arm', 'Arm ×', r => r.arm, 'Pitching Vuln × Arm Stuff — just who is on the mound, in one number.'), hl: 1 },
+    // the divider after Arm closes the summary columns; the single factors follow
+    { ...fcol('arm', 'Arm ×', r => r.arm, 'Pitching Vuln × Arm Stuff — just who is on the mound, in one number.'), div: 1 },
     fcol('vuln', 'P. Vuln', r => r.f.effPlat, 'Pitching vulnerability: the starter\'s split vs his side blended with the bullpen\'s over their shares of the game'),
     fcol('stuff', 'Stuff', r => r.f.effStuff, 'Arm stuff: barrels allowed and velocity, over the starter\'s innings'),
     fcol('batP', 'Platoon', r => r.f.batP, 'His own split vs this arm\'s hand'),
@@ -9222,8 +9224,8 @@ function muTableHtml() {
   rows.sort((a, b) => { const x = col.get(a), y = col.get(b);
     if (x == null) return 1; if (y == null) return -1;
     return (typeof x === 'string' ? x.localeCompare(y) : x - y) * muTbl.dir || b.s.pickScore - a.s.pickScore; });
-  const th = COLS.map(c => `<th class="${c.left ? '' : 'r'}${c.k === muTbl.sort ? (muTbl.dir > 0 ? ' sort-asc' : ' sort-desc') : ''}${c.hl ? ' mu-tbl-hl' : ''}" onclick="muTblSort('${c.k}')" title="${c.tip}">${c.lbl}</th>`).join('');
-  const body = rows.map(r => `<tr class="mu-tbl-row${r.g.started ? ' mu-tbl-started' : ''}" onclick="muTblOpen('${r.b.pid}','${r.p.pid}','${(r.g.venue || '').replace(/'/g, "\\'")}')" title="Open ${r.b.name.replace(/"/g, '&quot;')} vs ${r.p.name.replace(/"/g, '&quot;')} in the Matchup view">${COLS.map(c => c.cell(r).replace('<td class="r', c.hl ? '<td class="r mu-tbl-hl' : '<td class="r')).join('')}</tr>`).join('');
+  const th = COLS.map(c => `<th class="${c.left ? '' : 'r'}${c.k === muTbl.sort ? (muTbl.dir > 0 ? ' sort-asc' : ' sort-desc') : ''}${c.div ? ' mu-tbl-div' : ''}" onclick="muTblSort('${c.k}')" title="${c.tip}">${c.lbl}</th>`).join('');
+  const body = rows.map(r => `<tr class="mu-tbl-row${r.g.started ? ' mu-tbl-started' : ''}" onclick="muTblOpen('${r.b.pid}','${r.p.pid}','${(r.g.venue || '').replace(/'/g, "\\'")}')" title="Open ${r.b.name.replace(/"/g, '&quot;')} vs ${r.p.name.replace(/"/g, '&quot;')} in the Matchup view">${COLS.map(c => c.cell(r).replace('<td class="r', c.div ? '<td class="r mu-tbl-div' : '<td class="r')).join('')}</tr>`).join('');
   const posted = rows.filter(r => r.posted).length;
   return `<div class="mu-tbl-bar">
       <select class="mu-select" onchange="muTblGame(this.value)" aria-label="Game">${gameOpts}</select>
