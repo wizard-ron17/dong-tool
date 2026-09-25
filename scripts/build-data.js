@@ -4,6 +4,8 @@
 // have to do this work themselves.
 
 import { fetchEspnLines, trackLine } from './espn-lines.js';
+import { batterZ, pitcherZ, contactCounts, oddsConstants, hrProb } from './hr-odds.js';
+import { logSlate, gradeSlates, fetchKalshiHR } from './slate-log.js';
 
 const MLB          = 'https://statsapi.mlb.com/api/v1';
 const SEASON_START = '2026-03-25'; // true opening day — a single NYY@SF game (season opened a day before the full slate)
@@ -873,7 +875,25 @@ function pickPositionalLineup(pids, posOf, limit = 9) {
   return pids.filter(pid => used.has(pid)).slice(0, limit);
 }
 
-async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {}, openerBulk = {}, weatherByVenue = {}, batMetaMap = {}, injuryStatus = {}) {
+// ── HR odds (scripts/hr-odds.js) ────────────────────────────────────────
+const ODDS = oddsConstants(normalizeVenue);
+// PA from the season stats; a hitter under their 30-PA cut gets AB x 1.12, the
+// league's PA per AB — the shrink swamps a thin sample either way.
+function oddsBatterZ(pid, hr, ab, balls, discipline) {
+  const { barrels, blasts } = contactCounts(balls);
+  const pa = discipline?.[pid]?.pa ?? Math.round(ab * 1.12);
+  return batterZ({ pid, hr, ab, pa, barrels, blasts });
+}
+// Barrels allowed from the stuff pull (barrel% of his batted balls) over batters
+// faced from his season line. No stuff read = no barrels counted, so he shrinks
+// to last season and the league like any thin sample.
+function oddsPitcherZ(pid, stuff, seasonStats) {
+  const bf = seasonStats?.[pid]?.bf ?? 0;
+  const barrels = stuff?.barrelPct != null && stuff.bbe ? Math.round(stuff.barrelPct * stuff.bbe) : 0;
+  return pitcherZ({ pid, barrels: bf ? barrels : 0, bf });
+}
+
+async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {}, openerBulk = {}, weatherByVenue = {}, batMetaMap = {}, injuryStatus = {}, batterDiscipline = {}) {
   try {
     // Identify a team's likely everyday starters when the official lineup
     // hasn't posted yet. Uses season-long data: guys who've appeared in at
@@ -1095,6 +1115,9 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
 
       const recentFormRatio = computeRecentFormRatio(balls);
       const hrProfile = computeHRPitchProfile(balls);
+      // The odds model's batter part (scripts/hr-odds.js): power and contact
+      // quality, each his season shrunk toward last season and the league.
+      const hrZb = oddsBatterZ(c.pid, hrs, abs, balls, batterDiscipline);
 
       const pInfo = pitcherSplits[c.oppPid] ?? null;
       const pHand = pInfo?.hand ?? null;
@@ -1130,6 +1153,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
         blastPct: bstat.blastPct, blastBBE: bstat.tracked, blastPower,
         blastSurplus: Math.round(blastSurplus * 100) / 100,
         provenPower: basePower >= powerBaseline, // clears Chalk's relative power floor
+        hrZb,
       });
     }
 
@@ -1285,6 +1309,12 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       r.pitcherFbVelo = pstuff?.fbVelo != null && pstuff.fbN >= STUFF_MIN_FB ? Math.round(pstuff.fbVelo * 10) / 10 : null;
       r.pitcherHardPct = pstuff?.hardPct != null && pstuff.bbe >= STUFF_MIN_BBE ? Math.round(pstuff.hardPct * 1000) / 10 : null;
       r.pitcherBarrelPct = pstuff?.barrelPct != null && pstuff.bbe >= STUFF_MIN_BBE ? Math.round(pstuff.barrelPct * 1000) / 10 : null;
+      // P(HR today) — the calibrated odds (scripts/hr-odds.js). A separate layer:
+      // it reads batter power, contact quality, the starter's barrels per batter
+      // faced, his slot and the park, and none of the matchup factors above.
+      const hrZp = oddsPitcherZ(r.oppPid, pstuff, pitcherSeasonStats);
+      r.pHR = Math.round(hrProb(r.hrZb, hrZp, r.lineupOrder, r.venue, ODDS) * 10000) / 10000;
+      delete r.hrZb;
 
       // Lineup-position PA multiplier — extra plate appearances up top mean more
       // single-game HR chances. Neutral (1.0) when the slot is unknown (projected).
@@ -1402,6 +1432,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
           basePower: r3(basePower), blastPct: bstat.blastPct != null ? Math.round(bstat.blastPct * 1000) / 1000 : null,
           blastPower: r3(blastPower), blastSurplus: actualHRperAB > 0 ? Math.round(blastImplied / actualHRperAB * 100) / 100 : 1,
           provenPower: basePower >= powerBaseline, form: r3(computeRecentFormRatio(balls)),
+          hrZ: Math.round(oddsBatterZ(pid, hrs, abs, balls, batterDiscipline) * 10000) / 10000,
           platoonVsL: r3(batterPlatoonVs(bInfo, 'L')), platoonVsR: r3(batterPlatoonVs(bInfo, 'R')),
           hrProfile: computeHRPitchProfile(balls),
         });
@@ -1418,6 +1449,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
           barrelPct: st?.barrelPct != null && st.bbe >= STUFF_MIN_BBE ? Math.round(st.barrelPct * 1000) / 10 : null,
           platoonVsL: r3(pitcherPlatoonVs(pInfo, 'L')), platoonVsR: r3(pitcherPlatoonVs(pInfo, 'R')),
           mix: cMix[pid] ?? null,
+          hrZ: Math.round(oddsPitcherZ(pid, st, pitcherSeasonStats) * 10000) / 10000,
         });
       }
       // Stable synergy baseline: median overlap across all card pairs (batter HR
@@ -1441,6 +1473,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
         generatedAt: new Date().toISOString(), ratioClamp: [PICKS_RATIO_MIN, PICKS_RATIO_MAX],
         synergyBaseline: Math.round(synergyBaseline * 1000) / 1000, synergyHrFull: SYNERGY_HR_FULL,
         valueContactGain: VALUE_CONTACT_GAIN, parkFactors, lineupPA: LINEUP_PA_FACTOR,
+        hrOdds: ODDS,       // the odds model's constants: the page adds slot + park to a batter's and a starter's hrZ
         default: top ? { batterPid: top.pid, pitcherPid: top.oppPid, venue: top.venue } : null,
         batters, pitchers,
       };
@@ -1473,7 +1506,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       const arms = penArms(team);
       if (arms.length) penVuln[team] = { L: penPlatoon(arms, 'L'), R: penPlatoon(arms, 'R'), S: penPlatoon(arms, 'S') };
     }
-    return { picks: board, value, cards, stuff, topByTeam, penVuln };
+    return { picks: board, value, cards, stuff, topByTeam, penVuln, slate: rows };
   } catch (e) { return { picks: [], value: [] }; }
 }
 
@@ -3280,7 +3313,7 @@ async function main() {
   const injuryStatus = await fetchInjuryStatus();
 
   console.log("Computing today's HR picks (matchups, splits, pitch-type profiles)...");
-  const { picks: freshPicks, value: freshValue, cards: matchupCards, stuff: stuffCov, topByTeam = {}, penVuln = {} } = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue, batMeta, injuryStatus);
+  const { picks: freshPicks, value: freshValue, cards: matchupCards, stuff: stuffCov, topByTeam = {}, penVuln = {}, slate: slateRows = [] } = await computePicks(todaySchedule, bullpens, pitcherStats, openerBulk, weatherByVenue, batMeta, injuryStatus, batterDiscipline);
   // Degraded-build guard #2: fetchPlatoonSplits swallows fetch errors into {},
   // which once collapsed a 28-pick slate to 1 pick (every pick null-handed,
   // platoon factors gone, scores under the floor). On a real build with games,
@@ -3452,6 +3485,15 @@ async function main() {
       top: g.topPick ? { ...g.topPick, hit: !!dayHRs[g.topPick.pid] } : null,
     })) }].slice(-14);
     console.log(`Schedule history: logged ${prevDate} (${prevSchedule.length} games)`);
+  }
+  // The full-slate HR log (research/logs/mlb-slate/): grade finished days, then
+  // log today's every scored bat with its odds, factors and Kalshi's price.
+  {
+    const graded = gradeSlates(scorable, dailyHRs);
+    if (slateRows.length) {
+      const n = logSlate(todayET(), slateRows, todaySchedule, playerNames, await fetchKalshiHR());
+      console.log(`Slate log: ${n} bats logged${graded ? `, ${graded} day(s) graded` : ''}`);
+    }
   }
   if (prevPicks.length && scorable(prevDate) && !picksHistory.some(e => e.date === prevDate)) {
     const dayHRs = dailyHRs[prevDate] ?? {};

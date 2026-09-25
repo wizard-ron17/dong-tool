@@ -626,6 +626,8 @@
   .mu-tbl th.mu-tbl-div, .mu-tbl td.mu-tbl-div { border-right: 1px solid var(--border2); }
   .mu-tbl td.mu-tbl-spot { font-weight: 700; }
   .mu-tbl-pow { color: var(--muted); }
+  .mu-fair { font-size: 0.72rem; color: var(--muted); margin-top: 0.3rem; font-family: var(--font-d); }
+  .mu-fair b { color: var(--text); }
   /* Matchups (Matchup Lab) */
 
   /* Tools button: an invitation, not just another tab — tinted and outlined,
@@ -1479,6 +1481,10 @@
   .lbcp-photo { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; background: var(--surface2); flex-shrink: 0; }
   .lbcp-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 0.82rem; font-family: var(--font-d);}
   .lbcp-logo { width: 15px; height: 15px; flex-shrink: 0; opacity: 0.9; }
+  .pick-fair { font-family: var(--font-d); color: var(--text); white-space: nowrap; }
+  .lbc-fair { display: block; font-family: var(--font-d); font-size: 0.7rem; color: var(--muted); margin-top: 0.15rem; white-space: nowrap; }
+  .lbcp-fair { flex-shrink: 0; font-family: var(--font-d); font-size: 0.72rem; color: var(--muted); margin-left: auto; white-space: nowrap; }
+  .lbcp-fair + .lbcp-score { margin-left: 0.4rem; }
   .lbcp-score { flex-shrink: 0; font-family: var(--font-d); font-weight: 700; font-size: 0.86rem; min-width: 2.3rem; text-align: right; }
   .lbcp-score.great, .lbcp-score.hot  { color: var(--accent); }
   .lbcp-score.good,  .lbcp-score.warm { color: var(--gold); }
@@ -8617,6 +8623,16 @@ const muBoardEnv = (row) => ({ sW: row.starterShare ?? 1, pen: row.bullpenPlatoo
          pitP: row.pitcherPlatoonRatio, stuff: row.pitcherStuffRatio } });
 /** The opposing pen's platoon vulnerability for a batter from this side — shipped per team by the build. */
 const muPenFor = (team, hand) => penVuln?.[team]?.[hand] ?? null;
+/** P(HR) for any pairing: the build ships each card's part of the odds model
+ *  (hrZ) and its constants (hrOdds); the page adds his slot and the park —
+ *  the same sum as scripts/hr-odds.js hrProb(). null before the cards carry it. */
+function muHrProb(b, p, order, venue) {
+  const K = matchupCards?.hrOdds;
+  if (!K || b?.hrZ == null) return null;
+  const slot = K.slot[order >= 1 && order <= 9 ? order : 5] ?? 0;
+  const z = K.const + b.hrZ + (p?.hrZ ?? 0) + slot + K.park * Math.log(K.parkTable[venue] ?? 1);
+  return 1 / (1 + Math.exp(-(K.platt.a + K.platt.b * z)));
+}
 function muEnvFor(b, p) {
   const row = muGameRow(b, p);
   const sch = row ? null : muSchedEnv(b, p);
@@ -9174,6 +9190,7 @@ function muTableRows() {
           : { sW: muStarterShare(p.pid) ?? 1, pen: muPenFor(opp.teamAbbr, b.hand), pa: muPaFactor(ord), wx: muWeatherRatio(g.venue, b.hand, p.hand) ?? 1 };
         const s = scoreMatchup(b, p, g.venue, env), f = s.factors;
         out.push({ g, b, p, ord, posted, s, f, board: row ? ((picks || []).includes(row) ? 'chalk' : 'value') : null,
+          pHR: row?.pHR ?? muHrProb(b, p, ord, g.venue),
           arm: f.effPlat != null && f.effStuff != null ? f.effPlat * f.effStuff : (f.effPlat ?? f.effStuff ?? null) });
       }
     }
@@ -9209,6 +9226,8 @@ function muTableHtml() {
       cell: r => num('', r.b.basePower != null ? (r.b.basePower * 100).toFixed(1) + '%' : '—', ' mu-tbl-pow') },
     { k: 'score', lbl: 'Score', get: r => r.s.pickScore, tip: 'Matchup score — Power × Spot, the Picks board number',
       cell: r => `<td class="r"><b class="ps-ramp" ${psRamp(r.s.pickScore)}>${r.s.pickScore.toFixed(1)}</b></td>` },
+    { k: 'fair', lbl: 'Fair', get: r => r.pHR, tip: HR_FAIR_TIP,
+      cell: r => `<td class="r pick-fair" title="${hrFairPct(r.pHR)} to homer">${hrFair(r.pHR)}</td>` },
     // the divider after Arm closes the summary columns; the single factors follow
     { ...fcol('arm', 'Arm ×', r => r.arm, 'Pitching Vuln × Arm Stuff — just who is on the mound, in one number.'), div: 1 },
     fcol('vuln', 'P. Vuln', r => r.f.effPlat, 'Pitching vulnerability: the starter\'s split vs his side blended with the bullpen\'s over their shares of the game'),
@@ -9337,6 +9356,8 @@ function matchupBreakdownHtml(b, p) {
         <span class="pick-score-big ${cls}">${s.pickScore.toFixed(1)}</span>
         <span class="due-modal-headline-lbl">Matchup Score</span>
         <span class="pk-stat-dim" style="font-size:0.692rem;margin-top:0.25rem">Value ${s.valueScore.toFixed(1)}</span>
+        ${(() => { const ph = (live && row?.pHR) || (muVenue !== '__neutral__' || sch ? muHrProb(b, p, row?.lineupOrder ?? sch?.order ?? null, muVenue === '__neutral__' ? null : muVenue) : null);
+          return ph ? `<span class="mu-fair" title="${HR_FAIR_TIP}">Fair <b>${hrFair(ph)}</b> · ${hrFairPct(ph)}</span>` : ''; })()}
       </div>
       <div class="pk-side">
         ${muPhotoTag(p.pid, p.team)}
@@ -9374,6 +9395,7 @@ function matchupBreakdownHtml(b, p) {
         { key: 'wx',       label: 'Weather', value: f.wx !== 1 ? f.wx : null },
       ],
     }))}
+    <div class="mu-note mu-odds-note"><b>In the fair odds:</b> park and lineup slot from this chart, plus his power, contact quality (barrels, blasts) and ${p.name ? p.name.split(' ').pop() : 'the starter'}'s barrels allowed per batter faced. The other factors shape the Matchup Score but aren't in the odds until the daily log shows what they add.</div>
     ${p.ip != null && p.ip < 10 ? `<div class="mu-note mu-thin">⚠︎ Thin sample — only ~${p.ip} IP for ${p.name.split(' ').pop()}, so his stuff, splits, and arsenal are pulled toward league average. Read it as a near-neutral matchup (no book on him yet), not a real edge either way.</div>` : ''}
     <div class="mu-note">${live
       ? `Scored in today's real environment, so this is the same number the <a href="javascript:void(0)" onclick="switchNav('picks')">Picks</a> board has for him${row && row.pickScore != null ? ` (<b>${row.pickScore.toFixed(1)}</b>)` : ''} — his lineup spot, the forecast, and ${p.name.split(' ').pop()}'s share of the game against that bullpen.`
@@ -9485,7 +9507,7 @@ function renderValueBoard() {
           <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
-        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${(r.valueScore ?? 0).toFixed(1)}</span><span class="lbc-headline-lbl">Value</span></div>
+        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${(r.valueScore ?? 0).toFixed(1)}</span><span class="lbc-headline-lbl">Value</span>${r.pHR > 0 ? `<span class="lbc-fair" title="${hrFairPct(r.pHR)} to homer · ${HR_FAIR_TIP}">Fair ${hrFair(r.pHR)}</span>` : ''}</div>
       </div>
       <div class="pick-indicators">${blastPctBadge(r.blastPct)}${blastSurplusBadge(r.blastSurplus)}${hrBadge}${pickIndicators(r)}</div>
     </div>`;
@@ -9507,6 +9529,7 @@ function renderValueBoard() {
         </div>
       </div></td>
       <td class="pick-z ${cls}">${(r.valueScore ?? 0).toFixed(1)}</td>
+      <td class="lb-num pick-fair" title="${hrFairPct(r.pHR)} to homer · ${HR_FAIR_TIP}">${hrFair(r.pHR)}</td>
       <td class="lb-num hr-col">${fmtBlast(r)}</td>
       <td class="lb-num stat-col">${fmtSurplus(r)}</td>
     </tr>`;
@@ -9519,6 +9542,7 @@ function renderValueBoard() {
       <img class="lbcp-photo" src="${photo}" alt="">
       <span class="lbcp-name">${playerNames[r.pid] || r.pid}</span>
       ${teamLogoImg(r.team,'lbcp-logo')}
+      <span class="lbcp-fair" title="${hrFairPct(r.pHR)} to homer · fair odds">${r.pHR > 0 ? hrFair(r.pHR) : ''}</span>
       <span class="lbcp-score ${cls}">${(r.valueScore ?? 0).toFixed(1)}</span>
     </div>`;
   }).join('');
@@ -9532,6 +9556,7 @@ function renderValueBoard() {
             <th style="width:24px"></th>
             <th>Player</th>
             <th class="r">Value</th>
+            <th class="r" title="${HR_FAIR_TIP}">Fair</th>
             <th class="r">Blast%</th>
             <th class="r">Surplus</th>
           </tr></thead>
@@ -9873,6 +9898,7 @@ function renderPicks() {
         </div>
       </div></td>
       <td class="pick-z ${cls}">${r.pickScore.toFixed(1)}</td>
+      <td class="lb-num pick-fair" title="${hrFairPct(r.pHR)} to homer · ${HR_FAIR_TIP}">${hrFair(r.pHR)}</td>
       <td class="lb-num hr-col">${r.hrs}</td>
       <td class="lb-num stat-col">${r.venue}</td>
     </tr>`;
@@ -9890,7 +9916,7 @@ function renderPicks() {
           <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
-        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${r.pickScore.toFixed(1)}</span><span class="lbc-headline-lbl">Pick Score</span></div>
+        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${r.pickScore.toFixed(1)}</span><span class="lbc-headline-lbl">Pick Score</span>${r.pHR > 0 ? `<span class="lbc-fair" title="${hrFairPct(r.pHR)} to homer · ${HR_FAIR_TIP}">Fair ${hrFair(r.pHR)}</span>` : ''}</div>
       </div>
       <div class="pick-indicators">${pickIndicators(r)}</div>
     </div>`;
@@ -9904,6 +9930,7 @@ function renderPicks() {
       <img class="lbcp-photo" src="${photo}" alt="">
       <span class="lbcp-name">${playerNames[r.pid] || r.pid}</span>
       ${teamLogoImg(r.team,'lbcp-logo')}
+      <span class="lbcp-fair" title="${hrFairPct(r.pHR)} to homer · fair odds">${r.pHR > 0 ? hrFair(r.pHR) : ''}</span>
       <span class="lbcp-score ${cls}">${r.pickScore.toFixed(1)}</span>
     </div>`;
   }).join('');
@@ -9922,6 +9949,7 @@ function renderPicks() {
             <th style="width:24px"></th>
             <th>Player</th>
             <th class="r">Score</th>
+            <th class="r" title="${HR_FAIR_TIP}">Fair</th>
             <th class="r">HR</th>
             <th class="r">Park</th>
           </tr></thead>
@@ -10761,6 +10789,14 @@ function poissonAtLeast(mu, n) {
 }
 const kbbWinProb = (proj, need) => proj == null ? null : poissonAtLeast(proj, need);
 // Fair American odds — no vig, so a book will always price worse than this.
+// ── HR fair odds (scripts/hr-odds.js, research/mlb_hr_replay.py) ─────────
+// P(HR today) from the calibrated odds model, as fair American odds — no vig.
+// A separate layer from the Pick Score: it reads his power, contact quality,
+// the starter's barrels per batter faced, his slot and the park, and none of
+// the matchup factors. Rows frozen before the model existed carry no pHR.
+const HR_FAIR_TIP = 'Fair odds (no vig) from the HR model: his power and contact quality, the starter\'s barrels allowed, lineup slot and park — calibrated on every 2025-26 starter-game. A separate read from the Pick Score.';
+const hrFair = (p) => p > 0 ? kbbOdds(p) : '—';
+const hrFairPct = (p) => p > 0 ? `${(p * 100).toFixed(1)}%` : '';
 const kbbOdds = p => (!(p > 0) || p >= 1) ? '—'
   : p >= 0.5 ? '-' + Math.round(100 * p / (1 - p)) : '+' + Math.round(100 * (1 - p) / p);
 

@@ -214,3 +214,72 @@ def contact_ladder():
 
 if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "contact":
     contact_ladder()
+
+
+K = dict(bat=400, prior=300, contact=75, sp=400, park=2000)       # shrink strengths, chosen out of sample
+V1 = ["bat_rate", "bat_brl", "bat_bls", "sp_bpf", "slot", "park"]
+PLATT_B = 0.817     # log-odds slope fitted on a held-out month: 0.815 (2026), 0.819 (2025)
+
+
+def v1_frame():
+    """The replay with every v1 feature, as the build will compute them."""
+    df = add_contact(build(pd.read_parquet(RAW), k_bat=K["bat"], k_prior=K["prior"]), k_bat=K["contact"])
+    bats, pits = load_contact()
+    games = df[["game_pk", "season", "date"]].drop_duplicates()
+    p = pits[pits.sp].rename(columns={"gpk": "game_pk", "pid": "opp_sp"}).merge(games, on="game_pk")
+    lgp = p.barrel.sum() / p.pa.sum()
+    df = df.merge(shrunk_to_date(p, "opp_sp", "barrel", "pa", "sp_bpf", K["sp"], K["prior"], lgp), on=["opp_sp", "season", "date"], how="left")
+    df["sp_bpf"] = df.sp_bpf.fillna(lgp)
+    return df, bats, p, lgp
+
+
+def export_model(season=2026):
+    """python3 research/mlb_hr_replay.py export — writes research/mlb_hr_model.json,
+    everything scripts/hr-odds.js needs: coefficients (fit on all of `season`),
+    the log-odds slope, shrink strengths, league rates, the park table, and each
+    player's `season - 1` totals (the priors a live build can't fetch cheaply,
+    and which must match how the replay counted them)."""
+    import json
+    df, bats, p, lgp = v1_frame()
+    d = df[df.season == season]
+    w, _ = fit_logistic(design(d, V1), d.y.to_numpy())
+    names = ["const"] + [x for ff in V1 for x in ([f"slot{s}" for s in range(2, 10)] if ff == "slot" else [ff])]
+    c = dict(zip(names, map(float, w)))
+    z = design(d, V1) @ w
+    a = 0.0
+    for _ in range(60):   # intercept so the slope-adjusted mean matches the season's rate
+        pr = 1 / (1 + np.exp(-(a + PLATT_B * z)))
+        a += (d.y.mean() - pr.mean()) / (pr * (1 - pr)).mean()
+    raw = pd.read_parquet(RAW)
+    games = raw[["game_pk", "season"]].drop_duplicates()
+    b = bats.rename(columns={"gpk": "game_pk"}).merge(games, on="game_pk")
+    lg = {"ab": float(raw.hr.sum() / raw.ab.sum()), "brl": float(b.barrel.sum() / b.pa.sum()),
+          "bls": float(b.blast.sum() / b.pa.sum()), "pbf": float(lgp)}
+    prev = season - 1
+    hr = raw[raw.season == prev].groupby("pid")[["hr", "ab"]].sum()
+    ct = b[b.season == prev].groupby("pid")[["barrel", "blast", "pa"]].sum()
+    batters = {}
+    for pid in hr.index.union(ct.index):
+        h = hr.loc[pid] if pid in hr.index else None; x = ct.loc[pid] if pid in ct.index else None
+        batters[str(int(pid))] = [int(h.hr) if h is not None else 0, int(h.ab) if h is not None else 0,
+                                  int(x.barrel) if x is not None else 0, int(x.blast) if x is not None else 0, int(x.pa) if x is not None else 0]
+    ps = p[p.season == prev].groupby("opp_sp")[["barrel", "pa"]].sum()
+    pitchers = {str(int(pid)): [int(r.barrel), int(r.pa)] for pid, r in ps.iterrows()}
+    pk = raw[raw.season == prev].groupby("venue")[["hr", "ab"]].sum()
+    park = {v: round(float(((r.hr + K["park"] * lg["ab"]) / (r.ab + K["park"])) / lg["ab"]), 4) for v, r in pk.iterrows()}
+    out = {
+        "note": "MLB P(HR) v1 — research/mlb_hr_replay.py export. logit P = platt.a + platt.b * "
+                "(const + bat_rate*ln(hr/ab) + bat_brl*ln(barrels/PA) + bat_bls*ln(blasts/PA) + sp_bpf*ln(SP barrels/BF) "
+                "+ slot + park*ln(park)); every rate shrunk: this season toward last (prev_*), last toward league.",
+        "trained": season, "prevSeason": prev, "coef": c, "platt": {"a": float(a), "b": PLATT_B}, "k": K, "lg": lg,
+        "blast": "sq*100 + bat_speed >= 164, sq = min(1, launch_speed / (1.23*bat_speed + 0.23*release_speed)), batted balls only",
+        "park": park, "prev_batters": batters, "prev_pitchers": pitchers,
+    }
+    path = os.path.join(os.path.dirname(__file__), "mlb_hr_model.json")
+    json.dump(out, open(path, "w"), separators=(",", ":"))
+    print(f"wrote {path}: {len(batters)} batters, {len(pitchers)} pitchers, {len(park)} parks; platt a {a:.3f}")
+    print({k: round(v, 3) for k, v in c.items()})
+
+
+if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "export":
+    export_model()
