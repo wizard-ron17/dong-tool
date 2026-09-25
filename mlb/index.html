@@ -3570,6 +3570,26 @@ function valueRank(pid) {
 // compact=true drops the words (keeps rank number, color, and emoji) so a
 // stack of badges fits on one line in dense rows like the Schedule lineup —
 // the full label still lives in the hover tooltip.
+// Chalk and Value rank ONE game — the one the build scored, against that
+// game's starter. In a doubleheader the other game's lineup must not inherit
+// them, so a lineup passes its opposing starter and the two game-bound badges
+// drop when the board row faced someone else. Player-level badges (Due, Day
+// Late, injury…) are about the hitter, not the game, and stay.
+// Only doubleheaders: a late starter swap in a single game must not strip a
+// player's badges.
+function otherGameExclude(pid, oppSide) {
+  const row = picks.find(r => r.pid === pid) || value.find(r => r.pid === pid);
+  if (!row?.oppPid || !oppSide) return {};
+  const sides = (todaySchedule || []).filter(g => g.home.teamAbbr === row.team || g.away.teamAbbr === row.team)
+    .map(g => g.home.teamAbbr === row.team ? g.away : g.home);
+  if (sides.length < 2) return {};
+  const faced = String(row.oppPid), here = oppSide.probablePitcherId ? String(oppSide.probablePitcherId) : null;
+  // this game's starter known: the row belongs here only if it faced him; TBD:
+  // it belongs to the other game if that game's starter is the one it faced
+  const elsewhere = here ? faced !== here
+    : sides.some(sd => sd !== oppSide && String(sd.probablePitcherId || '') === faced);
+  return elsewhere ? { chalk: 1, value: 1 } : {};
+}
 function crossTabBadge(pid, exclude = {}, compact = false) {
   const parts = [];
   if (!exclude.inj) { const ic = injChip(pid); if (ic) parts.push(ic); }   // ESPN's injury report (news.json)
@@ -5915,7 +5935,7 @@ function schedLineupHtml(side, oppSide, venue) {
         <span class="sched-lineup-order">${i + 1}</span>
         <span class="sched-lineup-hand">${handBadge(m.b, 'bats')}</span>
         <span class="sched-lineup-pos">${m.p || ''}</span>
-        <span class="sched-lineup-nameblock"><span class="sched-lineup-pname">${playerNames[pid] || pid}</span><span class="sched-lineup-badges">${injuryBadge(pid, true)}${crossTabBadge(pid, {}, true)}</span></span>
+        <span class="sched-lineup-nameblock"><span class="sched-lineup-pname">${playerNames[pid] || pid}</span><span class="sched-lineup-badges">${injuryBadge(pid, true)}${crossTabBadge(pid, otherGameExclude(pid, oppSide), true)}</span></span>
         <span class="sched-lineup-hrval">${hrs}</span>
         <span class="sched-lineup-abhr hrg-val ${cls}">${abPerHR != null ? abPerHR.toFixed(1) : '—'}</span>
         ${scoreCell(pid)}
@@ -5932,7 +5952,7 @@ function schedLineupHtml(side, oppSide, venue) {
       <span class="sched-lineup-order">${p.order}</span>
       <span class="sched-lineup-hand">${handBadge(p.bats, 'bats')}</span>
       <span class="sched-lineup-pos">${p.position}</span>
-      <span class="sched-lineup-nameblock"><span class="sched-lineup-pname">${playerNames[p.pid] || p.name}</span><span class="sched-lineup-badges">${injuryBadge(p.pid, true)}${crossTabBadge(p.pid, {}, true)}</span></span>
+      <span class="sched-lineup-nameblock"><span class="sched-lineup-pname">${playerNames[p.pid] || p.name}</span><span class="sched-lineup-badges">${injuryBadge(p.pid, true)}${crossTabBadge(p.pid, otherGameExclude(p.pid, oppSide), true)}</span></span>
       <span class="sched-lineup-hrval">${hrs}</span>
       <span class="sched-lineup-abhr hrg-val ${cls}">${abPerHR != null ? abPerHR.toFixed(1) : '—'}</span>
       ${scoreCell(p.pid)}
@@ -7227,7 +7247,7 @@ function sgPicks(g, date, S, away, home) {
   if (date === todayDate) {
     const seen = new Set(), rows = [];
     for (const [r, board] of [...(picks || []).map(r => [r, 'chalk']), ...(value || []).map(r => [r, 'value'])])
-      if (tms.has(r.team) && !seen.has(r.pid)) { seen.add(r.pid); rows.push([r, board]); }
+      if (tms.has(r.team) && !seen.has(r.pid) && !otherGameExclude(r.pid, r.team === g.home.teamAbbr ? g.away : g.home).chalk) { seen.add(r.pid); rows.push([r, board]); }
     rows.sort((a, b) => b[0].pickScore - a[0].pickScore);
     hr = rows.map(([r, board]) => `<div class="sgp-row" onclick="openPickModal('${r.pid}','${board}')">
         ${teamLogoImg(r.team, 'gc-pick-logo')}<span class="sgp-nm">${compactPlayerName(playerNames[r.pid] || r.pid)}</span>

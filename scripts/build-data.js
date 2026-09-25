@@ -1445,8 +1445,13 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
     const stuff = { ok: starterPids.filter(pid => pitcherStuffByPid[pid]).length, total: starterPids.length };
     // Each club's best-scoring bat, floor or not — the schedule shows a top
     // pick for EVERY game, and the Chalk floor leaves half the slate uncovered.
+    // Kept per opposing starter: in a doubleheader a club's bats were scored
+    // against one game's starter, and only that game should show them.
     const topByTeam = {};
-    for (const r of rows) if (!topByTeam[r.team]) topByTeam[r.team] = { pid: r.pid, team: r.team, score: Math.round(r.pickScore * 10) / 10 };
+    for (const r of rows) {
+      const l = topByTeam[r.team] ??= [];
+      if (!l.some(t => t.oppPid === r.oppPid)) l.push({ pid: r.pid, team: r.team, oppPid: r.oppPid ?? null, score: Math.round(r.pickScore * 10) / 10 });
+    }
     // Postseason: two to four games a day would leave the Chalk floor with a
     // handful of names, so the board ranks every scored bat (top 20) instead.
     const post = todaySchedule.some(g => g.gameType && g.gameType !== 'R');
@@ -3286,9 +3291,20 @@ async function main() {
     const prevTop = new Map(sameSlate ? prevSchedule.filter(g => g.topPick).map(g => [g.gamePk, g.topPick]) : []);
     for (const g of todaySchedule) {
       if (g.started && prevTop.has(g.gamePk)) { g.topPick = prevTop.get(g.gamePk); continue; }
-      const a = topByTeam[g.away.teamAbbr], h = topByTeam[g.home.teamAbbr];
+      // a club's best bat faced THIS game's starter (the page's otherGameExclude
+      // rule): with one game today any row fits; in a doubleheader the row must
+      // have faced this game's starter, or — starter TBD — not the other game's
+      const fits = (team, oppSide) => {
+        const sides = todaySchedule.filter(x => x.home.teamAbbr === team || x.away.teamAbbr === team)
+          .map(x => x.home.teamAbbr === team ? x.away : x.home);
+        const here = oppSide.probablePitcherId ? String(oppSide.probablePitcherId) : null;
+        return (topByTeam[team] || []).find(t => sides.length < 2 || !t.oppPid ? true
+          : here ? String(t.oppPid) === here
+          : !sides.some(sd => sd !== oppSide && String(sd.probablePitcherId || '') === String(t.oppPid)));
+      };
+      const a = fits(g.away.teamAbbr, g.home), h = fits(g.home.teamAbbr, g.away);
       const t = !a ? h : !h ? a : a.score >= h.score ? a : h;
-      if (t) g.topPick = { ...t, name: playerNames[t.pid] ?? t.pid };
+      if (t) { const { oppPid, ...top } = t; g.topPick = { ...top, name: playerNames[t.pid] ?? t.pid }; }
     }
   }
 
