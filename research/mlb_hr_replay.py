@@ -21,6 +21,32 @@ import numpy as np
 import pandas as pd
 
 RAW = os.path.join(os.path.dirname(__file__), "mlb_hr_replay_raw.parquet")
+BBE_CACHE = os.path.join(os.path.dirname(__file__), ".cache", "savant_bbe")   # mlb_barrels_fetch.py
+
+
+def load_contact():
+    """Savant per-game lines (mlb_barrels_fetch.py): batters and pitchers."""
+    import glob, json
+    bats, pits = [], []
+    for f in sorted(glob.glob(os.path.join(BBE_CACHE, "*.json"))):
+        j = json.load(open(f))
+        bats += j["batters"]; pits += j["pitchers"]
+    return pd.DataFrame(bats), pd.DataFrame(pits)
+
+
+def shrunk_to_date(df, key, num, den, out, k, k_prior, lg):
+    """num/den to date this season (earlier dates only), shrunk toward last
+    season's rate, itself shrunk toward the league. df has one row per
+    (key, game) with season and date."""
+    d = df.groupby([key, "season", "date"], as_index=False)[[num, den]].sum().sort_values([key, "season", "date"])
+    g = d.groupby([key, "season"], sort=False)
+    n, m = g[num].cumsum() - d[num], g[den].cumsum() - d[den]
+    last = d.groupby([key, "season"])[[num, den]].sum().reset_index()
+    last["season"] += 1
+    d = d.merge(last.rename(columns={num: "_pn", den: "_pd"}), on=[key, "season"], how="left").fillna({"_pn": 0, "_pd": 0})
+    prior = (d._pn + k_prior * lg) / (d._pd + k_prior)
+    d[out] = (n.values + k * prior) / (m.values + k)
+    return d[[key, "season", "date", out]]
 
 
 def fit_logistic(X, y, ridge=1e-4, iters=60):
@@ -81,6 +107,26 @@ def build(df, k_bat=400, k_prior=300, k_sp=800, k_park=2000):
     return df
 
 
+def add_contact(df, k_bat=150, k_sp=300):
+    """Batter barrels and blasts per PA, and the opposing starter's
+    barrel%-allowed (per batted ball), all to date and shrunk."""
+    bats, pits = load_contact()
+    if bats.empty:
+        return df
+    games = df[["game_pk", "season", "date"]].drop_duplicates()
+    b = bats.rename(columns={"gpk": "game_pk"}).merge(games, on="game_pk")
+    lg_brl = b.barrel.sum() / b.pa.sum(); lg_bls = b.blast.sum() / b.pa.sum()
+    for num, out, lg in (("barrel", "bat_brl", lg_brl), ("blast", "bat_bls", lg_bls)):
+        df = df.merge(shrunk_to_date(b, "pid", num, "pa", out, k_bat, 300, lg), on=["pid", "season", "date"], how="left")
+        df[out] = df[out].fillna(lg)
+    # starters' lines only: a reliever's barrels say little about the arm we price
+    p = pits[pits.sp].rename(columns={"gpk": "game_pk", "pid": "opp_sp"}).merge(games, on="game_pk")
+    lg_pb = p.barrel.sum() / p.bbe.sum()
+    df = df.merge(shrunk_to_date(p, "opp_sp", "barrel", "bbe", "sp_brl", k_sp, 300, lg_pb), on=["opp_sp", "season", "date"], how="left")
+    df["sp_brl"] = df.sp_brl.fillna(lg_pb)
+    return df
+
+
 def design(d, feats):
     cols = [np.ones(len(d))]
     for f in feats:
@@ -133,5 +179,38 @@ def main():
     print(f"top 2%: pred {top.p.mean():.3f} actual {top.y.mean():.3f} (n {len(top)})")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and len(sys.argv) == 1:
     main()
+
+
+def contact_ladder():
+    """python3 research/mlb_hr_replay.py contact — does Savant contact quality
+    earn its place over HR/AB? Same split: fit 2026 Apr-Jul, test Aug-Sep."""
+    df = add_contact(build(pd.read_parquet(RAW)))
+    d = df[df.season == 2026]
+    tr, te = d[d.date < "2026-08-01"], d[d.date >= "2026-08-01"]
+    y_tr, y_te = tr.y.to_numpy(), te.y.to_numpy()
+    base = log_loss(y_te, np.full(len(y_te), y_tr.mean()))
+    core = ["slot", "park"]
+    ladder = {
+        "HR/AB + SP HR/BF (current)": ["bat_rate", "sp_rate"],
+        "+ batter barrels/PA": ["bat_rate", "bat_brl", "sp_rate"],
+        "+ batter blasts/PA": ["bat_rate", "bat_brl", "bat_bls", "sp_rate"],
+        "+ SP barrel%-allowed": ["bat_rate", "bat_brl", "sp_rate", "sp_brl"],
+        "SP barrel% instead of HR/BF": ["bat_rate", "bat_brl", "sp_brl"],
+        "barrels only (no HR/AB)": ["bat_brl", "sp_brl"],
+    }
+    print(f"test {len(te)} starter-games; base-rate logloss {base:.5f}\n")
+    for name, f in ladder.items():
+        F = f + core
+        w, se = fit_logistic(design(tr, F), y_tr)
+        p = 1 / (1 + np.exp(-design(te, F) @ w))
+        names = ["const"] + [x for ff in F for x in ([f"slot{s}" for s in range(2, 10)] if ff == "slot" else [ff])]
+        keep = {n: (b, b / s) for n, b, s in zip(names, w, se) if n in f}
+        t = te.assign(p=p); top = t[t.p >= t.p.quantile(0.98)]
+        print(f"{name:32s} logloss {log_loss(y_te, p):.5f} ({100*(base-log_loss(y_te, p))/base:.2f}%)  top2% {top.p.mean():.3f}/{top.y.mean():.3f}  "
+              + "  ".join(f"{n} {b:.2f} (z {z:.1f})" for n, (b, z) in keep.items()))
+
+
+if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "contact":
+    contact_ladder()
