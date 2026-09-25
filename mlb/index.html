@@ -4121,9 +4121,9 @@ function renderHome() {
     .join('');
 
   // Today's slate
-  const sortedGames = [...todaySchedule].sort((a,b) => new Date(a.gameDate) - new Date(b.gameDate));
+  const sortedGames = [...todaySchedule].sort((a,b) => schedStartEst(a, todaySchedule) - schedStartEst(b, todaySchedule));
   const gameRows = sortedGames.slice(0, 4).map(g => {
-    const t = new Date(g.gameDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const t = schedTimeLabel(g);
     return `<div class="hm-row">
       <span class="hm-name">${teamLogoImg(g.away.teamAbbr, 'team-logo')}${g.away.teamAbbr} <span style="color:var(--muted)">@</span> ${teamLogoImg(g.home.teamAbbr, 'team-logo')}${g.home.teamAbbr}</span>
       <span class="hm-score" style="color:var(--muted);font-size:0.84rem">${t}</span>
@@ -5843,8 +5843,7 @@ function schedStatusInfo(g) {
   const scoreTxt = (g.home.score != null && g.away.score != null) ? `${g.away.score}-${g.home.score}` : '';
   if (final) return { cls: 'final', text: `Final${scoreTxt ? ' ' + scoreTxt : ''}` };
   if (live)  return { cls: 'live',  text: `${scoreTxt ? scoreTxt + ' · ' : ''}Live` };
-  const time = new Date(g.gameDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  return { cls: 'upcoming', text: time };
+  return { cls: 'upcoming', text: schedTimeLabel(g) };
 }
 // Lets you tell at a glance, without expanding, whether either side has
 // actually posted their lineup yet.
@@ -6259,7 +6258,7 @@ function ddGameRows(g, arms = ddPropArms()) {
   } else {
     wpCell = `<td rowspan="2" class="dd-wp"><span class="dd-empty">—</span></td>`;
   }
-  const time = new Date(g.gameDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const time = schedTimeLabel(g);
   return `<tr class="dd-g-top">
       <td rowspan="2" class="dd-time">${time.replace(' ', '<br>')}</td>
       ${ddTeamCell(g.away)}
@@ -6898,6 +6897,7 @@ function loadMlbDay(date) {
         const side = (x) => ({ r: x?.runs ?? null, h: x?.hits ?? null, e: x?.errors ?? null });
         MLB_BOX.games[g.gamePk] = {
           state: g.status?.abstractGameState, detail: g.status?.detailedState,
+          tbd: !!g.status?.startTimeTBD, gn: g.doubleHeader && g.doubleHeader !== 'N' ? g.gameNumber : null,
           inning: ls.currentInningOrdinal || null, half: ls.inningState || ls.inningHalf || null, outs: ls.outs,
           bases: { first: !!ls.offense?.first, second: !!ls.offense?.second, third: !!ls.offense?.third },
           innings: (ls.innings || []).map(i => [i.away?.runs, i.home?.runs]),
@@ -6911,6 +6911,8 @@ function loadMlbDay(date) {
           probablePitcher: s.probablePitcher?.fullName || null, probablePitcherId: s.probablePitcher?.id ? String(s.probablePitcher.id) : null,
           probablePitcherThrows: null, lineup: [] });
         list.push({ gamePk: g.gamePk, gameDate: g.gameDate, status: g.status?.detailedState || '', venue: g.venue?.name || '',
+          ...(g.status?.startTimeTBD ? { startTimeTBD: true } : {}),
+          ...(g.doubleHeader && g.doubleHeader !== 'N' ? { gameNumber: g.gameNumber ?? null } : {}),
           away: tm(g.teams.away), home: tm(g.teams.home), gameType: g.gameType || 'R',
           series: g.gameType && g.gameType !== 'R' ? { round: g.seriesDescription || null, num: g.seriesGameNumber || null, of: g.gamesInSeries || null, status: g.seriesStatus?.result || null } : null });
       }
@@ -7032,6 +7034,24 @@ function mlbScoreboard(g, away, home, box, final) {
  *  runs beside each, the state of the game in the middle. Before first pitch
  *  the runs' place holds each side's moneyline and the middle the run line and
  *  total; after, the middle says which run-line side and total cashed. */
+/** A doubleheader game with no clock time of its own ("starts after Game 1"):
+ *  its game number, or null for a game with a real start time. */
+function schedTbdGame(g) {
+  const b = MLB_BOX.games[g.gamePk];
+  const tbd = g.startTimeTBD ?? b?.tbd, gn = g.gameNumber ?? b?.gn;
+  return tbd && gn > 1 ? gn : null;
+}
+/** A game's start as the schedule reads it: the clock time, or "Game 2" for a
+ *  doubleheader game that starts after the one before it. */
+const schedTimeLabel = (g) => { const gn = schedTbdGame(g);
+  return gn ? `Game ${gn}` : new Date(g.gameDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); };
+/** When a game will likely start: its own time, or for a TBD doubleheader game
+ *  the game before it plus 3h30 (a 3-hour game and the 30-minute turnaround). */
+function schedStartEst(g, games) {
+  const gn = schedTbdGame(g); if (!gn) return Date.parse(g.gameDate);
+  const prev = (games || []).find(x => x !== g && x.home.teamAbbr === g.home.teamAbbr && (x.gameNumber ?? MLB_BOX.games[x.gamePk]?.gn) === gn - 1);
+  return prev ? Date.parse(prev.gameDate) + 210 * 60e3 : Date.parse(g.gameDate);
+}
 function mlbGameCard(g, away, home, box, st, homer) {
   const L = g.lines?.cur, o = g.lines?.open || {};
   const imp = (a) => a == null ? null : a > 0 ? 100 / (a + 100) : -a / (-a + 100);
@@ -7052,8 +7072,9 @@ function mlbGameCard(g, away, home, box, st, homer) {
     : L ? `<div class="gc-odds"><b class="${mv(spT).trim()}">${sp == null ? '—' : sp === 0 ? 'PK' : (sp > 0 ? '+' : '') + lnNum(sp)}</b><span class="${mv(mlT(ml, mlOpen)).trim()}">${lnAm(ml)}</span></div>` : '<div></div>';
   let mid;
   if (!started) {
-    const time = new Date(g.gameDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    mid = `<div class="gc-st">${/Postponed|Suspended|Delayed/i.test(g.status) ? g.status : time}</div>
+    const gn = schedTbdGame(g);
+    const time = schedTimeLabel(g);
+    mid = `<div class="gc-st">${/Postponed|Suspended|Delayed/i.test(g.status) ? g.status : time}</div>${gn ? `<div class="gc-ln" title="Traditional doubleheader: starts about 30 minutes after Game ${gn - 1} ends">after Gm ${gn - 1}</div>` : ''}
       ${L?.tot != null ? `<div class="gc-ou" title="Over ${lnAm(L.oO)} · Under ${lnAm(L.uO)}">O/U <b class="${mv(totT).trim()}">${L.tot}</b></div>` : ''}`;
   } else if (!final) {
     const top = /top|mid/i.test(box?.half || ''), b = box?.bases || {};
@@ -7106,11 +7127,12 @@ function schedSlates(games) {
     return out;
   }
   const etH = (d) => +new Date(d).toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/New_York' }) % 24;
-  const win = (g) => { const h = etH(g.gameDate); return h < 17 ? 'Afternoon' : h < 21 ? 'Evening' : 'Late'; };
+  const win = (g) => { const h = etH(schedStartEst(g, games)); return h < 17 ? 'Afternoon' : h < 21 ? 'Evening' : 'Late'; };
   const t = (d) => new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   const out = new Map(); let cur = null, group = [];
   const flush = () => { if (!group.length) return;
-    const a = t(group[0].gameDate), z = t(group[group.length - 1].gameDate);
+    const timed = group.filter(g => !schedTbdGame(g));   // a TBD game's placeholder is no time at all
+    const a = timed.length ? t(timed[0].gameDate) : `After Gm ${schedTbdGame(group[0]) - 1}`, z = timed.length ? t(timed[timed.length - 1].gameDate) : a;
     out.set(group[0].gamePk, `<div class="gc-slate"><b>${cur}</b><span>${a === z ? a : `${a} – ${z}`}</span><i>${group.length} game${group.length === 1 ? '' : 's'}</i></div>`); };
   for (const g of games) { const w = win(g); if (w !== cur) { flush(); cur = w; group = []; } group.push(g); }
   flush();
@@ -7145,7 +7167,7 @@ function renderSchedule() {
   const homerScores = games.filter(g => g.homer).map(g => g.homer.score);
   const anyHomer = homerScores.length > 0;
   const dayAvg = anyHomer ? Math.round(homerScores.reduce((a, b) => a + b, 0) / homerScores.length) : null;
-  const byTime = (a, b) => new Date(a.gameDate) - new Date(b.gameDate);
+  const byTime = (a, b) => schedStartEst(a, games) - schedStartEst(b, games);
   const byHomer = (a, b) => (b.homer?.score ?? -Infinity) - (a.homer?.score ?? -Infinity) || byTime(a, b);
   // Run lines are nearly all 1.5, so the spread sort breaks ties on how big a
   // favourite the moneyline makes the chalk side; totals run highest first.
@@ -7301,7 +7323,7 @@ function sgPens(g, date) {
 /** Game: the line score, every homer with its clip, and the lines — open, now and every move. */
 function sgGame(g, date, S, away, home) {
   const lines = g.lines?.cur ? `<div class="sg-h">Lines</div>${lnPanel(g.lines, away, home)}` : '';
-  if (!S.started) return `<div class="sg-none">First pitch ${new Date(g.gameDate).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })}.</div>${lines}`;
+  if (!S.started) return `<div class="sg-none">${schedTbdGame(g) ? `Game ${schedTbdGame(g)} of a doubleheader: first pitch about 30 minutes after Game ${schedTbdGame(g) - 1} ends.` : `First pitch ${new Date(g.gameDate).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })}.`}</div>${lines}`;
   // the day's HR clips (MLB's content feed), matched to each homer — loaded once per day
   const clips = recapClipsCache[date];
   if (clips === undefined && (S.box?.hrs || []).length) ensureRecapClips(date).then(() => { if (sg.pk != null) sgRender(); });

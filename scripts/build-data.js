@@ -2255,6 +2255,10 @@ async function fetchTodaySchedule(teamIdToAbbr) {
       return {
         gamePk: g.gamePk, gameDate: g.gameDate, status: g.status?.detailedState ?? '',
         started: (g.status?.abstractGameState ?? 'Preview') !== 'Preview', // Live or Final
+        // a traditional doubleheader's game 2 has no clock time — MLB sends a
+        // placeholder gameDate and startTimeTBD; the page shows "after Game 1"
+        ...(g.status?.startTimeTBD ? { startTimeTBD: true } : {}),
+        ...(g.doubleHeader && g.doubleHeader !== 'N' ? { gameNumber: g.gameNumber ?? null } : {}),
         venue: normalizeVenue(g.venue?.name) ?? '', home: side('home'), away: side('away'),
         venueId: g.venue?.id ?? null,
         lat: loc.defaultCoordinates?.latitude ?? null,
