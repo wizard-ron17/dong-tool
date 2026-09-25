@@ -1,5 +1,10 @@
 """Fit a monotone recalibration for the top end of the board.
 
+UPDATE Sep 2026: the anytime (1+) map now ships as the identity. The history
+below describes the linear-scale models; since M9-M11 the raw logistic is
+calibrated and every recalibration loses out of sample (see main()). The 2+
+and first/last-TD maps are still fitted.
+
 The model is well calibrated across the bulk but systematically over-confident
 where it matters most — the favourites. Walk-forward, out of sample:
 
@@ -147,9 +152,17 @@ def main():
     print(f"ECE       raw {ece(p.p.to_numpy()):.4f} -> calibrated {ece(p.pc.to_numpy()):.4f}")
     print(f"AUC       unchanged by a monotone map: {auc(y, p.p.to_numpy()):.4f} / {auc(y, p.pc.to_numpy()):.4f}")
 
-    # deployment map: fit on every out-of-sample prediction we have
-    allp = pd.concat([oos[s] for s in seasons[1:]])
-    xs, ys = fit_map(allp["p"].to_numpy(), allp["scored"].to_numpy(float))
+    # deployment map: the identity. The top-end over-confidence this file was
+    # written for belonged to the linear-scale models; the log-scale features
+    # (M9) and touches (M10, M11) fixed it at the source. With M11, walk-forward
+    # 2018-2025, every recalibration LOSES out of sample — raw 0.39922, this
+    # isotonic 0.39951, a logit quadratic 0.39936, a logit cubic 0.39942, a
+    # smoothed isotonic 0.39955 — and raw is calibrated where it matters
+    # (predicted 60%+ -> 63.6% vs 64.2% actual). The isotonic only added
+    # plateaus (seven backs tied at 42.0%, backups flattened to 16.5%) and a
+    # 61.5% ceiling that held the lead backs under the market. The 2+ and
+    # first/last-TD maps below are still fitted, now on top of the raw price.
+    xs, ys = [0.0, 1.0], [0.0, 1.0]
 
     # ── the 2+ market ────────────────────────────────────────────────────
     # P(2+) = calibrated P(1+) * P(2+|1+), then its own isotonic. Its drift is
@@ -229,8 +242,8 @@ def main():
     json.dump({"x": xs, "y": ys, "x2": x2, "y2": y2, "x3": x3, "y3": y3,
                "x4": x4, "y4": y4,
                "first_share": share_all, "last_share": share_last,
-               "note": "isotonic recalibration fit on walk-forward out-of-sample "
-                       "predictions. x/y: P(>=1 TD). x2/y2: P(>=2 TD). x3/y3: "
+               "note": "recalibration fit on walk-forward out-of-sample "
+                       "predictions. x/y: P(>=1 TD), the identity (raw is calibrated). x2/y2: P(>=2 TD). x3/y3: "
                        "P(first TD), applied after dividing the calibrated "
                        "anytime price by the game's total scoring threat and "
                        "scaling by first_share (the fraction of games whose "
