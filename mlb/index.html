@@ -1481,6 +1481,13 @@
   .lbcp-photo { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; background: var(--surface2); flex-shrink: 0; }
   .lbcp-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 0.82rem; font-family: var(--font-d);}
   .lbcp-logo { width: 15px; height: 15px; flex-shrink: 0; opacity: 0.9; }
+  .pair-today { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.55rem; padding-top: 0.5rem; border-top: 1px solid var(--border); font-size: 0.76rem; }
+  .pair-today-lbl { font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .pair-today-od { font-family: var(--font-d); font-weight: 700; color: var(--text); }
+  .pair-today-od small { color: var(--muted); font-weight: 400; }
+  .pair-today-tag { font-size: 0.64rem; color: var(--muted); border: 1px solid var(--border2); border-radius: 4px; padding: 0.05rem 0.3rem; }
+  .pair-today-add { margin-left: auto; background: var(--surface1); border: 1px solid var(--border2); color: var(--text); border-radius: 6px; font-size: 0.72rem; font-weight: 700; padding: 0.25rem 0.6rem; cursor: pointer; }
+  .pair-today-add:hover { border-color: var(--accent); }
   .pick-fair { font-family: var(--font-d); color: var(--text); white-space: nowrap; }
   .pick-fair-pct { display: block; font-size: 0.66rem; color: var(--muted); font-weight: 400; }
   .hm-fair { font-family: var(--font-d); font-size: 0.72rem; color: var(--muted); margin-left: auto; margin-right: 0.5rem; white-space: nowrap; }
@@ -4469,6 +4476,34 @@ function switchPairSize(size) {
   _render(size);
 }
 
+/** Today's fair price for a group, if every member is in a game that hasn't
+ *  started: his odds multiplied, with the measured same-game HR correlation
+ *  (HR_LIFT — teammates 1.114x per pair). Plus a button that puts the whole
+ *  group on the parlay slip. Empty when anyone isn't priced today. */
+function pairsTodayHtml(pids, today) {
+  const legs = pids.map(pid => today.get(String(pid)));
+  if (legs.some(l => !l)) return '';
+  let p = legs.reduce((a, l) => a * l.p, 1), tp = 0, op = 0;
+  for (let a = 0; a < legs.length; a++) for (let b = a + 1; b < legs.length; b++) {
+    const ga = [legs[a].team, legs[a].opp].sort().join(), gb = [legs[b].team, legs[b].opp].sort().join();
+    if (ga !== gb) continue;
+    if (legs[a].team === legs[b].team) tp++; else op++;
+  }
+  p = Math.min(p * Math.pow(HR_LIFT.team, tp) * Math.pow(HR_LIFT.game, op), Math.min(...legs.map(l => l.p)));
+  const add = pids.map(pid => `'${pid}'`).join(',');
+  return `<div class="pair-today"><span class="pair-today-lbl">Today</span><span class="pair-today-od" title="Fair odds that all ${pids.length} homer today — their HR odds multiplied${tp ? ', with the measured teammate correlation' : ''}">${kbbOdds(p)} <small>(${(p * 100).toFixed(p < 0.01 ? 2 : 1)}%)</small></span>${tp ? '<span class="pair-today-tag">correlated</span>' : ''}<button class="pair-today-add" onclick="event.stopPropagation();pairsAddAll([${add}])">+ Parlay</button></div>`;
+}
+function pairsAddAll(pids) {
+  const today = hrToday();
+  if (!PARLAY.on) parMode(true);
+  for (const pid of pids) {
+    const t = today.get(String(pid)); if (!t) continue;
+    const leg = parLeg(hrLegObj(pid, t.p, t.team, t.opp));
+    if (!PARLAY.legs.some(l => l.k === leg.k)) parToggleLeg(leg);
+  }
+  PARLAY.open = true; parRender(); parSave();
+}
+
 function _render(size) {
   // groups[size] is already filtered & sorted server-side (≥3 occurrences for
   // pairs and quints, ≥2 for trios/quads) — one-off coincidences are dropped
@@ -4530,6 +4565,8 @@ function _render(size) {
     return;
   }
 
+  const today = hrToday();
+  if (!matchupCards) ensureMatchupCards();          // prices the bats off the boards; re-renders when it lands
   const frag = document.createDocumentFragment();
   groupList.slice(0, RENDER_LIMIT).forEach((item, i) => {
     const isTop  = item.count === maxCount;
@@ -4562,7 +4599,7 @@ function _render(size) {
         <div class="fresh-badge ${freshClass}">${since}d ago</div>
       </div>
       <div class="players">${playerChips}</div>
-      <div class="dates">${datePills}</div>`;
+      <div class="dates">${datePills}</div>${pairsTodayHtml(item.pids, today)}`;
     frag.appendChild(card);
   });
   container.innerHTML = '';
@@ -7310,7 +7347,7 @@ function sgPicks(g, date, S, away, home) {
     for (const [r, board] of [...(picks || []).map(r => [r, 'chalk']), ...(value || []).map(r => [r, 'value'])])
       if (tms.has(r.team) && !seen.has(r.pid) && !otherGameExclude(r.pid, r.team === g.home.teamAbbr ? g.away : g.home).chalk) { seen.add(r.pid); rows.push([r, board]); }
     rows.sort((a, b) => b[0].pickScore - a[0].pickScore);
-    hr = rows.map(([r, board]) => `<div class="sgp-row" onclick="openPickModal('${r.pid}','${board}')">
+    hr = rows.map(([r, board]) => `<div class="sgp-row" onclick="openPickModal('${r.pid}','${board}')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam)}>
         ${teamLogoImg(r.team, 'gc-pick-logo')}<span class="sgp-nm">${compactPlayerName(playerNames[r.pid] || r.pid)}</span>
         <span class="sgp-sub">${r.lineupOrder ? `#${r.lineupOrder} · ` : ''}vs ${r.oppName ? compactPlayerName(r.oppName) : r.oppTeam}${board === 'value' ? ' · Value' : ''}</span>
         <span class="sgp-v">${r.pHR > 0 ? `<span class="sgp-fair" title="${HR_FAIR_TIP}">${hrFairFull(r.pHR)}</span> ` : ''}Pick <b class="ps-ramp" ${psRamp(r.pickScore)}>${r.pickScore.toFixed(1)}</b></span>${res(r.pid)}</div>`).join('');
@@ -8435,6 +8472,7 @@ async function ensureMatchupCards() {
   if (activeNav === 'matchups') renderMatchups();
   else if (activeNav === 'pitchervuln') renderPitcherVuln();
   else if (activeNav === 'schedule') renderScheduleKeepingOpen();
+  else if (activeNav === 'pairs') _render(activePairSize);
   // Search is one of them: it warms this file on focus, so someone may already
   // be typing against the thin today's-boards base while it lands.
   if (!document.getElementById('tb-results')?.hidden) siteSearch();
@@ -9254,7 +9292,7 @@ function muTableHtml() {
     if (x == null) return 1; if (y == null) return -1;
     return (typeof x === 'string' ? x.localeCompare(y) : x - y) * muTbl.dir || b.s.pickScore - a.s.pickScore; });
   const th = COLS.map(c => `<th class="${c.left ? '' : 'r'}${c.k === muTbl.sort ? (muTbl.dir > 0 ? ' sort-asc' : ' sort-desc') : ''}${c.div ? ' mu-tbl-div' : ''}" onclick="muTblSort('${c.k}')" title="${c.tip}">${c.lbl}</th>`).join('');
-  const body = rows.map(r => `<tr class="mu-tbl-row${r.g.started ? ' mu-tbl-started' : ''}" onclick="muTblOpen('${r.b.pid}','${r.p.pid}','${(r.g.venue || '').replace(/'/g, "\\'")}')" title="Open ${r.b.name.replace(/"/g, '&quot;')} vs ${r.p.name.replace(/"/g, '&quot;')} in the Matchup view">${COLS.map(c => c.cell(r).replace('<td class="r', c.div ? '<td class="r mu-tbl-div' : '<td class="r')).join('')}</tr>`).join('');
+  const body = rows.map(r => `<tr class="mu-tbl-row${r.g.started ? ' mu-tbl-started' : ''}"${r.g.started ? '' : hrLeg(r.b.pid, r.pHR, r.b.team, r.g.home.teamAbbr === r.b.team ? r.g.away.teamAbbr : r.g.home.teamAbbr, r.b.name)} onclick="muTblOpen('${r.b.pid}','${r.p.pid}','${(r.g.venue || '').replace(/'/g, "\\'")}')" title="Open ${r.b.name.replace(/"/g, '&quot;')} vs ${r.p.name.replace(/"/g, '&quot;')} in the Matchup view">${COLS.map(c => c.cell(r).replace('<td class="r', c.div ? '<td class="r mu-tbl-div' : '<td class="r')).join('')}</tr>`).join('');
   const posted = rows.filter(r => r.posted).length;
   return `<div class="mu-tbl-bar">
       <select class="mu-select" onchange="muTblGame(this.value)" aria-label="Game">${gameOpts}</select>
@@ -9508,7 +9546,7 @@ function renderValueBoard() {
     const cls = valueScoreClass(r.valueScore ?? 0);
     const hrBadge = `<span class="pick-ind" title="Season HR">${r.hrs ?? 0} HR</span>`;
     const rk = valueRankMap[r.pid];
-    return `<div class="lbc-card due-row-clickable" onclick="openPickModal('${r.pid}','value')">
+    return `<div class="lbc-card due-row-clickable" onclick="openPickModal('${r.pid}','value')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam)}>
       <div class="lbc-top">
         <span class="lbc-rank ${rankClass(rk)}">${rk}</span>
         <img class="lbc-photo" src="${photo}" alt="">
@@ -9528,7 +9566,7 @@ function renderValueBoard() {
     const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const cls = valueScoreClass(r.valueScore ?? 0);
     const rk = valueRankMap[r.pid];
-    return `<tr class="due-row-clickable" onclick="openPickModal('${r.pid}','value')">
+    return `<tr class="due-row-clickable" onclick="openPickModal('${r.pid}','value')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam)}>
       <td class="lb-rank ${rankClass(rk)}">${rk}</td>
       <td><div class="lb-player">
         <img class="lb-photo" src="${photo}" alt="">
@@ -9547,7 +9585,7 @@ function renderValueBoard() {
   const compactHtml = pool.map(r => {
     const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const cls = valueScoreClass(r.valueScore ?? 0);
-    return `<div class="lb-compact-row due-row-clickable" onclick="openPickModal('${r.pid}','value')">
+    return `<div class="lb-compact-row due-row-clickable" onclick="openPickModal('${r.pid}','value')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam)}>
       <span class="lbcp-rank ${rankClass(valueRankMap[r.pid])}">${valueRankMap[r.pid]}</span>
       <img class="lbcp-photo" src="${photo}" alt="">
       <span class="lbcp-name">${playerNames[r.pid] || r.pid}</span>
@@ -9897,7 +9935,7 @@ function renderPicks() {
   const tableRows = ranked.map((r, i) => {
     const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const cls = pickScoreClass(r.pickScore);
-    return `<tr class="due-row-clickable" onclick="openPickModal('${r.pid}')">
+    return `<tr class="due-row-clickable" onclick="openPickModal('${r.pid}')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam)}>
       <td class="lb-rank ${rankClass(scoreRank[r.pid])}">${scoreRank[r.pid]}</td>
       <td><div class="lb-player">
         <img class="lb-photo" src="${photo}" alt="">
@@ -9917,7 +9955,7 @@ function renderPicks() {
   const cardsHtml = ranked.map((r, i) => {
     const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const cls = pickScoreClass(r.pickScore);
-    return `<div class="lbc-card due-row-clickable" onclick="openPickModal('${r.pid}')">
+    return `<div class="lbc-card due-row-clickable" onclick="openPickModal('${r.pid}')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam)}>
       <div class="lbc-top">
         <span class="lbc-rank ${rankClass(scoreRank[r.pid])}">${scoreRank[r.pid]}</span>
         <img class="lbc-photo" src="${photo}" alt="">
@@ -9935,7 +9973,7 @@ function renderPicks() {
   const compactHtml = ranked.map(r => {
     const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const cls = pickScoreClass(r.pickScore);
-    return `<div class="lb-compact-row due-row-clickable" onclick="openPickModal('${r.pid}')">
+    return `<div class="lb-compact-row due-row-clickable" onclick="openPickModal('${r.pid}')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam)}>
       <span class="lbcp-rank ${rankClass(scoreRank[r.pid])}">${scoreRank[r.pid]}</span>
       <img class="lbcp-photo" src="${photo}" alt="">
       <span class="lbcp-name">${playerNames[r.pid] || r.pid}</span>
@@ -10809,6 +10847,22 @@ const hrFair = (p) => p > 0 ? kbbOdds(p) : '—';
 const hrFairPct = (p) => p > 0 ? `${(p * 100).toFixed(1)}%` : '';
 /** "+412 (19.5%)" — the one format wherever there's room for it. */
 const hrFairFull = (p) => p > 0 ? `${kbbOdds(p)} (${hrFairPct(p)})` : '';
+/** A 1+ HR parlay leg. Same key for a player on any board, so he's one leg. */
+const hrLegObj = (pid, p, team, opp, name) => ({ k: `hr|${pid}`, n: compactPlayerName(name || playerNames[pid] || pid),
+  t: team, g: [team, opp].sort().join(' vs '), m: 'hr', s: '1+ HR', p, i: String(pid) });
+const hrLeg = (pid, p, team, opp, name) => p > 0 ? parAttr(hrLegObj(pid, p, team, opp, name)) : '';
+/** Today's odds for every lineup bat: the boards' pHR, then the Matchup table's
+ *  own pricing for everyone else (needs the matchup cards; null until loaded). */
+function hrToday() {
+  const out = new Map();
+  if (matchupCards && matchupCards !== 'error' && matchupCards.hrOdds) {
+    const saved = muTbl.game; muTbl.game = 'all';
+    try { for (const r of muTableRows()) if (!r.g.started && r.pHR > 0) out.set(String(r.b.pid), { p: r.pHR, team: r.b.team, opp: r.g.home.teamAbbr === r.b.team ? r.g.away.teamAbbr : r.g.home.teamAbbr }); }
+    finally { muTbl.game = saved; }
+  }
+  for (const r of [...(value || []), ...(picks || [])]) if (r.pHR > 0) out.set(String(r.pid), { p: r.pHR, team: r.team, opp: r.oppTeam });
+  return out;
+}
 /** A board row's odds by pid (Chalk first, then Value) — for places that only hold a pid. */
 const hrPOf = (pid) => ((picks || []).find(r => r.pid === String(pid)) || (value || []).find(r => r.pid === String(pid)))?.pHR ?? null;
 /** Table cell: the odds, the probability under it. */
@@ -12138,6 +12192,7 @@ const PAR_SPORT_LBL = { nfl: 'NFL', mlb: 'MLB', nhl: 'NHL' };
 const parLeg = (leg) => leg.sp ? leg : { ...leg, sp: PAR_SPORT, k: PAR_SPORT + ':' + leg.k };
 const PARLAY = { on: false, open: false, legs: [], boost: 0, book: '' };
 const PAR_BOOSTS = [0, 0.25, 0.5, 1];
+const HR_LIFT = { team: 1.114, game: 1.024 };   // measured same-game HR correlation, see parPrice
 
 const parEsc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 /** Attribute for a priced row. Keys are short because this ships on every row. */
@@ -12181,10 +12236,21 @@ function parPrice() {
   const who = {};
   for (const l of legs) if (l.i) (who[l.sp + l.i] ??= []).push(l);
   const samePlayer = Object.values(who).filter(v => v.length > 1).map(v => v[0].n);
-  // No measured correlation on this side — the pitcher markets are the only
-  // priced ones, and two rungs off the same arm are the same event, not a
-  // parlay. The slip multiplies and says so.
-  return { p: naive, naive, corr: false, shared, mates, samePlayer };
+  // Home runs: measured in the replay (research/mlb_hr_replay.py, every 2026
+  // starter-game, against the v1 odds that already carry park and pitcher).
+  // Two teammates both homer 1.114x as often as their odds multiply to (±0.04),
+  // two opponents in one game 1.024x (not significant), different games 1.00x;
+  // three teammates 1.38x = 1.114^3, so it compounds pair by pair. Pitcher
+  // markets carry no measured correlation — those still just multiply.
+  const hr = legs.filter(l => l.m === 'hr');
+  let tp = 0, op = 0;
+  for (let a = 0; a < hr.length; a++) for (let b = a + 1; b < hr.length; b++) {
+    if (!hr[a].g || hr[a].g !== hr[b].g) continue;
+    if (hr[a].t && hr[a].t === hr[b].t) tp++; else op++;
+  }
+  const lift = Math.pow(HR_LIFT.team, tp) * Math.pow(HR_LIFT.game, op);
+  const corr = lift > 1 && hr.length === legs.length;
+  return { p: corr ? Math.min(naive * lift, Math.min(...legs.map(l => l.p))) : naive, naive, corr, tp, shared, mates, samePlayer };
 }
 
 function parMode(on) {
@@ -12256,7 +12322,7 @@ function parRender() {
   slip.classList.toggle('open', PARLAY.open);
   document.body.classList.toggle('par-legs', PARLAY.legs.length > 0);
   document.getElementById('par-mode-btn')?.classList.toggle('on', PARLAY.on);
-  const legs = PARLAY.legs, { p, naive, corr, shared, mates, samePlayer } = parPrice();
+  const legs = PARLAY.legs, { p, naive, corr, tp, shared, mates, samePlayer } = parPrice();
   const hn = document.getElementById('par-head-n'), ho = document.getElementById('par-head-od');
   hn.innerHTML = legs.length
     ? `${legs.length} leg${legs.length === 1 ? '' : 's'} <span>· ${PARLAY.on ? 'fair' : 'selection off'}</span>`
@@ -12296,7 +12362,7 @@ function parRender() {
     <p class="par-note">${PARLAY.boost
       ? `With a <b>${boostPct}%</b> profit boost, take it at <b>${parDecAm(need)}</b> or better and you have the best of it.`
       : `Anything longer than <b>${kbbOdds(p)}</b> at your book beats fair.`}</p>
-    ${corr ? `<p class="par-note">Priced with the measured touchdown correlation rather than by multiplying${mates ? ' — teammates compete for the same end-zone trips' : ''}. Straight multiplication says <b>${kbbOdds(naive)}</b>.</p>` : ''}
+    ${corr ? `<p class="par-note">Priced with the measured same-game home-run correlation rather than by multiplying${tp ? ' — teammates homer together about 11% more often than their odds suggest (same pitcher, same park, same night)' : ''}. Straight multiplication says <b>${kbbOdds(naive)}</b>.</p>` : ''}
     ${samePlayer.length ? `<p class="par-note par-warn">Two markets on ${samePlayer.join(' and ')} — one player's lines move together, so multiplying them overstates the price.</p>` : ''}
     ${!corr && shared.length ? `<p class="par-note par-warn">${shared.map(v => `${v.length} legs in ${v[0].g}`).join(', ')} — same-game legs aren't independent, so this is a multiplied estimate, not a fair same-game price.</p>` : ''}
     <div class="par-ev">
