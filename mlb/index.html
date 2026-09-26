@@ -607,6 +607,14 @@
   .pick-factor { background: var(--surface1); border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem 0.45rem; }
   /* Matchup Lab: table view */
   .mu-viewbar { margin-bottom: 0.7rem; }
+  .mu-f { margin-bottom: 0.6rem; }
+  .mu-f-top { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+  .mu-f-reset { background: none; border: none; color: var(--muted); font-size: 0.72rem; text-decoration: underline; cursor: pointer; }
+  .mu-f-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 0.4rem; margin-top: 0.55rem; }
+  .mu-f-in { display: flex; align-items: center; justify-content: space-between; gap: 0.3rem; background: var(--surface0); border: 1px solid var(--border); border-radius: 7px; padding: 0.25rem 0.4rem; font-size: 0.72rem; color: var(--muted); }
+  .mu-f-in.on { border-color: var(--accent); color: var(--text); }
+  .mu-f-in input { width: 3.4rem; background: transparent; border: none; color: var(--text); font-family: var(--font-d); font-size: 0.8rem; text-align: right; outline: none; }
+  .mu-f-hint { font-size: 0.68rem; color: var(--dim); margin-top: 0.4rem; }
   .mu-tbl-bar { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
   .mu-tbl-meta { font-size: 0.7rem; color: var(--muted); }
   .mu-tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 0.8rem; }
@@ -9225,6 +9233,31 @@ function renderMatchups() {
 // weak bat facing a very hittable staff — the longshot hunt.
 let muView = (() => { try { return localStorage.getItem('dt_mu_view') === 'table' ? 'table' : 'matchup'; } catch (e) { return 'matchup'; } })();
 let muTbl = { game: 'all', sort: 'spot', dir: -1 };
+// Filters: your own formula over the factors. min = per-factor floors (e.g.
+// P. Vuln >= 1.2, Contact >= 1.1), maxPow = a power ceiling for the longshot
+// hunt, noRed = no factor at or below 0.95, allPlus = every factor >= 1.00.
+// Remembered per device.
+const MU_F_KEYS = [['spot', 'Spot'], ['arm', 'Arm'], ['vuln', 'P. Vuln'], ['stuff', 'Stuff'], ['batP', 'Platoon'], ['form', 'Contact'], ['pa', 'PA'], ['park', 'Park'], ['wx', 'Wx']];
+let muFlt = (() => { try { return JSON.parse(localStorage.getItem('dt_mu_filters')) || null; } catch (e) { return null; } })() || { open: false, min: {}, maxPow: null, noRed: false, allPlus: false };
+const muFltSave = () => { try { localStorage.setItem('dt_mu_filters', JSON.stringify(muFlt)); } catch (e) {} };
+const muFltOn = () => muFlt.noRed || muFlt.allPlus || muFlt.maxPow != null || Object.values(muFlt.min).some(v => v != null);
+function muFltSet(k, v) {
+  if (k === 'open' || k === 'noRed' || k === 'allPlus') muFlt[k] = !muFlt[k];
+  else if (k === 'maxPow') muFlt.maxPow = v === '' || isNaN(+v) ? null : +v;
+  else muFlt.min[k] = v === '' || isNaN(+v) ? null : +v;
+  muFltSave(); renderMatchups();
+}
+function muFltReset() { muFlt = { open: muFlt.open, min: {}, maxPow: null, noRed: false, allPlus: false }; muFltSave(); renderMatchups(); }
+/** The single factors a "no red" / "all plus" check looks at (the composites follow from them). */
+const muFactorVals = (r) => [r.f.form, r.f.batP, r.f.pa, r.f.effPlat, r.f.effStuff, r.f.park, r.f.wx].filter(v => v != null);
+function muFltPass(r) {
+  const val = { spot: r.s.matchupFactor, arm: r.arm, vuln: r.f.effPlat, stuff: r.f.effStuff, batP: r.f.batP, form: r.f.form, pa: r.f.pa, park: r.f.park, wx: r.f.wx };
+  for (const [k, lo] of Object.entries(muFlt.min)) if (lo != null && !(val[k] != null && val[k] >= lo)) return false;
+  if (muFlt.maxPow != null && !(r.b.basePower != null && r.b.basePower * 100 <= muFlt.maxPow)) return false;
+  if (muFlt.noRed && muFactorVals(r).some(v => v <= 0.95)) return false;
+  if (muFlt.allPlus && muFactorVals(r).some(v => v < 1)) return false;
+  return true;
+}
 function setMuView(v) { muView = v; try { localStorage.setItem('dt_mu_view', v); } catch (e) {} renderMatchups(); }
 function muTblSort(k) { muTbl.dir = muTbl.sort === k ? -muTbl.dir : (k === 'ord' || k === 'name' ? 1 : -1); muTbl.sort = k; renderMatchups(); }
 function muTblGame(v) { muTbl.game = v; renderMatchups(); }
@@ -9253,7 +9286,8 @@ function muTableRows() {
   return out;
 }
 function muTableHtml() {
-  const rows = muTableRows();
+  const all = muTableRows();
+  const rows = all.filter(muFltPass);
   const games = (todaySchedule || []).filter(g => [g.home, g.away].some(sd => sd.probablePitcherId));
   const gameOpts = `<option value="all"${muTbl.game === 'all' ? ' selected' : ''}>All games (${games.length})</option>` + games.map(g =>
     `<option value="${g.gamePk}"${muTbl.game === String(g.gamePk) ? ' selected' : ''}>${g.away.teamAbbr} @ ${g.home.teamAbbr} · ${schedTimeLabel(g)}</option>`).join('');
@@ -9301,12 +9335,33 @@ function muTableHtml() {
   const th = COLS.map(c => `<th class="${c.left ? '' : 'r'}${c.k === muTbl.sort ? (muTbl.dir > 0 ? ' sort-asc' : ' sort-desc') : ''}${c.div ? ' mu-tbl-div' : ''}" onclick="muTblSort('${c.k}')" title="${c.tip}">${c.lbl}</th>`).join('');
   const body = rows.map(r => `<tr class="mu-tbl-row${r.g.started ? ' mu-tbl-started' : ''}"${r.g.started ? '' : hrLeg(r.b.pid, r.pHR, r.b.team, r.g.home.teamAbbr === r.b.team ? r.g.away.teamAbbr : r.g.home.teamAbbr, r.b.name)} onclick="muTblOpen('${r.b.pid}','${r.p.pid}','${(r.g.venue || '').replace(/'/g, "\\'")}')" title="Open ${r.b.name.replace(/"/g, '&quot;')} vs ${r.p.name.replace(/"/g, '&quot;')} in the Matchup view">${COLS.map(c => c.cell(r).replace('<td class="r', c.div ? '<td class="r mu-tbl-div' : '<td class="r')).join('')}</tr>`).join('');
   const posted = rows.filter(r => r.posted).length;
-  return `<div class="mu-tbl-bar">
+  // Each factor lives on its own scale (Contact tops out near 1.10, Spot near
+  // 2.4), so every box shows where today's top 10% starts, and the range on hover.
+  const fval = { spot: r => r.s.matchupFactor, arm: r => r.arm, vuln: r => r.f.effPlat, stuff: r => r.f.effStuff, batP: r => r.f.batP, form: r => r.f.form, pa: r => r.f.pa, park: r => r.f.park, wx: r => r.f.wx };
+  const fq = (k, t) => { const a = all.map(fval[k]).filter(v => v != null).sort((x, y) => x - y); return a.length ? a[Math.floor(t * (a.length - 1))] : null; };
+  const fin = (k, lbl) => { const p90 = fq(k, 0.9), lo = fq(k, 0), hi = fq(k, 1);
+    return `<label class="mu-f-in${muFlt.min[k] != null ? ' on' : ''}" title="${lbl} today: ${lo?.toFixed(2)}–${hi?.toFixed(2)}× · top 10% from ${p90?.toFixed(2)}×"><span>${lbl} ≥</span><input type="number" step="0.01" min="0" placeholder="${p90 != null ? p90.toFixed(2) : '—'}" value="${muFlt.min[k] ?? ''}" onchange="muFltSet('${k}', this.value)"></label>`; };
+  const fchip = (k, lbl, tip) => `<button class="due-filter-chip${muFlt[k] ? ' active' : ''}" onclick="muFltSet('${k}')" title="${tip}">${lbl}</button>`;
+  const fbar = `<div class="mu-f">
+      <div class="mu-f-top">
+        <button class="due-filter-chip${muFlt.open ? ' active' : ''}" onclick="muFltSet('open')">⚙ Filters${muFltOn() ? ' · on' : ''}</button>
+        ${fchip('noRed', 'No red', 'Hide anyone with a factor at 0.95× or below')}
+        ${fchip('allPlus', 'All plus', 'Only bats whose every factor is 1.00× or better')}
+        ${muFltOn() ? `<button class="mu-f-reset" onclick="muFltReset()">Reset</button>` : ''}
+        <span class="mu-tbl-meta">${muFltOn() ? `<b>${rows.length}</b> of ${all.length} match` : ''}</span>
+      </div>
+      ${muFlt.open ? `<div class="mu-f-grid">
+        ${MU_F_KEYS.map(([k, l]) => fin(k, l)).join('')}
+        <label class="mu-f-in${muFlt.maxPow != null ? ' on' : ''}" title="Power ceiling — his HR rate per AB, in %. Set ~3.5 to hunt non-homer hitters in great spots."><span>Power ≤</span><input type="number" step="0.5" min="0" placeholder="%" value="${muFlt.maxPow ?? ''}" onchange="muFltSet('maxPow', this.value)"></label>
+      </div>
+      <div class="mu-f-hint">Each box is a floor on that factor (1.20× = 20% juicier than neutral). The grey number is where today's top 10% starts — factors run on different scales (Contact rarely tops 1.10×, Spot reaches 2×+). Add Power ≤ 3.5 to hunt longshots.</div>` : ''}
+    </div>`;
+  return `${fbar}<div class="mu-tbl-bar">
       <select class="mu-select" onchange="muTblGame(this.value)" aria-label="Game">${gameOpts}</select>
       <span class="mu-tbl-meta">${rows.length} bats · ${posted} from posted lineups, ${rows.length - posted} projected${Object.keys(penVuln || {}).length ? '' : ' · pen splits at league average until the next data build'}</span>
     </div>
     ${rows.length ? `<div class="mu-tbl-wrap"><table class="lb-table mu-tbl"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`
-      : '<div class="empty">No scoreable lineups — starters are still TBD.</div>'}
+      : muFltOn() && all.length ? '<div class="empty">Nobody matches these filters. <a href="javascript:void(0)" onclick="muFltReset()">Reset</a></div>' : '<div class="empty">No scoreable lineups — starters are still TBD.</div>'}
     <div class="mu-note">Each row is scored exactly as the Matchup view scores that pairing. Score = <b>Power</b> × <b>Spot</b>. Spot is every factor with his power left out, so sorting by it (the default) surfaces non-homer hitters in great spots — the longshots a low score hides. <b>Arm ×</b> is just the pitching side (vulnerability × stuff). Green helps the hitter, red hurts him (≥1.05 / ≤0.95). Tap a row to open it.</div>`;
 }
 // Today's opposing SP + venue for each team, from the schedule — lets us turn any
