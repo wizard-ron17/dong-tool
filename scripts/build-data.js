@@ -1495,7 +1495,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
     const topByTeam = {};
     for (const r of rows) {
       const l = topByTeam[r.team] ??= [];
-      if (!l.some(t => t.oppPid === r.oppPid)) l.push({ pid: r.pid, team: r.team, oppPid: r.oppPid ?? null, score: Math.round(r.pickScore * 10) / 10 });
+      if (!l.some(t => t.oppPid === r.oppPid)) l.push({ pid: r.pid, team: r.team, oppPid: r.oppPid ?? null, score: Math.round(r.pickScore * 10) / 10, pHR: r.pHR ?? null });
     }
     // Postseason: two to four games a day would leave the Chalk floor with a
     // handful of names, so the board ranks every scored bat (top 20) instead.

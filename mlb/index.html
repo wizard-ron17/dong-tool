@@ -1482,6 +1482,12 @@
   .lbcp-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 0.82rem; font-family: var(--font-d);}
   .lbcp-logo { width: 15px; height: 15px; flex-shrink: 0; opacity: 0.9; }
   .pick-fair { font-family: var(--font-d); color: var(--text); white-space: nowrap; }
+  .pick-fair-pct { display: block; font-size: 0.66rem; color: var(--muted); font-weight: 400; }
+  .hm-fair { font-family: var(--font-d); font-size: 0.72rem; color: var(--muted); margin-left: auto; margin-right: 0.5rem; white-space: nowrap; }
+  .gc-pick-fair { font-family: var(--font-d); color: var(--muted); white-space: nowrap; }
+  .sgp-fair { font-family: var(--font-d); color: var(--muted); white-space: nowrap; }
+  .pk-fair { font-family: var(--font-d); font-size: 0.72rem; color: var(--muted); margin-top: 0.3rem; white-space: nowrap; }
+  .pk-fair b { color: var(--text); }
   .lbc-fair { display: block; font-family: var(--font-d); font-size: 0.7rem; color: var(--muted); margin-top: 0.15rem; white-space: nowrap; }
   .lbcp-fair { flex-shrink: 0; font-family: var(--font-d); font-size: 0.72rem; color: var(--muted); margin-left: auto; white-space: nowrap; }
   .lbcp-fair + .lbcp-score { margin-left: 0.4rem; }
@@ -4167,6 +4173,7 @@ function renderHome() {
       <span class="hm-rank">${i+1}</span>
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
       <span class="hm-name">${playerNames[r.pid] || r.pid}${birthdayBadge(r.pid)}<span class="hm-subtle"> vs ${compactPlayerName(r.oppName || '')} (${r.oppHand || '?'}HP)${r.projected ? ' · proj' : ''}</span></span>
+      ${r.pHR > 0 ? `<span class="hm-fair" title="${HR_FAIR_TIP}">${hrFairFull(r.pHR)}</span>` : ''}
       <span class="hm-score ${pickScoreClass(r.pickScore)}">${r.pickScore.toFixed(1)}</span>
     </div>`).join('');
 
@@ -4219,6 +4226,7 @@ function renderHome() {
       <span class="hm-rank">${i+1}</span>
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
       <span class="hm-name">${playerNames[r.pid] || r.pid}${birthdayBadge(r.pid)}<span class="hm-subtle"> vs ${compactPlayerName(r.oppName || '')} (${r.oppHand || '?'}HP)${r.projected ? ' · proj' : ''}</span></span>
+      ${r.pHR > 0 ? `<span class="hm-fair" title="${HR_FAIR_TIP}">${hrFairFull(r.pHR)}</span>` : ''}
       <span class="hm-score ${valueScoreClass(r.valueScore ?? 0)}">${(r.valueScore ?? 0).toFixed(1)}</span>
     </div>`).join('');
 
@@ -6219,7 +6227,8 @@ function ddIsTopPick(pid) {
 function ddLeanLine(l) {
   const emoji = l.tier === 0 ? '🔒' : l.tier === 1 ? '🎯' : '⏳';
   const top = ddIsTopPick(l.pid);
-  return `<div class="dd-lean${top ? ' dd-lean-top' : ''}"${top ? ' title="Top-5 pick of the day (Chalk or Value)"' : ''}>${emoji} ${ddAbbrevName(playerNames[l.pid] || l.pid)}</div>`;
+  const ph = l.tier < 2 ? hrPOf(l.pid) : null;
+  return `<div class="dd-lean${top ? ' dd-lean-top' : ''}"${top ? ' title="Top-5 pick of the day (Chalk or Value)"' : ''}>${emoji} ${ddAbbrevName(playerNames[l.pid] || l.pid)}${ph > 0 ? ` <b title="Fair HR odds · ${hrFairPct(ph)}">${hrFair(ph)}</b>` : ''}</div>`;
 }
 function ddTeamCell(side) { return `<td class="dd-team">${ddLogoImg(side.teamAbbr)}</td>`; }
 function ddPitcherCell(side) {
@@ -6989,7 +6998,7 @@ function schedTopPick(g, date) {
   const tms = new Set([g.away.teamAbbr, g.home.teamAbbr]);
   if (date === todayDate) {
     const c = (picks || []).find(p => tms.has(p.team));
-    return c ? { pid: c.pid, name: playerNames[c.pid] || c.pid, team: c.team, score: Math.round(c.pickScore * 10) / 10 } : null;
+    return c ? { pid: c.pid, name: playerNames[c.pid] || c.pid, team: c.team, score: Math.round(c.pickScore * 10) / 10, pHR: c.pHR } : null;
   }
   const day = (picksHistory || []).find(e => e.date === date);
   const c = (day?.picks || []).filter(p => tms.has(playerTeams[p.pid])).sort((a, b) => b.score - a.score)[0];
@@ -7031,7 +7040,7 @@ function schedPickStrip(g, date, S) {
   const r = schedPickResult(t, S.box, S.final);
   return `<div class="gc-pick${r ? ' ' + r.cls : ''}" title="The game's top HR pick by Pick Score${S.started ? ' — as it stood at first pitch' : ''}">
     <span class="gc-pick-star">★</span><span class="gc-pick-lbl">Top pick</span>${teamLogoImg(t.team, 'gc-pick-logo')}
-    <span class="gc-pick-nm">${compactPlayerName(t.name)}</span>${injChip(t.pid)}<span class="gc-pick-sc">Pick <b class="ps-ramp" ${psRamp(t.score)}>${Number(t.score).toFixed(1)}</b></span>
+    <span class="gc-pick-nm">${compactPlayerName(t.name)}</span>${injChip(t.pid)}<span class="gc-pick-sc">Pick <b class="ps-ramp" ${psRamp(t.score)}>${Number(t.score).toFixed(1)}</b>${(() => { const ph = t.pHR ?? (date === todayDate ? hrPOf(t.pid) : null); return ph > 0 ? `<span class="gc-pick-fair" title="${HR_FAIR_TIP}"> · ${hrFairFull(ph)}</span>` : ''; })()}</span>
     ${r ? `<span class="gc-pick-res">${r.txt}</span>` : S.started ? '<span class="gc-pick-res pend">live</span>' : ''}
   </div>`;
 }
@@ -7304,7 +7313,7 @@ function sgPicks(g, date, S, away, home) {
     hr = rows.map(([r, board]) => `<div class="sgp-row" onclick="openPickModal('${r.pid}','${board}')">
         ${teamLogoImg(r.team, 'gc-pick-logo')}<span class="sgp-nm">${compactPlayerName(playerNames[r.pid] || r.pid)}</span>
         <span class="sgp-sub">${r.lineupOrder ? `#${r.lineupOrder} · ` : ''}vs ${r.oppName ? compactPlayerName(r.oppName) : r.oppTeam}${board === 'value' ? ' · Value' : ''}</span>
-        <span class="sgp-v">Pick <b class="ps-ramp" ${psRamp(r.pickScore)}>${r.pickScore.toFixed(1)}</b></span>${res(r.pid)}</div>`).join('');
+        <span class="sgp-v">${r.pHR > 0 ? `<span class="sgp-fair" title="${HR_FAIR_TIP}">${hrFairFull(r.pHR)}</span> ` : ''}Pick <b class="ps-ramp" ${psRamp(r.pickScore)}>${r.pickScore.toFixed(1)}</b></span>${res(r.pid)}</div>`).join('');
   } else {
     const day = (picksHistory || []).find(e => e.date === date);
     hr = (day?.picks || []).filter(p => tms.has(playerTeams[p.pid])).sort((a, b) => b.score - a.score).map(p => `<div class="sgp-row" onclick="openMlbPlayer('${p.pid}')">
@@ -8291,6 +8300,7 @@ function pickModalInner(r, board = 'chalk') {
           <span class="pk-vs-txt">VS</span>
           <span class="pick-score-big ${headCls}">${headScore.toFixed(1)}</span>
           <span class="due-modal-headline-lbl">${headLbl}</span>
+          ${r.pHR > 0 ? `<span class="pk-fair" title="${HR_FAIR_TIP}">Fair <b>${hrFair(r.pHR)}</b> (${hrFairPct(r.pHR)})</span>` : ''}
           ${isValue ? `<span class="pk-score-sub ${pickScoreClass(r.pickScore)}" title="Pick Score — the composite HR-matchup grade (power × platoons, arm stuff, park &amp; weather) the Chalk board ranks by">Pick <b>${(r.pickScore ?? 0).toFixed(1)}</b></span>` : ''}
         </div>
         <div class="pk-side">
@@ -8754,9 +8764,9 @@ function mpToday(pid) {
   // Each row opens that tool's own card rather than dropping you on its board —
   // you came here for this player, so you should leave with his number, not a
   // page you have to find him on again.
-  if (chalk) rows.push({ tool: 'picks', lab: 'Picks · Chalk', sub: `#${chalkIdx + 1} on the board`,
+  if (chalk) rows.push({ tool: 'picks', lab: 'Picks · Chalk', sub: `#${chalkIdx + 1} on the board${chalk.pHR > 0 ? ` · fair ${hrFairFull(chalk.pHR)}` : ''}`,
                          val: chalk.pickScore.toFixed(1), cls: pickScoreClass(chalk.pickScore), open: `mpOpenTool('pick','${pid}','chalk')` });
-  if (val) rows.push({ tool: 'picks', lab: 'Picks · Value', sub: `#${valIdx + 1} — blast running ahead of his HR total`,
+  if (val) rows.push({ tool: 'picks', lab: 'Picks · Value', sub: `#${valIdx + 1} — blast running ahead of his HR total${val.pHR > 0 ? ` · fair ${hrFairFull(val.pHR)}` : ''}`,
                        val: (val.valueScore ?? 0).toFixed(1), cls: valueScoreClass(val.valueScore ?? 0), open: `mpOpenTool('pick','${pid}','value')` });
   if (due) rows.push({ tool: 'due', lab: 'Due', sub: due.droughtBarrels ? `${due.droughtBarrels} barrels since his last homer` : 'on the drought board',
                        val: due.barrelPct != null ? due.barrelPct.toFixed(1) + '%' : '—', foot: 'barrel', cls: 'avg', open: `mpOpenTool('due','${pid}')` });
@@ -9227,7 +9237,7 @@ function muTableHtml() {
     { k: 'score', lbl: 'Score', get: r => r.s.pickScore, tip: 'Matchup score — Power × Spot, the Picks board number',
       cell: r => `<td class="r"><b class="ps-ramp" ${psRamp(r.s.pickScore)}>${r.s.pickScore.toFixed(1)}</b></td>` },
     { k: 'fair', lbl: 'Fair', get: r => r.pHR, tip: HR_FAIR_TIP,
-      cell: r => `<td class="r pick-fair" title="${hrFairPct(r.pHR)} to homer">${hrFair(r.pHR)}</td>` },
+      cell: r => hrFairCell(r.pHR, 'r') },
     // the divider after Arm closes the summary columns; the single factors follow
     { ...fcol('arm', 'Arm ×', r => r.arm, 'Pitching Vuln × Arm Stuff — just who is on the mound, in one number.'), div: 1 },
     fcol('vuln', 'P. Vuln', r => r.f.effPlat, 'Pitching vulnerability: the starter\'s split vs his side blended with the bullpen\'s over their shares of the game'),
@@ -9357,7 +9367,7 @@ function matchupBreakdownHtml(b, p) {
         <span class="due-modal-headline-lbl">Matchup Score</span>
         <span class="pk-stat-dim" style="font-size:0.692rem;margin-top:0.25rem">Value ${s.valueScore.toFixed(1)}</span>
         ${(() => { const ph = (live && row?.pHR) || (muVenue !== '__neutral__' || sch ? muHrProb(b, p, row?.lineupOrder ?? sch?.order ?? null, muVenue === '__neutral__' ? null : muVenue) : null);
-          return ph ? `<span class="mu-fair" title="${HR_FAIR_TIP}">Fair <b>${hrFair(ph)}</b> · ${hrFairPct(ph)}</span>` : ''; })()}
+          return ph ? `<span class="mu-fair" title="${HR_FAIR_TIP}">Fair <b>${hrFair(ph)}</b> (${hrFairPct(ph)})</span>` : ''; })()}
       </div>
       <div class="pk-side">
         ${muPhotoTag(p.pid, p.team)}
@@ -9507,7 +9517,7 @@ function renderValueBoard() {
           <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
-        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${(r.valueScore ?? 0).toFixed(1)}</span><span class="lbc-headline-lbl">Value</span>${r.pHR > 0 ? `<span class="lbc-fair" title="${hrFairPct(r.pHR)} to homer · ${HR_FAIR_TIP}">Fair ${hrFair(r.pHR)}</span>` : ''}</div>
+        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${(r.valueScore ?? 0).toFixed(1)}</span><span class="lbc-headline-lbl">Value</span>${r.pHR > 0 ? `<span class="lbc-fair" title="${HR_FAIR_TIP}">Fair ${hrFairFull(r.pHR)}</span>` : ''}</div>
       </div>
       <div class="pick-indicators">${blastPctBadge(r.blastPct)}${blastSurplusBadge(r.blastSurplus)}${hrBadge}${pickIndicators(r)}</div>
     </div>`;
@@ -9529,7 +9539,7 @@ function renderValueBoard() {
         </div>
       </div></td>
       <td class="pick-z ${cls}">${(r.valueScore ?? 0).toFixed(1)}</td>
-      <td class="lb-num pick-fair" title="${hrFairPct(r.pHR)} to homer · ${HR_FAIR_TIP}">${hrFair(r.pHR)}</td>
+      ${hrFairCell(r.pHR)}
       <td class="lb-num hr-col">${fmtBlast(r)}</td>
       <td class="lb-num stat-col">${fmtSurplus(r)}</td>
     </tr>`;
@@ -9898,7 +9908,7 @@ function renderPicks() {
         </div>
       </div></td>
       <td class="pick-z ${cls}">${r.pickScore.toFixed(1)}</td>
-      <td class="lb-num pick-fair" title="${hrFairPct(r.pHR)} to homer · ${HR_FAIR_TIP}">${hrFair(r.pHR)}</td>
+      ${hrFairCell(r.pHR)}
       <td class="lb-num hr-col">${r.hrs}</td>
       <td class="lb-num stat-col">${r.venue}</td>
     </tr>`;
@@ -9916,7 +9926,7 @@ function renderPicks() {
           <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
-        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${r.pickScore.toFixed(1)}</span><span class="lbc-headline-lbl">Pick Score</span>${r.pHR > 0 ? `<span class="lbc-fair" title="${hrFairPct(r.pHR)} to homer · ${HR_FAIR_TIP}">Fair ${hrFair(r.pHR)}</span>` : ''}</div>
+        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${r.pickScore.toFixed(1)}</span><span class="lbc-headline-lbl">Pick Score</span>${r.pHR > 0 ? `<span class="lbc-fair" title="${HR_FAIR_TIP}">Fair ${hrFairFull(r.pHR)}</span>` : ''}</div>
       </div>
       <div class="pick-indicators">${pickIndicators(r)}</div>
     </div>`;
@@ -10797,6 +10807,12 @@ const kbbWinProb = (proj, need) => proj == null ? null : poissonAtLeast(proj, ne
 const HR_FAIR_TIP = 'Fair odds (no vig) from the HR model: his power and contact quality, the starter\'s barrels allowed, lineup slot and park — calibrated on every 2025-26 starter-game. A separate read from the Pick Score.';
 const hrFair = (p) => p > 0 ? kbbOdds(p) : '—';
 const hrFairPct = (p) => p > 0 ? `${(p * 100).toFixed(1)}%` : '';
+/** "+412 (19.5%)" — the one format wherever there's room for it. */
+const hrFairFull = (p) => p > 0 ? `${kbbOdds(p)} (${hrFairPct(p)})` : '';
+/** A board row's odds by pid (Chalk first, then Value) — for places that only hold a pid. */
+const hrPOf = (pid) => ((picks || []).find(r => r.pid === String(pid)) || (value || []).find(r => r.pid === String(pid)))?.pHR ?? null;
+/** Table cell: the odds, the probability under it. */
+const hrFairCell = (p, cls = 'lb-num') => `<td class="${cls} pick-fair" title="${p > 0 ? hrFairPct(p) + ' to homer · ' : ''}${HR_FAIR_TIP}">${p > 0 ? `${kbbOdds(p)}<small class="pick-fair-pct">${hrFairPct(p)}</small>` : '—'}</td>`;
 const kbbOdds = p => (!(p > 0) || p >= 1) ? '—'
   : p >= 0.5 ? '-' + Math.round(100 * p / (1 - p)) : '+' + Math.round(100 * (1 - p) / p);
 
