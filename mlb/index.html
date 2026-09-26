@@ -6492,7 +6492,7 @@ async function psRender(withImages = true) {
       const res = hit ? '✓ HR' : done ? '✗' : '';
       x.fillStyle = PS_C.text; x.font = F(700, 20, 'b');
       const name = playerNames[r.pid] || r.pid;
-      const maxName = COLW - (nx - cx) - 120;
+      const maxName = COLW - (nx - cx) - 200;   // room for the score and the fair odds
       let nm = name; while (x.measureText(nm).width > maxName && nm.length > 4) nm = nm.slice(0, -2);
       x.fillText(nm === name ? nm : nm.trimEnd() + '…', nx, y + 28);
       const lg = imgs.get('t' + r.team);
@@ -6512,6 +6512,13 @@ async function psRender(withImages = true) {
       const sx = cx + COLW - (res ? 30 + x.measureText(res).width + 16 : 16);
       x.fillStyle = `hsl(${psHue(sc, lo, hi)} 72% 58%)`; x.font = F(700, 26, 'd'); x.fillText(sc.toFixed(1), sx, y + 34);
       x.fillStyle = PS_C.dim; x.font = F(600, 11, 'b'); x.fillText(lab, sx, y + 50);
+      // the fair odds (the HR model), left of the score
+      if (r.pHR > 0) {
+        x.font = F(700, 26, 'd'); const sw = x.measureText(sc.toFixed(1)).width;
+        const ox = sx - Math.max(sw, 30) - 18;
+        x.fillStyle = PS_C.text; x.font = F(700, 20, 'd'); x.fillText(kbbOdds(r.pHR), ox, y + 32);
+        x.fillStyle = PS_C.dim; x.font = F(600, 11, 'b'); x.fillText(`FAIR · ${(r.pHR * 100).toFixed(1)}%`, ox, y + 50);
+      }
       x.textAlign = 'left';
     });
     if (!list.length) { x.fillStyle = PS_C.muted; x.font = F(500, 18, 'b'); x.fillText('No picks on this board yet.', cx, y0 + COLHEAD + 30); }
@@ -6522,7 +6529,7 @@ async function psRender(withImages = true) {
   // footer
   x.fillStyle = PS_C.line; x.fillRect(PAD, H - 58, W - PAD * 2, 1);
   x.fillStyle = PS_C.dim; x.font = F(500, 15, 'b');
-  x.fillText('Pick = HR matchup grade (power × platoon, arm, park, weather) · Value = power the results haven’t caught up to', PAD, H - 28);
+  x.fillText('Pick = HR matchup grade · Value = power the results haven’t caught up to · Fair = HR model odds, no vig', PAD, H - 28);
   x.textAlign = 'right'; x.fillStyle = PS_C.muted; x.font = F(700, 16, 'd'); x.fillText('dong-tool.netlify.app', W - PAD, H - 28); x.textAlign = 'left';
   return new Promise((res, rej) => { try { cv.toBlob(b => b ? res(b) : rej(new Error('empty')), 'image/png'); } catch (e) { rej(e); } });
 }
@@ -9870,7 +9877,7 @@ function sharePicksText() {
   if (!filtered.length) { dtToast('No picks to share'); return; }
   const ranked = [...filtered].sort((a, b) => b.pickScore - a.pickScore).slice(0, 15);
   const lines = ranked.map((r, i) =>
-    `${i + 1}. ${playerNames[r.pid] || r.pid} — ${r.pickScore.toFixed(1)} · ${r.team} vs ${r.oppName || 'TBD'}${r.oppHand ? ` (${r.oppHand}HP)` : ''}`);
+    `${i + 1}. ${playerNames[r.pid] || r.pid} — ${r.pickScore.toFixed(1)}${r.pHR > 0 ? ` (fair ${kbbOdds(r.pHR)})` : ''} · ${r.team} vs ${r.oppName || 'TBD'}${r.oppHand ? ` (${r.oppHand}HP)` : ''}`);
   const more = filtered.length > ranked.length ? `\n…+${filtered.length - ranked.length} more` : '';
   shareText(`🌭 Dong Tool — HR Picks · ${fmtDateLong(todayDate)}\n\n${lines.join('\n')}${more}`);
 }
@@ -9879,7 +9886,7 @@ function shareValueText() {
   if (!filtered.length) { dtToast('No value bats to share'); return; }
   const ranked = [...filtered].sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0)).slice(0, 15);
   const lines = ranked.map((r, i) =>
-    `${i + 1}. ${playerNames[r.pid] || r.pid} — ${(r.valueScore ?? 0).toFixed(1)} · ${r.team} vs ${r.oppName || 'TBD'}${r.oppHand ? ` (${r.oppHand}HP)` : ''}`);
+    `${i + 1}. ${playerNames[r.pid] || r.pid} — ${(r.valueScore ?? 0).toFixed(1)}${r.pHR > 0 ? ` (fair ${kbbOdds(r.pHR)})` : ''} · ${r.team} vs ${r.oppName || 'TBD'}${r.oppHand ? ` (${r.oppHand}HP)` : ''}`);
   const more = filtered.length > ranked.length ? `\n…+${filtered.length - ranked.length} more` : '';
   shareText(`🌭 Dong Tool — Value Bats · ${fmtDateLong(todayDate)}\n\n${lines.join('\n')}${more}`);
 }
