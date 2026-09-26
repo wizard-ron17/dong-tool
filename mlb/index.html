@@ -9235,7 +9235,8 @@ let muView = (() => { try { return localStorage.getItem('dt_mu_view') === 'table
 let muTbl = { game: 'all', sort: 'spot', dir: -1 };
 // Filters: your own formula over the factors. min = per-factor floors (e.g.
 // P. Vuln >= 1.2, Contact >= 1.1), maxPow = a power ceiling for the longshot
-// hunt, noRed = no factor at or below 0.95, allPlus = every factor >= 1.00.
+// hunt, noRed = no factor below 1.00 (anything under neutral counts against
+// him), allPlus = "All green": every factor >= 1.02, the table's green cells.
 // Remembered per device.
 const MU_F_KEYS = [['spot', 'Spot'], ['arm', 'Arm'], ['vuln', 'P. Vuln'], ['stuff', 'Stuff'], ['batP', 'Platoon'], ['form', 'Contact'], ['pa', 'PA'], ['park', 'Park'], ['wx', 'Wx']];
 let muFlt = (() => { try { return JSON.parse(localStorage.getItem('dt_mu_filters')) || null; } catch (e) { return null; } })() || { open: false, min: {}, maxPow: null, noRed: false, allPlus: false };
@@ -9254,8 +9255,8 @@ function muFltPass(r) {
   const val = { spot: r.s.matchupFactor, arm: r.arm, vuln: r.f.effPlat, stuff: r.f.effStuff, batP: r.f.batP, form: r.f.form, pa: r.f.pa, park: r.f.park, wx: r.f.wx };
   for (const [k, lo] of Object.entries(muFlt.min)) if (lo != null && !(val[k] != null && val[k] >= lo)) return false;
   if (muFlt.maxPow != null && !(r.b.basePower != null && r.b.basePower * 100 <= muFlt.maxPow)) return false;
-  if (muFlt.noRed && muFactorVals(r).some(v => v <= 0.95)) return false;
-  if (muFlt.allPlus && muFactorVals(r).some(v => v < 1)) return false;
+  if (muFlt.noRed && muFactorVals(r).some(v => v < 1)) return false;
+  if (muFlt.allPlus && muFactorVals(r).some(v => v < 1.02)) return false;
   return true;
 }
 function setMuView(v) { muView = v; try { localStorage.setItem('dt_mu_view', v); } catch (e) {} renderMatchups(); }
@@ -9345,8 +9346,8 @@ function muTableHtml() {
   const fbar = `<div class="mu-f">
       <div class="mu-f-top">
         <button class="due-filter-chip${muFlt.open ? ' active' : ''}" onclick="muFltSet('open')">⚙ Filters${muFltOn() ? ' · on' : ''}</button>
-        ${fchip('noRed', 'No red', 'Hide anyone with a factor at 0.95× or below')}
-        ${fchip('allPlus', 'All plus', 'Only bats whose every factor is 1.00× or better')}
+        ${fchip('noRed', 'No red', 'Nothing working against him: every factor 1.00× or better')}
+        ${fchip('allPlus', 'All green', 'Every factor 1.02× or better — green across the row')}
         ${muFltOn() ? `<button class="mu-f-reset" onclick="muFltReset()">Reset</button>` : ''}
         <span class="mu-tbl-meta">${muFltOn() ? `<b>${rows.length}</b> of ${all.length} match` : ''}</span>
       </div>
