@@ -3191,6 +3191,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="/sgp.js"></script>
 <script>
 // All data below is precomputed by scripts/build-data.js (run on a schedule via
 // GitHub Actions) and shipped as data.json. The browser only fetches + renders —
@@ -4483,21 +4484,16 @@ function switchPairSize(size) {
 }
 
 /** Today's fair price for a group, if every member is in a game that hasn't
- *  started: his odds multiplied, with the measured same-game HR correlation
- *  (HR_LIFT — teammates 1.114x per pair). Plus a button that puts the whole
- *  group on the parlay slip. Empty when anyone isn't priced today. */
+ *  started: the same same-game pricing as the parlay slip (/sgp.js over the
+ *  measured correlations — teammates' homers rise together). Plus a button
+ *  that puts the whole group on the slip. Empty when anyone isn't priced today. */
 function pairsTodayHtml(pids, today) {
-  const legs = pids.map(pid => today.get(String(pid)));
-  if (legs.some(l => !l)) return '';
-  let p = legs.reduce((a, l) => a * l.p, 1), tp = 0, op = 0;
-  for (let a = 0; a < legs.length; a++) for (let b = a + 1; b < legs.length; b++) {
-    const ga = [legs[a].team, legs[a].opp].sort().join(), gb = [legs[b].team, legs[b].opp].sort().join();
-    if (ga !== gb) continue;
-    if (legs[a].team === legs[b].team) tp++; else op++;
-  }
-  p = Math.min(p * Math.pow(HR_LIFT.team, tp) * Math.pow(HR_LIFT.game, op), Math.min(...legs.map(l => l.p)));
+  const t = pids.map(pid => today.get(String(pid)));
+  if (t.some(l => !l)) return '';
+  const legs = pids.map((pid, i) => parLeg(hrLegObj(pid, t[i].p, t[i].team, t[i].opp)));
+  const { p, pairs } = window.SGP ? SGP.price(legs, sgpRhoMLB) : { p: legs.reduce((a, l) => a * l.p, 1), pairs: [] };
   const add = pids.map(pid => `'${pid}'`).join(',');
-  return `<div class="pair-today"><span class="pair-today-lbl">Today</span><span class="pair-today-od" title="Fair odds that all ${pids.length} homer today — their HR odds multiplied${tp ? ', with the measured teammate correlation' : ''}">${kbbOdds(p)} <small>(${(p * 100).toFixed(p < 0.01 ? 2 : 1)}%)</small></span>${tp ? '<span class="pair-today-tag">correlated</span>' : ''}<button class="pair-today-add" onclick="event.stopPropagation();pairsAddAll([${add}])">+ Parlay</button></div>`;
+  return `<div class="pair-today"><span class="pair-today-lbl">Today</span><span class="pair-today-od" title="Fair odds that all ${pids.length} homer today — their HR odds priced together${pairs.length ? ', with the measured teammate correlation' : ''}">${kbbOdds(p)} <small>(${(p * 100).toFixed(p < 0.01 ? 2 : 1)}%)</small></span>${pairs.length ? '<span class="pair-today-tag">correlated</span>' : ''}<button class="pair-today-add" onclick="event.stopPropagation();pairsAddAll([${add}])">+ Parlay</button></div>`;
 }
 function pairsAddAll(pids) {
   const today = hrToday();
@@ -12261,7 +12257,36 @@ const PAR_SPORT_LBL = { nfl: 'NFL', mlb: 'MLB', nhl: 'NHL' };
 const parLeg = (leg) => leg.sp ? leg : { ...leg, sp: PAR_SPORT, k: PAR_SPORT + ':' + leg.k };
 const PARLAY = { on: false, open: false, legs: [], boost: 0, book: '' };
 const PAR_BOOSTS = [0, 0.25, 0.5, 1];
-const HR_LIFT = { team: 1.114, game: 1.024 };   // measured same-game HR correlation, see parPrice
+// Same-game correlations, measured: research/sgp_mlb.py over every 2026 start,
+// each leg's own model probability as its margin (so ρ is only what's left
+// after the prices). Only pairs whose 95% interval excludes zero are here;
+// everything else prices as independent. Positive = they rise together.
+const SGP_MLB = {
+  hrTeam:   0.039,   // two teammates' homers [+.026, +.052] — same pitcher, park, night (1.115x at typical prices)
+  kBBSame: -0.152,   // one pitcher's K over and his BB over [-.199, -.111] — walks and Ks work against each other
+  kHrOpp:  -0.072,   // a starter's K over and a homer off him [-.098, -.047] — the duel
+  bbBBOpp: -0.065,   // the two starters' BB overs [-.133, -.003] — borderline, kept because it clears zero
+};
+// Not significant, so independent: opponents' homers (+.011), a starter's BB
+// over with homers off him (-.009), his Ks with his own lineup's homers
+// (-.006), the two starters' K overs (+.061, CI to -.03), a K over with the
+// other starter's walks (+.012).
+/** ρ between two MLB legs in one game (0 = independent). An under is the
+ *  other side of the same latent, so it flips the sign. */
+function sgpRhoMLB(a, b) {
+  if (a.sp !== 'mlb' || b.sp !== 'mlb' || !a.g || a.g !== b.g) return 0;
+  const side = (l) => /\|u$/.test(l.k) ? -1 : 1;
+  const kind = (l) => l.m === 'hr' ? 'hr' : l.m === 'pK' ? 'k' : l.m === 'pBB' ? 'bb' : null;
+  const ka = kind(a), kb = kind(b); if (!ka || !kb) return 0;
+  const sg = side(a) * side(b);
+  const is = (x, y) => (ka === x && kb === y) || (ka === y && kb === x);
+  if (is('hr', 'hr')) return a.t && a.t === b.t ? SGP_MLB.hrTeam : 0;
+  if (is('k', 'bb')) return a.i === b.i ? sg * SGP_MLB.kBBSame : 0;
+  if (is('k', 'hr')) { const k = ka === 'k' ? a : b, h = ka === 'k' ? b : a; return k.t !== h.t ? sg * SGP_MLB.kHrOpp : 0; }
+  if (is('bb', 'bb')) return a.i !== b.i ? sg * SGP_MLB.bbBBOpp : 0;
+  return 0;
+}
+const SGP_WHY = { hrTeam: 'teammates homer together', kBBSame: 'a pitcher\'s Ks and walks work against each other', kHrOpp: 'a strikeout night takes homers away', bbBBOpp: 'the two starters rarely both walk a lot' };
 
 const parEsc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 /** Attribute for a priced row. Keys are short because this ships on every row. */
@@ -12305,21 +12330,13 @@ function parPrice() {
   const who = {};
   for (const l of legs) if (l.i) (who[l.sp + l.i] ??= []).push(l);
   const samePlayer = Object.values(who).filter(v => v.length > 1).map(v => v[0].n);
-  // Home runs: measured in the replay (research/mlb_hr_replay.py, every 2026
-  // starter-game, against the v1 odds that already carry park and pitcher).
-  // Two teammates both homer 1.114x as often as their odds multiply to (±0.04),
-  // two opponents in one game 1.024x (not significant), different games 1.00x;
-  // three teammates 1.38x = 1.114^3, so it compounds pair by pair. Pitcher
-  // markets carry no measured correlation — those still just multiply.
-  const hr = legs.filter(l => l.m === 'hr');
-  let tp = 0, op = 0;
-  for (let a = 0; a < hr.length; a++) for (let b = a + 1; b < hr.length; b++) {
-    if (!hr[a].g || hr[a].g !== hr[b].g) continue;
-    if (hr[a].t && hr[a].t === hr[b].t) tp++; else op++;
-  }
-  const lift = Math.pow(HR_LIFT.team, tp) * Math.pow(HR_LIFT.game, op);
-  const corr = lift > 1 && hr.length === legs.length;
-  return { p: corr ? Math.min(naive * lift, Math.min(...legs.map(l => l.p))) : naive, naive, corr, tp, shared, mates, samePlayer };
+  // Same-game legs priced together: the Gaussian copula in /sgp.js over the
+  // measured ρs (SGP_MLB). Straight multiplication is the special case ρ = 0.
+  const res = window.SGP ? SGP.price(legs, sgpRhoMLB) : { p: naive, pairs: [] };
+  const corr = res.pairs.length > 0;
+  const why = [...new Set(res.pairs.map(q => { const r = sgpRhoMLB(legs[q.a], legs[q.b]);
+    const key = Object.keys(SGP_MLB).find(k => Math.abs(Math.abs(SGP_MLB[k]) - Math.abs(r)) < 1e-9); return key ? (r > 0 ? '▲ ' : '▼ ') + SGP_WHY[key] : null; }).filter(Boolean))];
+  return { p: corr ? res.p : naive, naive, corr, why, shared, mates, samePlayer };
 }
 
 function parMode(on) {
@@ -12382,7 +12399,8 @@ function parRenderEv() {
   if (!d || !(p > 0) || !PARLAY.legs.length) { out.textContent = ''; out.className = 'par-ev-out'; return; }
   const boosted = 1 + (d - 1) * (1 + PARLAY.boost);
   const ev = p * boosted - 1;
-  out.textContent = `${parDecAm(boosted)} after the boost · ${ev >= 0 ? '+' : '−'}${Math.abs(ev * 100).toFixed(1)}% EV`;
+  const tax = ev < 0 ? ` — the book's ${PARLAY.legs.length > 1 && parPrice().corr ? 'SGP ' : ''}tax is ${Math.abs(ev * 100).toFixed(0)}% of your stake` : ' — you have the best of it';
+  out.textContent = `${parDecAm(boosted)} after the boost · ${ev >= 0 ? '+' : '−'}${Math.abs(ev * 100).toFixed(1)}% EV${tax}`;
   out.className = 'par-ev-out ' + (ev >= 0 ? 'good' : 'bad');
 }
 
@@ -12391,7 +12409,7 @@ function parRender() {
   slip.classList.toggle('open', PARLAY.open);
   document.body.classList.toggle('par-legs', PARLAY.legs.length > 0);
   document.getElementById('par-mode-btn')?.classList.toggle('on', PARLAY.on);
-  const legs = PARLAY.legs, { p, naive, corr, tp, shared, mates, samePlayer } = parPrice();
+  const legs = PARLAY.legs, { p, naive, corr, why, shared, mates, samePlayer } = parPrice();
   const hn = document.getElementById('par-head-n'), ho = document.getElementById('par-head-od');
   hn.innerHTML = legs.length
     ? `${legs.length} leg${legs.length === 1 ? '' : 's'} <span>· ${PARLAY.on ? 'fair' : 'selection off'}</span>`
@@ -12431,7 +12449,7 @@ function parRender() {
     <p class="par-note">${PARLAY.boost
       ? `With a <b>${boostPct}%</b> profit boost, take it at <b>${parDecAm(need)}</b> or better and you have the best of it.`
       : `Anything longer than <b>${kbbOdds(p)}</b> at your book beats fair.`}</p>
-    ${corr ? `<p class="par-note">Priced with the measured same-game home-run correlation rather than by multiplying${tp ? ' — teammates homer together about 11% more often than their odds suggest (same pitcher, same park, same night)' : ''}. Straight multiplication says <b>${kbbOdds(naive)}</b>.</p>` : ''}
+    ${corr ? `<p class="par-note">Priced as a same-game parlay with measured correlations, not by multiplying: ${why.join('; ')}. Straight multiplication says <b>${kbbOdds(naive)}</b> — this slip hits <b>${p > naive ? ((p / naive - 1) * 100).toFixed(0) + '% more' : ((1 - p / naive) * 100).toFixed(0) + '% less'}</b> often than that.</p>` : ''}
     ${samePlayer.length ? `<p class="par-note par-warn">Two markets on ${samePlayer.join(' and ')} — one player's lines move together, so multiplying them overstates the price.</p>` : ''}
     ${!corr && shared.length ? `<p class="par-note par-warn">${shared.map(v => `${v.length} legs in ${v[0].g}`).join(', ')} — same-game legs aren't independent, so this is a multiplied estimate, not a fair same-game price.</p>` : ''}
     <div class="par-ev">
