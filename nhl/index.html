@@ -206,6 +206,9 @@
   .hm-subtle { font-size: 0.779rem; color: var(--muted); font-weight: 500; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .hm-score { margin-left: auto; font-family: var(--font-d); font-weight: 600; font-size: 1.24rem; line-height: 1.05; flex-shrink: 0; letter-spacing: 0; }
   .hm-score.hot, .hm-score.great { color: var(--accent); }
+  .hm-bet { display: inline-flex; align-items: baseline; gap: 0.3rem; white-space: nowrap; }
+  .hm-bet small { font-family: var(--font-m, var(--font-d)); font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+  .hm-bet b { font-weight: 700; }
   .hm-score.warm, .hm-score.good { color: var(--gold); }
   .hm-score.mild, .hm-score.ok { color: var(--warn); }
   .theme-toggle { flex-shrink: 0; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 9px; border: 1px solid var(--border2); background: var(--surface1); color: var(--muted); cursor: pointer; transition: color 0.15s, background 0.15s, border-color 0.15s; }
@@ -4873,6 +4876,9 @@
         <div class="hm-head"><span class="hm-title">${title}</span><span class="hm-link">${link} →</span></div>
         ${body || `<div class="hm-subtle">${empty}</div>`}
       </div>`;
+    // A home-card bet: the line and its price as the headline (a projection in
+    // big type read like a season stat), the projection underneath.
+    const bet = (L, p) => `<span class="hm-score hm-bet"><small>o${L}</small><b class="${p >= 0.5 ? 'odfav' : 'oddog'}">${sgOdds(p)}</b></span>`;
 
     // ── Opening-night countdown ──────────────────────────────────────────
     // Only until the first regular-season puck drop; after that the page has
@@ -4920,7 +4926,7 @@
       <div class="hm-row" onclick="event.stopPropagation(); switchNav('picks'); openPick(${r.pid})">
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${POS_NAME[r.pos] || r.pos} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${r.mu.toFixed(2)} xG</span></span>
-        <span class="hm-score ${r.p >= 0.33 ? 'hot' : 'warm'}">${sgOdds(r.p)}</span></div>`).join('');
+        <span class="hm-score hm-bet"><small>goal</small><b class="${r.p >= 0.5 ? 'odfav' : 'oddog'}">${sgOdds(r.p)}</b></span></div>`).join('');
 
     // ── Shots: the top of tonight's board ────────────────────────────────
     const SB = D.shots || {}, sbLines = SB.model?.lines || [1.5, 2.5, 3.5];
@@ -4929,33 +4935,33 @@
       const p = r.p[L] ?? r.p[String(L)] ?? 0;
       return `<div class="hm-row" onclick="event.stopPropagation(); switchNav('shots'); openShot(${r.pid})">
         ${faceHtml(mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
-        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${sgOdds(p)} over ${L}</span></span>
-        <span class="hm-score hot">${r.mu.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> proj</span></span></div>`;
+        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · proj ${r.mu.toFixed(1)} shots</span></span>
+        ${bet(L, p)}</div>`;
     }).join('');
 
     // ── Points: the top of tonight's board ──────────────────────────────
     const PTB = D.points || {};
     const ptHome = PTB.board?.length ? ptRows('pts').slice(0, 3).map(r => `<div class="hm-row" onclick="event.stopPropagation(); switchNav('points'); openPointsCard(${r.pid},'pts')">
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
-        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${sgOdds(r.pAt)} over ${r.L}</span></span>
-        <span class="hm-score hot">${r.m.toFixed(2)}<span class="hm-subtle" style="font-size:0.766rem"> pts</span></span></div>`).join('') : '';
+        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · proj ${r.m.toFixed(2)} pts</span></span>
+        ${bet(r.L, r.pAt)}</div>`).join('') : '';
 
     // ── Saves: the busiest goalies tonight ───────────────────────────────
     const SVB = D.saves || {};
     // ── Hits / Blocked shots: the top of tonight's boards ────────────────
     const pxHome = (page, kind, word) => (PX[page].data().board?.length ? pxRows(page).slice(0, 3).map(r => `<div class="hm-row" onclick="event.stopPropagation(); switchNav('${page}'); openLc('${kind}',${r.pid})">
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
-        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${sgOdds(r.pAt)} over ${r.L}</span></span>
-        <span class="hm-score hot">${r.mu.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> ${word}</span></span></div>`).join('') : '');
+        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · proj ${r.mu.toFixed(1)} ${word}</span></span>
+        ${bet(r.L, r.pAt)}</div>`).join('') : '');
     const hitHome = pxHome('hits', 'hit', 'hits'), blkHome = pxHome('blocks', 'blk', 'blk');
     const svHome = SVB.board?.length ? svRows('saves').slice(0, 3).map(r => `<div class="hm-row" onclick="event.stopPropagation(); switchNav('saves'); openSave(${r.pid},'sv')">
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
-        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${sgOdds(r.pAt)} over ${r.L}</span></span>
-        <span class="hm-score hot">${r.m.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> saves</span></span></div>`).join('') : '';
+        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · proj ${r.m.toFixed(1)} saves</span></span>
+        ${bet(r.L, r.pAt)}</div>`).join('') : '';
     const gaHome = SVB.board?.length ? svRows('ga').slice(0, 3).map(r => `<div class="hm-row" onclick="event.stopPropagation(); switchNav('allowed'); openSave(${r.pid},'ga')">
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
-        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${sgOdds(r.pAt)} over ${r.L}</span></span>
-        <span class="hm-score hot">${r.m.toFixed(2)}<span class="hm-subtle" style="font-size:0.766rem"> GA</span></span></div>`).join('') : '';
+        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · proj ${r.m.toFixed(2)} GA</span></span>
+        ${bet(r.L, r.pAt)}</div>`).join('') : '';
 
     // ── Leader mini-boards ───────────────────────────────────────────────
     const leaderRow = (r, i, val, unit) => `

@@ -1520,6 +1520,9 @@
   .hm-x { font-size: 0.766rem; color: var(--muted); font-weight: 700; margin-left: 0.08rem; }
   .hm-score { margin-left: auto; font-family: var(--font-d); font-weight: 600; font-size: 1.24rem; line-height: 1.05; flex-shrink: 0; letter-spacing: 0; }
   .hm-score.hot, .hm-score.great { color: var(--accent); }
+  .hm-bet { display: inline-flex; align-items: baseline; gap: 0.3rem; white-space: nowrap; }
+  .hm-bet small { font-family: var(--font-m, var(--font-d)); font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+  .hm-bet b { font-weight: 700; }
   .hm-score.warm, .hm-score.good { color: var(--gold); }
   .hm-score.mild, .hm-score.ok   { color: var(--warn); }
   .hm-more { font-size: 0.766rem; color: var(--muted); padding-top: 0.4rem; }
@@ -8710,6 +8713,9 @@ let pairStacks = false;
   }
   function renderHome() {
     const el = dataGate('home-content'); if (!el) return;
+    // A home-card bet: the line and its price as the headline (a projection in
+    // big type read like a season stat), the projection underneath.
+    const bet = (lbl, p) => `<span class="hm-score hm-bet"><small>${lbl}</small><b class="${p >= 0.5 ? 'odfav' : 'oddog'}">${pbOdds(p)}</b></span>`;
     const w = firstUpcomingWeek();
     const { byWeek } = scheduleWeeks();
     const games = (byWeek[w] || []).slice().sort((a, b) =>
@@ -8733,11 +8739,11 @@ let pairStacks = false;
     const topPicks = [...upcoming(priced)].sort((a, b) => b.p - a.p).slice(0, 4).map(r => `
       <div class="hm-row">${faceHtml(r.pid, r.name)}
         <span class="hm-name">${r.name}<span class="hm-subtle">${r.pos} ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</span></span>
-        <span class="hm-score ${r.p >= 0.5 ? 'warm' : 'hot'}">${pbOdds(r.p)}</span></div>`).join('');
+        ${bet('TD', r.p)}</div>`).join('');
     const topPass = [...upcoming(priced)].filter(r => r.pass).sort((a, b) => b.pass.p['2'] - a.pass.p['2']).slice(0, 2).map(r => `
       <div class="hm-row" onclick="event.stopPropagation(); goPicksMarket('5')">${faceHtml(r.pid, r.name)}
-        <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} · ${r.pass.proj.toFixed(1)} proj</span></span>
-        <span class="hm-score ${r.pass.p['2'] >= 0.5 ? 'hot' : 'warm'}">${pbOdds(r.pass.p['2'])}</span></div>`).join('');
+        <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} · proj ${r.pass.proj.toFixed(1)} pass TD</span></span>
+        ${bet('o1.5', r.pass.p['2'])}</div>`).join('');
 
     // ── Due: red-zone role, no recent score ───────────────────────────
     const lastTd = {};
@@ -8797,29 +8803,29 @@ let pairStacks = false;
       const pv = r.p[L] ?? r.p[String(L)];
       return `
       <div class="hm-row">${faceHtml(r.pid, r.name)}
-        <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} · ${pbOdds(pv)} over ${L}</span></span>
-        <span class="hm-score hot">${r.mu.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> proj</span></span></div>`;
+        <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} · proj ${r.mu.toFixed(1)} rec</span></span>
+        ${bet('o' + L, pv)}</div>`;
     }).join('');
     const cmpLines = nflData.completionModel?.lines || [];
     const cmpHomeRows = upcoming(nflData.completions || []).slice(0, 3).map(r => {
       const L = cmpLines.reduce((b, x) => Math.abs(x - r.mu) < Math.abs(b - r.mu) ? x : b, cmpLines[0]);
       return `
       <div class="hm-row">${faceHtml(r.pid, r.name)}
-        <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} · ${pbOdds(r.p[L] ?? r.p[String(L)])} over ${L}</span></span>
-        <span class="hm-score hot">${r.mu.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> proj</span></span></div>`;
+        <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} · proj ${r.mu.toFixed(1)} cmp</span></span>
+        ${bet('o' + L, r.p[L] ?? r.p[String(L)])}</div>`;
     }).join('');
     const ydHomeRows = upcoming(nflData.yards?.rec || []).slice(0, 3).map(r => `
       <div class="hm-row">${faceHtml(r.pid, r.name)}
-        <span class="hm-name">${r.name}<span class="hm-subtle">${r.pos} ${r.team} ${r.home ? 'vs' : '@'} ${r.opp} · receiving</span></span>
-        <span class="hm-score hot">${r.med.toFixed(0)}<span class="hm-subtle" style="font-size:0.766rem"> yds</span></span></div>`).join('');
+        <span class="hm-name">${r.name}<span class="hm-subtle">${r.pos} ${r.team} ${r.home ? 'vs' : '@'} ${r.opp} · proj ${r.med.toFixed(0)} rec yds</span></span>
+        ${r.L != null && r.p != null ? bet('o' + r.L, r.p) : `<span class="hm-score hot">${r.med.toFixed(0)}<span class="hm-subtle" style="font-size:0.766rem"> yds</span></span>`}</div>`).join('');
     const kkHomeRows = upcoming(kkAll()).slice(0, 3).map(r => `
       <div class="hm-row">${faceHtml(r.pid, r.name)}
-        <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} ${r.home ? 'vs' : '@'} ${r.opp} · ${pbOdds(kkP(r, 'pts', 7.5))} over 7.5</span></span>
-        <span class="hm-score hot">${r.mu.pts.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> pts</span></span></div>`).join('');
+        <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} ${r.home ? 'vs' : '@'} ${r.opp} · proj ${r.mu.pts.toFixed(1)} pts</span></span>
+        ${bet('o7.5', kkP(r, 'pts', 7.5))}</div>`).join('');
     const intHomeRows = upcoming(nflData.interceptions || []).slice(0, 3).map(r => `
       <div class="hm-row">${faceHtml(r.pid, r.name)}
-        <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} ${r.home ? 'vs' : '@'} ${r.opp} · over 0.5</span></span>
-        <span class="hm-score hot">${pbOdds(r.p['0.5'] ?? r.p[0.5])}</span></div>`).join('');
+        <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} ${r.home ? 'vs' : '@'} ${r.opp} · to throw one</span></span>
+        ${bet('INT', r.p['0.5'] ?? r.p[0.5])}</div>`).join('');
     const teamGame = {};
     for (const g of (nflData.schedule || [])) if (g.week === (P?.week ?? w)) { teamGame[g.home] = g.gameId; teamGame[g.away] = g.gameId; }
     const retRows = upcoming((nflData.returners || []).filter(r => teamGame[r.team]).map(r => ({ ...r, gameId: teamGame[r.team] }))).slice(0, 3).map(r => `
