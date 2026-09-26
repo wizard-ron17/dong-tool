@@ -607,14 +607,11 @@
   .pick-factor { background: var(--surface1); border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem 0.45rem; }
   /* Matchup Lab: table view */
   .mu-viewbar { margin-bottom: 0.7rem; }
-  .mu-f { margin-bottom: 0.6rem; }
-  .mu-f-top { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
-  .mu-f-reset { background: none; border: none; color: var(--muted); font-size: 0.72rem; text-decoration: underline; cursor: pointer; }
-  .mu-f-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 0.4rem; margin-top: 0.55rem; }
+  .mu-f-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 0.4rem; flex-basis: 100%; }
   .mu-f-in { display: flex; align-items: center; justify-content: space-between; gap: 0.3rem; background: var(--surface0); border: 1px solid var(--border); border-radius: 7px; padding: 0.25rem 0.4rem; font-size: 0.72rem; color: var(--muted); }
   .mu-f-in.on { border-color: var(--accent); color: var(--text); }
   .mu-f-in input { width: 3.4rem; background: transparent; border: none; color: var(--text); font-family: var(--font-d); font-size: 0.8rem; text-align: right; outline: none; }
-  .mu-f-hint { font-size: 0.68rem; color: var(--dim); margin-top: 0.4rem; }
+  .mu-f-hint { font-size: 0.68rem; color: var(--dim); flex-basis: 100%; }
   .mu-tbl-bar { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
   .mu-tbl-meta { font-size: 0.7rem; color: var(--muted); }
   .mu-tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 0.8rem; }
@@ -9260,6 +9257,7 @@ function muFltPass(r) {
   return true;
 }
 function setMuView(v) { muView = v; try { localStorage.setItem('dt_mu_view', v); } catch (e) {} renderMatchups(); }
+function muTblSortTo(k) { if (muTbl.sort === k) muTbl.dir = -muTbl.dir; else { muTbl.sort = k; muTbl.dir = k === 'power' ? 1 : -1; } renderMatchups(); }
 function muTblSort(k) { muTbl.dir = muTbl.sort === k ? -muTbl.dir : (k === 'ord' || k === 'name' ? 1 : -1); muTbl.sort = k; renderMatchups(); }
 function muTblGame(v) { muTbl.game = v; renderMatchups(); }
 function muTblOpen(bpid, ppid, venue) { muView = 'matchup'; try { localStorage.setItem('dt_mu_view', 'matchup'); } catch (e) {} muLoadMatchup(bpid, ppid, venue); }
@@ -9342,24 +9340,31 @@ function muTableHtml() {
   const fq = (k, t) => { const a = all.map(fval[k]).filter(v => v != null).sort((x, y) => x - y); return a.length ? a[Math.floor(t * (a.length - 1))] : null; };
   const fin = (k, lbl) => { const p90 = fq(k, 0.9), lo = fq(k, 0), hi = fq(k, 1);
     return `<label class="mu-f-in${muFlt.min[k] != null ? ' on' : ''}" title="${lbl} today: ${lo?.toFixed(2)}–${hi?.toFixed(2)}× · top 10% from ${p90?.toFixed(2)}×"><span>${lbl} ≥</span><input type="number" step="0.01" min="0" placeholder="${p90 != null ? p90.toFixed(2) : '—'}" value="${muFlt.min[k] ?? ''}" onchange="muFltSet('${k}', this.value)"></label>`; };
-  const fchip = (k, lbl, tip) => `<button class="due-filter-chip${muFlt[k] ? ' active' : ''}" onclick="muFltSet('${k}')" title="${tip}">${lbl}</button>`;
-  const fbar = `<div class="mu-f">
-      <div class="mu-f-top">
-        <button class="due-filter-chip${muFlt.open ? ' active' : ''}" onclick="muFltSet('open')">⚙ Filters${muFltOn() ? ' · on' : ''}</button>
-        ${fchip('noRed', 'No red', 'Nothing working against him: every factor 1.00× or better')}
-        ${fchip('allPlus', 'All green', 'Every factor 1.02× or better — green across the row')}
-        ${muFltOn() ? `<button class="mu-f-reset" onclick="muFltReset()">Reset</button>` : ''}
-        <span class="mu-tbl-meta">${muFltOn() ? `<b>${rows.length}</b> of ${all.length} match` : ''}</span>
-      </div>
-      ${muFlt.open ? `<div class="mu-f-grid">
-        ${MU_F_KEYS.map(([k, l]) => fin(k, l)).join('')}
-        <label class="mu-f-in${muFlt.maxPow != null ? ' on' : ''}" title="Power ceiling — his HR rate per AB, in %. Set ~3.5 to hunt non-homer hitters in great spots."><span>Power ≤</span><input type="number" step="0.5" min="0" placeholder="%" value="${muFlt.maxPow ?? ''}" onchange="muFltSet('maxPow', this.value)"></label>
-      </div>
-      <div class="mu-f-hint">Each box is a floor on that factor (1.20× = 20% juicier than neutral). The grey number is where today's top 10% starts — factors run on different scales (Contact rarely tops 1.10×, Spot reaches 2×+). Add Power ≤ 3.5 to hunt longshots.</div>` : ''}
+  // Same controls as the other boards: a collapsible Filters card (what's in)
+  // and a Sort chip row (what's first). Headers still sort too.
+  const nOn = (muFlt.noRed ? 1 : 0) + (muFlt.allPlus ? 1 : 0) + (muFlt.maxPow != null ? 1 : 0) + Object.values(muFlt.min).filter(v => v != null).length;
+  const ftog = (k, lbl, tip) => `<button class="due-filter-toggle${muFlt[k] ? ' active' : ''}" onclick="muFltSet('${k}')" title="${tip}">${lbl}</button>`;
+  const fbar = `<div class="due-filters-card">
+      <button class="due-filters-toggle" onclick="muFltSet('open')" aria-expanded="${muFlt.open}">
+        <span class="due-explainer-title">Filters${nOn ? `<span class="due-filters-badge">${nOn}</span>` : ''}</span>
+        <span class="due-explainer-chevron${muFlt.open ? ' open' : ''}">▶</span>
+      </button>
+      ${muFlt.open ? `<div class="due-filter-row">
+        ${ftog('noRed', '🟢 No red', 'Nothing working against him: every factor 1.00× or better')}
+        ${ftog('allPlus', '💚 All green', 'Every factor 1.02× or better — green across the row')}
+        ${nOn ? `<button class="due-filter-clear" onclick="muFltReset()">Reset ×</button>` : ''}
+        <div class="mu-f-grid">
+          ${MU_F_KEYS.map(([k, l]) => fin(k, l)).join('')}
+          <label class="mu-f-in${muFlt.maxPow != null ? ' on' : ''}" title="Power ceiling — his HR rate per AB, in %. Set ~3.5 to hunt non-homer hitters in great spots."><span>Power ≤</span><input type="number" step="0.5" min="0" placeholder="%" value="${muFlt.maxPow ?? ''}" onchange="muFltSet('maxPow', this.value)"></label>
+        </div>
+        <div class="mu-f-hint">Each box is a floor on that factor (1.20× = 20% juicier than neutral). The grey number is where today's top 10% starts — factors run on different scales (Contact rarely tops 1.10×, Spot reaches 2×+). Add Power ≤ 3.5 to hunt longshots.</div>
+      </div>` : ''}
     </div>`;
-  return `${fbar}<div class="mu-tbl-bar">
+  const SORTS = [['spot', 'Spot'], ['fair', 'Fair'], ['score', 'Score'], ['power', 'Power'], ['arm', 'Arm'], ['vuln', 'P. Vuln'], ['batP', 'Platoon'], ['form', 'Contact'], ['park', 'Park']];
+  const sbar = `<div class="picks-sort"><span class="due-filter-label">Sort</span>${SORTS.map(([k, l]) => `<button class="due-filter-chip${muTbl.sort === k ? ' active' : ''}" onclick="muTblSortTo('${k}')">${l}${muTbl.sort === k ? (muTbl.dir > 0 ? ' ▲' : ' ▼') : ''}</button>`).join('')}</div>`;
+  return `${fbar}${sbar}<div class="mu-tbl-bar">
       <select class="mu-select" onchange="muTblGame(this.value)" aria-label="Game">${gameOpts}</select>
-      <span class="mu-tbl-meta">${rows.length} bats · ${posted} from posted lineups, ${rows.length - posted} projected${Object.keys(penVuln || {}).length ? '' : ' · pen splits at league average until the next data build'}</span>
+      <span class="mu-tbl-meta">${nOn ? `<b>${rows.length}</b> of ${all.length} bats match` : `${rows.length} bats`} · ${posted} from posted lineups, ${rows.length - posted} projected${Object.keys(penVuln || {}).length ? '' : ' · pen splits at league average until the next data build'}</span>
     </div>
     ${rows.length ? `<div class="mu-tbl-wrap"><table class="lb-table mu-tbl"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`
       : muFltOn() && all.length ? '<div class="empty">Nobody matches these filters. <a href="javascript:void(0)" onclick="muFltReset()">Reset</a></div>' : '<div class="empty">No scoreable lineups — starters are still TBD.</div>'}
