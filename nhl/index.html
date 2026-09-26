@@ -4907,7 +4907,7 @@
     // ── Next slate ───────────────────────────────────────────────────────
     const nd = nextGameDate();
     const next = D.schedule.filter(g => g.date === nd);
-    const gameRows = next.slice(0, 6).map(g => `
+    const gameRows = next.slice(0, 5).map(g => `
       <div class="hm-row">
         ${logoImg(g.away, 'hm-glogo')}
         <span class="hm-name hm-matchup">${esc(g.away)} <span class="hm-at">@</span> ${esc(g.home)}</span>
@@ -4916,7 +4916,7 @@
 
     // ── Picks: the top of tonight's anytime-goal board ───────────────────
     const PKB = D.picks || {};
-    const pkHome = (PKB.picks || []).slice(0, 5).map(r => `
+    const pkHome = (PKB.picks || []).slice(0, 4).map(r => `
       <div class="hm-row" onclick="event.stopPropagation(); switchNav('picks'); openPick(${r.pid})">
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${POS_NAME[r.pos] || r.pos} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${r.mu.toFixed(2)} xG</span></span>
@@ -4924,7 +4924,7 @@
 
     // ── Shots: the top of tonight's board ────────────────────────────────
     const SB = D.shots || {}, sbLines = SB.model?.lines || [1.5, 2.5, 3.5];
-    const sbRows = (SB.board || []).slice(0, 5).map(r => {
+    const sbRows = (SB.board || []).slice(0, 3).map(r => {
       const L = sbLines.reduce((b, x) => Math.abs((r.p[x] ?? 0) - 0.5) < Math.abs((r.p[b] ?? 0) - 0.5) ? x : b, sbLines[0]);
       const p = r.p[L] ?? r.p[String(L)] ?? 0;
       return `<div class="hm-row" onclick="event.stopPropagation(); switchNav('shots'); openShot(${r.pid})">
@@ -4935,7 +4935,7 @@
 
     // ── Points: the top of tonight's board ──────────────────────────────
     const PTB = D.points || {};
-    const ptHome = PTB.board?.length ? ptRows('pts').slice(0, 5).map(r => `<div class="hm-row" onclick="event.stopPropagation(); switchNav('points'); openPointsCard(${r.pid},'pts')">
+    const ptHome = PTB.board?.length ? ptRows('pts').slice(0, 3).map(r => `<div class="hm-row" onclick="event.stopPropagation(); switchNav('points'); openPointsCard(${r.pid},'pts')">
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${sgOdds(r.pAt)} over ${r.L}</span></span>
         <span class="hm-score hot">${r.m.toFixed(2)}<span class="hm-subtle" style="font-size:0.766rem"> pts</span></span></div>`).join('') : '';
@@ -4943,16 +4943,16 @@
     // ── Saves: the busiest goalies tonight ───────────────────────────────
     const SVB = D.saves || {};
     // ── Hits / Blocked shots: the top of tonight's boards ────────────────
-    const pxHome = (page, kind, word) => (PX[page].data().board?.length ? pxRows(page).slice(0, 5).map(r => `<div class="hm-row" onclick="event.stopPropagation(); switchNav('${page}'); openLc('${kind}',${r.pid})">
+    const pxHome = (page, kind, word) => (PX[page].data().board?.length ? pxRows(page).slice(0, 3).map(r => `<div class="hm-row" onclick="event.stopPropagation(); switchNav('${page}'); openLc('${kind}',${r.pid})">
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${sgOdds(r.pAt)} over ${r.L}</span></span>
         <span class="hm-score hot">${r.mu.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> ${word}</span></span></div>`).join('') : '');
     const hitHome = pxHome('hits', 'hit', 'hits'), blkHome = pxHome('blocks', 'blk', 'blk');
-    const svHome = SVB.board?.length ? svRows('saves').slice(0, 5).map(r => `<div class="hm-row" onclick="event.stopPropagation(); switchNav('saves'); openSave(${r.pid},'sv')">
+    const svHome = SVB.board?.length ? svRows('saves').slice(0, 3).map(r => `<div class="hm-row" onclick="event.stopPropagation(); switchNav('saves'); openSave(${r.pid},'sv')">
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${sgOdds(r.pAt)} over ${r.L}</span></span>
         <span class="hm-score hot">${r.m.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> saves</span></span></div>`).join('') : '';
-    const gaHome = SVB.board?.length ? svRows('ga').slice(0, 5).map(r => `<div class="hm-row" onclick="event.stopPropagation(); switchNav('allowed'); openSave(${r.pid},'ga')">
+    const gaHome = SVB.board?.length ? svRows('ga').slice(0, 3).map(r => `<div class="hm-row" onclick="event.stopPropagation(); switchNav('allowed'); openSave(${r.pid},'ga')">
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${sgOdds(r.pAt)} over ${r.L}</span></span>
         <span class="hm-score hot">${r.m.toFixed(2)}<span class="hm-subtle" style="font-size:0.766rem"> GA</span></span></div>`).join('') : '';
@@ -4963,13 +4963,21 @@
         ${faceHtml(mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${POS_NAME[r.pos] || r.pos} ${esc(r.team)}</span></span>
         <span class="hm-score hot">${val}<span class="hm-subtle" style="font-size:0.766rem"> ${unit}</span></span></div>`;
-    const byG = [...(D.leaders || [])].sort((a, b) => b.g - a.g).slice(0, 5).map((r, i) => leaderRow(r, i, r.g, 'G')).join('');
-    const byP = [...(D.leaders || [])].sort((a, b) => b.p - a.p).slice(0, 5).map((r, i) => leaderRow(r, i, r.p, 'P')).join('');
-    // 25 games filters out the backup who faced 40 shots and stopped 39.
-    const byGl = [...(D.goalies || [])].filter(r => r.gp >= 25).sort((a, b) => b.svPct - a.svPct).slice(0, 5)
-      .map((r, i) => leaderRow(r, i, pct3(r.svPct), 'SV%')).join('');
-    const byPP = [...(D.leaders || [])].sort((a, b) => (b.ppToi ?? 0) - (a.ppToi ?? 0)).slice(0, 5)
-      .map((r, i) => leaderRow(r, i, mmss(r.ppToi), 'PP')).join('');
+    // One leaderboard, like the other apps' home pages — the full set lives on Stats.
+    const byG = [...(D.leaders || [])].sort((a, b) => b.g - a.g).slice(0, 3).map((r, i) => leaderRow(r, i, r.g, 'G')).join('');
+
+    // ── Pairs: who scores together. Its goal log is too heavy to load for the
+    //    home page, so the top groups show once the Pairs tool has loaded it,
+    //    and a one-line pitch until then.
+    let prHome = '';
+    try {
+      const S = (PL || PRL) ? prSource() : null;
+      if (S) prHome = (prGroups(S)[prF.size] || []).slice(0, 3).map(g => `
+      <div class="hm-row">
+        <span class="hm-name">${g.pids.map(p => esc(prName(S, p).split(' ').slice(-1)[0])).join(' + ')}<span class="hm-subtle">${S.label} · same night</span></span>
+        <span class="hm-score warm">${g.count}<span class="hm-subtle" style="font-size:0.766rem"> nights</span></span></div>`).join('');
+    } catch (e) { prHome = ''; }
+    if (!prHome) prHome = '<div class="hm-subtle" style="white-space:normal;line-height:1.45">Who scores on the same night — pairs, trios and goal → assist stacks, priced for a same-game parlay.</div>';
 
     // ── Watch lists: Due, Milestones, Birthdays ──────────────────────────
     const FUN = D.fun || {};
@@ -5002,15 +5010,13 @@
           ${card('shots', SB.date ? `Shots · ${dayLabel(SB.date)}` : 'Shots', 'Shots', sbRows, 'The board fills in once the slate is set.')}
           ${card('hits', D.hits?.date ? `Hits · ${dayLabel(D.hits.date)}` : 'Hits', 'Hits', hitHome, 'The board fills in once the slate is set.')}
           ${card('blocks', D.blocks?.date ? `Blocked Shots · ${dayLabel(D.blocks.date)}` : 'Blocked Shots', 'Blocked Shots', blkHome, 'The board fills in once the slate is set.')}
-          ${card('saves', SVB.date ? `Saves · ${dayLabel(SVB.date)}` : 'Saves', 'Saves', svHome, 'The board fills in once the slate is set.')}
-          ${card('allowed', SVB.date ? `Goals Allowed · ${dayLabel(SVB.date)}` : 'Goals Allowed', 'Goals Allowed', gaHome, 'The board fills in once the slate is set.')}
           ${card('stats', `${season} Goal Leaders`, 'Stats', byG, 'No leaders yet.')}
-          ${card('stats', `${season} Point Leaders`, 'Stats', byP, 'No leaders yet.')}
         </div>
         <div class="hm-col">
           ${card('schedule', `${dayLabel(nd)} · ${next.length} Games`, 'Schedule', gameRows, 'No games scheduled.')}
-          ${card('stats', `${season} Save % (25+ GP)`, 'Stats', byGl, 'No goalies yet.')}
-          ${card('stats', `${season} Power-Play Ice Time`, 'Stats', byPP, 'No ice time logged yet.')}
+          ${card('saves', SVB.date ? `Saves · ${dayLabel(SVB.date)}` : 'Saves', 'Saves', svHome, 'The board fills in once the slate is set.')}
+          ${card('allowed', SVB.date ? `Goals Allowed · ${dayLabel(SVB.date)}` : 'Goals Allowed', 'Goals Allowed', gaHome, 'The board fills in once the slate is set.')}
+          ${card('pairs', 'Pairs', 'Pairs', prHome, '')}
           ${card('due', 'Due', 'Due', dueHome, 'Nobody on the board is in a drought.')}
           ${card('milestones', 'Milestone Watch 🏆', 'Milestones', msHome, 'No chases within reach.')}
           ${card('birthdays', 'Birthdays 🎂', 'Birthdays', bdHome, 'No birthdays this week.')}
