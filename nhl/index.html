@@ -846,8 +846,8 @@
   }
   @media (max-width: 620px) {
   }
-  .pb-odds { display: block; font-family: var(--font-d); font-size: 1.45rem; font-weight: 700; line-height: 1; color: var(--good); }
-  .pb-odds.dog { color: var(--silver); }
+  .pb-odds { display: block; font-family: var(--font-d); font-size: 1.45rem; font-weight: 700; line-height: 1; color: var(--gold); }
+  .pb-odds.dog { color: var(--good); }
   .pb-pct { display: block; font-family: var(--font-m); font-size: 0.692rem; color: var(--dim); margin-top: 0.16rem; }
   @media (max-width: 620px) {
     .pb-facts { display: none; }
@@ -901,8 +901,8 @@
   .pb-table tr:hover td { background: var(--surface0); }
   .pb-table td.nm { color: var(--text-strong); font-weight: 700; white-space: normal; }
   .pb-table td.num { font-family: var(--font-m); text-align: right; }
-  .pb-table td.od { font-family: var(--font-m); font-weight: 700; text-align: right; color: var(--good); }
-  .pb-table td.od.dog { color: var(--gold); }
+  .pb-table td.od { font-family: var(--font-m); font-weight: 700; text-align: right; color: var(--gold); }
+  .pb-table td.od.dog { color: var(--good); }
   .pm-hero { position: relative; display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 1rem 0.85rem; }
   .pm-hero .rc-photo { width: 58px; height: 58px; flex-shrink: 0; }
   .pm-id { flex: 1; min-width: 0; }
@@ -1194,7 +1194,8 @@
   .rc-clip { display: inline-flex; align-items: center; gap: 0.2rem; margin-left: 0.4rem; color: var(--accent); text-decoration: none; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.04em; }
   .rc-clip:hover { text-decoration: underline; }
   .rc-assist { color: var(--dim); }
-  .goodc { color: var(--good); } .dogc { color: var(--silver); }
+  /* prices: minus (the favorite) gold, plus money green — one scheme on every board */
+  .odfav { color: var(--gold); } .oddog { color: var(--good); }
   .pc-tabs { margin: -0.15rem 0 0.7rem; }
   .pm-mkts { display: grid; grid-template-columns: repeat(auto-fit, minmax(3.6rem, 1fr)); gap: 0.4rem; padding: 0 1rem; margin-bottom: 0.4rem; }
   @media (max-width: 460px) { .pm-mkts { grid-template-columns: repeat(auto-fit, minmax(4.4rem, 1fr)); } }
@@ -2838,7 +2839,7 @@
         <button class="plw-go" onclick="${r.open}">
           <span class="plw-mkt">${r.short ? `<span class="plt-long">${r.lab}</span><span class="plt-short">${r.short}</span>` : r.lab}</span>
           <span class="plw-line">${r.line}</span>
-          <span class="plw-od ${r.p >= 0.5 ? 'goodc' : 'dogc'}">${sgOdds(r.p)}</span>
+          <span class="plw-od ${r.p >= 0.5 ? 'odfav' : 'oddog'}">${sgOdds(r.p)}</span>
           <span class="plw-pc">${(r.p * 100).toFixed(r.p < 0.1 ? 1 : 0)}%</span>
         </button>
         ${started || !r.leg ? '' : `<button class="plw-add${on ? ' on' : ''}" onclick="plwAdd(${pid},${i})" aria-label="${on ? 'Remove from parlay' : 'Add to parlay'}" title="${on ? 'In your parlay' : 'Add to parlay'}">${on ? '✓' : '+'}</button>`}
@@ -4693,7 +4694,7 @@
       return `<button class="ydl-row${on ? ' on' : ''}" onclick="lcSetLine(${x})" aria-pressed="${on}">
         <span class="ydl-ln">${x}${Math.abs(x - pick) < 0.01 ? '<small>even</small>' : ''}</span>
         <span class="ydl-pc">${Math.round(px * 100)}%</span>
-        <span class="ydl-od ${px >= 0.5 ? 'goodc' : 'dogc'}">${sgOdds(px)}</span>
+        <span class="ydl-od ${px >= 0.5 ? 'odfav' : 'oddog'}">${sgOdds(px)}</span>
         <span class="ydl-un">${sgOdds(1 - px)}</span></button>`;
     }).join('');
     return {
@@ -6195,7 +6196,7 @@
           <span class="gms-k">${s.lab}</span>
           <span class="gms-v">${(+s.proj).toFixed(s.k === 'sv' ? 1 : s.k === 'sog' ? 1 : 2)}${fin ? `<em>${s.got}</em>` : ''}</span>
           ${fin ? `<i class="gms-bar"><em style="width:${pctv.toFixed(0)}%"></em></i>` : ''}
-          <span class="gms-od ${s.p >= 0.5 ? 'goodc' : 'dogc'}">o${s.line}<b>${gmOdds(s.p)}</b></span>
+          <span class="gms-od ${s.p >= 0.5 ? 'odfav' : 'oddog'}">o${s.line}<b>${gmOdds(s.p)}</b></span>
         </div>`;
       };
       return `<div class="gmc ${r.team === g.home ? 'home' : 'away'}${r.dnp ? ' void' : ''}">

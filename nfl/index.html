@@ -1707,7 +1707,8 @@
   .rc-table .num { text-align: right; font-family: var(--font-d); font-weight: 700; }
   .rc-table .dim, .rc-table td.dim { color: var(--muted); font-weight: 500; }
   .rc-table b { font-family: var(--font-d); font-weight: 700; }
-  .goodc { color: var(--good); } .dogc { color: var(--silver); }
+  /* prices: minus (the favorite) gold, plus money green — one scheme on every board */
+  .odfav { color: var(--gold); } .oddog { color: var(--good); }
   .rc-compact { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface0); }
   .rc-crow { display: grid; grid-template-columns: 1.6rem 1fr 2.6rem 3rem 4.2rem 2.6rem; align-items: center;
     gap: 0.4rem; padding: 0.42rem 0.6rem; border-top: 1px solid var(--border); cursor: pointer; font-size: 0.82rem; }
@@ -2247,8 +2248,8 @@
   .rc-wind { margin-left: 0.35rem; padding: 0.05rem 0.32rem; border-radius: 4px; white-space: nowrap;
     background: rgba(240,192,64,0.12); border: 1px solid rgba(240,192,64,0.3); color: var(--gold);
     font-family: var(--font-d); font-weight: 700; }
-  .pb-odds { display: block; font-family: var(--font-d); font-size: 1.45rem; font-weight: 700; line-height: 1; color: var(--good); }
-  .pb-odds.dog { color: var(--silver); }
+  .pb-odds { display: block; font-family: var(--font-d); font-size: 1.45rem; font-weight: 700; line-height: 1; color: var(--gold); }
+  .pb-odds.dog { color: var(--good); }
   .pb-pct { display: block; font-family: var(--font-m); font-size: 0.692rem; color: var(--dim); margin-top: 0.16rem; }
 
   /* Table view — sortable header, scrolls inside its own box on narrow screens */
@@ -2268,8 +2269,8 @@
   .pb-table tr:hover td { background: var(--surface0); }
   .pb-table td.nm { color: var(--text-strong); font-weight: 700; white-space: normal; }
   .pb-table td.num { font-family: var(--font-m); text-align: right; }
-  .pb-table td.od { font-family: var(--font-m); font-weight: 700; text-align: right; color: var(--good); }
-  .pb-table td.od.dog { color: var(--gold); }
+  .pb-table td.od { font-family: var(--font-m); font-weight: 700; text-align: right; color: var(--gold); }
+  .pb-table td.od.dog { color: var(--good); }
 
   /* Compact view — one dense line per pick */
   .pb-compact { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
@@ -5251,7 +5252,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
           <span class="gms-k">${s2.lab}</span>
           <span class="gms-v">${gmFmt(s2.proj, ['cmp', 'int', 'rec', 'kpts', 'kfg'].includes(s2.k) ? 1 : 0)}${done ? `<em>${gmFmt(s2.got, 0)}</em>` : ''}</span>
           ${done ? `<i class="gms-bar"><em style="width:${pctv.toFixed(0)}%"></em></i>` : ''}
-          <span class="gms-od ${s2.p >= 0.5 ? 'goodc' : 'dogc'}">o${s2.line}<b>${pbOdds(s2.p)}</b></span>
+          <span class="gms-od ${s2.p >= 0.5 ? 'odfav' : 'oddog'}">o${s2.line}<b>${pbOdds(s2.p)}</b></span>
         </div>`;
       };
       return `<div class="gmc ${teamCls}${r.dnp ? ' void' : ''}">
@@ -6625,7 +6626,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
             <span class="plw-mkt">${PLW_SHORT[r.lab]
               ? `<span class="plt-long">${r.lab}</span><span class="plt-short">${PLW_SHORT[r.lab]}</span>` : r.lab}</span>
             <span class="plw-line">${r.line || ''}</span>
-            <span class="plw-od ${r.p >= 0.5 ? 'goodc' : 'dogc'}">${pbOdds(r.p)}</span>
+            <span class="plw-od ${r.p >= 0.5 ? 'odfav' : 'oddog'}">${pbOdds(r.p)}</span>
             <span class="plw-pc">${(r.p * 100).toFixed(r.p < 0.1 ? 1 : 0)}%</span>
           </button>
           ${done
@@ -7103,7 +7104,7 @@ let pairStacks = false;
         return `<tr><td>${lab}</td><td class="num dim">${g.length}</td>
           <td class="num">${(100 * gs).toFixed(1)}%</td>
           <td class="num">${(100 * ga).toFixed(1)}%</td>
-          <td class="num ${sig ? (gap > 0 ? 'dogc' : 'goodc') : 'dim'}">${gap > 0 ? '+' : ''}${(100 * gap).toFixed(1)}${sig ? '' : ' <span class="dim" title="within 2 standard errors — noise">≈</span>'}</td></tr>`;
+          <td class="num ${sig ? (gap > 0 ? 'oddog' : 'odfav') : 'dim'}">${gap > 0 ? '+' : ''}${(100 * gap).toFixed(1)}${sig ? '' : ' <span class="dim" title="within 2 standard errors — noise">≈</span>'}</td></tr>`;
       }).join('');
       return `<div class="pm-sec">${title}</div>
         <div class="rc-tablewrap"><table class="rc-table" style="min-width:380px">
@@ -7189,7 +7190,7 @@ let pairStacks = false;
             <td class="num dim">${Math.round((r.f.snapL3 || 0) * 100)}%</td>
             <td class="num dim">${r.f.thinRole ? '—' : Math.round((r.f.shareL3 || 0) * 100) + '%'}</td>
             <td class="num dim">o${r.L}</td>
-            <td class="num"><b class="${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</b></td>
+            <td class="num"><b class="${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</b></td>
           </tr>`).join('')}</tbody></table></div>`;
     } else if (rcF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map((r, i) => `
@@ -7198,7 +7199,7 @@ let pairStacks = false;
           <span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span>
           <span class="rc-cproj">${r.mu.toFixed(1)}</span>
-          <span class="rc-cod ${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</span>
+          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</span>
           <span class="rc-cline">o${r.L}</span>
         </div>`).join('')}</div>`;
     } else {
@@ -7294,12 +7295,12 @@ let pairStacks = false;
       body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>QB</th><th>Game</th><th class="num">Proj</th><th class="num">Att</th><th class="num">Cmp%</th><th class="num">Line</th><th class="num">Price</th></tr></thead><tbody>${rows.map((r, i) => `
         <tr onclick="openCmp('${r.pid}')"${parAttr(cpLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
           <td class="num"><b>${r.mu.toFixed(1)}</b></td><td class="num dim">${r.f.attPrior.toFixed(0)}</td><td class="num dim">${(r.f.rate * 100).toFixed(0)}%</td>
-          <td class="num dim">o${r.L}</td><td class="num"><b class="${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</b></td></tr>`).join('')}</tbody></table></div>`;
+          <td class="num dim">o${r.L}</td><td class="num"><b class="${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</b></td></tr>`).join('')}</tbody></table></div>`;
     } else if (cpF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map((r, i) => `
         <div class="rc-crow" onclick="openCmp('${r.pid}')"${parAttr(cpLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${r.mu.toFixed(1)}</span>
-          <span class="rc-cod ${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
+          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map((r, i) => `
         <div class="pb-card" onclick="openCmp('${r.pid}')"${parAttr(cpLeg(r))}>
@@ -7421,12 +7422,12 @@ let pairStacks = false;
       body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>QB</th><th>Game</th><th class="num">Spread</th><th class="num">Bad balls</th><th class="num">Opp INT%</th><th class="num">Over</th><th class="num">Under</th></tr></thead><tbody>${rows.map(r => `
         <tr onclick="openInt('${r.pid}')"${parAttr(inLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
           <td class="num dim">${spreadTxt(r.f.fav)}</td><td class="num dim">${(r.f.bad * 100).toFixed(1)}%</td><td class="num dim">${(r.f.defInt * 100).toFixed(1)}%</td>
-          <td class="num"><b class="${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</b></td><td class="num dim">${under(r)}</td></tr>`).join('')}</tbody></table></div>`;
+          <td class="num"><b class="${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</b></td><td class="num dim">${under(r)}</td></tr>`).join('')}</tbody></table></div>`;
     } else if (inF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
         <div class="rc-crow" onclick="openInt('${r.pid}')"${parAttr(inLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${Math.round(r.p * 100)}%</span>
-          <span class="rc-cod ${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
+          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
         <div class="pb-card" onclick="openInt('${r.pid}')"${parAttr(inLeg(r))}>
@@ -7559,12 +7560,12 @@ let pairStacks = false;
       body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>Kicker</th><th>Game</th><th class="num">Team total</th><th class="num">Spread</th><th class="num">Weather</th><th class="num">Proj</th><th class="num">Over</th><th class="num">Under</th></tr></thead><tbody>${rows.map(r => `
         <tr onclick="openKick('${r.pid}')"${parAttr(kkLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
           <td class="num dim">${r.f.implied.toFixed(1)}</td><td class="num dim">${spreadTxt(r.f.fav)}</td><td class="num dim">${kkWx(r.f)}</td><td class="num">${kkProj(r)}</td>
-          <td class="num"><b class="${r.pp < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.pp)}</b></td><td class="num dim">${under(r)}</td></tr>`).join('')}</tbody></table></div>`;
+          <td class="num"><b class="${r.pp < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.pp)}</b></td><td class="num dim">${under(r)}</td></tr>`).join('')}</tbody></table></div>`;
     } else if (kkF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
         <div class="rc-crow" onclick="openKick('${r.pid}')"${parAttr(kkLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${kkProj(r)}</span>
-          <span class="rc-cod ${r.pp < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.pp)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
+          <span class="rc-cod ${r.pp < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.pp)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
         <div class="pb-card" onclick="openKick('${r.pid}')"${parAttr(kkLeg(r))}>
@@ -7717,12 +7718,12 @@ let pairStacks = false;
       body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Median</th><th class="num">Avg</th><th class="num">Last 3</th><th class="num">Line</th><th class="num">Over</th><th class="num">Under</th></tr></thead><tbody>${rows.map(r => `
         <tr onclick="openYds('${r.pid}','${r.m}')"${parAttr(ydLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b> <span class="dim">${r.pos}</span></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
           <td class="num"><b>${r.med.toFixed(0)}</b></td><td class="num dim">${r.f.avg != null ? r.f.avg.toFixed(0) : '—'}</td><td class="num dim">${r.f.l3 != null ? r.f.l3.toFixed(0) : '—'}</td>
-          <td class="num dim">o${r.L}</td><td class="num"><b class="${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</b></td><td class="num dim">${pbOdds(1 - r.p)}</td></tr>`).join('')}</tbody></table></div>`;
+          <td class="num dim">o${r.L}</td><td class="num"><b class="${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</b></td><td class="num dim">${pbOdds(1 - r.p)}</td></tr>`).join('')}</tbody></table></div>`;
     } else if (ydF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
         <div class="rc-crow" onclick="openYds('${r.pid}','${r.m}')"${parAttr(ydLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${r.med.toFixed(0)}</span>
-          <span class="rc-cod ${r.p < 0.5 ? 'dogc' : 'goodc'}">${pbOdds(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
+          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
         <div class="pb-card p-${r.pos}" onclick="openYds('${r.pid}','${r.m}')"${parAttr(ydLeg(r))}>
@@ -7868,7 +7869,7 @@ let pairStacks = false;
       return `<button class="ydl-row${Math.abs(x - L) < 0.01 ? ' on' : ''}" onclick="ydSetLine(${x})" aria-pressed="${Math.abs(x - L) < 0.01}">
         <span class="ydl-ln">${x}${Math.abs(x - pick) < 0.01 ? '<small>even</small>' : ''}</span>
         <span class="ydl-pc">${Math.round(px * 100)}%</span>
-        <span class="ydl-od ${px >= 0.5 ? 'goodc' : 'dogc'}">${pbOdds(px)}</span>
+        <span class="ydl-od ${px >= 0.5 ? 'odfav' : 'oddog'}">${pbOdds(px)}</span>
         <span class="ydl-un">${pbOdds(1 - px)}</span></button>`;
     }).join('');
     return {
@@ -8147,7 +8148,7 @@ let pairStacks = false;
       return `<button class="ydl-row${on ? ' on' : ''}" onclick="lcSetLine(${x})" aria-pressed="${on}">
         <span class="ydl-ln">${x}${Math.abs(x - pick) < 0.01 && LC[lc.kind].fixed == null ? '<small>even</small>' : ''}</span>
         <span class="ydl-pc">${Math.round(px * 100)}%</span>
-        <span class="ydl-od ${px >= 0.5 ? 'goodc' : 'dogc'}">${pbOdds(px)}</span>
+        <span class="ydl-od ${px >= 0.5 ? 'odfav' : 'oddog'}">${pbOdds(px)}</span>
         <span class="ydl-un">${pbOdds(1 - px)}</span></button>`;
     }).join('');
     return {
@@ -8236,8 +8237,8 @@ let pairStacks = false;
       </div>`;
   }
   function intPrices(r) {
-    const card = (lab, p) => `<div class="ivp"><span>${lab}</span><b class="${p >= 0.5 ? 'goodc' : 'dogc'}">${pbOdds(p)}</b><small>${Math.round(p * 100)}%</small></div>`;
-    const row = (lab, p) => `<div class="ivp-row"><span>${lab}</span><span class="dim">${(p * 100).toFixed(0)}%</span><b class="${p >= 0.5 ? 'goodc' : 'dogc'}">${pbOdds(p)}</b><span class="dim">u ${pbOdds(1 - p)}</span></div>`;
+    const card = (lab, p) => `<div class="ivp"><span>${lab}</span><b class="${p >= 0.5 ? 'odfav' : 'oddog'}">${pbOdds(p)}</b><small>${Math.round(p * 100)}%</small></div>`;
+    const row = (lab, p) => `<div class="ivp-row"><span>${lab}</span><span class="dim">${(p * 100).toFixed(0)}%</span><b class="${p >= 0.5 ? 'odfav' : 'oddog'}">${pbOdds(p)}</b><span class="dim">u ${pbOdds(1 - p)}</span></div>`;
     const P = (L) => r.p[L] ?? r.p[String(L)];
     return `<div class="ivp-main">${card('Over 0.5 · throws one', P(0.5))}${card('Under 0.5 · clean game', 1 - P(0.5))}</div>
       ${P(1.5) != null ? row('2+ INTs', P(1.5)) : ''}${P(2.5) != null ? row('3+ INTs', P(2.5)) : ''}`;
@@ -8732,7 +8733,7 @@ let pairStacks = false;
     const topPicks = [...upcoming(priced)].sort((a, b) => b.p - a.p).slice(0, 4).map(r => `
       <div class="hm-row">${faceHtml(r.pid, r.name)}
         <span class="hm-name">${r.name}<span class="hm-subtle">${r.pos} ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</span></span>
-        <span class="hm-score ${r.p >= 0.5 ? 'hot' : 'warm'}">${pbOdds(r.p)}</span></div>`).join('');
+        <span class="hm-score ${r.p >= 0.5 ? 'warm' : 'hot'}">${pbOdds(r.p)}</span></div>`).join('');
     const topPass = [...upcoming(priced)].filter(r => r.pass).sort((a, b) => b.pass.p['2'] - a.pass.p['2']).slice(0, 2).map(r => `
       <div class="hm-row" onclick="event.stopPropagation(); goPicksMarket('5')">${faceHtml(r.pid, r.name)}
         <span class="hm-name">${r.name}<span class="hm-subtle">${r.team} · ${r.pass.proj.toFixed(1)} proj</span></span>
