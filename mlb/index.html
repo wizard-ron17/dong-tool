@@ -509,6 +509,7 @@
   .hrg-val.avg   { color: var(--gold); }
   .hrg-val.below { color: var(--warn); }
   .hrg-val.bad   { color: var(--bad); }
+  .hrg-val.flat  { color: var(--muted); }
 
   .tbl-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; }
   .lb-table { width: 100%; border-collapse: collapse; min-width: 480px; }
@@ -8198,7 +8199,7 @@ function openMfHelp() {
   const blended = rows.some(it => it.key === 'pen') && rows.some(it => it.key === 'pitP');
   const body = rows.sort((a, b) => Math.abs(b.value - 1) - Math.abs(a.value - 1)).map(it => {
     const d = MF_DEFS[it.key], v = it.value;
-    const cls = v >= 1.05 ? 'great' : v <= 0.95 ? 'bad' : v >= 1.02 ? 'good' : 'avg';
+    const cls = mfCls(v);
     return `<div class="mf-row">
       <div class="mf-row-hd"><span class="mf-row-name">${it.label}</span>
         <span class="mf-row-val hrg-val ${cls}">${mfSign(v)}${v.toFixed(2)}×</span></div>
@@ -8244,7 +8245,7 @@ function factorBarsHtml(items) {
     const d = it.value - 1;
     const w = Math.min(Math.abs(d) / MAXDEV, 1) * 50; // % of full track (half = 50%)
     const dir = d >= 0 ? 'pos' : 'neg';
-    const vcls = it.value >= 1.05 ? 'great' : it.value <= 0.95 ? 'bad' : it.value >= 1.02 ? 'good' : 'avg';
+    const vcls = mfCls(it.value);
     const sign = mfSign(it.value);
     const fill = d >= 0 ? `left:50%;width:${w}%` : `right:50%;width:${w}%`;
     return `<div class="fbar">
@@ -8309,7 +8310,7 @@ function pickModalInner(r, board = 'chalk') {
   const factorRatio = (val, label, digits=2) => val == null ? '' : `
     <div class="pick-factor">
       <div class="pick-factor-label">${label}</div>
-      <div class="pick-factor-val hrg-val ${val>=1.05?'great':val<=0.95?'bad':val>=1.02?'good':'avg'}">${val>=1?'+':val<=0.99?'−':'≈'} ${val.toFixed(digits)}×</div>
+      <div class="pick-factor-val hrg-val ${mfCls(val)}">${mfR(val)>1?'+':mfR(val)<1?'−':'='} ${val.toFixed(digits)}×</div>
     </div>`;
 
   const batHand   = r.bHand === 'S' ? '<span class="pk-hand s">S</span>' : r.bHand ? `<span class="pk-hand ${r.bHand.toLowerCase()}">${r.bHand}</span>` : '';
@@ -9232,28 +9233,27 @@ let muView = (() => { try { return localStorage.getItem('dt_mu_view') === 'table
 let muTbl = { game: 'all', sort: 'spot', dir: -1 };
 // Filters: your own formula over the factors. min = per-factor floors (e.g.
 // P. Vuln >= 1.2, Contact >= 1.1), maxPow = a power ceiling for the longshot
-// hunt, noRed = no factor below 1.00 (anything under neutral counts against
-// him), allPlus = "All green": every factor >= 1.02, the table's green cells.
+// hunt, noRed = no factor below 1.00 — anything under neutral is red and
+// counts against him.
 // Remembered per device.
 const MU_F_KEYS = [['spot', 'Spot'], ['arm', 'Arm'], ['vuln', 'P. Vuln'], ['stuff', 'Stuff'], ['batP', 'Platoon'], ['form', 'Contact'], ['pa', 'PA'], ['park', 'Park'], ['wx', 'Wx']];
-let muFlt = (() => { try { return JSON.parse(localStorage.getItem('dt_mu_filters')) || null; } catch (e) { return null; } })() || { open: false, min: {}, maxPow: null, noRed: false, allPlus: false };
+let muFlt = (() => { try { return JSON.parse(localStorage.getItem('dt_mu_filters')) || null; } catch (e) { return null; } })() || { open: false, min: {}, maxPow: null, noRed: false };
 const muFltSave = () => { try { localStorage.setItem('dt_mu_filters', JSON.stringify(muFlt)); } catch (e) {} };
-const muFltOn = () => muFlt.noRed || muFlt.allPlus || muFlt.maxPow != null || Object.values(muFlt.min).some(v => v != null);
+const muFltOn = () => muFlt.noRed || muFlt.maxPow != null || Object.values(muFlt.min).some(v => v != null);
 function muFltSet(k, v) {
-  if (k === 'open' || k === 'noRed' || k === 'allPlus') muFlt[k] = !muFlt[k];
+  if (k === 'open' || k === 'noRed') muFlt[k] = !muFlt[k];
   else if (k === 'maxPow') muFlt.maxPow = v === '' || isNaN(+v) ? null : +v;
   else muFlt.min[k] = v === '' || isNaN(+v) ? null : +v;
   muFltSave(); renderMatchups();
 }
-function muFltReset() { muFlt = { open: muFlt.open, min: {}, maxPow: null, noRed: false, allPlus: false }; muFltSave(); renderMatchups(); }
+function muFltReset() { muFlt = { open: muFlt.open, min: {}, maxPow: null, noRed: false }; muFltSave(); renderMatchups(); }
 /** The single factors a "no red" / "all plus" check looks at (the composites follow from them). */
 const muFactorVals = (r) => [r.f.form, r.f.batP, r.f.pa, r.f.effPlat, r.f.effStuff, r.f.park, r.f.wx].filter(v => v != null);
 function muFltPass(r) {
   const val = { spot: r.s.matchupFactor, arm: r.arm, vuln: r.f.effPlat, stuff: r.f.effStuff, batP: r.f.batP, form: r.f.form, pa: r.f.pa, park: r.f.park, wx: r.f.wx };
   for (const [k, lo] of Object.entries(muFlt.min)) if (lo != null && !(val[k] != null && val[k] >= lo)) return false;
   if (muFlt.maxPow != null && !(r.b.basePower != null && r.b.basePower * 100 <= muFlt.maxPow)) return false;
-  if (muFlt.noRed && muFactorVals(r).some(v => v < 1)) return false;
-  if (muFlt.allPlus && muFactorVals(r).some(v => v < 1.02)) return false;
+  if (muFlt.noRed && muFactorVals(r).some(v => mfR(v) < 1)) return false;
   return true;
 }
 function setMuView(v) { muView = v; try { localStorage.setItem('dt_mu_view', v); } catch (e) {} renderMatchups(); }
@@ -9290,14 +9290,9 @@ function muTableHtml() {
   const games = (todaySchedule || []).filter(g => [g.home, g.away].some(sd => sd.probablePitcherId));
   const gameOpts = `<option value="all"${muTbl.game === 'all' ? ' selected' : ''}>All games (${games.length})</option>` + games.map(g =>
     `<option value="${g.gamePk}"${muTbl.game === String(g.gamePk) ? ' selected' : ''}>${g.away.teamAbbr} @ ${g.home.teamAbbr} · ${schedTimeLabel(g)}</option>`).join('');
-  const fc = (v) => v == null ? '' : v >= 1.05 ? 'great' : v >= 1.02 ? 'good' : v <= 0.95 ? 'bad' : 'avg';
+  const fc = mfCls;
   const fx = (v) => v == null ? '<span class="mu-tbl-na">—</span>' : v.toFixed(2);
-  // Spot is a product of ~7 factors, so nearly everyone clears 1.05 — color it
-  // against today's slate instead: top fifth green, bottom fifth red.
-  const spots = rows.map(r => r.s.matchupFactor).filter(v => v != null).sort((x, y) => x - y);
-  const q = (t) => spots.length ? spots[Math.min(spots.length - 1, Math.floor(t * spots.length))] : 1;
-  const [s20, s40, s80] = [q(0.2), q(0.4), q(0.8)];
-  const spotCls = (v) => v == null ? '' : v >= s80 ? 'great' : v > s40 ? 'good' : v <= s20 ? 'bad' : 'avg';
+  const spotCls = mfCls;
   const num = (cls, txt, extra = '') => `<td class="r${cls ? ' hrg-val ' + cls : ''}${extra}">${txt}</td>`;
   const fcol = (k, lbl, get, tip) => ({ k, lbl, get, tip, cell: r => num(fc(get(r)), fx(get(r))) });
   // Spot, Power and Score lead so they stay on a phone screen; the factors scroll.
@@ -9342,7 +9337,7 @@ function muTableHtml() {
     return `<label class="mu-f-in${muFlt.min[k] != null ? ' on' : ''}" title="${lbl} today: ${lo?.toFixed(2)}–${hi?.toFixed(2)}× · top 10% from ${p90?.toFixed(2)}×"><span>${lbl} ≥</span><input type="number" step="0.01" min="0" placeholder="${p90 != null ? p90.toFixed(2) : '—'}" value="${muFlt.min[k] ?? ''}" onchange="muFltSet('${k}', this.value)"></label>`; };
   // Same controls as the other boards: a collapsible Filters card (what's in)
   // and a Sort chip row (what's first). Headers still sort too.
-  const nOn = (muFlt.noRed ? 1 : 0) + (muFlt.allPlus ? 1 : 0) + (muFlt.maxPow != null ? 1 : 0) + Object.values(muFlt.min).filter(v => v != null).length;
+  const nOn = (muFlt.noRed ? 1 : 0) + (muFlt.maxPow != null ? 1 : 0) + Object.values(muFlt.min).filter(v => v != null).length;
   const ftog = (k, lbl, tip) => `<button class="due-filter-toggle${muFlt[k] ? ' active' : ''}" onclick="muFltSet('${k}')" title="${tip}">${lbl}</button>`;
   const fbar = `<div class="due-filters-card">
       <button class="due-filters-toggle" onclick="muFltSet('open')" aria-expanded="${muFlt.open}">
@@ -9351,7 +9346,6 @@ function muTableHtml() {
       </button>
       ${muFlt.open ? `<div class="due-filter-row">
         ${ftog('noRed', '🟢 No red', 'Nothing working against him: every factor 1.00× or better')}
-        ${ftog('allPlus', '💚 All green', 'Every factor 1.02× or better — green across the row')}
         ${nOn ? `<button class="due-filter-clear" onclick="muFltReset()">Reset ×</button>` : ''}
         <div class="mu-f-grid">
           ${MU_F_KEYS.map(([k, l]) => fin(k, l)).join('')}
@@ -9446,7 +9440,7 @@ function matchupBreakdownHtml(b, p) {
   const factorRatio = (val, label) => val == null ? '' : `
     <div class="pick-factor">
       <div class="pick-factor-label">${label}</div>
-      <div class="pick-factor-val hrg-val ${val>=1.05?'great':val<=0.95?'bad':val>=1.02?'good':'avg'}">${val>=1?'+':val<=0.99?'−':'≈'} ${val.toFixed(2)}×</div>
+      <div class="pick-factor-val hrg-val ${mfCls(val)}">${mfR(val)>1?'+':mfR(val)<1?'−':'='} ${val.toFixed(2)}×</div>
     </div>`;
   const mixNames = new Set((s.mix ?? []).map(m => m.name));
   const hrNames  = new Set((b.hrProfile ?? []).map(h => h.name));
@@ -10905,6 +10899,13 @@ function poissonAtLeast(mu, n) {
 }
 const kbbWinProb = (proj, need) => proj == null ? null : poissonAtLeast(proj, need);
 // Fair American odds — no vig, so a book will always price worse than this.
+/** A matchup factor's colour: over 1.00× helps the hitter (green; brighter
+ *  from 1.05×), under 1.00× hurts him (red), exactly 1.00× is neutral. No
+ *  in-between yellow — anything under neutral counts against him. */
+// Judged on the value as displayed (2 decimals): a 0.998 that reads "1.00" is
+// neutral, not red.
+const mfR = (v) => Math.round(v * 100) / 100;
+const mfCls = (v) => v == null ? '' : mfR(v) >= 1.05 ? 'great' : mfR(v) > 1 ? 'good' : mfR(v) < 1 ? 'bad' : 'flat';
 // ── HR fair odds (scripts/hr-odds.js, research/mlb_hr_replay.py) ─────────
 // P(HR today) from the calibrated odds model, as fair American odds — no vig.
 // A separate layer from the Pick Score: it reads his power, contact quality,
