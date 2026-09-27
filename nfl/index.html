@@ -3071,6 +3071,7 @@
     .nw-toast { left: 0.75rem; right: 0.75rem; max-width: none; bottom: calc(5rem + env(safe-area-inset-bottom)); }
   }
 </style>
+<script src="/sgp.js"></script>
 <script>
   // Set the theme before first paint to avoid a flash: saved choice wins,
   // otherwise follow the OS preference, otherwise dark.
@@ -8998,6 +8999,67 @@ let pairStacks = false;
    * touchdown correlation when every leg is an anytime touchdown and the whole
    * group is on this week's Picks board (priceGroup returns null otherwise).
    */
+  // Same-game correlations, measured: research/sgp_nfl.py, walk-forward
+  // 2019-2025, each leg's own probability as its margin (so ρ is what's left
+  // beyond the prices). Only pairs whose 95% interval excludes zero; the rest
+  // price as independent. Positive = they rise together, negative = one eats
+  // into the other.
+  const SGP_NFL = {
+    recYds: 0.842,     // his receptions over + his receiving yards over [.832, .851]
+    recTd: 0.342,      // his receptions over + his anytime TD [.319, .361]
+    ydsTd: 0.357,      // his receiving yards over + his anytime TD [.337, .380]
+    rushTd: 0.420,     // his rushing yards over + his anytime TD [.386, .455]
+    cmpYds: 0.792,     // a QB's completions over + his passing yards over [.769, .809]
+    ptdYds: 0.455,     // his 2+ pass TDs + his passing yards over [.420, .501]
+    intCmp: 0.117,     // his interception + his completions over [.075, .166] — more volume, more of both
+    intPtd: -0.159,    // his interception + his 2+ pass TDs [-.202, -.112]
+    recRec: 0.023,     // two teammates' receptions overs [.007, .037] — more volume beats the split
+    tdTd: -0.052,      // two teammates' TDs [-.060, -.043] — they share a fixed pool
+    cmpRec: 0.336,     // QB completions over + his receiver's receptions over [.313, .348]
+    pydsRyds: 0.320,   // QB passing yards over + his receiver's yards over [.298, .338]
+    intRec: 0.024,     // QB interception + his receiver's receptions over [.001, .040]
+    ptdTdRec: 0.454,   // QB 2+ pass TDs + a WR/TE's TD [.440, .470] — the same event
+    intTd: -0.063,     // QB interception + a teammate's TD [-.076, -.047]
+    tdTdOpp: 0.020,    // TDs on opposite sides [.012, .026] — a shootout
+    pydsOpp: 0.139,    // both QBs' passing yards overs [.062, .221]
+    intOpp: -0.102,    // both QBs throwing a pick [-.153, -.039]
+  };
+  // Independent (not significant): teammates' receiving yards, QB pass TDs +
+  // an RB's TD, kicker points with the team's TDs or its QB's pass TDs.
+  const SGP_NFL_WHY = { recYds: 'his catches carry his yards', recTd: 'a busy day means a TD shot', ydsTd: 'yards and a TD go together', rushTd: 'a big rushing day means a TD shot',
+    cmpYds: 'completions carry passing yards', ptdYds: 'passing TDs come with passing yards', intCmp: 'more throws, more of both', intPtd: 'picks and passing TDs work against each other',
+    recRec: 'a pass-heavy game lifts both', tdTd: 'teammates share a fixed pool of TDs', cmpRec: 'his completions are the receiver\'s catches', pydsRyds: 'his yards are the receiver\'s yards',
+    intRec: 'more throws, more of both', ptdTdRec: 'a receiving TD is his passing TD', intTd: 'a pick costs his team a scoring drive', tdTdOpp: 'a shootout lifts both sides',
+    pydsOpp: 'shootouts lift both QBs', intOpp: 'rarely both throw picks' };
+  const nflPos = (pid) => (nflData?.picks?.picks || []).find(r => r.pid === pid)?.pos || null;
+  /** ρ between two NFL legs in one game (0 = independent); key names the rule. */
+  function sgpRuleNFL(a, b) {
+    if (a.sp !== 'nfl' || b.sp !== 'nfl' || !a.g || a.g !== b.g) return null;
+    const K = { td1: 'td', ptd: 'ptd', rec: 'rec', cmp: 'cmp', int: 'int', yrec: 'yrec', yrush: 'yrush', ypass: 'ypass' };
+    const ka = K[a.m], kb = K[b.m]; if (!ka || !kb) return null;
+    const is = (x, y) => (ka === x && kb === y) || (ka === y && kb === x);
+    const same = a.i === b.i, mate = !same && a.t && a.t === b.t, opp = a.t && b.t && a.t !== b.t;
+    const pick = (x) => (ka === x ? a : b);
+    if (same) {
+      if (is('rec', 'yrec')) return 'recYds'; if (is('rec', 'td')) return 'recTd'; if (is('yrec', 'td')) return 'ydsTd';
+      if (is('yrush', 'td')) return 'rushTd'; if (is('cmp', 'ypass')) return 'cmpYds'; if (is('ptd', 'ypass')) return 'ptdYds';
+      if (is('int', 'cmp')) return 'intCmp'; if (is('int', 'ptd')) return 'intPtd';
+      return null;
+    }
+    if (mate) {
+      if (is('rec', 'rec')) return 'recRec'; if (is('td', 'td')) return 'tdTd';
+      if (is('cmp', 'rec')) return 'cmpRec'; if (is('ypass', 'yrec')) return 'pydsRyds'; if (is('int', 'rec')) return 'intRec';
+      if (is('ptd', 'td')) return ['WR', 'TE'].includes(nflPos(pick('td').i)) ? 'ptdTdRec' : null;
+      if (is('int', 'td')) return 'intTd';
+      return null;
+    }
+    if (opp) { if (is('td', 'td')) return 'tdTdOpp'; if (is('ypass', 'ypass')) return 'pydsOpp'; if (is('int', 'int')) return 'intOpp'; }
+    return null;
+  }
+  const sgpRhoNFL = (a, b) => { const k = sgpRuleNFL(a, b); if (!k) return 0;
+    const side = (l) => /\|u$/.test(l.k) ? -1 : 1;   // an under flips the sign
+    return side(a) * side(b) * SGP_NFL[k]; };
+
   function parPrice() {
     const legs = PARLAY.legs;
     const naive = legs.reduce((a, l) => a * l.p, 1);
@@ -9010,12 +9072,20 @@ let pairStacks = false;
     const who = {};
     for (const l of legs) if (l.i) (who[l.sp + l.i] ??= []).push(l);
     const samePlayer = Object.values(who).filter(v => v.length > 1).map(v => v[0].n);
-    let p = naive, corr = false;
+    let p = naive, corr = false, why = [];
     if (legs.length > 1 && legs.every(l => l.sp === 'nfl' && l.m === 'td1' && l.i)) {
       const g = priceGroup(legs.map(l => l.i));
       if (g) { p = g.fair; corr = true; }
     }
-    return { p, naive, corr, shared, mates, samePlayer };
+    // everything else in one game: the copula (/sgp.js) over the measured ρs
+    if (!corr && legs.length > 1 && window.SGP) {
+      const res = SGP.price(legs, sgpRhoNFL);
+      if (res.pairs.length) {
+        p = res.p; corr = 'sgp';
+        why = [...new Set(res.pairs.map(q => { const k = sgpRuleNFL(legs[q.a], legs[q.b]); return k ? (q.rho > 0 ? '▲ ' : '▼ ') + SGP_NFL_WHY[k] : null; }).filter(Boolean))];
+      }
+    }
+    return { p, naive, corr, why, shared, mates, samePlayer };
   }
 
   function parMode(on) {
@@ -9078,7 +9148,8 @@ let pairStacks = false;
     if (!d || !(p > 0) || !PARLAY.legs.length) { out.textContent = ''; out.className = 'par-ev-out'; return; }
     const boosted = 1 + (d - 1) * (1 + PARLAY.boost);
     const ev = p * boosted - 1;
-    out.textContent = `${parDecAm(boosted)} after the boost · ${ev >= 0 ? '+' : '−'}${Math.abs(ev * 100).toFixed(1)}% EV`;
+    const tax = ev < 0 ? ` — the book's ${PARLAY.legs.length > 1 && parPrice().corr ? 'SGP ' : ''}tax is ${Math.abs(ev * 100).toFixed(0)}% of your stake` : ' — you have the best of it';
+    out.textContent = `${parDecAm(boosted)} after the boost · ${ev >= 0 ? '+' : '−'}${Math.abs(ev * 100).toFixed(1)}% EV${tax}`;
     out.className = 'par-ev-out ' + (ev >= 0 ? 'good' : 'bad');
   }
 
@@ -9087,7 +9158,7 @@ let pairStacks = false;
     slip.classList.toggle('open', PARLAY.open);
     document.body.classList.toggle('par-legs', PARLAY.legs.length > 0);
     document.getElementById('par-mode-btn')?.classList.toggle('on', PARLAY.on);
-    const legs = PARLAY.legs, { p, naive, corr, shared, mates, samePlayer } = parPrice();
+    const legs = PARLAY.legs, { p, naive, corr, why, shared, mates, samePlayer } = parPrice();
     const hn = document.getElementById('par-head-n'), ho = document.getElementById('par-head-od');
     hn.innerHTML = legs.length
       ? `${legs.length} leg${legs.length === 1 ? '' : 's'} <span>· ${PARLAY.on ? 'fair' : 'selection off'}</span>`
@@ -9127,7 +9198,8 @@ let pairStacks = false;
       <p class="par-note">${PARLAY.boost
         ? `With a <b>${boostPct}%</b> profit boost, take it at <b>${parDecAm(need)}</b> or better and you have the best of it.`
         : `Anything longer than <b>${pbOdds(p)}</b> at your book beats fair.`}</p>
-      ${corr ? `<p class="par-note">Priced with the measured touchdown correlation rather than by multiplying${mates ? ' — teammates compete for the same end-zone trips' : ''}. Straight multiplication says <b>${pbOdds(naive)}</b>.</p>` : ''}
+      ${corr === true ? `<p class="par-note">Priced with the measured touchdown correlation rather than by multiplying${mates ? ' — teammates compete for the same end-zone trips' : ''}. Straight multiplication says <b>${pbOdds(naive)}</b>.</p>` : ''}
+      ${corr === 'sgp' ? `<p class="par-note">Priced as a same-game parlay with measured correlations, not by multiplying: ${why.join('; ')}. Straight multiplication says <b>${pbOdds(naive)}</b> — this slip hits <b>${p > naive ? ((p / naive - 1) * 100).toFixed(0) + '% more' : ((1 - p / naive) * 100).toFixed(0) + '% less'}</b> often than that.</p>` : ''}
       ${samePlayer.length ? `<p class="par-note par-warn">Two markets on ${samePlayer.join(' and ')} — one player's lines move together, so multiplying them overstates the price.</p>` : ''}
       ${!corr && shared.length ? `<p class="par-note par-warn">${shared.map(v => `${v.length} legs in ${v[0].g}`).join(', ')} — same-game legs aren't independent, so this is a multiplied estimate, not a fair same-game price.</p>` : ''}
       <div class="par-ev">

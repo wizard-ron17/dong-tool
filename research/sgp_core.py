@@ -56,7 +56,7 @@ def fit_rho(p1, p2, y1, y2, groups=None, boot=60, seed=0):
 
     def mle(ix):
         f = lambda g: -pair_loglik(p1[ix], p2[ix], y1[ix], y2[ix], g)
-        return minimize_scalar(f, bounds=(-0.7, 0.7), method="bounded", options={"xatol": 1e-4}).x
+        return minimize_scalar(f, bounds=(-0.95, 0.95), method="bounded", options={"xatol": 1e-4}).x
 
     all_ix = np.arange(len(p1))
     rho = mle(all_ix)

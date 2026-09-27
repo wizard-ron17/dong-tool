@@ -1496,6 +1496,7 @@
     .nw-toast { left: 0.75rem; right: 0.75rem; max-width: none; bottom: calc(5rem + env(safe-area-inset-bottom)); }
   }
 </style>
+<script src="/sgp.js"></script>
 <script>
   // Set the theme before first paint to avoid a flash: saved choice wins,
   // otherwise follow the OS preference, otherwise dark.
@@ -5345,6 +5346,84 @@
     return bin ? { mult: bin.mult, links: n, known: !!PL?.goals } : null;
   }
 
+  // Same-game correlations, measured: research/sgp_nhl.py (+ sgp_nhl_extra.py),
+  // walk-forward, each leg's own model probability as its margin (so ρ is only
+  // what's left beyond the prices). Only pairs whose 95% interval excludes
+  // zero; the rest price as independent. Positive = rise together.
+  const SGP_NHL = {
+    // same player
+    sG: 0.489,     // his shots over + his goal [.481, .495]
+    sA: 0.038,     // his shots over + his assist [.028, .048]
+    hB: 0.012,     // his hits over + his blocks over [.005, .018]
+    hP: -0.016,    // his hits over + his point [-.025, -.005] — grinders don't score
+    svGa: -0.143,  // a goalie's saves over + his GA over [-.174, -.116] — a goal is a save that didn't happen
+    // teammates
+    gA: 0.142,     // goal + a teammate's assist [.135, .151] — the same play
+    aA: 0.080,     // two teammates' assists [.073, .087]
+    pP: 0.142,     // two teammates' points [.135, .149]
+    gP: 0.105,     // goal + a teammate's point [.097, .112]
+    aP: 0.134,     // assist + a teammate's point [.127, .141]
+    sS: 0.014,     // two teammates' shots overs [.007, .018]
+    sGmate: -0.013,// shots over + a teammate's goal [-.021, -.003] — one shooter's volume is another's
+    hH: 0.039,     // two teammates' hits overs [.030, .047]
+    bB: 0.022,     // two teammates' blocks overs [.014, .027]
+    svGown: 0.038, // goalie saves over + his own skater's goal [.027, .046]
+    // opponents
+    gGopp: -0.021, // goals on opposite sides [-.032, -.010]
+    pPopp: -0.015, // points on opposite sides [-.022, -.004]
+    sSopp: -0.013, // shots overs on opposite sides [-.017, -.006] — one team's possession
+    hHopp: 0.026,  // hits overs on opposite sides [.017, .032] — a physical game
+    bSopp: 0.012,  // blocks over + an opponent's shots over [.005, .018]
+    svS: 0.223,    // goalie saves over + an opposing skater's shots over [.215, .230]
+    svG: -0.073,   // goalie saves over + an opposing skater's goal [-.082, -.064]
+    svA: -0.077,   // … + an opposing skater's assist [-.086, -.068]
+    svP: -0.090,   // … + an opposing skater's point [-.104, -.080]
+    gaG: 0.347,    // goalie GA over 2.5 + an opposing skater's goal [.339, .356]
+    gaA: 0.382,    // … + an opposing skater's assist [.373, .390]
+    gaP: 0.430,    // … + an opposing skater's point [.422, .439]
+    svSv: -0.097,  // both goalies' saves overs [-.149, -.057] — one team is carrying the play
+  };
+  // Independent (not significant): two teammates' goals, goal + assist for
+  // the same player, shots over + an opponent's goal, GA over + his own
+  // skater's goal, both goalies' GA overs.
+  const SGP_NHL_WHY = { sG: 'his shots are his goal chances', sA: 'a busy night is a busy night', hB: 'a big-minutes grinder', hP: 'grinders rarely score',
+    svGa: 'a goal is a save that didn\'t happen', gA: 'a goal comes with its assists', aA: 'assists come in pairs', pP: 'a scoring line lifts together', gP: 'a goal comes with its points',
+    aP: 'a goal comes with its points', sS: 'possession lifts both', sGmate: 'one shooter\'s volume is another\'s', hH: 'a physical night', bB: 'a night under siege',
+    svGown: 'a busy goalie, a tilted game', gGopp: 'opposite sides of one scoreboard', pPopp: 'opposite sides of one scoreboard', sSopp: 'one team has the puck',
+    hHopp: 'a physical game', bSopp: 'their shots are his blocks', svS: 'their shots are his saves', svG: 'a goal is a save that didn\'t happen',
+    svA: 'a goal is a save that didn\'t happen', svP: 'a goal is a save that didn\'t happen', gaG: 'their goals are his goals allowed', gaA: 'their goals are his goals allowed',
+    gaP: 'their goals are his goals allowed', svSv: 'one team is carrying the play' };
+  const NHL_KIND = { g1: 'g', g2: 'g', g3: 'g', gp1: 'g', gpp: 'g', ast: 'a', pts: 'p', ppp: 'p', sog: 's', hit: 'h', blk: 'b', sv: 'sv', ga: 'ga' };
+  /** The measured rule for two NHL legs in one game (null = independent). */
+  function sgpRuleNHL(a, b) {
+    if (a.sp !== 'nhl' || b.sp !== 'nhl' || !a.g || a.g !== b.g) return null;
+    const ka = NHL_KIND[a.m], kb = NHL_KIND[b.m]; if (!ka || !kb) return null;
+    const is = (x, y) => (ka === x && kb === y) || (ka === y && kb === x);
+    const goalie = (k) => k === 'sv' || k === 'ga';
+    const same = a.i === b.i, mate = !same && a.t === b.t, opp = a.t !== b.t;
+    if (same) {
+      if (is('s', 'g')) return 'sG'; if (is('s', 'a')) return 'sA'; if (is('h', 'b')) return 'hB'; if (is('h', 'p')) return 'hP'; if (is('sv', 'ga')) return 'svGa';
+      return null;
+    }
+    if (mate) {
+      if (goalie(ka) || goalie(kb)) return is('sv', 'g') ? 'svGown' : null;
+      if (is('g', 'a')) return 'gA'; if (is('a', 'a')) return 'aA'; if (is('p', 'p')) return 'pP'; if (is('g', 'p')) return 'gP'; if (is('a', 'p')) return 'aP';
+      if (is('s', 's')) return 'sS'; if (is('s', 'g')) return 'sGmate'; if (is('h', 'h')) return 'hH'; if (is('b', 'b')) return 'bB';
+      return null;
+    }
+    if (opp) {
+      if (is('sv', 'sv')) return 'svSv';
+      if (is('sv', 's')) return 'svS'; if (is('sv', 'g')) return 'svG'; if (is('sv', 'a')) return 'svA'; if (is('sv', 'p')) return 'svP';
+      if (is('ga', 'g')) return 'gaG'; if (is('ga', 'a')) return 'gaA'; if (is('ga', 'p')) return 'gaP';
+      if (is('g', 'g')) return 'gGopp'; if (is('p', 'p')) return 'pPopp'; if (is('s', 's')) return 'sSopp'; if (is('h', 'h')) return 'hHopp'; if (is('b', 's')) return 'bSopp';
+    }
+    return null;
+  }
+  const sgpRhoNHL = (a, b) => { const k = sgpRuleNHL(a, b); return k ? SGP_NHL[k] : 0; };   // NHL legs are overs
+  /** A player's goal or assist (1+) already IS a point: over 0.5 points on the same player adds nothing. */
+  const impliedNHL = (legs) => legs.filter(l => !(NHL_KIND[l.m] === 'p' && l.m === 'pts' && l.L === 0.5 &&
+    legs.some(o => o !== l && o.i === l.i && ['g1', 'ast'].includes(o.m))));
+
   function parPrice() {
     const legs = PARLAY.legs;
     const naive = legs.reduce((a, l) => a * l.p, 1);
@@ -5365,7 +5444,19 @@
         if (stack) { p = naive * stack.mult; corr = 'stack'; stack.a = A.n; stack.b = B.n; }
       }
     }
-    return { p: Math.min(0.999, p), naive, corr, stack, shared, samePlayer };
+    // everything else in one game: the copula (/sgp.js) over the measured ρs,
+    // with a same-player point that a goal/assist already guarantees dropped
+    let why = [];
+    if (!corr && legs.length > 1 && nhl && window.SGP) {
+      const core = impliedNHL(legs);
+      const res = SGP.price(core, sgpRhoNHL);
+      if (res.pairs.length || core.length < legs.length) {
+        p = res.p; corr = 'sgp';
+        why = [...new Set(res.pairs.map(q => { const k = sgpRuleNHL(core[q.a], core[q.b]); return k ? (q.rho > 0 ? '▲ ' : '▼ ') + SGP_NHL_WHY[k] : null; }).filter(Boolean))];
+        if (core.length < legs.length) why.push('a goal or assist already counts as his point');
+      }
+    }
+    return { p: Math.min(0.999, p), naive, corr, why, stack, shared, samePlayer };
   }
 
   function parMode(on) {
@@ -5417,7 +5508,8 @@
     if (!d || !(p > 0) || !PARLAY.legs.length) { out.textContent = ''; out.className = 'par-ev-out'; return; }
     const boosted = 1 + (d - 1) * (1 + PARLAY.boost);
     const ev = p * boosted - 1;
-    out.textContent = `${parDecAm(boosted)} after the boost · ${ev >= 0 ? '+' : '−'}${Math.abs(ev * 100).toFixed(1)}% EV`;
+    const tax = ev < 0 ? ` — the book's ${PARLAY.legs.length > 1 && parPrice().corr ? 'SGP ' : ''}tax is ${Math.abs(ev * 100).toFixed(0)}% of your stake` : ' — you have the best of it';
+    out.textContent = `${parDecAm(boosted)} after the boost · ${ev >= 0 ? '+' : '−'}${Math.abs(ev * 100).toFixed(1)}% EV${tax}`;
     out.className = 'par-ev-out ' + (ev >= 0 ? 'good' : 'bad');
   }
   function parRender() {
@@ -5425,7 +5517,7 @@
     slip.classList.toggle('open', PARLAY.open);
     document.body.classList.toggle('par-legs', PARLAY.legs.length > 0);
     document.getElementById('par-mode-btn')?.classList.toggle('on', PARLAY.on);
-    const legs = PARLAY.legs, { p, naive, corr, stack, shared, samePlayer } = parPrice();
+    const legs = PARLAY.legs, { p, naive, corr, why, stack, shared, samePlayer } = parPrice();
     const hn = document.getElementById('par-head-n'), ho = document.getElementById('par-head-od');
     hn.innerHTML = legs.length
       ? `${legs.length} leg${legs.length === 1 ? '' : 's'} <span>· ${PARLAY.on ? 'fair' : 'selection off'}</span>`
@@ -5464,6 +5556,7 @@
         ? `With a <b>${boostPct}%</b> profit boost, take it at <b>${parDecAm(need)}</b> or better and you have the best of it.`
         : `Anything longer than <b>${sgOdds(p)}</b> at your book beats fair.`}</p>
       ${corr === 'goals' && gap ? `<p class="par-note">Priced with the measured goal-scorer correlation — ${gap < 0 ? 'teammates share a fixed number of goals, so a big same-club group lands below' : 'these legs land above'} straight multiplication, which says <b>${sgOdds(naive)}</b> (${gap > 0 ? '+' : ''}${gap}%).</p>` : ''}
+      ${corr === 'sgp' ? `<p class="par-note">Priced as a same-game parlay with measured correlations, not by multiplying: ${why.join('; ')}. Straight multiplication says <b>${sgOdds(naive)}</b> — this slip hits <b>${p > naive ? ((p / naive - 1) * 100).toFixed(0) + '% more' : ((1 - p / naive) * 100).toFixed(0) + '% less'}</b> often than that.</p>` : ''}
       ${corr === 'stack' ? `<p class="par-note">A scorer + assist stack: when ${esc(stack.a)} scores, someone gets the assist — ${esc(stack.b)} ${stack.known ? (stack.links ? `has set him up in <b>${stack.links}</b> game${stack.links === 1 ? '' : 's'} this season` : `hasn't set him up yet this season`) : '(this season\'s assists are loading)'}, so this runs <b>+${gap}%</b> over multiplying (${sgOdds(naive)}).</p>` : ''}
       ${samePlayer.length ? `<p class="par-note par-warn">Two markets on ${samePlayer.map(esc).join(' and ')} — one player's lines move together, so multiplying them overstates the price.</p>` : ''}
       ${!corr && shared.length ? `<p class="par-note par-warn">${shared.map(v => `${v.length} legs in ${esc(v[0].g)}`).join(', ')} — same-game legs aren't independent, so this is a multiplied estimate, not a fair same-game price.</p>` : ''}
