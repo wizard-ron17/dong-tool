@@ -895,6 +895,18 @@
   .pb-table th { position: sticky; top: 0; background: var(--surface2); color: var(--muted); font-family: var(--font-d); font-size: 0.791rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; text-align: left; padding: 0.45rem 0.6rem; white-space: nowrap; cursor: pointer; user-select: none; border-bottom: 1px solid var(--border); }
   .pb-table th:hover { color: var(--text); }
   .pb-table th.on { color: var(--accent); }
+  .pbx-table th.on { background-color: color-mix(in srgb, var(--accent) 9%, var(--surface2)); }
+  .pbx-table td.on { background-color: color-mix(in srgb, var(--accent) 8%, transparent); }
+  .pbx-table th.pbx-div, .pbx-table td.pbx-div { border-right: 1px solid var(--border2); }
+  .pbx { font-family: var(--font-d); font-weight: 700; }
+  .pbx.g { color: var(--good); } .pbx.r { color: var(--bad); } .pbx.n { color: var(--muted); }
+  .pbx-fair small { display: block; font-size: 0.66rem; font-weight: 400; color: var(--muted); line-height: 1.1; }
+  .pbx-bar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin: 0 0 0.6rem; }
+  .pbx-in { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; color: var(--muted); background: var(--surface0); border: 1px solid var(--border); border-radius: 7px; padding: 0.2rem 0.45rem; }
+  .pbx-in.on { border-color: var(--accent); color: var(--text); }
+  .pbx-in input { width: 3.6rem; background: transparent; border: none; color: var(--text); font-family: var(--font-d); font-size: 0.8rem; text-align: right; outline: none; }
+  .pbx-hint { font-size: 0.7rem; color: var(--dim); }
+  .pbx-note { font-size: 0.72rem; color: var(--muted); margin-top: 0.6rem; line-height: 1.45; }
   .pb-table th .ar { font-size: 0.692rem; margin-left: 0.15rem; }
   .pb-table th.num { text-align: right; }
   .pb-table th.static { cursor: default; color: var(--dim); }
@@ -4242,12 +4254,41 @@
     renderPicks();
   }
 
+  // Factors view: the goals model's terms as multipliers on his expected goals,
+  // grouped as the pick card groups them. Talent = career scoring (goals, shots,
+  // shooting % — collinear, so summed), Ice / PP = how the coach uses him now,
+  // Form = recent shots, Spot = this game (opponent, own team, home). Base x
+  // all five = his expected goals; the anytime price is calibrated off that.
+  // Hockey's game is small (~3% of the spread; penalties drawn, backup goalies
+  // and back-to-backs tested as nulls, research/nhl_env_test.py) — the
+  // longshot is a role change: more ice or a PP promotion.
+  const PKX = { talent: ['goals_prior', 'sog_prior', 'shpct_prior'], ice: ['toi_prior', 'toi_l5'], pp: ['pptoi_l5'],
+                form: ['sog_l10'], spot: ['opp_ga_prior', 'team_gf_prior', 'is_home'] };
+  // A defenceman's discount lives in his base (is_D); it's who he is, so it
+  // goes in Talent — otherwise every big-minutes D-man reads as a great spot.
+  const pkBaseF = () => Math.max(...(D.picks?.picks || []).map(x => x.base));
+  const pkFx = (r) => r._fx || (r._fx = Object.fromEntries(Object.entries(PKX).map(([k, ks]) =>
+    [k, Math.exp(ks.reduce((a, f) => a + (r.c?.[f] || 0), 0) + (k === 'talent' ? r.base - pkBaseF() : 0))])));
+  const pkAmToP = (v) => { const a = +String(v ?? '').replace(/[+\s]/g, ''); return !a || isNaN(a) || Math.abs(a) < 100 ? null : a > 0 ? 100 / (a + 100) : -a / (-a + 100); };
+  function setPkFx(k, v) {
+    if (k === 'fxLo') pkF.fxLo = pkAmToP(v) == null ? null : String(v).trim().replace(/^(\d)/, '+$1');
+    else { pkF.fxPos = { ...(pkF.fxPos || {}) }; pkF.fxPos[k] = !pkF.fxPos[k]; }
+    pkSave(); renderPicks();
+  }
+  window.setPkFx = setPkFx;
   function pkRows() {
     let rows = (D.picks?.picks || []).map(r => ({ ...r, ts: r.start || '' }));
     rows = rows.filter(r => pkP(r) >= pkCutP(pkF.cut));
     if (pkF.pos.length) rows = rows.filter(r => pkF.pos.includes(r.pos));
     if (pkF.team !== 'all') rows = rows.filter(r => r.team === pkF.team);
+    if (pkF.view === 'factors') {
+      const lo = pkAmToP(pkF.fxLo);
+      if (lo != null) rows = rows.filter(r => pkP(r) <= lo + 1e-9);
+      for (const [k, on] of Object.entries(pkF.fxPos || {})) if (on) rows = rows.filter(r => pkFx(r)[k] >= 1.005);
+    }
     const key = { p: r => pkP(r), sog: r => r.f.sogPg, toi: r => r.f.toi, pp: r => r.f.pptoi,
+                  talent: r => pkFx(r).talent, ice: r => pkFx(r).ice, ppx: r => pkFx(r).pp, form: r => pkFx(r).form, spot: r => pkFx(r).spot,
+                  l10: r => r.f.sogL10, sh: r => r.f.shpct, oga: r => r.f.oppGa,
                   time: r => r.ts, name: r => r.name.toLowerCase() }[pkF.sort] || (r => r.p);
     const dir = pkF.dir === 'asc' ? 1 : -1;
     rows.sort((a, b) => { const x = key(a), y = key(b); return x < y ? -dir : x > y ? dir : pkP(b) - pkP(a); });
@@ -4337,6 +4378,40 @@
       </tr>`).join('')}</tbody></table></div>`;
   }
 
+  function pkFactors(rows) {
+    const on = (v) => pkF.sort === v ? ' on' : '';
+    const th = (v, lab, cls = '', tip = '') => `<th class="${cls}${on(v)}" onclick="setPkSort('${v}')"${tip ? ` title="${tip}"` : ''}>${lab}${pkF.sort === v ? `<span class="ar">${pkF.dir === 'desc' ? '▼' : '▲'}</span>` : ''}</th>`;
+    const mx = (v) => { const r = Math.round(v * 100) / 100; return `<span class="pbx ${r > 1 ? 'g' : r < 1 ? 'r' : 'n'}">${v.toFixed(2)}×</span>`; };
+    const td = (v, html, cls = 'num') => `<td class="${cls}${on(v)}">${html}</td>`;
+    const pos = pkF.fxPos || {};
+    const tog = (k, lab, tip) => `<button class="pbf-chip${pos[k] ? ' on' : ''}" onclick="setPkFx('${k}')" title="${tip}">${lab} +</button>`;
+    const bar = `<div class="pbx-bar">
+        <label class="pbx-in${pkF.fxLo ? ' on' : ''}" title="Only prices at least this long — +300 for the longshot hunt">Fair ≥ <input type="text" inputmode="numeric" placeholder="+300" value="${pkF.fxLo ?? ''}" onchange="setPkFx('fxLo', this.value)"></label>
+        ${tog('ice', 'Ice', 'More ice time than an average skater')}${tog('pp', 'PP', 'Power-play minutes above average')}${tog('form', 'Form', 'Shooting more than usual over his last ten')}${tog('spot', 'Spot', 'A better than average game: opponent, own team, home')}
+        ${pkF.cut ? `<span class="pbx-hint">Max price is +${pkF.cut} — <a href="javascript:void(0)" onclick="setPkF('cut',0)">show the full board</a> to hunt longshots</span>` : ''}
+      </div>`;
+    if (!rows.length) return bar + `<div class="empty">Nobody matches these factor filters. <a href="javascript:void(0)" onclick="pkF.fxLo=null;pkF.fxPos={};pkSave();renderPicks()">Clear them →</a></div>`;
+    return `${bar}<div class="pb-tablewrap"><table class="pb-table pbx-table">
+      <thead><tr><th class="static">#</th>${th('name', 'Skater')}<th class="static">Pos</th>${th('p', 'Fair', 'num')}
+        ${th('talent', 'Talent ×', 'num', 'Career scoring: goals, shot volume and shooting % together, and whether he plays defence — the NHL version of MLB Power.')}
+        ${th('ice', 'Ice ×', 'num', 'Minutes a night, weighted to his last five — how much the coach uses him now.')}
+        ${th('ppx', 'PP ×', 'num', 'Power-play minutes over his last five.')}
+        ${th('form', 'Form ×', 'num', 'Shots on goal over his last ten.')}
+        ${th('spot', 'Spot ×', 'num pbx-div', 'This game: goals the opponent allows, his own team\'s scoring, home ice. Small in hockey — about 3% of the board\'s spread.')}
+        ${th('sog', 'Shots/g', 'num')}${th('l10', 'L10', 'num')}${th('toi', 'TOI', 'num')}${th('pp', 'PP', 'num')}${th('sh', 'Sh%', 'num')}${th('oga', 'Opp GA', 'num')}${th('time', 'Game')}</tr></thead>
+      <tbody>${rows.map(r => { const x = pkFx(r), f = r.f; return `<tr onclick="openPick(${r.pid})"${parAttr(pkLeg(r))}>
+        <td class="num">${r.rank}</td>
+        ${td('name', esc(r.name), 'nm')}
+        <td>${posBadge(r.pos)}</td>
+        <td class="od pbx-fair${pkP(r) < 0.5 ? ' dog' : ''}${on('p')}">${sgOdds(pkP(r))}<small>${pkPct(pkP(r))}</small></td>
+        ${td('talent', mx(x.talent))}${td('ice', mx(x.ice))}${td('ppx', mx(x.pp))}${td('form', mx(x.form))}${td('spot', mx(x.spot), 'num pbx-div')}
+        ${td('sog', f.sogPg.toFixed(1))}${td('l10', f.sogL10.toFixed(1))}${td('toi', (f.toi / 60).toFixed(1))}${td('pp', (f.pptoi / 60).toFixed(1))}
+        ${td('sh', (f.shpct * 100).toFixed(1) + '%')}${td('oga', f.oppGa.toFixed(2))}
+        ${td('time', `${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}`, '')}
+      </tr>`; }).join('')}</tbody></table></div>
+      <div class="pbx-note">Expected goals = base × <b>Talent</b> × <b>Ice</b> × <b>PP</b> × <b>Form</b> × <b>Spot</b>, each a multiplier against an average skater; the anytime price is calibrated off that. <b>Talent</b> is hockey's base power. <b>Spot</b> is the game, and it's small: hockey moves on who's on the ice, not who they play — penalties drawn, backup goalies and back-to-backs all tested as nulls. The NHL longshot is a role change: <b>Ice +</b> or <b>PP +</b> on a low-talent price.</div>`;
+  }
+
   // Compact is the share/screenshot view, so it carries its own header and
   // footer: a crop of it still says what it is and that the odds are fair.
   function pkCompact(rows) {
@@ -4379,7 +4454,8 @@
     }
     const cut = pkCuts().find(c => c.v === pkF.cut);
     const base = ((P.model?.base || 0) * 100).toFixed(1);
-    const body = !rows.length ? (() => {
+    const fxOn = pkF.view === 'factors' && (pkF.fxLo || Object.values(pkF.fxPos || {}).some(Boolean));
+    const body = !rows.length && !fxOn ? (() => {
       if (pkSearch.length) {
         const hits = P.picks.filter(x => pkSearch.some(t => pkMatch(x, t)));
         if (!hits.length) return `<div class="empty">No skater or team matches <b>${esc(pkSearch.join(', '))}</b>. <a href="javascript:void(0)" onclick="clearPicksSearch()">Clear search →</a></div>`;
@@ -4389,6 +4465,7 @@
       return `<div class="empty">Nothing here is shorter than <b>${cut?.lab || ''}</b>. The shortest is <b>${sgOdds(best.p)}</b> (${esc(best.name)}). <a href="javascript:void(0)" onclick="setPkF('cut',0)">Show the full board →</a></div>`;
     })()
       : pkF.view === 'table' ? pkTable(rows)
+      : pkF.view === 'factors' ? pkFactors(rows)
       : pkF.view === 'compact' ? pkCompact(rows)
       : `<div class="pb-list">${rows.map(pkCard).join('')}</div>`;
     el.innerHTML = `
@@ -4397,7 +4474,7 @@
         <span class="pb-meta">${esc(D.seasonLabel || '')} · ${esc(pkMkt().long)}${pkF.pos.length ? ' · ' + pkF.pos.map(x => POS_NAME[x]).join('/') : ''}${pkSearch.length ? ' · “' + esc(pkSearch.join('”, “')) + '”' : ''} · ${rows.length} shown · fair odds, no vig</span>
       </div>
       <div class="lb-toolbar">
-        <div class="view-switch">${[['table', 'Table'], ['cards', 'Cards'], ['compact', 'Compact']]
+        <div class="view-switch">${[['table', 'Table'], ['factors', 'Factors'], ['cards', 'Cards'], ['compact', 'Compact']]
           .map(([v, l]) => `<button class="view-btn${pkF.view === v ? ' active' : ''}" onclick="setPkF('view','${v}')">${l}</button>`).join('')}</div>
       </div>
       ${cut && cut.v ? `<div class="pb-cutnote">At <b>${cut.lab}</b> or shorter, anytime goal historically hit <b>${cut.hit}%</b> — against a <b>${base}%</b> base rate.</div>`
