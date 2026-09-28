@@ -1284,6 +1284,7 @@
   /* desktop: two cards a row, so a wide screen isn't mostly empty card */
   @media (min-width: 900px) { .sched-list.gc-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; } }
   .gc-lu { font-weight: 700; }
+  .sp-proj { display: inline-block; margin-left: 0.3rem; padding: 0 0.25rem; border: 1px dashed var(--border2); border-radius: 4px; font-size: 0.56rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); vertical-align: middle; line-height: 1.4; }
   .gc-lu.set { color: var(--accent); }
   .gc-lu.partial { color: var(--gold); }
   .gc-lu.pending { color: var(--muted); }
@@ -3559,6 +3560,8 @@ function slateDayWord() {
   if (!todayDate || todayDate <= cal) return "Today's";
   return new Date(todayDate + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' }) + "'s";
 }
+/** A starter the team hasn't named yet — projected by the build from his rotation. */
+const spProjTag = (on) => on ? '<span class="sp-proj" title="Not announced yet — projected from his rotation: in the postseason the best rested starter, otherwise whose turn it is. The announced starter replaces him on the next build.">proj</span>' : '';
 function isMob() {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 600;
 }
@@ -4232,7 +4235,7 @@ function renderHome() {
     <div class="hm-row">
       <span class="hm-rank">${i+1}</span>
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
-      <span class="hm-name">${playerNames[r.pid] || r.pid}${birthdayBadge(r.pid)}<span class="hm-subtle"> vs ${compactPlayerName(r.oppName || '')} (${r.oppHand || '?'}HP)${r.projected ? ' · proj' : ''}</span></span>
+      <span class="hm-name">${playerNames[r.pid] || r.pid}${birthdayBadge(r.pid)}<span class="hm-subtle"> vs ${compactPlayerName(r.oppName || '')} (${r.oppHand || '?'}HP)${r.oppProjected ? ' · SP proj' : ''}${r.projected ? ' · proj' : ''}</span></span>
       ${r.pHR > 0 ? `<span class="hm-fair" title="${HR_FAIR_TIP}">${hrFairFull(r.pHR)}</span>` : ''}
       <span class="hm-score ${pickScoreClass(r.pickScore)}">${r.pickScore.toFixed(1)}</span>
     </div>`).join('');
@@ -4285,7 +4288,7 @@ function renderHome() {
     <div class="hm-row">
       <span class="hm-rank">${i+1}</span>
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
-      <span class="hm-name">${playerNames[r.pid] || r.pid}${birthdayBadge(r.pid)}<span class="hm-subtle"> vs ${compactPlayerName(r.oppName || '')} (${r.oppHand || '?'}HP)${r.projected ? ' · proj' : ''}</span></span>
+      <span class="hm-name">${playerNames[r.pid] || r.pid}${birthdayBadge(r.pid)}<span class="hm-subtle"> vs ${compactPlayerName(r.oppName || '')} (${r.oppHand || '?'}HP)${r.oppProjected ? ' · SP proj' : ''}${r.projected ? ' · proj' : ''}</span></span>
       ${r.pHR > 0 ? `<span class="hm-fair" title="${HR_FAIR_TIP}">${hrFairFull(r.pHR)}</span>` : ''}
       <span class="hm-score ${valueScoreClass(r.valueScore ?? 0)}">${(r.valueScore ?? 0).toFixed(1)}</span>
     </div>`).join('');
@@ -6107,7 +6110,7 @@ function schedPitcherHtml(side) {
   return `<div class="sched-pitcher">
     <img class="sched-pitcher-photo" src="${playerPhotoUrl(side.probablePitcherId)}" alt="">
     <div class="sched-pitcher-info">
-      <div class="sched-pitcher-name">${side.probablePitcher}</div>
+      <div class="sched-pitcher-name">${side.probablePitcher}${spProjTag(side.probableProjected)}</div>
       ${subLine ? `<div class="sched-pitcher-stat">${subLine}</div>` : ''}
     </div>
   </div>`;
@@ -7221,7 +7224,7 @@ function mlbGameCard(g, away, home, box, st, homer) {
   const aR = box?.away.r ?? g.away.score, hR = box?.home.r ?? g.home.score;
   const started = st !== 'pre', final = st === 'final';
   const aWin = final && aR > hR, hWin = final && hR > aR;
-  const pShort = (side) => side.probablePitcher ? `${compactPlayerName(side.probablePitcher)}${side.probablePitcherThrows ? ` <span class="gc-hand">${side.probablePitcherThrows}</span>` : ''}` : 'TBD';
+  const pShort = (side) => side.probablePitcher ? `${compactPlayerName(side.probablePitcher)}${side.probablePitcherThrows ? ` <span class="gc-hand">${side.probablePitcherThrows}</span>` : ''}${spProjTag(side.probableProjected)}` : 'TBD';
   const team = (ab, side, won, lost, cls) => `<div class="gc-team ${cls}${lost ? ' lost' : ''}">${teamLogoImg(ab, 'gc-logo')}<span class="gc-ab">${ab}</span>
       ${box?.rec?.[cls === 'a' ? 'away' : 'home'] ? `<span class="gc-rec">${box.rec[cls === 'a' ? 'away' : 'home']}</span>` : ''}
       <span class="gc-sub">${started ? '' : pShort(side)}</span></div>`;
@@ -7452,7 +7455,7 @@ function sgPicks(g, date, S, away, home) {
       const line = (r, lbl) => { if (r?.proj == null) return `<span class="sgk-l">${lbl} —</span>`;
         const need = ppEven(r.proj), p = kbbWinProb(r.proj, need);
         return `<span class="sgk-l">${lbl} <b>${r.proj.toFixed(1)}</b> <small>o${need - 0.5} ${kbbOdds(p)}</small></span>`; };
-      return `<div class="sgp-row sgp-arm" onclick="openPitcher('${pid}')">${teamLogoImg(sd.teamAbbr, 'gc-pick-logo')}<span class="sgp-nm">${compactPlayerName(sd.probablePitcher)}</span>
+      return `<div class="sgp-row sgp-arm" onclick="openPitcher('${pid}')">${teamLogoImg(sd.teamAbbr, 'gc-pick-logo')}<span class="sgp-nm">${compactPlayerName(sd.probablePitcher)}${spProjTag(sd.probableProjected)}</span>
         <span class="sgk">${line(K.find(r => String(r.pid) === pid), 'K')}${line(B.find(r => String(r.pid) === pid), 'BB')}</span></div>`;
     }).join('');
   }
@@ -9366,7 +9369,7 @@ function muTableRows() {
         const env = row ? { ...muBoardEnv(row), exactMF: row.matchupFactor ?? undefined }
           : { sW: muStarterShare(p.pid) ?? 1, pen: muPenFor(opp.teamAbbr, b.hand), pa: muPaFactor(ord), wx: muWeatherRatio(g.venue, b.hand, p.hand) ?? 1 };
         const s = scoreMatchup(b, p, g.venue, env), f = s.factors;
-        out.push({ g, b, p, ord, posted, s, f, board: row ? ((picks || []).includes(row) ? 'chalk' : 'value') : null,
+        out.push({ g, b, p, ord, posted, s, f, spProj: !!opp.probableProjected, board: row ? ((picks || []).includes(row) ? 'chalk' : 'value') : null,
           pHR: row?.pHR ?? muHrProb(b, p, ord, g.venue),
           arm: f.effPlat != null && f.effStuff != null ? f.effPlat * f.effStuff : (f.effPlat ?? f.effStuff ?? null),
           bueno: muBueno(f) });
@@ -9394,7 +9397,7 @@ function muTableHtml() {
       cell: r => `<td class="r mu-tbl-ord">${r.ord}${r.posted ? '' : '<i title="Projected lineup">p</i>'}</td>` },
     { k: 'name', lbl: 'Batter', get: r => r.b.name, tip: 'Batter vs today\'s opposing starter', left: 1,
       cell: r => { const tag = r.board === 'chalk' ? '<span class="mu-tbl-tag" title="On the Chalk board">🔒</span>' : r.board === 'value' ? '<span class="mu-tbl-tag" title="On the Value board">🎯</span>' : '';
-        return `<td><div class="mu-tbl-bat">${teamLogoImg(r.b.team, 'team-logo')}<b>${compactPlayerName(r.b.name)}</b>${handBadge(r.b.hand, 'bats')}${tag}</div><div class="mu-tbl-vs">vs ${compactPlayerName(r.p.name)} ${r.p.hand ? `<span class="pk-hand ${r.p.hand.toLowerCase()}">${r.p.hand}</span>` : ''}</div></td>`; } },
+        return `<td><div class="mu-tbl-bat">${teamLogoImg(r.b.team, 'team-logo')}<b>${compactPlayerName(r.b.name)}</b>${handBadge(r.b.hand, 'bats')}${tag}</div><div class="mu-tbl-vs">vs ${compactPlayerName(r.p.name)} ${r.p.hand ? `<span class="pk-hand ${r.p.hand.toLowerCase()}">${r.p.hand}</span>` : ''}${spProjTag(r.spProj)}</div></td>`; } },
     { k: 'spot', lbl: 'Spot ×', get: r => r.s.matchupFactor,
       tip: 'Every factor multiplied together WITHOUT his power — how good his spot is today. Score = Power × Spot. A high Spot on a low-power bat is the longshot: a non-homer hitter in a great spot. Colored against today\'s slate (top fifth green).',
       cell: r => num(spotCls(r.s.matchupFactor), fx(r.s.matchupFactor), ' mu-tbl-spot') },
@@ -9712,7 +9715,7 @@ function renderValueBoard() {
         <div class="lbc-info">
           <div class="lbc-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {value:1})}</div>
           <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
-          <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
+          <div class="pick-opp">vs ${r.oppName || 'TBD'}${spProjTag(r.oppProjected)} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
         <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${(r.valueScore ?? 0).toFixed(1)}</span><span class="lbc-headline-lbl">Value</span>${r.pHR > 0 ? `<span class="lbc-fair" title="${HR_FAIR_TIP}">Fair ${hrFairFull(r.pHR)}</span>` : ''}</div>
       </div>
@@ -9732,7 +9735,7 @@ function renderValueBoard() {
         <div>
           <div class="lb-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {value:1})}</div>
           <div class="lb-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
-          <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
+          <div class="pick-opp">vs ${r.oppName || 'TBD'}${spProjTag(r.oppProjected)} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
       </div></td>
       <td class="pick-z ${cls}">${(r.valueScore ?? 0).toFixed(1)}</td>
@@ -10101,7 +10104,7 @@ function renderPicks() {
         <div>
           <div class="lb-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {chalk:1})}</div>
           <div class="lb-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
-          <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
+          <div class="pick-opp">vs ${r.oppName || 'TBD'}${spProjTag(r.oppProjected)} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
       </div></td>
       <td class="pick-z ${cls}">${r.pickScore.toFixed(1)}</td>
@@ -10121,7 +10124,7 @@ function renderPicks() {
         <div class="lbc-info">
           <div class="lbc-name">${playerNames[r.pid] || r.pid}${crossTabBadge(r.pid, {chalk:1})}</div>
           <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
-          <div class="pick-opp">vs ${r.oppName || 'TBD'} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
+          <div class="pick-opp">vs ${r.oppName || 'TBD'}${spProjTag(r.oppProjected)} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
         <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${r.pickScore.toFixed(1)}</span><span class="lbc-headline-lbl">Pick Score</span>${r.pHR > 0 ? `<span class="lbc-fair" title="${HR_FAIR_TIP}">Fair ${hrFairFull(r.pHR)}</span>` : ''}</div>
       </div>

@@ -930,7 +930,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
           if (injuryStatus[p.pid]) continue; // on the IL — never a pick, even off a posted lineup
           if ((hrTotals[p.pid] ?? 0) < PICKS_MIN_HR) continue;
           if ((playerABs[p.pid] ?? 0) < 20) continue;
-          candidates.push({ pid: p.pid, team: me.teamAbbr, oppTeam: opp.teamAbbr, oppPid: opp.probablePitcherId, oppName: opp.probablePitcher, venue: g.venue, projected: p.projected, order: p.order });
+          candidates.push({ pid: p.pid, team: me.teamAbbr, oppTeam: opp.teamAbbr, oppPid: opp.probablePitcherId, oppName: opp.probablePitcher, ...(opp.probableProjected ? { oppProjected: true } : {}), venue: g.venue, projected: p.projected, order: p.order });
         }
       }
     }
@@ -1146,7 +1146,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
 
       rows.push({
         pid: c.pid, team: c.team, oppTeam: c.oppTeam, hrs, abs,
-        oppPid: c.oppPid, oppName: c.oppName, oppHand: pHand, venue: c.venue,
+        oppPid: c.oppPid, oppName: c.oppName, ...(c.oppProjected ? { oppProjected: true } : {}), oppHand: pHand, venue: c.venue,
         projected: c.projected ?? false, lineupOrder: c.order ?? 0,
         bHand, basePower, rawBasePower, recentFormRatio, batterPlatoonRatio, pitcherPlatoonRatio, parkRatio,
         hrProfile, pitcherMix: starterMix.mix, pitcherMixHand: starterMix.split ? oppStand : null, synergyScore,
@@ -2366,6 +2366,54 @@ async function attachHands(games) {
     for (const p of side.lineup) p.bats = hands[p.pid]?.bats ?? null;
   }
 }
+// A starter nobody has named yet, projected — so a TBD game still gets its
+// lineups scored on Picks, the Matchup table and the Schedule instead of
+// dropping out. Flagged probableProjected; an announced starter always wins.
+// Candidates: his team's starters from the last three weeks on 4+ days' rest,
+// not already named for another game today.
+//   Postseason — the ace: the best rested established arm (15+ starts; else
+//     5+) by ERA and FIP averaged. Checked against the two Wild Card Game 1s
+//     announced by 2026-09-27: it names Schlittler (NYY) and King (SD), where
+//     K-BB% alone picked Pivetta (8 starts).
+//   Regular season — his turn: the rested regular (3+ starts, back within 8
+//     days) who has gone longest since his last start.
+async function projectStarters(games) {
+  const date = todayET();
+  const days = (a, b) => Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / 864e5);
+  const named = new Set(games.flatMap(g => [g.home.probablePitcherId, g.away.probablePitcherId]).filter(Boolean));
+  const need = [];
+  for (const g of games) for (const s of [g.home, g.away]) if (!s.probablePitcherId && s.teamAbbr && !g.started) need.push([g, s]);
+  if (!need.length) return;
+  const last = {};                               // team -> pid -> { date, name }
+  for (const d of Object.keys(dailyStarts).sort()) {
+    if (d >= date || days(d, date) > 21) continue;
+    for (const st of dailyStarts[d]) (last[st.team] ??= {})[st.pid] = { date: d, name: st.name };
+  }
+  const pool = (team) => Object.entries(last[team] ?? {}).filter(([pid, x]) => days(x.date, date) >= 4 && !named.has(pid))
+    .map(([pid, x]) => ({ pid, name: x.name, rest: days(x.date, date) }));
+  const stats = await fetchPitcherHRStats(need.flatMap(([, s]) => pool(s.teamAbbr).map(p => p.pid)));
+  const gs = (p) => stats[p.pid]?.gamesStarted ?? 0;
+  const runs = (p) => {                          // ERA and FIP averaged, lower is better
+    const st = stats[p.pid], ip = ipToFloat(st?.ip);
+    if (!st || !ip) return 99;
+    const fip = (13 * st.hr + 3 * st.bb - 2 * st.k) / ip + 3.1, era = parseFloat(st.era);
+    return isFinite(era) ? (era + fip) / 2 : fip;
+  };
+  for (const [g, s] of need) {
+    const c = pool(s.teamAbbr);
+    let pick;
+    if (g.gameType && g.gameType !== 'R') {
+      const est = c.filter(p => gs(p) >= 15), src = est.length ? est : c.filter(p => gs(p) >= 5);
+      pick = src.sort((a, b) => runs(a) - runs(b))[0];
+    } else {
+      pick = c.filter(p => gs(p) >= 3 && p.rest <= 8).sort((a, b) => b.rest - a.rest || runs(a) - runs(b))[0];
+    }
+    if (!pick) continue;
+    s.probablePitcherId = pick.pid; s.probablePitcher = pick.name; s.probableProjected = true;
+    named.add(pick.pid);
+    console.log(`  projected starter ${s.teamAbbr}: ${pick.name} (${pick.rest} days' rest)`);
+  }
+}
 // Handedness + primary position for likely projected-lineup bats (15+ games), so
 // the Schedule can show them on teams whose lineup hasn't posted yet. Pitchers
 // dropped — they don't project into a lineup under the universal DH.
@@ -3268,6 +3316,7 @@ async function main() {
     const expected = check?.totalGames ?? 0;
     if (expected > 0) throw new Error(`Degraded build: schedule hydrate returned 0 games but MLB lists ${expected} for ${todayET()} — refusing to write data.json`);
   }
+  await projectStarters(todaySchedule);
   await attachHands(todaySchedule);
 
   // Sportsbook lines for the schedule — DraftKings via ESPN: run line, total
