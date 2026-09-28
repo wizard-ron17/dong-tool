@@ -27,7 +27,7 @@ const toReduced = ({ game: g, players }) => ({
 });
 
 let state = null, prev = {}, season = null, famRates = null, lgAllowed = null, statFam = null, statLg = null;
-const out = ['gid,pid,season,m3,m5,m10,mseason,mprev,start10,rest,rate3,opp3,rate_pts,form_pts,opp_pts,rate_reb,form_reb,opp_reb,l40dd'];
+const out = ['gid,pid,season,m3,m5,m10,mseason,mprev,start10,rest,rate3,opp3,rate_pts,form_pts,opp_pts,rate_reb,form_reb,opp_reb,l40dd,form_tpm,dr_t1'];
 const S0 = MODEL.stats.league;
 for (const d of games) {
   const g = d.game;
@@ -71,7 +71,9 @@ for (const d of games) {
           return [r, statForm(st, s, r), statOpp(st, state.teams?.[opp])];
         }),
         (() => { const h = (s.cats40 || '').slice(-40), n = h.length, hit = [...h].filter(c => +c >= 2).length;
-                 return n ? hit / n : ''; })()].map(v => typeof v === 'number' ? +v.toFixed(5) : v).join(','));
+                 return n ? hit / n : ''; })(),
+        (() => { const r3 = threesRate(s, prev[p.pid], p.pos ?? s.pos, famRates || undefined); return statForm('tpm', s, r3); })(),
+        s.dr?.t1 ?? ''].map(v => typeof v === 'number' ? +v.toFixed(5) : v).join(','));
     }
   }
   applyGame(state, r);

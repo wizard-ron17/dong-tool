@@ -1765,7 +1765,7 @@
       ['clock', r.min.toFixed(1), 'Projected minutes'],
       ['target', f.tpa ?? '—', '3PA / game'],
       ['trend', (f.rate ?? 0).toFixed(2), 'Made threes / 36'],
-      ['team', f.st10 != null ? Math.round(f.st10 * 100) + '%' : '—', 'Started, last 10'],
+      ['team', f.l10 ?? '—', 'Made threes / game, last 10'],
       ['shield', f.opp != null ? '×' + f.opp.toFixed(2) : '—', `${r.opp} threes allowed`],
       ['bars', f.imp ?? '—', `${r.team} implied points`],
     ];
@@ -1815,7 +1815,7 @@
           <div class="ydl" id="lc-ladder">${side.ladder}</div>
         </div></aside>
       </div>
-      <footer class="ydm-tip">${ydIco('bulb')}<span>${p10 != null && p90 != null ? `Most games land between about <b>${p10}</b> and <b>${p90}</b> ${C.unit}. ` : ''}Priced off <b>${r.min.toFixed(1)}</b> projected minutes${r.q ? ` · <b>${esc(r.q)}</b> on the injury report` : ''}. Fair odds, no vig.</span></footer>`;
+      <footer class="ydm-tip">${ydIco('bulb')}<span>${p10 != null && p90 != null ? p10 === p90 ? `Most games land at <b>${p10}</b> ${C.unit}. ` : `Most games land between about <b>${p10}</b> and <b>${p90}</b> ${C.unit}. ` : ''}Priced off <b>${r.min.toFixed(1)}</b> projected minutes${r.q ? ` · <b>${esc(r.q)}</b> on the injury report` : ''}.${lc.kind === '3pm' && (r.f?.dr ?? 0) >= 3 ? ` No made three in his last <b>${r.f.dr}</b> games — priced in: a drought that long means he's shooting fewer, not that he's due.` : ''} Fair odds, no vig.</span></footer>`;
     document.querySelector('#lc-back .ydm').innerHTML = html;
     const back = document.getElementById('lc-back');
     back.querySelector('.pk-side-prev').disabled = at <= 0;
@@ -1882,7 +1882,7 @@
   // closest to even money — position, game, sort), search, Cards / Table /
   // Compact, one price per row; tap a player for his ladder card.
   const BD = {
-    threes: { tabs: [['3pm', 'Threes']], note: 'His minutes (recent minutes, starts, teammates newly out, blowout risk) times his made threes per minute — this season and last, pulled toward his position — against the opponent\'s threes allowed; a negative binomial over his minutes. It beat Kalshi\'s pre-game price last season, but only as a resting order at the mid — crossing the spread gave it back.' },
+    threes: { tabs: [['3pm', 'Threes']], note: 'His minutes (recent minutes, starts, teammates newly out, blowout risk) times his made threes per minute — this season and last, pulled toward his position — with his last ten games, how long since his last made three, the opponent\'s threes allowed and the team total; a negative binomial over his minutes. Walk-forward, it beat Kalshi\'s pre-game mid last season (log loss .509 vs .517): a resting order at the mid returned +9.8%, and crossing the spread broke even.' },
     points: { tabs: [['pts', 'Points'], ['reb', 'Rebounds'], ['ast', 'Assists'], ['pra', 'PRA']] },
     stocks: { tabs: [['stl', 'Steals'], ['blk', 'Blocks'], ['stk', 'Stocks']] },
   };

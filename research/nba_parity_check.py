@@ -41,3 +41,18 @@ for b, r in (("rate_pts", "rate_pts_r"), ("form_pts", "r10_pts_r"), ("opp_pts", 
     x, y = pd.to_numeric(K[b], errors="coerce"), K[r].astype(float); ok = x.notna() & y.notna()
     d = (x[ok] - y[ok]).abs(); within = (d <= 0.01 * y[ok].abs().clip(lower=0.01)).mean()
     print(f"{b:10s} {d.mean():12.4f} {within:16.1%} {np.corrcoef(x[ok], y[ok])[0, 1]:7.4f}")
+
+# threes (research/nba_threes_form2.py): recent form and the drought going in
+NS.STATS = ["tpm"]
+T3, _, _ = NS.build()
+from nba_due import droughts
+M3 = pd.read_parquet(os.path.join(HERE, "nba_minutes.parquet"))
+M3 = M3[(M3.type == 2) & (~M3.dnp)][["gid", "pid", "date", "tpm"]].copy(); M3["h1"] = M3.tpm >= 1
+T3 = T3.merge(droughts(M3, "pid", "h1")[["gid", "pid", "drought"]], on=["gid", "pid"], how="left")
+K3 = B.merge(T3[["gid", "pid", "r10_tpm", "drought"]], on=["gid", "pid"])
+K3 = K3[K3.season >= ss[2]]
+print(f"\nthrees: {len(K3):,} player-games matched")
+for b, r in (("form_tpm", "r10_tpm"), ("dr_t1", "drought")):
+    x, y = pd.to_numeric(K3[b], errors="coerce"), K3[r].astype(float); ok = x.notna() & y.notna()
+    d = (x[ok] - y[ok]).abs(); within = (d <= 0.01 * y[ok].abs().clip(lower=0.01)).mean()
+    print(f"{b:10s} {d.mean():12.4f} {within:16.1%} {np.corrcoef(x[ok], y[ok])[0, 1]:7.4f}   (null both: {(x.isna() & y.isna()).sum():,}, one only: {(x.isna() ^ y.isna()).sum():,})")

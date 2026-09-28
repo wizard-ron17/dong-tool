@@ -48,41 +48,15 @@ def main():
         mins[name] = {"cols": cols, "coef": dict(zip(["const"] + cols, [float(x) for x in b])), "sd": float(resid.std())}
     abs_sp_med = float(D.spread.abs().median())
 
-    # threes: rebuild the research features on every season, fit once
+    # threes: research/nba_threes_form2.py's model (recent form + drought), fit on every season
+    import nba_threes_form2 as T2
+    threes = T2.export_threes()
     T = pd.read_parquet(os.path.join(HERE, "nba_minutes.parquet"))
-    T = T.sort_values(["pid", "date", "gid"]).reset_index(drop=True)
-    for c in ("tpm", "tpa", "min"): T[c] = T[c].astype(float).fillna(0)
+    for c in ("tpm", "min"): T[c] = T[c].astype(float).fillna(0)
     T["fam"] = T.fam.fillna("?")
-    g = T.groupby(["pid", "season"])
-    T["s_tpm"] = g.tpm.cumsum() - T.tpm; T["s_min"] = g["min"].cumsum() - T["min"]
-    tot = T.groupby(["pid", "season"])[["tpm", "min"]].sum().reset_index()
-    seasons = sorted(T.season.unique()); nxt = {s: seasons[i + 1] for i, s in enumerate(seasons[:-1])}
-    tot["season"] = tot.season.map(nxt); tot = tot.dropna().rename(columns={"tpm": "p_tpm", "min": "p_min"})
-    T = T.merge(tot, on=["pid", "season"], how="left").fillna({"p_tpm": 0, "p_min": 0})
-    # league constants from LAST season (the first season uses its own): no look-ahead, and all
-    # the live build can know — research/nba_parity.mjs checks it
-    fr = T.groupby(["season", "fam"]).apply(lambda d: d.tpm.sum() / d["min"].sum(), include_groups=False).rename("fam_rate").reset_index()
-    fr_prev = fr.assign(season=fr.season.map(nxt)).dropna()
-    fr = pd.concat([fr_prev, fr[fr.season == min(fr.season)]]).drop_duplicates(["season", "fam"])
-    T = T.merge(fr, on=["season", "fam"], how="left")
-    T["rate"] = (T.s_tpm + 0.5 * T.p_tpm + 300 * T.fam_rate) / (T.s_min + 0.5 * T.p_min + 300)
     T["implied"] = T.total / 2 - T.spread / 2
-    imp_s = T.groupby("season").implied.mean(); imp_prev = imp_s.shift(1).fillna(imp_s)
-    lg_imp = T.season.map(imp_prev)
-    T["imp_r"] = (T.implied / lg_imp).fillna(1.0)
-    tg = pd.read_parquet(os.path.join(HERE, "nba_team_games.parquet"))[["gid", "team", "opp", "date", "season", "tpm"]].sort_values("date")   # every played row, as the build counts
-    n = tg.groupby(["season", "opp"]).cumcount()
-    allowed = tg.groupby(["season", "opp"]).tpm.transform(lambda s: s.shift(1).expanding().mean())
-    al_s = tg.groupby("season").tpm.mean(); al_prev = al_s.shift(1).fillna(al_s)
-    lg_allow = tg.season.map(al_prev)
-    tg["opp_r"] = ((allowed.fillna(lg_allow) * n + 10 * lg_allow) / (n + 10)) / lg_allow
-    T = T.merge(tg[["gid", "team", "opp_r"]], on=["gid", "team"], how="left"); T["opp_r"] = T.opp_r.fillna(1.0)
-    T = T[T.mproj.notna() & (T.mproj > 3)].copy()
-    cols = ["lrate", "limp", "lopp", "home"]
-    T["lrate"] = np.log(T.rate.clip(1e-4)); T["limp"] = np.log(T.imp_r.clip(0.5, 1.5)); T["lopp"] = np.log(T.opp_r.clip(0.5, 1.5))
-    T["home"] = T.home.astype(float); T["off"] = np.log(T.mproj.clip(1))
-    X = np.column_stack([np.ones(len(T))] + [T[c] for c in cols])
-    b = TH.glm_poisson(X, T.tpm.values, T.off.values)
+    seasons = sorted(T.season.unique())
+    tg = pd.read_parquet(os.path.join(HERE, "nba_team_games.parquet"))[["gid", "team", "opp", "date", "season", "tpm"]]
     last = seasons[-1]
     L = T[T.season == last]
     league = {
@@ -93,11 +67,9 @@ def main():
     }
     model = {
         "note": "NBA board models — research/nba_model_export.py. The build applies, never fits.",
-        "trained": [str(s) for s in seasons], "rows_minutes": int(len(D)), "rows_threes": int(len(T)),
+        "trained": [str(s) for s in seasons], "rows_minutes": int(len(D)), "rows_threes": threes["rows"],
         "minutes": {**mins, "abs_sp_median": abs_sp_med, "rotation_min": 10, "new_absence_games": 3},
-        "threes": {"cols": ["const"] + cols, "coef": dict(zip(["const"] + cols, [float(x) for x in b])),
-                   "shrink_min": 300, "prev_weight": 0.5, "opp_shrink_games": 10, "alpha": 0.1, "sd_min": 5.2,
-                   "clip": {"imp": [0.5, 1.5], "opp": [0.5, 1.5]}, "rungs": [1, 2, 3, 4, 5]},
+        "threes": threes,
         "league": league,
         "positions": {"PG": "G", "SG": "G", "G": "G", "SF": "F", "PF": "F", "F": "F", "C": "C", "GF": "F", "FC": "C"},
     }

@@ -250,13 +250,17 @@ async function main() {
           dd: +dbl.dd.toFixed(4), td: +dbl.td.toFixed(5), ddOwn: +dbl.ddOwn.toFixed(3), tdOwn: +dbl.tdOwn.toFixed(4),
           l40: (s.cats40 || '').length, dd40: [...(s.cats40 || '')].filter(c => +c >= 2).length, td40: [...(s.cats40 || '')].filter(c => +c >= 3).length });
         const rate = threesRate(s, prevTot, pos);
-        const mu = threesMu({ rate, mproj: M.min, implied, oppRatio: oppThreesRatio(state.teams?.[opp]), home });
+        const form3 = statForm('tpm', s, rate);
+        const mu = threesMu({ rate, form: form3, implied, oppRatio: oppThreesRatio(state.teams?.[opp]), home, mproj: M.min,
+          early: inp.early, drought: s.dr?.t1 ?? null });
         const p = threesLadder(mu, M.min, M.sd);
         rows.push({ gid: g.id, start: g.start, pid: a.id, name: a.displayName, team: me, opp, home, pos,
           min: +M.min.toFixed(1), sd: +M.sd.toFixed(2), mu: +mu.toFixed(3), p: p.map(x => +x.toFixed(4)),
           f: { m10: +(inp.m10 ?? 0).toFixed(1), st10: +(inp.start10 ?? 0).toFixed(2), rate: +(rate * 36).toFixed(2),
                tpa: s.gp ? +(s.tpa / s.gp).toFixed(1) : (prevTot?.gp ? +(prevTot.tpa / prevTot.gp).toFixed(1) : null),
-               vac: +vac.toFixed(1), opp: +oppThreesRatio(state.teams?.[opp]).toFixed(3), imp: implied, q: injuries[a.id]?.status || null } });
+               vac: +vac.toFixed(1), opp: +oppThreesRatio(state.teams?.[opp]).toFixed(3), imp: implied, q: injuries[a.id]?.status || null,
+               l10: (s.reg10 || []).length ? +((s.reg10 || []).reduce((x, g) => x + (g.tpm || 0), 0) / s.reg10.length).toFixed(1) : null,
+               form: +form3.toFixed(3), dr: s.dr?.t1 ?? null } });
       }
     }
   }

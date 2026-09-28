@@ -54,7 +54,7 @@ export function projectMinutes(inp, ctx) {
 }
 
 /** His made threes per minute: season to date + half of last season, shrunk to his position family. */
-export function threesRate(s, prev, pos, famRates = MODEL.league.fam_rate_3pm) {
+export function threesRate(s, prev, pos, famRates = MODEL.threes.league.fam_rate) {
   const T = MODEL.threes, fr = famRates[fam(pos)] ?? 0.05;
   const pt = prev?.tpm || 0, pm = prev?.min || 0;
   return (s.tpm + T.prev_weight * pt + T.shrink_min * fr) / (s.min + T.prev_weight * pm + T.shrink_min);
@@ -62,17 +62,25 @@ export function threesRate(s, prev, pos, famRates = MODEL.league.fam_rate_3pm) {
 
 /** Opponent's threes allowed per game so far, shrunk 10 games to the league, as a ratio. */
 export function oppThreesRatio(team, lgAllowed) {
-  const T = MODEL.threes, lg = lgAllowed || MODEL.league.tpm_allowed;
+  const T = MODEL.threes, lg = lgAllowed || T.league.allowed;
   const n = team?.gp || 0, allowed = n ? team.tpm_allowed / n : lg;
   return ((allowed * n + T.opp_shrink_games * lg) / (n + T.opp_shrink_games)) / lg;
 }
 
-/** Expected made threes tonight at his projected minutes. */
-export function threesMu({ rate, mproj, implied, oppRatio, home, lgImplied }) {
+/**
+ * Expected made threes tonight at his projected minutes (research/nba_threes_form2.py):
+ * the stats engine's columns for threes — his rate, his last-10 form, the
+ * team's implied points, the opponent, home, early season — plus how long since
+ * his last made three (log(1 + games), capped, and its square: the player who
+ * has stopped shooting them). drought: the state's dr.t1, null = none on record.
+ */
+export function threesMu({ rate, form = 0, implied, oppRatio, home, mproj, early = 0, drought = null }) {
   const T = MODEL.threes, c = T.coef;
-  const impR = implied != null ? implied / (lgImplied || MODEL.league.implied) : 1;
-  const z = c.const + c.lrate * Math.log(Math.max(rate, 1e-4)) + c.limp * Math.log(clip(impR, ...T.clip.imp))
-          + c.lopp * Math.log(clip(oppRatio, ...T.clip.opp)) + c.home * (home ? 1 : 0);
+  const impR = implied != null ? implied / T.league.implied : 1;
+  const l = Math.log1p(Math.min(drought ?? T.drought_cap, T.drought_cap));
+  const z = c.const + c.lrate * Math.log(Math.max(rate, 1e-4)) + c.form * form + c.limp * Math.log(clip(impR, ...T.clip.imp))
+          + c.lopp * Math.log(clip(oppRatio, ...T.clip.opp)) + c.home * (home ? 1 : 0) + c.early * early + c.form_x_early * form * early
+          + c.ldr * l + c.ldr2 * l * l;
   return Math.exp(z + Math.log(Math.max(mproj, 1)));
 }
 
@@ -133,7 +141,7 @@ export function fbWeight(s, pos) {
 // ── Counting stats: points, rebounds, assists, PRA, steals, blocks, stocks ──
 // research/nba_stats.py. One shape for all: projected minutes x his per-minute
 // rate x the game; variance given minutes a x lam^p; mixed over his minutes.
-const STAT_PARTS = { pts: ['pts'], reb: ['reb'], ast: ['ast'], pra: ['pts', 'reb', 'ast'], stl: ['stl'], blk: ['blk'], stk: ['stl', 'blk'] };
+const STAT_PARTS = { tpm: ['tpm'], pts: ['pts'], reb: ['reb'], ast: ['ast'], pra: ['pts', 'reb', 'ast'], stl: ['stl'], blk: ['blk'], stk: ['stl', 'blk'] };
 const sumParts = (o, st) => STAT_PARTS[st].reduce((a, k) => a + (o?.[k] || 0), 0);
 /** His per-minute rate for a stat: season to date + half of last season, shrunk to his position (last season's). */
 export function statRate(st, s, prev, pos) {
