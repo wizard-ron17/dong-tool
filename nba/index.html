@@ -688,6 +688,9 @@
   .sg-proj b { font-family: var(--font-d); color: var(--accent); font-size: 0.86rem; }
   .rc-clip { display: inline-flex; align-items: center; gap: 0.2rem; margin-left: 0.4rem; color: var(--accent); text-decoration: none; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.04em; }
   .rc-clip:hover { text-decoration: underline; }
+  .hm-bet { display: inline-flex; align-items: baseline; gap: 0.3rem; white-space: nowrap; }
+  .hm-bet small { font-family: var(--font-m, var(--font-d)); font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+  .hm-bet b { font-weight: 700; }
   .odfav { color: var(--gold); }
   .oddog { color: var(--good); }
   .pc-tabs { margin: -0.15rem 0px 0.7rem; }
@@ -2127,28 +2130,39 @@
         ${logoImg(g.home.ab, 'hm-glogo')}
         <span class="hm-score" style="font-size:0.84rem;color:var(--muted)">${gameTime(g.start)}</span></div>`).join('');
 
-    // ── Leader mini-boards ─────────────────────────────────────────────────
-    const leaderRow = (r, i, v, unit) => `
+    // ── One leaderboard, like the other apps' home pages — the full set lives on Stats ──
+    const leaders = [...(D.leaders || [])].sort((a, b) => b.pts - a.pts).slice(0, 5).map((r, i) => `
       <div class="hm-row"><span class="hm-subtle" style="width:0.9rem">${i + 1}</span>
         ${faceHtml(r.pid, r.name, 'hm-photo')}
-        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.pos || '')} ${esc(r.team)}</span></span>
-        <span class="hm-score hot">${v}<span class="hm-subtle" style="font-size:0.766rem"> ${unit}</span></span></div>`;
-    const by = (k, unit) => [...(D.leaders || [])].sort((a, b) => b[k] - a[k]).slice(0, 5).map((r, i) => leaderRow(r, i, r[k].toFixed(1), unit)).join('');
+        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.pos || '')} ${esc(r.team)} · ${r.reb.toFixed(1)} reb · ${r.ast.toFixed(1)} ast · ${r.tpm.toFixed(1)} 3pm</span></span>
+        <span class="hm-score hot">${r.pts.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> PPG</span></span></div>`).join('');
 
-    // ── Standings, by conference ─────────────────────────────────────────
-    const conf = (c) => Object.values(D.teams || {}).filter(t => t.conf === c)
-      .sort((a, b) => (b.w - b.l) - (a.w - a.l) || b.w - a.w || a.name.localeCompare(b.name)).slice(0, 5).map((t, i) => `
-      <div class="hm-row"><span class="hm-subtle" style="width:0.9rem">${i + 1}</span>
-        ${logoImg(t.ab, 'hm-glogo')}
-        <span class="hm-name">${esc(t.name)}<span class="hm-subtle">${t.streak && t.streak !== '-' ? esc(t.streak) : ''}</span></span>
-        <span class="hm-score hot">${t.w}-${t.l}</span></div>`).join('');
-    const played = Object.values(D.teams || {}).some(t => t.w || t.l);
-
-    const t3 = D.threes?.rows?.length ? [...D.threes.rows].sort((a, b) => b.p[1] - a.p[1]).slice(0, 5).map((r, i) => `
-      <div class="hm-row"><span class="hm-subtle" style="width:0.9rem">${i + 1}</span>
+    // ── The tools: the top of tonight's boards (as /nhl's home) ──────────
+    const bet = (L, p) => `<span class="hm-score hm-bet"><small>${L}</small><b class="${p >= 0.5 ? 'odfav' : 'oddog'}">${fairOdds(p)}</b></span>`;
+    // his line closest to even, as the boards' "best line"
+    const evenLine = (r, kind) => { const pmf = lcPmf(r, kind), [lo, hi] = LC[kind].range; let L = lo;
+      for (let x = lo; x <= hi; x++) if (Math.abs(overAt(pmf, x) - 0.5) < Math.abs(overAt(pmf, L) - 0.5)) L = x; return [L, overAt(pmf, L)]; };
+    const boardHome = (kind, nav, word) => [...lcRows(kind)].sort((a, b) => b.mu - a.mu).slice(0, 3).map(r => {
+      const [L, p] = evenLine(r, kind);
+      return `<div class="hm-row" onclick="event.stopPropagation(); switchNav('${nav}'); openLc('${kind}','${r.pid}')">
         ${faceHtml(r.pid, r.name, 'hm-photo')}
-        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${r.mu.toFixed(1)} x3PM</span></span>
-        <span class="hm-score hot">${fairOdds(r.p[1])}<span class="hm-subtle" style="font-size:0.766rem"> 2+</span></span></div>`).join('') : '';
+        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · proj ${r.mu.toFixed(1)} ${word}</span></span>
+        ${bet('o' + L, p)}</div>`;
+    }).join('');
+    const t3Home = boardHome('3pm', 'threes', '3PM'), ptHome = boardHome('pts', 'points', 'pts'), stkHome = boardHome('stk', 'stocks', 'stl+blk');
+    const fbHome = (D.first?.games || []).flatMap(g => g.players.map(x => ({ ...x, g }))).sort((a, b) => b.p - a.p).slice(0, 3).map(x => `
+      <div class="hm-row" onclick="event.stopPropagation(); fbF.game = '${x.g.gid}'; switchNav('first')">
+        ${faceHtml(x.pid, x.name, 'hm-photo')}
+        <span class="hm-name">${esc(x.name)}<span class="hm-subtle">${esc(x.team)} ${x.team === x.g.home ? 'vs' : '@'} ${esc(x.team === x.g.home ? x.g.away : x.g.home)}${x.jumper ? ' · takes the tip' : ''}</span></span>
+        ${bet('1st', x.p)}</div>`).join('');
+    const dblHome = [...(D.stats?.doubles || [])].sort((a, b) => b.dd - a.dd).slice(0, 3).map(r => `
+      <div class="hm-row" onclick="event.stopPropagation(); switchNav('doubles'); openDoubleCard('${r.pid}')">
+        ${faceHtml(r.pid, r.name, 'hm-photo')}
+        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${r.pts} · ${r.reb} · ${r.ast} proj</span></span>
+        ${bet('DD', r.dd)}</div>`).join('');
+    const slate = (b) => b?.date ? ` · ${dayLabel(b.date)}` : '';
+    const soon = 'The board fills in once the slate is set.';
+
     // ── Watch lists: Due, Milestones, Birthdays ──────────────────────────
     const FUN = D.fun || {};
     const dueHome = (FUN.due?.t1 || []).slice(0, 3).map(r => `
@@ -2172,16 +2186,16 @@
     el.innerHTML = countdown + `
       <div class="hm-cols">
         <div class="hm-col">
-          ${t3 ? card('threes', `${dayLabel(D.threes.date)} · Threes (2+)`, 'Threes', t3, '') : ''}
           ${card('recap', lastNight ? `${dayLabel(lastNight)} Recap` : 'Recap', 'Recap', lastNightCard, 'No games played yet.')}
-          ${card('stats', `${lead} Scoring Leaders`, 'Stats', by('pts', 'PPG'), 'No leaders yet.')}
-          ${card('stats', `${lead} Threes Leaders`, 'Stats', by('tpm', '3PM'), 'No leaders yet.')}
+          ${card('threes', `Threes${slate(D.threes)}`, 'Threes', t3Home, soon)}
+          ${card('points', `Points${slate(D.stats)}`, 'Points', ptHome, soon)}
+          ${card('stocks', `Steals &amp; Blocks${slate(D.stats)}`, 'Steals &amp; Blocks', stkHome, soon)}
+          ${card('stats', `${lead} Leaders`, 'Stats', leaders, 'No leaders yet.')}
         </div>
         <div class="hm-col">
           ${card('schedule', nd ? `${dayLabel(nd)} · ${next.length} Game${next.length === 1 ? '' : 's'}` : 'Schedule', 'Schedule', gameRows, 'No games in the next ten days.')}
-          ${played ? card(null, 'East', '', conf('East'), '') + card(null, 'West', '', conf('West'), '') : ''}
-          ${card('stats', `${lead} Rebounds Leaders`, 'Stats', by('reb', 'RPG'), 'No leaders yet.')}
-          ${card('stats', `${lead} Assists Leaders`, 'Stats', by('ast', 'APG'), 'No leaders yet.')}
+          ${card('first', `First Basket${slate(D.first)}`, 'First Basket', fbHome, soon)}
+          ${card('doubles', `Double &amp; Triple-Doubles${slate(D.stats)}`, 'Doubles', dblHome, soon)}
           ${card('due', 'Due', 'Due', dueHome, 'Nobody on the board is in a drought.')}
           ${card('milestones', 'Milestone Watch 🏆', 'Milestones', msHome, 'No chases within reach.')}
           ${card('birthdays', 'Birthdays 🎂', 'Birthdays', bdHome, 'No birthdays this week.')}
