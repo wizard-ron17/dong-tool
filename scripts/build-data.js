@@ -2133,6 +2133,24 @@ async function resolveActiveGameDate() {
     // aren't "Live", so they don't keep us stuck.
     if (games.some(g => g.status?.abstractGameState === 'Live')) return prev;
   } catch (e) { /* fall back to the calendar date */ }
+  // Look ahead across a dark day: once today's slate is over (or there never
+  // was one) and TOMORROW has no games, move on to the next slate within three
+  // days, so an off day shows what's next instead of a finished slate. The
+  // regular-season end (Sunday done, Monday dark, Wild Card Tuesday) and the
+  // off days between playoff rounds. A normal night doesn't jump — tomorrow has
+  // games — so grading and Recap keep their usual day boundary.
+  try {
+    const on = async (d) => (await fetch(`${MLB}/schedule?sportId=1&date=${d}&gameType=${GAME_TYPES}`).then(r => r.json())).dates?.[0]?.games ?? [];
+    const today = await on(cal);
+    const over = (g) => g.status?.abstractGameState === 'Final' || /Postponed|Cancelled|Suspended/i.test(g.status?.detailedState || '');
+    if (today.every(over)) {
+      for (let d = 1; d <= 3; d++) {
+        const day = shiftDateStr(cal, d);
+        if (!(await on(day)).length) continue;
+        return d === 1 && today.length ? cal : day;
+      }
+    }
+  } catch (e) { /* fall back to the calendar date */ }
   return cal;
 }
 
@@ -3183,7 +3201,7 @@ async function main() {
   // Resolve the active game date before anything reads todayET() — holds on
   // yesterday while its late games are still live instead of jumping ahead.
   _activeGameDate = await resolveActiveGameDate();
-  console.log(`Active game date: ${_activeGameDate}${_activeGameDate !== calDateET() ? ` (yesterday's slate still live; calendar is ${calDateET()})` : ''}`);
+  console.log(`Active game date: ${_activeGameDate}${_activeGameDate < calDateET() ? ` (yesterday's slate still live; calendar is ${calDateET()})` : _activeGameDate > calDateET() ? ` (no games until then; calendar is ${calDateET()})` : ''}`);
 
   // Read the existing data.json BEFORE we overwrite it, so we can carry forward
   // yesterday's picks and score them against actual HR results. This runs before

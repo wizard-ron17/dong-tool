@@ -3519,6 +3519,12 @@ function addDaysToDateStr(str, delta) {
 function yesterday() {
   return addDaysToDateStr(todayDate || etDateStr(new Date()), -1);
 }
+/** "Today's", or the slate's weekday when the build has moved ahead across an off day. */
+function slateDayWord() {
+  const cal = etDateStr(new Date());
+  if (!todayDate || todayDate <= cal) return "Today's";
+  return new Date(todayDate + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' }) + "'s";
+}
 function isMob() {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 600;
 }
@@ -4366,7 +4372,7 @@ function renderHome() {
     </div>
     <div class="hm-col">
       <div class="hm-card" onclick="switchNav('schedule')">
-        <div class="hm-head"><span class="hm-title">Today's Schedule · ${sortedGames.length ? `${sortedGames.length} Games` : 'No Games'}</span><span class="hm-link">Schedule →</span></div>
+        <div class="hm-head"><span class="hm-title">${slateDayWord()} Schedule · ${sortedGames.length ? `${sortedGames.length} Games` : 'No Games'}</span><span class="hm-link">Schedule →</span></div>
         ${gameRows || '<div class="hm-subtle">Nothing on the slate.</div>'}${moreGames}
       </div>
       <div class="hm-card" onclick="switchNav('returning')">
