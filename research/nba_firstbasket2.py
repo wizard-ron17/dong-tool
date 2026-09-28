@@ -35,7 +35,7 @@ def ll(p, y):
     return float(-(y * np.log(p) + (1 - y) * np.log(1 - p)).mean())
 
 
-def main():
+def main(export=True):
     games = []
     for f in glob.glob(os.path.join(HERE, ".cache", "nba", "*", "*.json")):
         d = json.load(open(f)); g = d["game"]
@@ -74,7 +74,7 @@ def main():
                 for i, p in enumerate(mates):
                     rows.append({"season": g["season"], "gid": g["id"], "team": team, "pt_tip": pt_tip, "line": line,
                                  "share": w[i] / w.sum(), "pid": p["pid"], "pos": pos[p["pid"]],
-                                 "y": float(p["pid"] == g["first_fg"]["pid"]),
+                                 "y": float(p["pid"] == g["first_fg"]["pid"]), "date": g["date"],
                                  "flat": 0.1, "coin_pos": pt_coin * wp[i] / wp.sum(),
                                  "tip_pos": pt_tip * wp[i] / wp.sum(), "tip_own": pt_tip * w[i] / w.sum(),
                                  "known_own": pt_known * w[i] / w.sum()})
@@ -120,6 +120,7 @@ def main():
     print(f"\neach game's top-priced player: priced {top[best].mean():.3f}, scored first {top.y.mean():.3f} ({len(top):,} games)")
     print(f"by position, priced vs actual: " + ", ".join(f"{k} {r[best].mean():.3f}/{r.y.mean():.3f}" for k, r in R.groupby("pos") if len(r) > 1000))
 
+    if not export: return R                                  # research/nba_due.py reuses the walk-forward prices
     # ── export for the build: the same pieces, fit on every season ──────────
     X = np.column_stack([np.ones(len(Tm)), lgt(Tm.pt_tip), Tm.line]); bb = np.zeros(3); yv = Tm.yt.values
     for _ in range(40):

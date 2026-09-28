@@ -17,6 +17,7 @@ import { get, pool, SITE, SITE2, CORE, etDate, shiftDate, compact } from './nba-
 import { reduceSummary, freshState, applyGame, BOX, STATE_VERSION } from './nba-state.js';
 import { MODEL, fam, minutesInputs, projectMinutes, threesRate, oppThreesRatio, threesMu, threesLadder, pWinTip, pTeamFirst, fbWeight,
   statRate, statForm, statOpp, statMu, statLadder, doublesPrice } from './nba-models.js';
+import { buildFun } from './nba-fun.js';
 
 const AHEAD = 10;        // schedule days ahead
 const BEHIND = 3;        // ...and behind (yesterday's finals stay on the schedule)
@@ -180,6 +181,10 @@ async function main() {
   const statRows = Object.fromEntries(STATS.map(st => [st, []])), ddRows = [];
   const frozenStats = prevData.stats?.date === boardDate ? prevData.stats : null;
   const priorPrev = priors?.players || {};
+  // every club's current roster, once: the boards price off it, and the watch lists read birthdays and faces from it
+  const rosters = new Map(await pool(Object.values(teams), 6, async (t) => {
+    try { return [t.ab, (await get(`${SITE}/teams/${t.id}/roster`)).athletes || []]; } catch (e) { return [t.ab, null]; }
+  }));
   for (const g of slate) {
     if (g.state !== 'pre') {
       rows.push(...frozen.filter(r => r.gid === g.id));
@@ -188,9 +193,7 @@ async function main() {
       continue;
     }
     for (const [me, opp, home] of [[g.home.ab, g.away.ab, true], [g.away.ab, g.home.ab, false]]) {
-      const tid = teams[me]?.id; if (!tid) continue;
-      let roster = [];
-      try { roster = (await get(`${SITE}/teams/${tid}/roster`)).athletes || []; } catch (e) { continue; }
+      const roster = rosters.get(me); if (!roster) continue;
       const T = state.teams?.[me], tDates = T?.dates || [];
       const recent3 = tDates.slice(-3)[0] || null;
       const isOut = (a) => OUT_STATUS.test(injuries[a.id]?.status || '');
@@ -296,8 +299,17 @@ async function main() {
   const threes = boardDate ? { date: boardDate, generated: new Date().toISOString(), rungs: MODEL.threes.rungs, alpha: MODEL.threes.alpha, rows } : null;
   console.log(`Threes board: ${rows.length} players, ${boardDate || 'no slate'}${frozen.length ? ` (${rows.filter(r => frozen.includes(r)).length} frozen)` : ''}`);
 
+  // ── 11) Watch lists: Milestones, Due, Birthdays ──────────────────────────
+  let fun = null;
+  try {
+    fun = await buildFun({ year, today, rosters, state, schedule, recap,
+      boards: { threes: rows, doubles: ddRows, first: fbGames, pts: statRows.pts } });
+    console.log(`Watch lists: ${fun.milestones.length} milestone chases (${fun.careerFetched} careers fetched), ${fun.birthdays.length} birthdays, due ${Object.entries(fun.due).map(([k, v]) => `${k} ${v.length}`).join(' ')}`);
+    delete fun.careerFetched;
+  } catch (e) { console.warn(`  watch lists not built: ${e.message}`); }
+
   const data = { generated: new Date().toISOString(), today, season: label, phase: now.key, phaseName: now.name, phases,
-    leadersFrom: fromPriors ? state.priorsSeason : label, teams, schedule, recap, injuries, leaders, threes, first, stats };
+    leadersFrom: fromPriors ? state.priorsSeason : label, teams, schedule, recap, injuries, leaders, threes, first, stats, fun };
   fs.writeFileSync(OUT, JSON.stringify(data));
   fs.writeFileSync(STATE_PATH, JSON.stringify(state));
   console.log(`Wrote nba/data.json — ${Object.keys(teams).length} teams, ${schedule.length} scheduled, ${recap.length} recapped, ${leaders.length} leaders (${fromPriors ? 'last season' : 'this season'}), ${Object.keys(injuries).length} injured`);

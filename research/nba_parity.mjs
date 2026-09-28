@@ -77,4 +77,14 @@ for (const d of games) {
   applyGame(state, r);
 }
 fs.writeFileSync(new URL('./nba_parity.csv', import.meta.url), out.join('\n'));
+// Due's droughts: the replayed state at the end of the cache against nba/priors.json (research/nba_priors_export.py)
+{
+  const pri = JSON.parse(fs.readFileSync(new URL('../nba/priors.json', import.meta.url), 'utf8')).players;
+  let n = 0, same = 0; const bad = {};
+  for (const [pid, p] of Object.entries(pri)) for (const k of ['t1', 't3', 'dd', 'td', 'fb']) {
+    const a = state.players[pid]?.dr?.[k] ?? null, b = p.dr?.[k] ?? null, da = state.players[pid]?.drd?.[k] ?? null, db = p.drd?.[k] ?? null;
+    n++; if (a === b && da === db) same++; else (bad[k] ||= []).push(`${p.name} ${a}/${b}`);
+  }
+  console.log(`droughts: ${same}/${n} player-counters match priors.json` + Object.entries(bad).map(([k, v]) => `\n  ${k}: ${v.length} differ, e.g. ${v.slice(0, 3).join(', ')}`).join(''));
+}
 console.log(`replayed ${games.length} games · ${out.length - 1} player-game rows`);

@@ -46,7 +46,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add nba/data.json nba/players.json
+          git add nba/*.json
           git diff --staged --quiet && { echo "No changes to commit"; exit 0; }
           git commit -m "Update nba/data.json"
           # whole-file regenerates: replay onto main if a racing push lands first
@@ -55,7 +55,7 @@ jobs:
             echo "Push rejected (attempt $attempt) — replaying onto latest main"
             git fetch origin main
             git reset FETCH_HEAD
-            git add nba/data.json nba/players.json
+            git add nba/*.json
             git diff --staged --quiet && { echo "Already current with main"; exit 0; }
             git commit -m "Update nba/data.json"
           done
