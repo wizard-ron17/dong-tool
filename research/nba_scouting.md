@@ -142,3 +142,12 @@ Walk-forward results over 7,200 games (2020-21 → 2025-26), each priced only fr
   - The edge does not survive crossing the spread. It shows up only as a maker.
   - The mid rows assume every resting order fills. Real fills are adversely selected (late scratches, minutes news), so the true number is lower. Measure it live, small.
 - **Points: Kalshi is sharper.** Our level is low for the players Kalshi lists: 38.5% priced vs 40.6% hit, worst at 15+ (45.7% vs 51.5%). The shrinkage toward a position rate costs stars. Fix: less shrinkage for high-usage players, or a per-player level term.
+
+**Points, round three (2026-09-28):**
+- The level was fine: Kalshi's players were projected 16.4 and scored 16.5. The miss was the SHAPE.
+  - Real variance grows with mean^0.85 (variance = 4.7 × mean^0.85, the same every season), not mean^2. Stars are steadier than a fixed-alpha NB says; bench players are wilder.
+  - Shape C (NB with that power variance) is best overall. A plain normal with φ = 3.2 is close. A normal with the power variance is too thin in the tails. A mean recalibration made it worse (dropped).
+- **Recent form is real:** his last-10 points per minute against his longer rate has weight 0.61 in the GLM, and it improves every rung.
+- vs Kalshi (same 5,255 markets): log loss 0.5310 (as first tested) → 0.5292 (shape C) → **0.5278 (+ recent form)**, against Kalshi's mid at **0.5206**.
+  - Kalshi is still sharper at every rung. At the mid (edge > 5%) we get +5.6% ± 3.4, not significant. Taking the ask is −1.1% ± 3.7.
+  - Points is not the lead market; threes are.
