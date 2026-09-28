@@ -104,3 +104,24 @@ export function threesLadder(mu, mproj, sd) {
   }
   return out;
 }
+
+// ── First basket (research/nba_firstbasket2.py) ─────────────────────────────
+const lgt = (p) => Math.log(p / (1 - p)), sig = (z) => 1 / (1 + Math.exp(-z));
+/** His tip record, shrunk k_tip jumps toward .500. */
+export const tipRate = (s) => { const F = MODEL.first; return ((s?.tipw || 0) + F.k_tip * 0.5) / ((s?.tipn || 0) + F.k_tip); };
+/** P(home wins the tip): log5 of the two jumpers' shrunk records. */
+export function pWinTip(home, away) {
+  const a = tipRate(home), b = tipRate(away);
+  return a * (1 - b) / (a * (1 - b) + b * (1 - a));
+}
+/** P(his team scores the first basket): the tip, then the line (his team's implied margin). */
+export function pTeamFirst(pWin, margin) {
+  const F = MODEL.first, e = F.e;
+  const ptTip = pWin * e + (1 - pWin) * (1 - e);
+  return sig(F.team.const + F.team.tip * lgt(Math.min(Math.max(ptTip, 1e-4), 1 - 1e-4)) + F.team.line * (margin || 0));
+}
+/** A starter's weight on his team's first basket: his record, shrunk k_fb starts to his position's. */
+export function fbWeight(s, pos) {
+  const F = MODEL.first, r = F.pos_rate[fam(pos)] ?? 0.1;
+  return ((s?.fb || 0) + F.k_fb * r) / ((s?.starts || 0) + F.k_fb);
+}

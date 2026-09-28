@@ -98,8 +98,15 @@ def main():
                    "shrink_min": 300, "prev_weight": 0.5, "opp_shrink_games": 10, "alpha": 0.1, "sd_min": 5.2,
                    "clip": {"imp": [0.5, 1.5], "opp": [0.5, 1.5]}, "rungs": [1, 2, 3, 4, 5]},
         "league": league,
-        "positions": {"PG": "G", "SG": "G", "G": "G", "SF": "F", "PF": "F", "F": "F", "C": "C"},
+        "positions": {"PG": "G", "SG": "G", "G": "G", "SF": "F", "PF": "F", "F": "F", "C": "C", "GF": "F", "FC": "C"},
     }
+    # keep the sections other scripts export into the same file (first basket: nba_firstbasket2.py)
+    try:
+        old = json.load(open(OUT))
+        for k, v in old.items():
+            if k not in model: model[k] = v
+    except FileNotFoundError:
+        pass
     json.dump(model, open(OUT, "w"), indent=1)
     print(f"wrote {OUT}")
     print("minutes (pre-lineup) sd %.2f · (lineup) sd %.2f" % (mins["pre"]["sd"], mins["lineup"]["sd"]))

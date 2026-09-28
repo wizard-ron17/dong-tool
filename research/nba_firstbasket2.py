@@ -120,6 +120,22 @@ def main():
     print(f"\neach game's top-priced player: priced {top[best].mean():.3f}, scored first {top.y.mean():.3f} ({len(top):,} games)")
     print(f"by position, priced vs actual: " + ", ".join(f"{k} {r[best].mean():.3f}/{r.y.mean():.3f}" for k, r in R.groupby("pos") if len(r) > 1000))
 
+    # ── export for the build: the same pieces, fit on every season ──────────
+    X = np.column_stack([np.ones(len(Tm)), lgt(Tm.pt_tip), Tm.line]); bb = np.zeros(3); yv = Tm.yt.values
+    for _ in range(40):
+        pp = 1 / (1 + np.exp(-X @ bb)); W = pp * (1 - pp)
+        bb += np.linalg.solve(X.T @ (X * W[:, None]) + 1e-6 * np.eye(3), X.T @ (yv - pp))
+    first = {
+        "note": "research/nba_firstbasket2.py — first made field goal. P(team first) = logistic(const + tip * logit(pt_tip) + line * his team's implied margin), pt_tip = P(win tip) * e + (1 - P(win tip)) * (1 - e), P(win tip) = log5 of the jumpers' tip records shrunk k_tip jumps to .500. P(him | team first) = w / sum(w over his team's 5 starters), w = (first baskets + k_fb * position rate) / (starts + k_fb). Starters only: a starter scored the first basket in every game.",
+        "k_tip": K_TIP, "k_fb": K_FB, "e_prior": [0.62, 20], "e": float((e_w + 20 * 0.62) / (e_n + 20)),
+        "team": {"const": float(bb[0]), "tip": float(bb[1]), "line": float(bb[2])},
+        "pos_rate": {k: float((posf[k] + 1) / (poss[k] + 10)) for k in ("G", "F", "C")},
+        "positions": POS,
+    }
+    MP = os.path.join(HERE, "nba_model.json")
+    M = json.load(open(MP)); M["first"] = first; json.dump(M, open(MP, "w"), indent=1)
+    print(f"\nexported to nba_model.json: e {first['e']:.3f}, team {first['team']}, pos {first['pos_rate']}")
+
 
 if __name__ == "__main__":
     main()

@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import { get, pool, SITE, SITE2, CORE, etDate, shiftDate, compact } from './nba-api.js';
 import { reduceSummary, freshState, applyGame, BOX } from './nba-state.js';
-import { MODEL, fam, minutesInputs, projectMinutes, threesRate, oppThreesRatio, threesMu, threesLadder } from './nba-models.js';
+import { MODEL, fam, minutesInputs, projectMinutes, threesRate, oppThreesRatio, threesMu, threesLadder, pWinTip, pTeamFirst, fbWeight } from './nba-models.js';
 
 const AHEAD = 10;        // schedule days ahead
 const BEHIND = 3;        // ...and behind (yesterday's finals stay on the schedule)
@@ -173,6 +173,7 @@ async function main() {
   const prevData = readJSON(OUT, {});
   const frozen = (prevData.threes?.date === boardDate ? prevData.threes.rows : []) || [];
   const rows = [];
+  const teamCtx = {};                          // gid -> team -> the priced players, for first basket
   const priorPrev = priors?.players || {};
   for (const g of slate) {
     if (g.state !== 'pre') { rows.push(...frozen.filter(r => r.gid === g.id)); continue; }
@@ -197,6 +198,7 @@ async function main() {
       const L = g.lines, sp = L?.spread != null ? (home ? L.spread : -L.spread) : null;
       const implied = L ? (home ? L.impHome : L.impAway) : null;
       const teamLast = T?.last || null, b2b = teamLast === shiftDate(g.date, -1);
+      const ctxList = ((teamCtx[g.id] ||= {})[me] = []);
       for (const a of roster) {
         if (isOut(a)) continue;
         const s = state.players[a.id]; if (!s?.last10?.length) continue;
@@ -204,6 +206,7 @@ async function main() {
         const inp = minutesInputs(s, prevTot);
         const M = projectMinutes(inp, { date: g.date, teamLast, absSpread: sp != null ? Math.abs(sp) : null, b2b,
           vacated: vac, vacPos: vacFam[fam(pos)] || 0 });
+        ctxList.push({ a, s, pos, min: M.min, start10: inp.start10 ?? 0, margin: sp != null ? -sp : 0 });
         if (M.min < 8) continue;                                  // not a rotation player tonight
         const rate = threesRate(s, prevTot, pos);
         const mu = threesMu({ rate, mproj: M.min, implied, oppRatio: oppThreesRatio(state.teams?.[opp]), home });
@@ -217,11 +220,47 @@ async function main() {
     }
   }
   rows.sort((a, b) => b.p[0] - a.p[0]);
+
+  // ── 9) First basket, the same slate ──────────────────────────────────────
+  // Lineups post ~30 min before tip, so the five are PROJECTED until then: the
+  // five who've started most of his team's last ten, minutes breaking ties. The
+  // jumper is the projected starter with the most opening tips (nearly always
+  // the centre). A starter scored the first basket in every game researched.
+  const frozenFb = (prevData.first?.date === boardDate ? prevData.first.games : []) || [];
+  const fbGames = [];
+  for (const g of slate) {
+    if (g.state !== 'pre') { fbGames.push(...frozenFb.filter(x => x.gid === g.id)); continue; }
+    const side = {};
+    for (const ab of [g.home.ab, g.away.ab]) {
+      const L = (teamCtx[g.id]?.[ab] || []).filter(x => x.min >= 12)
+        .sort((x, y) => y.start10 - x.start10 || y.min - x.min).slice(0, 5);
+      if (L.length < 5) { side[ab] = null; continue; }
+      const jumper = [...L].sort((x, y) => (y.s.tipn || 0) - (x.s.tipn || 0) || (fam(y.pos) === 'C') - (fam(x.pos) === 'C') || y.min - x.min)[0];
+      side[ab] = { L, jumper, margin: L[0].margin };
+    }
+    const H = side[g.home.ab], A = side[g.away.ab];
+    if (!H || !A) continue;
+    const pHomeTip = pWinTip(H.jumper.s, A.jumper.s);
+    const pHome = pTeamFirst(pHomeTip, H.margin), pAway = pTeamFirst(1 - pHomeTip, A.margin);
+    const norm = pHome + pAway;                                        // the two teams' chances, made to sum to 1
+    const players = [];
+    for (const [ab, S, pt] of [[g.home.ab, H, pHome / norm], [g.away.ab, A, pAway / norm]]) {
+      const w = S.L.map(x => fbWeight(x.s, x.pos)), W = w.reduce((a, b) => a + b, 0);
+      S.L.forEach((x, i) => players.push({ pid: x.a.id, name: x.a.displayName, team: ab, pos: x.pos, jumper: x === S.jumper,
+        p: +(pt * w[i] / W).toFixed(4), fb: x.s.fb || 0, starts: x.s.starts || 0, st10: +x.start10.toFixed(2) }));
+    }
+    players.sort((a, b) => b.p - a.p);
+    fbGames.push({ gid: g.id, start: g.start, home: g.home.ab, away: g.away.ab,
+      tip: { home: H.jumper.a.displayName, away: A.jumper.a.displayName, pHome: +pHomeTip.toFixed(3) },
+      pHomeFirst: +(pHome / norm).toFixed(3), players });
+  }
+  const first = boardDate ? { date: boardDate, generated: new Date().toISOString(), projected: true, games: fbGames } : null;
+  console.log(`First basket: ${fbGames.length} games priced`);
   const threes = boardDate ? { date: boardDate, generated: new Date().toISOString(), rungs: MODEL.threes.rungs, rows } : null;
   console.log(`Threes board: ${rows.length} players, ${boardDate || 'no slate'}${frozen.length ? ` (${rows.filter(r => frozen.includes(r)).length} frozen)` : ''}`);
 
   const data = { generated: new Date().toISOString(), today, season: label, phase: now.key, phaseName: now.name, phases,
-    leadersFrom: fromPriors ? state.priorsSeason : label, teams, schedule, recap, injuries, leaders, threes };
+    leadersFrom: fromPriors ? state.priorsSeason : label, teams, schedule, recap, injuries, leaders, threes, first };
   fs.writeFileSync(OUT, JSON.stringify(data));
   fs.writeFileSync(STATE_PATH, JSON.stringify(state));
   console.log(`Wrote nba/data.json — ${Object.keys(teams).length} teams, ${schedule.length} scheduled, ${recap.length} recapped, ${leaders.length} leaders (${fromPriors ? 'last season' : 'this season'}), ${Object.keys(injuries).length} injured`);

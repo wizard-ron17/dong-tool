@@ -372,6 +372,26 @@
   /* the tool you're on */
   .nav-menu-item.active { box-shadow: inset 0 0 0 1.5px var(--gc); }
   .nm-soon { font-size: 0.56rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); margin-left: 0.35rem; }
+  /* first basket */
+  .fb-games { display: grid; gap: 0.6rem; }
+  @media (min-width: 900px) { .fb-games { grid-template-columns: 1fr 1fr; align-items: start; } }
+  .fb-game { background: var(--surface0); border: 1px solid var(--border); border-radius: 12px; padding: 0.6rem 0.7rem 0.7rem; }
+  .fb-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+  .fb-time { font-size: 0.72rem; color: var(--muted); }
+  .fb-tipline { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.2rem 0.8rem; font-size: 0.72rem; color: var(--muted); margin: 0.45rem 0 0.3rem; }
+  .fb-tipline b { color: var(--text); font-weight: 700; }
+  .fb-bar { height: 4px; border-radius: 3px; background: var(--surface2); overflow: hidden; margin-bottom: 0.5rem; }
+  .fb-bar i { display: block; height: 100%; background: var(--muted); }
+  .fb-list { display: flex; flex-direction: column; gap: 0.3rem; }
+  .fb-all { gap: 0.4rem; }
+  .fb-pl { display: flex; align-items: center; gap: 0.55rem; padding: 0.3rem 0.35rem; border-radius: 9px; }
+  .fb-all .fb-pl { background: var(--surface0); border: 1px solid var(--border); padding: 0.45rem 0.6rem; }
+  .fb-pl.fb-jump { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+  .fb-id { min-width: 0; flex: 1; }
+  .fb-tag { font-size: 0.56rem; font-weight: 800; letter-spacing: 0.06em; padding: 0.06rem 0.3rem; border-radius: 4px; color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); vertical-align: middle; }
+  .fb-od { display: flex; flex-direction: column; align-items: flex-end; }
+  .fb-od b { font-family: var(--font-d); font-size: 0.95rem; color: var(--text-strong); }
+  .fb-od span { font-family: var(--font-m); font-size: 0.64rem; color: var(--muted); }
   /* the schedule standard: two cards a row on desktop */
   @media (min-width: 900px) { .sc-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; align-items: start; } }
   /* threes board */
@@ -492,6 +512,7 @@
   <div id="panel-home" class="panel visible"><div id="home-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-stats" class="panel"><div id="stats-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-recap" class="panel"><div id="recap-content"><div class="empty">Loading…</div></div></div>
+  <div id="panel-first" class="panel"><div id="first-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-threes" class="panel"><div id="threes-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-schedule" class="panel"><div id="schedule-content"><div class="empty">Loading…</div></div></div>
 
@@ -516,8 +537,8 @@
     <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16M7 19V11M12 19V6M17 19v-5"/></svg></span><span class="nm-name">Points<span class="nm-soon">Soon</span></span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
     <span class="nm-desc">Every rotation player priced at every points line.</span>
   </button>
-  <button class="nav-menu-item g1" disabled>
-    <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5l3 2"/></svg></span><span class="nm-name">First Basket<span class="nm-soon">Soon</span></span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+  <button class="nav-menu-item g1" data-nav="first" onclick="switchNav('first')">
+    <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5l3 2"/></svg></span><span class="nm-name">First Basket</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
     <span class="nm-desc">Who scores the game&rsquo;s first field goal &mdash; the tip, the line and his own record.</span>
   </button>
   <div class="nav-menu-group g3">Defense</div>
@@ -594,7 +615,7 @@
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch, .sport-menu')) closeSportMenu(); });
 
   // ── Tools menu ─────────────────────────────────────────────────────────
-  const TOOL_NAVS = ['threes'];                     // live tools; the menu's dimmed items ship into here
+  const TOOL_NAVS = ['threes', 'first'];                     // live tools; the menu's dimmed items ship into here
   let navToolsOpen = false;
   function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
   function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
@@ -603,8 +624,8 @@
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && navToolsOpen) closeNavTools(); });
 
   // ── Nav + routing ──────────────────────────────────────────────────────
-  const NBA_NAVS = ['home', 'stats', 'recap', 'threes', 'schedule'];   // tools added here as they ship
-  const PAGE_TITLES = { home: "Ron's Hoop Tool", stats: "Stats · Ron's Hoop Tool", recap: "Recap · Ron's Hoop Tool", threes: "Threes · Ron's Hoop Tool", schedule: "Schedule · Ron's Hoop Tool" };
+  const NBA_NAVS = ['home', 'stats', 'recap', 'threes', 'first', 'schedule'];   // tools added here as they ship
+  const PAGE_TITLES = { home: "Ron's Hoop Tool", stats: "Stats · Ron's Hoop Tool", recap: "Recap · Ron's Hoop Tool", threes: "Threes · Ron's Hoop Tool", first: "First Basket · Ron's Hoop Tool", schedule: "Schedule · Ron's Hoop Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
     activeNav = nav;
@@ -637,6 +658,7 @@
     else if (nav === 'recap') renderRecap();
     else if (nav === 'schedule') renderSchedule();
     else if (nav === 'threes') renderThrees();
+    else if (nav === 'first') renderFirst();
   }
 
   // ── Data ───────────────────────────────────────────────────────────────
@@ -953,6 +975,50 @@
       <div class="t3-list">${(t3F.all ? rows : rows.slice(0, T3_TOP)).map(row).join('') || '<div class="empty">No players match.</div>'}</div>
       ${rows.length > T3_TOP ? `<button class="due-filter-chip t3-more" onclick="t3Set('all',${!t3F.all})">${t3F.all ? `Show the top ${T3_TOP}` : `Show all ${rows.length}`}</button>` : ''}
       <div class="t3-note">Sorted by <b>${rung}+</b>. Projected minutes from his recent minutes, starts, teammates newly out and blowout risk; made threes per minute from this season and last, shrunk to his position; the opponent's threes allowed. A negative binomial over his minutes gives the ladder. Checked against Kalshi last season: sharper than its pre-game price, but only worth taking as a resting order at the mid — crossing the spread gave it back.</div>`;
+  }
+
+  // ── First basket ───────────────────────────────────────────────────────
+  // Who scores the game's first made field goal. The tip decides the team (its
+  // winner scores first ~64%, before the line), the line adds the better offense,
+  // and within a team it's each starter's own first-basket record, shrunk to his
+  // position (centres score first most — the opening set, the putback). Starters
+  // are projected until lineups post. research/nba_firstbasket2.py: calibrated
+  // over 7,200 games walk-forward.
+  const fbF = { view: 'games' };
+  function fbSet(k, v) { fbF[k] = v; renderFirst(); }
+  function renderFirst() {
+    const el = dataGate('first-content'); if (!el) return;
+    const B = D.first;
+    if (!B || !B.games?.length) { el.innerHTML = '<div class="empty">No slate to price yet — first basket fills in once the next games have lines.</div>'; return; }
+    const games = [...B.games].sort((a, b) => a.start.localeCompare(b.start));
+    const started = (g) => new Date(g.start) <= new Date();
+    const pl = (r, rank) => `<div class="fb-pl${r.jumper ? ' fb-jump' : ''}">
+        ${rank ? `<span class="st-rank">${rank}</span>` : ''}${faceHtml(r.pid, r.name)}
+        <div class="fb-id"><div class="rc-name">${esc(r.name)} ${posBadge(r.pos)}${r.jumper ? ' <span class="fb-tag" title="Projected to take the opening tip">TIP</span>' : ''}</div>
+          <div class="rc-sub">${logoImg(r.team, 't3-logo')} ${esc(r.team)} · ${r.fb} first baskets in ${r.starts} starts</div></div>
+        <div class="fb-od"><b>${fairOdds(r.p)}</b><span>${(r.p * 100).toFixed(1)}%</span></div>
+      </div>`;
+    const gameCard = (g) => {
+      const hp = g.pHomeFirst, tp = g.tip.pHome;
+      return `<div class="fb-game${started(g) ? ' t3-started' : ''}">
+        <div class="fb-head">
+          <span class="rg-score">${logoImg(g.away, 'rg-logo')}${esc(g.away)} <span style="color:var(--dim)">@</span> ${esc(g.home)}${logoImg(g.home, 'rg-logo')}</span>
+          <span class="fb-time">${gameTime(g.start)}${started(g) ? ' · priced before tip' : ''}</span>
+        </div>
+        <div class="fb-tipline">
+          <span>Tip: <b>${esc(g.tip.away)}</b> ${Math.round((1 - tp) * 100)}% · <b>${esc(g.tip.home)}</b> ${Math.round(tp * 100)}%</span>
+          <span>Scores first: <b>${esc(g.away)}</b> ${Math.round((1 - hp) * 100)}% · <b>${esc(g.home)}</b> ${Math.round(hp * 100)}%</span>
+        </div>
+        <div class="fb-bar"><i style="width:${(1 - hp) * 100}%"></i></div>
+        <div class="fb-list">${g.players.map(r => pl(r)).join('')}</div>
+      </div>`;
+    };
+    const all = games.flatMap(g => g.players.map(r => ({ ...r, g }))).sort((a, b) => b.p - a.p);
+    const chip = (v, lbl) => `<button class="due-filter-chip${fbF.view === v ? ' active' : ''}" onclick="fbSet('view','${v}')">${lbl}</button>`;
+    el.innerHTML = `<div class="result-meta"><b>${dayLabel(B.date, true)}</b> · ${games.length} game${games.length === 1 ? '' : 's'} · first made field goal · fair odds, no vig · updated ${timeAgo(B.generated)}</div>
+      <div class="pairs-filter-row"><span class="due-filter-label">View</span>${chip('games', 'By game')}${chip('all', 'Whole slate')}</div>
+      ${fbF.view === 'all' ? `<div class="fb-list fb-all">${all.map((r, i) => pl(r, i + 1)).join('')}</div>` : `<div class="fb-games">${games.map(gameCard).join('')}</div>`}
+      <div class="t3-note"><b>Starters are projected</b> until lineups post (~30 minutes before tip): the five who've started most of his team's last ten. If a projected starter sits, his price doesn't apply. The tip winner's team scores first about 64% of the time; the betting line adds the better offense; within a team it's his own first-basket record, pulled toward his position's. Check whether a book settles on the first <i>basket</i> or the first <i>points</i> — about 8% of games start with a free throw.</div>`;
   }
 
   // ── Home ───────────────────────────────────────────────────────────────

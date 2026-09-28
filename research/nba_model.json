@@ -138,6 +138,39 @@
   "SF": "F",
   "PF": "F",
   "F": "F",
-  "C": "C"
+  "C": "C",
+  "GF": "F",
+  "FC": "C"
+ },
+ "first": {
+  "note": "research/nba_firstbasket2.py \u2014 first made field goal. P(team first) = logistic(const + tip * logit(pt_tip) + line * his team's implied margin), pt_tip = P(win tip) * e + (1 - P(win tip)) * (1 - e), P(win tip) = log5 of the jumpers' tip records shrunk k_tip jumps to .500. P(him | team first) = w / sum(w over his team's 5 starters), w = (first baskets + k_fb * position rate) / (starts + k_fb). Starters only: a starter scored the first basket in every game.",
+  "k_tip": 20,
+  "k_fb": 40,
+  "e_prior": [
+   0.62,
+   20
+  ],
+  "e": 0.6384760705289673,
+  "team": {
+   "const": -0.0009840107476025673,
+   "tip": 1.1137243747351515,
+   "line": 0.018167376717575043
+  },
+  "pos_rate": {
+   "G": 0.0901015228426396,
+   "F": 0.09822888283378746,
+   "C": 0.13040736536763778
+  },
+  "positions": {
+   "PG": "G",
+   "SG": "G",
+   "G": "G",
+   "SF": "F",
+   "PF": "F",
+   "F": "F",
+   "C": "C",
+   "GF": "F",
+   "FC": "C"
+  }
  }
 }
