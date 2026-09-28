@@ -219,13 +219,20 @@ async function main() {
         ctxList.push({ a, s, pos, min: M.min, start10: inp.start10 ?? 0, margin: sp != null ? -sp : 0 });
         if (M.min < 8) continue;                                  // not a rotation player tonight
         // every counting-stat ladder and the double / triple-double, off the same minutes (research/nba_stats.py)
-        const base = { gid: g.id, start: g.start, pid: a.id, name: a.displayName, team: me, opp, home, pos, min: +M.min.toFixed(1), q: injuries[a.id]?.status || null };
+        const base = { gid: g.id, start: g.start, pid: a.id, name: a.displayName, team: me, opp, home, pos, min: +M.min.toFixed(1), sd: +M.sd.toFixed(2), q: injuries[a.id]?.status || null };
         const mus = {};
         for (const st of STATS) {
           const r0 = statRate(st, s, prevTot, pos);
           const mu = statMu(st, { rate: r0, form: statForm(st, s, r0), implied, oppRatio: statOpp(st, state.teams?.[opp]), home, mproj: M.min, early: inp.early });
           mus[st] = mu;
-          statRows[st].push({ ...base, mu: +mu.toFixed(2), p: statLadder(st, mu, M.min, M.sd).map(x => +x.toFixed(4)) });
+          // the card's key metrics: his per-game rate (this season, else last), his last ten, the matchup
+          const parts = { pra: ['pts', 'reb', 'ast'], stk: ['stl', 'blk'] }[st] || [st];
+          const per = (o, n) => n ? +(parts.reduce((x, k) => x + (o?.[k] || 0), 0) / n).toFixed(1) : null;
+          const R10 = s.reg10 || [];
+          statRows[st].push({ ...base, mu: +mu.toFixed(2), p: statLadder(st, mu, M.min, M.sd).map(x => +x.toFixed(4)),
+            f: { avg: s.gp ? per(s, s.gp) : per(prevTot, prevTot?.gp), avgWhen: s.gp ? 'season' : 'last season',
+                 l10: per(R10.reduce((o, g) => { for (const k of parts) o[k] = (o[k] || 0) + (g[k] || 0); return o; }, {}), R10.length),
+                 opp: +statOpp(st, state.teams?.[opp]).toFixed(3), imp: implied, st10: +(inp.start10 ?? 0).toFixed(2) } });
         }
         const dbl = doublesPrice(mus, M.min, M.sd, s.cats40);
         ddRows.push({ ...base, pts: +mus.pts.toFixed(1), reb: +mus.reb.toFixed(1), ast: +mus.ast.toFixed(1),
@@ -235,7 +242,7 @@ async function main() {
         const mu = threesMu({ rate, mproj: M.min, implied, oppRatio: oppThreesRatio(state.teams?.[opp]), home });
         const p = threesLadder(mu, M.min, M.sd);
         rows.push({ gid: g.id, start: g.start, pid: a.id, name: a.displayName, team: me, opp, home, pos,
-          min: +M.min.toFixed(1), mu: +mu.toFixed(3), p: p.map(x => +x.toFixed(4)),
+          min: +M.min.toFixed(1), sd: +M.sd.toFixed(2), mu: +mu.toFixed(3), p: p.map(x => +x.toFixed(4)),
           f: { m10: +(inp.m10 ?? 0).toFixed(1), st10: +(inp.start10 ?? 0).toFixed(2), rate: +(rate * 36).toFixed(2),
                tpa: s.gp ? +(s.tpa / s.gp).toFixed(1) : (prevTot?.gp ? +(prevTot.tpa / prevTot.gp).toFixed(1) : null),
                vac: +vac.toFixed(1), opp: +oppThreesRatio(state.teams?.[opp]).toFixed(3), imp: implied, q: injuries[a.id]?.status || null } });
@@ -281,10 +288,12 @@ async function main() {
   console.log(`First basket: ${fbGames.length} games priced`);
   for (const st of STATS) statRows[st].sort((a, b) => b.mu - a.mu);
   ddRows.sort((a, b) => b.dd - a.dd);
+  // the spread each distribution uses, so the page's ladder card draws what the build priced
   const stats = boardDate ? { date: boardDate, generated: new Date().toISOString(),
+    spread: Object.fromEntries(STATS.map(st => [st, { a: MODEL.stats.models[st].a, p: MODEL.stats.models[st].p }])),
     boards: Object.fromEntries(STATS.map(st => [st, { rungs: MODEL.stats.models[st].rungs, rows: statRows[st] }])), doubles: ddRows } : null;
   console.log(`Stats boards: ${STATS.map(st => `${st} ${statRows[st].length}`).join(', ')} · doubles ${ddRows.length}`);
-  const threes = boardDate ? { date: boardDate, generated: new Date().toISOString(), rungs: MODEL.threes.rungs, rows } : null;
+  const threes = boardDate ? { date: boardDate, generated: new Date().toISOString(), rungs: MODEL.threes.rungs, alpha: MODEL.threes.alpha, rows } : null;
   console.log(`Threes board: ${rows.length} players, ${boardDate || 'no slate'}${frozen.length ? ` (${rows.filter(r => frozen.includes(r)).length} frozen)` : ''}`);
 
   const data = { generated: new Date().toISOString(), today, season: label, phase: now.key, phaseName: now.name, phases,
