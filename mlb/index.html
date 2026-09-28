@@ -1284,6 +1284,7 @@
   /* desktop: two cards a row, so a wide screen isn't mostly empty card */
   @media (min-width: 900px) { .sched-list.gc-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; } }
   .gc-lu { font-weight: 700; }
+  .sp-proj-nm { text-decoration: underline dashed; text-underline-offset: 3px; text-decoration-color: var(--muted); }
   .sp-proj { display: inline-block; margin-left: 0.3rem; padding: 0 0.25rem; border: 1px dashed var(--border2); border-radius: 4px; font-size: 0.56rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); vertical-align: middle; line-height: 1.4; }
   .gc-lu.set { color: var(--accent); }
   .gc-lu.partial { color: var(--gold); }
@@ -7224,7 +7225,8 @@ function mlbGameCard(g, away, home, box, st, homer) {
   const aR = box?.away.r ?? g.away.score, hR = box?.home.r ?? g.home.score;
   const started = st !== 'pre', final = st === 'final';
   const aWin = final && aR > hR, hWin = final && hR > aR;
-  const pShort = (side) => side.probablePitcher ? `${compactPlayerName(side.probablePitcher)}${side.probablePitcherThrows ? ` <span class="gc-hand">${side.probablePitcherThrows}</span>` : ''}${spProjTag(side.probableProjected)}` : 'TBD';
+  // the card's pitcher slot is narrow: a projected starter is a dashed underline, named in the footer
+  const pShort = (side) => side.probablePitcher ? `${side.probableProjected ? `<span class="sp-proj-nm" title="Not announced yet — projected from his rotation">${compactPlayerName(side.probablePitcher)}</span>` : compactPlayerName(side.probablePitcher)}${side.probablePitcherThrows ? ` <span class="gc-hand">${side.probablePitcherThrows}</span>` : ''}` : 'TBD';
   const team = (ab, side, won, lost, cls) => `<div class="gc-team ${cls}${lost ? ' lost' : ''}">${teamLogoImg(ab, 'gc-logo')}<span class="gc-ab">${ab}</span>
       ${box?.rec?.[cls === 'a' ? 'away' : 'home'] ? `<span class="gc-rec">${box.rec[cls === 'a' ? 'away' : 'home']}</span>` : ''}
       <span class="gc-sub">${started ? '' : pShort(side)}</span></div>`;
@@ -7365,7 +7367,7 @@ function renderSchedule() {
     return `${head}<div class="sched-game gc-card${S.started ? ' started' : ''}" id="sched-game-${g.gamePk}" onclick="openSchedGame(${g.gamePk})" role="button" tabindex="0">
       <span class="gc-chev">▶</span>
       ${mlbGameCard(g, away, home, S.box, S.st, schedHomerTag(g))}
-      ${S.started ? mlbHomers(g, away, home, S.box, ours) : schedVenueRow(g, date).replace('</div>', lu ? ` · <span class="gc-lu ${lu.cls}">${lu.text}</span></div>` : '</div>')}
+      ${S.started ? mlbHomers(g, away, home, S.box, ours) : schedVenueRow(g, date).replace('</div>', (lu ? ` · <span class="gc-lu ${lu.cls}">${lu.text}</span>` : '') + (g.away.probableProjected || g.home.probableProjected ? ` · <span class="gc-lu pending" title="A starter not announced yet — projected from his rotation (dashed underline)">Projected SP</span>` : '') + '</div>')}
       ${schedPickStrip(g, date, S)}
     </div>`;
   }).join('')}</div>`;
