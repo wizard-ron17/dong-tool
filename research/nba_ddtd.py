@@ -41,6 +41,17 @@ def glm_poisson(X, y, off, iters=30):
 def ll(p, y): p = np.clip(p, 1e-6, 1 - 1e-6); return float(-(y * np.log(p) + (1 - y) * np.log(1 - p)).mean())
 
 
+def nb_sf9(lam, spec):
+    """P(stat >= 10) given lam. spec = alpha (fixed NB) or (a, p): variance a x lam^p given minutes."""
+    if isinstance(spec, tuple):
+        a, pw = spec; var = a * np.power(np.clip(lam, 0.05, None), pw)
+        alpha = np.clip((var - lam) / np.clip(lam, 0.05, None) ** 2, 1e-3, None)
+    else:
+        alpha = max(spec, 1e-4)
+    r = 1 / alpha
+    return nbinom.sf(9, r, r / (r + lam))
+
+
 def price(mus, mproj, alphas, v):
     """P(double-double), P(triple-double): independent NB per stat given minutes AND a shared
     night factor g ~ Gamma(mean 1, variance v) on all three — pace, overtime, the hot night —
@@ -57,8 +68,7 @@ def price(mus, mproj, alphas, v):
         for gi, gwi in zip(gs, gw):
             p = []
             for st in STATS:
-                lam = mus[st] * scale * gi; r = 1 / max(alphas[st], 1e-4)
-                p.append(nbinom.sf(9, r, r / (r + lam)))
+                p.append(nb_sf9(mus[st] * scale * gi, alphas[st]))
             p1, p2, p3 = p
             pdd += wi * gwi * (p1 * p2 + p1 * p3 + p2 * p3 - 2 * p1 * p2 * p3); ptd += wi * gwi * (p1 * p2 * p3)
     return pdd, ptd
@@ -74,6 +84,10 @@ def prep(D, stat):
     fr = D.groupby(["season", "fam"]).apply(lambda d: d[stat].sum() / d["min"].sum(), include_groups=False).rename(f"fr_{stat}")
     D = D.merge(fr.reset_index(), on=["season", "fam"], how="left")
     D[f"rate_{stat}"] = (D[f"s_{stat}"] + 0.7 * D[f"p_{stat}"] + 150 * D[f"fr_{stat}"]) / (D.s_min + 0.7 * D[f"pm_{stat}"] + 150)
+    # recent form: his last 10 games' rate, shrunk to the longer one (k = 120 min) — weight 0.61 for points
+    rs = D.groupby("pid")[stat].transform(lambda x: x.shift(1).rolling(10, min_periods=1).sum()).fillna(0)
+    rm = D.groupby("pid")["min"].transform(lambda x: x.shift(1).rolling(10, min_periods=1).sum()).fillna(0)
+    D[f"r10_{stat}"] = np.log(((rs + 120 * D[f"rate_{stat}"]) / (rm + 120)).clip(1e-3)) - np.log(D[f"rate_{stat}"].clip(1e-3))
     tg = D.groupby(["gid", "team", "opp", "date", "season"])[stat].sum().reset_index().sort_values("date")
     n = tg.groupby(["season", "opp"]).cumcount()
     tg["allowed"] = tg.groupby(["season", "opp"])[stat].transform(lambda s: s.shift(1).expanding().mean())
@@ -117,25 +131,19 @@ def main():
         tr, te = D[D.season < s], D[D.season == s].copy()
         mus = {}
         for st in STATS:
-            cols = [np.log(tr[f"rate_{st}"].clip(1e-3)), tr.limp, np.log(tr[f"opp_{st}"].fillna(1).clip(0.7, 1.3)), tr.home]
+            cols = [np.log(tr[f"rate_{st}"].clip(1e-3)), tr[f"r10_{st}"], tr.limp, np.log(tr[f"opp_{st}"].fillna(1).clip(0.7, 1.3)), tr.home]
             X = np.column_stack([np.ones(len(tr))] + cols); b = glm_poisson(X, tr[st].values, tr.off.values)
-            ce = [np.log(te[f"rate_{st}"].clip(1e-3)), te.limp, np.log(te[f"opp_{st}"].fillna(1).clip(0.7, 1.3)), te.home]
+            ce = [np.log(te[f"rate_{st}"].clip(1e-3)), te[f"r10_{st}"], te.limp, np.log(te[f"opp_{st}"].fillna(1).clip(0.7, 1.3)), te.home]
             mus[st] = np.exp(np.column_stack([np.ones(len(te))] + ce) @ b + te.off.values)
             trmus = locals().setdefault("trmus", {}); trmus[st] = np.exp(X @ b + tr.off.values)
             te[f"mu_{st}"] = mus[st]
-            # the NB layer for this stat, chosen by what predicts HIS 10+ line on the training
-            # seasons (moments overstate points' spread: they come in 2s and 3s, which is noise
-            # at the 10 line, not signal) — minutes-mixed, as priced
-            mtr = np.exp(X @ b + tr.off.values)
-            smp = np.random.default_rng(1).choice(len(tr), min(25000, len(tr)), replace=False)
-            y10 = (tr[st].values[smp] >= 10).astype(float)
-            def p10(a, mu=mtr[smp], mp=tr.mproj.values[smp]):
-                out = np.zeros(len(mu)); xx, ww = NODES; ww = ww / ww.sum()
-                for xi, wi in zip(xx, ww):
-                    lam = mu * np.clip(mp + SD_MIN * xi, 1, 48) / np.clip(mp, 1, None); r = 1 / a
-                    out += wi * nbinom.sf(9, r, r / (r + lam))
-                return out
-            alphas[st] = min((ll(p10(a), y10), a) for a in (0.001, 0.02, 0.05, 0.1, 0.15, 0.2, 0.3))[1]
+            # spread given minutes: variance = a x mu^p, fit on the training rows' residuals with
+            # mu scaled to the minutes he actually played (the minutes spread is mixed in separately)
+            mtr = np.exp(X @ b + tr.off.values) * (tr["min"].values / tr.mproj.values.clip(1))
+            bins = pd.qcut(mtr, 20, labels=False, duplicates="drop")
+            bv = pd.DataFrame({"m": mtr, "v": (tr[st].values - mtr) ** 2, "b": bins}).groupby("b").mean()
+            pw, la = np.polyfit(np.log(bv.m.clip(0.05)), np.log(bv.v.clip(0.05)), 1)
+            alphas[st] = (float(np.exp(la)), float(pw))
         # the shared night factor's size, chosen on the training seasons
         smp = np.random.default_rng(2).choice(len(tr), min(30000, len(tr)), replace=False)
         sub = {k: v[smp] for k, v in trmus.items()}
@@ -146,16 +154,33 @@ def main():
         te["p_dd"], te["p_td"] = price(mus, te.mproj.values, alphas, v)
         te["p_dd0"], te["p_td0"] = price(mus, te.mproj.values, alphas, 0.0)
         te["v"] = v
+        prev = pd.concat(out) if out else None
+        for c in ("dd", "td"):
+            if prev is not None and len(prev) > 5000:
+                # the model's price blended with HIS OWN recent rate (last 40, shrunk): some players
+                # get it nearly every night in a way season rates don't carry — fit on earlier seasons
+                lgt = lambda x: np.log(np.clip(x, 1e-6, 1 - 1e-6) / (1 - np.clip(x, 1e-6, 1 - 1e-6)))
+                X2 = np.column_stack([np.ones(len(prev)), lgt(prev[f"p_{c}"]), lgt(prev[f"l40_{c}"])]); bb = np.array([0.0, 1.0, 0.0]); yy = prev[c].values
+                for _ in range(40):
+                    q = 1 / (1 + np.exp(-X2 @ bb)); W = q * (1 - q)
+                    bb += np.linalg.solve(X2.T @ (X2 * W[:, None]) + 1e-8 * np.eye(3), X2.T @ (yy - q))
+                te[f"c_{c}"] = 1 / (1 + np.exp(-(bb[0] + bb[1] * lgt(te[f"p_{c}"]) + bb[2] * lgt(te[f"l40_{c}"]))))
+                te[f"cal_{c}"] = f"{bb[0]:+.2f} model {bb[1]:.2f} his-rate {bb[2]:.2f}"
+            else:
+                te[f"c_{c}"] = te[f"p_{c}"]; te[f"cal_{c}"] = "none"
         out.append(te)
     R = pd.concat(out)
-    print(f"{len(R):,} player-games walk-forward ({ss[1]}..{ss[-1]}) · NB layers (last fit) {({k: round(v, 3) for k, v in alphas.items()})} · shared night variance per season {R.groupby('season').v.first().to_dict()}\n")
+    print(f"{len(R):,} player-games walk-forward ({ss[1]}..{ss[-1]}) · NB layers (last fit) {({k: tuple(round(x, 2) for x in v) for k, v in alphas.items()})} · shared night variance per season {R.groupby('season').v.first().to_dict()}\n")
     for c, lab in (("dd", "double-double"), ("td", "triple-double")):
         y = R[c].values
-        print(f"{lab}: base {y.mean():.4f} · log loss  his last-40 {ll(R[f'l40_{c}'], y):.5f}   independent {ll(R[f'p_{c}0'], y):.5f}   + shared night {ll(R[f'p_{c}'], y):.5f}")
-        q = pd.qcut(R[f"p_{c}"].rank(method="first"), 8, labels=False)
-        print("  priced → actual by octile: " + "  ".join(f"{R[f'p_{c}'][q == j].mean():.4f}→{y[q == j].mean():.4f}" for j in range(8)))
-        top = R.nlargest(2000, f"p_{c}"); print(f"  top 2,000 priced: {top[f'p_{c}'].mean():.3f} priced, {top[c].mean():.3f} hit\n")
-    R[["gid", "pid", "name", "date", "season", "dd", "td", "p_dd", "p_td", "mproj", "mu_pts", "mu_reb", "mu_ast"]].to_parquet(os.path.join(HERE, "nba_ddtd_oos.parquet"))
+        print(f"{lab}: base {y.mean():.4f} · log loss  his last-40 {ll(R[f'l40_{c}'], y):.5f}   independent {ll(R[f'p_{c}0'], y):.5f}   + shared night {ll(R[f'p_{c}'], y):.5f}   + his own rate {ll(R[f'c_{c}'], y):.5f}")
+        print(f"  blend fit per season: {R.groupby('season')[f'cal_{c}'].first().to_dict()}")
+        for col, lab2 in ((f"p_{c}", "model"), (f"c_{c}", "calibrated")):
+            q = pd.qcut(R[col].rank(method="first"), 8, labels=False)
+            print(f"  {lab2:10s} priced → actual by octile: " + "  ".join(f"{R[col][q == j].mean():.4f}→{y[q == j].mean():.4f}" for j in range(8)))
+            top = R.nlargest(2000, col); print(f"  {lab2:10s} top 2,000: {top[col].mean():.3f} priced, {top[c].mean():.3f} hit")
+        print()
+    R[["gid", "pid", "name", "date", "season", "dd", "td", "p_dd", "p_td", "c_dd", "c_td", "mproj", "mu_pts", "mu_reb", "mu_ast"]].to_parquet(os.path.join(HERE, "nba_ddtd_oos.parquet"))
 
 
 if __name__ == "__main__":

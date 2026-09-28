@@ -1,6 +1,6 @@
 // Should this scheduled build run? Prints `run=true|false` for $GITHUB_OUTPUT.
 //
-//   node scripts/should-build.mjs <mlb|nhl> [event_name]
+//   node scripts/should-build.mjs <mlb|nhl|nba> [event_name]
 //
 // The crons fire on a fixed clock; the season doesn't. On a game day every
 // scheduled run goes ahead. On a day without games only the morning run does
@@ -32,6 +32,15 @@ async function games(from, to) {
       const last = (j.gameWeek || []).at(-1)?.date;
       if (!last || last < d) break;
       d = new Date(Date.parse(last + 'T12:00:00Z') + 86400000).toISOString().slice(0, 10);
+    }
+    return out;
+  }
+  if (sport === 'nba') {
+    // ESPN's NBA scoreboard takes one date at a time (a range is a 400)
+    const out = [];
+    for (let d = from; d <= to; d = new Date(Date.parse(d + 'T12:00:00Z') + 86400000).toISOString().slice(0, 10)) {
+      const j = await (await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${d.replace(/-/g, '')}`)).json();
+      for (const e of j.events || []) out.push({ date: d, done: e.competitions?.[0]?.status?.type?.state === 'post' });
     }
     return out;
   }

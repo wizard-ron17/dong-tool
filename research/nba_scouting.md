@@ -151,3 +151,15 @@ Walk-forward results over 7,200 games (2020-21 → 2025-26), each priced only fr
 - vs Kalshi (same 5,255 markets): log loss 0.5310 (as first tested) → 0.5292 (shape C) → **0.5278 (+ recent form)**, against Kalshi's mid at **0.5206**.
   - Kalshi is still sharper at every rung. At the mid (edge > 5%) we get +5.6% ± 3.4, not significant. Taking the ask is −1.1% ± 3.7.
   - Points is not the lead market; threes are.
+
+**Double/triple-double vs Kalshi** (same method; `nba_ddtd.py` walk-forward prices after the calibration work):
+
+| | Double-double (2,326 markets) | Triple-double (453 markets) |
+|---|---|---|
+| log loss, ours / Kalshi mid | 0.4206 / **0.4151** | **0.2045** / 0.2291 |
+| joint fit | Kalshi 0.69 (z 6.6), ours 0.45 (z 4.0) | Kalshi 0.49 (z 2.2), **ours 0.81 (z 3.2)** |
+| level: hit / ours / Kalshi mid | 20.9% / 22.5% / 20.8% | 8.2% / 7.9% / **11.4%** |
+
+- Double-doubles: Kalshi is sharper, and we run high on the players it lists.
+- **Triple-doubles: Kalshi overprices them** (the longshot bias on a glamour market). Where Kalshi's mid is 6+ points above ours (81 markets): mid 37%, ours 17%, hit 24.7%. We run low there too, but Kalshi is much further off.
+- **Selling triple-doubles (NO) at the mid: +10.0% ± 3.9 on 285 bets.** At the ask it is flat (−0.2%). The same maker-only story as threes.

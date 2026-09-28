@@ -55,17 +55,20 @@ def ll(p, y): p = np.clip(p, 1e-4, 1 - 1e-4); return float(-(y * np.log(p) + (1 
 
 def main(n_sample=900, series="KXNBA3PT", oos="nba_threes_oos.parquet", col="n_"):
     R = pd.read_parquet(os.path.join(HERE, oos))
+    if "c_dd" in R: R["x_2"], R["x_3"] = R.c_dd, R.c_td        # double / triple-double as "rungs" 2 and 3
     R = R[R.season == R.season.max()].copy(); R["key"] = R.name.map(K.norm) + "|" + R.date
     M = markets(series)
     have = {int(c[len(col):]) for c in R.columns if c.startswith(col) and c[len(col):].isdigit()}
     rows = []
     for m in M:
         t = re.match(r"^(.*?):\s*(\d+)\+", m.get("title") or ""); d = re.search(r"-(\d\d)([A-Z]{3})(\d\d)", m["event_ticker"])
-        if not t or not d or m.get("result") not in ("yes", "no"): continue
+        dt_ = re.match(r"^(.*?):\s*(Double|Triple) Double", m.get("title") or "")
+        if dt_: t = None; nm, k = dt_.group(1), 2 if dt_.group(2) == "Double" else 3
+        elif t: nm, k = t.group(1), int(t.group(2))
+        if not (t or dt_) or not d or m.get("result") not in ("yes", "no"): continue
         date = f"20{d.group(1)}-{MON[d.group(2)]:02d}-{int(d.group(3)):02d}"
-        k = int(t.group(2))
         if k not in have: continue
-        rows.append({"key": K.norm(t.group(1)) + "|" + date, "k": k, "y": float(m["result"] == "yes"), "m": m})
+        rows.append({"key": K.norm(nm) + "|" + date, "k": k, "y": float(m["result"] == "yes"), "m": m})
     Q = pd.DataFrame(rows).merge(R, on="key")
     Q["ours"] = [r[f"{col}{k}"] for k, (_, r) in zip(Q.k, Q.iterrows())]
     print(f"{len(M):,} archived markets · {len(Q):,} matched to our regular-season prices")

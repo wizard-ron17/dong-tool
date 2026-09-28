@@ -1,0 +1,62 @@
+name: Build nba/data.json
+
+on:
+  schedule:
+    # Basketball is nightly, like hockey: a morning baseline, then the pre-game
+    # windows (injury reports and lineups firm up late), then hourly through the
+    # games. All times UTC; ET is UTC-4 until November, UTC-5 after.
+    #   Morning: last night's finals are in, the player state rolls forward.
+    - cron: '37 11 * * *'
+    #   Pre-game: midday, mid-afternoon, and the last look before a 7pm tip.
+    - cron: '37 16,20,22 * * *'
+    #   Game windows: 7pm ET first tip through the last western finish (~1am ET).
+    - cron: '37 23 * * *'
+    - cron: '37 0-5 * * *'
+  workflow_dispatch: {}      # manual trigger from the Actions tab
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-nba
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      # Game days build on every tick; off days only the morning run; the
+      # offseason only Monday mornings (scripts/should-build.mjs).
+      - name: Anything to build?
+        id: gate
+        run: node scripts/should-build.mjs nba ${{ github.event_name }} >> "$GITHUB_OUTPUT"
+
+      - name: Build nba/data.json
+        if: steps.gate.outputs.run == 'true'
+        run: node scripts/build-nba.js
+
+      - name: Commit and push if changed
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add nba/data.json nba/players.json
+          git diff --staged --quiet && { echo "No changes to commit"; exit 0; }
+          git commit -m "Update nba/data.json"
+          # whole-file regenerates: replay onto main if a racing push lands first
+          for attempt in 1 2 3 4 5; do
+            if git push; then echo "Pushed on attempt $attempt"; exit 0; fi
+            echo "Push rejected (attempt $attempt) — replaying onto latest main"
+            git fetch origin main
+            git reset FETCH_HEAD
+            git add nba/data.json nba/players.json
+            git diff --staged --quiet && { echo "Already current with main"; exit 0; }
+            git commit -m "Update nba/data.json"
+          done
+          echo "Failed to push after 5 attempts"; exit 1
