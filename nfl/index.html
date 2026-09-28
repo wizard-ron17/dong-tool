@@ -2261,6 +2261,17 @@
   .pb-table th { position: sticky; top: 0; background: var(--surface2); color: var(--muted); font-family: var(--font-d); font-size: 0.791rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; text-align: left; padding: 0.45rem 0.6rem; white-space: nowrap; cursor: pointer; user-select: none; border-bottom: 1px solid var(--border); }
   .pb-table th:hover { color: var(--text); }
   .pb-table th.on { color: var(--accent); }
+  .pbx-table th.on, .pbx-table td.on { background-color: color-mix(in srgb, var(--accent) 9%, var(--surface2)); }
+  .pbx-table td.on { background-color: color-mix(in srgb, var(--accent) 8%, transparent); }
+  .pbx-table th.pbx-div, .pbx-table td.pbx-div { border-right: 1px solid var(--border2); }
+  .pbx { font-family: var(--font-d); font-weight: 700; }
+  .pbx.g { color: var(--good); } .pbx.r { color: var(--bad); } .pbx.n { color: var(--muted); }
+  .pbx-bar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin: 0 0 0.6rem; }
+  .pbx-in { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; color: var(--muted); background: var(--surface0); border: 1px solid var(--border); border-radius: 7px; padding: 0.2rem 0.45rem; }
+  .pbx-in.on { border-color: var(--accent); color: var(--text); }
+  .pbx-in input { width: 3.6rem; background: transparent; border: none; color: var(--text); font-family: var(--font-d); font-size: 0.8rem; text-align: right; outline: none; }
+  .pbx-hint { font-size: 0.7rem; color: var(--dim); }
+  .pbx-note { font-size: 0.72rem; color: var(--muted); margin-top: 0.6rem; line-height: 1.45; }
   .pb-table th .ar { font-size: 0.692rem; margin-left: 0.15rem; }
   /* numeric headers sit over right-aligned numbers, so they right-align too —
      a left header above a right column reads as a different column entirely */
@@ -4067,6 +4078,14 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
     else { pbF.sort = v; pbF.dir = ['name', 'time', 'pos'].includes(v) ? 'asc' : 'desc'; }
     pbSave(); renderPicksFilters(); renderPicks();
   }
+  /** American odds text ("+400", "400") → probability; null if not a price. */
+  const pbAmToP = (v) => { const a = +String(v ?? '').replace(/[+\s]/g, ''); return !a || isNaN(a) || Math.abs(a) < 100 ? null : a > 0 ? 100 / (a + 100) : -a / (-a + 100); };
+  function setPbFx(k, v) {
+    if (k === 'fxLo') pbF.fxLo = pbAmToP(v) == null ? null : String(v).trim().replace(/^(\d)/, '+$1');
+    else pbF[k] = !pbF[k];
+    pbSave(); renderPicks();
+  }
+  window.setPbFx = setPbFx;
   function clearPbF() { pbF = { ...PB_DEFAULTS, pos: [] }; pbSave(); renderPicksFilters(); renderPicks(); }
   /** Toggle one position; the All chip clears the set. */
   function togglePbPos(v) {
@@ -4208,6 +4227,12 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
     // Comma-separated terms are OR here, unlike Pairs where they're AND — a
     // group has to contain every name, but a board should show any of them.
     if (pbF.team !== 'all') rows = rows.filter(r => r.team === pbF.team);
+    if (pbF.view === 'factors' && !pbMkt().qbOnly) {
+      const lo = pbAmToP(pbF.fxLo);
+      if (lo != null) rows = rows.filter(r => pbP(r) <= lo + 1e-9);
+      if (pbF.fxTrend) rows = rows.filter(r => pbFx(r).trend >= 1.005);
+      if (pbF.fxSpot) rows = rows.filter(r => pbFx(r).spot >= 1.005);
+    }
     const key = {
       p: r => pbP(r),
       // Chance is the same quantity as Price, just as a percentage rather than
@@ -4222,6 +4247,8 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
       pos: r => r.pos,
       snap3: r => r.f?.snap3 ?? 0, rz: r => r.f?.rz ?? 0,
       imp: r => r.f?.implied ?? 0, time: r => r.ts, name: r => r.name.toLowerCase(),
+      role: r => pbFx(r).role, trend: r => pbFx(r).trend, spot: r => pbFx(r).spot,
+      touch: r => r.f?.touches ?? 0, touch3: r => r.f?.touch3 ?? 0, tds: r => r.f?.tdShare ?? 0,
     }[pbF.sort] || (r => pbP(r));
     const dir = pbF.dir === 'asc' ? 1 : -1;
     rows.sort((a, b) => {
@@ -4349,6 +4376,40 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
       </tr>`).join('')}</tbody></table></div>`;
   }
 
+  function pbFactors(rows) {
+    const on = (v) => pbF.sort === v ? ' on' : '';
+    const th = (v, lab, cls = '', tip = '') => `<th class="${cls}${on(v)}" onclick="setPbSort('${v}')"${tip ? ` title="${tip}"` : ''}>${lab}${pbF.sort === v ? `<span class="ar">${pbF.dir === 'desc' ? '▼' : '▲'}</span>` : ''}</th>`;
+    const mx = (v) => { const r = Math.round(v * 100) / 100; return `<span class="pbx ${r > 1 ? 'g' : r < 1 ? 'r' : 'n'}">${v.toFixed(2)}×</span>`; };
+    const td = (v, html, cls = 'num') => `<td class="${cls}${on(v)}">${html}</td>`;
+    const lo = pbF.fxLo ?? '';
+    const bar = `<div class="pbx-bar">
+        <label class="pbx-in${pbF.fxLo ? ' on' : ''}" title="Only prices at least this long — +300 for the longshot hunt">Fair ≥ <input type="text" inputmode="numeric" placeholder="+300" value="${lo}" onchange="setPbFx('fxLo', this.value)"></label>
+        <button class="pbf-chip${pbF.fxTrend ? ' on' : ''}" onclick="setPbFx('fxTrend')" title="Only players whose last three games beat their usual touches">Trend +</button>
+        <button class="pbf-chip${pbF.fxSpot ? ' on' : ''}" onclick="setPbFx('fxSpot')" title="Only players in a better than average spot: team total and teammates out">Spot +</button>
+        ${pbF.cut ? `<span class="pbx-hint">Max price is ${pbMkt().cuts.find(c => c.v === pbF.cut)?.lab || ''} — <a href="javascript:void(0)" onclick="setPbF('cut',0)">show the full board</a> to hunt longshots</span>` : ''}
+      </div>`;
+    if (!rows.length) return bar + `<div class="empty">Nobody matches these factor filters. <a href="javascript:void(0)" onclick="pbF.fxLo=null;pbF.fxTrend=false;pbF.fxSpot=false;pbSave();renderPicks()">Clear them →</a></div>`;
+    if (pbMkt().qbOnly) return bar + '<div class="empty">The passing-TD market is its own Poisson model — pick an anytime market to see factors.</div>';
+    return `${bar}<div class="pb-tablewrap"><table class="pb-table pbx-table">
+      <thead><tr><th class="static">#</th>${th('name', 'Player')}${th('pos', 'Pos')}${th('p', 'Fair', 'num')}
+        ${th('role', 'Role ×', 'num', 'Who he is: touches, snaps, TD share, red zone (and goal-line carries for a QB). The NFL version of MLB Power.')}
+        ${th('trend', 'Trend ×', 'num', 'His last three games vs his usual touches — a role growing (green) or shrinking (red).')}
+        ${th('spot', 'Spot ×', 'num pbx-div', 'This game: his team\'s implied total and teammates ruled out. Mostly the team total — opposing defense tested as a null.')}
+        ${th('pct', 'Chance', 'num')}${th('touch', 'Touch/g', 'num')}${th('touch3', 'L3/g', 'num')}${th('snap3', 'Snap%', 'num')}${th('tds', 'TD share', 'num')}${th('rz', 'RZ/g', 'num')}${th('imp', 'Total', 'num')}${th('time', 'Game')}</tr></thead>
+      <tbody>${rows.map((r, i) => { const x = pbFx(r), f = r.f || {}; return `<tr onclick="openPick('${r.pid}')"${parAttr(pbLeg(r))}>
+        <td class="num">${r.rank ?? i + 1}</td>
+        ${td('name', `${r.name}${f.newAbsence ? ' <span class="pb-flag">ROLE OPEN</span>' : ''}`, 'nm')}
+        ${td('pos', posBadge(r.pos), '')}
+        <td class="od${pbP(r) < 0.5 ? ' dog' : ''}${on('p')}">${pbOdds(pbP(r))}</td>
+        ${td('role', mx(x.role))}${td('trend', mx(x.trend))}${td('spot', mx(x.spot), 'num pbx-div')}
+        ${td('pct', `${(pbP(r) * 100).toFixed(pbP(r) < 0.1 ? 1 : 0)}%`)}
+        ${td('touch', (f.touches ?? 0).toFixed(1))}${td('touch3', (f.touch3 ?? 0).toFixed(1))}${td('snap3', Math.round((f.snap3 ?? 0) * 100) + '%')}
+        ${td('tds', Math.round((f.tdShare ?? 0) * 100) + '%')}${td('rz', (f.rz ?? 0).toFixed(1))}${td('imp', (f.implied ?? 0).toFixed(1))}
+        ${td('time', `<img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}`, '')}
+      </tr>`; }).join('')}</tbody></table></div>
+      <div class="pbx-note">Anytime price = position base × <b>Role</b> × <b>Trend</b> × <b>Spot</b>, each an odds multiplier against an average player. <b>Role</b> is NFL's base power — who he is. <b>Spot</b> is this game, and it's mostly the team total: football moves on role, not matchup. The NFL longshot is a role that just grew — <b>Trend +</b> or ROLE OPEN — on a high total. Questionable and return-TD adjustments sit on top of the factors.</div>`;
+  }
+
   // Compact is the share/screenshot view, so it carries its own header and
   // footer: a crop of it still says what it is, which week, which market, and
   // that the prices are fair odds rather than a book's.
@@ -4379,11 +4440,11 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
     snap_last3:       ['Recent snaps',  r => Math.round((r.f?.snap3 ?? 0) * 100) + '% of plays', 'Share of his offense\'s snaps over the last three games. About 87% of the model\'s signal lives here.'],
     snap_share_prior: ['Career snaps',  r => Math.round((r.f?.snapPrior ?? 0) * 100) + '%',      'His longer-run snap share, shrunk toward his position when the sample is thin. A correction on the recent window.'],
     rz_touches_log:   ['Red zone',      r => (r.f?.rz ?? 0).toFixed(2) + ' touches/g',           'Rushes plus targets inside the 20, per game. For a quarterback this is the whole story — it is what separates a runner from a pocket passer.'],
-    touches_log2:     ['Touches',       r => (r.f?.touches ?? 0).toFixed(1) + ' /g',              'Carries plus targets per game over the last two seasons — how much of the offense runs through him at all, not just near the goal line.'],
+    touches_log2:     ['Touches',       r => (r.f?.touches ?? 0).toFixed(1) + ' /g',              'Carries plus targets per game — how much of the offense runs through him at all, not just near the goal line. Covers both of the model\'s touch terms at his usual rate; Touch trend is the recent change.'],
     implied_total:    ['Team total',    r => (r.f?.implied ?? 0).toFixed(1) + ' pts',            'Points his team is implied to score, from the game total and spread. The only market input, and it prices the matchup better than any defensive stat tested.'],
     mates_out:        ['Mates out',     r => String(r.f?.matesOut ?? 0),                          'Same-position teammates ruled out or doubtful this week.'],
     new_absence:      ['Role opened',   r => (r.f?.newAbsence ? 'yes' : 'no'),                    'Whether that absence is new this week — the case where recent snaps have not yet caught up to a vacated role.'],
-    touch_last3_log:  ['Touches L3',    r => (r.f?.touch3 ?? 0).toFixed(1) + ' /g',               'Carries plus targets per game over his last three games. Read it next to Touches: both green = a big role that is holding; Touches green and this one weaker = a role shrinking.'],
+    __trend:          ['Touch trend',   r => (r.f?.touch3 ?? 0).toFixed(1) + ' /g last 3',        'His last three games against his usual touches. Green = a role growing, red = shrinking, 1.00 = holding. (Touches and last-3 touches move together, so the model\'s two touch terms are shown as usage + trend — same total.)'],
     qb_gl5:           ['QB goal line',  r => (r.f?.gl5 ?? 0).toFixed(2) + ' /g',                  'Designed quarterback carries inside the 5 per game — the sneak and the goal-line keeper. Quarterbacks only.'],
     td_share_log:     ['TD share',      r => Math.round((r.f?.tdShare ?? 0) * 100) + '% of team',  'Of the touchdowns his team scored, how many were his. Everything else here measures opportunity; this is the only thing that measures conversion — and it is what separates the players who actually find the end zone from the ones who merely play a lot.'],
   };
@@ -4416,9 +4477,32 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
       out.push({ f, d });
       z += d;
     }
+    // Touches (two seasons) and Touches L3 correlate ~0.86, so as two bars they
+    // split one usage effect between them. Re-cut, same total: Touches = his
+    // usage at his season rate through both terms; Trend = last 3 games vs that
+    // rate, which is only red when the role is actually shrinking.
+    const tA = out.find(x => x.f === 'touches_log2'), tB = out.find(x => x.f === 'touch_last3_log');
+    if (tA && tB) {
+      const sA = M.scale.touches_log2, sB = M.scale.touch_last3_log, x = raw.touches_log2, y = raw.touch_last3_log;
+      tA.d = c.touches_log2 * (x - sA.mean) / sA.sd + c.touch_last3_log * (x - sB.mean) / sB.sd;
+      tB.f = '__trend'; tB.d = c.touch_last3_log * (y - x) / sB.sd;
+    }
     return { base: base + fixed, parts: out, z };
   }
 
+  // Factors view: the anytime model's inputs grouped the way the MLB table
+  // splits Score = Power × Spot. Role = who he is (touches, snaps, TD share,
+  // red zone, QB goal line), Trend = last 3 games vs his usual touches, Spot =
+  // this game (team total, teammates out). Each is an odds multiplier against
+  // an average player; position base × Role × Trend × Spot = his anytime price.
+  const PBX_ROLE = ['touches_log2', 'snap_last3', 'snap_share_prior', 'rz_touches_log', 'td_share_log', 'qb_gl5'];
+  function pbFx(r) {
+    if (r._fx) return r._fx;
+    const M = nflData?.picks?.model; if (!M) return {};
+    const { parts } = pmContribs(r, M), d = (f) => parts.filter(x => f.includes(x.f)).reduce((a, x) => a + x.d, 0);
+    return (r._fx = { role: Math.exp(d(PBX_ROLE)), trend: Math.exp(d(['__trend'])),
+      spot: Math.exp(d(['implied_total', 'mates_out', 'new_absence'])), total: Math.exp(d(['implied_total'])) });
+  }
   function pmStep(delta) {
     const list = pbRows();
     const i = list.findIndex(x => x.pid === pmOpen);
@@ -4642,7 +4726,8 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
     // An empty board is usually the price cut, not an empty pool — quarterbacks
     // in particular are all longer than the default +300. Say what would bring
     // them back instead of leaving a dead end.
-    const body = !rows.length ? (() => {
+    const fxOn = pbF.view === 'factors' && (pbF.fxLo || pbF.fxTrend || pbF.fxSpot);
+    const body = !rows.length && !fxOn ? (() => {
       const gm = pbGameMap();
       let pool = P.picks.map(x => pbEnrich(x, gm));
       // A live search is checked first: "nothing is shorter than +300" would be
@@ -4667,6 +4752,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
         ${wider ? `<a href="javascript:void(0)" onclick="setPbF('cut',${wider.v})">Widen to ${wider.v ? wider.lab : 'the full board'} →</a>` : ''}</div>`;
     })()
       : pbF.view === 'table' ? pbTable(rows)
+      : pbF.view === 'factors' ? pbFactors(rows)
       : pbF.view === 'compact' ? pbCompact(rows, P)
       : `<div class="pb-list">${rows.map((r, i) => pbCard(r, r.rank ?? i + 1)).join('')}</div>`;
     el.innerHTML = `
@@ -4676,7 +4762,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
       </div>
       ${dayBar()}
       <div class="lb-toolbar">
-        <div class="view-switch">${[['table', 'Table'], ['cards', 'Cards'], ['compact', 'Compact']]
+        <div class="view-switch">${[['table', 'Table'], ['factors', 'Factors'], ['cards', 'Cards'], ['compact', 'Compact']]
           .map(([v, l]) => `<button class="view-btn${pbF.view === v ? ' active' : ''}" onclick="setPbF('view','${v}')">${l}</button>`).join('')}</div>
       </div>
       ${cut && cut.v ? `<div class="pb-cutnote">At <b>${cut.lab}</b> or shorter, ${pbMkt().lab} historically hit <b>${cut.hit}%</b> — against a <b>${pbMkt().base}%</b> base rate.</div>`
