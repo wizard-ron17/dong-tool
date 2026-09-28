@@ -144,16 +144,50 @@
   .pp-trophy { width: 44px; height: 44px; filter: drop-shadow(0 0 8px rgba(242,182,50,0.5)); }
   .pp-title { font-family: var(--font-d); font-size: 1.3rem; font-weight: 700; color: var(--text-strong); }
   .pp-sub { font-size: 0.74rem; color: var(--muted); }
-  .pb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.5rem; }
-  .pb-card { background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.55rem 0.7rem; }
-  .pb-card.over { opacity: 0.85; }
-  .pb-desc { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; color: var(--psg, var(--gold)); }
-  .pb-teams { display: flex; align-items: center; gap: 0.45rem; margin: 0.3rem 0; font-family: var(--font-d); font-size: 0.95rem; }
-  .pb-team { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--muted); }
-  .pb-team b { font-weight: 700; }
-  .pb-card:not(.over) .pb-team, .pb-team.won { color: var(--text-strong); }
-  .pb-vs { color: var(--dim); font-size: 0.7rem; }
-  .pb-res { font-size: 0.72rem; color: var(--muted); }
+  /* the bracket: two league trees and the World Series between them */
+  .bk { display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.9rem; align-items: center; --bk-line: var(--border2); }
+  .bk-lgname { font-family: var(--font-d); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--psg, var(--gold)); margin: 0 0 0.4rem; }
+  .bk-mirror .bk-lgname { text-align: right; }
+  .bk-tree { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 14px; }
+  .bk-mirror .bk-tree { direction: rtl; }
+  .bk-mirror .bk-tree > * { direction: ltr; }
+  .bk-col { display: flex; flex-direction: column; justify-content: space-around; gap: 0.7rem; position: relative; }
+  .bk-slot { position: relative; background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.3rem 0.4rem 0.35rem; min-width: 0; }
+  .bk-empty { visibility: hidden; min-height: 3.6rem; }
+  .bk-hd { display: flex; justify-content: space-between; gap: 0.3rem; font-size: 0.55rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); margin-bottom: 0.15rem; white-space: nowrap; }
+  .bk-team { display: flex; align-items: center; gap: 0.3rem; font-family: var(--font-d); font-size: 0.82rem; line-height: 1.35; color: var(--text-strong); min-width: 0; }
+  .bk-team.won { font-weight: 700; }
+  .bk-team.won .bk-w { color: var(--psg, var(--gold)); }
+  .bk-team.out { color: var(--dim); }
+  .bk-team.out .bk-logo { opacity: 0.4; }
+  .bk-logo { width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; }
+  .bk-q { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--surface2); color: var(--dim); font-size: 0.6rem; }
+  .pm.ppm.wide { max-width: 980px; }
+  .bk-ab.tbd { font-size: 0.68rem; color: var(--muted); }
+  .bk-ab { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bk-w { margin-left: auto; font-weight: 700; }
+  /* connectors: each Wild Card feeds the Division Series beside it; the two
+     Division Series bracket into the LCS. Mirrored for the NL. */
+  .bk-c1 .bk-slot:not(.bk-empty)::after, .bk-c2 .bk-slot::after { content: ''; position: absolute; top: 50%; right: -7px; width: 7px; border-top: 1px solid var(--bk-line); }
+  .bk-c2 .bk-slot::before, .bk-c3 .bk-slot::before { content: ''; position: absolute; top: 50%; left: -7px; width: 7px; border-top: 1px solid var(--bk-line); }
+  .bk-c3::before { content: ''; position: absolute; left: -7px; top: 25%; bottom: 25%; border-left: 1px solid var(--bk-line); }
+  .bk-mirror .bk-c1 .bk-slot:not(.bk-empty)::after, .bk-mirror .bk-c2 .bk-slot::after { right: auto; left: -7px; }
+  .bk-mirror .bk-c2 .bk-slot::before, .bk-mirror .bk-c3 .bk-slot::before { left: auto; right: -7px; }
+  .bk-mirror .bk-c3::before { left: auto; right: -7px; }
+  .bk-ws { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; width: 8.5rem; }
+  .bk-ws .bk-slot { width: 100%; border-color: color-mix(in srgb, var(--psg, var(--gold)) 55%, var(--border)); }
+  .bk-trophy { width: 46px; height: 46px; filter: drop-shadow(0 0 8px rgba(242,182,50,0.45)); }
+  @media (max-width: 720px) {
+    .bk { grid-template-columns: 1fr; }
+    .bk-mirror .bk-tree { direction: ltr; }
+    .bk-mirror .bk-lgname { text-align: left; }
+    .bk-mirror .bk-c1 .bk-slot:not(.bk-empty)::after, .bk-mirror .bk-c2 .bk-slot::after { left: auto; right: -7px; }
+    .bk-mirror .bk-c2 .bk-slot::before, .bk-mirror .bk-c3 .bk-slot::before { right: auto; left: -7px; }
+    .bk-mirror .bk-c3::before { right: auto; left: -7px; }
+    .bk-ws { order: 3; width: auto; flex-direction: row; justify-content: center; }
+    .bk-ws .bk-slot { width: 9.5rem; }
+    .bk-team { font-size: 0.78rem; }
+  }
   .pb-rk { width: 1.3rem; text-align: right; font-family: var(--font-d); color: var(--dim); }
   .pb-n { margin-left: auto; font-family: var(--font-d); font-size: 1.05rem; font-weight: 700; color: var(--text-strong); }
   .brand-logo { width: 1.5em; height: 1.5em; border-radius: 50%; flex-shrink: 0; }
@@ -6640,7 +6674,11 @@ function loadPostData(season) {
   ]).then(([ser, sch]) => {
     P.series = (ser.series || []).map(x => {
       const gs = x.games || [], last = gs[gs.length - 1] || {}, st = last.seriesStatus || {};
-      const side = (k) => { const t = last.teams?.[k]?.team || {}; return { ab: t.abbreviation || null, name: t.teamName || t.name || 'TBD' }; };
+      // wins from the games themselves: each team's won Finals in this series
+      const won = (ab) => ab ? gs.filter(g => g.status?.abstractGameState === 'Final' && ['away', 'home'].some(k => g.teams?.[k]?.team?.abbreviation === ab && g.teams[k].isWinner)).length : 0;
+      // an undecided slot comes back as a pseudo-team ("HOU/CWS", "AL Low") — a name, not a club
+      const side = (k) => { const t = last.teams?.[k]?.team || {}, ab = /^[A-Z]{2,3}$/.test(t.abbreviation || '') ? t.abbreviation : null;
+        return { ab, name: ab ? (t.teamName || t.name) : (t.abbreviation || t.name || 'TBD'), wins: won(ab) }; };
       return { id: x.series?.id, type: x.series?.gameType, desc: last.seriesDescription || '', away: side('away'), home: side('home'),
                result: st.result || null, over: !!st.isOver, played: gs.filter(g => g.status?.abstractGameState === 'Final').length,
                of: last.gamesInSeries || null, next: gs.find(g => g.status?.abstractGameState !== 'Final')?.gameDate || null };
@@ -6667,24 +6705,48 @@ function ppKey(e) { if (e.key === 'Escape') closePostSheet(); }
 function closePostSheet() { document.getElementById('pp-back')?.remove(); document.removeEventListener('keydown', ppKey); }
 function setPpTab(t) { pp.tab = t; renderPostSheet(); }
 function setPpRound(r) { pp.round = r; renderPostSheet(); }
+// A real bracket: each league a tree (Wild Card → Division Series → LCS), the
+// AL flowing right and the NL mirrored, the World Series between them. The
+// top two seeds sit in the Division Series on a bye; each Wild Card lines up
+// beside the Division Series its winner goes to (MLB names that series'
+// open slot "HOU/CWS" until it's decided, which is how we pair them).
+function psBracketHtml(S) {
+  const day = (d) => new Date(d).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+  const tbd = (n) => /\//.test(n) ? n : 'TBD';             // "HOU/CWS" says who; "AL Low" says nothing
+  const slot = (x, lab) => {
+    if (!x) return `<div class="bk-slot bk-empty"></div>`;
+    const lead = x.over ? (x.away.wins > x.home.wins ? 'away' : 'home') : null;
+    const row = (t, k) => `<div class="bk-team${lead === k ? ' won' : lead ? ' out' : ''}">${t.ab ? teamLogoImg(t.ab, 'bk-logo') : '<span class="bk-logo bk-q">?</span>'}<span class="bk-ab${t.ab ? '' : ' tbd'}">${t.ab || tbd(t.name)}</span>${x.played ? `<span class="bk-w">${t.wins}</span>` : ''}</div>`;
+    const st = x.over ? 'Final' : x.played ? `Gm ${x.played + 1}` : x.next ? day(x.next) : '';
+    return `<div class="bk-slot${x.over ? ' over' : ''}" title="${(x.desc || '').replace(/"/g, '')}${x.result ? ' — ' + x.result : ''}"><div class="bk-hd"><span>${lab}</span><span>${st}</span></div>${row(x.away, 'away')}${row(x.home, 'home')}</div>`;
+  };
+  const lg = (L) => {
+    const of = (t) => S.filter(x => x.type === t && (x.desc || '').startsWith(L)).sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    const ds = of('D'), wc = of('F'), cs = of('L')[0];
+    // each Division Series' Wild Card: its open slot names both teams, or its winner is already in
+    const feed = (d) => wc.find(w => [w.away.ab, w.home.ab].filter(Boolean).some(ab => (d.away.ab === ab) || (d.away.name || '').split('/').includes(ab)));
+    const pairs = ds.map(d => [feed(d), d]);
+    const rest = wc.filter(w => !pairs.some(([f]) => f === w));
+    pairs.forEach(p => { if (!p[0]) p[0] = rest.shift(); });
+    return `<div class="bk-lg${L === 'NL' ? ' bk-mirror' : ''}"><div class="bk-lgname">${L === 'AL' ? 'American' : 'National'} League</div>
+      <div class="bk-tree">
+        <div class="bk-col bk-c1">${pairs.map(([w]) => slot(w, 'Wild Card')).join('')}</div>
+        <div class="bk-col bk-c2">${pairs.map(([, d]) => slot(d, 'Division')).join('')}</div>
+        <div class="bk-col bk-c3">${slot(cs, L + 'CS')}</div>
+      </div></div>`;
+  };
+  const ws = S.find(x => x.type === 'W');
+  return `<div class="bk">${lg('AL')}<div class="bk-ws"><img src="/icons/trophy.svg" alt="" class="bk-trophy">${slot(ws, 'World Series')}</div>${lg('NL')}</div>`;
+}
 function renderPostSheet() {
   const el = document.querySelector('#pp-back .ppm'); if (!el) return;
+  el.classList.toggle('wide', pp.tab === 'bracket');
   const season = psSeason(), P = PSD[season] || {};
   const tabs = [['bracket', 'Bracket'], ['hr', 'HR leaders']];
   let body;
   if (P.state !== 'ready') body = `<div class="sg-none">${P.state === 'error' ? "Couldn't reach MLB for the bracket." : 'Loading the bracket…'}</div>`;
   else if (pp.tab === 'bracket') {
-    const team = (t, won) => `<span class="pb-team${won ? ' won' : ''}">${t.ab ? teamLogoImg(t.ab, 'gc-pick-logo') : ''}<b>${t.ab || t.name}</b></span>`;
-    body = PS_ROUNDS.map(([k, lab]) => {
-      const list = P.series.filter(x => x.type === k); if (!list.length) return '';
-      return `<div class="sg-h">${lab}</div><div class="pb-grid">${list.map(x => {
-        const w = x.over && x.result ? x.result.split(' ')[0] : null;
-        const next = !x.over && x.next ? new Date(x.next).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '';
-        return `<div class="pb-card${x.over ? ' over' : ''}"><div class="pb-desc">${psShort(x.desc) || lab}</div>
-          <div class="pb-teams">${team(x.away, w && w === x.away.ab)}<span class="pb-vs">vs</span>${team(x.home, w && w === x.home.ab)}</div>
-          <div class="pb-res">${x.result || (x.played ? `${x.played} played` : next ? `Starts ${next}` : 'Best of ' + (x.of || '—'))}</div></div>`;
-      }).join('')}</div>`;
-    }).join('') || '<div class="sg-none">No bracket posted yet.</div>';
+    body = P.series.length ? psBracketHtml(P.series) : '<div class="sg-none">No bracket posted yet.</div>';
   } else {
     const rounds = [['all', 'All'], ...PS_ROUNDS.filter(([k]) => P.hrs.some(h => h.type === k))];
     const list = P.hrs.filter(h => pp.round === 'all' || h.type === pp.round);
@@ -7204,7 +7266,7 @@ function mlbHomers(g, away, home, box, ours) {
   return `<div class="gc-hrs"><span class="gc-hrs-k">HR</span>${[...by.values()].map(h => { const our = ours.has(h.pid);
     return `<span class="gc-hr${our ? ' ours' : ''}" title="${h.name} (${h.top ? away : home}) — ${h.inn.join(', ')}${our ? ' · on our HR board that day' : ''}">${our ? '★ ' : ''}${compactPlayerName(h.name)}${h.n > 1 ? ` <b>×${h.n}</b>` : ''}</span>`; }).join('<span class="gc-dot">·</span>')}</div>`;
 }
-const schedRoundTag = (g) => g.series ? `<span class="gc-round">${psShort(g.series.round)}${g.series.num ? ` · Gm ${g.series.num}` : ''}</span>` : '';
+const schedRoundTag = (g) => g.series ? `<span class="gc-round">${psShort(g.series.round)}${g.series.num ? ` · Gm ${g.series.num}` : ''}${g.series.status ? ` · ${g.series.status}` : ''}</span>` : '';
 const schedHomerTag = (g) => !g.homer ? (g.series ? `<div class="gc-homer">${schedRoundTag(g)}</div>` : '') : `<div class="gc-homer"${g.homer.park != null ? ` title="Homer Score — HR-betting confidence for this game (park ${g.homer.park}× · weather ${g.homer.weather}× · lineups ${g.homer.bat}× · starters ${g.homer.sp}× · pens ${g.homer.pen}×)"` : ''}>${schedRoundTag(g)}Homer Score <b class="${homerScoreClass(g.homer.score)}">${g.homer.score}</b></div>`;
 function schedVenueRow(g, date) {
   const games = Object.values(venueGameDays[g.venue] ?? {}).reduce((a, b) => a + b, 0);
@@ -7214,13 +7276,16 @@ function schedVenueRow(g, date) {
 }
 /** A day's windows by Eastern start time, as a header keyed to each window's first game. */
 function schedSlates(games) {
-  // the postseason reads by series: each game under its round and where the series stands
+  // the postseason reads by round: one header per round and game number (both
+  // leagues together, so the cards still run two a row); where each series
+  // stands rides on its own card's tag
   if (games.some(g => g.series)) {
-    const out = new Map();
-    for (const g of games) if (g.series) {
-      const x = g.series;
-      out.set(g.gamePk, `<div class="gc-slate gc-series"><b>${x.round || 'Postseason'}</b><span>${x.num ? `Game ${x.num}${x.of ? ` of ${x.of}` : ''}` : ''}${x.status ? ` · ${x.status}` : ''}</span></div>`);
-    }
+    const out = new Map(), key = (g) => `${(g.series?.round || 'Postseason').replace(/^(AL|NL)\s+/, '')}|${g.series?.num ?? ''}|${g.series?.of ?? ''}`;
+    let cur = null, first = null, n = 0;
+    const flush = () => { if (!first) return; const [r, num, of] = cur.split('|');
+      out.set(first.gamePk, `<div class="gc-slate gc-series"><b>${r}</b><span>${num ? `Game ${num}${of ? ` of ${of}` : ''}` : ''}</span><i>${n} game${n === 1 ? '' : 's'}</i></div>`); };
+    for (const g of games) { const k = key(g); if (k !== cur) { flush(); cur = k; first = g; n = 0; } n++; }
+    flush();
     return out;
   }
   const etH = (d) => +new Date(d).toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/New_York' }) % 24;
