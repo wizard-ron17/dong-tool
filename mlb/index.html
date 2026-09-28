@@ -608,7 +608,7 @@
   .pick-factor { background: var(--surface1); border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem 0.45rem; }
   /* Matchup Lab: table view */
   .mu-viewbar { margin-bottom: 0.7rem; }
-  .mu-f-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 0.4rem; flex-basis: 100%; }
+  .mu-f-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.4rem; flex-basis: 100%; }
   .mu-f-in { display: flex; align-items: center; justify-content: space-between; gap: 0.3rem; background: var(--surface0); border: 1px solid var(--border); border-radius: 7px; padding: 0.25rem 0.4rem; font-size: 0.72rem; color: var(--muted); }
   .mu-f-in.on { border-color: var(--accent); color: var(--text); }
   .mu-f-in input { width: 3.4rem; background: transparent; border: none; color: var(--text); font-family: var(--font-d); font-size: 0.8rem; text-align: right; outline: none; }
@@ -631,6 +631,12 @@
   /* a neutral rule, not a tint: green already means "helps the hitter" in this table */
   .mu-tbl th.mu-tbl-div, .mu-tbl td.mu-tbl-div { border-right: 1px solid var(--border2); }
   .mu-tbl td.mu-tbl-spot { font-weight: 700; }
+  .mu-tbl th.mu-tbl-sorted { color: var(--accent); }
+  .mu-tbl th.mu-tbl-sorted, .mu-tbl td.mu-tbl-sorted { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+  .mu-tbl-row:hover td.mu-tbl-sorted { background: color-mix(in srgb, var(--accent) 14%, var(--surface1)); }
+  .mu-f-pos { flex: none; width: 1.3rem; height: 1.3rem; border-radius: 5px; border: 1px solid var(--border2); background: transparent; color: var(--muted); font: 700 0.8rem/1 var(--font-d); cursor: pointer; padding: 0; }
+  .mu-f-pos.on { background: var(--good); border-color: var(--good); color: var(--bg); }
+  .mu-f-in > span { margin-right: auto; white-space: nowrap; }
   .mu-tbl-pow { color: var(--muted); }
   .mu-fair { font-size: 0.72rem; color: var(--muted); margin-top: 0.3rem; font-family: var(--font-d); }
   .mu-fair b { color: var(--text); }
@@ -2613,7 +2619,7 @@
           <li>Pick <b>any</b> hitter and <b>any</b> arm → the same breakdown the Picks board runs: base power, both platoon edges, arm stuff, lineup slot, bullpen, park and weather, combined into a matchup score. Tap the <b>?</b> beside <b>Matchup Factors</b> for what every multiplier means <em>on the pairing in front of you</em>. (The Pitch Matchup chart is context only — it hasn't been part of the score since August.)</li>
           <li><b>It scores the real game when there is one.</b> The Gameday strip says which: <b>matches the Picks board</b> means this exact pairing is on today's board and the number is identical to it; <b>today's real game</b> means he's in a lineup we project but off the board, so his slot, the park, the forecast, that arm's share of the game and the opposing bullpen's platoon split are all live. <b>Neutral</b> means these two aren't matched up today.</li>
           <li><b>Every lever is yours.</b> Lineup spot, weather and bullpen can each be overridden to ask "what if he hit leadoff", "what if the wind died", "starter only". Any change flips the strip to a <b>Reset to auto</b> button — that's how you know you've left the real game.</li>
-          <li><b>Table view</b> scores every lineup on today's slate at once — one row per batter vs his starter, a column per factor, tap any header to sort. <b>Spot ×</b> is every factor multiplied together with his power left out (Score = Power × Spot), so sorting by it surfaces non-homer hitters in great spots: the longshots a low score hides. <b>Arm ×</b> is just the pitching side. Tap a row to open it here.</li>
+          <li><b>Table view</b> scores every lineup on today's slate at once — one row per batter vs his starter, a column per factor, tap any header to sort. <b>Spot ×</b> is every factor multiplied together with his power left out (Score = Power × Spot), so sorting by it surfaces non-homer hitters in great spots: the longshots a low score hides. <b>Bueno</b> is P. Vuln × Contact × Platoon — just him vs this arm, no slot, park, weather or stuff. <b>Arm ×</b> is just the pitching side. Tap a row to open it here.</li>
           <li>Defaults to today's top Chalk pick vs the arm he's facing. <b>Tap either name</b> (🔍) to search another player, or type a <b>team code</b> like <b>STL</b> in the batter box to see that whole lineup ranked against the loaded arm — which is where a pitcher's player card sends you.</li>
         </ul>
       </div>
@@ -9230,24 +9236,38 @@ let muTbl = { game: 'all', sort: 'spot', dir: -1 };
 // Filters: your own formula over the factors. min = per-factor floors (e.g.
 // P. Vuln >= 1.2, Contact >= 1.1), maxPow = a power ceiling for the longshot
 // hunt, noRed = no factor below 1.00 — anything under neutral is red and
-// counts against him.
+// counts against him. pos = per-factor "+" (over 1.00, i.e. green), odds =
+// a fair-odds range in American (lo/hi, e.g. +800 to +2000).
 // Remembered per device.
-const MU_F_KEYS = [['spot', 'Spot'], ['arm', 'Arm'], ['vuln', 'P. Vuln'], ['stuff', 'Stuff'], ['batP', 'Platoon'], ['form', 'Contact'], ['pa', 'PA'], ['park', 'Park'], ['wx', 'Wx']];
+const MU_F_KEYS = [['spot', 'Spot'], ['bueno', 'Bueno'], ['arm', 'Arm'], ['vuln', 'P. Vuln'], ['stuff', 'Stuff'], ['batP', 'Platoon'], ['form', 'Contact'], ['pa', 'PA'], ['park', 'Park'], ['wx', 'Wx']];
 let muFlt = (() => { try { return JSON.parse(localStorage.getItem('dt_mu_filters')) || null; } catch (e) { return null; } })() || { open: false, min: {}, maxPow: null, noRed: false };
+muFlt.pos ||= {}; muFlt.odds ||= { lo: null, hi: null };
 const muFltSave = () => { try { localStorage.setItem('dt_mu_filters', JSON.stringify(muFlt)); } catch (e) {} };
-const muFltOn = () => muFlt.noRed || muFlt.maxPow != null || Object.values(muFlt.min).some(v => v != null);
+const muFltN = () => (muFlt.noRed ? 1 : 0) + (muFlt.maxPow != null ? 1 : 0) + (muFlt.odds.lo != null ? 1 : 0) + (muFlt.odds.hi != null ? 1 : 0)
+  + Object.values(muFlt.min).filter(v => v != null).length + Object.values(muFlt.pos).filter(Boolean).length;
+const muFltOn = () => muFltN() > 0;
+/** American odds text ("+800", "800", "-150") → P(win); null if not a price. */
+const amToP = (v) => { const a = +String(v).replace(/[+\s]/g, ''); return !a || isNaN(a) || Math.abs(a) < 100 ? null : a > 0 ? 100 / (a + 100) : -a / (-a + 100); };
 function muFltSet(k, v) {
   if (k === 'open' || k === 'noRed') muFlt[k] = !muFlt[k];
   else if (k === 'maxPow') muFlt.maxPow = v === '' || isNaN(+v) ? null : +v;
+  else if (k === 'pos') muFlt.pos[v] = !muFlt.pos[v];
+  else if (k === 'oddsLo' || k === 'oddsHi') muFlt.odds[k === 'oddsLo' ? 'lo' : 'hi'] = amToP(v) == null ? null : String(v).trim().replace(/^(\d)/, '+$1');
   else muFlt.min[k] = v === '' || isNaN(+v) ? null : +v;
   muFltSave(); renderMatchups();
 }
-function muFltReset() { muFlt = { open: muFlt.open, min: {}, maxPow: null, noRed: false }; muFltSave(); renderMatchups(); }
+function muFltReset() { muFlt = { open: muFlt.open, min: {}, maxPow: null, noRed: false, pos: {}, odds: { lo: null, hi: null } }; muFltSave(); renderMatchups(); }
 /** The single factors a "no red" / "all plus" check looks at (the composites follow from them). */
 const muFactorVals = (r) => [r.f.form, r.f.batP, r.f.pa, r.f.effPlat, r.f.effStuff, r.f.park, r.f.wx].filter(v => v != null);
 function muFltPass(r) {
-  const val = { spot: r.s.matchupFactor, arm: r.arm, vuln: r.f.effPlat, stuff: r.f.effStuff, batP: r.f.batP, form: r.f.form, pa: r.f.pa, park: r.f.park, wx: r.f.wx };
+  const val = { spot: r.s.matchupFactor, bueno: r.bueno, arm: r.arm, vuln: r.f.effPlat, stuff: r.f.effStuff, batP: r.f.batP, form: r.f.form, pa: r.f.pa, park: r.f.park, wx: r.f.wx };
   for (const [k, lo] of Object.entries(muFlt.min)) if (lo != null && !(val[k] != null && val[k] >= lo)) return false;
+  for (const [k, on] of Object.entries(muFlt.pos)) if (on && !(val[k] != null && mfR(val[k]) > 1)) return false;
+  // "Odds ≥ +800" = at least that long a price = at most that probability
+  const oLo = amToP(muFlt.odds.lo), oHi = amToP(muFlt.odds.hi);
+  if ((oLo != null || oHi != null) && !(r.pHR > 0)) return false;
+  if (oLo != null && r.pHR > oLo + 1e-9) return false;
+  if (oHi != null && r.pHR < oHi - 1e-9) return false;
   if (muFlt.maxPow != null && !(r.b.basePower != null && r.b.basePower * 100 <= muFlt.maxPow)) return false;
   if (muFlt.noRed && muFactorVals(r).some(v => mfR(v) < 1)) return false;
   return true;
@@ -9257,6 +9277,9 @@ function muTblSortTo(k) { if (muTbl.sort === k) muTbl.dir = -muTbl.dir; else { m
 function muTblSort(k) { muTbl.dir = muTbl.sort === k ? -muTbl.dir : (k === 'ord' || k === 'name' ? 1 : -1); muTbl.sort = k; renderMatchups(); }
 function muTblGame(v) { muTbl.game = v; renderMatchups(); }
 function muTblOpen(bpid, ppid, venue) { muView = 'matchup'; try { localStorage.setItem('dt_mu_view', 'matchup'); } catch (e) {} muLoadMatchup(bpid, ppid, venue); }
+/** Bueno: just the matchup itself — pitching vulnerability × his recent contact ×
+ *  his platoon split. Spot without the slot, park, weather or arm stuff. */
+const muBueno = (f) => { const v = [f.effPlat, f.form, f.batP].filter(x => x != null); return v.length ? v.reduce((a, b) => a * b, 1) : null; };
 function muTableRows() {
   const C = matchupCards, out = [];
   for (const g of (todaySchedule || [])) {
@@ -9274,12 +9297,15 @@ function muTableRows() {
         const s = scoreMatchup(b, p, g.venue, env), f = s.factors;
         out.push({ g, b, p, ord, posted, s, f, board: row ? ((picks || []).includes(row) ? 'chalk' : 'value') : null,
           pHR: row?.pHR ?? muHrProb(b, p, ord, g.venue),
-          arm: f.effPlat != null && f.effStuff != null ? f.effPlat * f.effStuff : (f.effPlat ?? f.effStuff ?? null) });
+          arm: f.effPlat != null && f.effStuff != null ? f.effPlat * f.effStuff : (f.effPlat ?? f.effStuff ?? null),
+          bueno: muBueno(f) });
       }
     }
   }
   return out;
 }
+/** Add classes to a cell's opening <td>, with or without a class attribute. */
+const tdCls = (html, cls) => !cls ? html : /^<td class="/.test(html) ? html.replace('<td class="', `<td class="${cls.trim()} `) : html.replace(/^<td/, `<td class="${cls.trim()}"`);
 function muTableHtml() {
   const all = muTableRows();
   const rows = all.filter(muFltPass);
@@ -9307,6 +9333,8 @@ function muTableHtml() {
       cell: r => `<td class="r"><b class="ps-ramp" ${psRamp(r.s.pickScore)}>${r.s.pickScore.toFixed(1)}</b></td>` },
     { k: 'fair', lbl: 'Fair', get: r => r.pHR, tip: HR_FAIR_TIP,
       cell: r => hrFairCell(r.pHR, 'r') },
+    { k: 'bueno', lbl: 'Bueno', get: r => r.bueno, tip: 'P. Vuln × Contact × Platoon — just him vs this arm. Spot without his lineup slot, the park, the weather or the arm\'s stuff.',
+      cell: r => num(fc(r.bueno), fx(r.bueno), ' mu-tbl-spot') },
     // the divider after Arm closes the summary columns; the single factors follow
     { ...fcol('arm', 'Arm ×', r => r.arm, 'Pitching Vuln × Arm Stuff — just who is on the mound, in one number.'), div: 1 },
     fcol('vuln', 'P. Vuln', r => r.f.effPlat, 'Pitching vulnerability: the starter\'s split vs his side blended with the bullpen\'s over their shares of the game'),
@@ -9322,18 +9350,18 @@ function muTableHtml() {
   rows.sort((a, b) => { const x = col.get(a), y = col.get(b);
     if (x == null) return 1; if (y == null) return -1;
     return (typeof x === 'string' ? x.localeCompare(y) : x - y) * muTbl.dir || b.s.pickScore - a.s.pickScore; });
-  const th = COLS.map(c => `<th class="${c.left ? '' : 'r'}${c.k === muTbl.sort ? (muTbl.dir > 0 ? ' sort-asc' : ' sort-desc') : ''}${c.div ? ' mu-tbl-div' : ''}" onclick="muTblSort('${c.k}')" title="${c.tip}">${c.lbl}</th>`).join('');
-  const body = rows.map(r => `<tr class="mu-tbl-row${r.g.started ? ' mu-tbl-started' : ''}"${r.g.started ? '' : hrLeg(r.b.pid, r.pHR, r.b.team, r.g.home.teamAbbr === r.b.team ? r.g.away.teamAbbr : r.g.home.teamAbbr, r.b.name)} onclick="muTblOpen('${r.b.pid}','${r.p.pid}','${(r.g.venue || '').replace(/'/g, "\\'")}')" title="Open ${r.b.name.replace(/"/g, '&quot;')} vs ${r.p.name.replace(/"/g, '&quot;')} in the Matchup view">${COLS.map(c => c.cell(r).replace('<td class="r', c.div ? '<td class="r mu-tbl-div' : '<td class="r')).join('')}</tr>`).join('');
+  const th = COLS.map(c => `<th class="${c.left ? '' : 'r'}${c.k === muTbl.sort ? (muTbl.dir > 0 ? ' sort-asc' : ' sort-desc') + ' mu-tbl-sorted' : ''}${c.div ? ' mu-tbl-div' : ''}" onclick="muTblSort('${c.k}')" title="${c.tip}">${c.lbl}</th>`).join('');
+  const body = rows.map(r => `<tr class="mu-tbl-row${r.g.started ? ' mu-tbl-started' : ''}"${r.g.started ? '' : hrLeg(r.b.pid, r.pHR, r.b.team, r.g.home.teamAbbr === r.b.team ? r.g.away.teamAbbr : r.g.home.teamAbbr, r.b.name)} onclick="muTblOpen('${r.b.pid}','${r.p.pid}','${(r.g.venue || '').replace(/'/g, "\\'")}')" title="Open ${r.b.name.replace(/"/g, '&quot;')} vs ${r.p.name.replace(/"/g, '&quot;')} in the Matchup view">${COLS.map(c => tdCls(c.cell(r), (c.div ? ' mu-tbl-div' : '') + (c.k === muTbl.sort ? ' mu-tbl-sorted' : ''))).join('')}</tr>`).join('');
   const posted = rows.filter(r => r.posted).length;
   // Each factor lives on its own scale (Contact tops out near 1.10, Spot near
   // 2.4), so every box shows where today's top 10% starts, and the range on hover.
-  const fval = { spot: r => r.s.matchupFactor, arm: r => r.arm, vuln: r => r.f.effPlat, stuff: r => r.f.effStuff, batP: r => r.f.batP, form: r => r.f.form, pa: r => r.f.pa, park: r => r.f.park, wx: r => r.f.wx };
+  const fval = { spot: r => r.s.matchupFactor, bueno: r => r.bueno, arm: r => r.arm, vuln: r => r.f.effPlat, stuff: r => r.f.effStuff, batP: r => r.f.batP, form: r => r.f.form, pa: r => r.f.pa, park: r => r.f.park, wx: r => r.f.wx };
   const fq = (k, t) => { const a = all.map(fval[k]).filter(v => v != null).sort((x, y) => x - y); return a.length ? a[Math.floor(t * (a.length - 1))] : null; };
-  const fin = (k, lbl) => { const p90 = fq(k, 0.9), lo = fq(k, 0), hi = fq(k, 1);
-    return `<label class="mu-f-in${muFlt.min[k] != null ? ' on' : ''}" title="${lbl} today: ${lo?.toFixed(2)}–${hi?.toFixed(2)}× · top 10% from ${p90?.toFixed(2)}×"><span>${lbl} ≥</span><input type="number" step="0.01" min="0" placeholder="${p90 != null ? p90.toFixed(2) : '—'}" value="${muFlt.min[k] ?? ''}" onchange="muFltSet('${k}', this.value)"></label>`; };
+  const fin = (k, lbl) => { const p90 = fq(k, 0.9), lo = fq(k, 0), hi = fq(k, 1), pos = !!muFlt.pos[k];
+    return `<label class="mu-f-in${muFlt.min[k] != null || pos ? ' on' : ''}" title="${lbl} today: ${lo?.toFixed(2)}–${hi?.toFixed(2)}× · top 10% from ${p90?.toFixed(2)}×"><button type="button" class="mu-f-pos${pos ? ' on' : ''}" onclick="event.preventDefault();muFltSet('pos','${k}')" title="${pos ? 'Clear' : 'Only'} ${lbl} over 1.00× (green)" aria-pressed="${pos}">+</button><span>${lbl} ≥</span><input type="number" step="0.01" min="0" placeholder="${p90 != null ? p90.toFixed(2) : '—'}" value="${muFlt.min[k] ?? ''}" onchange="muFltSet('${k}', this.value)"></label>`; };
   // Same controls as the other boards: a collapsible Filters card (what's in)
   // and a Sort chip row (what's first). Headers still sort too.
-  const nOn = (muFlt.noRed ? 1 : 0) + (muFlt.maxPow != null ? 1 : 0) + Object.values(muFlt.min).filter(v => v != null).length;
+  const nOn = muFltN();
   const ftog = (k, lbl, tip) => `<button class="due-filter-toggle${muFlt[k] ? ' active' : ''}" onclick="muFltSet('${k}')" title="${tip}">${lbl}</button>`;
   const fbar = `<div class="due-filters-card">
       <button class="due-filters-toggle" onclick="muFltSet('open')" aria-expanded="${muFlt.open}">
@@ -9345,12 +9373,14 @@ function muTableHtml() {
         ${nOn ? `<button class="due-filter-clear" onclick="muFltReset()">Reset ×</button>` : ''}
         <div class="mu-f-grid">
           ${MU_F_KEYS.map(([k, l]) => fin(k, l)).join('')}
+          <label class="mu-f-in${muFlt.odds.lo != null ? ' on' : ''}" title="Fair odds at least this long, e.g. +800 for longshots only"><span>Fair ≥</span><input type="text" inputmode="numeric" placeholder="+800" value="${muFlt.odds.lo ?? ''}" onchange="muFltSet('oddsLo', this.value)"></label>
+          <label class="mu-f-in${muFlt.odds.hi != null ? ' on' : ''}" title="Fair odds no longer than this, e.g. +400 for the likeliest bats"><span>Fair ≤</span><input type="text" inputmode="numeric" placeholder="+2000" value="${muFlt.odds.hi ?? ''}" onchange="muFltSet('oddsHi', this.value)"></label>
           <label class="mu-f-in${muFlt.maxPow != null ? ' on' : ''}" title="Power ceiling — his HR rate per AB, in %. Set ~3.5 to hunt non-homer hitters in great spots."><span>Power ≤</span><input type="number" step="0.5" min="0" placeholder="%" value="${muFlt.maxPow ?? ''}" onchange="muFltSet('maxPow', this.value)"></label>
         </div>
-        <div class="mu-f-hint">Each box is a floor on that factor (1.20× = 20% juicier than neutral). The grey number is where today's top 10% starts — factors run on different scales (Contact rarely tops 1.10×, Spot reaches 2×+). Add Power ≤ 3.5 to hunt longshots.</div>
+        <div class="mu-f-hint">Tap <b>+</b> for only green (over 1.00×), or type a floor (1.20× = 20% juicier than neutral). The grey number is where today's top 10% starts — factors run on different scales (Contact rarely tops 1.10×, Spot reaches 2×+). Add Power ≤ 3.5 to hunt longshots.</div>
       </div>` : ''}
     </div>`;
-  const SORTS = [['spot', 'Spot'], ['fair', 'Fair'], ['score', 'Score'], ['power', 'Power'], ['arm', 'Arm'], ['vuln', 'P. Vuln'], ['batP', 'Platoon'], ['form', 'Contact'], ['park', 'Park']];
+  const SORTS = [['spot', 'Spot'], ['bueno', 'Bueno'], ['fair', 'Fair'], ['score', 'Score'], ['power', 'Power'], ['arm', 'Arm'], ['vuln', 'P. Vuln'], ['batP', 'Platoon'], ['form', 'Contact'], ['park', 'Park']];
   const sbar = `<div class="picks-sort"><span class="due-filter-label">Sort</span>${SORTS.map(([k, l]) => `<button class="due-filter-chip${muTbl.sort === k ? ' active' : ''}" onclick="muTblSortTo('${k}')">${l}${muTbl.sort === k ? (muTbl.dir > 0 ? ' ▲' : ' ▼') : ''}</button>`).join('')}</div>`;
   return `${fbar}${sbar}<div class="mu-tbl-bar">
       <select class="mu-select" onchange="muTblGame(this.value)" aria-label="Game">${gameOpts}</select>
@@ -9358,7 +9388,7 @@ function muTableHtml() {
     </div>
     ${rows.length ? `<div class="mu-tbl-wrap"><table class="lb-table mu-tbl"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`
       : muFltOn() && all.length ? '<div class="empty">Nobody matches these filters. <a href="javascript:void(0)" onclick="muFltReset()">Reset</a></div>' : '<div class="empty">No scoreable lineups — starters are still TBD.</div>'}
-    <div class="mu-note">Each row is scored exactly as the Matchup view scores that pairing. Score = <b>Power</b> × <b>Spot</b>. Spot is every factor with his power left out, so sorting by it (the default) surfaces non-homer hitters in great spots — the longshots a low score hides. <b>Arm ×</b> is just the pitching side (vulnerability × stuff). Green helps the hitter, red hurts him (≥1.05 / ≤0.95). Tap a row to open it.</div>`;
+    <div class="mu-note">Each row is scored exactly as the Matchup view scores that pairing. Score = <b>Power</b> × <b>Spot</b>. Spot is every factor with his power left out, so sorting by it (the default) surfaces non-homer hitters in great spots — the longshots a low score hides. <b>Bueno</b> is just him vs this arm: P. Vuln × Contact × Platoon, with no slot, park, weather or arm stuff. <b>Arm ×</b> is just the pitching side (vulnerability × stuff). Green helps the hitter (over 1.00×), red hurts him (under). Tap a row to open it.</div>`;
 }
 // Today's opposing SP + venue for each team, from the schedule — lets us turn any
 // hitter (e.g. a Due-list bat, whose row carries no opponent) into a full matchup.
