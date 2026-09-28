@@ -4,6 +4,10 @@
 //                 (across the season break), starts, first baskets, tip record
 //   teams[ab]:    games and what the club ALLOWED (regular season): opponent inputs
 //   done:         game ids already applied — each final counts once
+// Bump when the state's shape changes: the build then re-seeds from nba/priors.json
+// (only safe while no games of the season are applied — it checks).
+export const STATE_VERSION = 3;
+const REG_KEYS = ['pts', 'reb', 'ast', 'stl', 'blk', 'tpm'];
 export const BOX = ['min', 'pts', 'fgm', 'fga', 'tpm', 'tpa', 'ftm', 'fta', 'oreb', 'dreb', 'reb', 'ast', 'stl', 'blk', 'to'];
 const num = (v) => { const x = parseFloat(v); return Number.isFinite(x) ? x : null; };
 const made = (v) => { const m = /^(\d+)-(\d+)/.exec(v || ''); return m ? [+m[1], +m[2]] : [0, 0]; };
@@ -44,12 +48,14 @@ export function freshState(season, priors) {
   const players = {};
   for (const [pid, p] of Object.entries(priors?.players || {})) {
     players[pid] = { name: p.name, team: p.team, pos: p.pos, gp: 0, gs: 0, ...Object.fromEntries(BOX.map(k => [k, 0])),
-      last10: p.last10 || [], fb: p.fb || 0, starts: p.starts || 0, tipn: p.tipn || 0, tipw: p.tipw || 0 };
+      last10: p.last10 || [], reg10: p.reg10 || [], cats40: p.cats40 || '', fb: p.fb || 0, starts: p.starts || 0, tipn: p.tipn || 0, tipw: p.tipw || 0 };
   }
-  return { season, priorsSeason: priors?.season || null, done: [], players, teams: {} };
+  return { version: STATE_VERSION, season, priorsSeason: priors?.season || null, done: [], players, teams: {} };
 }
 export function applyGame(state, r) {
   const { g, players } = r;
+  // a game nobody played in (a postponement ESPN still lists) never counts
+  if (!players.some(p => !p.dnp)) { state.done.push(g.id); return; }
   const starters = players.filter(p => p.st && !p.dnp);
   if (g.type === 2 && g.fb?.pid && starters.length === 10) {
     for (const p of starters) (state.players[p.pid] ||= newPlayer(p)).starts++;
@@ -61,7 +67,13 @@ export function applyGame(state, r) {
     if (p.dnp) continue;
     const s = (state.players[p.pid] ||= newPlayer(p));
     Object.assign(s, { name: p.name, team: p.team, pos: p.pos || s.pos });
-    if (g.type === 2) { s.gp++; s.gs += p.st; for (const k of BOX) s[k] += p[k]; }
+    if (g.type === 2) {
+      s.gp++; s.gs += p.st; for (const k of BOX) s[k] += p[k];
+      // one digit a regular-season game: how many of pts/reb/ast/stl/blk hit 10 (double/triple-double history)
+      s.cats40 = ((s.cats40 || '') + Math.min(5, ['pts', 'reb', 'ast', 'stl', 'blk'].filter(k => p[k] >= 10).length)).slice(-40);
+      // his last 10 REGULAR-season games: the stats engine's recent form (research's window; last10 spans the playoffs)
+      s.reg10 = [...(s.reg10 || []), Object.fromEntries(['min', ...REG_KEYS].map(k => [k, p[k]]))].slice(-10);
+    }
     s.last10 = [...(s.last10 || []), { d: g.date, st: p.st, ...Object.fromEntries(BOX.map(k => [k, p[k]])) }].slice(-10);
   }
   // each club's last game (any kind): tonight's rest is days since it
@@ -82,5 +94,5 @@ export function applyGame(state, r) {
   state.done.push(g.id);
 }
 const newPlayer = (p) => ({ name: p.name || '', team: p.team || null, pos: p.pos || null, gp: 0, gs: 0,
-  ...Object.fromEntries(BOX.map(k => [k, 0])), last10: [], fb: 0, starts: 0, tipn: 0, tipw: 0 });
+  ...Object.fromEntries(BOX.map(k => [k, 0])), last10: [], reg10: [], cats40: '', fb: 0, starts: 0, tipn: 0, tipw: 0 });
 

@@ -14,8 +14,9 @@
 // Nothing here needs editing next October: the season is read off the feed.
 import fs from 'node:fs';
 import { get, pool, SITE, SITE2, CORE, etDate, shiftDate, compact } from './nba-api.js';
-import { reduceSummary, freshState, applyGame, BOX } from './nba-state.js';
-import { MODEL, fam, minutesInputs, projectMinutes, threesRate, oppThreesRatio, threesMu, threesLadder, pWinTip, pTeamFirst, fbWeight } from './nba-models.js';
+import { reduceSummary, freshState, applyGame, BOX, STATE_VERSION } from './nba-state.js';
+import { MODEL, fam, minutesInputs, projectMinutes, threesRate, oppThreesRatio, threesMu, threesLadder, pWinTip, pTeamFirst, fbWeight,
+  statRate, statForm, statOpp, statMu, statLadder, doublesPrice } from './nba-models.js';
 
 const AHEAD = 10;        // schedule days ahead
 const BEHIND = 3;        // ...and behind (yesterday's finals stay on the schedule)
@@ -94,7 +95,8 @@ async function main() {
   // ── 4) Player state from new finals (regular season, play-in, playoffs) ─
   const priors = readJSON(PRIORS_PATH, null);
   let state = readJSON(STATE_PATH, null);
-  if (!state || state.season !== label) state = freshState(label, priors);
+  // a new season, or a state from before a shape change (re-seeded only while no games of the season are in it)
+  if (!state || state.season !== label || (state.version !== STATE_VERSION && !state.done.length)) state = freshState(label, priors);
   const seasonStart = phases.find(p => p.key === 'reg')?.start || now.start;
   const scanFrom = state.done.length ? shiftDate(today, -RECAP_DAYS) : seasonStart;
   const finals = [];
@@ -174,9 +176,17 @@ async function main() {
   const frozen = (prevData.threes?.date === boardDate ? prevData.threes.rows : []) || [];
   const rows = [];
   const teamCtx = {};                          // gid -> team -> the priced players, for first basket
+  const STATS = Object.keys(MODEL.stats.models);
+  const statRows = Object.fromEntries(STATS.map(st => [st, []])), ddRows = [];
+  const frozenStats = prevData.stats?.date === boardDate ? prevData.stats : null;
   const priorPrev = priors?.players || {};
   for (const g of slate) {
-    if (g.state !== 'pre') { rows.push(...frozen.filter(r => r.gid === g.id)); continue; }
+    if (g.state !== 'pre') {
+      rows.push(...frozen.filter(r => r.gid === g.id));
+      for (const st of STATS) statRows[st].push(...(frozenStats?.boards?.[st]?.rows || []).filter(r => r.gid === g.id));
+      ddRows.push(...(frozenStats?.doubles || []).filter(r => r.gid === g.id));
+      continue;
+    }
     for (const [me, opp, home] of [[g.home.ab, g.away.ab, true], [g.away.ab, g.home.ab, false]]) {
       const tid = teams[me]?.id; if (!tid) continue;
       let roster = [];
@@ -208,6 +218,19 @@ async function main() {
           vacated: vac, vacPos: vacFam[fam(pos)] || 0 });
         ctxList.push({ a, s, pos, min: M.min, start10: inp.start10 ?? 0, margin: sp != null ? -sp : 0 });
         if (M.min < 8) continue;                                  // not a rotation player tonight
+        // every counting-stat ladder and the double / triple-double, off the same minutes (research/nba_stats.py)
+        const base = { gid: g.id, start: g.start, pid: a.id, name: a.displayName, team: me, opp, home, pos, min: +M.min.toFixed(1), q: injuries[a.id]?.status || null };
+        const mus = {};
+        for (const st of STATS) {
+          const r0 = statRate(st, s, prevTot, pos);
+          const mu = statMu(st, { rate: r0, form: statForm(st, s, r0), implied, oppRatio: statOpp(st, state.teams?.[opp]), home, mproj: M.min, early: inp.early });
+          mus[st] = mu;
+          statRows[st].push({ ...base, mu: +mu.toFixed(2), p: statLadder(st, mu, M.min, M.sd).map(x => +x.toFixed(4)) });
+        }
+        const dbl = doublesPrice(mus, M.min, M.sd, s.cats40);
+        ddRows.push({ ...base, pts: +mus.pts.toFixed(1), reb: +mus.reb.toFixed(1), ast: +mus.ast.toFixed(1),
+          dd: +dbl.dd.toFixed(4), td: +dbl.td.toFixed(5), ddOwn: +dbl.ddOwn.toFixed(3), tdOwn: +dbl.tdOwn.toFixed(4),
+          l40: (s.cats40 || '').length, dd40: [...(s.cats40 || '')].filter(c => +c >= 2).length, td40: [...(s.cats40 || '')].filter(c => +c >= 3).length });
         const rate = threesRate(s, prevTot, pos);
         const mu = threesMu({ rate, mproj: M.min, implied, oppRatio: oppThreesRatio(state.teams?.[opp]), home });
         const p = threesLadder(mu, M.min, M.sd);
@@ -256,11 +279,16 @@ async function main() {
   }
   const first = boardDate ? { date: boardDate, generated: new Date().toISOString(), projected: true, games: fbGames } : null;
   console.log(`First basket: ${fbGames.length} games priced`);
+  for (const st of STATS) statRows[st].sort((a, b) => b.mu - a.mu);
+  ddRows.sort((a, b) => b.dd - a.dd);
+  const stats = boardDate ? { date: boardDate, generated: new Date().toISOString(),
+    boards: Object.fromEntries(STATS.map(st => [st, { rungs: MODEL.stats.models[st].rungs, rows: statRows[st] }])), doubles: ddRows } : null;
+  console.log(`Stats boards: ${STATS.map(st => `${st} ${statRows[st].length}`).join(', ')} · doubles ${ddRows.length}`);
   const threes = boardDate ? { date: boardDate, generated: new Date().toISOString(), rungs: MODEL.threes.rungs, rows } : null;
   console.log(`Threes board: ${rows.length} players, ${boardDate || 'no slate'}${frozen.length ? ` (${rows.filter(r => frozen.includes(r)).length} frozen)` : ''}`);
 
   const data = { generated: new Date().toISOString(), today, season: label, phase: now.key, phaseName: now.name, phases,
-    leadersFrom: fromPriors ? state.priorsSeason : label, teams, schedule, recap, injuries, leaders, threes, first };
+    leadersFrom: fromPriors ? state.priorsSeason : label, teams, schedule, recap, injuries, leaders, threes, first, stats };
   fs.writeFileSync(OUT, JSON.stringify(data));
   fs.writeFileSync(STATE_PATH, JSON.stringify(state));
   console.log(`Wrote nba/data.json — ${Object.keys(teams).length} teams, ${schedule.length} scheduled, ${recap.length} recapped, ${leaders.length} leaders (${fromPriors ? 'last season' : 'this season'}), ${Object.keys(injuries).length} injured`);

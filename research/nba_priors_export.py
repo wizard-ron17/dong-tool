@@ -29,6 +29,8 @@ def main():
     last = max(d["game"]["season"] for d in games)
     tot = defaultdict(lambda: {k: 0.0 for k in BOX} | {"gp": 0, "gs": 0})
     meta, recent = {}, defaultdict(list)
+    reg10 = defaultdict(list)       # his last 10 regular-season games (the stats engine's recent form)
+    cats40 = defaultdict(str)       # his last 40 regular-season games: how many of pts/reb/ast/stl/blk hit 10, one digit a game
     fb, starts, tipn, tipw = defaultdict(int), defaultdict(int), defaultdict(int), defaultdict(int)
     for d in games:
         g = d["game"]
@@ -47,6 +49,10 @@ def main():
             meta[p["pid"]] = {"name": p["name"], "team": p["team"], "pos": p.get("pos")}
             row = {"d": g["date"], "st": int(p["starter"]), **{k: p.get(k) or 0 for k in BOX}}
             recent[p["pid"]] = (recent[p["pid"]] + [row])[-10:]
+            if reg:
+                reg10[p["pid"]] = (reg10[p["pid"]] + [{k: p.get(k) or 0 for k in ("min", "pts", "reb", "ast", "stl", "blk", "tpm")}])[-10:]
+                n10 = sum(1 for k in ("pts", "reb", "ast", "stl", "blk") if (p.get(k) or 0) >= 10)
+                cats40[p["pid"]] = (cats40[p["pid"]] + str(min(n10, 5)))[-40:]
             if reg and g["season"] == last:
                 t = tot[p["pid"]]
                 for k in BOX: t[k] += p.get(k) or 0
@@ -56,7 +62,7 @@ def main():
         if pid not in tot and pid not in recent: continue
         if not recent[pid] or recent[pid][-1]["d"] < f"{int(last[:4]) - 1}-10-01": continue   # gone two seasons
         players[pid] = {**m, "prev": {k: round(v, 1) for k, v in tot[pid].items()} if pid in tot else None,
-                        "last10": recent[pid], "fb": fb.get(pid, 0), "starts": starts.get(pid, 0),
+                        "last10": recent[pid], "reg10": reg10.get(pid, []), "cats40": cats40.get(pid, ""), "fb": fb.get(pid, 0), "starts": starts.get(pid, 0),
                         "tipn": tipn.get(pid, 0), "tipw": tipw.get(pid, 0)}
     json.dump({"season": last, "players": players}, open(OUT, "w"), separators=(",", ":"))
     print(f"wrote {OUT}: {len(players)} players, priors season {last}, {os.path.getsize(OUT) // 1024} KB")

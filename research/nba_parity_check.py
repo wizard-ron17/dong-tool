@@ -29,3 +29,15 @@ for b, r in (("m3", "m3_r"), ("m5", "m5_r"), ("m10", "m10_r"), ("mseason", "msea
     x, y = M[b].astype(float), M[r].astype(float); ok = x.notna() & y.notna()
     d = (x[ok] - y[ok]).abs(); within = (d <= 0.01 * y[ok].abs().clip(lower=0.01)).mean()
     print(f"{b:10s} {d.mean():12.4f} {within:16.1%} {np.corrcoef(x[ok], y[ok])[0, 1]:7.4f}")
+
+# the stats engine's inputs (research/nba_stats.py build())
+import nba_stats as NS
+SD_, _, _ = NS.build()
+SD_["l40raw"] = SD_.groupby("pid").dd.transform(lambda s: s.shift(1).rolling(40, min_periods=1).mean())
+K = B.merge(SD_[["gid", "pid", "rate_pts", "r10_pts", "opp_pts", "rate_reb", "r10_reb", "opp_reb", "l40raw"]].rename(columns=lambda c: c + "_r" if c not in ("gid", "pid") else c), on=["gid", "pid"])
+K = K[K.season >= ss[2]]
+print(f"\nstats engine: {len(K):,} player-games matched")
+for b, r in (("rate_pts", "rate_pts_r"), ("form_pts", "r10_pts_r"), ("opp_pts", "opp_pts_r"), ("rate_reb", "rate_reb_r"), ("form_reb", "r10_reb_r"), ("opp_reb", "opp_reb_r"), ("l40dd", "l40raw_r")):
+    x, y = pd.to_numeric(K[b], errors="coerce"), K[r].astype(float); ok = x.notna() & y.notna()
+    d = (x[ok] - y[ok]).abs(); within = (d <= 0.01 * y[ok].abs().clip(lower=0.01)).mean()
+    print(f"{b:10s} {d.mean():12.4f} {within:16.1%} {np.corrcoef(x[ok], y[ok])[0, 1]:7.4f}")

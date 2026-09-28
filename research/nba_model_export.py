@@ -37,7 +37,8 @@ def main():
     D["mprev"] = D.mprev.fillna(D.m10); D["mseason"] = D.mseason.fillna(D.m10)
     D["abs_sp"] = D.spread.abs().fillna(D.spread.abs().median())
     D["st"] = D.starter.astype(float); D["st_x_sp"] = D.st * D.abs_sp; D["vac_x_st"] = D.vacated * D.st
-    base = ["m3", "m5", "m10", "mseason", "mprev", "start10", "vacated", "vac_pos", "abs_sp", "b2b", "rest"]
+    D["early"] = np.exp(-D.n_prior.fillna(0) / 3)                       # his season games so far: 1 in the first, ~0 by the tenth
+    base = ["m3", "m5", "m10", "mseason", "mprev", "start10", "vacated", "vac_pos", "abs_sp", "b2b", "rest", "early"]
     lineup = base + ["st", "st_x_sp", "vac_x_st"]
     mins = {}
     for name, cols in (("pre", base), ("lineup", lineup)):
@@ -69,7 +70,7 @@ def main():
     imp_s = T.groupby("season").implied.mean(); imp_prev = imp_s.shift(1).fillna(imp_s)
     lg_imp = T.season.map(imp_prev)
     T["imp_r"] = (T.implied / lg_imp).fillna(1.0)
-    tg = T.groupby(["gid", "team", "opp", "date", "season"]).tpm.sum().reset_index().sort_values("date")
+    tg = pd.read_parquet(os.path.join(HERE, "nba_team_games.parquet"))[["gid", "team", "opp", "date", "season", "tpm"]].sort_values("date")   # every played row, as the build counts
     n = tg.groupby(["season", "opp"]).cumcount()
     allowed = tg.groupby(["season", "opp"]).tpm.transform(lambda s: s.shift(1).expanding().mean())
     al_s = tg.groupby("season").tpm.mean(); al_prev = al_s.shift(1).fillna(al_s)

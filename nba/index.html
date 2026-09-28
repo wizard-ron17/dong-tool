@@ -412,6 +412,8 @@
   .t3-rung.on b { color: var(--accent); }
   .t3-rung-p { font-family: var(--font-m); font-size: 0.6rem; color: var(--muted); }
   .t3-more { margin-top: 0.6rem; }
+  .ld-ladder { grid-template-columns: repeat(var(--n), 3.6rem); }
+  @media (max-width: 720px) { .ld-ladder { grid-template-columns: repeat(var(--n), 1fr); } }
   .t3-pick { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.45rem; padding-top: 0.4rem; border-top: 1px solid var(--border); font-size: 0.76rem; min-width: 0; cursor: pointer; }
   .t3-pick b { color: var(--text-strong); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .t3-pick-lbl { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
@@ -512,6 +514,10 @@
   <div id="panel-home" class="panel visible"><div id="home-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-stats" class="panel"><div id="stats-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-recap" class="panel"><div id="recap-content"><div class="empty">Loading…</div></div></div>
+  <div id="panel-points" class="panel"><div id="points-content"><div class="empty">Loading…</div></div></div>
+  <div id="panel-stocks" class="panel"><div id="stocks-content"><div class="empty">Loading…</div></div></div>
+  <div id="panel-pra" class="panel"><div id="pra-content"><div class="empty">Loading…</div></div></div>
+  <div id="panel-doubles" class="panel"><div id="doubles-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-first" class="panel"><div id="first-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-threes" class="panel"><div id="threes-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-schedule" class="panel"><div id="schedule-content"><div class="empty">Loading…</div></div></div>
@@ -533,26 +539,26 @@
     <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5v17M6.6 5.9c2.8 3.2 2.8 8.9 0 12.2M17.4 5.9c-2.8 3.2-2.8 8.9 0 12.2"/></svg></span><span class="nm-name">Threes</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
     <span class="nm-desc">Every rotation player priced 1+ to 5+ made threes &mdash; minutes, his shooting rate and the matchup.</span>
   </button>
-  <button class="nav-menu-item g1" disabled>
-    <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16M7 19V11M12 19V6M17 19v-5"/></svg></span><span class="nm-name">Points<span class="nm-soon">Soon</span></span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
-    <span class="nm-desc">Every rotation player priced at every points line.</span>
+  <button class="nav-menu-item g1" data-nav="points" onclick="switchNav('points')">
+    <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16M7 19V11M12 19V6M17 19v-5"/></svg></span><span class="nm-name">Points</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+    <span class="nm-desc">Points, rebounds and assists for every rotation player, priced at every line.</span>
   </button>
   <button class="nav-menu-item g1" data-nav="first" onclick="switchNav('first')">
     <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5l3 2"/></svg></span><span class="nm-name">First Basket</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
     <span class="nm-desc">Who scores the game&rsquo;s first field goal &mdash; the tip, the line and his own record.</span>
   </button>
   <div class="nav-menu-group g3">Defense</div>
-  <button class="nav-menu-item g3" disabled>
-    <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l7 2.5v5.5c0 4-3 7.3-7 9-4-1.7-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg></span><span class="nm-name">Steals &amp; Blocks<span class="nm-soon">Soon</span></span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+  <button class="nav-menu-item g3" data-nav="stocks" onclick="switchNav('stocks')">
+    <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l7 2.5v5.5c0 4-3 7.3-7 9-4-1.7-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg></span><span class="nm-name">Steals &amp; Blocks</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
     <span class="nm-desc">Steals, blocks and stocks for every rotation player.</span>
   </button>
   <div class="nav-menu-group g2">Combos</div>
-  <button class="nav-menu-item g2" disabled>
-    <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="8.5" y="13" width="7" height="7" rx="1.5"/></svg></span><span class="nm-name">Double &amp; Triple-Doubles<span class="nm-soon">Soon</span></span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+  <button class="nav-menu-item g2" data-nav="doubles" onclick="switchNav('doubles')">
+    <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="8.5" y="13" width="7" height="7" rx="1.5"/></svg></span><span class="nm-name">Double &amp; Triple-Doubles</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
     <span class="nm-desc">Two or three categories at 10+, priced together over his minutes.</span>
   </button>
-  <button class="nav-menu-item g2" disabled>
-    <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg></span><span class="nm-name">Pts + Reb + Ast<span class="nm-soon">Soon</span></span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+  <button class="nav-menu-item g2" data-nav="pra" onclick="switchNav('pra')">
+    <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg></span><span class="nm-name">Pts + Reb + Ast</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
     <span class="nm-desc">Combined lines &mdash; points, rebounds and assists together.</span>
   </button>
   <div class="nav-menu-group g4">Watchlists</div>
@@ -615,7 +621,7 @@
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch, .sport-menu')) closeSportMenu(); });
 
   // ── Tools menu ─────────────────────────────────────────────────────────
-  const TOOL_NAVS = ['threes', 'first'];                     // live tools; the menu's dimmed items ship into here
+  const TOOL_NAVS = ['threes', 'first', 'points', 'stocks', 'pra', 'doubles'];                     // live tools; the menu's dimmed items ship into here
   let navToolsOpen = false;
   function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
   function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
@@ -624,8 +630,8 @@
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && navToolsOpen) closeNavTools(); });
 
   // ── Nav + routing ──────────────────────────────────────────────────────
-  const NBA_NAVS = ['home', 'stats', 'recap', 'threes', 'first', 'schedule'];   // tools added here as they ship
-  const PAGE_TITLES = { home: "Ron's Hoop Tool", stats: "Stats · Ron's Hoop Tool", recap: "Recap · Ron's Hoop Tool", threes: "Threes · Ron's Hoop Tool", first: "First Basket · Ron's Hoop Tool", schedule: "Schedule · Ron's Hoop Tool" };
+  const NBA_NAVS = ['home', 'stats', 'recap', 'threes', 'first', 'points', 'stocks', 'pra', 'doubles', 'schedule'];   // tools added here as they ship
+  const PAGE_TITLES = { home: "Ron's Hoop Tool", stats: "Stats · Ron's Hoop Tool", recap: "Recap · Ron's Hoop Tool", threes: "Threes · Ron's Hoop Tool", first: "First Basket · Ron's Hoop Tool", points: "Points · Ron's Hoop Tool", stocks: "Steals & Blocks · Ron's Hoop Tool", pra: "Pts + Reb + Ast · Ron's Hoop Tool", doubles: "Double & Triple-Doubles · Ron's Hoop Tool", schedule: "Schedule · Ron's Hoop Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
     activeNav = nav;
@@ -659,6 +665,8 @@
     else if (nav === 'schedule') renderSchedule();
     else if (nav === 'threes') renderThrees();
     else if (nav === 'first') renderFirst();
+    else if (LD[nav]) renderLadder(nav);
+    else if (nav === 'doubles') renderDoubles();
   }
 
   // ── Data ───────────────────────────────────────────────────────────────
@@ -939,8 +947,8 @@
   // pre-game mid on 6,666 markets last season. Fair odds, no vig.
   const t3F = { rung: 0, game: 'all', pos: 'all', all: false };
   const T3_TOP = 30;
-  // under half a percent is a rounding error, not a price anyone should read
-  const fairOdds = (p) => !(p >= 0.005 && p < 1) ? '—' : p >= 0.5 ? String(-Math.round(100 * p / (1 - p))) : '+' + Math.round(100 * (1 - p) / p);
+  // under half a percent is a rounding error, and past 97% no book deals a price (-3233) — the % beside it still says it
+  const fairOdds = (p) => !(p >= 0.005 && p <= 0.97) ? '—' : p >= 0.5 ? String(-Math.round(100 * p / (1 - p))) : '+' + Math.round(100 * (1 - p) / p);
   function t3Set(k, v) { t3F[k] = v; if (k !== 'all') t3F.all = false; renderThrees(); }
   function renderThrees() {
     const el = dataGate('threes-content'); if (!el) return;
@@ -976,6 +984,94 @@
       <div class="t3-list">${(t3F.all ? rows : rows.slice(0, T3_TOP)).map(row).join('') || '<div class="empty">No players match.</div>'}</div>
       ${rows.length > T3_TOP ? `<button class="due-filter-chip t3-more" onclick="t3Set('all',${!t3F.all})">${t3F.all ? `Show the top ${T3_TOP}` : `Show all ${rows.length}`}</button>` : ''}
       <div class="t3-note">Sorted by <b>${rung}+</b>. Projected minutes from his recent minutes, starts, teammates newly out and blowout risk; made threes per minute from this season and last, shrunk to his position; the opponent's threes allowed. A negative binomial over his minutes gives the ladder. Checked against Kalshi last season: sharper than its pre-game price, but only worth taking as a resting order at the mid — crossing the spread gave it back.</div>`;
+  }
+
+  // ── Ladder boards: points, rebounds, assists, PRA, steals, blocks, stocks ─
+  // One engine (research/nba_stats.py): projected minutes x his per-minute rate
+  // (this season and last, shrunk to his position), his last ten against it, the
+  // opponent's allowance of the stat, the team total — spread over his minutes.
+  // Beat each player's own last-20 hit rate at every line, walk-forward.
+  const LD = {
+    points: { tabs: [['pts', 'Points', 'PTS'], ['reb', 'Rebounds', 'REB'], ['ast', 'Assists', 'AST']] },
+    stocks: { tabs: [['stl', 'Steals', 'STL'], ['blk', 'Blocks', 'BLK'], ['stk', 'Stocks', 'STL+BLK']] },
+    pra: { tabs: [['pra', 'Pts + Reb + Ast', 'PRA']] },
+  };
+  const ldF = {};
+  function ldSet(nav, k, v) { const F = ldF[nav]; F[k] = v; if (k === 'tab') F.rung = null; if (k !== 'all') F.all = false; renderLadder(nav); }
+  function renderLadder(nav) {
+    const el = dataGate(nav + '-content'); if (!el) return;
+    const cfg = LD[nav], F = (ldF[nav] ||= { tab: cfg.tabs[0][0], rung: null, game: 'all', pos: 'all', all: false });
+    const S = D.stats;
+    if (!S?.boards) { el.innerHTML = '<div class="empty">No slate to price yet — the board fills in once the next games have lines.</div>'; return; }
+    const [st, label, unit] = cfg.tabs.find(t => t[0] === F.tab) || cfg.tabs[0];
+    const B = S.boards[st]; if (!B) { el.innerHTML = '<div class="empty">Not priced yet.</div>'; return; }
+    // the default rung: the one nearest even money for the median player on the board
+    if (F.rung == null) { const mid = [...B.rows].sort((a, b) => b.mu - a.mu)[Math.floor(B.rows.length / 4)]; F.rung = mid ? mid.p.reduce((bi, p, i, a) => Math.abs(p - 0.5) < Math.abs(a[bi] - 0.5) ? i : bi, 0) : 0; }
+    const k = Math.min(F.rung, B.rungs.length - 1);
+    const games = [...new Map(B.rows.map(r => [r.gid, r])).values()].sort((a, b) => a.start.localeCompare(b.start));
+    if (F.game !== 'all' && !games.some(g => g.gid === F.game)) F.game = 'all';
+    const rows = B.rows.filter(r => (F.game === 'all' || r.gid === F.game) && (F.pos === 'all' || (POS_FAM[r.pos] || 'F') === F.pos))
+      .slice().sort((a, b) => b.p[k] - a.p[k] || b.mu - a.mu);
+    const started = (r) => new Date(r.start) <= new Date();
+    const chip = (key, v, lbl) => `<button class="due-filter-chip${F[key] === v ? ' active' : ''}" onclick="ldSet('${nav}','${key}',${typeof v === 'number' ? v : `'${v}'`})">${lbl}</button>`;
+    const gameOpts = [['all', `All games (${games.length})`], ...games.map(g => [g.gid, `${g.home ? g.opp : g.team} @ ${g.home ? g.team : g.opp} · ${gameTime(g.start)}`])]
+      .map(([v, l]) => `<option value="${v}"${F.game === v ? ' selected' : ''}>${esc(l)}</option>`).join('');
+    const row = (r, i) => `<div class="t3-row${started(r) ? ' t3-started' : ''}">
+        <span class="st-rank">${i + 1}</span>
+        ${faceHtml(r.pid, r.name)}
+        <div class="t3-id">
+          <div class="rc-name">${esc(r.name)} ${posBadge(r.pos)}${r.q ? ` <span class="t3-q" title="${esc(r.q)} on the injury report">${esc(r.q.split(/[- ]/)[0].slice(0, 5).toUpperCase())}</span>` : ''}</div>
+          <div class="rc-sub">${logoImg(r.team, 't3-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${gameTime(r.start)}${started(r) ? ' · <b>priced before tip</b>' : ''}</div>
+          <div class="t3-facts"><span title="Projected minutes"><i>MIN</i> <b>${r.min}</b></span><span title="Projected ${esc(label.toLowerCase())}"><i>PROJ</i> <b>${(+r.mu).toFixed(1)}</b></span></div>
+        </div>
+        <div class="t3-ladder ld-ladder" style="--n:${B.rungs.length}">${r.p.map((p, j) => `<div class="t3-rung${j === k ? ' on' : ''}"><span class="t3-rung-k">${B.rungs[j]}+</span><b>${fairOdds(p)}</b><span class="t3-rung-p">${p < 0.005 ? '' : (p * 100).toFixed(p < 0.1 ? 1 : 0) + '%'}</span></div>`).join('')}</div>
+      </div>`;
+    el.innerHTML = `${cfg.tabs.length > 1 ? `<div class="sub-tabs u-tabs">${cfg.tabs.map(([v, l]) => `<button class="sub-btn${F.tab === v ? ' active' : ''}" onclick="ldSet('${nav}','tab','${v}')">${l}</button>`).join('')}</div>` : ''}
+      <div class="result-meta"><b>${dayLabel(S.date, true)}</b> · ${games.length} game${games.length === 1 ? '' : 's'} · ${rows.length} players · ${esc(unit)} · fair odds, no vig · updated ${timeAgo(S.generated)}</div>
+      <div class="pairs-filter-row"><span class="due-filter-label">Line</span>${B.rungs.map((n, j) => chip('rung', j, n + '+')).join('')}</div>
+      <div class="pairs-filter-row"><span class="due-filter-label">Pos</span>${chip('pos', 'all', 'All')}${chip('pos', 'G', 'Guards')}${chip('pos', 'F', 'Forwards')}${chip('pos', 'C', 'Centers')}
+        <select class="fl-sel" onchange="ldSet('${nav}','game',this.value)">${gameOpts}</select></div>
+      <div class="t3-list">${(F.all ? rows : rows.slice(0, T3_TOP)).map(row).join('') || '<div class="empty">No players match.</div>'}</div>
+      ${rows.length > T3_TOP ? `<button class="due-filter-chip t3-more" onclick="ldSet('${nav}','all',${!F.all})">${F.all ? `Show the top ${T3_TOP}` : `Show all ${rows.length}`}</button>` : ''}
+      <div class="t3-note">Sorted by <b>${B.rungs[k]}+ ${esc(label.toLowerCase())}</b>. Projected minutes (recent minutes, starts, teammates newly out, blowout risk) times his ${esc(label.toLowerCase())} per minute — this season and last, pulled toward his position — with his last ten games, the opponent's allowance and the team total. Early in a season his recent games reach back past the summer, so they count for less. Beat each player's own last-20 hit rate at every line, walk-forward.</div>`;
+  }
+
+  // ── Double & triple-doubles ────────────────────────────────────────────
+  // Points, rebounds and assists barely move together once minutes are known
+  // (residual r <= .07), so each is priced at the 10 line over his minutes with
+  // a shared "big night" factor (pace, overtime), then blended with his own
+  // last-40 rate — the reliable rebounders are steadier than rates alone say.
+  // Kalshi overpriced triple-doubles last season (11.4% mid vs 8.2% hit).
+  const dblF = { sort: 'dd', game: 'all', all: false };
+  function dblSet(k, v) { dblF[k] = v; if (k !== 'all') dblF.all = false; renderDoubles(); }
+  function renderDoubles() {
+    const el = dataGate('doubles-content'); if (!el) return;
+    const R0 = D.stats?.doubles;
+    if (!R0?.length) { el.innerHTML = '<div class="empty">No slate to price yet — the board fills in once the next games have lines.</div>'; return; }
+    const games = [...new Map(R0.map(r => [r.gid, r])).values()].sort((a, b) => a.start.localeCompare(b.start));
+    if (dblF.game !== 'all' && !games.some(g => g.gid === dblF.game)) dblF.game = 'all';
+    const rows = R0.filter(r => dblF.game === 'all' || r.gid === dblF.game).slice().sort((a, b) => b[dblF.sort] - a[dblF.sort]);
+    const started = (r) => new Date(r.start) <= new Date();
+    const chip = (v, lbl) => `<button class="due-filter-chip${dblF.sort === v ? ' active' : ''}" onclick="dblSet('sort','${v}')">${lbl}</button>`;
+    const gameOpts = [['all', `All games (${games.length})`], ...games.map(g => [g.gid, `${g.home ? g.opp : g.team} @ ${g.home ? g.team : g.opp} · ${gameTime(g.start)}`])]
+      .map(([v, l]) => `<option value="${v}"${dblF.game === v ? ' selected' : ''}>${esc(l)}</option>`).join('');
+    const cell = (lab, p, on) => `<div class="t3-rung${on ? ' on' : ''}"><span class="t3-rung-k">${lab}</span><b>${fairOdds(p)}</b><span class="t3-rung-p">${p < 0.005 ? '' : (p * 100).toFixed(p < 0.1 ? 1 : 0) + '%'}</span></div>`;
+    const row = (r, i) => `<div class="t3-row${started(r) ? ' t3-started' : ''}">
+        <span class="st-rank">${i + 1}</span>
+        ${faceHtml(r.pid, r.name)}
+        <div class="t3-id">
+          <div class="rc-name">${esc(r.name)} ${posBadge(r.pos)}</div>
+          <div class="rc-sub">${logoImg(r.team, 't3-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${gameTime(r.start)}${started(r) ? ' · <b>priced before tip</b>' : ''}</div>
+          <div class="t3-facts"><span title="Projected points / rebounds / assists"><i>PROJ</i> <b>${r.pts} · ${r.reb} · ${r.ast}</b></span><span title="Double-doubles and triple-doubles in his last ${r.l40} games"><i>LAST ${r.l40}</i> <b>${r.dd40} DD · ${r.td40} TD</b></span></div>
+        </div>
+        <div class="t3-ladder ld-ladder" style="--n:2">${cell('DBL-DBL', r.dd, dblF.sort === 'dd')}${cell('TRP-DBL', r.td, dblF.sort === 'td')}</div>
+      </div>`;
+    el.innerHTML = `<div class="result-meta"><b>${dayLabel(D.stats.date, true)}</b> · ${games.length} game${games.length === 1 ? '' : 's'} · ${rows.length} players · fair odds, no vig · updated ${timeAgo(D.stats.generated)}</div>
+      <div class="pairs-filter-row"><span class="due-filter-label">Sort</span>${chip('dd', 'Double-double')}${chip('td', 'Triple-double')}
+        <select class="fl-sel" onchange="dblSet('game',this.value)">${gameOpts}</select></div>
+      <div class="t3-list">${(dblF.all ? rows : rows.slice(0, T3_TOP)).map(row).join('')}</div>
+      ${rows.length > T3_TOP ? `<button class="due-filter-chip t3-more" onclick="dblSet('all',${!dblF.all})">${dblF.all ? `Show the top ${T3_TOP}` : `Show all ${rows.length}`}</button>` : ''}
+      <div class="t3-note">Points, rebounds and assists each priced at 10 over his minutes — they barely move together once minutes are known — with a shared big-night factor (pace, overtime), then blended with his own last-40 rate. Beat each player's own rate walk-forward; on Kalshi last season triple-doubles were overpriced (an 11.4% mid on an 8.2% outcome).</div>`;
   }
 
   // ── First basket ───────────────────────────────────────────────────────

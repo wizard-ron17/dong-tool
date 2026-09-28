@@ -94,9 +94,12 @@ def main():
     D["mprev"] = D.mprev.fillna(D.m10); D["mseason"] = D.mseason.fillna(D.m10)
     D["abs_sp"] = D.spread.abs().fillna(D.spread.abs().median())
     D["st"] = D.starter.astype(float)
+    # early season: 1 in his first game, fading by his tenth — his windows then reach back past the summer
+    # (playoff minutes, last spring's form). The build knows it: his regular-season games played so far.
+    D["early"] = np.exp(-D.n_prior.fillna(0) / 3)
     D["st_x_sp"] = D.st * D.abs_sp
     D["vac_x_st"] = D.vacated * D.st
-    base_cols = ["m3", "m5", "m10", "mseason", "mprev", "start10", "vacated", "vac_pos", "abs_sp", "b2b", "rest"]
+    base_cols = ["m3", "m5", "m10", "mseason", "mprev", "start10", "vacated", "vac_pos", "abs_sp", "b2b", "rest", "early"]
     with_st = base_cols + ["st", "st_x_sp", "vac_x_st"]
     seasons = sorted(D.season.unique())
     res = {k: [] for k in ("last 5", "season avg", "model, no lineup", "model + starting tonight")}
@@ -113,6 +116,11 @@ def main():
             else: D.loc[te.index, "mproj_nolu"] = Xe @ b
             if s == seasons[-1] and name.startswith("model +"): coef = dict(zip(["const"] + cols, b))
     D.to_parquet(OUT)                       # every row's walk-forward minutes projection, for the ladders
+    # each club's totals per regular-season game from EVERY player who played (debuts included) —
+    # the opponent "allowed" inputs, as the build accumulates them in nba/players.json
+    Pl = P[(~P.dnp) & (P.type == 2)].copy()
+    for c in ("pts", "reb", "ast", "stl", "blk", "tpm"): Pl[c] = Pl[c].astype(float).fillna(0)
+    Pl.groupby(["gid", "team", "opp", "date", "season"])[["pts", "reb", "ast", "stl", "blk", "tpm"]].sum().reset_index().to_parquet(os.path.join(HERE, "nba_team_games.parquet"))
     print(f"{len(D):,} played regular-season games scored walk-forward from {seasons[2]}\n")
     print(f"{'minutes projection':28s} {'MAE':>6s} {'RMSE':>6s}")
     for k, v in res.items():

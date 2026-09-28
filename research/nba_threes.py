@@ -81,7 +81,7 @@ def main():
     imp_s = D.groupby("season").implied.mean(); imp_prev = imp_s.shift(1).fillna(imp_s)
     lg_imp = D.season.map(imp_prev)
     D["imp_r"] = (D.implied / lg_imp).fillna(1.0)
-    tg = D.groupby(["gid", "team", "opp", "date", "season"]).tpm.sum().reset_index().sort_values("date")
+    tg = pd.read_parquet(os.path.join(HERE, "nba_team_games.parquet"))[["gid", "team", "opp", "date", "season", "tpm"]].sort_values("date")   # every played row, as the build counts
     tg["allowed_sofar"] = tg.groupby(["season", "opp"]).tpm.transform(lambda s: s.shift(1).expanding().mean())
     al_s = tg.groupby("season").tpm.mean(); al_prev = al_s.shift(1).fillna(al_s)
     lg_allow = tg.season.map(al_prev)
