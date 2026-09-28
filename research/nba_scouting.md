@@ -93,3 +93,52 @@ Walk-forward results over 7,200 games (2020-21 → 2025-26), each priced only fr
 - Calibration is good: priced 15.2% → 14.3% actual, priced 8.9% → 9.3%. The long end runs slightly under (6.0% priced → 7.4% actual).
 - Each game's favourite is priced at 16.0% and scores first 15.8% (about +530 fair).
 - **No market benchmark yet.** Kalshi lists KXNBAFIRSTBASKET but has never opened a market (nothing open, settled or archived). Snapshot it live once it lists.
+
+## Round two (2026-09-28): minutes, ladders, DD/TD, game share, Kalshi
+
+**Minutes** (`nba_minutes.py`, walk-forward 2020-21+):
+
+| Projection | MAE | RMSE |
+|---|---|---|
+| last-5 average | 5.20 | 6.88 |
+| model, before lineups post | 4.99 | 6.48 |
+| **model + starting tonight** | **4.70** | **6.08** |
+
+- The biggest levers are starting tonight (+8.6 min) against the share of his last 10 he started (−5.6), and NEW absences only (rotation players out who played within 3 team games). Long absences were absorbed long ago.
+- Starters lose 0.13 min per point of spread (blowouts). The residual SD is about 5.2 min at every level.
+
+**Threes** (`nba_threes.py`):
+- Model: Poisson on minutes × rate, mixed over minutes N(proj, 5.2), plus an NB layer with alpha 0.1, the same every season. It beats his last-20 hit rate on every rung (3+: 0.357 vs 0.375).
+- The opponent's threes allowed carries weight 0.79. The team's implied total adds nothing.
+
+**Points** (`nba_points.py`):
+- The same mean model. The NB (alpha 0.1) and normal (variance 3.2 × mean) shapes tie.
+- Vacated usage adds nothing once minutes carry it.
+- It beats his last-20 hit rate at every threshold, but its level is low for stars (see Kalshi below).
+
+**Double/triple-double** (`nba_ddtd.py`):
+- Given minutes, pts/reb/ast are nearly independent: residual correlations pts-reb +.07, pts-ast +.01, reb-ast +.07. Their raw correlations (.33/.40/.16) are almost all minutes.
+- Pricing: each stat as an NB at the 10 line (alpha chosen on that line), exact combination, mixed over minutes, plus a shared "night" factor, Gamma variance 0.02–0.04 (pace, OT).
+- Log loss: DD 0.1900 vs 0.2027 for his last-40; TD 0.01945 vs 0.02134.
+- The top runs light: the 2,000 likeliest DDs were priced at 63% and hit 71%, because elite rebounders are steadier than modelled. Next: a calibration layer.
+
+**Game share** (`nba_gameshare.py`):
+- Across players the game is 0.2–0.4% of the price spread; night to night for one player it is 2–3%, while minutes are about 7× that.
+- The NBA is the LEAST environmental sport measured (MLB 9%, NFL 4%, NHL 3%).
+- The opponent's allowance of a stat moves a price about 4–5% per SD. The team total adds nothing because the spread already works through minutes.
+
+**vs Kalshi, 2025-26 regular season** (`nba_threes_kalshi.py`; pre-game hourly candle mid, two-sided books):
+
+| | Threes (6,666 markets) | Points (5,255 markets) |
+|---|---|---|
+| log loss, ours / Kalshi mid | **0.5108** / 0.5168 | 0.5310 / **0.5206** |
+| outcome ~ logit(Kalshi) + logit(ours) | Kalshi 0.37 (z 5.3), **ours 0.70 (z 9.8)** | **Kalshi 0.72 (z 10.8)**, ours 0.32 (z 4.8) |
+| average spread | 8.4¢ | 5.5¢ |
+| take the ask, edge > 0 | −5.7% ± 2.7 | −4.0% ± 2.6 |
+| **rest at the mid** (maker fee, assumes a fill), edge > 5% | **+9.5% ± 3.2** | +4.2% ± 3.2 |
+| rest at the mid, rungs 1–4 only, edge > 5% | **+11.5% ± 3.1** | — |
+
+- **Threes: we are sharper than Kalshi**, mostly at 1+ (0.464 vs 0.485). At 5+ we run high (16.2% priced, 12.6% hit, Kalshi 13.9%).
+  - The edge does not survive crossing the spread. It shows up only as a maker.
+  - The mid rows assume every resting order fills. Real fills are adversely selected (late scratches, minutes news), so the true number is lower. Measure it live, small.
+- **Points: Kalshi is sharper.** Our level is low for the players Kalshi lists: 38.5% priced vs 40.6% hit, worst at 15+ (45.7% vs 51.5%). The shrinkage toward a position rate costs stars. Fix: less shrinkage for high-usage players, or a per-player level term.
