@@ -9091,66 +9091,47 @@ let pairStacks = false;
    * touchdown correlation when every leg is an anytime touchdown and the whole
    * group is on this week's Picks board (priceGroup returns null otherwise).
    */
-  // Same-game correlations, measured: research/sgp_nfl.py, walk-forward
-  // 2019-2025, each leg's own probability as its margin (so ρ is what's left
-  // beyond the prices). Only pairs whose 95% interval excludes zero; the rest
-  // price as independent. Positive = they rise together, negative = one eats
-  // into the other.
-  const SGP_NFL = {
-    recYds: 0.842,     // his receptions over + his receiving yards over [.832, .851]
-    recTd: 0.342,      // his receptions over + his anytime TD [.319, .361]
-    ydsTd: 0.357,      // his receiving yards over + his anytime TD [.337, .380]
-    rushTd: 0.420,     // his rushing yards over + his anytime TD [.386, .455]
-    cmpYds: 0.792,     // a QB's completions over + his passing yards over [.769, .809]
-    ptdYds: 0.455,     // his 2+ pass TDs + his passing yards over [.420, .501]
-    intCmp: 0.117,     // his interception + his completions over [.075, .166] — more volume, more of both
-    intPtd: -0.159,    // his interception + his 2+ pass TDs [-.202, -.112]
-    recRec: 0.023,     // two teammates' receptions overs [.007, .037] — more volume beats the split
-    tdTd: -0.052,      // two teammates' TDs [-.060, -.043] — they share a fixed pool
-    cmpRec: 0.336,     // QB completions over + his receiver's receptions over [.313, .348]
-    pydsRyds: 0.320,   // QB passing yards over + his receiver's yards over [.298, .338]
-    intRec: 0.024,     // QB interception + his receiver's receptions over [.001, .040]
-    ptdTdRec: 0.454,   // QB 2+ pass TDs + a WR/TE's TD [.440, .470] — the same event
-    intTd: -0.063,     // QB interception + a teammate's TD [-.076, -.047]
-    tdTdOpp: 0.020,    // TDs on opposite sides [.012, .026] — a shootout
-    pydsOpp: 0.139,    // both QBs' passing yards overs [.062, .221]
-    intOpp: -0.102,    // both QBs throwing a pick [-.153, -.039]
+  // Same-game correlations, measured: research/sgp_nfl_all.py — EVERY pair of
+  // market kinds the slip can hold (same player / teammates / opponents), each
+  // leg's own walk-forward probability as its margin, 2019-2025. A ρ is kept
+  // where its 95% interval excludes zero; 0 means MEASURED independent (so
+  // multiplying is the fair price). A pair missing from the table was never
+  // measured (too few games, or can't happen) — only those still multiply blind.
+  // The anytime TD splits by position: a WR/TE's TD is his QB's passing TD, an RB's isn't.
+  const SGP_NFL = { 'opp|cmp|cmp': -0.08, 'opp|cmp|int': -0.134, 'opp|cmp|ptd': 0.192, 'opp|cmp|rec': -0.037, 'opp|cmp|td_qb': 0, 'opp|cmp|td_rb': 0.046, 'opp|cmp|td_wr': 0.084, 'opp|cmp|ypass': 0, 'opp|cmp|yrec': 0, 'opp|cmp|yrush': 0, 'opp|int|int': -0.102, 'opp|int|ptd': 0, 'opp|int|rec': -0.047, 'opp|int|td_qb': 0, 'opp|int|td_rb': 0.064, 'opp|int|td_wr': 0, 'opp|int|ypass': -0.102, 'opp|int|yrec': -0.031, 'opp|int|yrush': 0.042, 'opp|ptd|ptd': 0.145, 'opp|ptd|rec': 0.074, 'opp|ptd|td_qb': 0, 'opp|ptd|td_rb': 0.083, 'opp|ptd|td_wr': 0.065, 'opp|ptd|ypass': 0.19, 'opp|ptd|yrec': 0.074, 'opp|ptd|yrush': 0, 'opp|rec|rec': 0, 'opp|rec|td_qb': 0, 'opp|rec|td_rb': 0.025, 'opp|rec|td_wr': 0.041, 'opp|rec|ypass': 0, 'opp|rec|yrec': 0, 'opp|rec|yrush': 0, 'opp|td_qb|td_qb': 0, 'opp|td_qb|td_rb': 0, 'opp|td_qb|td_wr': 0, 'opp|td_qb|ypass': 0, 'opp|td_qb|yrec': 0, 'opp|td_qb|yrush': 0, 'opp|td_rb|td_rb': 0, 'opp|td_rb|td_wr': 0.022, 'opp|td_rb|ypass': 0.063, 'opp|td_rb|yrec': 0.027, 'opp|td_rb|yrush': -0.052, 'opp|td_wr|td_wr': 0.025, 'opp|td_wr|ypass': 0.083, 'opp|td_wr|yrec': 0.05, 'opp|td_wr|yrush': -0.01, 'opp|ypass|ypass': 0.139, 'opp|ypass|yrec': 0.045, 'opp|ypass|yrush': 0, 'opp|yrec|yrec': 0.022, 'opp|yrec|yrush': 0, 'opp|yrush|yrush': -0.113, 'same|cmp|int': 0.117, 'same|cmp|ptd': 0.29, 'same|cmp|td_qb': 0, 'same|cmp|ypass': 0.792, 'same|int|ptd': -0.159, 'same|int|td_qb': 0, 'same|int|ypass': 0, 'same|ptd|td_qb': -0.148, 'same|ptd|ypass': 0.455, 'same|rec|td_rb': 0.142, 'same|rec|td_wr': 0.388, 'same|rec|yrec': 0.842, 'same|rec|yrush': 0.083, 'same|td_qb|ypass': 0, 'same|td_rb|yrec': 0.16, 'same|td_rb|yrush': 0.431, 'same|td_wr|yrec': 0.405, 'same|yrec|yrush': 0, 'team|cmp|rec': 0.336, 'team|cmp|td_rb': 0, 'team|cmp|td_wr': 0.097, 'team|cmp|yrec': 0.242, 'team|cmp|yrush': -0.141, 'team|int|rec': 0.024, 'team|int|td_rb': -0.09, 'team|int|td_wr': -0.06, 'team|int|yrec': 0.02, 'team|int|yrush': 0, 'team|ptd|rec': 0.103, 'team|ptd|td_rb': 0.024, 'team|ptd|td_wr': 0.455, 'team|ptd|yrec': 0.15, 'team|ptd|yrush': 0, 'team|rec|rec': 0.023, 'team|rec|td_qb': 0, 'team|rec|td_rb': -0.026, 'team|rec|td_wr': 0, 'team|rec|ypass': 0.275, 'team|rec|yrec': 0, 'team|rec|yrush': -0.053, 'team|td_qb|td_rb': -0.05, 'team|td_qb|td_wr': -0.071, 'team|td_qb|yrec': 0, 'team|td_qb|yrush': 0.051, 'team|td_rb|td_rb': -0.047, 'team|td_rb|td_wr': -0.062, 'team|td_rb|ypass': 0.05, 'team|td_rb|yrec': 0, 'team|td_rb|yrush': 0, 'team|td_wr|td_wr': -0.052, 'team|td_wr|ypass': 0.167, 'team|td_wr|yrec': 0.014, 'team|td_wr|yrush': 0, 'team|ypass|yrec': 0.32, 'team|ypass|yrush': -0.091, 'team|yrec|yrec': 0, 'team|yrec|yrush': -0.032, 'team|yrush|yrush': 0 };
+  const SGP_NFL_SEASONS = '2019-2025 games';
+  const SGP_KIND = { td1: 'td', ptd: 'ptd', rec: 'rec', cmp: 'cmp', int: 'int', yrec: 'yrec', yrush: 'yrush', ypass: 'ypass' };
+  const SGP_LBL = { rec: 'receptions', yrec: 'receiving yards', yrush: 'rushing yards', cmp: 'completions', ypass: 'passing yards', int: 'an interception', ptd: '2+ pass TDs', td_wr: 'a receiver\'s TD', td_rb: 'a back\'s TD', td_qb: 'a QB\'s TD' };
+  // the pairs worth a sentence of why; the rest get a generic line
+  const SGP_NFL_WHY = {
+    'same|rec|yrec': 'his catches carry his yards', 'same|rec|td_wr': 'a busy day means a TD shot', 'same|td_wr|yrec': 'yards and a TD go together',
+    'same|td_rb|yrush': 'a big rushing day means a TD shot', 'same|cmp|ypass': 'completions carry passing yards', 'same|ptd|ypass': 'passing TDs come with passing yards',
+    'same|cmp|int': 'more throws, more of both', 'same|int|ptd': 'picks and passing TDs work against each other', 'same|cmp|ptd': 'completions come with passing TDs',
+    'team|rec|rec': 'a pass-heavy game lifts both', 'team|td_wr|td_wr': 'teammates share a fixed pool of TDs', 'team|td_rb|td_wr': 'teammates share a fixed pool of TDs',
+    'team|cmp|rec': 'his completions are the receiver\'s catches', 'team|yrec|ypass': 'his yards are the receiver\'s yards', 'team|cmp|yrec': 'his completions are the receiver\'s yards',
+    'team|ptd|td_wr': 'a receiving TD is his passing TD', 'team|int|td_wr': 'a pick costs his team a scoring drive', 'team|int|td_rb': 'a pick costs his team a scoring drive',
+    'team|cmp|td_wr': 'more completions, more chances in the end zone', 'team|cmp|yrush': 'a passing day means fewer carries',
+    'opp|td_wr|td_wr': 'a shootout lifts both sides', 'opp|ypass|ypass': 'shootouts lift both QBs', 'opp|int|int': 'rarely both throw picks',
+    'opp|cmp|int': 'a QB piling up completions is usually winning, so the other side isn\'t forced into picks', 'opp|yrush|yrush': 'one team running away with it means the other stops running',
   };
-  // Independent (not significant): teammates' receiving yards, QB pass TDs +
-  // an RB's TD, kicker points with the team's TDs or its QB's pass TDs.
-  const SGP_NFL_WHY = { recYds: 'his catches carry his yards', recTd: 'a busy day means a TD shot', ydsTd: 'yards and a TD go together', rushTd: 'a big rushing day means a TD shot',
-    cmpYds: 'completions carry passing yards', ptdYds: 'passing TDs come with passing yards', intCmp: 'more throws, more of both', intPtd: 'picks and passing TDs work against each other',
-    recRec: 'a pass-heavy game lifts both', tdTd: 'teammates share a fixed pool of TDs', cmpRec: 'his completions are the receiver\'s catches', pydsRyds: 'his yards are the receiver\'s yards',
-    intRec: 'more throws, more of both', ptdTdRec: 'a receiving TD is his passing TD', intTd: 'a pick costs his team a scoring drive', tdTdOpp: 'a shootout lifts both sides',
-    pydsOpp: 'shootouts lift both QBs', intOpp: 'rarely both throw picks' };
   const nflPos = (pid) => (nflData?.picks?.picks || []).find(r => r.pid === pid)?.pos || null;
-  /** ρ between two NFL legs in one game (0 = independent); key names the rule. */
+  /** The table key for two NFL legs in one game ('rel|kindA|kindB'), or null if they aren't a same-game pair. */
   function sgpRuleNFL(a, b) {
     if (a.sp !== 'nfl' || b.sp !== 'nfl' || !a.g || a.g !== b.g) return null;
-    const K = { td1: 'td', ptd: 'ptd', rec: 'rec', cmp: 'cmp', int: 'int', yrec: 'yrec', yrush: 'yrush', ypass: 'ypass' };
-    const ka = K[a.m], kb = K[b.m]; if (!ka || !kb) return null;
-    const is = (x, y) => (ka === x && kb === y) || (ka === y && kb === x);
-    const same = a.i === b.i, mate = !same && a.t && a.t === b.t, opp = a.t && b.t && a.t !== b.t;
-    const pick = (x) => (ka === x ? a : b);
-    if (same) {
-      if (is('rec', 'yrec')) return 'recYds'; if (is('rec', 'td')) return 'recTd'; if (is('yrec', 'td')) return 'ydsTd';
-      if (is('yrush', 'td')) return 'rushTd'; if (is('cmp', 'ypass')) return 'cmpYds'; if (is('ptd', 'ypass')) return 'ptdYds';
-      if (is('int', 'cmp')) return 'intCmp'; if (is('int', 'ptd')) return 'intPtd';
-      return null;
-    }
-    if (mate) {
-      if (is('rec', 'rec')) return 'recRec'; if (is('td', 'td')) return 'tdTd';
-      if (is('cmp', 'rec')) return 'cmpRec'; if (is('ypass', 'yrec')) return 'pydsRyds'; if (is('int', 'rec')) return 'intRec';
-      if (is('ptd', 'td')) return ['WR', 'TE'].includes(nflPos(pick('td').i)) ? 'ptdTdRec' : null;
-      if (is('int', 'td')) return 'intTd';
-      return null;
-    }
-    if (opp) { if (is('td', 'td')) return 'tdTdOpp'; if (is('ypass', 'ypass')) return 'pydsOpp'; if (is('int', 'int')) return 'intOpp'; }
-    return null;
+    const kind = (l) => { const k = SGP_KIND[l.m]; if (k !== 'td') return k;
+      const p = nflPos(l.i); return p === 'RB' || p === 'FB' ? 'td_rb' : p === 'QB' ? 'td_qb' : 'td_wr'; };
+    const ka = kind(a), kb = kind(b); if (!ka || !kb) return null;
+    const rel = a.i === b.i ? 'same' : a.t && a.t === b.t ? 'team' : a.t && b.t ? 'opp' : null; if (!rel) return null;
+    return `${rel}|${[ka, kb].sort().join('|')}`;
   }
-  const sgpRhoNFL = (a, b) => { const k = sgpRuleNFL(a, b); if (!k) return 0;
+  const sgpRhoNFL = (a, b) => { const k = sgpRuleNFL(a, b); if (!k || !(k in SGP_NFL)) return 0;
     const side = (l) => /\|u$/.test(l.k) ? -1 : 1;   // an under flips the sign
     return side(a) * side(b) * SGP_NFL[k]; };
+  function sgpWhyNFL(k, rho) {
+    if (SGP_NFL_WHY[k]) return SGP_NFL_WHY[k];
+    const [rel, x, y] = k.split('|');
+    return `${SGP_LBL[x]} and ${SGP_LBL[y]}${rel === 'same' ? ' (same player)' : rel === 'team' ? ' (teammates)' : ' (opponents)'} ${rho > 0 ? 'tend to land together' : 'tend to pull apart'}`;
+  }
 
   function parPrice() {
     const legs = PARLAY.legs;
@@ -9169,15 +9150,22 @@ let pairStacks = false;
       const g = priceGroup(legs.map(l => l.i));
       if (g) { p = g.fair; corr = true; }
     }
-    // everything else in one game: the copula (/sgp.js) over the measured ρs
+    // everything else in one game: the copula (/sgp.js) over the measured ρs.
+    // `unmeasured`: same-game pairs research never measured; `indep`: measured, and independent
+    let unmeasured = 0, sameGamePairs = 0;
+    for (let x = 0; x < legs.length; x++) for (let y = x + 1; y < legs.length; y++) {
+      const k = sgpRuleNFL(legs[x], legs[y]); if (legs[x].g && legs[x].g === legs[y].g) sameGamePairs++;
+      if (legs[x].g && legs[x].g === legs[y].g && (!k || !(k in SGP_NFL))) unmeasured++;
+    }
     if (!corr && legs.length > 1 && window.SGP) {
       const res = SGP.price(legs, sgpRhoNFL);
       if (res.pairs.length) {
         p = res.p; corr = 'sgp';
-        why = [...new Set(res.pairs.map(q => { const k = sgpRuleNFL(legs[q.a], legs[q.b]); return k ? (q.rho > 0 ? '▲ ' : '▼ ') + SGP_NFL_WHY[k] : null; }).filter(Boolean))];
-      }
+        why = [...new Set(res.pairs.map(q => { const k = sgpRuleNFL(legs[q.a], legs[q.b]); return k ? (q.rho > 0 ? '▲ ' : '▼ ') + sgpWhyNFL(k, SGP_NFL[k]) : null; }).filter(Boolean))];
+      } else if (sameGamePairs && !unmeasured) corr = 'indep';
     }
-    return { p, naive, corr, why, shared, mates, samePlayer };
+    if (corr === 'sgp' || corr === 'indep') { if (unmeasured) why.push(`${unmeasured} pair${unmeasured === 1 ? '' : 's'} not measured, multiplied`); }
+    return { p, naive, corr, why, shared, mates, samePlayer, unmeasured };
   }
 
   function parMode(on) {
@@ -9293,7 +9281,8 @@ let pairStacks = false;
       ${corr === true ? `<p class="par-note">Priced with the measured touchdown correlation rather than by multiplying${mates ? ' — teammates compete for the same end-zone trips' : ''}. Straight multiplication says <b>${pbOdds(naive)}</b>.</p>` : ''}
       ${corr === 'sgp' ? `<p class="par-note">Priced as a same-game parlay with measured correlations, not by multiplying: ${why.join('; ')}. Straight multiplication says <b>${pbOdds(naive)}</b> — this slip hits <b>${p > naive ? ((p / naive - 1) * 100).toFixed(0) + '% more' : ((1 - p / naive) * 100).toFixed(0) + '% less'}</b> often than that.</p>` : ''}
       ${samePlayer.length ? `<p class="par-note par-warn">Two markets on ${samePlayer.join(' and ')} — one player's lines move together, so multiplying them overstates the price.</p>` : ''}
-      ${!corr && shared.length ? `<p class="par-note par-warn">${shared.map(v => `${v.length} legs in ${v[0].g}`).join(', ')} — same-game legs aren't independent, so this is a multiplied estimate, not a fair same-game price.</p>` : ''}
+      ${corr === 'indep' ? `<p class="par-note">Same-game legs, but measured independent — these markets don't move together (${SGP_NFL_SEASONS}), so multiplying them is the fair same-game price.</p>` : ''}
+      ${!corr && shared.length ? `<p class="par-note par-warn">${shared.map(v => `${v.length} legs in ${v[0].g}`).join(', ')} — we haven't measured how these same-game legs move together, so this is a multiplied estimate, not a fair same-game price.</p>` : ''}
       <div class="par-ev">
         <label for="par-book">Your book's price</label>
         <input type="text" id="par-book" inputmode="text" placeholder="+1400" value="${parEsc(PARLAY.book)}" oninput="parBook(this)">

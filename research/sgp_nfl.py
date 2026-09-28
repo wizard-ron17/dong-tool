@@ -136,7 +136,9 @@ def td_margins():
     return pd.concat(out)
 
 
-def main():
+def margins():
+    """Every leg's walk-forward margin: R receivers (rec, ryds), U runners (rush),
+    Q starting QBs (cmp, pyds, int, ptd), Kx kickers (kp), T anytime TD."""
     d = load(); ctx = game_ctx(d); sk, qb, kk = tables(d)
     sk = priors(sk.merge(ctx, on=["game_id", "team"]), ["rec", "tgt", "ryds", "rush", "car"])
     qb = priors(qb.merge(ctx, on=["game_id", "team"]), ["att", "cmp", "ints", "ptd", "pyds"])
@@ -168,6 +170,11 @@ def main():
     print("margins (priced vs actual):",
           {k: (round(float(df["p_" + k].mean()), 3), round(float(df["y_" + k].mean()), 3)) for df, k in
            ((R, "rec"), (R, "ryds"), (U, "rush"), (Q, "cmp"), (Q, "pyds"), (Q, "int"), (Q, "ptd"), (Kx, "kp"), (T, "td"))}, flush=True)
+    return R, U, Q, Kx, T
+
+
+def main():
+    R, U, Q, Kx, T = margins()
     out = {}
 
     def rec_(key, lab, a, b, ka, kb, grp, cap=250_000):
