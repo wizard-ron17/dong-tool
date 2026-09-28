@@ -53,7 +53,8 @@ def features(P):
     played["start10"] = played.groupby("pid").starter.transform(lambda s: s.astype(float).shift(1).rolling(10, min_periods=1).mean())
     played["n_prior"] = played.groupby(["pid", "season"]).cumcount()
     played["mseason"] = played.groupby(["pid", "season"])["min"].transform(lambda s: s.shift(1).expanding().mean())
-    last = played.groupby(["pid", "season"])["min"].mean().rename("mprev").reset_index()
+    # last season: REGULAR season only — the build's nba/priors.json carries regular-season totals
+    last = played[played.type == 2].groupby(["pid", "season"])["min"].mean().rename("mprev").reset_index()
     seasons = sorted(P.season.unique()); nxt = {s: seasons[i + 1] for i, s in enumerate(seasons[:-1])}
     last["season"] = last.season.map(nxt); played = played.merge(last.dropna(), on=["pid", "season"], how="left")
     # carry each player's latest pre-game rolling minutes onto EVERY row (played or not), for vacated minutes
@@ -78,12 +79,12 @@ def features(P):
     P["fam"] = P.pos.map(fam)
     vp = P[new_out].groupby(["gid", "team", "fam"]).m10_any.sum().rename("vac_pos")
     P = P.merge(vp, on=["gid", "team", "fam"], how="left"); P["vac_pos"] = P.vac_pos.fillna(0.0)
-    # rest
-    P["prev_dt"] = P.groupby("pid").dt.shift(1)
-    P["rest"] = (P.dt - P.prev_dt).dt.days.clip(upper=7).fillna(7)
+    # rest: days since his TEAM's last game (a player sitting out still gets his team's rest) —
+    # what the build knows from the schedule
     tg = P.drop_duplicates(["gid", "team"])[["team", "dt", "gid"]].sort_values(["team", "dt"])
-    tg["b2b"] = (tg.groupby("team").dt.diff().dt.days == 1).astype(float)
-    P = P.merge(tg[["gid", "team", "b2b"]], on=["gid", "team"], how="left")
+    gap = tg.groupby("team").dt.diff().dt.days
+    tg["b2b"] = (gap == 1).astype(float); tg["rest"] = gap.clip(upper=7).fillna(7)
+    P = P.merge(tg[["gid", "team", "b2b", "rest"]], on=["gid", "team"], how="left")
     return P
 
 

@@ -297,6 +297,36 @@
   .rg-score img { width: 24px; height: 24px; object-fit: contain; }
   .rg-score .w { color: var(--accent); }
   .rg-end { font-family: var(--font-d); font-weight: 700; font-size: 0.66rem; letter-spacing: 0.06em; color: var(--gold); }
+  /* the schedule standard: two cards a row on desktop */
+  @media (min-width: 900px) { .sc-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; align-items: start; } }
+  /* threes board */
+  .t3-list { display: flex; flex-direction: column; gap: 0.45rem; }
+  .t3-row { display: grid; grid-template-columns: 1.4rem auto minmax(0, 1fr) auto; align-items: center; gap: 0.6rem; background: var(--surface0); border: 1px solid var(--border); border-radius: 12px; padding: 0.55rem 0.7rem; }
+  .t3-row.t3-started { opacity: 0.6; }
+  .t3-id { min-width: 0; }
+  .t3-logo { width: 14px; height: 14px; object-fit: contain; vertical-align: -2px; }
+  .t3-facts { display: flex; gap: 0.7rem; flex-wrap: wrap; margin-top: 0.25rem; font-size: 0.7rem; color: var(--muted); }
+  .t3-facts i { font-style: normal; color: var(--dim); font-size: 0.62rem; letter-spacing: 0.04em; }
+  .t3-facts b { font-family: var(--font-d); color: var(--text); }
+  .t3-q { font-size: 0.56rem; font-weight: 800; letter-spacing: 0.05em; padding: 0.08rem 0.3rem; border-radius: 4px; color: var(--gold); background: color-mix(in srgb, var(--gold) 16%, transparent); vertical-align: middle; }
+  .t3-ladder { display: grid; grid-template-columns: repeat(5, 3.6rem); gap: 0.3rem; }
+  .t3-rung { display: flex; flex-direction: column; align-items: center; padding: 0.25rem 0.2rem; border-radius: 8px; background: var(--surface1); border: 1px solid transparent; }
+  .t3-rung.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface1)); }
+  .t3-rung-k { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.06em; color: var(--dim); }
+  .t3-rung b { font-family: var(--font-d); font-size: 0.86rem; color: var(--text-strong); }
+  .t3-rung.on b { color: var(--accent); }
+  .t3-rung-p { font-family: var(--font-m); font-size: 0.6rem; color: var(--muted); }
+  .t3-more { margin-top: 0.6rem; }
+  .t3-pick { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.45rem; padding-top: 0.4rem; border-top: 1px solid var(--border); font-size: 0.76rem; min-width: 0; cursor: pointer; }
+  .t3-pick b { color: var(--text-strong); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .t3-pick-lbl { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+  .t3-pick-od { margin-left: auto; font-family: var(--font-m); font-size: 0.72rem; color: var(--accent); white-space: nowrap; }
+  .t3-pick-od small { color: var(--muted); }
+  .t3-note { font-size: 0.72rem; color: var(--muted); line-height: 1.45; margin-top: 0.8rem; }
+  @media (max-width: 720px) {
+    .t3-row { grid-template-columns: 1.2rem auto minmax(0, 1fr); }
+    .t3-ladder { grid-column: 1 / -1; grid-template-columns: repeat(5, 1fr); }
+  }
   .sc-body { border-top: 1px solid var(--border); margin-top: 0.15rem; padding-top: 0.55rem; }
   .sc-facts { display: flex; flex-wrap: wrap; gap: 0.3rem 0.5rem; font-size: 0.7rem; color: var(--muted); }
   .sc-fact b { color: var(--text); font-weight: 700; }
@@ -369,6 +399,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4a8 8 0 1 1-7.6 5.5"/><path d="M4 4v5h5"/><path d="M12 8v4.4l3 1.8"/></svg>
         <span>Recap</span>
       </button>
+      <button class="nav-btn" data-nav="threes" onclick="switchNav('threes')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3v18M6.2 5.6c3 3.4 3 9.4 0 12.8M17.8 5.6c-3 3.4-3 9.4 0 12.8"/></svg>
+        <span>Threes</span>
+      </button>
       <button class="nav-btn" data-nav="schedule" onclick="switchNav('schedule')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
         <span>Schedule</span>
@@ -383,9 +417,8 @@
   <div id="panel-home" class="panel visible"><div id="home-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-stats" class="panel"><div id="stats-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-recap" class="panel"><div id="recap-content"><div class="empty">Loading…</div></div></div>
+  <div id="panel-threes" class="panel"><div id="threes-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-schedule" class="panel"><div id="schedule-content"><div class="empty">Loading…</div></div></div>
-
-  <div class="sport-menu" id="sport-menu"><a class="sport-item" href="/mlb/"><span class="sport-ico">⚾</span><span class="sport-name">Ron's Dong Tool</span><span class="sport-sub">MLB</span></a><a class="sport-item" href="/nfl/"><span class="sport-ico">🏈</span><span class="sport-name">Ron's Tud Tool</span><span class="sport-sub">NFL</span></a><a class="sport-item" href="/nhl/"><span class="sport-ico">🏒</span><span class="sport-name">Ron's Goal Tool</span><span class="sport-sub">NHL</span></a><a class="sport-item current" href="/nba/"><span class="sport-ico">🏀</span><span class="sport-name">Ron's Hoop Tool</span><span class="sport-sub">NBA</span></a></div>
 
   <footer class="site-foot">
     <span class="foot-data">NBA · <span id="eyebrow-season">2026-27</span> · <span id="status-badge" class="status-badge fetching">Loading</span></span>
@@ -397,6 +430,8 @@
     </span>
   </footer>
 </div>
+<!-- Body level, beside its backdrop: inside .wrap (z-index 1) it paints under the blur. -->
+<div class="sport-menu" id="sport-menu"><a class="sport-item" href="/mlb/"><span class="sport-ico">⚾</span><span class="sport-name">Ron's Dong Tool</span><span class="sport-sub">MLB</span></a><a class="sport-item" href="/nfl/"><span class="sport-ico">🏈</span><span class="sport-name">Ron's Tud Tool</span><span class="sport-sub">NFL</span></a><a class="sport-item" href="/nhl/"><span class="sport-ico">🏒</span><span class="sport-name">Ron's Goal Tool</span><span class="sport-sub">NHL</span></a><a class="sport-item current" href="/nba/"><span class="sport-ico">🏀</span><span class="sport-name">Ron's Hoop Tool</span><span class="sport-sub">NBA</span></a></div>
 <script>
   const APP_BASE = '/nba';
 
@@ -449,8 +484,8 @@
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch, .sport-menu')) closeSportMenu(); });
 
   // ── Nav + routing ──────────────────────────────────────────────────────
-  const NBA_NAVS = ['home', 'stats', 'recap', 'schedule'];   // tools added here as they ship
-  const PAGE_TITLES = { home: "Ron's Hoop Tool", stats: "Stats · Ron's Hoop Tool", recap: "Recap · Ron's Hoop Tool", schedule: "Schedule · Ron's Hoop Tool" };
+  const NBA_NAVS = ['home', 'stats', 'recap', 'threes', 'schedule'];   // tools added here as they ship
+  const PAGE_TITLES = { home: "Ron's Hoop Tool", stats: "Stats · Ron's Hoop Tool", recap: "Recap · Ron's Hoop Tool", threes: "Threes · Ron's Hoop Tool", schedule: "Schedule · Ron's Hoop Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
     activeNav = nav;
@@ -478,6 +513,7 @@
     else if (nav === 'stats') renderStats();
     else if (nav === 'recap') renderRecap();
     else if (nav === 'schedule') renderSchedule();
+    else if (nav === 'threes') renderThrees();
   }
 
   // ── Data ───────────────────────────────────────────────────────────────
@@ -665,6 +701,11 @@
           ${L.impAway != null ? `<div class="sc-goal"><span class="t">Implied</span><b>${esc(g.away.ab)} ${L.impAway}</b><span>·</span><b>${esc(g.home.ab)} ${L.impHome}</b></div>` : ''}
         </div>` : ''}
       </div>`;
+    // the game's top threes pick, best at 2+ (the schedule standard: a top pick on every game)
+    const tp = (D.threes?.rows || []).filter(r => r.gid === g.id).sort((a, b) => b.p[1] - a.p[1])[0];
+    const pick = tp ? `<div class="t3-pick" onclick="event.stopPropagation(); t3Set('game','${g.id}'); switchNav('threes')">
+        <span class="t3-pick-lbl">Top threes</span>${logoImg(tp.team, 't3-logo')}<b>${esc(tp.name)}</b>
+        <span class="t3-pick-od">2+ ${fairOdds(tp.p[1])} <small>${(tp.p[1] * 100).toFixed(0)}%</small></span></div>` : '';
     return `<div class="sc-game${open ? ' open' : ''}" onclick="toggleGame('${g.id}')" role="button" tabindex="0">
       <div class="sc-top">
         ${side(g.away, false, aWin)}
@@ -672,6 +713,7 @@
         ${side(g.home, true, final && !aWin)}
         <span class="sc-chev">▶</span>
       </div>
+      ${pick}
       ${body}
     </div>`;
   }
@@ -742,6 +784,54 @@
       <div class="rc-list">${rows.length ? rows.map(row).join('') : '<div class="empty">No players match these filters.</div>'}</div>`;
   }
 
+  // ── Threes: the NBA's dong ─────────────────────────────────────────────
+  // Every rotation player on the next slate, priced 1+ to 5+ made threes: his
+  // projected minutes (recent minutes, starts, teammates newly out, blowout
+  // risk) times his made threes per minute (season + last season, shrunk to his
+  // position), adjusted for the opponent's threes allowed, as a negative
+  // binomial spread over his minutes. research/nba_threes.py — it beat Kalshi's
+  // pre-game mid on 6,666 markets last season. Fair odds, no vig.
+  const t3F = { rung: 0, game: 'all', pos: 'all', all: false };
+  const T3_TOP = 30;
+  // under half a percent is a rounding error, not a price anyone should read
+  const fairOdds = (p) => !(p >= 0.005 && p < 1) ? '—' : p >= 0.5 ? String(-Math.round(100 * p / (1 - p))) : '+' + Math.round(100 * (1 - p) / p);
+  function t3Set(k, v) { t3F[k] = v; if (k !== 'all') t3F.all = false; renderThrees(); }
+  function renderThrees() {
+    const el = dataGate('threes-content'); if (!el) return;
+    const B = D.threes;
+    if (!B || !B.rows?.length) { el.innerHTML = '<div class="empty">No slate to price yet — the board fills in once the next games have lines.</div>'; return; }
+    const games = [...new Map(B.rows.map(r => [r.gid, r])).values()].sort((a, b) => a.start.localeCompare(b.start));
+    if (t3F.game !== 'all' && !games.some(g => g.gid === t3F.game)) t3F.game = 'all';
+    const k = t3F.rung, rung = B.rungs[k];
+    const rows = B.rows.filter(r => (t3F.game === 'all' || r.gid === t3F.game) && (t3F.pos === 'all' || (POS_FAM[r.pos] || 'F') === t3F.pos))
+      .slice().sort((a, b) => b.p[k] - a.p[k] || b.mu - a.mu);
+    const started = (r) => new Date(r.start) <= new Date();
+    const chip = (key, v, lbl) => `<button class="due-filter-chip${t3F[key] === v ? ' active' : ''}" onclick="t3Set('${key}',${typeof v === 'number' ? v : `'${v}'`})">${lbl}</button>`;
+    const gameOpts = [['all', `All games (${games.length})`], ...games.map(g => [g.gid, `${g.home ? g.opp : g.team} @ ${g.home ? g.team : g.opp} · ${gameTime(g.start)}`])]
+      .map(([v, l]) => `<option value="${v}"${t3F.game === v ? ' selected' : ''}>${esc(l)}</option>`).join('');
+    const row = (r, i) => {
+      const f = r.f || {};
+      const ladder = r.p.map((p, j) => `<div class="t3-rung${j === k ? ' on' : ''}"><span class="t3-rung-k">${B.rungs[j]}+</span><b>${fairOdds(p)}</b><span class="t3-rung-p">${p < 0.005 ? '' : (p * 100).toFixed(p < 0.1 ? 1 : 0) + '%'}</span></div>`).join('');
+      return `<div class="t3-row${started(r) ? ' t3-started' : ''}">
+        <span class="st-rank">${i + 1}</span>
+        ${faceHtml(r.pid, r.name)}
+        <div class="t3-id">
+          <div class="rc-name">${esc(r.name)} ${posBadge(r.pos)}${f.q ? ` <span class="t3-q" title="${esc(f.q)} on the injury report">${esc(f.q.split(/[- ]/)[0].slice(0, 5).toUpperCase())}</span>` : ''}</div>
+          <div class="rc-sub">${logoImg(r.team, 't3-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${gameTime(r.start)}${started(r) ? ' · <b>priced before tip</b>' : ''}</div>
+          <div class="t3-facts"><span title="Projected minutes"><i>MIN</i> <b>${r.min}</b></span><span title="Expected made threes"><i>x3PM</i> <b>${r.mu.toFixed(2)}</b></span>${f.tpa != null ? `<span title="Three-point attempts per game"><i>3PA/g</i> <b>${f.tpa}</b></span>` : ''}${f.vac ? `<span title="Minutes newly vacated by teammates out tonight"><i>OUT</i> <b>${f.vac}</b></span>` : ''}</div>
+        </div>
+        <div class="t3-ladder">${ladder}</div>
+      </div>`;
+    };
+    el.innerHTML = `<div class="result-meta"><b>${dayLabel(B.date, true)}</b> · ${games.length} game${games.length === 1 ? '' : 's'} · ${rows.length} players · fair odds, no vig · updated ${timeAgo(B.generated)}</div>
+      <div class="pairs-filter-row"><span class="due-filter-label">Threes</span>${B.rungs.map((n, j) => chip('rung', j, n + '+')).join('')}</div>
+      <div class="pairs-filter-row"><span class="due-filter-label">Pos</span>${chip('pos', 'all', 'All')}${chip('pos', 'G', 'Guards')}${chip('pos', 'F', 'Forwards')}${chip('pos', 'C', 'Centers')}
+        <select class="fl-sel" onchange="t3Set('game',this.value)">${gameOpts}</select></div>
+      <div class="t3-list">${(t3F.all ? rows : rows.slice(0, T3_TOP)).map(row).join('') || '<div class="empty">No players match.</div>'}</div>
+      ${rows.length > T3_TOP ? `<button class="due-filter-chip t3-more" onclick="t3Set('all',${!t3F.all})">${t3F.all ? `Show the top ${T3_TOP}` : `Show all ${rows.length}`}</button>` : ''}
+      <div class="t3-note">Sorted by <b>${rung}+</b>. Projected minutes from his recent minutes, starts, teammates newly out and blowout risk; made threes per minute from this season and last, shrunk to his position; the opponent's threes allowed. A negative binomial over his minutes gives the ladder. Checked against Kalshi last season: sharper than its pre-game price, but only worth taking as a resting order at the mid — crossing the spread gave it back.</div>`;
+  }
+
   // ── Home ───────────────────────────────────────────────────────────────
   function renderHome() {
     const el = dataGate('home-content'); if (!el) return;
@@ -803,10 +893,16 @@
         <span class="hm-score hot">${t.w}-${t.l}</span></div>`).join('');
     const played = Object.values(D.teams || {}).some(t => t.w || t.l);
 
+    const t3 = D.threes?.rows?.length ? [...D.threes.rows].sort((a, b) => b.p[1] - a.p[1]).slice(0, 5).map((r, i) => `
+      <div class="hm-row"><span class="hm-subtle" style="width:0.9rem">${i + 1}</span>
+        ${faceHtml(r.pid, r.name, 'hm-photo')}
+        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${r.mu.toFixed(1)} x3PM</span></span>
+        <span class="hm-score hot">${fairOdds(r.p[1])}<span class="hm-subtle" style="font-size:0.766rem"> 2+</span></span></div>`).join('') : '';
     const lead = esc(D.leadersFrom);
     el.innerHTML = countdown + `
       <div class="hm-cols">
         <div class="hm-col">
+          ${t3 ? card('threes', `${dayLabel(D.threes.date)} · Threes (2+)`, 'Threes', t3, '') : ''}
           ${card('recap', lastNight ? `${dayLabel(lastNight)} Recap` : 'Recap', 'Recap', lastNightCard, 'No games played yet.')}
           ${card('stats', `${lead} Scoring Leaders`, 'Stats', by('pts', 'PPG'), 'No leaders yet.')}
           ${card('stats', `${lead} Threes Leaders`, 'Stats', by('tpm', '3PM'), 'No leaders yet.')}

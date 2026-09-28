@@ -14,19 +14,19 @@
 // Nothing here needs editing next October: the season is read off the feed.
 import fs from 'node:fs';
 import { get, pool, SITE, SITE2, CORE, etDate, shiftDate, compact } from './nba-api.js';
+import { reduceSummary, freshState, applyGame, BOX } from './nba-state.js';
+import { MODEL, fam, minutesInputs, projectMinutes, threesRate, oppThreesRatio, threesMu, threesLadder } from './nba-models.js';
 
 const AHEAD = 10;        // schedule days ahead
 const BEHIND = 3;        // ...and behind (yesterday's finals stay on the schedule)
 const RECAP_DAYS = 21;   // finals kept for the recap
 const LEADERS = 250;     // players on the Stats board
-const BOX = ['min', 'pts', 'fgm', 'fga', 'tpm', 'tpa', 'ftm', 'fta', 'oreb', 'dreb', 'reb', 'ast', 'stl', 'blk', 'to'];
 const STATE_PATH = new URL('../nba/players.json', import.meta.url);
 const PRIORS_PATH = new URL('../nba/priors.json', import.meta.url);
 const OUT = new URL('../nba/data.json', import.meta.url);
 
 const readJSON = (u, d) => { try { return JSON.parse(fs.readFileSync(u, 'utf8')); } catch (e) { return d; } };
 const num = (v) => { const x = parseFloat(v); return Number.isFinite(x) ? x : null; };
-const made = (v) => { const m = /^(\d+)-(\d+)/.exec(v || ''); return m ? [+m[1], +m[2]] : [0, 0]; };
 const PHASE = { 1: 'pre', 2: 'reg', 3: 'post', 4: 'off', 5: 'playin' };
 
 // The NBA scoreboard takes one day at a time (a dates=a-b range is a 400, unlike
@@ -37,67 +37,6 @@ async function events(from, to) {
   const byId = new Map(); for (const e of all.flat()) byId.set(e.id, e);
   return [...byId.values()];
 }
-
-// ── A game, reduced the way research/nba_fetch.py reduces it ─────────────────
-function reduceSummary(s, ev) {
-  const comp = s.header?.competitions?.[0]; if (!comp) return null;
-  const side = Object.fromEntries(comp.competitors.map(c => [c.homeAway, c]));
-  const tid = Object.fromEntries(comp.competitors.map(c => [c.team.id, c.team.abbreviation]));
-  const g = { id: ev.id, date: ev.date, type: ev.type, home: side.home.team.abbreviation, away: side.away.team.abbreviation };
-  const plays = s.plays || [];
-  const jb = plays.slice(0, 5).find(p => /jump/i.test(p.type?.text || ''));
-  if (jb) {
-    g.jump = (jb.participants || []).map(a => a.athlete?.id).filter(Boolean).slice(0, 2);
-    g.tip = tid[jb.team?.id] || null;
-  }
-  const fg = plays.find(p => p.scoringPlay && p.shootingPlay && (p.scoreValue || 0) >= 2 && !/free throw/i.test(p.type?.text || ''));
-  if (fg) g.fb = { pid: fg.participants?.[0]?.athlete?.id || null, team: tid[fg.team?.id] || null, v: fg.scoreValue };
-  const players = [];
-  for (const t of s.boxscore?.players || []) {
-    const st = t.statistics?.[0]; if (!st) continue;
-    for (const a of st.athletes || []) {
-      const id = a.athlete?.id; if (!id) continue;
-      const v = Object.fromEntries((st.labels || []).map((l, i) => [l, a.stats?.[i]]));
-      const [fgm, fga] = made(v.FG), [tpm, tpa] = made(v['3PT']), [ftm, fta] = made(v.FT);
-      const min = num(v.MIN) || 0;
-      players.push({ pid: id, name: a.athlete.displayName, team: t.team.abbreviation, pos: a.athlete.position?.abbreviation || null,
-        st: a.starter ? 1 : 0, dnp: !!a.didNotPlay || !(min > 0), reason: a.reason || null,
-        min, pts: num(v.PTS) || 0, fgm, fga, tpm, tpa, ftm, fta, oreb: num(v.OREB) || 0, dreb: num(v.DREB) || 0,
-        reb: num(v.REB) || 0, ast: num(v.AST) || 0, stl: num(v.STL) || 0, blk: num(v.BLK) || 0, to: num(v.TO) || 0 });
-    }
-  }
-  return { g, players };
-}
-
-// ── Player state: the models' memory, updated from new finals only ──────────
-function freshState(season, priors) {
-  const players = {};
-  for (const [pid, p] of Object.entries(priors?.players || {})) {
-    players[pid] = { name: p.name, team: p.team, pos: p.pos, gp: 0, gs: 0, ...Object.fromEntries(BOX.map(k => [k, 0])),
-      last10: p.last10 || [], fb: p.fb || 0, starts: p.starts || 0, tipn: p.tipn || 0, tipw: p.tipw || 0 };
-  }
-  return { season, priorsSeason: priors?.season || null, done: [], players };
-}
-function applyGame(state, r) {
-  const { g, players } = r;
-  const starters = players.filter(p => p.st && !p.dnp);
-  if (g.type === 2 && g.fb?.pid && starters.length === 10) {
-    for (const p of starters) (state.players[p.pid] ||= newPlayer(p)).starts++;
-    (state.players[g.fb.pid] ||= newPlayer({ name: '', team: g.fb.team })).fb++;
-  }
-  const jt = Object.fromEntries(starters.map(p => [p.pid, p.team]));
-  if (g.tip) for (const j of g.jump || []) if (jt[j]) { const s = (state.players[j] ||= newPlayer({})); s.tipn++; if (jt[j] === g.tip) s.tipw++; }
-  for (const p of players) {
-    if (p.dnp) continue;
-    const s = (state.players[p.pid] ||= newPlayer(p));
-    Object.assign(s, { name: p.name, team: p.team, pos: p.pos || s.pos });
-    if (g.type === 2) { s.gp++; s.gs += p.st; for (const k of BOX) s[k] += p[k]; }
-    s.last10 = [...(s.last10 || []), { d: g.date, st: p.st, ...Object.fromEntries(BOX.map(k => [k, p[k]])) }].slice(-10);
-  }
-  state.done.push(g.id);
-}
-const newPlayer = (p) => ({ name: p.name || '', team: p.team || null, pos: p.pos || null, gp: 0, gs: 0,
-  ...Object.fromEntries(BOX.map(k => [k, 0])), last10: [], fb: 0, starts: 0, tipn: 0, tipw: 0 });
 
 async function main() {
   const today = etDate();
@@ -210,8 +149,79 @@ async function main() {
       tpm: r('tpm'), stl: r('stl'), blk: r('blk'), tpPct: p.tpa ? +(p.tpm / p.tpa).toFixed(3) : null, fgPct: p.fga ? +(p.fgm / p.fga).toFixed(3) : null };
   }).filter(x => x.gp >= (fromPriors ? 20 : 1)).sort((a, b) => b.pts - a.pts).slice(0, LEADERS);
 
+  // ── 8) The threes board: the next regular-season / playoff slate ──────────
+  // Priced off CURRENT rosters (a player files under the club he last played
+  // for — offseason movers would be priced for the wrong team), with tonight's
+  // injury report: OUT sits and his minutes count as vacated for the rotation.
+  // A started game's rows are frozen as they stood before tip.
+  const OUT_STATUS = /^(out|doubtful|suspension|suspended)/i;
+  let slate = schedule.filter(g => [2, 3, 5].includes(g.type) && g.date >= today);
+  if (!slate.length) {
+    for (let d = shiftDate(today, AHEAD + 1); d <= shiftDate(today, 40) && !slate.length; d = shiftDate(d, 1)) {
+      const ev = await events(d, d);
+      slate = ev.filter(e => [2, 3, 5].includes(e.season?.type)).map(e => {
+        const c = e.competitions[0], side = Object.fromEntries(c.competitors.map(x => [x.homeAway, x])), o = c.odds?.[0];
+        const sp = num(o?.spread), tot = num(o?.overUnder);
+        return { id: e.id, start: e.date, date: etDate(new Date(e.date)), type: e.season.type, state: c.status?.type?.state || 'pre',
+          home: { ab: side.home.team.abbreviation }, away: { ab: side.away.team.abbreviation },
+          lines: sp != null && tot != null ? { spread: sp, total: tot, impHome: +(tot / 2 - sp / 2).toFixed(1), impAway: +(tot / 2 + sp / 2).toFixed(1) } : null };
+      });
+    }
+  }
+  const boardDate = slate.length ? slate[0].date : null;
+  slate = slate.filter(g => g.date === boardDate);
+  const prevData = readJSON(OUT, {});
+  const frozen = (prevData.threes?.date === boardDate ? prevData.threes.rows : []) || [];
+  const rows = [];
+  const priorPrev = priors?.players || {};
+  for (const g of slate) {
+    if (g.state !== 'pre') { rows.push(...frozen.filter(r => r.gid === g.id)); continue; }
+    for (const [me, opp, home] of [[g.home.ab, g.away.ab, true], [g.away.ab, g.home.ab, false]]) {
+      const tid = teams[me]?.id; if (!tid) continue;
+      let roster = [];
+      try { roster = (await get(`${SITE}/teams/${tid}/roster`)).athletes || []; } catch (e) { continue; }
+      const T = state.teams?.[me], tDates = T?.dates || [];
+      const recent3 = tDates.slice(-3)[0] || null;
+      const isOut = (a) => OUT_STATUS.test(injuries[a.id]?.status || '');
+      // minutes newly vacated: rotation (10+ min last 10) teammates out tonight who played in the team's last 3 games
+      let vac = 0; const vacFam = {};
+      for (const a of roster) {
+        if (!isOut(a)) continue;
+        const s = state.players[a.id]; if (!s?.last10?.length) continue;
+        const inp = minutesInputs(s, priorPrev[a.id]?.prev);
+        const lastD = s.last10[s.last10.length - 1].d;
+        if ((inp.m10 ?? 0) >= MODEL.minutes.rotation_min && recent3 && lastD >= recent3) {
+          vac += inp.m10; const f = fam(a.position?.abbreviation || s.pos); vacFam[f] = (vacFam[f] || 0) + inp.m10;
+        }
+      }
+      const L = g.lines, sp = L?.spread != null ? (home ? L.spread : -L.spread) : null;
+      const implied = L ? (home ? L.impHome : L.impAway) : null;
+      const teamLast = T?.last || null, b2b = teamLast === shiftDate(g.date, -1);
+      for (const a of roster) {
+        if (isOut(a)) continue;
+        const s = state.players[a.id]; if (!s?.last10?.length) continue;
+        const prevTot = priorPrev[a.id]?.prev || null, pos = a.position?.abbreviation || s.pos;
+        const inp = minutesInputs(s, prevTot);
+        const M = projectMinutes(inp, { date: g.date, teamLast, absSpread: sp != null ? Math.abs(sp) : null, b2b,
+          vacated: vac, vacPos: vacFam[fam(pos)] || 0 });
+        if (M.min < 8) continue;                                  // not a rotation player tonight
+        const rate = threesRate(s, prevTot, pos);
+        const mu = threesMu({ rate, mproj: M.min, implied, oppRatio: oppThreesRatio(state.teams?.[opp]), home });
+        const p = threesLadder(mu, M.min, M.sd);
+        rows.push({ gid: g.id, start: g.start, pid: a.id, name: a.displayName, team: me, opp, home, pos,
+          min: +M.min.toFixed(1), mu: +mu.toFixed(3), p: p.map(x => +x.toFixed(4)),
+          f: { m10: +(inp.m10 ?? 0).toFixed(1), st10: +(inp.start10 ?? 0).toFixed(2), rate: +(rate * 36).toFixed(2),
+               tpa: s.gp ? +(s.tpa / s.gp).toFixed(1) : (prevTot?.gp ? +(prevTot.tpa / prevTot.gp).toFixed(1) : null),
+               vac: +vac.toFixed(1), opp: +oppThreesRatio(state.teams?.[opp]).toFixed(3), imp: implied, q: injuries[a.id]?.status || null } });
+      }
+    }
+  }
+  rows.sort((a, b) => b.p[0] - a.p[0]);
+  const threes = boardDate ? { date: boardDate, generated: new Date().toISOString(), rungs: MODEL.threes.rungs, rows } : null;
+  console.log(`Threes board: ${rows.length} players, ${boardDate || 'no slate'}${frozen.length ? ` (${rows.filter(r => frozen.includes(r)).length} frozen)` : ''}`);
+
   const data = { generated: new Date().toISOString(), today, season: label, phase: now.key, phaseName: now.name, phases,
-    leadersFrom: fromPriors ? state.priorsSeason : label, teams, schedule, recap, injuries, leaders };
+    leadersFrom: fromPriors ? state.priorsSeason : label, teams, schedule, recap, injuries, leaders, threes };
   fs.writeFileSync(OUT, JSON.stringify(data));
   fs.writeFileSync(STATE_PATH, JSON.stringify(state));
   console.log(`Wrote nba/data.json — ${Object.keys(teams).length} teams, ${schedule.length} scheduled, ${recap.length} recapped, ${leaders.length} leaders (${fromPriors ? 'last season' : 'this season'}), ${Object.keys(injuries).length} injured`);

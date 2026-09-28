@@ -68,17 +68,23 @@ def main():
     seasons = sorted(D.season.unique()); nxt = {s: seasons[i + 1] for i, s in enumerate(seasons[:-1])}
     tot["season"] = tot.season.map(nxt); tot = tot.dropna().rename(columns={"tpm": "p_tpm", "min": "p_min"})
     D = D.merge(tot, on=["pid", "season"], how="left").fillna({"p_tpm": 0, "p_min": 0})
-    fam_rate = D.groupby(["season", "fam"]).apply(lambda d: d.tpm.sum() / d["min"].sum(), include_groups=False).rename("fam_rate")
-    D = D.merge(fam_rate.reset_index(), on=["season", "fam"], how="left")
+    # league constants from LAST season (the first season uses its own): no look-ahead, and all
+    # the live build can know — research/nba_parity.mjs checks it
+    fr = D.groupby(["season", "fam"]).apply(lambda d: d.tpm.sum() / d["min"].sum(), include_groups=False).rename("fam_rate").reset_index()
+    fr_prev = fr.assign(season=fr.season.map(nxt)).dropna()
+    fr = pd.concat([fr_prev, fr[fr.season == min(fr.season)]]).drop_duplicates(["season", "fam"])
+    D = D.merge(fr, on=["season", "fam"], how="left")
     K = 300
     D["rate"] = (D.s_tpm + 0.5 * D.p_tpm + K * D.fam_rate) / (D.s_min + 0.5 * D.p_min + K)
     # the game: his team's implied points, the opponent's threes allowed so far
     D["implied"] = D.total / 2 - D.spread / 2
-    lg_imp = D.groupby("season").implied.transform("mean")
+    imp_s = D.groupby("season").implied.mean(); imp_prev = imp_s.shift(1).fillna(imp_s)
+    lg_imp = D.season.map(imp_prev)
     D["imp_r"] = (D.implied / lg_imp).fillna(1.0)
     tg = D.groupby(["gid", "team", "opp", "date", "season"]).tpm.sum().reset_index().sort_values("date")
     tg["allowed_sofar"] = tg.groupby(["season", "opp"]).tpm.transform(lambda s: s.shift(1).expanding().mean())
-    lg_allow = tg.groupby("season").tpm.transform("mean")
+    al_s = tg.groupby("season").tpm.mean(); al_prev = al_s.shift(1).fillna(al_s)
+    lg_allow = tg.season.map(al_prev)
     tg["opp_r"] = ((tg.allowed_sofar * tg.groupby(["season", "opp"]).cumcount() + 10 * lg_allow) / (tg.groupby(["season", "opp"]).cumcount() + 10)) / lg_allow
     D = D.merge(tg[["gid", "team", "opp_r"]], on=["gid", "team"], how="left"); D["opp_r"] = D.opp_r.fillna(1.0)
     D = D[D.mproj.notna() & (D.mproj > 3)].copy()
