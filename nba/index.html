@@ -686,8 +686,9 @@
   // and a data-only commit doesn't redeploy the site — see netlify.toml). On
   // localhost the local file wins, so a local build can be looked at.
   const DATA_RAW = 'https://raw.githubusercontent.com/wizard-ron17/dong-tool/main';
+  // Local first on localhost, but a missing local file falls back to the repo's rather than erroring.
   const dataFetch = (f, opts) => /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
-    ? fetch(`${APP_BASE}/${f}`, opts)
+    ? fetch(`${APP_BASE}/${f}`, opts).then(r => r.ok ? r : Promise.reject(r)).catch(() => fetch(`${DATA_RAW}${APP_BASE}/${f}`, opts))
     : fetch(`${DATA_RAW}${APP_BASE}/${f}`, opts).then(r => r.ok ? r : Promise.reject(r)).catch(() => fetch(`${APP_BASE}/${f}`, opts));
   async function loadNba() {
     setStatus('fetching');
