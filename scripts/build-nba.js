@@ -18,6 +18,7 @@ import { reduceSummary, freshState, applyGame, BOX, STATE_VERSION } from './nba-
 import { MODEL, fam, minutesInputs, projectMinutes, threesRate, oppThreesRatio, threesMu, threesLadder, pWinTip, pTeamFirst, fbWeight,
   statRate, statForm, statOpp, statMu, statLadder, doublesPrice } from './nba-models.js';
 import { buildFun } from './nba-fun.js';
+import { recapDetail, saveRecap, recapHas, savePrices } from './nba-recap.js';
 
 const AHEAD = 10;        // schedule days ahead
 const BEHIND = 3;        // ...and behind (yesterday's finals stay on the schedule)
@@ -100,25 +101,32 @@ async function main() {
   if (!state || state.season !== label || (state.version !== STATE_VERSION && !state.done.length)) state = freshState(label, priors);
   const seasonStart = phases.find(p => p.key === 'reg')?.start || now.start;
   const scanFrom = state.done.length ? shiftDate(today, -RECAP_DAYS) : seasonStart;
-  const finals = [];
-  if (scanFrom <= today) {
-    var pastEvents = await events(scanFrom, today);
-    for (const e of pastEvents) {
-      if (e.competitions?.[0]?.status?.type?.state !== 'post') continue;
-      if (![2, 3, 5].includes(e.season?.type)) continue;
-      finals.push({ id: e.id, date: etDate(new Date(e.date)), type: e.season.type });
-    }
+  // the recap also covers preseason finals (never the models' state), so its window always reaches back
+  const recapFrom = shiftDate(today, -RECAP_DAYS);
+  const finalsAll = [];
+  var pastEvents = await events(scanFrom < recapFrom ? scanFrom : recapFrom, today);
+  for (const e of pastEvents) {
+    if (e.competitions?.[0]?.status?.type?.state !== 'post') continue;
+    if (![1, 2, 3, 5].includes(e.season?.type)) continue;
+    finalsAll.push({ id: e.id, date: etDate(new Date(e.date)), type: e.season.type });
   }
-  const seen = new Set(state.done);
+  const finals = finalsAll.filter(f => f.type !== 1 && f.date >= scanFrom);
+  const seen = new Set(state.done), inRecap = recapHas();
   const todo = finals.filter(f => !seen.has(f.id)).sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
-  const reduced = await pool(todo, 6, async (f) => { try { return reduceSummary(await get(`${SITE}/summary?event=${f.id}`), f); } catch (e) { return null; } });
-  for (const r of reduced) if (r) applyGame(state, r);
+  const recapTodo = finalsAll.filter(f => f.date >= recapFrom && !inRecap.has(f.id));
+  const want = [...new Map([...todo, ...recapTodo].map(f => [f.id, f])).values()];
+  const got = new Map(await pool(want, 6, async (f) => {
+    try { const s = await get(`${SITE}/summary?event=${f.id}`); return [f.id, { s, r: reduceSummary(s, f) }]; } catch (e) { return [f.id, null]; }
+  }));
+  for (const f of todo) { const x = got.get(f.id); if (x?.r) applyGame(state, x.r); }
   console.log(`Player state: ${todo.length} new finals applied (${state.done.length} this season)`);
+  const recapKept = saveRecap(recapTodo.map(f => { const x = got.get(f.id); return x?.r ? recapDetail(x.s, f, x.r) : null; }), today, RECAP_DAYS, shiftDate);
+  console.log(`Recap detail: ${recapTodo.length} new finals, ${recapKept} kept`);
 
   // ── 5) Recap: the finals of the last three weeks, with each side's leaders ─
   const recap = [];
-  if (finals.length) {
-    const recent = finals.filter(f => f.date >= shiftDate(today, -RECAP_DAYS)).map(f => f.id);
+  if (finalsAll.length) {
+    const recent = finalsAll.filter(f => f.date >= recapFrom).map(f => f.id);
     const byId = new Map(pastEvents.map(e => [e.id, e]));
     for (const id of recent) {
       const e = byId.get(id); if (!e) continue;
@@ -298,6 +306,8 @@ async function main() {
   console.log(`Stats boards: ${STATS.map(st => `${st} ${statRows[st].length}`).join(', ')} · doubles ${ddRows.length}`);
   const threes = boardDate ? { date: boardDate, generated: new Date().toISOString(), rungs: MODEL.threes.rungs, alpha: MODEL.threes.alpha, rows } : null;
   console.log(`Threes board: ${rows.length} players, ${boardDate || 'no slate'}${frozen.length ? ` (${rows.filter(r => frozen.includes(r)).length} frozen)` : ''}`);
+
+  savePrices(boardDate, { threes: rows, doubles: ddRows, first: fbGames }, today, shiftDate);
 
   // ── 11) Watch lists: Milestones, Due, Birthdays ──────────────────────────
   let fun = null;

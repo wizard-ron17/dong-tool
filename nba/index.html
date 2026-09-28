@@ -778,6 +778,54 @@
   .cp-res.void { opacity: 0.5; }
   .cp-res.pend .cp-res-tag, .cp-res.live .cp-res-tag { color: var(--gold); }
   .cp-res.live { border-color: rgba(240, 192, 64, 0.35); }
+  /* recap: the first basket, the threes, the doubles — a drawn half court (no NBA clips exist) */
+  .rx-tiles { margin-bottom: 0.7rem; }
+  .rx-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.9rem; align-items: start; }
+  @media (max-width: 760px) { .rx-grid { grid-template-columns: minmax(0, 1fr); } }
+  .rx-court { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--border); }
+  .rx-floor { fill: var(--surface1); }
+  .rx-paint { fill: var(--surface2); }
+  .rx-line { fill: none; stroke: var(--border2); stroke-width: 2.5; }
+  .rx-board { stroke: var(--text); stroke-width: 4; stroke-linecap: round; opacity: 0.7; }
+  .rx-rim { fill: none; stroke: #f07a2c; stroke-width: 3; }
+  .rx-flash { fill: none; stroke: var(--gold); stroke-width: 3; opacity: 0; pointer-events: none; }
+  .rx-logo { opacity: 0.09; pointer-events: none; }
+  .rx-dot { cursor: pointer; transition: opacity 0.2s; }
+  .rx-dot.made { fill: var(--tc); stroke: var(--surface0); stroke-width: 2; }
+  .rx-dot.miss { fill: var(--surface1); stroke: var(--tc); stroke-width: 2.5; }
+  .rx-dot.dim { opacity: 0.14; }
+  .rx-dot.now { stroke: var(--text-strong); stroke-width: 3.5; opacity: 1; }
+  .rx-fb { fill: var(--gold); stroke: var(--surface0); stroke-width: 2.5; cursor: pointer; }
+  .rx-ball { fill: #f07a2c; stroke: #7a3510; stroke-width: 1.5; pointer-events: none; }
+  .rx-shadow { fill: #000; opacity: 0; pointer-events: none; }
+  .rx-cap { font-size: 0.78rem; color: var(--text); line-height: 1.45; min-height: 2.4em; margin: 0.45rem 0.1rem 0.4rem; }
+  .rx-cap .dim, .rx-nm .dim { color: var(--muted); font-weight: 500; }
+  .rx-made { color: var(--good); font-weight: 700; }
+  .rx-missed { color: var(--muted); font-weight: 700; }
+  .rx-btns { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .rx-btn { font: 600 0.74rem var(--font-b); color: var(--text); background: var(--surface1); border: 1px solid var(--border2); border-radius: 999px; padding: 0.32rem 0.75rem; cursor: pointer; }
+  .rx-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .rx-btn:disabled { opacity: 0.4; cursor: default; }
+  .rx-sec { display: flex; align-items: center; font: 700 0.68rem var(--font-d); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin: 0.2rem 0 0.4rem; }
+  .rx-sec:not(:first-child) { margin-top: 0.8rem; }
+  .rx-team3 { display: inline-flex; align-items: center; gap: 0.25rem; margin-left: 0.7rem; color: var(--text); letter-spacing: 0; }
+  .rx-sw { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .rx-tlogo { width: 16px; height: 16px; object-fit: contain; }
+  .rx-row { display: flex; align-items: center; gap: 0.55rem; padding: 0.4rem 0.55rem; border: 1px solid var(--border); border-radius: 9px; background: var(--surface1); margin-bottom: 0.35rem; cursor: pointer; }
+  .rx-row:hover { border-color: var(--border2); }
+  .rx-row .rc-photo { width: 34px; height: 34px; flex-shrink: 0; }
+  .rx-info { flex: 1; min-width: 0; }
+  .rx-nm { font-weight: 700; font-size: 0.84rem; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rx-sub { font-size: 0.72rem; color: var(--muted); }
+  .rx-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.15rem; flex-shrink: 0; }
+  .rx-stat { font: 700 1.1rem var(--font-d); color: var(--text-strong); }
+  .rx-stat small { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+  .rx-odds { font: 700 0.8rem var(--font-m, var(--font-d)); color: var(--text); }
+  .rx-grade { font: 600 0.66rem var(--font-m, var(--font-d)); padding: 0.1rem 0.45rem; border-radius: 999px; white-space: nowrap; }
+  .rx-grade.hit { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+  .rx-grade.miss { color: var(--muted); background: var(--surface2); }
+  .rx-td { font: 700 0.58rem var(--font-d); letter-spacing: 0.08em; color: var(--gold); border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent); border-radius: 4px; padding: 0.05rem 0.3rem; vertical-align: middle; }
+  .rx-none { font-size: 0.76rem; color: var(--muted); padding: 0.2rem 0 0.3rem; }
   /* first basket */
   .fb-games { display: grid; gap: 0.6rem; }
   @media (min-width: 900px) { .fb-games { grid-template-columns: 1fr 1fr; align-items: start; } }
@@ -1174,41 +1222,240 @@
   const typeTag = (t) => t === 1 ? '<span class="sc-pre">PRE</span>' : t === 5 ? '<span class="sc-pre">PLAY-IN</span>' : t === 3 ? '<span class="sc-pre">PLAYOFFS</span>' : '';
 
   // ── Recap ──────────────────────────────────────────────────────────────
-  // One night at a time: every final, each side's points, rebounds and assists
-  // leaders. The unit is the game, as on the NHL recap — a night has one date.
-  const recapDates = () => [...new Set((D.recap || []).map(g => g.date))].sort();
+  // One night at a time, built around what the tool prices: the first basket,
+  // every three, the double/triple-doubles — each graded against our last
+  // pre-tip price (nba/prices-history.json). No NBA clips exist to show, so
+  // the shots are drawn: ESPN logs where every field goal was taken
+  // (scripts/nba-recap.js — x 0-50 ft across, y out from the rim at (25, 1)).
+  let RC = null, PH = null, rcState = 'idle';
+  function loadRecap() {
+    if (rcState !== 'idle') return;
+    rcState = 'loading';
+    Promise.all([dataFetch('recap.json', { cache: 'no-store' }).then(r => r.json()),
+                 dataFetch('prices-history.json', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ days: {} }))])
+      .then(([r, h]) => { RC = r; PH = h; rcState = 'ready'; })
+      .catch(() => { rcState = 'error'; })
+      .finally(() => { if (activeNav === 'recap') renderRecap(); });
+  }
+  const rcGames = () => Object.values(RC?.games || {});
+  const recapDates = () => [...new Set((RC ? rcGames() : D.recap || []).map(g => g.date))].sort();
   function setRecapDate(d) { recapDate = d; renderRecap(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
   function shiftRecapDate(n) {
     const ds = recapDates(), i = ds.indexOf(recapDate) + n;
     if (i >= 0 && i < ds.length) setRecapDate(ds[i]);
   }
   function recapToLatest() { const ds = recapDates(); setRecapDate(ds[ds.length - 1]); }
-  const LEAD_KEYS = [['points', 'PTS'], ['rebounds', 'REB'], ['assists', 'AST']];
+
+  // box: pid -> [name, team, starter, min, pts, reb, ast, stl, blk, tpm, tpa]
+  const BX = { name: 0, team: 1, st: 2, min: 3, pts: 4, reb: 5, ast: 6, stl: 7, blk: 8, tpm: 9, tpa: 10 };
+  const cats10 = (b) => [b[BX.pts], b[BX.reb], b[BX.ast], b[BX.stl], b[BX.blk]].filter(v => v >= 10).length;
+  const shortName = (n) => { const w = (n || '').split(' '); return w.length > 1 ? `${w[0][0]}. ${w.slice(1).join(' ')}` : n; };
+  const fbKind = (fb) => fb.v === 3 ? (fb.kind || 'jumper').replace(/jumper$|shot$/, '') .trim() + ' three' : (fb.kind || '');
+  const clockLbl = (per, sec) => `${per > 4 ? (per === 5 ? 'OT' : `${per - 4}OT`) : `Q${per}`} ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+  // the board's "best line": the rung closest to even. p = P(1+) .. P(5+)
+  const bestRung = (p) => p.reduce((k, v, i) => Math.abs(v - 0.5) < Math.abs(p[k] - 0.5) ? i : k, 0);
+  const gradeChip = (hit, txt) => `<span class="rx-grade ${hit ? 'hit' : 'miss'}">${hit ? '✓' : '✗'} ${txt}</span>`;
+  const teamCol = (ab) => D.teams?.[ab]?.color || 'var(--muted)';
+  /** The two sides' dot colours: the home side takes its alternate when the primaries are too alike (MEM navy vs PHI blue). */
+  function gameCols(G) {
+    const rgb = (h) => (h || '#888888').match(/[0-9a-f]{2}/gi).map(x => parseInt(x, 16));
+    const far = (a, b) => { const [x, y] = [rgb(a), rgb(b)]; return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]) > 120; };
+    const a = D.teams?.[G.away]?.color, h = D.teams?.[G.home]?.color, h2 = D.teams?.[G.home]?.alt;
+    return { [G.away]: a || '#8a94a6', [G.home]: !a || !h || far(a, h) ? (h || '#8a94a6') : (h2 && far(a, h2) ? h2 : h) };
+  }
+
+  // ── The court: a half court, the basket at the top, 10 px a foot ──────
+  const CX = (x) => x * 10, CY = (y) => (Math.min(y, 44) + 4.25) * 10;
+  function courtSvg(G) {
+    const ln = 'class="rx-line"';
+    const arcY = 1 + Math.sqrt(23.75 ** 2 - 22 ** 2);
+    const TC = gameCols(G);
+    const dots = G.threes.map((t, i) => {
+      const c = TC[G.box[t[0]]?.[BX.team]] || 'var(--muted)';
+      return `<circle class="rx-dot ${t[3] ? 'made' : 'miss'}" data-i="${i}" cx="${CX(t[1])}" cy="${CY(t[2])}" r="7" style="--tc:${c}" onclick="event.stopPropagation();rxPlay('${G.gid}',[${i}])"/>`;
+    }).join('');
+    const fb = G.fb && G.fb.x != null ? `<path class="rx-fb" d="M${CX(G.fb.x)},${CY(G.fb.y) - 11}l11,11l-11,11l-11,-11z" onclick="event.stopPropagation();rxFirst('${G.gid}')"/>` : '';
+    return `<svg class="rx-court" viewBox="0 0 500 490" role="img" aria-label="Every three of the game on a half court">
+      <rect x="0" y="0" width="500" height="490" class="rx-floor"/>
+      <image href="${teamLogo(G.home)}" x="195" y="270" width="110" height="110" class="rx-logo" preserveAspectRatio="xMidYMid meet"/>
+      <rect x="170" y="0" width="160" height="190" class="rx-paint"/>
+      <circle cx="250" cy="190" r="60" ${ln}/>
+      <path d="M210,${CY(1)} A40,40 0 0 0 290,${CY(1)}" ${ln}/>
+      <line x1="30" y1="0" x2="30" y2="${CY(arcY)}" ${ln}/><line x1="470" y1="0" x2="470" y2="${CY(arcY)}" ${ln}/>
+      <path d="M30,${CY(arcY)} A237.5,237.5 0 0 0 470,${CY(arcY)}" ${ln}/>
+      <line x1="220" y1="${CY(-0.25)}" x2="280" y2="${CY(-0.25)}" class="rx-board"/>
+      <circle cx="250" cy="${CY(1)}" r="7.5" class="rx-rim"/>
+      <circle cx="250" cy="${CY(1)}" r="7.5" class="rx-flash"/>
+      <path d="M190,470 A60,60 0 0 1 310,470" ${ln}/><line x1="0" y1="470" x2="500" y2="470" ${ln}/>
+      <g class="rx-dots">${dots}</g>${fb}
+      <ellipse class="rx-shadow" cx="-99" cy="-99" rx="9" ry="4"/>
+      <circle class="rx-ball" cx="-99" cy="-99" r="8"/>
+    </svg>`;
+  }
+
+  // ── Animation: plan position along the floor, height faked with the ball's size ──
+  const rxAnim = {};
+  const rxReduce = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  function rxEls(gid) { const w = document.getElementById('rx-' + gid); return w && { w, svg: w.querySelector('.rx-court'), ball: w.querySelector('.rx-ball'), sh: w.querySelector('.rx-shadow'), flash: w.querySelector('.rx-flash'), cap: w.querySelector('.rx-cap') }; }
+  function rxPlace(E, x, y, h) {
+    E.ball.setAttribute('cx', CX(x)); E.ball.setAttribute('cy', CY(y) - h * 30); E.ball.setAttribute('r', 8 + h * 5);
+    E.sh.setAttribute('cx', CX(x)); E.sh.setAttribute('cy', CY(y) + 4); E.sh.style.opacity = 0.5 - h * 0.3;
+  }
+  /** Run steps in order: each is { dur, frame(f) } — one requestAnimationFrame chain per game card. */
+  function rxRun(gid, steps, done) {
+    cancelAnimationFrame(rxAnim[gid]);
+    const E = rxEls(gid); if (!E) return;
+    let i = 0, t0 = null;
+    const tick = (ts) => {
+      if (t0 == null) t0 = ts;
+      const s = steps[i], f = Math.min(1, (ts - t0) / s.dur);
+      s.frame(f, E);
+      if (f >= 1) { i++; t0 = ts; if (i >= steps.length) { done?.(E); return; } }
+      rxAnim[gid] = requestAnimationFrame(tick);
+    };
+    rxAnim[gid] = requestAnimationFrame(tick);
+  }
+  const ease = (f) => f < 0.5 ? 2 * f * f : 1 - (-2 * f + 2) ** 2 / 2;
+  /** One shot: the flight from his spot to the rim, then the swish or the bounce off. */
+  function shotSteps(x, y, made, seed, fast) {
+    const d = Math.hypot(x - 25, y - 1), dur = (fast ? 380 : 620) + d * (fast ? 6 : 14);
+    const ang = (seed * 2.399) % (2 * Math.PI), bx = 25 + Math.cos(ang) * 4, by = Math.max(-2, 1 + Math.abs(Math.sin(ang)) * 5);
+    return [
+      { dur, frame: (f, E) => { const e = ease(f); rxPlace(E, x + (25 - x) * e, y + (1 - y) * e, Math.sin(Math.PI * f) * Math.min(1, d / 22)); } },
+      made ? { dur: fast ? 160 : 320, frame: (f, E) => { rxPlace(E, 25, 1, 0); E.ball.setAttribute('r', 8 * (1 - f * 0.6)); E.flash.style.opacity = 1 - f; E.flash.setAttribute('r', 7.5 + f * 22); } }
+           : { dur: fast ? 220 : 420, frame: (f, E) => rxPlace(E, 25 + (bx - 25) * f, 1 + (by - 1) * f, Math.sin(Math.PI * f) * 0.35) },
+    ];
+  }
+  function rxCaption(E, html) { if (E?.cap) E.cap.innerHTML = html; }
+  function rxHighlight(E, idx) { E.svg.querySelectorAll('.rx-dot').forEach(el => el.classList.toggle('dim', idx != null && !idx.includes(+el.dataset.i))); }
+  /** Play threes of a game, one after another; a single one is slower and captioned. */
+  function rxPlay(gid, idx) {
+    const G = RC?.games?.[gid], E = rxEls(gid); if (!G || !E) return;
+    idx = idx || G.threes.map((_, i) => i);
+    rxHighlight(E, idx);
+    const cap = (t) => { const b = G.box[t[0]] || [], a = t[6] ? G.box[t[6]] : null, ft = Math.round(Math.hypot(t[1] - 25, t[2] - 1));
+      return `<b>${esc(shortName(b[BX.name]))}</b> · ${ft}-ft ${esc(t[7] || 'three')} · ${clockLbl(t[4], t[5])} · <span class="${t[3] ? 'rx-made' : 'rx-missed'}">${t[3] ? 'made' : 'missed'}</span>${a ? ` <span class="dim">(${esc(shortName(a[BX.name]))} assist)</span>` : ''}`; };
+    if (rxReduce()) { if (idx.length === 1) rxCaption(E, cap(G.threes[idx[0]])); return; }
+    const fast = idx.length > 3, steps = [];
+    idx.forEach((i, n) => {
+      const t = G.threes[i];
+      steps.push({ dur: 1, frame: (f, E2) => { rxCaption(E2, cap(t) + (idx.length > 1 ? ` <span class="dim">· ${n + 1}/${idx.length}</span>` : '')); E2.svg.querySelectorAll('.rx-dot').forEach(el => el.classList.toggle('now', +el.dataset.i === i)); } });
+      steps.push(...shotSteps(t[1], t[2], t[3], i, fast));
+    });
+    rxRun(gid, steps, (E2) => { rxPlace(E2, -99, -99, 0); E2.svg.querySelectorAll('.rx-dot.now').forEach(el => el.classList.remove('now')); });
+  }
+  /** The opening tip to the winning side, then the first basket from where it was taken. */
+  function rxFirst(gid) {
+    const G = RC?.games?.[gid], E = rxEls(gid); if (!G?.fb || !E) return;
+    const fb = G.fb, who = G.box[fb.pid]?.[BX.name] || '', a = fb.ast ? G.box[fb.ast]?.[BX.name] : null;
+    const ft = fb.x != null ? Math.round(Math.hypot(fb.x - 25, fb.y - 1)) : null;
+    const tip = G.tip ? `${esc(G.tip.won)} win the tip` : '';
+    rxHighlight(E, []);
+    rxCaption(E, `${tip ? tip + ' · ' : ''}<b>${esc(shortName(who))}</b> scores first · ${ft != null ? `${ft}-ft ` : ''}${esc(fbKind(fb))} · ${clockLbl(fb.per, fb.sec)}${a ? ` <span class="dim">(${esc(shortName(a))} assist)</span>` : ''}`);
+    if (rxReduce() || fb.x == null) return;
+    const toX = fb.x, toY = fb.y;
+    rxRun(gid, [
+      { dur: 700, frame: (f, E2) => rxPlace(E2, 25, 42.75, Math.sin(Math.PI * f) * 1.3) },                       // the jump ball
+      { dur: 900, frame: (f, E2) => { const e = ease(f); rxPlace(E2, 25 + (toX - 25) * e, 42.75 + (toY - 42.75) * e, 0.15 * Math.abs(Math.sin(Math.PI * 4 * f))); } },   // brought up
+      ...shotSteps(toX, toY, 1, 0, false),
+    ], (E2) => rxPlace(E2, -99, -99, 0));
+  }
+
   function renderRecap() {
     const el = dataGate('recap-content'); if (!el) return;
+    loadRecap();
+    if (rcState === 'loading' || rcState === 'idle') { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
     const ds = recapDates();
-    if (!ds.length) { el.innerHTML = `<div class="empty">No games have been played yet this season${D.phase === 'pre' || D.phase === 'off' ? ' — opening night is ' + dayLabel(regStart(), true) : ''}.</div>`; return; }
+    if (!ds.length) { el.innerHTML = `<div class="empty">No games have been played yet${D.phase === 'pre' || D.phase === 'off' ? ' — opening night is ' + dayLabel(regStart(), true) : ''}.</div>`; return; }
     if (recapDate == null || !ds.includes(recapDate)) recapDate = ds[ds.length - 1];
     const i = ds.indexOf(recapDate), atFirst = i <= 0, atLast = i >= ds.length - 1;
-    const games = D.recap.filter(g => g.date === recapDate);
-    const side = (x) => `<div class="rc-list">${LEAD_KEYS.map(([k, lab]) => {
-      const L = x.leaders?.[k]; if (!L) return '';
-      return `<div class="rc-card">${faceHtml(L.pid, L.name)}
-        <div class="rc-info"><div class="rc-name">${esc(L.name)}</div><div class="rc-sub">${esc(x.ab)} · led in ${lab.toLowerCase()}</div></div>
-        <div class="rc-detail"><div><div class="rc-clock">${esc(L.v)}</div><div class="rc-run">${lab}</div></div></div></div>`;
-    }).join('')}</div>`;
+    const games = rcGames().filter(g => g.date === recapDate).sort((a, b) => a.gid.localeCompare(b.gid));
+    const P = PH?.days?.[recapDate] || null;
+    // ── the night, graded ──
+    let fbPicked = 0, fbHit = 0, t3Made = 0, t3Att = 0, dd = 0, td = 0, t3Priced = 0, t3Hit = 0;
+    for (const G of games) {
+      t3Att += G.threes.length; t3Made += G.threes.filter(t => t[3]).length;
+      for (const b of Object.values(G.box)) { const c = cats10(b); if (c >= 2) dd++; if (c >= 3) td++; }
+      const fp = P?.fb?.[G.gid];
+      if (fp && G.fb) { const top = Object.entries(fp).sort((a, b) => b[1] - a[1])[0]; fbPicked++; if (top?.[0] === G.fb.pid) fbHit++; }
+      if (P?.t3) for (const [pid, b] of Object.entries(G.box)) { const e = P.t3[pid]; if (!e) continue; const k = bestRung(e.slice(1)); t3Priced++; if (b[BX.tpm] >= k + 1) t3Hit++; }
+    }
+    const tiles = `<div class="hm-tiles rx-tiles">
+      <div class="hm-tile"><b>${t3Made}/${t3Att}</b><span>Threes made</span></div>
+      <div class="hm-tile"><b>${fbPicked ? `${fbHit}/${fbPicked}` : '—'}</b><span>First basket · our pick</span></div>
+      <div class="hm-tile"><b>${t3Priced ? `${t3Hit}/${t3Priced}` : '—'}</b><span>Threes · over his best line</span></div>
+      <div class="hm-tile"><b>${dd}${td ? ` · ${td} TD` : ''}</b><span>Double-doubles</span></div>
+    </div>`;
     const body = games.map(G => {
-      const aWin = G.away.score > G.home.score;
-      return `<div class="rg">
+      const aWin = G.as > G.hs, fp = P?.fb?.[G.gid];
+      // first basket
+      let fbHtml = '<div class="rx-none">No first basket logged.</div>';
+      if (G.fb) {
+        const b = G.box[G.fb.pid] || [], mine = fp?.[G.fb.pid];
+        const top = fp ? Object.entries(fp).sort((a, b2) => b2[1] - a[1])[0] : null;
+        const hit = top && top[0] === G.fb.pid;
+        const ft = G.fb.x != null ? `${Math.round(Math.hypot(G.fb.x - 25, G.fb.y - 1))}-ft ` : '';
+        fbHtml = `<div class="rx-row" onclick="rxFirst('${G.gid}')">
+          ${faceHtml(G.fb.pid, b[BX.name])}
+          <div class="rx-info"><div class="rx-nm">${esc(b[BX.name] || '')} <span class="dim">${esc(G.fb.team || '')}</span></div>
+            <div class="rx-sub">${ft}${esc(fbKind(G.fb))} · ${clockLbl(G.fb.per, G.fb.sec)}${G.tip ? ` · ${esc(G.tip.won)} won the tip` : ''}</div></div>
+          <div class="rx-right">${mine != null ? `<span class="rx-odds">${fairOdds(mine)}</span>` : ''}
+            ${top ? hit ? gradeChip(true, 'our pick') : `<span class="rx-grade miss">our pick: ${esc((G.box[top[0]]?.[BX.name] || '').split(' ').slice(-1)[0])} ${fairOdds(top[1])}</span>` : ''}</div>
+        </div>`;
+      }
+      // threes, by player
+      const by = {};
+      G.threes.forEach((t, j) => { (by[t[0]] ||= []).push(j); });
+      const T3 = P?.t3 || {};
+      const shooters = Object.entries(by).map(([pid, idx]) => ({ pid, idx, b: G.box[pid] || [], m: idx.filter(j => G.threes[j][3]).length }))
+        .sort((a, b) => b.m - a.m || a.idx.length - b.idx.length).slice(0, 6);
+      const TC = gameCols(G);
+      const team3 = (ab) => { const s = G.threes.filter(t => G.box[t[0]]?.[BX.team] === ab); return `<span class="rx-team3"><i class="rx-sw" style="background:${TC[ab]}" title="${esc(ab)}'s shots on the court"></i>${logoImg(ab, 'rx-tlogo')}<b>${s.filter(t => t[3]).length}/${s.length}</b></span>`; };
+      const t3Rows = shooters.map(s => {
+        const e = T3[s.pid]; let g = '';
+        if (e) { const k = bestRung(e.slice(1)); g = gradeChip(s.m >= k + 1, `o${k + 0.5} ${fairOdds(e[k + 1])}`); }
+        return `<div class="rx-row" onclick="rxPlay('${G.gid}',[${s.idx.join(',')}])">
+          ${faceHtml(s.pid, s.b[BX.name])}
+          <div class="rx-info"><div class="rx-nm">${esc(s.b[BX.name] || '')} <span class="dim">${esc(s.b[BX.team] || '')}</span></div>
+            <div class="rx-sub">${e ? `proj ${e[0].toFixed(1)} · ` : ''}${s.b[BX.min] ?? 0} min</div></div>
+          <div class="rx-right"><span class="rx-stat">${s.m}<small>/${s.idx.length}</small></span>${g}</div>
+        </div>`;
+      }).join('');
+      // double / triple-doubles
+      const dbl = Object.entries(G.box).filter(([, b]) => cats10(b) >= 2).sort((a, b) => cats10(b[1]) - cats10(a[1]) || b[1][BX.pts] - a[1][BX.pts]);
+      const dblRowsH = dbl.map(([pid, b]) => {
+        const t = cats10(b) >= 3, e = P?.dbl?.[pid];
+        const line = [['pts', 'PTS'], ['reb', 'REB'], ['ast', 'AST'], ['stl', 'STL'], ['blk', 'BLK']].filter(([k]) => b[BX[k]] >= 10 || ['pts', 'reb', 'ast'].includes(k)).map(([k, l]) => `${b[BX[k]]} ${l}`).join(' · ');
+        return `<div class="rx-row" onclick="funOpen('${t ? 'td' : 'dd'}','${pid}')">
+          ${faceHtml(pid, b[BX.name])}
+          <div class="rx-info"><div class="rx-nm">${esc(b[BX.name])} <span class="dim">${esc(b[BX.team])}</span>${t ? ' <span class="rx-td">TRIPLE-DOUBLE</span>' : ''}</div>
+            <div class="rx-sub">${line}</div></div>
+          <div class="rx-right">${e ? `<span class="rx-odds">${fairOdds(t ? e[1] : e[0])}</span><span class="rx-sub">we priced ${t ? 'TD' : 'DD'}</span>` : ''}</div>
+        </div>`;
+      }).join('');
+      return `<div class="rg rx" id="rx-${G.gid}">
         <div class="rg-head">
           <span class="rg-score">
-            ${logoImg(G.away.ab, 'rg-logo')}<span class="${aWin ? 'w' : ''}">${esc(G.away.ab)} ${G.away.score}</span>
+            ${logoImg(G.away, 'rg-logo')}<span class="${aWin ? 'w' : ''}">${esc(G.away)} ${G.as}</span>
             <span style="color:var(--dim)">–</span>
-            <span class="${!aWin ? 'w' : ''}">${G.home.score} ${esc(G.home.ab)}</span>${logoImg(G.home.ab, 'rg-logo')}
-          </span>
-          ${typeTag(G.type)}${G.note ? `<span class="rg-end">${esc(G.note)}</span>` : ''}
+            <span class="${!aWin ? 'w' : ''}">${G.hs} ${esc(G.home)}</span>${logoImg(G.home, 'rg-logo')}
+          </span>${G.ot ? `<span class="rg-end">${G.ot > 1 ? G.ot : ''}OT</span>` : ''}${typeTag(G.type)}
         </div>
-        ${side(G.away)}${side(G.home)}
+        <div class="rx-grid">
+          <div class="rx-courtwrap">
+            ${courtSvg(G)}
+            <div class="rx-cap">Every three of the game — filled made, hollow missed. Tap a shot or a player to replay it.</div>
+            <div class="rx-btns">
+              <button class="rx-btn" onclick="rxFirst('${G.gid}')" ${G.fb ? '' : 'disabled'}>◆ First basket</button>
+              <button class="rx-btn" onclick="rxPlay('${G.gid}')" ${G.threes.length ? '' : 'disabled'}>▶ Every three</button>
+            </div>
+          </div>
+          <div class="rx-side">
+            <div class="rx-sec">First basket</div>${fbHtml}
+            <div class="rx-sec">Threes ${team3(G.away)}${team3(G.home)}</div>${t3Rows || '<div class="rx-none">No threes attempted.</div>'}
+            <div class="rx-sec">Double-doubles</div>${dblRowsH || '<div class="rx-none">None tonight.</div>'}
+          </div>
+        </div>
       </div>`;
     }).join('');
     el.innerHTML = `<div class="rc-wknav">
@@ -1219,7 +1466,8 @@
         </div>
         ${atLast ? '' : `<button class="rc-latest" onclick="recapToLatest()">Latest night →</button>`}
       </div>
-      <div class="result-meta"><b>${dayLabel(recapDate, true)}</b> · ${games.length} games</div>
+      <div class="result-meta"><b>${dayLabel(recapDate, true)}</b> · ${games.length} game${games.length === 1 ? '' : 's'}${P ? ' · graded against our last pre-tip prices' : ' · not priced'}</div>
+      ${tiles}
       ${body || '<div class="empty">Nothing final on this date.</div>'}`;
   }
 
@@ -2112,7 +2360,7 @@
       </div>` : '';
 
     // ── Last night ─────────────────────────────────────────────────────────
-    const ds = recapDates(), lastNight = ds[ds.length - 1];
+    const ds = [...new Set((D.recap || []).map(g => g.date))].sort(), lastNight = ds[ds.length - 1];
     const last = lastNight ? D.recap.filter(g => g.date === lastNight) : [];
     const top = last.flatMap(g => [g.away, g.home].map(x => x.leaders?.points && { ...x.leaders.points, team: x.ab }).filter(Boolean))
       .sort((a, b) => (+b.v || 0) - (+a.v || 0)).slice(0, 4);
