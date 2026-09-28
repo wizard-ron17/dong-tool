@@ -439,6 +439,10 @@ const PASS_MODEL = JSON.parse(
  * appears in, preferring the later season when two QBs split a room. Returns
  * team -> pid.
  */
+/** nfl/qb-overrides.json: [{ season, week, team, pid (gsis), why }] — hand-entered late QB news. */
+function loadQbOverrides() {
+  try { return JSON.parse(fs.readFileSync(new URL('../nfl/qb-overrides.json', import.meta.url), 'utf8')); } catch (e) { return []; }
+}
 export function passStarters(roster, passLog, season, depth = new Map(), ruledOut = new Set()) {
   // The published depth chart decides the starter when it has one. Last
   // season's attempt volume was the only signal before, and it picks the
@@ -1016,6 +1020,15 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   }
 
   const starterQb = passStarters(roster, passLog, season, depth, outIds);
+  // Late QB news no feed carries: a healthy backup benched for the third
+  // stringer (CHI wk 3 2026: Bagent "Questionable"/Active, Keenum starting on
+  // Glazer's report — the depth chart and ESPN still listed Bagent 2nd). The
+  // override names the starter for one season + week, so it lapses by itself.
+  for (const o of loadQbOverrides()) {
+    if (o.season !== season || o.week !== week || !roster.has(o.pid)) continue;
+    console.log(`  QB override: ${o.team} starts ${roster.get(o.pid)?.name ?? o.pid} (was ${roster.get(starterQb.get(o.team))?.name ?? '—'}) — ${o.why || ''}`);
+    starterQb.set(o.team, o.pid);
+  }
   console.log(`  passing market: ${starterQb.size} starting QBs identified`);
 
   // Two passes: gather every player's features first so team snap shares can be
