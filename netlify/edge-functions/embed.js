@@ -33,8 +33,8 @@ const ROUTES = {
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-// The multi-sport landing + the Tud and Goal Tools live outside the MLB (/mlb) route tree.
-const LANDING = { title: "Ron's Tools", desc: "Pick your sport — MLB home runs, strikeouts and walks; NFL touchdowns and yards; NHL goals, shots, saves and hits. Every prop priced, with parlays and line movement. Inspired by Green Means Go." };
+// The multi-sport landing + the Tud, Goal and Hoop Tools live outside the MLB (/mlb) route tree.
+const LANDING = { title: "Ron's Tools", desc: "Pick your sport — MLB home runs, strikeouts and walks; NFL touchdowns and yards; NHL goals, shots, saves and hits; NBA threes, points, rebounds and assists. Every prop priced, with parlays and line movement. Inspired by Green Means Go." };
 const NFL_ROUTES = {
   '':      { title: "Ron's Tud Tool", desc: "NFL touchdown prices, receptions and completions projections, TD leaders, schedule, and the correlated-parlay Pairs tool." },
   picks:   { title: "TD Picks · Ron's Tud Tool", desc: "Every skill player on the slate, priced to score a touchdown — and every starting QB, priced to throw one." },
@@ -71,11 +71,28 @@ const NHL_ROUTES = {
   schedule:   { title: "Schedule · Ron's Goal Tool", desc: "Every game with its DraftKings lines and line movement, our favourite to score, projections, the matchup, and live win probability." },
 };
 
+const NBA_ROUTES = {
+  '':         { title: "Ron's Hoop Tool", desc: "NBA player props, every line priced — threes, points, rebounds, assists, PRA, steals and blocks, double- and triple-doubles and the first basket — plus droughts, milestones and a nightly recap." },
+  threes:     { title: "Threes · Ron's Hoop Tool", desc: "Every rotation player priced 1+ to 5+ made threes — his minutes, his shooting rate and the matchup." },
+  points:     { title: "Points · Ron's Hoop Tool", desc: "Projected points, rebounds, assists and PRA for every rotation player, priced at every line." },
+  pra:        { title: "Pts + Reb + Ast · Ron's Hoop Tool", desc: "Points, rebounds and assists together — projected PRA for every rotation player, priced at every line." },
+  stocks:     { title: "Steals & Blocks · Ron's Hoop Tool", desc: "Projected steals, blocks and stocks for every rotation player, priced at every line." },
+  doubles:    { title: "Double & Triple-Doubles · Ron's Hoop Tool", desc: "Every rotation player priced for a double-double and a triple-double — two or three categories at 10+, priced together over his minutes." },
+  first:      { title: "First Basket · Ron's Hoop Tool", desc: "Who scores the game's first field goal — the opening tip, the line and each starter's own first-basket record." },
+  due:        { title: "Due · Ron's Hoop Tool", desc: "Droughts on tonight's board — threes, double-doubles, triple-doubles and first baskets (and why nobody is owed one)." },
+  milestones: { title: "Milestones · Ron's Hoop Tool", desc: "Who's closing on a round number — career points, rebounds, assists, threes, steals, blocks and triple-doubles — and who just got there 🏆." },
+  birthdays:  { title: "Birthdays · Ron's Hoop Tool", desc: "Who's celebrating this week, who plays on the day, and whether birthday boys actually score 🎂." },
+  stats:      { title: "Leaders · Ron's Hoop Tool", desc: "Season leaders — points, rebounds, assists, threes, steals and blocks per game." },
+  recap:      { title: "Recap · Ron's Hoop Tool", desc: "Every final of the night, game by game — each side's points, rebounds and assists leaders." },
+  schedule:   { title: "Schedule · Ron's Hoop Tool", desc: "Every game with its spread and total, each game's top threes pick, and the matchup." },
+};
+
 function metaFor(pathname) {
   const segs = (pathname || '/').split('/').filter(Boolean);
   if (segs[0] === 'mlb') return ROUTES[segs[1] || ''] || ROUTES['']; // /mlb, /mlb/picks, /mlb/due/results
   if (segs[0] === 'nfl') return NFL_ROUTES[segs[1] || ''] || NFL_ROUTES['']; // /nfl, /nfl/pairs …
   if (segs[0] === 'nhl') return NHL_ROUTES[segs[1] || ''] || NHL_ROUTES['']; // /nhl, /nhl/recap …
+  if (segs[0] === 'nba') return NBA_ROUTES[segs[1] || ''] || NBA_ROUTES['']; // /nba, /nba/threes …
   return LANDING; // "/" and anything else -> the sport picker
 }
 
