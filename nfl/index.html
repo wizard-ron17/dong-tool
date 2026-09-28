@@ -2265,6 +2265,7 @@
   .pbx-table td.on { background-color: color-mix(in srgb, var(--accent) 8%, transparent); }
   .pbx-table th.pbx-div, .pbx-table td.pbx-div { border-right: 1px solid var(--border2); }
   .pbx { font-family: var(--font-d); font-weight: 700; }
+  .pbx-fair small { display: block; font-size: 0.66rem; font-weight: 400; color: var(--muted); line-height: 1.1; }
   .pbx.g { color: var(--good); } .pbx.r { color: var(--bad); } .pbx.n { color: var(--muted); }
   .pbx-bar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin: 0 0 0.6rem; }
   .pbx-in { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; color: var(--muted); background: var(--surface0); border: 1px solid var(--border); border-radius: 7px; padding: 0.2rem 0.45rem; }
@@ -4395,14 +4396,13 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
         ${th('role', 'Role ×', 'num', 'Who he is: touches, snaps, TD share, red zone (and goal-line carries for a QB). The NFL version of MLB Power.')}
         ${th('trend', 'Trend ×', 'num', 'His last three games vs his usual touches — a role growing (green) or shrinking (red).')}
         ${th('spot', 'Spot ×', 'num pbx-div', 'This game: his team\'s implied total and teammates ruled out. Mostly the team total — opposing defense tested as a null.')}
-        ${th('pct', 'Chance', 'num')}${th('touch', 'Touch/g', 'num')}${th('touch3', 'L3/g', 'num')}${th('snap3', 'Snap%', 'num')}${th('tds', 'TD share', 'num')}${th('rz', 'RZ/g', 'num')}${th('imp', 'Total', 'num')}${th('time', 'Game')}</tr></thead>
+        ${th('touch', 'Touch/g', 'num')}${th('touch3', 'L3/g', 'num')}${th('snap3', 'Snap%', 'num')}${th('tds', 'TD share', 'num')}${th('rz', 'RZ/g', 'num')}${th('imp', 'Total', 'num')}${th('time', 'Game')}</tr></thead>
       <tbody>${rows.map((r, i) => { const x = pbFx(r), f = r.f || {}; return `<tr onclick="openPick('${r.pid}')"${parAttr(pbLeg(r))}>
         <td class="num">${r.rank ?? i + 1}</td>
         ${td('name', `${r.name}${f.newAbsence ? ' <span class="pb-flag">ROLE OPEN</span>' : ''}`, 'nm')}
         ${td('pos', posBadge(r.pos), '')}
-        <td class="od${pbP(r) < 0.5 ? ' dog' : ''}${on('p')}">${pbOdds(pbP(r))}</td>
+        <td class="od pbx-fair${pbP(r) < 0.5 ? ' dog' : ''}${on('p')}" title="${(pbP(r) * 100).toFixed(1)}% to score">${pbOdds(pbP(r))}<small>${(pbP(r) * 100).toFixed(pbP(r) < 0.1 ? 1 : 0)}%</small></td>
         ${td('role', mx(x.role))}${td('trend', mx(x.trend))}${td('spot', mx(x.spot), 'num pbx-div')}
-        ${td('pct', `${(pbP(r) * 100).toFixed(pbP(r) < 0.1 ? 1 : 0)}%`)}
         ${td('touch', (f.touches ?? 0).toFixed(1))}${td('touch3', (f.touch3 ?? 0).toFixed(1))}${td('snap3', Math.round((f.snap3 ?? 0) * 100) + '%')}
         ${td('tds', Math.round((f.tdShare ?? 0) * 100) + '%')}${td('rz', (f.rz ?? 0).toFixed(1))}${td('imp', (f.implied ?? 0).toFixed(1))}
         ${td('time', `<img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}`, '')}
