@@ -297,6 +297,81 @@
   .rg-score img { width: 24px; height: 24px; object-fit: contain; }
   .rg-score .w { color: var(--accent); }
   .rg-end { font-family: var(--font-d); font-weight: 700; font-size: 0.66rem; letter-spacing: 0.06em; color: var(--gold); }
+  /* ── Tools menu (ported rule for rule from /nhl) ── */
+  #nav-tools-btn.active::after { display: none; }
+  .nav-caret { display: inline-block; font-size: 0.766rem; font-weight: 900; line-height: 1; transition: transform 0.18s; }
+  nav.tools-open .nav-caret { transform: rotate(90deg); }
+  .nav-tools-backdrop { position: fixed; inset: 0px; backdrop-filter: blur(3px); z-index: 235; background: rgba(4, 8, 16, 0.55); opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .nav-tools-backdrop.open { opacity: 1; pointer-events: auto; }
+  @media (min-width: 601px) {
+    .nav-tools-menu { position: fixed; top: 50%; left: 50%; z-index: 240; width: min(880px, 92vw); max-height: min(80vh, 760px); overflow-y: auto; background: var(--surface1); border: 1px solid var(--border2); border-radius: 20px; padding: 1.1rem 1.2rem 1.3rem; box-shadow: rgba(0, 0, 0, 0.6) 0px 30px 90px; opacity: 0; transform: translate(-50%, -46%) scale(0.94); pointer-events: none; transition: opacity 0.18s, transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.1); display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.55rem; }
+    .nav-tools-menu.open { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
+  }
+  .nav-tools-menu { --g1: #2a9fb5; --g2: #7a7ae8; --g3: #d24e8e; --g4: #c79a46; }
+  :root[data-theme="light"] .nav-tools-menu { --g1: #0097b3; --g2: #6060d8; --g3: #c73c80; --g4: #a87a22; }
+  @media (max-width: 600px) {
+    .nav-caret { display: none; }
+    .nav-tools-backdrop { background: rgba(0, 0, 0, 0.45); bottom: calc(var(--nav-bottom) + var(--nav-h)); }
+    .nav-tools-menu { position: fixed; z-index: 240; background: var(--surface1); top: auto; left: var(--nav-side); right: var(--nav-side); bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.5rem); min-width: 0px; width: auto; border: 1px solid var(--border2); border-radius: 20px; padding: 0.55rem 0.6rem 0.65rem; opacity: 1; transform: translateY(135%); visibility: hidden; transition: transform 0.24s, visibility linear 0.24s; box-shadow: rgba(0, 0, 0, 0.5) 0px 10px 34px; display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; max-height: calc(100dvh - var(--nav-bottom) - var(--nav-h) - 2rem); overflow-y: auto; }
+    .nav-tools-menu.open { transform: none; visibility: visible; transition: transform 0.24s; }
+  }
+  #nav-tools-btn { position: relative; color: var(--accent); background: color-mix(in srgb, var(--accent) 11%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
+  #nav-tools-btn:hover:not(.active):not(:disabled) { color: var(--accent); background: color-mix(in srgb, var(--accent) 19%, transparent); }
+  #nav-tools-btn.active { color: rgb(4, 23, 15); background: var(--accent); }
+  @media (max-width: 600px) {
+    #nav-tools-btn { border-radius: 14px; }
+  }
+  @media (min-width: 601px) {
+    .nav-tools-menu .nav-menu-item { display: grid; grid-template-columns: auto minmax(0px, 1fr) auto; grid-template-areas: "chip name go" "chip desc go"; align-items: center; gap: 0.1rem 0.62rem; text-align: left; padding: 0.8rem 0.85rem; border-radius: 14px; background: linear-gradient(140deg, color-mix(in srgb, var(--gc) 11%, var(--surface0)), var(--surface0) 72%); border: 1px solid color-mix(in srgb, var(--gc) 22%, var(--border)); }
+    .nav-tools-menu .nm-head { display: contents; }
+    .nav-tools-menu .nm-chip { grid-area: chip; width: 38px; height: 38px; }
+    .nav-tools-menu .nav-menu-item .nm-chip svg { width: 20px; height: 20px; }
+    .nav-tools-menu .nm-name { grid-area: name; }
+    .nav-tools-menu .nm-desc { grid-area: desc; }
+    .nav-tools-menu .nm-go { grid-area: go; margin-left: 0px; }
+    .nav-tools-menu .nav-menu-item:hover:not(:disabled) { border-color: var(--gc); background: linear-gradient(140deg, color-mix(in srgb, var(--gc) 18%, var(--surface0)), var(--surface0) 66%); transform: translateY(-1px); }
+    .nav-tools-menu .nav-menu-item:hover:not(:disabled) .nm-go { color: var(--gc); transform: translateX(2px); }
+    .nav-menu-group { grid-column: 1 / -1; }
+  }
+  .nav-menu-item { --gc: var(--accent); }
+  .nav-menu-item.g1 { --gc: var(--g1); }
+  .nav-menu-item.g2 { --gc: var(--g2); }
+  .nav-menu-item.g3 { --gc: var(--g3); }
+  .nav-menu-item.g4 { --gc: var(--g4); }
+  .nav-menu-group { grid-column: 1 / -1; display: flex; align-items: center; gap: 0.5rem; font-size: 0.655rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); padding: 0.55rem 0.3rem 0.15rem; }
+  .nav-menu-group::after { content: ""; flex: 1 1 0%; height: 1px; background: var(--border); }
+  .nav-menu-group.g1 { color: var(--g1); }
+  .nav-menu-group.g2 { color: var(--g2); }
+  .nav-menu-group.g3 { color: var(--g3); }
+  .nav-menu-group.g4 { color: var(--g4); }
+  .nav-menu-group:first-child { padding-top: 0.15rem; }
+  .nav-menu-item { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.3rem; width: 100%; background: var(--surface0); border-width: medium; border-style: none; border-color: currentcolor; border-image: none; border-radius: 11px; padding: 0.6rem 0.4rem; cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.15s; }
+  .nav-menu-item:hover:not(:disabled) { background: var(--surface2); }
+  .nav-menu-item:disabled { opacity: 0.32; cursor: not-allowed; }
+  .nav-menu-item svg { width: 21px; height: 21px; flex-shrink: 0; color: var(--muted); }
+  .nm-chip { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--gc) 18%, transparent); color: var(--gc); }
+  .nav-menu-item .nm-chip svg { width: 18px; height: 18px; color: inherit; }
+  .nav-menu-item .nm-name { font-family: var(--font-d); font-size: 1.06rem; font-weight: 700; color: var(--text); display: block; line-height: 1.2; letter-spacing: 0.005em; }
+  .nav-menu-item .nm-desc { display: block; font-size: 0.735rem; line-height: 1.35; color: var(--dim); }
+  .nm-go { margin-left: auto; align-self: center; flex-shrink: 0; color: var(--dim); font-size: 0.9rem; line-height: 1; transition: color 0.14s, transform 0.14s; }
+  .nav-menu-item.active { border-color: var(--gc); }
+  .nav-menu-item.active .nm-name { color: var(--gc); }
+  @media (max-width: 600px) {
+    .nav-menu-group { grid-column: 1 / -1; padding: 0.4rem 0.25rem 0.05rem; }
+    .nav-menu-group:first-child { padding-top: 0.1rem; }
+    .nav-menu-item { flex-direction: column; align-items: flex-start; text-align: left; gap: 0.3rem; padding: 0.6rem 0.55rem 0.62rem 0.7rem; border-radius: 12px; background: linear-gradient(140deg, color-mix(in srgb, var(--gc) 13%, var(--surface0)), var(--surface0) 70%); border-top-color: ; border-top-style: ; border-top-width: ; border-right-color: ; border-right-style: ; border-right-width: ; border-bottom-color: ; border-bottom-style: ; border-bottom-width: ; border-image-source: ; border-image-slice: ; border-image-width: ; border-image-outset: ; border-image-repeat: ; border-left: 3px solid var(--gc); }
+    .nav-menu-item:hover:not(:disabled), .nav-menu-item.active { border-top-color: ; border-right-color: ; border-bottom-color: ; border-left-color: var(--gc); }
+    .nav-menu-item .nm-name { font-size: 0.95rem; line-height: 1.2; }
+    .nav-menu-item .nm-desc { display: block; font-size: 0.7rem; line-height: 1.32; }
+    .nav-menu-item svg { width: 23px; height: 23px; }
+    .nm-chip { width: 26px; height: 26px; }
+    .nav-menu-item .nm-chip svg { width: 15px; height: 15px; }
+    .nm-head { display: flex; align-items: center; gap: 0.4rem; width: 100%; }
+    .nm-head .nm-go { font-size: 0.8rem; }
+  }
+  /* the tool you're on */
+  .nav-menu-item.active { box-shadow: inset 0 0 0 1.5px var(--gc); }
+  .nm-soon { font-size: 0.56rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); margin-left: 0.35rem; }
   /* the schedule standard: two cards a row on desktop */
   @media (min-width: 900px) { .sc-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; align-items: start; } }
   /* threes board */
@@ -399,13 +474,13 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4a8 8 0 1 1-7.6 5.5"/><path d="M4 4v5h5"/><path d="M12 8v4.4l3 1.8"/></svg>
         <span>Recap</span>
       </button>
-      <button class="nav-btn" data-nav="threes" onclick="switchNav('threes')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3v18M6.2 5.6c3 3.4 3 9.4 0 12.8M17.8 5.6c-3 3.4-3 9.4 0 12.8"/></svg>
-        <span>Threes</span>
-      </button>
       <button class="nav-btn" data-nav="schedule" onclick="switchNav('schedule')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
         <span>Schedule</span>
+      </button>
+      <button class="nav-btn" id="nav-tools-btn" onclick="toggleNavTools(event)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>
+        <span>Tools</span><span class="nav-caret">▶</span>
       </button>
     </nav>
     </div>
@@ -430,7 +505,42 @@
     </span>
   </footer>
 </div>
-<!-- Body level, beside its backdrop: inside .wrap (z-index 1) it paints under the blur. -->
+<!-- Body level, beside their backdrops: inside .wrap (z-index 1) they paint under the blur. -->
+<div class="nav-tools-menu" id="nav-tools-menu">
+  <div class="nav-menu-group g1">Offense</div>
+  <button class="nav-menu-item g1" data-nav="threes" onclick="switchNav('threes')">
+    <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5v17M6.6 5.9c2.8 3.2 2.8 8.9 0 12.2M17.4 5.9c-2.8 3.2-2.8 8.9 0 12.2"/></svg></span><span class="nm-name">Threes</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+    <span class="nm-desc">Every rotation player priced 1+ to 5+ made threes &mdash; minutes, his shooting rate and the matchup.</span>
+  </button>
+  <button class="nav-menu-item g1" disabled>
+    <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16M7 19V11M12 19V6M17 19v-5"/></svg></span><span class="nm-name">Points<span class="nm-soon">Soon</span></span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+    <span class="nm-desc">Every rotation player priced at every points line.</span>
+  </button>
+  <button class="nav-menu-item g1" disabled>
+    <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5l3 2"/></svg></span><span class="nm-name">First Basket<span class="nm-soon">Soon</span></span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+    <span class="nm-desc">Who scores the game&rsquo;s first field goal &mdash; the tip, the line and his own record.</span>
+  </button>
+  <div class="nav-menu-group g3">Defense</div>
+  <button class="nav-menu-item g3" disabled>
+    <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l7 2.5v5.5c0 4-3 7.3-7 9-4-1.7-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg></span><span class="nm-name">Steals &amp; Blocks<span class="nm-soon">Soon</span></span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+    <span class="nm-desc">Steals, blocks and stocks for every rotation player.</span>
+  </button>
+  <div class="nav-menu-group g2">Combos</div>
+  <button class="nav-menu-item g2" disabled>
+    <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="8.5" y="13" width="7" height="7" rx="1.5"/></svg></span><span class="nm-name">Double &amp; Triple-Doubles<span class="nm-soon">Soon</span></span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+    <span class="nm-desc">Two or three categories at 10+, priced together over his minutes.</span>
+  </button>
+  <button class="nav-menu-item g2" disabled>
+    <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg></span><span class="nm-name">Pts + Reb + Ast<span class="nm-soon">Soon</span></span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+    <span class="nm-desc">Combined lines &mdash; points, rebounds and assists together.</span>
+  </button>
+  <div class="nav-menu-group g4">Watchlists</div>
+  <button class="nav-menu-item g4" disabled>
+    <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c4 0 7-2.7 7-6.6 0-3.1-2.1-5.2-3.4-6.6-.4 1.9-1.4 3-2.6 3.6.2-3.4-1.6-6.2-4.5-7.9.3 3.3-2.5 5.4-3.6 7.5A6.6 6.6 0 0 0 5 14.4C5 18.3 8 21 12 21z"/></svg></span><span class="nm-name">Heating Up<span class="nm-soon">Soon</span></span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
+    <span class="nm-desc">Role changes and hot hands &mdash; rising minutes, shots and starts.</span>
+  </button>
+</div>
+<div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
 <div class="sport-menu" id="sport-menu"><a class="sport-item" href="/mlb/"><span class="sport-ico">⚾</span><span class="sport-name">Ron's Dong Tool</span><span class="sport-sub">MLB</span></a><a class="sport-item" href="/nfl/"><span class="sport-ico">🏈</span><span class="sport-name">Ron's Tud Tool</span><span class="sport-sub">NFL</span></a><a class="sport-item" href="/nhl/"><span class="sport-ico">🏒</span><span class="sport-name">Ron's Goal Tool</span><span class="sport-sub">NHL</span></a><a class="sport-item current" href="/nba/"><span class="sport-ico">🏀</span><span class="sport-name">Ron's Hoop Tool</span><span class="sport-sub">NBA</span></a></div>
 <script>
   const APP_BASE = '/nba';
@@ -483,6 +593,15 @@
   }
   document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch, .sport-menu')) closeSportMenu(); });
 
+  // ── Tools menu ─────────────────────────────────────────────────────────
+  const TOOL_NAVS = ['threes'];                     // live tools; the menu's dimmed items ship into here
+  let navToolsOpen = false;
+  function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
+  function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
+  function toggleNavTools(e) { e.stopPropagation(); navToolsOpen ? closeNavTools() : openNavTools(); }
+  document.addEventListener('click', (e) => { if (navToolsOpen && !e.target.closest('#nav-tools-menu') && !e.target.closest('#nav-tools-btn')) closeNavTools(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && navToolsOpen) closeNavTools(); });
+
   // ── Nav + routing ──────────────────────────────────────────────────────
   const NBA_NAVS = ['home', 'stats', 'recap', 'threes', 'schedule'];   // tools added here as they ship
   const PAGE_TITLES = { home: "Ron's Hoop Tool", stats: "Stats · Ron's Hoop Tool", recap: "Recap · Ron's Hoop Tool", threes: "Threes · Ron's Hoop Tool", schedule: "Schedule · Ron's Hoop Tool" };
@@ -492,8 +611,12 @@
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('visible'));
     document.getElementById('panel-' + nav)?.classList.add('visible');
     document.querySelectorAll('.nav-btn[data-nav]').forEach(b => b.classList.toggle('active', b.dataset.nav === nav));
+    // on a tool page the Tools button is the lit one, and the menu marks which tool
+    document.getElementById('nav-tools-btn')?.classList.toggle('active', TOOL_NAVS.includes(nav));
+    document.querySelectorAll('.nav-menu-item[data-nav]').forEach(b => b.classList.toggle('active', b.dataset.nav === nav));
     document.title = PAGE_TITLES[nav] || "Ron's Hoop Tool";
     renderPanel(nav);
+    closeNavTools();
     if (!applyingRoute) commitRoute();
   }
   function currentPath() { return activeNav === 'home' ? APP_BASE + '/' : APP_BASE + '/' + activeNav; }
