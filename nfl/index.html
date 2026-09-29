@@ -3082,6 +3082,13 @@
     .nt { margin-top: -0.2rem; }
     .nw-toast { left: 0.75rem; right: 0.75rem; max-width: none; bottom: calc(5rem + env(safe-area-inset-bottom)); }
   }
+  /* fantasy (half-PPR) */
+  .ff-stat { color: var(--muted); font-size: 0.74rem; }
+  .ff-card.open { border-color: var(--border2); }
+  .ff-break { display: flex; flex-wrap: wrap; gap: 0.3rem 0.8rem; margin-top: 0.35rem; font-size: 0.74rem; color: var(--text); }
+  .ff-pc b { font-family: var(--font-m, var(--font-d)); }
+  .ff-pc.dim { color: var(--muted); }
+  .rc-compact .ff-break { padding: 0.2rem 0.6rem 0.5rem 2.2rem; }
 </style>
 <script src="/sgp.js"></script>
 <script>
@@ -3176,6 +3183,10 @@
         <span class="nm-desc">Game script, bad-ball rate, and which QBs hand it over.</span>
       </button>
       <div class="nav-menu-group g3">Watch Lists</div>
+      <button class="nav-menu-item g3" data-nav="fantasy" onclick="switchNav('fantasy')">
+        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M8.5 10h7M8.5 13.5h7M8.5 17h4"/></svg></span><span class="nm-name">Fantasy</span><span class="nm-go" aria-hidden="true">→</span></span>
+        <span class="nm-desc">Half-PPR points for every player, added up from our stat projections.</span>
+      </button>
       <button class="nav-menu-item g3" data-nav="due" onclick="switchNav('due')">
         <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h11M6.5 20.5h11M8 3.5v2.6L12 12 8 17.9v2.6M16 3.5v2.6L12 12l4 5.9v2.6"/></svg></span><span class="nm-name">Due</span><span class="nm-go" aria-hidden="true">→</span></span>
         <span class="nm-desc">Red-zone work piling up with no touchdown to show for it.</span>
@@ -3326,6 +3337,7 @@
     </div>
     <div id="birthdays-content"><div class="empty">Loading…</div></div>
   </div>
+  <div id="panel-fantasy" class="panel"><div id="fantasy-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-due" class="panel">
     <div class="due-explainer" id="due-explainer-toggle" onclick="toggleExplainer('due')" aria-expanded="false">
       <div class="due-explainer-head">
@@ -3883,8 +3895,8 @@
 // too or clicking one of its own items would close it out from under the tap.
 document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch, .sport-menu')) closeSportMenu(); });
 
-  const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs', 'birthdays', 'due', 'milestones', 'returners', 'receptions', 'completions', 'interceptions', 'yards', 'kickers']; // tools added here as they ship
-  const PAGE_TITLES = { home: "Ron's Tud Tool", stats: "Stats · Ron's Tud Tool", recap: "Recap · Ron's Tud Tool", schedule: "Schedule · Ron's Tud Tool", pairs: "Pairs · Ron's Tud Tool", due: "Due · Ron's Tud Tool", milestones: "Milestones · Ron's Tud Tool", returners: "Returners · Ron's Tud Tool", kickers: "Kickers · Ron's Tud Tool" };
+  const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs', 'birthdays', 'due', 'milestones', 'returners', 'receptions', 'completions', 'interceptions', 'yards', 'kickers', 'fantasy']; // tools added here as they ship
+  const PAGE_TITLES = { home: "Ron's Tud Tool", stats: "Stats · Ron's Tud Tool", recap: "Recap · Ron's Tud Tool", schedule: "Schedule · Ron's Tud Tool", pairs: "Pairs · Ron's Tud Tool", due: "Due · Ron's Tud Tool", milestones: "Milestones · Ron's Tud Tool", returners: "Returners · Ron's Tud Tool", kickers: "Kickers · Ron's Tud Tool", fantasy: "Fantasy · Ron's Tud Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
     activeNav = nav;
@@ -5473,7 +5485,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
     </div>`;
   }
 
-  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); else if (nav === 'birthdays') renderBirthdays(); else if (nav === 'due') renderDue(); else if (nav === 'receptions') renderReceptions(); else if (nav === 'completions') renderCompletions(); else if (nav === 'interceptions') renderInterceptions(); else if (nav === 'yards') renderYards(); else if (nav === 'kickers') renderKickers(); else if (nav === 'milestones') renderMilestones(); else if (nav === 'returners') renderReturners(); }
+  function renderPanel(nav) { if (nav === 'home') renderHome(); else if (nav === 'picks') renderPicks(); else if (nav === 'recap') renderRecap(); else if (nav === 'stats') renderStats(); else if (nav === 'schedule') renderSchedule(); else if (nav === 'pairs') renderPairs(); else if (nav === 'birthdays') renderBirthdays(); else if (nav === 'due') renderDue(); else if (nav === 'receptions') renderReceptions(); else if (nav === 'completions') renderCompletions(); else if (nav === 'interceptions') renderInterceptions(); else if (nav === 'yards') renderYards(); else if (nav === 'kickers') renderKickers(); else if (nav === 'milestones') renderMilestones(); else if (nav === 'returners') renderReturners(); else if (nav === 'fantasy') renderFantasy(); }
   // ESPN team-logo CDN (transparent PNGs). nflverse abbrs are ESPN slugs
   // lowercased, save two: LA(Rams)->lar, WAS->wsh.
   const LOGO_SLUG = { LA: 'lar', WAS: 'wsh' };
@@ -7323,6 +7335,125 @@ let pairStacks = false;
     el.innerHTML = controls + meta + body;
   }
 
+  // ── Fantasy (half-PPR) ─────────────────────────────────────────────────
+  // Expected fantasy points are the sum of each stat's expected value times its
+  // weight, so this is the boards' own projections added up — nothing refit:
+  //   receptions 0.5 · receiving + rushing yards 0.1 · rushing/receiving TD 6
+  //   passing yards 0.04 · passing TD 4 · interception −2
+  // Means, not medians (yards run right-skewed). Expected TDs from the anytime
+  // board's 1+ and 2+ chances (each extra TD about as likely as the last: E = p1 / (1 − p2/p1)).
+  // No fumble model: fumbles lost (about −0.1 a week for a busy back) are left out.
+  const FF_W = { rec: 0.5, yds: 0.1, td: 6, pyds: 0.04, ptd: 4, int: -2 };
+  const FF_YPR = 10.5;                                  // league yards a catch, where a pass-catcher has no yardage row
+  const ffF = { pos: 'ALL', sort: 'pts', view: 'cards', q: '', open: false, pid: null };
+  function setFf(k, v, typing) {
+    ffF[k] = v; renderFantasy();
+    if (typing) { const i = document.getElementById('ff-search'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
+  }
+  window.setFf = setFf;
+  window.ffToggle = (pid) => { ffF.pid = ffF.pid === pid ? null : pid; renderFantasy(); };
+  function ffRows() {
+    const D = nflData, by = (a) => new Map((a || []).map(r => [r.pid, r]));
+    const rec = by(D.receptions), yr = by(D.yards?.rec), yu = by(D.yards?.rush), yp = by(D.yards?.pass), it = by(D.interceptions);
+    const out = [];
+    for (const r of D.picks?.picks || []) {
+      if (!['QB', 'RB', 'WR', 'TE'].includes(r.pos)) continue;
+      const R = rec.get(r.pid), YR = yr.get(r.pid), YU = yu.get(r.pid), YP = r.pos === 'QB' ? yp.get(r.pid) : null;
+      if (r.pos === 'QB' ? !YP : !(YR || YU)) continue;          // no yardage projection: not a fantasy piece this week
+      const p1 = r.p || 0, p2 = Math.min(r.p2 || 0, p1 * 0.95);
+      const s = {
+        rec: R?.mu || 0,
+        ryds: YR ? YR.mu : (R?.mu || 0) * FF_YPR, rydsEst: !YR && !!R?.mu,
+        uyds: YU?.mu || 0,
+        td: p1 > 0 ? p1 / (1 - p2 / p1) : 0,
+        pyds: YP?.mu || 0, ptd: r.pass?.proj || 0, int: YP ? (it.get(r.pid)?.mu || 0) : 0,
+      };
+      const pts = { rec: s.rec * FF_W.rec, yds: (s.ryds + s.uyds) * FF_W.yds, td: s.td * FF_W.td,
+                    pyds: s.pyds * FF_W.pyds, ptd: s.ptd * FF_W.ptd, int: s.int * FF_W.int };
+      out.push({ ...r, s, pts, total: Object.values(pts).reduce((a, b) => a + b, 0) });
+    }
+    const q = pbNorm(ffF.q.trim());
+    return dayScope(out)
+      .filter(r => ffF.pos === 'ALL' || r.pos === ffF.pos)
+      .sort((a, b) => ffF.sort === 'pts' ? b.total - a.total : ffF.sort === 'td' ? b.pts.td - a.pts.td : (b.pts.yds + b.pts.pyds) - (a.pts.yds + a.pts.pyds))
+      .map((r, i) => ({ ...r, rank: i + 1 }))
+      .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q) || pbNorm(r.pos) === q);
+  }
+  // the stat line behind the points, in the words a fantasy player reads
+  function ffLine(r) {
+    const s = r.s, b = [];
+    if (r.pos === 'QB') b.push(`${Math.round(s.pyds)} pass yds`, `${s.ptd.toFixed(1)} pass TD`, `${s.int.toFixed(1)} INT`);
+    if (s.uyds >= 1) b.push(`${Math.round(s.uyds)} rush yds`);
+    if (r.pos !== 'QB') b.push(`${s.rec.toFixed(1)} rec`, `${Math.round(s.ryds)}${s.rydsEst ? '*' : ''} rec yds`);
+    b.push(`${s.td.toFixed(2)} TD`);
+    return b.join(' · ');
+  }
+  function ffBreak(r) {
+    const P = r.pts, row = (lab, v) => Math.abs(v) >= 0.05 ? `<span class="ff-pc"><b>${v > 0 ? '+' : ''}${v.toFixed(1)}</b> ${lab}</span>` : '';
+    return `<div class="ff-break">${row('receptions', P.rec)}${row('yards', P.yds)}${row('TDs', P.td)}${row('passing yds', P.pyds)}${row('passing TDs', P.ptd)}${row('interceptions', P.int)}
+      <span class="ff-pc dim">= <b>${r.total.toFixed(1)}</b> half-PPR</span></div>`;
+  }
+  function renderFantasy() {
+    const el = document.getElementById('fantasy-content'); if (!el) return;
+    if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
+    if (nflData === 'error') { el.innerHTML = `<div class="empty">Couldn't load NFL data. <a href="javascript:void(0)" onclick="loadNfl()">Retry</a></div>`; return; }
+    if (!(nflData.picks?.picks || []).length) { el.innerHTML = '<div class="empty">No projections yet — they fill in once the slate has lines.</div>'; return; }
+    const rows = ffRows(), w = firstUpcomingWeek();
+    const controls = uiFilters('setFf', ffF.open, [
+      ['Position', ['ALL', 'QB', 'RB', 'WR', 'TE'].map(v => uiChip('setFf', 'pos', v, v === 'ALL' ? 'All' : v, ffF.pos, v === 'ALL' ? '' : 'pos ' + v)).join('')],
+      ['Sort', [['pts', 'Projected points'], ['yds', 'Yardage points'], ['td', 'TD points']].map(([v, l]) => uiChip('setFf', 'sort', v, l, ffF.sort)).join('')],
+    ], (ffF.pos !== 'ALL') + (ffF.sort !== 'pts')) + `
+      <div class="pb-search${ffF.q ? ' on' : ''}">
+        <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        <input type="text" id="ff-search" placeholder="Search a player, team or position…" value="${ffF.q.replace(/"/g, '&quot;')}" oninput="setFf('q',this.value,true)" autocomplete="off" spellcheck="false">
+        <button class="pb-search-x" onclick="setFf('q','')" aria-label="Clear"${ffF.q ? ' style="display:flex"' : ''}>×</button>
+      </div>`;
+    const meta = `<div class="pb-head"><span class="pb-week">${WK_LABEL(w)}</span><span class="pb-meta">${rows.length} players · half-PPR, from our stat projections</span></div>${dayBar()}${uiView('setFf', ffF.view)}`;
+    if (!rows.length) { el.innerHTML = controls + meta + '<div class="empty">Nothing matches that filter.</div>'; return; }
+    const open = (r) => `ffToggle('${r.pid}')`;
+    let body;
+    if (ffF.view === 'table') {
+      body = `<div class="rc-tablewrap"><table class="rc-table">
+        <thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Pts</th><th class="num">Rec</th><th class="num">Rec yds</th><th class="num">Rush yds</th><th class="num">TD</th><th class="num">Pass yds</th><th class="num">Pass TD</th><th class="num">INT</th></tr></thead>
+        <tbody>${rows.map(r => `
+          <tr onclick="${open(r)}">
+            <td class="num dim">${r.rank}</td>
+            <td><b>${r.name}</b> <span class="dim">${r.pos}</span></td>
+            <td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
+            <td class="num"><b>${r.total.toFixed(1)}</b></td>
+            <td class="num">${r.pos === 'QB' ? '—' : r.s.rec.toFixed(1)}</td>
+            <td class="num">${r.pos === 'QB' ? '—' : Math.round(r.s.ryds) + (r.s.rydsEst ? '*' : '')}</td>
+            <td class="num">${r.s.uyds >= 1 ? Math.round(r.s.uyds) : '—'}</td>
+            <td class="num">${r.s.td.toFixed(2)}</td>
+            <td class="num">${r.pos === 'QB' ? Math.round(r.s.pyds) : '—'}</td>
+            <td class="num">${r.pos === 'QB' ? r.s.ptd.toFixed(1) : '—'}</td>
+            <td class="num">${r.pos === 'QB' ? r.s.int.toFixed(1) : '—'}</td>
+          </tr>${ffF.pid === r.pid ? `<tr class="ff-trow"><td></td><td colspan="10">${ffBreak(r)}</td></tr>` : ''}`).join('')}</tbody></table></div>`;
+    } else if (ffF.view === 'compact') {
+      body = `<div class="rc-compact">${rows.map(r => `
+        <div class="rc-crow" onclick="${open(r)}">
+          <span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span><span class="rc-cteam">${r.team}</span>
+          <span class="rc-cproj">${r.total.toFixed(1)}</span><span class="rc-cod">${r.pos}</span><span class="rc-cline">pts</span>
+        </div>${ffF.pid === r.pid ? ffBreak(r) : ''}`).join('')}</div>`;
+    } else {
+      body = `<div class="pb-list">${rows.map(r => `
+        <div class="pb-card ff-card${ffF.pid === r.pid ? ' open' : ''}" onclick="${open(r)}">
+          <div class="pb-rank">${r.rank}</div>${faceHtml(r.pid, r.name)}
+          <div class="pb-info">
+            <div class="pb-nm">${r.name}${injChip(r.pid)}<span class="pb-flag" title="Position">${r.pos}</span></div>
+            <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</div>
+            <div class="pb-line ff-stat">${ffLine(r)}</div>
+            ${ffF.pid === r.pid ? ffBreak(r) : ''}
+          </div>
+          <div class="pb-price">
+            <span class="pb-odds">${r.total.toFixed(1)}</span>
+            <span class="pb-pct">half-PPR pts</span>
+          </div>
+        </div>`).join('')}</div>`;
+    }
+    el.innerHTML = controls + meta + body + `<div class="pt-meta" style="margin-top:0.8rem">Half-PPR: 0.5 a catch, 0.1 a rushing or receiving yard, 6 a rushing or receiving TD, 0.04 a passing yard, 4 a passing TD, −2 an interception. Each stat is our own projection from its board — the same numbers you'd bet — added up; expected points are the sum of each stat's expectation. Means, not medians. Fumbles aren't modeled and are left out. <b>*</b> no yardage projection for him this week: his projected catches at ${FF_YPR} yards each. Tap a player for the points behind his total.</div>`;
+  }
+
   // ── Receptions modal: the full ladder, plus the usage behind it ─────────
   // Receptions card: the shared ladder card (see "Ladder cards" below).
   window.openRec = (pid) => openLc('rec', pid);
@@ -9006,7 +9137,7 @@ let pairStacks = false;
   // and clearing only on visit leaves one lit forever if you never open it.
   const TOOL_SHIPPED = { receptions: '2026-09-10', completions: '2026-09-13', interceptions: '2026-09-14',
                          yards: '2026-09-14', kickers: '2026-09-15', returners: '2026-09-05',
-                         due: '2026-09-03', milestones: '2026-09-03' };
+                         due: '2026-09-03', milestones: '2026-09-03', fantasy: '2026-09-28' };
   const NEW_DAYS = 7;
   const toolsStore = 'toolsSeen:' + (location.pathname.split('/')[1] || 'root');   // NFL and MLB share an origin
   const toolsSeen = new Set((() => { try { return JSON.parse(localStorage.getItem(toolsStore) || '[]'); } catch (e) { return []; } })());
