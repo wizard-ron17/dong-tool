@@ -1251,7 +1251,8 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       r.openerLikely = !!ob?.openerLikely;
 
       let sW = starterShareFor(startStat);
-      if (r.openerLikely && startAvgIP != null) sW = Math.max(0.12, Math.min(0.35, startAvgIP / 9));
+      if (r.openerLikely && ob.openerIP) sW = ob.openerIP / 9;                        // an announced plan (pitching override)
+      else if (r.openerLikely && startAvgIP != null) sW = Math.max(0.12, Math.min(0.35, startAvgIP / 9));
       let bulkW = 0, bulkPlatoon = null, bulkSynergyRatio = null;
       if (r.openerLikely && bulk) {
         bulkW = Math.min(bulk.ipPerApp / 9, (1 - sW) * 0.8);
@@ -2597,6 +2598,36 @@ const OPENER_MIN_STARTS  = 2;
 const BULK_MIN_OUTS      = 10; // 3.1+ IP in relief = a bulk outing
 const BULK_MIN_REST_DAYS = 4;
 const BULK_SCAN_GAMES    = 10; // recent completed games to scan per team
+// Hand-entered pitching plans the feeds can't see: an announced opener /
+// bullpen game (mlb/pitching-overrides.json — [{ date, team, openerIP, bulk?,
+// bulkIP?, why }]). The listed starter covers openerIP innings (his share of
+// the HR blend, and the batters the K / walk boards price him for), the bulk
+// arm bulkIP, the pen the rest. Keyed by game date, so an entry lapses by itself.
+//   2026-09-29 WC G1: PHI opens with Luzardo into Painter; HOU goes to the pen
+//   behind Blubaugh — detectOpenerBulk flags neither (Luzardo is a 6-inning
+//   starter; Blubaugh has no starts, so he'd have got the flat 55% share).
+async function applyPitchingOverrides(todaySchedule, openerBulk) {
+  const fs = await import('node:fs');
+  let list = [];
+  try { list = JSON.parse(fs.readFileSync(new URL('../mlb/pitching-overrides.json', import.meta.url), 'utf8')); } catch (e) { return; }
+  const date = todayET();
+  for (const o of list) {
+    if (o.date !== date) continue;
+    const side = todaySchedule.flatMap(g => [g.home, g.away]).find(x => x.teamAbbr === o.team);
+    if (!side) continue;
+    side.openerIP = o.openerIP;
+    let bulk = null;
+    if (o.bulk) {
+      try {
+        const p = (await fetch(`${MLB}/people/${o.bulk}?hydrate=stats(group=[pitching],type=[season])`).then(r => r.json())).people?.[0];
+        bulk = { pid: String(o.bulk), name: p?.fullName ?? String(o.bulk), hand: p?.pitchHand?.code ?? null,
+                 ipPerApp: o.bulkIP, restDays: null, provenBulk: false, manual: true };
+      } catch (e) { bulk = { pid: String(o.bulk), name: String(o.bulk), hand: null, ipPerApp: o.bulkIP, restDays: null, provenBulk: false, manual: true }; }
+    }
+    openerBulk[o.team] = { openerLikely: true, openerIP: o.openerIP, bulk, why: o.why || null };
+    console.log(`Pitching override: ${o.team} ${side.probablePitcher ?? '?'} opens (${o.openerIP} IP)${bulk ? ` into ${bulk.name} (${o.bulkIP} IP)` : ', then the pen'} — ${o.why || ''}`);
+  }
+}
 async function detectOpenerBulk(todaySchedule, pitcherStats) {
   const out = {}; // teamAbbr -> { openerLikely: true, bulk: {...} | null }
   const todayProbables = new Set(
@@ -3364,6 +3395,7 @@ async function main() {
 
   console.log('Checking for opener situations...');
   const openerBulk = await detectOpenerBulk(todaySchedule, pitcherStats);
+  await applyPitchingOverrides(todaySchedule, openerBulk);
   const bulkPids = Object.values(openerBulk).map(o => o.bulk?.pid).filter(Boolean);
   if (bulkPids.length) Object.assign(pitcherStats, await fetchPitcherHRStats(bulkPids)); // so the client can show the bulk arm's line
 

@@ -11351,10 +11351,12 @@ function ppRankStarters(kind, sort = ppSort) {
       const raw = cnt / ps.bf;
       const pRate = (cnt + K0 * lg) / (ps.bf + K0);       // shrunk toward league
       const exp = log5(pRate, t, lg);
-      const projBF = ps.avgStartBF != null ? ps.avgStartBF
+      // an announced opener (mlb/pitching-overrides.json) is priced for his stint, not a start
+      const projBF = me.openerIP ? me.openerIP * 4.242
+                   : ps.avgStartBF != null ? ps.avgStartBF
                    : ps.avgStartIP ? ps.avgStartIP * 4.242 : null;
       const rawProj = projBF != null ? exp * projBF : null;
-      rows.push({ pid, name: playerNames[pid] || pid, team: me.teamAbbr, oppTeam: opp.teamAbbr, venue: g.venue,
+      rows.push({ pid, name: playerNames[pid] || pid, opener: me.openerIP || null, team: me.teamAbbr, oppTeam: opp.teamAbbr, venue: g.venue,
                   status: g.status, throws: me.probablePitcherThrows, raw, tRate: t, exp, bf: projBF,
                   own: teamStatus[me.teamAbbr] || null, oppStatus: teamStatus[opp.teamAbbr] || null,
                   rawProj, proj: rawProj != null && !isK ? Math.min(rawProj, KBB_BB_CAP) : rawProj,
@@ -11749,7 +11751,7 @@ function renderPitcherProp(kind) {
         <span class="pv-brank${i < PP_TRACKED ? ' on' : ''}">${i + 1}</span>
         ${muPhotoTag(r.pid, r.team)}
         <div class="pv-id">
-          <div class="pv-name">${compactPlayerName(r.name)}${injChip(r.pid)} ${hand}${statusChip}</div>
+          <div class="pv-name">${compactPlayerName(r.name)}${injChip(r.pid)} ${hand}${statusChip}${r.opener ? ` <span class="pk-opener-badge" title="Announced opener — priced for ${r.opener} innings, not a start">OPENER · ${r.opener} IP</span>` : ''}</div>
           <div class="pv-sub">${teamLogoImg(r.team, 'team-logo')}${r.team} vs ${r.oppTeam}${r.venue ? `<span class="pv-venue"> · ${r.venue}</span>` : ''}</div>
           ${(() => { const st = kbbStatusFlags(r, isK); return rankFlag || capped || st ? `<div class="pv-flags">${rankFlag}${capped ? `<span class="pv-capflag" title="Raw projection ${r.rawProj.toFixed(1)} walks — priced as ${KBB_BB_CAP}">cap · ${r.rawProj.toFixed(1)} raw</span>` : ''}${st}</div>` : ''; })()}
         </div>
