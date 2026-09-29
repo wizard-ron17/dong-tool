@@ -40,11 +40,12 @@ async function main() {
   // In the September gap that's the one about to start, which is the point.
   const UP = seasons.filter(s => ymd(s.regularSeasonEndDate) >= today).sort((a, b) => a.id - b.id)[0]
           || seasons[seasons.length - 1];
-  // The season the leader boards read from: the newest one that has been
-  // played. Before opening night that's last year — the alternative is a Stats
-  // page of 32 zeroes.
-  const started = seasons.filter(s => ymd(s.startDate) <= today);
-  const HIST = started[started.length - 1];
+  // The last COMPLETED season — every model's "last season" prior, and what the
+  // Stats page reads until the new one has games. Always the one before UP:
+  // "newest season that has started" broke on opening day (2026-09-29), when the
+  // new season had started by date but played nothing — 0 leaders, 0 skaters
+  // priced, and the degraded-build guard failed every run.
+  const HIST = seasons[seasons.indexOf(UP) - 1] || UP;
   const label = (s) => s.formattedSeasonId;
   console.log(`Season: ${label(UP)} (${ymd(UP.startDate)} → ${ymd(UP.regularSeasonEndDate)}), leaders from ${label(HIST)}`);
 
