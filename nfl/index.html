@@ -4129,6 +4129,11 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
     const utc = new Date(guess.toLocaleString('en-US', { timeZone: 'UTC' }));
     return new Date(Date.UTC(y, m - 1, d, hh + Math.round((utc - ny) / 36e5), mm));
   }
+  /** Kickoff in the reader's own clock, like the other apps (the feed's gametime is Eastern). */
+  function kickLocal(g, withDay) {
+    const k = kickoffAt(g); if (!k || !g.gametime) return '';
+    return k.toLocaleString('en-US', withDay ? { weekday: 'short', hour: 'numeric', minute: '2-digit' } : { hour: 'numeric', minute: '2-digit' });
+  }
   function gameStarted(gameId) {
     const lw = nflData?.liveWeek?.games?.[gameId];
     if (lw?.final || lw?.live) return true;
@@ -4189,13 +4194,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
   function pbKick(g) {
     if (!g) return { txt: '', ts: 0 };
     const ts = Date.parse(`${g.gameday}T${g.gametime || '13:00'}:00Z`) || 0;
-    let t = g.gametime || '';
-    if (t) {
-      const [h, mi] = t.split(':').map(Number);
-      const ap = h >= 12 ? 'p' : 'a', hh = h % 12 === 0 ? 12 : h % 12;
-      t = `${hh}:${String(mi).padStart(2, '0')}${ap}`;
-    }
-    return { txt: `${(g.weekday || '').slice(0, 3)} ${t}`.trim(), ts };
+    return { txt: kickLocal(g, true) || (g.weekday || '').slice(0, 3), ts };
   }
 
   // Odds and kickoff are display fields, added in one place so the modal cannot
@@ -5394,7 +5393,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
         <div class="gm-mid">
           ${played ? `<div class="gm-score"><span${g.awayScore > g.homeScore ? ' class="win"' : ''}>${g.awayScore}</span><i>–</i><span${g.homeScore > g.awayScore ? ' class="win"' : ''}>${g.homeScore}</span></div><div class="gm-when">Final</div>`
             : `${g.lines?.cur ? lnOU(g.lines) : `<div class="gm-lines">${g.spread != null ? `<span>${spreadLabel(g)}</span>` : ''}${g.total != null ? `<span>O/U ${g.total}</span>` : ''}</div>`}
-               <div class="gm-when">${live ? '<b class="gm-live">In progress</b>' : `${g.weekday || ''} ${g.gameday ? g.gameday.slice(5) : ''}${g.gametime ? ' · ' + g.gametime.slice(0, 5) : ''}`}</div>`}
+               <div class="gm-when">${live ? '<b class="gm-live">In progress</b>' : `${g.weekday || ''} ${g.gameday ? g.gameday.slice(5) : ''}${g.gametime ? ' · ' + kickLocal(g) : ''}`}</div>`}
           <div class="gm-wx">${WK_LABEL(g.week)} · ${wx}${at >= 0 ? ` · ${at + 1} / ${deck.length}` : ''}</div>
         </div>
         <div class="gm-team end">${played ? '' : lnSide(g.lines, true)}<b>${g.home}</b><img src="${teamLogo(g.home)}" alt="" loading="lazy"></div>
@@ -5575,7 +5574,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
   const spreadLabel = (g) => g.spread === 0 ? 'PK' : `${g.home} ${g.spread > 0 ? '-' : '+'}${Math.abs(g.spread)}`;
   function gameRow(g, { noWhen = false } = {}) {
     const played = g.homeScore != null && g.awayScore != null;
-    const time = g.gametime ? g.gametime.slice(0, 5) : '';
+    const time = kickLocal(g);
     const when = `${(g.weekday || '').slice(0, 3)}${g.gameday ? ' ' + g.gameday.slice(5) : ''}${time ? ' · ' + time : ''}`.trim();
 
     // Records. The current season's, once it has games; before that the last
@@ -8788,7 +8787,6 @@ let pairStacks = false;
   // its date and time — the header says it.
   function nflSlates(games) {
     const hm = (t) => { const [h, m] = (t || '00:00').split(':').map(Number); return h * 60 + m; };
-    const t12 = (t) => { const [h, m] = (t || '').split(':').map(Number); return isNaN(h) ? '' : `${(h + 11) % 12 + 1}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; };
     const win = (g) => { const x = hm(g.gametime); return x < 12 * 60 ? 'morning' : x < 16 * 60 ? 'early' : x < 19 * 60 ? 'late' : 'night'; };
     const out = [];
     for (const g of games) {
@@ -8799,8 +8797,9 @@ let pairStacks = false;
       const g = gs[0], w = win(g), day = g.weekday || '';
       const date = g.gameday ? new Date(g.gameday + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) : '';
       const times = [...new Set(gs.map(x => x.gametime))].sort();
+      const local = [...new Set(gs.map(x => kickLocal(x)))];
       const name = w === 'night' ? `${day} Night` : w === 'morning' ? `${day} morning` : w === 'late' ? `${day} late afternoon` : day;
-      return `<div class="sc-slate"><b>${name}</b><span>${date} · ${times.map(t12).join(' / ')} ET</span><i>${gs.length} game${gs.length === 1 ? '' : 's'}</i></div>`
+      return `<div class="sc-slate"><b>${name}</b><span>${date} · ${local.join(' / ')}</span><i>${gs.length} game${gs.length === 1 ? '' : 's'}</i></div>`
         + gs.map(x => gameRow(x, { noWhen: times.length === 1 })).join('');
     }).join('');
   }
@@ -8862,7 +8861,7 @@ let pairStacks = false;
         <img class="hm-glogo" src="${teamLogo(g.away)}" alt="" loading="lazy">
         <span class="hm-name hm-matchup">${g.away} <span class="hm-at">@</span> ${g.home}</span>
         <img class="hm-glogo" src="${teamLogo(g.home)}" alt="" loading="lazy">
-        <span class="hm-score" style="font-size:0.84rem;color:var(--muted)">${g.gametime ? g.gametime.slice(0, 5) : ''}</span></div>`).join('');
+        <span class="hm-score" style="font-size:0.84rem;color:var(--muted)">${kickLocal(g)}</span></div>`).join('');
 
     // ── Leaders, pairs, birthdays ─────────────────────────────────────
     const leaders = (nflData.tdLeaders || []).slice(0, 4).map((l, i) => `
