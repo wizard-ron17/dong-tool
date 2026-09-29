@@ -14,16 +14,16 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ICONS = os.path.join(ROOT, "icons")
 CARDS = {
     "mlb": ("MLB", "Ron's", "Dong", "Tool", "icon-512.png",
-            "Home run picks, strikeouts, walks and steals — every matchup scored.",
+            "Home run picks, strikeouts, walks and steals. Every matchup scored.",
             ["Home runs", "Strikeouts", "Walks", "Steals", "Matchup Lab", "Playoffs"]),
     "nfl": ("NFL", "Ron's", "Tud", "Tool", "nfl-icon-512.png",
-            "Touchdowns, yards, receptions and passing — every line priced.",
+            "Touchdowns, yards, receptions and passing. Every line priced.",
             ["Anytime TD", "Yards", "Receptions", "Completions", "Kickers", "Fantasy"]),
     "nhl": ("NHL", "Ron's", "Goal", "Tool", "nhl-icon-512.png",
-            "Goals, points, shots, saves, hits and blocks — every line priced.",
+            "Goals, points, shots, saves, hits and blocks. Every line priced.",
             ["Goals", "Points", "Shots", "Saves", "Hits", "Blocks"]),
     "nba": ("NBA", "Ron's", "Hoop", "Tool", "nba-icon-512.png",
-            "Threes, points, rebounds, assists and first basket — every line priced.",
+            "Threes, points, rebounds, assists and first basket. Every line priced.",
             ["Threes", "Points", "PRA", "Steals & Blocks", "Doubles", "First Basket"]),
 }
 FONTS = ('<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=JetBrains+Mono:wght@600'
@@ -72,7 +72,7 @@ def root_card():
     logos = "".join(f'<img src="file://{ICONS}/{CARDS[k][4]}">' for k in ("mlb", "nfl", "nhl", "nba"))
     return page(f"""<div class="card">
       <div class="top"><div><div class="eyebrow">MLB · NFL · NHL · NBA</div><h1>Ron's <em>Tools</em></h1>
-        <div class="tag">Every player prop priced — home runs, touchdowns, goals and threes, with parlays and line movement.</div></div></div>
+        <div class="tag">Every player prop priced: home runs, touchdowns, goals and threes, with parlays and line movement.</div></div></div>
       <div class="logos">{logos}</div>
       <div class="foot"><span><b>dong-tool.netlify.app</b></span><span>Fair odds, no vig · Inspired by Green Means Go</span></div>
     </div>""")
