@@ -161,8 +161,27 @@ function labels(pathname, title) {
   return rows.map(([l, v], i) => `<meta name="twitter:label${i + 1}" content="${esc(l)}">\n<meta name="twitter:data${i + 1}" content="${esc(v)}">`).join('\n');
 }
 
+/** A tool page's live board card (edge-functions/og.js); null keeps the page's own static card. */
+function cardFor(pathname, title, desc) {
+  const segs = (pathname || '/').split('/').filter(Boolean);
+  if (segs.length !== 2 || !SPORT[segs[0]] || !/^[a-z-]+$/.test(segs[1])) return null;
+  const day = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });   // a new URL each day, so crawlers re-fetch
+  const q = new URLSearchParams({ d: day, t: title.split(' · ')[0], s: desc });
+  return `${SITE}/og/${segs[0]}/${segs[1]}.png?${q}`;
+}
+
 function inject(html, title, desc, url, pathname = '/') {
   const t = esc(title), d = esc(desc), u = esc(url);
+  const card = cardFor(pathname, title, desc);
+  if (card) {
+    const c = esc(card), alt = esc(`${title.split(' · ')[0]} — the board right now, from ${title.split(' · ').slice(-1)[0]}`);
+    html = html
+      .replace(/(<meta property="og:image" content=")[^"]*(")/, `$1${c}$2`)
+      .replace(/(<meta property="og:image:secure_url" content=")[^"]*(")/, `$1${c}$2`)
+      .replace(/(<meta name="twitter:image" content=")[^"]*(")/, `$1${c}$2`)
+      .replace(/(<meta property="og:image:alt" content=")[^"]*(")/, `$1${alt}$2`)
+      .replace(/(<meta name="twitter:image:alt" content=")[^"]*(")/, `$1${alt}$2`);
+  }
   return html
     .replace(/<meta name="twitter:(label|data)\d"[^>]*>\s*/g, '')
     .replace('</head>', `${labels(pathname, title)}\n</head>`)
