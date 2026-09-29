@@ -6655,6 +6655,7 @@ const psSeason = () => (schedDay() || todayDate || String(new Date().getFullYear
 /** Once a season, the first visit after the playoffs start. */
 function maybePostWelcome() {
   if (!postseasonOn) return;
+  if (document.getElementById('rw-back')) return;   // the site welcome is up: the postseason one waits for the next visit
   const key = `dt-mlb-post-${psSeason()}`;
   try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch (e) { /* private mode: show it, it's once per load at most */ }
   document.body.insertAdjacentHTML('beforeend', `<div class="pm-back" id="pw-back" onclick="if(event.target===this)closePostWelcome()">
@@ -12624,7 +12625,7 @@ else parInit();
 </div>
   <footer class="site-foot">
     <span class="foot-data">MLB · <span id="eyebrow-season">2026</span> · Stats API · <span id="status-badge" class="status-badge fetching">Loading</span></span>
-    <span class="foot-credit"><span>A home run tool inspired by Green Means Go
+    <span class="foot-credit"><span>A home run tool inspired by Green Means Go · <a class="rw-about" href="javascript:void(0)" onclick="RonWelcome.open()" style="color:inherit;text-decoration:underline;text-underline-offset:2px">About</a>
         <span class="social-links">
           <a href="https://www.youtube.com/@greenmeansgosports" target="_blank" rel="noopener" aria-label="YouTube">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2s-.2-1.6-.9-2.3c-.8-.9-1.8-.9-2.2-1C17.6 2.6 12 2.6 12 2.6h0s-5.6 0-8.4.3c-.4.1-1.4.1-2.2 1-.7.7-.9 2.3-.9 2.3S0 8.1 0 10v1.9c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.8.9 1.9.8 2.4.9 1.7.2 7.5.3 7.5.3s5.6 0 8.4-.3c.4 0 1.4-.1 2.2-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V10c0-1.9-.2-3.8-.2-3.8zM9.5 14.7V7.3l6.4 3.7-6.4 3.7z"/></svg>
@@ -12639,5 +12640,6 @@ else parInit();
       </span>
     </span>
   </footer>
+<script src="/welcome.js?v=4" defer></script>
 </body>
 </html>
