@@ -36,7 +36,8 @@ const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g
 // The multi-sport landing + the Tud, Goal and Hoop Tools live outside the MLB (/mlb) route tree.
 const LANDING = { title: "Ron's Tools", desc: "Pick your sport — MLB home runs, strikeouts and walks; NFL touchdowns and yards; NHL goals, shots, saves and hits; NBA threes, points, rebounds and assists. Every prop priced, with parlays and line movement. Inspired by Green Means Go." };
 const NFL_ROUTES = {
-  '':      { title: "Ron's Tud Tool", desc: "NFL touchdown prices, receptions and completions projections, TD leaders, schedule, and the correlated-parlay Pairs tool." },
+  '':      { title: "Ron's Tud Tool", desc: "NFL player props, every line priced — anytime touchdowns, yards, receptions, completions, interceptions and kickers — plus fantasy projections, same-game parlays and a touchdown recap with replays." },
+  fantasy: { title: "Fantasy · Ron's Tud Tool", desc: "Half-PPR fantasy points for every player on the slate, added up from our own stat projections — receptions, yards, touchdowns, passing and picks." },
   picks:   { title: "TD Picks · Ron's Tud Tool", desc: "Every skill player on the slate, priced to score a touchdown — and every starting QB, priced to throw one." },
   receptions: { title: "Receptions · Ron's Tud Tool", desc: "Projected catches for every pass-catcher on the slate, priced against the standard lines." },
   completions: { title: "Completions · Ron's Tud Tool", desc: "Projected completions for every starting quarterback, priced against the standard lines." },
@@ -151,9 +152,20 @@ async function playerMeta(pathname, requestUrl) {
   return { title: `${pl.n} · ${pl.pos} ${pl.tm} · Season stats · Ron's Tud Tool`, desc: `${G} game${G === 1 ? '' : 's'}: ${line}. Game log, every touchdown and its replay.` };
 }
 
-function inject(html, title, desc, url) {
+const SPORT = { mlb: 'MLB', nfl: 'NFL', nhl: 'NHL', nba: 'NBA' };
+/** Slack's extra preview rows: the sport, and the tool when the link is to one. */
+function labels(pathname, title) {
+  const segs = (pathname || '/').split('/').filter(Boolean), sport = SPORT[segs[0]];
+  const tool = segs.length === 2 && title.includes(' · ') ? title.split(' · ')[0] : null;   // a tool page, not a replay or player link
+  const rows = sport ? [['Sport', sport], ...(tool ? [['Tool', tool]] : [])] : [['Sports', 'MLB · NFL · NHL · NBA']];
+  return rows.map(([l, v], i) => `<meta name="twitter:label${i + 1}" content="${esc(l)}">\n<meta name="twitter:data${i + 1}" content="${esc(v)}">`).join('\n');
+}
+
+function inject(html, title, desc, url, pathname = '/') {
   const t = esc(title), d = esc(desc), u = esc(url);
   return html
+    .replace(/<meta name="twitter:(label|data)\d"[^>]*>\s*/g, '')
+    .replace('</head>', `${labels(pathname, title)}\n</head>`)
     .replace(/<title>[\s\S]*?<\/title>/, `<title>${t}</title>`)
     .replace(/(<meta name="description" content=")[\s\S]*?("\s*\/?>)/, `$1${d}$2`)
     .replace(/(<meta property="og:title" content=")[\s\S]*?("\s*\/?>)/, `$1${t}$2`)
@@ -173,7 +185,7 @@ export default async (request, context) => {
     const m = (await replayMeta(url.pathname, request.url).catch(() => null))
       || (await playerMeta(url.pathname, request.url).catch(() => null)) || metaFor(url.pathname);
     const html = await res.text();
-    const out = inject(html, m.title, m.desc, SITE + url.pathname);
+    const out = inject(html, m.title, m.desc, SITE + url.pathname, url.pathname);
     const headers = new Headers(res.headers);
     headers.delete('content-length');   // body length changed
     headers.delete('content-encoding'); // we return plain text; let the CDN re-encode
