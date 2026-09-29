@@ -68,8 +68,10 @@ const BOARDS = {
       rows: top(d.picks?.picks, r => r.p).map(r => ({ face: nflFace(d, r.pid), name: r.name, meta: `${r.pos} · ${vs(r)}`, val: odds(r.p), unit: `${Math.round(r.p * 100)}% to score`, color: nflCol(d, r.team) })) }),
     receptions: (d) => ({ title: 'Receptions', sub: 'Projected catches · best line', when: `Week ${d.picks?.week}`,
       rows: top(d.receptions, r => r.mu).map(r => ({ face: nflFace(d, r.pid), name: r.name, meta: `${r.pos} · ${vs(r)}`, val: r.mu.toFixed(1), unit: bestLine(r.p) || 'proj', color: nflCol(d, r.team) })) }),
-    yards: (d) => ({ title: 'Yards', sub: 'Projected rushing + receiving yards', when: `Week ${d.picks?.week}`,
-      rows: top(d.yards?.rr, r => r.mu).map(r => ({ face: nflFace(d, r.pid), name: r.name, meta: `${r.pos} · ${vs(r)}`, val: String(Math.round(r.mu)), unit: `median ${Math.round(r.med)}`, color: nflCol(d, r.team) })) }),
+    // one card per Yards tab (/nfl/yards/<market>); bare /nfl/yards is the page's default, receiving
+    yards: (d) => nflYards(d, 'rec'),
+    'yards-pass': (d) => nflYards(d, 'pass'), 'yards-rush': (d) => nflYards(d, 'rush'),
+    'yards-rec': (d) => nflYards(d, 'rec'), 'yards-rr': (d) => nflYards(d, 'rr'),
     completions: (d) => ({ title: 'Completions', sub: 'Starting QBs · projected completions', when: `Week ${d.picks?.week}`,
       rows: top(d.completions, r => r.mu).map(r => ({ face: nflFace(d, r.pid), name: r.name, meta: `QB · ${vs(r)}`, val: r.mu.toFixed(1), unit: bestLine(r.p) || 'proj', color: nflCol(d, r.team) })) }),
     interceptions: (d) => ({ title: 'Interceptions', sub: 'Starting QBs · to throw a pick', when: `Week ${d.picks?.week}`,
@@ -123,6 +125,11 @@ const BOARDS = {
       rows: top(d.dueRows, r => r.dueScore).map(r => ({ face: mlbFace(r.pid), name: r.name, meta: `${r.team} · ${r.hrs} HR`, val: String(r.droughtABs), unit: 'AB since a HR' })) }),
   },
 };
+const YD = { pass: ['Passing Yards', 'Starting QBs'], rush: ['Rushing Yards', 'Projected rushing yards'], rec: ['Receiving Yards', 'Projected receiving yards'], rr: ['Rush + Rec Yards', 'Projected rushing plus receiving yards'] };
+function nflYards(d, m) {
+  return { title: YD[m][0], sub: `${YD[m][1]} · median and mean`, when: `Week ${d.picks?.week}`,
+    rows: top(d.yards?.[m], r => r.mu).map(r => ({ face: nflFace(d, r.pid), name: r.name, meta: `${r.pos} · ${vs(r)}`, val: String(Math.round(r.mu)), unit: `median ${Math.round(r.med)}`, color: nflCol(d, r.team) })) };
+}
 function mlbHr(d, list, title, sub) {
   return { title, sub, when: dayLbl(d.todayDate), rows: (list || []).slice(0, 5).map(r => ({ face: mlbFace(r.pid), name: d.playerNames?.[r.pid] || r.pid,
     meta: `${r.team} vs ${r.oppName} (${r.oppHand}HP)`, val: odds(r.pHR), unit: `${(r.pHR * 100).toFixed(1)}% · HR` })) };
@@ -199,7 +206,7 @@ export default async (request) => {
       B = { title, sub: '', desc, when: B?.when || '', rows: [] };
     }
     const [f, logo, faces] = await Promise.all([fonts(), img(SITE + app.logo), Promise.all((B.rows || []).map(r => img(r.face)))]);
-    const res = new ImageResponse(card(app, B, `/${sport}${tool ? '/' + tool : ''}`, logo, faces), { width: 1200, height: 630, fonts: f });
+    const res = new ImageResponse(card(app, B, `/${sport}${tool ? '/' + tool.replace(/^yards-/, 'yards/') : ''}`, logo, faces), { width: 1200, height: 630, fonts: f });
     // render fully here: satori streams, and a failure mid-stream would escape to a 500
     const out = new Response(await res.arrayBuffer(), { headers: { 'Content-Type': 'image/png' } });
     out.headers.set('Cache-Control', 'public, max-age=600');

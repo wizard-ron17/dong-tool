@@ -42,6 +42,11 @@ const NFL_ROUTES = {
   receptions: { title: "Receptions · Ron's Tud Tool", desc: "Projected catches for every pass-catcher on the slate, priced against the standard lines." },
   completions: { title: "Completions · Ron's Tud Tool", desc: "Projected completions for every starting quarterback, priced against the standard lines." },
   kickers: { title: "Kickers · Ron's Tud Tool", desc: "Field goals made, PATs made and kicker points for every team on the slate — priced from the spread, total and forecast wind and cold." },
+  // /nfl/yards/<market>: each tab its own link and card
+  'yards/pass': { title: "Passing Yards · Ron's Tud Tool", desc: "Passing yards for every starting quarterback — median projections and fair odds at any line." },
+  'yards/rush': { title: "Rushing Yards · Ron's Tud Tool", desc: "Rushing yards for the slate — median projections and fair odds at any line." },
+  'yards/rec':  { title: "Receiving Yards · Ron's Tud Tool", desc: "Receiving yards for every pass-catcher — median projections and fair odds at any line." },
+  'yards/rr':   { title: "Rush + Rec Yards · Ron's Tud Tool", desc: "Rushing plus receiving yards for the slate — median projections and fair odds at any line." },
   yards:   { title: "Yards · Ron's Tud Tool", desc: "Passing, rushing, receiving and rush + receiving yards for the slate — median projections and fair odds at any line." },
   interceptions: { title: "Interceptions · Ron's Tud Tool", desc: "Every starting quarterback, priced to throw an interception — game script, bad balls and the defense across the field." },
   returners: { title: "Returners · Ron's Tud Tool", desc: "Who takes the punts and kickoffs, and what that adds to his anytime touchdown price." },
@@ -91,7 +96,7 @@ const NBA_ROUTES = {
 function metaFor(pathname) {
   const segs = (pathname || '/').split('/').filter(Boolean);
   if (segs[0] === 'mlb') return ROUTES[segs[1] || ''] || ROUTES['']; // /mlb, /mlb/picks, /mlb/due/results
-  if (segs[0] === 'nfl') return NFL_ROUTES[segs[1] || ''] || NFL_ROUTES['']; // /nfl, /nfl/pairs …
+  if (segs[0] === 'nfl') return NFL_ROUTES[segs.slice(1, 3).join('/')] || NFL_ROUTES[segs[1] || ''] || NFL_ROUTES['']; // /nfl, /nfl/pairs, /nfl/yards/rush …
   if (segs[0] === 'nhl') return NHL_ROUTES[segs[1] || ''] || NHL_ROUTES['']; // /nhl, /nhl/recap …
   if (segs[0] === 'nba') return NBA_ROUTES[segs[1] || ''] || NBA_ROUTES['']; // /nba, /nba/threes …
   return LANDING; // "/" and anything else -> the sport picker
@@ -156,7 +161,7 @@ const SPORT = { mlb: 'MLB', nfl: 'NFL', nhl: 'NHL', nba: 'NBA' };
 /** Slack's extra preview rows: the sport, and the tool when the link is to one. */
 function labels(pathname, title) {
   const segs = (pathname || '/').split('/').filter(Boolean), sport = SPORT[segs[0]];
-  const tool = segs.length === 2 && title.includes(' · ') ? title.split(' · ')[0] : null;   // a tool page, not a replay or player link
+  const tool = (segs.length === 2 || (segs[1] === 'yards' && segs.length === 3)) && title.includes(' · ') ? title.split(' · ')[0] : null;   // a tool page, not a replay or player link
   const rows = sport ? [['Sport', sport], ...(tool ? [['Tool', tool]] : [])] : [['Sports', 'MLB · NFL · NHL · NBA']];
   return rows.map(([l, v], i) => `<meta name="twitter:label${i + 1}" content="${esc(l)}">\n<meta name="twitter:data${i + 1}" content="${esc(v)}">`).join('\n');
 }
@@ -164,10 +169,11 @@ function labels(pathname, title) {
 /** A tool page's live board card (edge-functions/og.js); null keeps the page's own static card. */
 function cardFor(pathname, title, desc) {
   const segs = (pathname || '/').split('/').filter(Boolean);
-  if (segs.length !== 2 || !SPORT[segs[0]] || !/^[a-z-]+$/.test(segs[1])) return null;
+  const sub = segs[0] === 'nfl' && segs[1] === 'yards' && segs.length === 3 && ['pass', 'rush', 'rec', 'rr'].includes(segs[2]);   // /nfl/yards/<market>
+  if (!(segs.length === 2 || sub) || !SPORT[segs[0]] || !/^[a-z-]+$/.test(segs[1])) return null;
   const day = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });   // a new URL each day, so crawlers re-fetch
   const q = new URLSearchParams({ d: day, t: title.split(' · ')[0], s: desc });
-  return `${SITE}/og/${segs[0]}/${segs[1]}.png?${q}`;
+  return `${SITE}/og/${segs[0]}/${sub ? `yards-${segs[2]}` : segs[1]}.png?${q}`;
 }
 
 function inject(html, title, desc, url, pathname = '/') {

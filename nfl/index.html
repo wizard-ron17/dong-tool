@@ -7869,7 +7869,7 @@ let pairStacks = false;
   const ydLeg = (r) => ({ k: `y${r.m}|${r.pid}|${r.L}`, n: r.name, t: r.team, g: parGame(r), m: 'y' + r.m,
                           s: `Over ${r.L} ${(YD_MKTS.find(x => x[0] === r.m)?.[1] || '').toLowerCase()} yards`, p: r.p, i: r.pid });
   const ydF = { mkt: 'rec', pos: 'ALL', sort: 'high', view: 'cards', q: '', tab: 'board', open: false };
-  function setYd(k, v) { ydF[k] = v; if (k === 'mkt') ydF.pos = 'ALL'; renderYards(); }
+  function setYd(k, v) { ydF[k] = v; if (k === 'mkt') { ydF.pos = 'ALL'; if (activeNav === 'yards') history.replaceState(history.state, '', currentPath()); } renderYards(); }
   window.setYd = setYd;
   window.onYdSearch = () => { ydF.q = document.getElementById('yd-search')?.value || ''; refocusSearch('yd-search', renderYards); };
   window.clearYdSearch = () => { ydF.q = ''; renderYards(); };
@@ -9114,12 +9114,18 @@ let pairStacks = false;
     if (activeNav === 'recap') renderRecap();
     openTd(gid, k, false, true);
   }
-  function currentPath() { return activeNav === 'home' ? APP_BASE + '/' : APP_BASE + '/' + activeNav; }
+  // Yards carries its market in the address (/nfl/yards/rush), so a shared link opens that tab — and its preview shows that board
+  function currentPath() { return activeNav === 'home' ? APP_BASE + '/' : activeNav === 'yards' ? `${APP_BASE}/yards/${ydF.mkt}` : APP_BASE + '/' + activeNav; }
+  function ydMktFromPath() {
+    const segs = (location.pathname.startsWith(APP_BASE) ? location.pathname.slice(APP_BASE.length) : location.pathname).split('/').filter(Boolean);
+    return segs[0] === 'yards' && YD_MKTS.some(([m]) => m === segs[1]) ? segs[1] : null;
+  }
   function commitRoute() { const p = currentPath(); if (location.pathname !== p) history.pushState(null, '', p); }
   function parsePath() { const rel = location.pathname.startsWith(APP_BASE) ? location.pathname.slice(APP_BASE.length) : location.pathname; return rel.replace(/^\/+|\/+$/g, '').split('/')[0] || 'home'; }
   function applyRouteState() {
     applyingRoute = true;
     const nav = parsePath(), td = tdFromPath(), pl = plFromPath(), gmp = gmFromPath();
+    const ym = ydMktFromPath(); if (ym && ym !== ydF.mkt) { ydF.mkt = ym; ydF.pos = 'ALL'; }
     switchNav(td ? (document.getElementById('pl-back') ? 'stats' : document.getElementById('gm-back') ? 'schedule' : 'recap')
       : pl ? 'stats' : gmp ? 'schedule' : NFL_NAVS.includes(nav) ? nav : 'home');
     if (td) tdPending = td;
