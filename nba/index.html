@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ron's Hoop Tool</title>
+<script src="/odds.js?v=1"></script>
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="NBA player props, every line priced — threes, points, rebounds, assists, PRA, steals and blocks, double- and triple-doubles and the first basket — plus droughts, milestones, a nightly recap and the schedule with lines. Inspired by Green Means Go.">
 <meta property="og:type" content="website">
@@ -1399,8 +1400,8 @@
           ${faceHtml(G.fb.pid, b[BX.name])}
           <div class="rx-info"><div class="rx-nm">${esc(b[BX.name] || '')} <span class="dim">${esc(G.fb.team || '')}</span></div>
             <div class="rx-sub">${ft}${esc(fbKind(G.fb))} · ${clockLbl(G.fb.per, G.fb.sec)}${G.tip ? ` · ${esc(G.tip.won)} won the tip` : ''}</div></div>
-          <div class="rx-right">${mine != null ? `<span class="rx-odds">${fairOdds(mine)}</span>` : ''}
-            ${top ? hit ? gradeChip(true, 'our pick') : `<span class="rx-grade miss">our pick: ${esc((G.box[top[0]]?.[BX.name] || '').split(' ').slice(-1)[0])} ${fairOdds(top[1])}</span>` : ''}</div>
+          <div class="rx-right">${mine != null ? `<span class="rx-odds">${Odds.inline(mine)}</span>` : ''}
+            ${top ? hit ? gradeChip(true, 'our pick') : `<span class="rx-grade miss">our pick: ${esc((G.box[top[0]]?.[BX.name] || '').split(' ').slice(-1)[0])} ${Odds.inline(top[1])}</span>` : ''}</div>
         </div>`;
       }
       // threes, by player
@@ -1413,7 +1414,7 @@
       const team3 = (ab) => { const s = G.threes.filter(t => G.box[t[0]]?.[BX.team] === ab); return `<span class="rx-team3"><i class="rx-sw" style="background:${TC[ab]}" title="${esc(ab)}'s shots on the court"></i>${logoImg(ab, 'rx-tlogo')}<b>${s.filter(t => t[3]).length}/${s.length}</b></span>`; };
       const t3Rows = shooters.map(s => {
         const e = T3[s.pid]; let g = '';
-        if (e) { const k = bestRung(e.slice(1)); g = gradeChip(s.m >= k + 1, `o${k + 0.5} ${fairOdds(e[k + 1])}`); }
+        if (e) { const k = bestRung(e.slice(1)); g = gradeChip(s.m >= k + 1, `o${k + 0.5} ${Odds.inline(e[k + 1])}`); }
         return `<div class="rx-row" onclick="rxPlay('${G.gid}',[${s.idx.join(',')}])">
           ${faceHtml(s.pid, s.b[BX.name])}
           <div class="rx-info"><div class="rx-nm">${esc(s.b[BX.name] || '')} <span class="dim">${esc(s.b[BX.team] || '')}</span></div>
@@ -1430,7 +1431,7 @@
           ${faceHtml(pid, b[BX.name])}
           <div class="rx-info"><div class="rx-nm">${esc(b[BX.name])} <span class="dim">${esc(b[BX.team])}</span>${t ? ' <span class="rx-td">TRIPLE-DOUBLE</span>' : ''}</div>
             <div class="rx-sub">${line}</div></div>
-          <div class="rx-right">${e ? `<span class="rx-odds">${fairOdds(t ? e[1] : e[0])}</span><span class="rx-sub">we priced ${t ? 'TD' : 'DD'}</span>` : ''}</div>
+          <div class="rx-right">${e ? `<span class="rx-odds">${Odds.inline(t ? e[1] : e[0])}</span><span class="rx-sub">we priced ${t ? 'TD' : 'DD'}</span>` : ''}</div>
         </div>`;
       }).join('');
       return `<div class="rg rx" id="rx-${G.gid}">
@@ -1948,7 +1949,7 @@
             <td class="num dim">${(kind === '3pm' ? f(r).tpa : f(r).l10) ?? '—'}</td>
             <td class="num dim">×${(f(r).opp ?? 1).toFixed(2)}</td>
             <td class="num dim">o${r.L}</td>
-            <td class="num"><b>${fairOdds(r.pAt)}</b></td>
+            <td class="num"><b>${Odds.inline(r.pAt)}</b></td>
           </tr>`).join('')}</tbody></table></div>`;
     } else if (F.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
@@ -1957,7 +1958,7 @@
           <span class="rc-cnm">${esc(r.name)}</span>
           <span class="rc-cteam">${esc(r.team)}</span>
           <span class="rc-cproj">${r.mu.toFixed(1)}</span>
-          <span class="rc-cod">${fairOdds(r.pAt)}</span>
+          <span class="rc-cod">${Odds.inline(r.pAt)}</span>
           <span class="rc-cline">o${r.L}</span>
         </div>`).join('')}</div>`;
     } else {
@@ -2030,7 +2031,7 @@
             <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}</td>
             <td class="num">${r.pts}</td><td class="num">${r.reb}</td><td class="num">${r.ast}</td>
             <td class="num dim">${r.dd40} DD · ${r.td40} TD</td>
-            <td class="num"><b>${fairOdds(r.dd)}</b></td><td class="num"><b>${fairOdds(r.td)}</b></td>
+            <td class="num"><b>${Odds.inline(r.dd)}</b></td><td class="num"><b>${Odds.inline(r.td)}</b></td>
           </tr>`).join('')}</tbody></table></div>`;
     } else if (dblF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
@@ -2191,7 +2192,7 @@
         <div class="pb-rank">${i + 1}</div>${faceHtml(r.pid, r.name)}
         <div class="pb-info">
           <div class="pb-nm">${esc(r.name)} ${posBadge(r.pos)}</div>
-          <div class="pb-line">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · <b class="due-od">${fairOdds(r.p)}</b> tonight</div>
+          <div class="pb-line">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · <b class="due-od">${Odds.inline(r.p)}</b> tonight</div>
           <div class="pb-line">${r.last ? `last: ${dayLabel(r.last)}` : ''} · a 1-in-${oneIn(r)} dry spell at tonight's price</div>
         </div>
         <div class="pb-price">
@@ -2227,7 +2228,7 @@
     const meta = `<div class="result-meta">Regular-season career totals vs the next round number${r0 ? ` — every ${r0.every.toLocaleString()}, within ${r0.within}` : ''} · ${ms.length} chase${ms.length === 1 ? '' : 's'} · <b>a watch list, not a signal</b></div>`;
     // tonight's projection for the stat being chased, where the board has one
     const projOf = (m) => {
-      if (m.stat === 'dd' || m.stat === 'td') { const r = (D.stats?.doubles || []).find(x => x.pid === String(m.pid)); return r ? `<b class="due-od">${fairOdds(r[m.stat])}</b> tonight` : ''; }
+      if (m.stat === 'dd' || m.stat === 'td') { const r = (D.stats?.doubles || []).find(x => x.pid === String(m.pid)); return r ? `<b class="due-od">${Odds.inline(r[m.stat])}</b> tonight` : ''; }
       const k = LC_OF[m.stat]; if (!k) return '';
       const r = lcRows(k).find(x => x.pid === String(m.pid)); return r ? `<b class="due-od">${r.mu.toFixed(1)}</b> projected tonight` : '';
     };
@@ -2391,7 +2392,7 @@
         <span class="hm-score hot">${r.pts.toFixed(1)}<span class="hm-subtle" style="font-size:0.766rem"> PPG</span></span></div>`).join('');
 
     // ── The tools: the top of tonight's boards (as /nhl's home) ──────────
-    const bet = (L, p) => `<span class="hm-score hm-bet"><small>${L}</small><b class="${p >= 0.5 ? 'odfav' : 'oddog'}">${fairOdds(p)}</b></span>`;
+    const bet = (L, p) => `<span class="hm-score hm-bet"><small>${L}</small><b class="${p >= 0.5 ? 'odfav' : 'oddog'}">${Odds.inline(p)}</b></span>`;
     // his line closest to even, as the boards' "best line"
     const evenLine = (r, kind) => { const pmf = lcPmf(r, kind), [lo, hi] = LC[kind].range; let L = lo;
       for (let x = lo; x <= hi; x++) if (Math.abs(overAt(pmf, x) - 0.5) < Math.abs(overAt(pmf, L) - 0.5)) L = x; return [L, overAt(pmf, L)]; };
@@ -2421,7 +2422,7 @@
     const dueHome = (FUN.due?.t1 || []).slice(0, 3).map(r => `
       <div class="hm-row" onclick="event.stopPropagation(); switchNav('due'); dueOpen('t1','${r.pid}','${r.gid}')">
         ${faceHtml(r.pid, r.name, 'hm-photo')}
-        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} · no three since ${r.last ? dayLabel(r.last) : '—'} · ${fairOdds(r.p)}</span></span>
+        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} · no three since ${r.last ? dayLabel(r.last) : '—'} · ${Odds.inline(r.p)}</span></span>
         <span class="hm-score warm">${r.n}<span class="hm-subtle" style="font-size:0.766rem"> gms</span></span></div>`).join('');
     const msHome = (FUN.milestones || []).slice(0, 3).map(m => `
       <div class="hm-row" onclick="event.stopPropagation(); switchNav('milestones')">

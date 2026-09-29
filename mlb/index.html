@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ron's Dong Tool</title>
+<script src="/odds.js?v=1"></script>
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="Daily MLB home run picks, value bats, due hitters, and any batter-vs-pitcher matchup breakdown. Inspired by Green Means Go.">
 <!-- Social embed. These are the DEFAULTS; the Netlify edge function
@@ -6345,7 +6346,7 @@ function ddPropArms() {
 function ddArmLine(x, kind) {
   const need = ppEven(x.r.proj), p = kbbWinProb(x.r.proj, need);
   const k = kind === 'k';
-  return `<div class="dd-lean" title="#${x.rk} on the ${k ? 'Strikeouts' : 'Walks'} board · projects ${x.r.proj.toFixed(1)} ${k ? 'K' : 'BB'}">${k ? '🔥' : '🚶'} ${ddLastName(playerNames[x.r.pid] || x.r.name)} o${need - 0.5} ${k ? 'K' : 'BB'} <b>${kbbOdds(p)}</b></div>`;
+  return `<div class="dd-lean" title="#${x.rk} on the ${k ? 'Strikeouts' : 'Walks'} board · projects ${x.r.proj.toFixed(1)} ${k ? 'K' : 'BB'}">${k ? '🔥' : '🚶'} ${ddLastName(playerNames[x.r.pid] || x.r.name)} o${need - 0.5} ${k ? 'K' : 'BB'} <b>${Odds.inline(p)}</b></div>`;
 }
 function ddGameRows(g, arms = ddPropArms()) {
   const awayLeans = ddTeamLeans(g.away.teamAbbr), homeLeans = ddTeamLeans(g.home.teamAbbr);
@@ -7464,7 +7465,7 @@ function sgPicks(g, date, S, away, home) {
       const pid = sd.probablePitcherId ? String(sd.probablePitcherId) : null; if (!pid) return '';
       const line = (r, lbl) => { if (r?.proj == null) return `<span class="sgk-l">${lbl} —</span>`;
         const need = ppEven(r.proj), p = kbbWinProb(r.proj, need);
-        return `<span class="sgk-l">${lbl} <b>${r.proj.toFixed(1)}</b> <small>o${need - 0.5} ${kbbOdds(p)}</small></span>`; };
+        return `<span class="sgk-l">${lbl} <b>${r.proj.toFixed(1)}</b> <small>o${need - 0.5} ${Odds.inline(p)}</small></span>`; };
       return `<div class="sgp-row sgp-arm" onclick="openPitcher('${pid}')">${teamLogoImg(sd.teamAbbr, 'gc-pick-logo')}<span class="sgp-nm">${compactPlayerName(sd.probablePitcher)}${spProjTag(sd.probableProjected)}</span>
         <span class="sgk">${line(K.find(r => String(r.pid) === pid), 'K')}${line(B.find(r => String(r.pid) === pid), 'BB')}</span></div>`;
     }).join('');
@@ -10042,7 +10043,7 @@ function sharePicksText() {
   if (!filtered.length) { dtToast('No picks to share'); return; }
   const ranked = [...filtered].sort((a, b) => b.pickScore - a.pickScore).slice(0, 15);
   const lines = ranked.map((r, i) =>
-    `${i + 1}. ${playerNames[r.pid] || r.pid} — ${r.pickScore.toFixed(1)}${r.pHR > 0 ? ` (fair ${kbbOdds(r.pHR)})` : ''} · ${r.team} vs ${r.oppName || 'TBD'}${r.oppHand ? ` (${r.oppHand}HP)` : ''}`);
+    `${i + 1}. ${playerNames[r.pid] || r.pid} — ${r.pickScore.toFixed(1)}${r.pHR > 0 ? ` (fair ${Odds.both(r.pHR)})` : ''} · ${r.team} vs ${r.oppName || 'TBD'}${r.oppHand ? ` (${r.oppHand}HP)` : ''}`);
   const more = filtered.length > ranked.length ? `\n…+${filtered.length - ranked.length} more` : '';
   shareText(`🌭 Dong Tool — HR Picks · ${fmtDateLong(todayDate)}\n\n${lines.join('\n')}${more}`);
 }
@@ -10051,7 +10052,7 @@ function shareValueText() {
   if (!filtered.length) { dtToast('No value bats to share'); return; }
   const ranked = [...filtered].sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0)).slice(0, 15);
   const lines = ranked.map((r, i) =>
-    `${i + 1}. ${playerNames[r.pid] || r.pid} — ${(r.valueScore ?? 0).toFixed(1)}${r.pHR > 0 ? ` (fair ${kbbOdds(r.pHR)})` : ''} · ${r.team} vs ${r.oppName || 'TBD'}${r.oppHand ? ` (${r.oppHand}HP)` : ''}`);
+    `${i + 1}. ${playerNames[r.pid] || r.pid} — ${(r.valueScore ?? 0).toFixed(1)}${r.pHR > 0 ? ` (fair ${Odds.both(r.pHR)})` : ''} · ${r.team} vs ${r.oppName || 'TBD'}${r.oppHand ? ` (${r.oppHand}HP)` : ''}`);
   const more = filtered.length > ranked.length ? `\n…+${filtered.length - ranked.length} more` : '';
   shareText(`🌭 Dong Tool — Value Bats · ${fmtDateLong(todayDate)}\n\n${lines.join('\n')}${more}`);
 }
@@ -12531,7 +12532,7 @@ function parRender() {
     ? `${legs.length} leg${legs.length === 1 ? '' : 's'} <span>· ${PARLAY.on ? 'fair' : 'selection off'}</span>`
     : 'Parlay mode <span>· tap picks to add</span>';
   ho.className = 'par-head-od' + (legs.length ? '' : ' par-none');
-  ho.textContent = legs.length ? kbbOdds(p) : '0 legs';
+  ho.textContent = legs.length ? Odds.both(p) : '0 legs';
 
   const body = document.getElementById('par-body');
   if (!legs.length) {
@@ -12550,7 +12551,7 @@ function parRender() {
     + legs.map(l => `<div class="par-leg">
       <span class="par-leg-nm">${mixed ? `<span class="par-sp">${PAR_SPORT_LBL[l.sp] || ''}</span>` : ''}${l.n}</span>
       <span class="par-leg-sel">${l.s}${l.t ? ` · ${l.t}` : ''}</span>
-      <span class="par-leg-od">${kbbOdds(l.p)}</span>
+      <span class="par-leg-od">${Odds.inline(l.p)}</span>
       <button class="par-leg-x" onclick="parRemove('${l.k.replace(/'/g, "\\'")}')" aria-label="Remove">×</button>
     </div>`).join('')
     + `<div class="par-lbl2">Profit boost</div>

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ron's Tud Tool</title>
+<script src="/odds.js?v=1"></script>
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="NFL player props, every line priced — anytime touchdowns, yards, receptions, completions, interceptions and kickers — plus fantasy projections, parlays with same-game pricing, and a touchdown recap with replays. Inspired by Green Means Go.">
 <!-- Social embed. These are the DEFAULTS; the Netlify edge function
@@ -4350,8 +4351,8 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
     // The companion price. On the passing board that has to be the neighbouring
     // passing line — quoting his anytime RUSHING price next to a passing number
     // reads as the same market and isn't.
-    const other = M.qbOnly ? `O2.5 ${pbOdds(r.pass.p['3'])}`
-                : pbF.mkt === '1' ? `2+ ${r.odds2}` : `1+ ${r.odds}`;
+    const other = M.qbOnly ? `O2.5 ${Odds.inline(r.pass.p['3'])}`
+                : pbF.mkt === '1' ? `2+ ${Odds.inline(r.p2)}` : `1+ ${Odds.inline(r.p)}`;
     const f = r.f || {};
     const facts = M.qbOnly ? `<span class="pb-f" title="Projected passing touchdowns — the number every line is priced off"><b>${r.pass.proj.toFixed(2)}</b> proj</span>
       <span class="pb-f" title="Pass attempts per game over his starts in the loaded window"><b>${r.pass.attPg.toFixed(0)}</b> att/g</span>
@@ -4386,9 +4387,9 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
         <td><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}${r.kick ? ` <span style="color:var(--dim)">${r.kick}</span>` : ''}</td>
         <td class="od${pbP(r) < 0.5 ? ' dog' : ''}">${pbOdds(pbP(r))}</td>
         <td class="num">${(pbP(r) * 100).toFixed(pbP(r) < 0.1 ? 1 : 0)}%</td>
-        <td class="num" style="color:var(--dim)">${pbF.mkt === '1' ? r.odds2 : r.odds}</td>
-        <td class="num" style="color:var(--dim)">${r.oddsF}</td>
-        <td class="num" style="color:var(--dim)">${r.oddsL}</td>
+        <td class="num" style="color:var(--dim)">${Odds.inline(pbF.mkt === '1' ? r.p2 : r.p)}</td>
+        <td class="num" style="color:var(--dim)">${Odds.inline(r.pFirst)}</td>
+        <td class="num" style="color:var(--dim)">${Odds.inline(r.pLast)}</td>
         <td class="num">${Math.round((r.f?.snap3 ?? 0) * 100)}%</td>
         <td class="num">${(r.f?.rz ?? 0).toFixed(1)}</td>
         <td class="num">${(r.f?.implied ?? 0).toFixed(1)}</td>
@@ -4444,7 +4445,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
         <span class="pbc-nm">${r.name}</span>
         ${posBadge(r.pos)}
         <span class="pbc-opp">${r.home ? 'vs' : '@'} ${r.opp}</span>
-        <span class="pbc-od${pbP(r) < 0.5 ? ' dog' : ''}">${pbOdds(pbP(r))}</span>
+        <span class="pbc-od${pbP(r) < 0.5 ? ' dog' : ''}">${Odds.inline(pbP(r))}</span>
       </div>`).join('')}
       <div class="pbc-ft"><span>${rows.length} picks · fair odds, no vig</span><span>dong-tool.netlify.app/nfl</span></div>
     </div>`;
@@ -4649,7 +4650,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
               <div class="pm-meta">${r.q ? '<span class="pb-q" title="Listed Questionable — price already shaded 12%">Q</span> ' : ''}<b>${r.pos}</b> · ${r.home ? `${r.team} vs ${r.opp}` : `${r.team} @ ${r.opp}`}${r.kick ? ' · ' + r.kick : ''}${f.newAbsence ? ' · <span class="pb-flag">ROLE OPEN</span>' : ''}</div>
             </div>
             <div class="pm-hero-price">
-              <div class="pm-hero-od${dog ? ' dog' : ''}">${pbOdds(pbP(r))}</div>
+              <div class="pm-hero-od${dog ? ' dog' : ''}">${Odds.inline(pbP(r))}</div>
               <div class="pm-hero-lbl">${pbMkt().lab}</div>
             </div>
           </div>
@@ -4766,7 +4767,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
       const cut = pbMkt().cuts.find(c => c.v === pbF.cut);
       const wider = pbMkt().cuts.filter(c => c.v <= pbP(best)).sort((a, b) => b.v - a.v)[0];
       return `<div class="empty">Nothing here is shorter than <b>${cut ? cut.lab : ''}</b>.
-        The shortest is <b>${pbOdds(pbP(best))}</b> (${best.name}).
+        The shortest is <b>${Odds.inline(pbP(best))}</b> (${best.name}).
         ${wider ? `<a href="javascript:void(0)" onclick="setPbF('cut',${wider.v})">Widen to ${wider.v ? wider.lab : 'the full board'} →</a>` : ''}</div>`;
     })()
       : pbF.view === 'table' ? pbTable(rows)
@@ -4933,7 +4934,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
       : `<div class="cp-res head"><span class="cp-res-nm">${kind === 'cmp' || kind === 'int' ? 'QB' : kind === 'kick' ? 'Kicker' : 'Player'}</span><span class="cp-res-line">Line</span><span class="cp-res-proj">${kind === 'yds' ? 'Median' : 'Proj'}</span><span class="cp-res-act">Got</span><span class="cp-res-tag"></span></div>`;
     const list = shown.map(r => `<div class="cp-res ${r.st}">
         <span class="cp-res-nm">${r.name}<span class="cp-res-tm">${r.game}</span></span>
-        <span class="cp-res-line">${r.line || pbOdds(r.p)}${r.line ? `<span class="cp-res-od">${pbOdds(r.p)}</span>` : ''}</span>
+        <span class="cp-res-line">${r.line || Odds.inline(r.p)}${r.line ? `<span class="cp-res-od">${Odds.inline(r.p)}</span>` : ''}</span>
         <span class="cp-res-proj">${r.proj ?? ''}</span>
         <span class="cp-res-act">${r.got}</span>
         <span class="cp-res-tag">${TAG[r.st]}</span></div>`).join('');
@@ -5017,7 +5018,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
       </div>
       ${rec(b)}
       <div class="bd-age">${b.turning}<small>turning</small></div>
-      <div class="bd-price${b.p < 0.5 ? ' dog' : ''}">${pbOdds(b.p)}</div>
+      <div class="bd-price${b.p < 0.5 ? ' dog' : ''}">${Odds.inline(b.p)}</div>
     </div>`;
 
     // same day selector as every other board: today's games first, and players
@@ -5373,7 +5374,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
         <div class="gmc-top"${r.open ? ` onclick="event.stopPropagation();${r.open}"` : ''}>
           ${faceHtml(r.pid, r.name)}
           <span class="gmc-id"><b>${r.name}</b><span>${r.pos ? `<i class="posb ${r.pos}">${r.pos}</i>` : ''}${r.team}</span></span>
-          ${r.td != null ? `<span class="gmc-td${r.tdGot ? ' hit' : ''}"><b>${pbOdds(r.td)}</b><small>${r.tdGot != null ? (r.tdGot ? `${r.tdGot} TD` : 'no TD') : 'anytime TD'}</small></span>` : ''}
+          ${r.td != null ? `<span class="gmc-td${r.tdGot ? ' hit' : ''}"><b>${Odds.inline(r.td)}</b><small>${r.tdGot != null ? (r.tdGot ? `${r.tdGot} TD` : 'no TD') : 'anytime TD'}</small></span>` : ''}
         </div>
         ${r.dnp ? '<div class="gmc-void">Did not play</div>' : `<div class="gmc-stats">${r.stats.map(stat).join('')}</div>`}
       </div>`;
@@ -5665,7 +5666,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
           <span class="sc-pick-star">★</span><span class="sc-pick-lbl">top pick</span>
           <span class="posb ${best.pos}">${best.pos}</span>
           <span class="sc-pick-nm">${best.name}</span>${injChip(best.pid)}
-          <span class="sc-pick-od${best.p < 0.5 ? ' dog' : ''}">${pbOdds(best.p)}</span>
+          <span class="sc-pick-od${best.p < 0.5 ? ' dog' : ''}">${Odds.inline(best.p)}</span>
           ${res ? `<span class="sc-pick-res${res.cls === 'pend' ? ' pend' : ''}">${res.txt}</span>` : ''}</div>`;
     })();
 
@@ -6246,7 +6247,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
     const full = (nflData.tdLeaders || []).find(l => l.pid === t.pid)?.name || t.player;
     const what = Number.isFinite(yds) ? `${yds}-yard ${t.type === 'rec' ? 'catch' : t.type === 'rush' ? 'run' : 'return'}` : '';
     const chips = [
-      ...cashed.map(([lab, p]) => `<span class="tff-chip money${p <= 1 / 11 ? ' huge' : ''}">${lab} <b>${pbOdds(p)}</b></span>`),
+      ...cashed.map(([lab, p]) => `<span class="tff-chip money${p <= 1 / 11 ? ' huge' : ''}">${lab} <b>${Odds.inline(p)}</b></span>`),
       t.firstTd && !cashed.some(c => c[0] === '1st TD') ? '<span class="tff-chip">1st TD of the game</span>' : '',
       t.lastTd && !cashed.some(c => c[0] === 'Last TD') ? '<span class="tff-chip">Last TD of the game</span>' : '',
       of > 1 ? `<span class="tff-chip">${TD_ORD[n] || n + 'th'} of his ${of} TDs</span>` : '',
@@ -6258,7 +6259,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
     f.innerHTML = `<div class="tff-card">
         <div class="tff-head">${TD_HEADLINE[t.subtype] || 'Touchdown'}</div>
         <div class="tff-sub"><b>${full}</b>${what ? ` · ${what}` : ''}${t.passer ? ` from ${t.passer}` : ''}</div>
-        ${longest && longest[1] <= 0.2 ? `<div class="tff-long">Cashed at <b>${pbOdds(longest[1])}</b></div>` : ''}
+        ${longest && longest[1] <= 0.2 ? `<div class="tff-long">Cashed at <b>${Odds.inline(longest[1])}</b></div>` : ''}
         ${chips ? `<div class="tff-chips">${chips}</div>` : ''}
         <div class="tff-actions"><button class="tff-btn" onclick="event.stopPropagation();tdAnimate()">↻ Watch again</button><button class="tff-btn ghost" onclick="event.stopPropagation();tdShare(this)">🔗 Share</button><button class="tff-btn ghost" onclick="event.stopPropagation();tdHideFinal()">See the field</button></div>
       </div>`;
@@ -6852,7 +6853,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch
       const c = plGameCtx(g, info.team);
       const scored = tds.filter(t => t.gameId === g.gid);
       const row = priced ? liveLog?.games?.[g.gid]?.td?.find(r => r[0] === plOpen.pid) : null;
-      const price = row?.[4] > 0 ? `<span class="pl-price ${scored.length ? 'hit' : 'miss'}" title="Our pre-game anytime TD price">${pbOdds(row[4])}${scored.length ? ' ✓' : ''}</span>` : '<span class="pl-price none">—</span>';
+      const price = row?.[4] > 0 ? `<span class="pl-price ${scored.length ? 'hit' : 'miss'}" title="Our pre-game anytime TD price">${Odds.inline(row[4])}${scored.length ? ' ✓' : ''}</span>` : '<span class="pl-price none">—</span>';
       return `<tr>
         <td>${c.wk}</td><td class="pl-opp">${c.ha} ${g.opp}</td><td class="pl-res ${c.res ? (c.win ? 'w' : 'l') : ''}">${c.res || '—'}</td>
         ${cols.map(([, f]) => `<td>${f(g)}</td>`).join('')}
@@ -7313,7 +7314,7 @@ let pairStacks = false;
           <span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span>
           <span class="rc-cproj">${r.mu.toFixed(1)}</span>
-          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</span>
+          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.p)}</span>
           <span class="rc-cline">o${r.L}</span>
         </div>`).join('')}</div>`;
     } else {
@@ -7335,7 +7336,7 @@ let pairStacks = false;
           </div>
           <div class="pb-price">
             <span class="pb-odds${r.p < 0.5 ? ' dog' : ''}">${pbOdds(r.p)}</span>
-            <span class="pb-pct">over ${r.L}</span>
+            <span class="pb-pct">over ${r.L} · ${Odds.pct(r.p)}</span>
           </div>
         </div>`).join('')}</div>`;
     }
@@ -7533,7 +7534,7 @@ let pairStacks = false;
       body = `<div class="rc-compact">${rows.map((r, i) => `
         <div class="rc-crow" onclick="openCmp('${r.pid}')"${parAttr(cpLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${r.mu.toFixed(1)}</span>
-          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
+          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map((r, i) => `
         <div class="pb-card" onclick="openCmp('${r.pid}')"${parAttr(cpLeg(r))}>
@@ -7574,7 +7575,7 @@ let pairStacks = false;
       const hit = act > L;
       return `<div class="cp-res${hit ? ' hit' : ''}">
         <span class="cp-res-nm">${name}<span class="cp-res-tm">${team}${wind >= 15 ? ` · ${Math.round(wind)} mph` : ''}</span></span>
-        <span class="cp-res-line">o${L}<span class="cp-res-od">${pbOdds(p)}</span></span>
+        <span class="cp-res-line">o${L}<span class="cp-res-od">${Odds.inline(p)}</span></span>
         <span class="cp-res-proj">${mu.toFixed(1)}</span>
         <span class="cp-res-act">${act}</span>
         <span class="cp-res-tag">${hit ? 'OVER' : 'UNDER'}</span></div>`;
@@ -7649,7 +7650,7 @@ let pairStacks = false;
       </div>
       <div class="pb-head"><span class="pb-week">${WK_LABEL(firstUpcomingWeek())}</span><span class="pb-meta">${rows.length} starting QBs · over ${inF.line} interceptions · fair odds, no vig</span></div>${dayBar()}`;
     if (!rows.length) { el.innerHTML = controls + '<div class="empty">Nothing matches that search.</div>'; return; }
-    const under = (r) => pbOdds(1 - r.p);
+    const under = (r) => Odds.inline(1 - r.p);
     let body;
     if (inF.view === 'table') {
       body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>QB</th><th>Game</th><th class="num">Spread</th><th class="num">Bad balls</th><th class="num">Opp INT%</th><th class="num">Over</th><th class="num">Under</th></tr></thead><tbody>${rows.map(r => `
@@ -7787,18 +7788,18 @@ let pairStacks = false;
       </div>
       <div class="pb-head"><span class="pb-week">${WK_LABEL(firstUpcomingWeek())}</span><span class="pb-meta">${rows.length} kickers · ${kkF.line === 'even' ? `${M.unit} at each kicker's median line` : `over ${kkF.line} ${M.unit}`} · fair odds, no vig</span></div>${dayBar()}`;
     if (!rows.length) { el.innerHTML = controls + '<div class="empty">Nothing matches that search.</div>'; return; }
-    const under = (r) => pbOdds(1 - r.pp);
+    const under = (r) => Odds.inline(1 - r.pp);
     let body;
     if (kkF.view === 'table') {
       body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>Kicker</th><th>Game</th><th class="num">Team total</th><th class="num">Spread</th><th class="num">Weather</th><th class="num">Proj</th><th class="num">Over</th><th class="num">Under</th></tr></thead><tbody>${rows.map(r => `
         <tr onclick="openKick('${r.pid}')"${parAttr(kkLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
           <td class="num dim">${r.f.implied.toFixed(1)}</td><td class="num dim">${spreadTxt(r.f.fav)}</td><td class="num dim">${kkWx(r.f)}</td><td class="num">${kkProj(r)}</td>
-          <td class="num"><b class="${r.pp < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.pp)}</b></td><td class="num dim">${under(r)}</td></tr>`).join('')}</tbody></table></div>`;
+          <td class="num"><b class="${r.pp < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.pp)}</b></td><td class="num dim">${under(r)}</td></tr>`).join('')}</tbody></table></div>`;
     } else if (kkF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
         <div class="rc-crow" onclick="openKick('${r.pid}')"${parAttr(kkLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${kkProj(r)}</span>
-          <span class="rc-cod ${r.pp < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.pp)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
+          <span class="rc-cod ${r.pp < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.pp)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
         <div class="pb-card" onclick="openKick('${r.pid}')"${parAttr(kkLeg(r))}>
@@ -7813,7 +7814,7 @@ let pairStacks = false;
             <span class="pb-f" title="Point spread — favorites kick more field goals"><b>${spreadTxt(r.f.fav)}</b></span>
             <span class="pb-f" title="Forecast at kickoff — cold and wind cost field goals"><b>${kkWx(r.f)}</b></span>
           </div>
-          <div class="pb-price"><span class="pb-odds${r.pp < 0.5 ? ' dog' : ''}">${pbOdds(r.pp)}</span><span class="pb-pct">over ${r.L} · proj ${kkProj(r)}</span></div>
+          <div class="pb-price"><span class="pb-odds${r.pp < 0.5 ? ' dog' : ''}">${pbOdds(r.pp)}</span><span class="pb-pct">over ${r.L} · ${Odds.pct(r.pp)} · proj ${kkProj(r)}</span></div>
         </div>`).join('')}</div>`;
     }
     el.innerHTML = controls + uiView('setKk', kkF.view) + body;
@@ -7951,12 +7952,12 @@ let pairStacks = false;
       body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Median</th><th class="num">Avg</th><th class="num">Last 3</th><th class="num">Line</th><th class="num">Over</th><th class="num">Under</th></tr></thead><tbody>${rows.map(r => `
         <tr onclick="openYds('${r.pid}','${r.m}')"${parAttr(ydLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b> <span class="dim">${r.pos}</span></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
           <td class="num"><b>${r.med.toFixed(0)}</b></td><td class="num dim">${r.f.avg != null ? r.f.avg.toFixed(0) : '—'}</td><td class="num dim">${r.f.l3 != null ? r.f.l3.toFixed(0) : '—'}</td>
-          <td class="num dim">o${r.L}</td><td class="num"><b class="${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</b></td><td class="num dim">${pbOdds(1 - r.p)}</td></tr>`).join('')}</tbody></table></div>`;
+          <td class="num dim">o${r.L}</td><td class="num"><b class="${r.p < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.p)}</b></td><td class="num dim">${Odds.inline(1 - r.p)}</td></tr>`).join('')}</tbody></table></div>`;
     } else if (ydF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
         <div class="rc-crow" onclick="openYds('${r.pid}','${r.m}')"${parAttr(ydLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${r.med.toFixed(0)}</span>
-          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
+          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
         <div class="pb-card p-${r.pos}" onclick="openYds('${r.pid}','${r.m}')"${parAttr(ydLeg(r))}>
@@ -7967,7 +7968,7 @@ let pairStacks = false;
               ${liveChip('yds', r, r.med)}${roleTag(r.f)}${r.f.thinRole ? '<span class="rc-wind" title="No NFL history — priced from his depth-chart snap share against what rookies at his position and snap tier produced">rookie baseline</span>' : ''}${r.f.thin ? '<span class="rc-wind" title="Fewer than 3 recent starts — his numbers lean on a league-average QB">limited history</span>' : ''}</div>
           </div>
           <div class="pb-facts">${ydFacts(r).map(([v, l, t]) => `<span class="pb-f" title="${t}"><b>${v}</b> ${l}</span>`).join('')}</div>
-          <div class="pb-price"><span class="pb-odds" style="color:var(--text-strong)">${r.med.toFixed(0)}</span><span class="pb-pct">median · o${r.L} ${pbOdds(r.p)}</span></div>
+          <div class="pb-price"><span class="pb-odds" style="color:var(--text-strong)">${r.med.toFixed(0)}</span><span class="pb-pct">median · o${r.L} ${Odds.inline(r.p)}</span></div>
         </div>`).join('')}</div>`;
     }
     el.innerHTML = controls + uiView('setYd', ydF.view) + body;
@@ -8689,7 +8690,7 @@ let pairStacks = false;
         <div class="pb-info">
           <div class="pb-nm">${m.name}${injChip(m.pid)}${posBadge(m.pos)}</div>
           <div class="pb-line"><img class="pb-logo" src="${teamLogo(m.team)}" alt="" loading="lazy"> ${m.team}
-            · <b>${m.career}</b> career${pk ? ` · <b class="due-od">${pbOdds(pk.p)}</b> this week` : ''}</div>
+            · <b>${m.career}</b> career${pk ? ` · <b class="due-od">${Odds.inline(pk.p)}</b> this week` : ''}</div>
         </div>
         <div class="pb-price">
           <span class="pb-odds${close ? '' : ' dog'}">${m.away}</span>
@@ -8744,7 +8745,7 @@ let pairStacks = false;
           <div class="pb-nm">${r.name}${injChip(r.pid)}${posBadge(r.pos)}</div>
           <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
             · ${r.since === null ? `no TD in ${recapSeason}` : `${r.since} wk${r.since === 1 ? '' : 's'} since`}
-            · <b class="due-od">${pbOdds(r.p)}</b></div>
+            · <b class="due-od">${Odds.inline(r.p)}</b></div>
         </div>
         <div class="pb-price">
           <span class="pb-odds">${r.rz.toFixed(1)}</span>
@@ -8794,8 +8795,8 @@ let pairStacks = false;
         const naive = legs.reduce((a, l) => a * l.p, qb.pass.p['2']);
         const fair = Math.min(0.999, naive * rhoN);
         priceRow = `<div class="pl-row">
-          <span class="pl-fair"><b>${parlayOdds(fair)}</b><span class="pl-lbl">fair</span></span>
-          <span class="pl-naive">${parlayOdds(naive)}<span class="pl-lbl">if independent</span></span>
+          <span class="pl-fair"><b>${Odds.inline(fair)}</b><span class="pl-lbl">fair</span></span>
+          <span class="pl-naive">${Odds.inline(naive)}<span class="pl-lbl">if independent</span></span>
           <span class="pl-gap pl-better" title="A receiving TD is the passing TD — the same event, so the passer's leg runs above independence rather than competing.${size > 2 ? ' Measured for this group size, not squared: his receivers also compete with each other.' : ''}">+${((rhoN - 1) * 100).toFixed(0)}%</span>
         </div>`;
       }
@@ -8857,8 +8858,8 @@ let pairStacks = false;
         const gap = (pr.mult - 1) * 100;
         const tone = pr.mult < 0.97 ? 'pl-worse' : pr.mult > 1.03 ? 'pl-better' : 'pl-flat';
         return `<div class="pl-row">
-          <span class="pl-fair"><b>${parlayOdds(pr.fair)}</b><span class="pl-lbl">fair</span></span>
-          <span class="pl-naive">${parlayOdds(pr.naive)}<span class="pl-lbl">if independent</span></span>
+          <span class="pl-fair"><b>${Odds.inline(pr.fair)}</b><span class="pl-lbl">fair</span></span>
+          <span class="pl-naive">${Odds.inline(pr.naive)}<span class="pl-lbl">if independent</span></span>
           <span class="pl-gap ${tone}" title="${pr.sameOnly
             ? 'Same-team legs compete for a fixed pool of touchdowns, so this lands below the naive product.'
             : 'Legs split across both teams price close to independent.'}">${gap > 0 ? '+' : ''}${gap.toFixed(0)}%</span>
@@ -8945,7 +8946,7 @@ let pairStacks = false;
     const el = dataGate('home-content'); if (!el) return;
     // A home-card bet: the line and its price as the headline (a projection in
     // big type read like a season stat), the projection underneath.
-    const bet = (lbl, p) => `<span class="hm-score hm-bet"><small>${lbl}</small><b class="${p >= 0.5 ? 'odfav' : 'oddog'}">${pbOdds(p)}</b></span>`;
+    const bet = (lbl, p) => `<span class="hm-score hm-bet"><small>${lbl}</small><b class="${p >= 0.5 ? 'odfav' : 'oddog'}">${Odds.inline(p)}</b></span>`;
     const w = firstUpcomingWeek();
     const { byWeek } = scheduleWeeks();
     const games = (byWeek[w] || []).slice().sort((a, b) =>
@@ -9387,7 +9388,7 @@ let pairStacks = false;
       ? `${legs.length} leg${legs.length === 1 ? '' : 's'} <span>· ${PARLAY.on ? 'fair' : 'selection off'}</span>`
       : 'Parlay mode <span>· tap picks to add</span>';
     ho.className = 'par-head-od' + (legs.length ? '' : ' par-none');
-    ho.textContent = legs.length ? pbOdds(p) : '0 legs';
+    ho.textContent = legs.length ? Odds.both(p) : '0 legs';
 
     const body = document.getElementById('par-body');
     if (!legs.length) {
@@ -9406,7 +9407,7 @@ let pairStacks = false;
       + legs.map(l => `<div class="par-leg">
         <span class="par-leg-nm">${mixed ? `<span class="par-sp">${PAR_SPORT_LBL[l.sp] || ''}</span>` : ''}${l.n}</span>
         <span class="par-leg-sel">${l.s}${l.t ? ` · ${l.t}` : ''}</span>
-        <span class="par-leg-od">${pbOdds(l.p)}</span>
+        <span class="par-leg-od">${Odds.inline(l.p)}</span>
         <button class="par-leg-x" onclick="parRemove('${l.k.replace(/'/g, "\\'")}')" aria-label="Remove">×</button>
       </div>`).join('')
       + `<div class="par-lbl2">Profit boost</div>

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ron's Goal Tool</title>
+<script src="/odds.js?v=1"></script>
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="NHL player props, every line priced — anytime goals, points, shots on goal, saves, hits and blocked shots — plus parlays, live win probability and a goal-by-goal recap with clips. Inspired by Green Means Go.">
 <meta property="og:type" content="website">
@@ -2939,7 +2940,7 @@
     // what the Picks board said before puck drop, not a number fitted after.
     const price = (d) => {
       const r = (D.picksHistory?.[d] || []).find(x => x[0] === +pid);
-      return r ? `<span class="pl-price ${r[2] ? 'hit' : 'miss'}" title="Our pre-game anytime goal price">${sgOdds(r[1])}${r[2] ? ' ✓' : ''}</span>` : '<span class="pl-price none">—</span>';
+      return r ? `<span class="pl-price ${r[2] ? 'hit' : 'miss'}" title="Our pre-game anytime goal price">${Odds.inline(r[1])}${r[2] ? ' ✓' : ''}</span>` : '<span class="pl-price none">—</span>';
     };
     const rows = games.slice().reverse().map(g => {
       const r = plResult(g.date, w.team);
@@ -3297,7 +3298,7 @@
       extra += `<div class="sc-pick${res && res.cls !== 'pend' ? ' ' + res.cls : ''}" onclick="event.stopPropagation();${T ? `openPlayer(${best.pid})` : `openPick(${best.pid})`}">
           <span class="sc-pick-star">★</span><span class="sc-pick-lbl">top pick</span>
           ${posBadge(best.pos)}<span class="sc-pick-nm">${esc(best.name)}</span>${injChip(best.pid)}
-          <span class="sc-pick-od${best.p < 0.5 ? ' dog' : ''}">${sgOdds(best.p)}</span>
+          <span class="sc-pick-od${best.p < 0.5 ? ' dog' : ''}">${Odds.inline(best.p)}</span>
           ${res ? `<span class="sc-pick-res${res.cls === 'pend' ? ' pend' : ''}">${res.txt}</span>` : ''}</div>`;
     }
     if (live && L) {
@@ -3555,7 +3556,7 @@
             <td class="num dim">${r.sogL10.toFixed(1)}</td>
             <td class="num dim">${r.oppSa.toFixed(1)}</td>
             <td class="num dim">o${r.L}</td>
-            <td class="num"><b>${sgOdds(r.pAt)}</b></td>
+            <td class="num"><b>${Odds.inline(r.pAt)}</b></td>
           </tr>`).join('')}</tbody></table></div>`;
     } else if (sgF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
@@ -3564,7 +3565,7 @@
           <span class="rc-cnm">${esc(r.name)}</span>
           <span class="rc-cteam">${esc(r.team)}</span>
           <span class="rc-cproj">${r.mu.toFixed(1)}</span>
-          <span class="rc-cod">${sgOdds(r.pAt)}</span>
+          <span class="rc-cod">${Odds.inline(r.pAt)}</span>
           <span class="rc-cline">o${r.L}</span>
         </div>`).join('')}</div>`;
     } else {
@@ -3583,7 +3584,7 @@
           </div>
           <div class="pb-price">
             <span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span>
-            <span class="pb-pct">over ${r.L}</span>
+            <span class="pb-pct">over ${r.L} · ${Odds.pct(r.pAt)}</span>
           </div>
         </div>`).join('')}</div>`;
     }
@@ -3634,7 +3635,7 @@
     const head = `<div class="cp-res head"><span class="cp-res-nm">Skater</span><span class="cp-res-line">Line</span><span class="cp-res-proj">Proj</span><span class="cp-res-act">Got</span><span class="cp-res-tag"></span></div>`;
     const list = shown.map(r => `<div class="cp-res ${r.st}">
         <span class="cp-res-nm">${esc(r.name)}<span class="cp-res-tm">${esc(r.team)}${r.opp ? ' v ' + esc(r.opp) : ''}</span></span>
-        <span class="cp-res-line">o${r.L}<span class="cp-res-od">${sgOdds(r.p)}</span></span>
+        <span class="cp-res-line">o${r.L}<span class="cp-res-od">${Odds.inline(r.p)}</span></span>
         <span class="cp-res-proj">${r.mu.toFixed(1)}</span>
         <span class="cp-res-act">${r.got == null || r.got < 0 ? '' : r.got}</span>
         <span class="cp-res-tag">${TAG[r.st]}</span></div>`).join('');
@@ -3754,7 +3755,7 @@
             <td class="num dim">${pct3(r.svPct)}</td>
             <td class="num dim">${r.starter.of ? `${r.starter.starts}/${r.starter.of}` : '—'}</td>
             <td class="num dim">o${r.L}</td>
-            <td class="num"><b>${sgOdds(r.pAt)}</b></td>
+            <td class="num"><b>${Odds.inline(r.pAt)}</b></td>
           </tr>`).join('')}</tbody></table></div>`;
     } else if (F.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
@@ -3763,7 +3764,7 @@
           <span class="rc-cnm">${esc(r.name)}</span>
           <span class="rc-cteam">${esc(r.team)}</span>
           <span class="rc-cproj">${r.m.toFixed(dp)}</span>
-          <span class="rc-cod">${sgOdds(r.pAt)}</span>
+          <span class="rc-cod">${Odds.inline(r.pAt)}</span>
           <span class="rc-cline">o${r.L}</span>
         </div>`).join('')}</div>`;
     } else {
@@ -3785,7 +3786,7 @@
           </div>
           <div class="pb-price">
             <span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span>
-            <span class="pb-pct">over ${r.L}</span>
+            <span class="pb-pct">over ${r.L} · ${Odds.pct(r.pAt)}</span>
           </div>
         </div>`).join('')}</div>`;
     }
@@ -3867,13 +3868,13 @@
             <td class="num dim">${r.rank}</td><td><b>${esc(r.name)}</b> <span class="dim">${POS_NAME[r.pos] || r.pos}</span></td>
             <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}</td><td class="num"><b>${r.mu.toFixed(2)}</b></td>
             <td class="num dim">${r.f.prior.toFixed(2)}</td><td class="num dim">${r.f.l10.toFixed(1)}</td><td class="num dim">${(r.f.toi / 60).toFixed(1)}</td>
-            <td class="num dim">${r.f.rinkGames ? '×' + r.f.arena.toFixed(2) : '—'}</td><td class="num dim">o${r.L}</td><td class="num"><b>${sgOdds(r.pAt)}</b></td>
+            <td class="num dim">${r.f.rinkGames ? '×' + r.f.arena.toFixed(2) : '—'}</td><td class="num dim">o${r.L}</td><td class="num"><b>${Odds.inline(r.pAt)}</b></td>
           </tr>`).join('')}</tbody></table></div>`;
     } else if (F.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
         <div class="rc-crow" onclick="${open(r)}"${leg(r)}>
           <span class="rc-crank">${r.rank}</span><span class="rc-cnm">${esc(r.name)}</span><span class="rc-cteam">${esc(r.team)}</span>
-          <span class="rc-cproj">${r.mu.toFixed(1)}</span><span class="rc-cod">${sgOdds(r.pAt)}</span><span class="rc-cline">o${r.L}</span>
+          <span class="rc-cproj">${r.mu.toFixed(1)}</span><span class="rc-cod">${Odds.inline(r.pAt)}</span><span class="rc-cline">o${r.L}</span>
         </div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
@@ -3890,7 +3891,7 @@
             ${page === 'blocks' ? `<span class="pb-f" title="Penalty-kill minutes per game, last five — blocks happen on the kill"><b>${(r.f.shtoi / 60).toFixed(1)}</b> PK</span>` : ''}
             ${pxRink(r, P)}
           </div>
-          <div class="pb-price"><span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span><span class="pb-pct">over ${r.L}</span></div>
+          <div class="pb-price"><span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span><span class="pb-pct">over ${r.L} · ${Odds.pct(r.pAt)}</span></div>
         </div>`).join('')}</div>`;
     }
     el.innerHTML = tabs + controls + meta + body;
@@ -3935,7 +3936,7 @@
     const head = `<div class="cp-res head"><span class="cp-res-nm">Skater</span><span class="cp-res-line">Line</span><span class="cp-res-proj">Proj</span><span class="cp-res-act">Got</span><span class="cp-res-tag"></span></div>`;
     const list = shown.map(r => `<div class="cp-res ${r.st}">
         <span class="cp-res-nm">${esc(r.name)}<span class="cp-res-tm">${esc(r.team)}${r.opp ? ' v ' + esc(r.opp) : ''}</span></span>
-        <span class="cp-res-line">o${r.L}<span class="cp-res-od">${sgOdds(r.p)}</span></span>
+        <span class="cp-res-line">o${r.L}<span class="cp-res-od">${Odds.inline(r.p)}</span></span>
         <span class="cp-res-proj">${r.mu.toFixed(1)}</span><span class="cp-res-act">${r.got == null || r.got < 0 ? '' : r.got}</span>
         <span class="cp-res-tag">${TAG[r.st]}</span></div>`).join('');
     const more = rows.length > LIMIT ? `<button class="pbf-chip lr-more" onclick="${fn}('all',${!F.all})">${F.all ? 'Show top ' + LIMIT : `Show all ${rows.length}`}</button>` : '';
@@ -4009,7 +4010,7 @@
     const head = `<div class="cp-res head"><span class="cp-res-nm">Goalie</span><span class="cp-res-line">Line</span><span class="cp-res-proj">Proj</span><span class="cp-res-act">Got</span><span class="cp-res-tag"></span></div>`;
     const list = rows.map(r => `<div class="cp-res ${r.st}">
         <span class="cp-res-nm">${esc(r.name)}<span class="cp-res-tm">${esc(r.team)}${r.opp ? ' v ' + esc(r.opp) : ''}</span></span>
-        <span class="cp-res-line">o${r.L}<span class="cp-res-od">${sgOdds(r.p)}</span></span>
+        <span class="cp-res-line">o${r.L}<span class="cp-res-od">${Odds.inline(r.p)}</span></span>
         <span class="cp-res-proj">${r.mu.toFixed(ga ? 2 : 1)}</span>
         <span class="cp-res-act">${r.got == null || r.got < 0 ? '' : r.got}</span>
         <span class="cp-res-tag">${TAG[r.st]}</span></div>`).join('');
@@ -4115,13 +4116,13 @@
             <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}</td><td class="num"><b>${r.m.toFixed(2)}</b></td>
             <td class="num dim">${((ptF.tab === 'ppp' ? r.f.pptoi : r.f.toi) / 60).toFixed(1)}</td>
             <td class="num dim">${(ptF.tab === 'ast' ? r.f.aPg : ptF.tab === 'ppp' ? r.f.pppPg : r.f.ptsPg).toFixed(2)}</td>
-            <td class="num dim">${r.f.oppGa.toFixed(2)}</td><td class="num dim">o${r.L}</td><td class="num"><b>${sgOdds(r.pAt)}</b></td>
+            <td class="num dim">${r.f.oppGa.toFixed(2)}</td><td class="num dim">o${r.L}</td><td class="num"><b>${Odds.inline(r.pAt)}</b></td>
           </tr>`).join('')}</tbody></table></div>`;
     } else if (ptF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
         <div class="rc-crow" onclick="${open(r)}"${parAttr(lcLegOf(ptF.tab, r, r.L, r.pAt))}>
           <span class="rc-crank">${r.rank}</span><span class="rc-cnm">${esc(r.name)}</span><span class="rc-cteam">${esc(r.team)}</span>
-          <span class="rc-cproj">${r.m.toFixed(2)}</span><span class="rc-cod">${sgOdds(r.pAt)}</span><span class="rc-cline">o${r.L}</span>
+          <span class="rc-cproj">${r.m.toFixed(2)}</span><span class="rc-cod">${Odds.inline(r.pAt)}</span><span class="rc-cline">o${r.L}</span>
         </div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
@@ -4133,7 +4134,7 @@
               <span class="sg-proj"><b>${r.m.toFixed(2)}</b> proj</span>${spark(r)}</div>
           </div>
           <div class="pb-facts">${facts(r)}</div>
-          <div class="pb-price"><span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span><span class="pb-pct">over ${r.L}</span></div>
+          <div class="pb-price"><span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span><span class="pb-pct">over ${r.L} · ${Odds.pct(r.pAt)}</span></div>
         </div>`).join('')}</div>`;
     }
     el.innerHTML = tabs + controls + meta + body;
@@ -4180,7 +4181,7 @@
     const head = `<div class="cp-res head"><span class="cp-res-nm">Skater</span><span class="cp-res-line">Line</span><span class="cp-res-proj">Proj</span><span class="cp-res-act">Got</span><span class="cp-res-tag"></span></div>`;
     const list = shown.map(r => `<div class="cp-res ${r.st}">
         <span class="cp-res-nm">${esc(r.name)}<span class="cp-res-tm">${esc(r.team)}${r.opp ? ' v ' + esc(r.opp) : ''}</span></span>
-        <span class="cp-res-line">o${r.L}<span class="cp-res-od">${sgOdds(r.p)}</span></span>
+        <span class="cp-res-line">o${r.L}<span class="cp-res-od">${Odds.inline(r.p)}</span></span>
         <span class="cp-res-proj">${r.mu.toFixed(2)}</span><span class="cp-res-act">${r.got == null || r.got < 0 ? '' : r.got}</span>
         <span class="cp-res-tag">${TAG[r.st]}</span></div>`).join('');
     const more = rows.length > LIMIT ? `<button class="pbf-chip lr-more" onclick="setPt('all',${!ptF.all})">${ptF.all ? 'Show top ' + LIMIT : `Show all ${rows.length}`}</button>` : '';
@@ -4375,7 +4376,7 @@
         <td class="nm">${esc(r.name)}</td>
         <td>${posBadge(r.pos)}</td>
         <td>${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}${pkTime(r) ? ` <span style="color:var(--dim)">${pkTime(r)}</span>` : ''}</td>
-        <td class="od${pkP(r) < 0.5 ? ' dog' : ''}">${sgOdds(pkP(r))}</td>
+        <td class="od${pkP(r) < 0.5 ? ' dog' : ''}">${Odds.inline(pkP(r))}</td>
         <td class="num">${pkPct(pkP(r))}</td>
         <td class="num" style="color:var(--dim)">${r.mu.toFixed(2)}</td>
         <td class="num">${r.f.sogPg.toFixed(1)}</td>
@@ -4434,7 +4435,7 @@
         <span class="pbc-nm">${esc(r.name)}</span>
         ${posBadge(r.pos)}
         <span class="pbc-opp">${r.home ? 'vs' : '@'} ${esc(r.opp)}</span>
-        <span class="pbc-od${pkP(r) < 0.5 ? ' dog' : ''}">${sgOdds(pkP(r))}</span>
+        <span class="pbc-od${pkP(r) < 0.5 ? ' dog' : ''}">${Odds.inline(pkP(r))}</span>
       </div>`).join('')}
       <div class="pbc-ft"><span>${rows.length} picks · fair odds, no vig</span><span>dong-tool.netlify.app/nhl</span></div>
     </div>`;
@@ -4469,7 +4470,7 @@
         return `<div class="empty"><b>${hits.slice(0, 3).map(h => esc(h.name)).join(', ')}</b>${hits.length > 3 ? ` +${hits.length - 3} more` : ''} ${hits.length === 1 ? 'is' : 'are'} on the board, but filtered out. <a href="javascript:void(0)" onclick="clearPkF()">Reset filters →</a></div>`;
       }
       const best = P.picks.reduce((a, b) => (b.p > a.p ? b : a));
-      return `<div class="empty">Nothing here is shorter than <b>${cut?.lab || ''}</b>. The shortest is <b>${sgOdds(best.p)}</b> (${esc(best.name)}). <a href="javascript:void(0)" onclick="setPkF('cut',0)">Show the full board →</a></div>`;
+      return `<div class="empty">Nothing here is shorter than <b>${cut?.lab || ''}</b>. The shortest is <b>${Odds.inline(best.p)}</b> (${esc(best.name)}). <a href="javascript:void(0)" onclick="setPkF('cut',0)">Show the full board →</a></div>`;
     })()
       : pkF.view === 'table' ? pkTable(rows)
       : pkF.view === 'factors' ? pkFactors(rows)
@@ -4558,7 +4559,7 @@
               <div class="pm-meta"><b>${POS_NAME[r.pos] || r.pos}</b> · ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}${pkTime(r) ? ' · ' + pkTime(r) : ''}</div>
             </div>
             <div class="pm-hero-price">
-              <div class="pm-hero-od${pkP(r) < 0.5 ? ' dog' : ''}">${sgOdds(pkP(r))}</div>
+              <div class="pm-hero-od${pkP(r) < 0.5 ? ' dog' : ''}">${Odds.inline(pkP(r))}</div>
               <div class="pm-hero-lbl">${esc(pkMkt().long)}</div>
             </div>
           </div>
@@ -4963,7 +4964,7 @@
       </div>`;
     // A home-card bet: the line and its price as the headline (a projection in
     // big type read like a season stat), the projection underneath.
-    const bet = (L, p) => `<span class="hm-score hm-bet"><small>o${L}</small><b class="${p >= 0.5 ? 'odfav' : 'oddog'}">${sgOdds(p)}</b></span>`;
+    const bet = (L, p) => `<span class="hm-score hm-bet"><small>o${L}</small><b class="${p >= 0.5 ? 'odfav' : 'oddog'}">${Odds.inline(p)}</b></span>`;
 
     // ── Opening-night countdown ──────────────────────────────────────────
     // Only until the first regular-season puck drop; after that the page has
@@ -5011,7 +5012,7 @@
       <div class="hm-row" onclick="event.stopPropagation(); switchNav('picks'); openPick(${r.pid})">
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${POS_NAME[r.pos] || r.pos} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${r.mu.toFixed(2)} xG</span></span>
-        <span class="hm-score hm-bet"><small>goal</small><b class="${r.p >= 0.5 ? 'odfav' : 'oddog'}">${sgOdds(r.p)}</b></span></div>`).join('');
+        <span class="hm-score hm-bet"><small>goal</small><b class="${r.p >= 0.5 ? 'odfav' : 'oddog'}">${Odds.inline(r.p)}</b></span></div>`).join('');
 
     // ── Shots: the top of tonight's board ────────────────────────────────
     const SB = D.shots || {}, sbLines = SB.model?.lines || [1.5, 2.5, 3.5];
@@ -5076,7 +5077,7 @@
     const dueHome = (D.picks?.picks || []).filter(p => (drMap.get(p.pid)?.games ?? 0) >= DUE_MIN_GAMES).slice(0, 3).map(r => `
       <div class="hm-row" onclick="event.stopPropagation(); switchNav('due'); openPick(${r.pid})">
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
-        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} · ${drMap.get(r.pid).shots} shots since · ${sgOdds(r.p)}</span></span>
+        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} · ${drMap.get(r.pid).shots} shots since · ${Odds.inline(r.p)}</span></span>
         <span class="hm-score warm">${drMap.get(r.pid).games}<span class="hm-subtle" style="font-size:0.766rem"> gms</span></span></div>`).join('');
     const msHome = (FUN.milestones || []).slice(0, 3).map(m => `
       <div class="hm-row" onclick="event.stopPropagation(); openPlayer(${m.pid})">
@@ -5146,7 +5147,7 @@
         <div class="pb-info">
           <div class="pb-nm">${esc(r.name)}${injChip(r.pid)}${posBadge(r.pos)}</div>
           <div class="pb-line">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}
-            · <b>${d.shots}</b> shots, <b>${d.toi}</b> min since · <b class="due-od">${sgOdds(r.p)}</b></div>
+            · <b>${d.shots}</b> shots, <b>${d.toi}</b> min since · <b class="due-od">${Odds.inline(r.p)}</b></div>
           <div class="pb-line">${since}</div>
         </div>
         <div class="pb-price">
@@ -5178,9 +5179,9 @@
     const pt = new Map((D.points?.board || []).map(p => [p.pid, p]));
     // tonight's price for the stat being chased, where the board has one
     const tonight = (m) => {
-      if (m.stat === 'g' && pk.has(m.pid)) return `${sgOdds(pk.get(m.pid).p)} to score tonight`;
-      if (m.stat === 'pts' && pt.has(m.pid)) return `${sgOdds(1 - Math.exp(-pt.get(m.pid).mu.pts))} for a point tonight`;
-      if (m.stat === 'a' && pt.has(m.pid)) return `${sgOdds(1 - Math.exp(-pt.get(m.pid).mu.a))} for an assist tonight`;
+      if (m.stat === 'g' && pk.has(m.pid)) return `<b class="due-od">${Odds.inline(pk.get(m.pid).p)}</b> to score tonight`;
+      if (m.stat === 'pts' && pt.has(m.pid)) return `<b class="due-od">${Odds.inline(1 - Math.exp(-pt.get(m.pid).mu.pts))}</b> for a point tonight`;
+      if (m.stat === 'a' && pt.has(m.pid)) return `<b class="due-od">${Odds.inline(1 - Math.exp(-pt.get(m.pid).mu.a))}</b> for an assist tonight`;
       return '';
     };
     const r0 = R[ms[0]?.stat];
@@ -5191,7 +5192,7 @@
         <div class="pb-rank">${i + 1}</div>${faceHtml(m.mug || mugOf(m.pid, m.team, D.leaderSeason), m.name)}
         <div class="pb-info">
           <div class="pb-nm">${esc(m.name)}${injChip(m.pid)}${posBadge(m.pos)}</div>
-          <div class="pb-line">${logoImg(m.team, 'pb-logo')} ${esc(m.team)} · <b>${m.career.toLocaleString()}</b> career ${MS_UNIT[m.stat]}${t ? ` · <b class="due-od">${t.split(' ')[0]}</b> ${t.split(' ').slice(1).join(' ')}` : ''}</div>
+          <div class="pb-line">${logoImg(m.team, 'pb-logo')} ${esc(m.team)} · <b>${m.career.toLocaleString()}</b> career ${MS_UNIT[m.stat]}${t ? ` · ${t}` : ''}</div>
         </div>
         <div class="pb-price">
           <span class="pb-odds${m.away <= Math.ceil((R[m.stat]?.within || 10) / 5) ? '' : ' dog'}">${m.away}</span>
@@ -5292,7 +5293,7 @@
         </div>
         ${rec(b.rec)}
         <div class="bd-age">${o < 0 ? b.turning : b.turning}<small>${o < 0 ? 'turned' : 'turning'}</small></div>
-        ${b.p != null ? `<div class="bd-price${b.p < 0.25 ? ' dog' : ''}" title="His goal price on his birthday">${sgOdds(b.p)}</div>` : ''}
+        ${b.p != null ? `<div class="bd-price${b.p < 0.25 ? ' dog' : ''}" title="His goal price on his birthday">${Odds.inline(b.p)}</div>` : ''}
       </div>`;
     };
     const today = list.filter(b => off(b) === 0), ahead = list.filter(b => off(b) > 0), past = list.filter(b => off(b) < 0).reverse();
@@ -5317,7 +5318,7 @@
       const state = b.pos === 'G' ? (r.dec === 'W' ? 'hit' : 'miss') : r.g > 0 ? 'hit' : 'miss';
       return `<div class="cp-res ${state}">
         <span class="cp-res-nm">${esc(b.name)} 🎂<span class="cp-res-tm">${esc(b.team)} ${b.game.home ? 'vs' : '@'} ${esc(b.game.opp)} · turned ${b.turning}</span></span>
-        <span class="cp-res-line">${b.p != null ? sgOdds(b.p) : ''}</span>
+        <span class="cp-res-line">${b.p != null ? Odds.inline(b.p) : ''}</span>
         <span class="cp-res-proj">${dayLabel(b.day)}</span>
         <span class="cp-res-act">${line}</span>
         <span class="cp-res-tag">${b.pos === 'G' ? (r.dec === 'W' ? 'WIN' : '—') : r.g > 0 ? 'SCORED' : '—'}</span></div>`;
@@ -5607,7 +5608,7 @@
       ? `${legs.length} leg${legs.length === 1 ? '' : 's'} <span>· ${PARLAY.on ? 'fair' : 'selection off'}</span>`
       : 'Parlay mode <span>· tap picks to add</span>';
     ho.className = 'par-head-od' + (legs.length ? '' : ' par-none');
-    ho.textContent = legs.length ? sgOdds(p) : '0 legs';
+    ho.textContent = legs.length ? Odds.both(p) : '0 legs';
     const body = document.getElementById('par-body');
     if (!legs.length) {
       body.innerHTML = `<div class="par-empty">Tap any priced row to add it.<br>One slip for the whole site: legs from every tool — and every sport — combine here.</div>`;
@@ -5624,7 +5625,7 @@
       + legs.map(l => `<div class="par-leg">
         <span class="par-leg-nm">${mixed ? `<span class="par-sp">${PAR_SPORT_LBL[l.sp] || ''}</span>` : ''}${esc(l.n)}</span>
         <span class="par-leg-sel">${esc(l.s)}${l.t ? ` · ${esc(l.t)}` : ''}</span>
-        <span class="par-leg-od">${sgOdds(l.p)}</span>
+        <span class="par-leg-od">${Odds.inline(l.p)}</span>
         <button class="par-leg-x" onclick="parRemove('${l.k.replace(/'/g, "\\'")}')" aria-label="Remove">×</button>
       </div>`).join('')
       + `<div class="par-lbl2">Profit boost</div>
@@ -6297,7 +6298,7 @@
       .then(([pk, sh, pt, sv]) => { GH = { pk, sh, pt, sv }; ghState = 'ready'; })
       .finally(() => { if (gm.gid) gmRender(); });
   }
-  const gmOdds = (p) => p == null ? '—' : sgOdds(p);
+  const gmOdds = (p) => p == null ? '—' : Odds.inline(p);
   /** Every skater and goalie we price in this game: [{pid, name, team, pos, goal, got, stats:[{k,lab,proj,line,p,got,open}]}] */
   function gmPlayers(g, state) {
     const M = new Map();
