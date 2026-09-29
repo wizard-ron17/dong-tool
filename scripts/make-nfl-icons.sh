@@ -10,8 +10,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 SRC=icons/nfl-logo.svg
-BODY=$(sed -n '/<defs>/,/<\/g>/p' "$SRC")
-RIM=$(printf '%s' "$BODY" | sed 's#<ellipse cx="32" cy="32" rx="29.5" ry="18.5" transform="rotate(-40 32 32)" fill="\#ffffff"/>#<ellipse cx="32" cy="32" rx="29.5" ry="18.5" transform="rotate(-40 32 32)" fill="\#ffffff" stroke="\#05080f" stroke-width="3.5"/>#')
+BODY=$(sed -n '/<g /,/<\/g>/p' "$SRC")
+# favicons: the ball's own outline in a dark rim, so the white reads on a light tab
+RIM=$(printf '%s' "$BODY" | sed 's#fill="\#ffffff"/>#fill="\#ffffff" stroke="\#05080f" stroke-width="3.5" stroke-linejoin="round"/>#')
 { echo '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'; printf '%s\n' "$RIM"; echo '</svg>'; } > icons/nfl-favicon.svg
 MK=$(mktemp -t nflmk).svg
 { echo '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512"><rect width="64" height="64" fill="#05080f"/>'
