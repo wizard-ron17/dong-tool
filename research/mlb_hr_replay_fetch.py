@@ -2,7 +2,8 @@
 
     python3 research/mlb_hr_replay_fetch.py 2025 2026
 
-One row per starting batter per game: batting slot, AB, PA, HR, the opposing
+One row per starting batter per game: batting slot, AB, PA, HR (and H, R, RBI, TB,
+2B, 3B, BB for the homer-adjacent markets), the opposing
 starting pitcher, venue, date. Boxscores rather than player game logs because
 they say who STARTED (battingOrder "N00") — a pinch hitter's one AB is not the
 bet the board prices — and who started on the mound against him.
@@ -84,6 +85,9 @@ def rows_for(season, pk, date, venue):
                 "bats": (p.get("person", {}).get("batSide") or {}).get("code"),
                 "slot": int(bo[0]), "ab": b.get("atBats", 0), "pa": b.get("plateAppearances", 0),
                 "hr": b.get("homeRuns", 0), "opp_sp": opp_sp,
+                # the rest of his line, for the homer-adjacent markets (research/mlb_hr_adjacent.py)
+                "h": b.get("hits", 0), "r": b.get("runs", 0), "rbi": b.get("rbi", 0), "tb": b.get("totalBases", 0),
+                "d2": b.get("doubles", 0), "d3": b.get("triples", 0), "bb": b.get("baseOnBalls", 0),
                 # the opposing starter's own line in this game, so his HR rate to
                 # date can be built (the replay's crude pitcher-vulnerability test)
                 "sp_hr": sp.get("homeRuns", 0), "sp_bf": sp.get("battersFaced", 0),
