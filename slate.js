@@ -55,6 +55,37 @@
     .sl-panel { display: block; min-width: 0; background: var(--surface0); border: 1px solid var(--border); border-radius: 18px; padding: 1rem 1.1rem 1.2rem; }
     .sl-panel .gm-hero { margin-top: 0; }
   }
+  /* ── the game header: teams, lines or score, time and place (was copied into each app; .gm-tabs stays there) ── */
+  .pm.gmm { max-width: 1000px; }
+  .gm-hero { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 0.8rem; padding: 0.1rem 2rem 0.8rem 0.2rem; border-bottom: 1px solid var(--border); margin-bottom: 0.85rem; }
+  .gm-team { display: flex; align-items: center; gap: 0.6rem; font-family: var(--font-d); font-size: 1.5rem; color: var(--text-strong); }
+  .gm-team.end { justify-content: flex-end; }
+  .gm-team img { width: 2.6rem; height: 2.6rem; object-fit: contain; }
+  .gm-mid { text-align: center; font-family: var(--font-d); }
+  .gm-lines { display: flex; gap: 0.4rem; justify-content: center; }
+  .gm-lines span { font-size: 0.8rem; padding: 0.15rem 0.5rem; border-radius: 6px; border: 1px solid var(--border2); color: var(--silver); }
+  .gm-score { font-size: 2rem; line-height: 1; display: flex; gap: 0.4rem; justify-content: center; color: var(--muted); }
+  .gm-score .win { color: var(--text-strong); }
+  .gm-score i { font-style: normal; opacity: 0.4; }
+  .gm-when { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+  .gm-live { color: var(--gold); }
+  .gm-wx { font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); margin-top: 0.2rem; }
+  @media (max-width: 620px) {
+    .pm.gmm { padding-left: 0.7rem; padding-right: 0.7rem; }
+    .gm-hero { grid-template-columns: auto auto; justify-content: space-between; align-items: center; gap: 0.3rem 0.5rem; padding: 0 1.8rem 0.6rem 0; }
+    .gm-mid { grid-column: 1 / -1; order: 3; }
+    .gm-lines { gap: 0.3rem; }
+    .gm-lines span { font-size: 0.72rem; }
+    .gm-when, .gm-wx { font-size: 0.7rem; }
+    .gm-team { font-size: 1.25rem; gap: 0.4rem; }
+    .gm-team img { width: 2rem; height: 2rem; }
+    .gm-score { font-size: 1.5rem; }
+  }
+  .sl-hodds { display: flex; flex-direction: column; align-items: center; font-family: var(--font-m); line-height: 1.2; min-width: 3.2rem; }
+  .sl-hodds b { font-size: 0.98rem; font-weight: 700; color: var(--text-strong); }
+  .sl-hodds span { font-size: 0.8rem; color: var(--text); }
+  .sl-facts { text-align: center; font-size: 0.72rem; color: var(--dim); margin: -0.2rem 0 0.8rem; }
+  .sl-facts b { color: var(--text); }
   /* ── box score ── */
   .bx-sum { display: flex; flex-wrap: wrap; gap: 0.4rem 1.1rem; font-size: 0.74rem; color: var(--dim); margin: 0.2rem 0 0.7rem; }
   .bx-sum b { color: var(--text-strong); font-family: var(--font-d); font-size: 0.9rem; }
@@ -170,6 +201,8 @@
     const attr = `${c.leg && state === 'pre' && window.parAttr ? parAttr(c.leg) : ''}${c.open ? ` onclick="${esc(c.open)}"` : ''}`;
     const title = col.yes ? `${col.title || col.lab}: fair ${Odds.am(c.p)} (${Odds.pct(c.p)})` : `${col.title || col.lab}: projected ${(+c.proj).toFixed(c.dp ?? 1)}, over ${c.line} fair ${Odds.am(c.p)} (${Odds.pct(c.p)})`;
     if (col.yes) {
+      // a sub-1% price is noise in a box (a +47000 double-double off the bench): a dash, the price in the tooltip
+      if (!fin && c.p < 0.01) return `<td class="bx-c none" title="${esc(title)}"${attr}><b>—</b><small>&lt;1%</small></td>`;
       const big = fin ? (c.got >= 1 ? (c.got > 1 ? `✓ ${c.got}` : '✓') : '✗') : Odds.am(c.p);
       const small = fin ? `was ${Odds.am(c.p)}` : Odds.pct(c.p);
       return `<td class="bx-c${fin ? (hit ? ' hit' : ' miss') : ''}" title="${esc(title)}"${attr}><b>${big}</b><small>${small}</small></td>`;

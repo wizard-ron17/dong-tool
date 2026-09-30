@@ -10,6 +10,7 @@
 <script src="/modal.js"></script>
 <script src="/board.js"></script>
 <script src="/ladder.js"></script>
+<script src="/slate.js"></script>
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="NBA player props, every line priced — threes, points, rebounds, assists, PRA, steals and blocks, double- and triple-doubles and the first basket — plus droughts, milestones, a nightly recap and the schedule with lines. Inspired by Green Means Go.">
 <meta property="og:type" content="website">
@@ -1086,15 +1087,12 @@
     const t = todayET();
     return D.dates.find(d => d >= t) || D.dates[D.dates.length - 1];
   }
-  function setScheduleDate(d) { scheduleDate = d; scOpen.clear(); renderSchedule(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  function setScheduleDate(d) { scheduleDate = d; renderSchedule(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
   function shiftScheduleDate(n) {
     const i = D.dates.indexOf(scheduleDate) + n;
     if (i >= 0 && i < D.dates.length) setScheduleDate(D.dates[i]);
   }
-  const scOpen = new Set();
-  function toggleGame(id) { scOpen.has(id) ? scOpen.delete(id) : scOpen.add(id); renderSchedule(); }
   function gameRow(g) {
-    const open = scOpen.has(g.id);
     const final = g.state === 'post', live = g.state === 'in';
     const aWin = final && g.away.score > g.home.score;
     const L = g.lines;
@@ -1118,24 +1116,12 @@
         </div>
         ${end ? logoImg(t.ab, 'sc-logo') : ''}
       </div>`;
-    const body = !open ? '' : `<div class="sc-body">
-        <div class="sc-facts">
-          <span class="sc-fact">${esc(teamName(g.away.ab))} <b>at</b> ${esc(teamName(g.home.ab))}</span>
-          ${g.venue ? `<span class="sc-fact">· ${esc(g.venue)}</span>` : ''}
-          ${!final ? `<span class="sc-fact">· ${dayLabel(g.date, true)}, ${gameTime(g.start)}</span>` : ''}
-          ${g.note ? `<span class="sc-tv">${esc(g.note)}</span>` : ''}
-        </div>
-        ${L && !final ? `<div class="sc-goals">
-          <div class="sc-goal"><b>${esc(L.detail || '')}</b><span>total ${L.total ?? '—'}</span><span style="margin-left:auto">${esc(L.book || '')}</span></div>
-          ${L.impAway != null ? `<div class="sc-goal"><span class="t">Implied</span><b>${esc(g.away.ab)} ${L.impAway}</b><span>·</span><b>${esc(g.home.ab)} ${L.impHome}</b></div>` : ''}
-        </div>` : ''}
-      </div>`;
     // the game's top threes pick, best at 2+ (the schedule standard: a top pick on every game)
     const tp = (D.threes?.rows || []).filter(r => r.gid === g.id).sort((a, b) => b.p[1] - a.p[1])[0];
     const pick = tp ? `<div class="t3-pick" onclick="event.stopPropagation(); t3Set('game','${g.id}'); switchNav('threes')">
         <span class="t3-pick-lbl">Top threes</span>${logoImg(tp.team, 't3-logo')}<b>${esc(tp.name)}</b>
         <span class="t3-pick-od">2+ ${fairOdds(tp.p[1])} <small>${(tp.p[1] * 100).toFixed(0)}%</small></span></div>` : '';
-    return `<div class="sc-game${open ? ' open' : ''}" onclick="toggleGame('${g.id}')" role="button" tabindex="0">
+    return `<div class="sc-game" data-gid="${g.id}" onclick="openGame('${g.id}')" role="button" tabindex="0">
       <div class="sc-top">
         ${side(g.away, false, aWin)}
         <div class="sc-mid">${mid}</div>
@@ -1143,8 +1129,98 @@
         <span class="sc-chev">▶</span>
       </div>
       ${pick}
-      ${body}
     </div>`;
+  }
+  // ── The game card and the split view (/slate.js) ──────────────────────
+  // Desktop: the night down the left, the picked game on the right; phone: a
+  // pop-up. Either way it opens on the box score: every priced player, a column
+  // per market, projection big with the even-money line and our fair odds under it.
+  /** A game by id: off the schedule, or (opening night, past the schedule's ten days) off the boards. */
+  function nbaGameOf(gid) {
+    gid = String(gid);
+    const s = D.schedule.find(g => g.id === gid); if (s) return s;
+    const r = [...(D.stats?.boards?.pts?.rows || []), ...(D.threes?.rows || [])].find(x => x.gid === gid); if (!r) return null;
+    const home = r.home ? r.team : r.opp, away = r.home ? r.opp : r.team;
+    return { id: gid, start: r.start, date: new Date(r.start).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }), type: 2, state: 'pre', home: { ab: home }, away: { ab: away }, lines: null };
+  }
+  const BX_NBA = [{ k: 'pts', lab: 'PTS', title: 'Points' }, { k: 'reb', lab: 'REB', title: 'Rebounds' }, { k: 'ast', lab: 'AST', title: 'Assists' },
+    { k: '3pm', lab: '3PM', title: 'Made threes' }, { k: 'pra', lab: 'PRA', title: 'Points + rebounds + assists' }, { k: 'stl', lab: 'STL', title: 'Steals' },
+    { k: 'blk', lab: 'BLK', title: 'Blocks' }, { k: 'dd', lab: 'DD', title: 'Double-double', yes: true }, { k: 'td', lab: 'TD', title: 'Triple-double', yes: true },
+    { k: 'fb', lab: '1st', title: 'First basket', yes: true }];
+  function nbaBox(g) {
+    const P = new Map();
+    const row = (r) => { if (!P.has(r.pid)) P.set(r.pid, { pid: r.pid, name: r.name, team: r.team, pos: r.pos, min: r.min, cells: {} }); return P.get(r.pid); };
+    for (const k of ['pts', 'reb', 'ast', '3pm', 'pra', 'stl', 'blk']) for (const r of lcRows(k).filter(x => x.gid === g.id)) {
+      const pmf = lcPmf(r, k), [lo, hi] = LC[k].range; let L = lo;
+      for (let x = lo; x <= hi; x++) if (Math.abs(overAt(pmf, x) - 0.5) < Math.abs(overAt(pmf, L) - 0.5)) L = x;
+      const p = overAt(pmf, L);
+      row(r).cells[k] = { proj: r.mu, dp: 1, line: L, p, leg: bdLeg(k, r, L, p), open: `openLc('${k}','${r.pid}')` };
+    }
+    for (const r of (D.stats?.doubles || []).filter(x => x.gid === g.id))
+      for (const m of ['dd', 'td']) if (r[m] != null) row(r).cells[m] = { p: r[m], leg: dblLeg(r, m), open: `openDoubleCard('${r.pid}')` };
+    const fg = (D.first?.games || []).find(x => x.gid === g.id);
+    for (const r of fg?.players || []) row(r).cells.fb = { p: r.p, leg: fbLeg(r, fg), open: `fbF.game='${g.id}';switchNav('first')` };
+    const teams = [g.away.ab, g.home.ab].map(t => ({ abbr: t, logo: logoImg(t, ''), sub: esc(teamName(t)), groups: [{ name: 'Players', cols: BX_NBA,
+      rows: [...P.values()].filter(r => r.team === t).sort((a, b) => (b.cells.pts?.proj ?? 0) - (a.cells.pts?.proj ?? 0))
+        .map(r => ({ name: r.name, pos: r.pos, sub: r.min ? `${r.min.toFixed(0)} min` : '', face: faceHtml(r.pid, r.name), open: `openLc('pts','${r.pid}')`, cells: r.cells })) }] }));
+    const done = g.state === 'post' || g.state === 'in';
+    return RonSlate.box({ state: 'pre', teams,
+      note: 'Our projection for every priced player, with the even-money line and our fair odds under it (DD, TD and 1st are yes/no prices). Tap a number for its full ladder, a header to sort. In parlay mode a tap adds it to the slip.',
+      empty: done ? 'This one tipped off before it was priced — box scores are graded from the regular season on.' : 'Prices post once the game is inside the build\'s window — usually a couple of days out.' });
+  }
+  function nbaGameHtml(g) {
+    const L = g.lines, final = g.state === 'post', live = g.state === 'in';
+    const side = (home) => {
+      if (!L || final || live) return '';
+      const sp = L.spread == null ? null : (home ? L.spread : -L.spread), ml = home ? L.mlHome : L.mlAway;
+      return `<span class="sl-hodds"><b>${sp != null ? sgn(sp) : ''}</b><span>${ml != null ? odds(ml) : ''}</span></span>`;
+    };
+    const as = g.away.score, hs = g.home.score;
+    const mid = final || live
+      ? `<div class="gm-score"><span${as > hs ? ' class="win"' : ''}>${as ?? 0}</span><i>–</i><span${hs > as ? ' class="win"' : ''}>${hs ?? 0}</span></div>
+         <div class="gm-when">${live ? `<b class="gm-live">${esc(g.detail || 'Live')}</b>` : esc(g.detail || 'Final')}</div>`
+      : `${L?.total != null ? `<div class="gm-lines"><span>O/U ${L.total}</span></div>` : ''}<div class="gm-when">${typeTag(g.type)} ${dayLabel(g.date)} · ${gameTime(g.start)}</div>`;
+    const deck = D.schedule.filter(x => x.date === g.date), at = deck.findIndex(x => x.id === g.id);
+    return `<header class="gm-hero">
+        <div class="gm-team">${logoImg(g.away.ab, '')}<b>${esc(g.away.ab)}</b>${side(false)}</div>
+        <div class="gm-mid">${mid}<div class="gm-wx">${esc(g.venue || '')}${at >= 0 ? ` · ${at + 1} / ${deck.length}` : ''}</div></div>
+        <div class="gm-team end">${side(true)}<b>${esc(g.home.ab)}</b>${logoImg(g.home.ab, '')}</div>
+      </header>
+      ${L?.impAway != null && !final ? `<div class="sl-facts">Implied <b>${esc(g.away.ab)} ${L.impAway}</b> · <b>${esc(g.home.ab)} ${L.impHome}</b>${L.book ? ` · ${esc(L.book)}` : ''}</div>` : ''}
+      <div class="sub-tabs u-tabs"><button class="sub-btn active">Box score</button></div>
+      ${nbaBox(g)}`;
+  }
+  let nbaGid = null;
+  /** Open a game: in place in the split view, else as the pop-up (/modal.js). */
+  function openGame(gid) {
+    if (RonSlate.select(gid)) return;
+    const g = nbaGameOf(gid); if (!g) return;
+    nbaGid = g.id;
+    const dlg = RonModal.open('gm-back', { cls: 'pm ydm gmm', nav: { prev: 'nbaGameStep(-1)', next: 'nbaGameStep(1)' }, onClose: () => { nbaGid = null; } });
+    dlg.innerHTML = `<button class="pm-x" onclick="RonModal.close('gm-back')" aria-label="Close">×</button>` + nbaGameHtml(g);
+    const deck = D.schedule.filter(x => x.date === g.date);
+    RonModal.navState('gm-back', deck.findIndex(x => x.id === g.id), deck.length);
+  }
+  function nbaGameStep(d) {
+    const g = nbaGameOf(nbaGid); if (!g) return;
+    const deck = D.schedule.filter(x => x.date === g.date), nx = deck[deck.findIndex(x => x.id === g.id) + d];
+    if (nx) openGame(nx.id);
+  }
+  RonSlate.onSort(() => { if (nbaGid && document.getElementById('gm-back')) openGame(nbaGid); });
+  /** The split view's rail: the night's games, stacked like a scoreboard. */
+  function nbaRail(games) {
+    return [{ label: '', games: games.map(g => {
+      const L = g.lines, final = g.state === 'post', live = g.state === 'in';
+      const tp = (D.threes?.rows || []).filter(r => r.gid === g.id).sort((a, b) => b.p[1] - a.p[1])[0];
+      const team = (t, home) => ({ abbr: t.ab, logo: logoImg(t.ab, ''), rec: esc(record(t.ab) || t.rec || ''),
+        score: final || live ? t.score ?? 0 : null, lost: final && (home ? g.home.score < g.away.score : g.away.score < g.home.score),
+        line: L?.spread == null ? '' : sgn(home ? L.spread : -L.spread), odds: L ? odds(home ? L.mlHome : L.mlAway) : '' });
+      return { id: g.id, live,
+        when: final ? esc(g.detail || 'Final') : live ? `Live · ${esc(g.detail || '')}` : `${g.type === 1 ? 'Pre · ' : ''}${gameTime(g.start)}`,
+        note: !final && !live && L?.total != null ? `O/U ${L.total}` : '',
+        teams: [team(g.away, false), team(g.home, true)],
+        pick: tp ? `★ <b>${esc(tp.name)}</b> 2+ threes<span class="sl-od${tp.p[1] >= 0.5 ? ' fav' : ''}">${Odds.am(tp.p[1])}</span>` : '' };
+    }) }];
   }
   function renderSchedule() {
     const el = dataGate('schedule-content'); if (!el) return;
@@ -1153,7 +1229,7 @@
     const i = D.dates.indexOf(scheduleDate), atFirst = i <= 0, atLast = i >= D.dates.length - 1;
     const games = D.schedule.filter(g => g.date === scheduleDate);
     const pre = games.filter(g => g.type === 1).length;
-    el.innerHTML = `<div class="rc-wknav">
+    const top = `<div class="rc-wknav">
         <div class="rc-wknav-center">
           <button class="rc-arrow" onclick="shiftScheduleDate(-1)" ${atFirst ? 'disabled' : ''} aria-label="Previous date">‹</button>
           <span class="rc-wklabel">${dayLabel(scheduleDate)}</span>
@@ -1161,8 +1237,10 @@
         </div>
         <button class="rc-jump" onclick="setScheduleDate(nextGameDate())" title="Jump to the next date with games">Next up</button>
       </div>
-      <div class="result-meta"><b>${dayLabel(scheduleDate, true)}</b> · ${games.length} game${games.length === 1 ? '' : 's'}${pre ? ` · ${pre} preseason` : ''} · lines are DraftKings' · tap a game for the detail</div>
-      <div class="sc-list">${games.map(gameRow).join('') || '<div class="empty">No games on this date.</div>'}</div>`;
+      <div class="result-meta"><b>${dayLabel(scheduleDate, true)}</b> · ${games.length} game${games.length === 1 ? '' : 's'}${pre ? ` · ${pre} preseason` : ''} · lines are DraftKings' · every game's projected box score</div>`;
+    const next = games.find(g => g.state !== 'post') || games[0];
+    RonSlate.render(el, { key: 'nba', top, pick: next?.id, panel: (gid) => { const g = nbaGameOf(gid); return g ? nbaGameHtml(g) : ''; }, rail: nbaRail(games),
+      list: `<div class="sc-list">${games.map(gameRow).join('') || '<div class="empty">No games on this date.</div>'}</div>` });
   }
 
   // ── Stats ──────────────────────────────────────────────────────────────
