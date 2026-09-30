@@ -1035,6 +1035,8 @@
 </div>
 <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
 <div class="sport-menu" id="sport-menu"><a class="sport-item" href="/mlb/"><span class="sport-ico">⚾</span><span class="sport-name">Ron's Dong Tool</span><span class="sport-sub">MLB</span></a><a class="sport-item" href="/nfl/"><span class="sport-ico">🏈</span><span class="sport-name">Ron's Tud Tool</span><span class="sport-sub">NFL</span></a><a class="sport-item" href="/nhl/"><span class="sport-ico">🏒</span><span class="sport-name">Ron's Goal Tool</span><span class="sport-sub">NHL</span></a><a class="sport-item current" href="/nba/"><span class="sport-ico">🏀</span><span class="sport-name">Ron's Hoop Tool</span><span class="sport-sub">NBA</span></a></div>
+<script src="/sgp.js"></script>
+<script src="/parlay.js"></script>
 <script>
   const APP_BASE = '/nba';
 
@@ -1816,6 +1818,7 @@
           <div class="ydl" id="lc-ladder">${side.ladder}</div>
         </div></aside>
       </div>
+      <div class="lc-add" style="text-align:center;margin:0.2rem 0 0.6rem">${lcAddBtn()}</div>
       <footer class="ydm-tip">${ydIco('bulb')}<span>${p10 != null && p90 != null ? p10 === p90 ? `Most games land at <b>${p10}</b> ${C.unit}. ` : `Most games land between about <b>${p10}</b> and <b>${p90}</b> ${C.unit}. ` : ''}Priced off <b>${r.min.toFixed(1)}</b> projected minutes${r.q ? ` · <b>${esc(r.q)}</b> on the injury report` : ''}.${lc.kind === '3pm' && (r.f?.dr ?? 0) >= 3 ? ` No made three in his last <b>${r.f.dr}</b> games — priced in: a drought that long means he's shooting fewer, not that he's due.` : ''} Fair odds, no vig.</span></footer>`;
     document.querySelector('#lc-back .ydm').innerHTML = html;
     const back = document.getElementById('lc-back');
@@ -1835,7 +1838,23 @@
     const set = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
     set('lc-chart', lcChart(r, pmf)); set('lc-probs', side.probs);
     set('lc-ladder', side.ladder); set('lc-ladder-m', side.ladder);
+    document.querySelectorAll('.lc-add').forEach(el => { el.innerHTML = lcAddBtn(); });
     lcCenter();
+  }
+  function lcLeg() {
+    const r = lcRow(); if (!r) return null;
+    return bdLeg(lc.kind, r, lc.line, overAt(lcPmf(r), lc.line));
+  }
+  function lcAddBtn() {
+    const leg = lcLeg(); if (!leg || !(leg.p > 0)) return '';
+    const on = PARLAY.legs.some(l => l.k === parLeg(leg).k);
+    return `<button class="par-add${on ? ' on' : ''}" onclick="lcAddLeg()">${on ? '✓ In your parlay' : `+ Add o${lc.line} to parlay`}</button>`;
+  }
+  function lcAddLeg() {
+    const leg = lcLeg(); if (!leg) return;
+    if (!PARLAY.on) parMode(true);
+    parToggleLeg(leg);
+    document.querySelectorAll('.lc-add').forEach(el => { el.innerHTML = lcAddBtn(); });
   }
   function lcSetKind(k) { lc.kind = k; const r = lcRow(); if (!r) return; lc.line = lcPick(r, lcPmf(r)); lcRender(); }
   /** Open a player's card; the deck is the board as shown, for ‹ › and the arrow keys. */
@@ -1912,6 +1931,11 @@
     rows.forEach((r, i) => { r.rank = i + 1; });
     return rows;
   }
+  // ── Parlay legs (the slip itself is /parlay.js) ──
+  /** An over on a line board; the line is in the key, so o1.5 and o2.5 replace each other. */
+  const bdLeg = (kind, r, L, p) => ({ k: `${kind}|${r.pid}|${L}`, n: r.name, t: r.team, g: parGame(r), m: kind, s: `Over ${L} ${LC[kind].unit}`, p, i: r.pid, L });
+  const dblLeg = (r, m) => ({ k: `${m}|${r.pid}`, n: r.name, t: r.team, g: parGame(r), m, s: m === 'td' ? 'Triple-double' : 'Double-double', p: r[m], i: r.pid });
+  const fbLeg = (r, g) => ({ k: `fb|${r.pid}`, n: r.name, t: r.team, g: `${g.away}@${g.home}`, m: 'fb', s: 'First basket', p: r.p, i: r.pid });
   function renderBoard(nav) {
     const el = dataGate(nav + '-content'); if (!el) return;
     const cfg = BD[nav], F = bdState(nav), set = BD_SET[nav], kind = F.tab;
@@ -1940,7 +1964,7 @@
       body = `<div class="rc-tablewrap"><table class="rc-table">
         <thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Proj</th><th class="num">Min</th><th class="num">${kind === '3pm' ? '3PA/g' : 'L10'}</th><th class="num">Opp</th><th class="num">Line</th><th class="num">Price</th></tr></thead>
         <tbody>${rows.map(r => `
-          <tr onclick="${open(r)}"${started(r) ? ' class="dim"' : ''}>
+          <tr onclick="${open(r)}"${started(r) ? ' class="dim"' : ''}${parAttr(bdLeg(kind, r, r.L, r.pAt))}>
             <td class="num dim">${r.rank}</td>
             <td><b>${esc(r.name)}</b> <span class="dim">${esc(r.pos || '')}</span></td>
             <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}</td>
@@ -1953,7 +1977,7 @@
           </tr>`).join('')}</tbody></table></div>`;
     } else if (F.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
-        <div class="rc-crow" onclick="${open(r)}">
+        <div class="rc-crow" onclick="${open(r)}"${parAttr(bdLeg(kind, r, r.L, r.pAt))}>
           <span class="rc-crank">${r.rank}</span>
           <span class="rc-cnm">${esc(r.name)}</span>
           <span class="rc-cteam">${esc(r.team)}</span>
@@ -1963,7 +1987,7 @@
         </div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
-        <div class="pb-card${started(r) ? ' t3-started' : ''}" onclick="${open(r)}">
+        <div class="pb-card${started(r) ? ' t3-started' : ''}" onclick="${open(r)}"${parAttr(bdLeg(kind, r, r.L, r.pAt))}>
           <div class="pb-rank">${r.rank}</div>${faceHtml(r.pid, r.name)}
           <div class="pb-info">
             <div class="pb-nm">${esc(r.name)}<span class="pb-flag">${esc(r.pos || '')}</span>${r.q || f(r).q ? `<span class="pb-flag t3-q">${esc((r.q || f(r).q).split(/[- ]/)[0].slice(0, 5).toUpperCase())}</span>` : ''}</div>
@@ -2025,7 +2049,7 @@
       body = `<div class="rc-tablewrap"><table class="rc-table">
         <thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Pts</th><th class="num">Reb</th><th class="num">Ast</th><th class="num">Last ${R0[0].l40 || 40}</th><th class="num">DD</th><th class="num">TD</th></tr></thead>
         <tbody>${rows.map(r => `
-          <tr onclick="${open(r)}"${started(r) ? ' class="dim"' : ''}>
+          <tr onclick="${open(r)}"${started(r) ? ' class="dim"' : ''}${parAttr(dblLeg(r, dblF.sort))}>
             <td class="num dim">${r.rank}</td>
             <td><b>${esc(r.name)}</b> <span class="dim">${esc(r.pos || '')}</span></td>
             <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}</td>
@@ -2035,13 +2059,13 @@
           </tr>`).join('')}</tbody></table></div>`;
     } else if (dblF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
-        <div class="rc-crow" onclick="${open(r)}">
+        <div class="rc-crow" onclick="${open(r)}"${parAttr(dblLeg(r, dblF.sort))}>
           <span class="rc-crank">${r.rank}</span><span class="rc-cnm">${esc(r.name)}</span><span class="rc-cteam">${esc(r.team)}</span>
           <span class="rc-cproj">${Math.round(pk(r) * 100)}%</span><span class="rc-cod">${fairOdds(pk(r))}</span><span class="rc-cline">${td ? 'TD' : 'DD'}</span>
         </div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
-        <div class="pb-card${started(r) ? ' t3-started' : ''}" onclick="${open(r)}">
+        <div class="pb-card${started(r) ? ' t3-started' : ''}" onclick="${open(r)}"${parAttr(dblLeg(r, dblF.sort))}>
           <div class="pb-rank">${r.rank}</div>${faceHtml(r.pid, r.name)}
           <div class="pb-info">
             <div class="pb-nm">${esc(r.name)}<span class="pb-flag">${esc(r.pos || '')}</span></div>
@@ -2080,8 +2104,8 @@
     if (!B || !B.games?.length) { el.innerHTML = '<div class="empty">No slate to price yet — first basket fills in once the next games have lines.</div>'; return; }
     const games = [...B.games].sort((a, b) => a.start.localeCompare(b.start));
     const started = (g) => new Date(g.start) <= new Date();
-    const pl = (r, rank) => `<div class="fb-pl${r.jumper ? ' fb-jump' : ''}">
-        ${rank ? `<span class="st-rank">${rank}</span>` : ''}${faceHtml(r.pid, r.name)}
+    const pl = (r, g) => `<div class="fb-pl${r.jumper ? ' fb-jump' : ''}"${parAttr(fbLeg(r, g))}>
+        ${faceHtml(r.pid, r.name)}
         <div class="fb-id"><div class="rc-name">${esc(r.name)} ${posBadge(r.pos)}${r.jumper ? ' <span class="fb-tag" title="Projected to take the opening tip">TIP</span>' : ''}</div>
           <div class="rc-sub">${logoImg(r.team, 't3-logo')} ${esc(r.team)} · ${r.fb} first baskets in ${r.starts} starts</div></div>
         <div class="fb-od"><b>${fairOdds(r.p)}</b><span>${(r.p * 100).toFixed(1)}%</span></div>
@@ -2098,7 +2122,7 @@
           <span>Scores first: <b>${esc(g.away)}</b> ${Math.round((1 - hp) * 100)}% · <b>${esc(g.home)}</b> ${Math.round(hp * 100)}%</span>
         </div>
         <div class="fb-bar"><i style="width:${(1 - hp) * 100}%"></i></div>
-        <div class="fb-list">${g.players.map(r => pl(r)).join('')}</div>
+        <div class="fb-list">${g.players.map(r => pl(r, g)).join('')}</div>
       </div>`;
     };
     if (fbF.game !== 'all' && !games.some(g => g.gid === fbF.game)) fbF.game = 'all';
@@ -2113,7 +2137,7 @@
     if (fbF.view === 'table') {
       body = `<div class="rc-tablewrap"><table class="rc-table">
         <thead><tr><th></th><th>Player</th><th>Game</th><th class="num">First baskets</th><th class="num">Team first</th><th class="num">Chance</th><th class="num">Price</th></tr></thead>
-        <tbody>${all.map((r, i) => `<tr>
+        <tbody>${all.map((r, i) => `<tr${parAttr(fbLeg(r, r.g))}>
           <td class="num dim">${i + 1}</td><td><b>${esc(r.name)}</b> <span class="dim">${esc(r.pos || '')}${r.jumper ? ' · tip' : ''}</span></td>
           <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}</td>
           <td class="num dim">${r.fb} in ${r.starts}</td>
@@ -2121,7 +2145,7 @@
           <td class="num">${(r.p * 100).toFixed(1)}%</td><td class="num"><b>${fairOdds(r.p)}</b></td></tr>`).join('')}</tbody></table></div>`;
     } else if (fbF.view === 'compact') {
       body = `<div class="rc-compact">${all.map((r, i) => `
-        <div class="rc-crow"><span class="rc-crank">${i + 1}</span><span class="rc-cnm">${esc(r.name)}</span><span class="rc-cteam">${esc(r.team)}</span>
+        <div class="rc-crow"${parAttr(fbLeg(r, r.g))}><span class="rc-crank">${i + 1}</span><span class="rc-cnm">${esc(r.name)}</span><span class="rc-cteam">${esc(r.team)}</span>
           <span class="rc-cproj">${(r.p * 100).toFixed(1)}%</span><span class="rc-cod">${fairOdds(r.p)}</span><span class="rc-cline">${r.jumper ? 'tip' : ''}</span></div>`).join('')}</div>`;
     } else {
       const byGame = shown.map(g => ({ ...g, players: g.players.filter(r => matchQ({ ...r, opp: r.team === g.home ? g.away : g.home }, fbF.q)) })).filter(g => g.players.length);

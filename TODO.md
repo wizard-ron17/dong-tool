@@ -15,7 +15,6 @@ Dated and open work. Newest decisions at the top of each section. Remove items w
   - Verify the first real build: early-season term, rosters, recap, and grading of the new Due/Milestones.
 
 ## Next up
-- NBA parlay slip (the only app without one, so it has no Copy for tracker either). Copy the slip verbatim from NHL.
 - Public track record per tool: calibration and results vs close, from the graded histories we already keep.
 - Freshness: "updated N min ago" on boards, a stale-build banner, and a "QB confirmed / projected" marker when an override applies.
 - Cron failure alerts (a notification when a build workflow fails).

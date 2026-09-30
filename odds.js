@@ -54,7 +54,7 @@
   }
   window.RonTracker = { text: trackerText, copy: trackerCopy };
   // the % beside odds: smaller, lighter, never wrapping away from its price
-  const css = '.par-copy{display:block;width:100%;margin:0.55rem 0 0.2rem;padding:0.42rem;border-radius:8px;cursor:pointer;font:600 0.74rem inherit;background:transparent;color:var(--muted);border:1px dashed var(--border2)}.par-copy:hover{color:var(--accent);border-color:var(--accent)}.oz-p{font-size:0.72em;font-weight:500;opacity:0.72;margin-left:0.3em;letter-spacing:0;white-space:nowrap;font-family:inherit}';
+  const css = '.oz-p{font-size:0.72em;font-weight:500;opacity:0.72;margin-left:0.3em;letter-spacing:0;white-space:nowrap;font-family:inherit}';
   const add = () => document.head.insertAdjacentHTML('beforeend', `<style id="oz-css">${css}</style>`);
   if (document.head) add(); else document.addEventListener('DOMContentLoaded', add);
 })();
