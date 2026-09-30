@@ -19,6 +19,31 @@
 //   const dlg = RonModal.open('xx-back', { cls: 'pm ydm', onClose: () => {...}, nav: { prev: 'xxStep(-1)', next: 'xxStep(1)' } });
 //   dlg.innerHTML = ...;            // RonModal.close('xx-back') to close
 (function () {
+  // Styles for the modal frame: backdrop, ‹ › side buttons, close: the rules that were identical in all four apps.
+  // Injected from <head>, so each page's own <style> (loaded after) still wins.
+  // A rule with a page-specific override of the same selector stays in the page.
+  const CSS = `
+  .pk-side-nav:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pk-side-nav:disabled { opacity: 0.22; cursor: default; }
+  .pk-side-prev { left: 0.5rem; }
+  .pk-side-next { right: 0.5rem; }
+  .pm-back .pk-side-nav { z-index: 320; }
+  .pm-back .pk-side-prev { left: max(0.35rem, calc(50% - 322px)); }
+  .pm-back .pk-side-next { right: max(0.35rem, calc(50% - 322px)); }
+  .pm-x { position: absolute; top: 0.55rem; right: 0.7rem; background: none; border: none; color: var(--dim); font-size: 1.45rem; line-height: 1; cursor: pointer; z-index: 2; }
+  .pm-x:hover { color: var(--text); }
+  @media (min-width: 620px) {
+    .pk-side-prev { left: calc(50% - 296px); }
+    .pk-side-next { right: calc(50% - 296px); }
+  }
+  @media (max-width: 619px) {
+    .pm-back .pk-side-nav { width: 28px; height: 48px; font-size: 1.35rem; }
+    .pm-back .pk-side-prev { left: 0.3rem; }
+    .pm-back .pk-side-next { right: 0.3rem; }
+  }
+`;
+  if (!document.getElementById('modal-css')) document.head.insertAdjacentHTML('beforeend', `<style id="modal-css">${CSS}</style>`);
+
   const SEL = '.pm-back, .rw-back, .ps-back, .due-modal-backdrop, .sb-modal-backdrop, .dd-backdrop, .st-backdrop';
   const zOf = (el) => parseInt(getComputedStyle(el).zIndex, 10) || 0;
   /** Open modals, bottom to top: by z-index, then by order in the page. */

@@ -16,6 +16,103 @@
 // page's own scripts, which use the globals at the bottom (toggleTheme,
 // closeNavTools, currentTheme, ...).
 (function () {
+  // Styles for the header, main nav, tools menu, sport switcher and footer: the rules that were identical in all four apps.
+  // Injected from <head>, so each page's own <style> (loaded after) still wins.
+  // A rule with a page-specific override of the same selector stays in the page.
+  const CSS = `
+  .tb-brand { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+  .tb-right { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
+  .site-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; margin: 2.2rem 0 0; padding: 0.9rem 0 0.4rem; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--muted); }
+  .social-links { display: inline-flex; align-items: center; gap: 0.55rem; margin-left: 0.5rem; vertical-align: middle; }
+  .social-links a { color: var(--muted); display: inline-flex; transition: color 0.15s; }
+  .social-links a:hover { color: var(--accent); }
+  .social-links svg { width: 15px; height: 15px; display: block; }
+  .foot-data { font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; display: flex; align-items: center; gap: 0.5rem; }
+  .nav-shell { position: relative; z-index: 210; }
+  .nav-btn { position: relative; display: flex; align-items: center; justify-content: center; gap: 0.35rem; background: transparent; border: none; border-radius: 8px; color: var(--muted); font-family: var(--font-d); font-size: 1.02rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.45rem 0.7rem; cursor: pointer; transition: color 0.15s; white-space: nowrap; }
+  .nav-btn.active::after { content: ''; position: absolute; left: 0.7rem; right: 0.7rem; bottom: -0.1rem; height: 2px; border-radius: 2px; background: var(--accent); }
+  .nav-btn:disabled { opacity: 0.32; cursor: not-allowed; }
+  .nav-btn svg { display: none; width: 20px; height: 20px; }
+  .theme-toggle:hover { color: var(--accent); border-color: var(--accent); background: var(--surface2); }
+  .theme-toggle svg { width: 18px; height: 18px; display: block; }
+  :root[data-theme="light"] .status-badge.fetching { background: rgba(176,125,10,0.14); border-color: rgba(176,125,10,0.4); }
+  .sport-switch { position: relative; display: inline-flex; vertical-align: middle; }
+  .sport-switch-btn { margin-left: 0.5rem; width: 1.55rem; height: 1.55rem; display: inline-flex; align-items: center; justify-content: center; padding: 0; background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); cursor: pointer; font-size: 0.766rem; line-height: 1; transition: color 0.12s, border-color 0.12s, background 0.12s; }
+  .sport-switch-btn:hover { color: var(--text); border-color: var(--border2); background: var(--surface2); }
+  .sport-switch-btn.open { color: var(--accent); border-color: var(--accent); }
+  .sport-menu { position: fixed; top: 0; left: 0; z-index: 260; min-width: 230px; width: max-content; max-width: calc(100vw - 1.5rem); background: var(--surface0); border: 1px solid var(--border2); border-radius: 14px; padding: 0.4rem; box-shadow: 0 18px 48px rgba(0,0,0,0.55); display: none; }
+  .sport-menu.open { display: block; animation: sportMenuIn 0.14s ease; }
+  .sport-backdrop { position: fixed; inset: 0; z-index: 255; background: rgba(4,8,16,0.55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); opacity: 0; pointer-events: none; transition: opacity 0.18s; }
+  .sport-backdrop.open { opacity: 1; pointer-events: auto; }
+  body.sport-open { overflow: hidden; }
+  .sport-item { display: flex; align-items: center; gap: 0.65rem; padding: 0.55rem 0.6rem; border-radius: 10px; text-decoration: none; color: var(--text); min-width: 0; }
+  .sport-item .sport-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  a.sport-item:hover { background: var(--surface2); }
+  .sport-item.current { background: rgba(51,208,124,0.12); }
+  .sport-ico { font-size: 1.25rem; line-height: 1; width: 1.5rem; text-align: center; }
+  .sport-name { font-family: var(--font-d); font-weight: 700; font-size: 0.92rem; }
+  .sport-sub { margin-left: auto; font-size: 0.692rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .sport-item.current .sport-sub { color: var(--accent); }
+  #nav-tools-btn.active::after { display: none; }
+  .nav-caret { display: inline-block; font-size: 0.766rem; font-weight: 900; line-height: 1; transition: transform 0.18s ease; }
+  nav.tools-open .nav-caret { transform: rotate(90deg); }
+  .nav-tools-backdrop { position: fixed; inset: 0; backdrop-filter: blur(3px); z-index: 235; background: rgba(4,8,16,0.55); opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .nav-tools-backdrop.open { opacity: 1; pointer-events: auto; }
+  #nav-tools-btn { position: relative; color: var(--accent); background: color-mix(in srgb, var(--accent) 11%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
+  #nav-tools-btn:hover:not(.active):not(:disabled) { color: var(--accent); background: color-mix(in srgb, var(--accent) 19%, transparent); }
+  #nav-tools-btn.active { color: #04170f; background: var(--accent); }
+  .nav-menu-item { --gc: var(--accent); }
+  .nav-menu-item.g1 { --gc: var(--g1); }
+  .nav-menu-item.g2 { --gc: var(--g2); }
+  .nav-menu-item.g3 { --gc: var(--g3); }
+  .nav-menu-group::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .nav-menu-group.g1 { color: var(--g1); }
+  .nav-menu-group.g2 { color: var(--g2); }
+  .nav-menu-group.g3 { color: var(--g3); }
+  .nav-menu-group:first-child { padding-top: 0.15rem; }
+  .nav-menu-item { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.3rem; width: 100%; background: var(--surface0); border: none; border-radius: 11px; padding: 0.6rem 0.4rem; cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.15s; }
+  .nav-menu-item:hover:not(:disabled) { background: var(--surface2); }
+  .nav-menu-item:disabled { opacity: 0.32; cursor: not-allowed; }
+  .nav-menu-item svg { width: 21px; height: 21px; flex-shrink: 0; color: var(--muted); }
+  .nm-chip { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--gc) 18%, transparent); color: var(--gc); }
+  .nav-menu-item .nm-chip svg { width: 18px; height: 18px; color: inherit; }
+  .nav-menu-item .nm-name { font-family: var(--font-d); font-size: 1.06rem; font-weight: 700; color: var(--text); display: block; line-height: 1.2; letter-spacing: 0.005em; }
+  .nav-menu-item .nm-desc { display: block; font-size: 0.735rem; line-height: 1.35; color: var(--dim); }
+  .nm-go { margin-left: auto; align-self: center; flex-shrink: 0; color: var(--dim); font-size: 0.9rem; line-height: 1; transition: color 0.14s, transform 0.14s; }
+  .nav-menu-item.active .nm-name { color: var(--gc); }
+  @media (max-width: 600px) {
+    .tb-brand { gap: 0.25rem; min-width: 0; }
+    .nav-btn { flex: 1 1 0; min-width: 0; flex-direction: column; gap: 0.18rem; font-size: 0.692rem; font-weight: 700; letter-spacing: 0.02em; padding: 0.42rem 0.1rem 0.3rem; border-radius: 10px; }
+    .nav-btn svg { display: block; }
+    .sport-menu { min-width: 0; width: min(260px, calc(100vw - 1.5rem)); }
+    .nav-caret { display: none; }
+    .nav-tools-backdrop { background: rgba(0,0,0,0.45); bottom: calc(var(--nav-bottom) + var(--nav-h)); }
+    #nav-tools-btn { border-radius: 14px; }
+    .nav-menu-group:first-child { padding-top: 0.1rem; }
+    .nav-menu-item { flex-direction: column; align-items: flex-start; text-align: left; gap: 0.3rem; padding: 0.6rem 0.55rem 0.62rem 0.7rem; border-radius: 12px; background: linear-gradient(140deg, color-mix(in srgb, var(--gc) 13%, var(--surface0)), var(--surface0) 70%); border: 1px solid color-mix(in srgb, var(--gc) 20%, var(--border)); border-left: 3px solid var(--gc); }
+    .nav-menu-item:hover:not(:disabled), .nav-menu-item.active { border-color: var(--gc); border-left-color: var(--gc); }
+    .nav-menu-item .nm-name { font-size: 0.95rem; line-height: 1.2; }
+    .nav-menu-item .nm-desc { display: block; font-size: 0.7rem; line-height: 1.32; }
+    .nav-menu-item svg { width: 23px; height: 23px; }
+    .nm-chip { width: 26px; height: 26px; }
+    .nav-menu-item .nm-chip svg { width: 15px; height: 15px; }
+    .nm-head { display: flex; align-items: center; gap: 0.4rem; width: 100%; }
+    .nm-head .nm-go { font-size: 0.8rem; }
+  }
+  @media (min-width: 601px) {
+    .nav-tools-menu .nav-menu-item { display: grid; grid-template-columns: auto minmax(0,1fr) auto; grid-template-areas: "chip name go" "chip desc go"; align-items: center; column-gap: 0.62rem; row-gap: 0.1rem; text-align: left; padding: 0.8rem 0.85rem; border-radius: 14px; background: linear-gradient(140deg, color-mix(in srgb, var(--gc) 11%, var(--surface0)), var(--surface0) 72%); border: 1px solid color-mix(in srgb, var(--gc) 22%, var(--border)); }
+    .nav-tools-menu .nm-head { display: contents; }
+    .nav-tools-menu .nm-chip { grid-area: chip; width: 38px; height: 38px; }
+    .nav-tools-menu .nav-menu-item .nm-chip svg { width: 20px; height: 20px; }
+    .nav-tools-menu .nm-name { grid-area: name; }
+    .nav-tools-menu .nm-desc { grid-area: desc; }
+    .nav-tools-menu .nm-go { grid-area: go; margin-left: 0; }
+    .nav-tools-menu .nav-menu-item:hover:not(:disabled) { border-color: var(--gc); background: linear-gradient(140deg, color-mix(in srgb, var(--gc) 18%, var(--surface0)), var(--surface0) 66%); transform: translateY(-1px); }
+    .nav-tools-menu .nav-menu-item:hover:not(:disabled) .nm-go { color: var(--gc); transform: translateX(2px); }
+  }
+`;
+  if (!document.getElementById('chrome-css')) document.head.insertAdjacentHTML('beforeend', `<style id="chrome-css">${CSS}</style>`);
+
   // One list for the switcher, in launch order. A new sport is one line here.
   const SPORTS = [
     ['mlb', '⚾', "Ron's Dong Tool", 'MLB'],
