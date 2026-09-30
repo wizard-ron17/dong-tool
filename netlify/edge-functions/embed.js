@@ -93,12 +93,15 @@ const NBA_ROUTES = {
   schedule:   { title: "Schedule · Ron's Hoop Tool", desc: "Every game with its spread and total, each game's top threes pick, and the matchup." },
 };
 
+const MODELS = { title: "The Models · Ron's Tools",
+  desc: "Every model on the site, scored walk-forward over millions of player-games: how well it ranks, how honest its prices are, where the market still knows more, and what didn't work." };
 function metaFor(pathname) {
   const segs = (pathname || '/').split('/').filter(Boolean);
   if (segs[0] === 'mlb') return ROUTES[segs[1] || ''] || ROUTES['']; // /mlb, /mlb/picks, /mlb/due/results
   if (segs[0] === 'nfl') return NFL_ROUTES[segs.slice(1, 3).join('/')] || NFL_ROUTES[segs[1] || ''] || NFL_ROUTES['']; // /nfl, /nfl/pairs, /nfl/yards/rush …
   if (segs[0] === 'nhl') return NHL_ROUTES[segs[1] || ''] || NHL_ROUTES['']; // /nhl, /nhl/recap …
   if (segs[0] === 'nba') return NBA_ROUTES[segs[1] || ''] || NBA_ROUTES['']; // /nba, /nba/threes …
+  if (segs[0] === 'models') return MODELS;
   return LANDING; // "/" and anything else -> the sport picker
 }
 

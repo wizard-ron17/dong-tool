@@ -165,7 +165,7 @@
   function footHtml(c) {
     const lbl = (SPORTS.find(s => s[0] === c.sport) || [])[3] || c.sport.toUpperCase();
     return `<span class="foot-data">${lbl} · <span id="eyebrow-season">${c.season}</span> · ${c.source ? c.source + ' · ' : ''}<span id="status-badge" class="status-badge fetching">Loading</span></span>
-    <span class="foot-credit">${c.credit} inspired by Green Means Go · <a class="rw-about" href="javascript:void(0)" onclick="RonWelcome.open()" style="color:inherit;text-decoration:underline;text-underline-offset:2px">About</a>
+    <span class="foot-credit">${c.credit} inspired by Green Means Go · <a class="rw-about" href="javascript:void(0)" onclick="RonWelcome.open()" style="color:inherit;text-decoration:underline;text-underline-offset:2px">About</a> · <a class="rw-about" href="/models/" style="color:inherit;text-decoration:underline;text-underline-offset:2px">Models</a>
       <span class="social-links">${SOCIAL.map(([label, svg, href]) => `<a href="${href}" target="_blank" rel="noopener" aria-label="${label}">${svg}</a>`).join('')}</span>
     </span>`;
   }

@@ -94,7 +94,7 @@ function braceDepth(css) {
 
 // ── browser ───────────────────────────────────────────────────────────────
 const ROUTES = [
-  ['root', '/'],
+  ['root', '/'], ['root', '/models/'],
   ['mlb', '/mlb/'], ['mlb', '/mlb/picks'], ['mlb', '/mlb/due'],
   ['nfl', '/nfl/'], ['nfl', '/nfl/picks'], ['nfl', '/nfl/fantasy'], ['nfl', '/nfl/yards/pass'],
   ['nhl', '/nhl/'], ['nhl', '/nhl/picks'], ['nhl', '/nhl/points'],

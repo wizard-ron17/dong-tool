@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Models · Ron's Tools</title>
+<meta name="description" content="Every model on Ron's Tools, scored the same way: walk-forward over millions of player-games. AUC, skill, calibration and top-10% hit rates for NFL, NHL, NBA and MLB props, what drives each, where the market beats us, and what didn't work.">
+<meta name="theme-color" content="#05080f">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ron's Tools">
+<meta property="og:title" content="The Models · Ron's Tools">
+<meta property="og:description" content="Every model on the site, scored walk-forward over millions of player-games: how well it ranks, how honest its prices are, and where the market still knows more.">
+<meta property="og:url" content="https://dong-tool.netlify.app/models/">
+<meta property="og:image" content="https://dong-tool.netlify.app/icons/og-root.png?v=3">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The Models · Ron's Tools">
+<meta name="twitter:description" content="Every model on the site, scored walk-forward over millions of player-games.">
+<meta name="twitter:image" content="https://dong-tool.netlify.app/icons/og-root.png?v=3">
+<link rel="icon" type="image/svg+xml" href="/icons/logo.svg?v=2">
+<link rel="icon" type="image/x-icon" href="/icons/favicon.ico?v=2">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png?v=2">
+<script src="/odds.js?v=1"></script>
+<style>
+  :root { --bg:#05080f; --card:#0e1524; --card2:#131c30; --border:#233149; --border2:#2d3d5a; --text:#e8edf5; --strong:#ffffff; --muted:#8a94a6; --dim:#5b6577;
+          --green:#33d07c; --gold:#f0c040; --red:#ff6b6b; --blue:#6aa9ff;
+          --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(51,208,124,0.10), transparent 60%),
+      radial-gradient(900px 500px at 50% 110%, rgba(240,192,64,0.06), transparent 60%),
+      var(--bg);
+    color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.5;
+    padding: 1.4rem 1rem calc(3rem + env(safe-area-inset-bottom)); min-height: 100dvh; }
+  a { color: inherit; }
+  .wrap { width: 100%; max-width: 1040px; margin: 0 auto; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; font-size: 0.8rem; color: var(--muted); }
+  .top a { text-decoration: none; } .top a:hover { color: var(--text); }
+  .sports-mini { display: flex; gap: 0.9rem; }
+  header.hero { text-align: center; margin: 2.4rem 0 2rem; }
+  .kicker { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--green); }
+  h1 { font-size: clamp(2.1rem, 6.4vw, 3.4rem); font-weight: 800; letter-spacing: -0.025em; line-height: 1.04; margin-top: 0.5rem; }
+  .lede { color: var(--muted); max-width: 640px; margin: 0.9rem auto 0; font-size: 0.98rem; }
+  .lede b { color: var(--text); }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.7rem; margin: 1.8rem auto 0; max-width: 760px; }
+  @media (max-width: 620px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat { background: linear-gradient(180deg, var(--card2), var(--card)); border: 1px solid var(--border); border-radius: 14px; padding: 0.8rem 0.9rem; }
+  .stat b { display: block; font-size: 1.55rem; font-weight: 800; color: var(--strong); letter-spacing: -0.01em; }
+  .stat span { font-size: 0.72rem; color: var(--muted); }
+  nav.jump { position: sticky; top: 0; z-index: 5; display: flex; gap: 0.4rem; justify-content: center; flex-wrap: wrap; padding: 0.65rem 0;
+    background: linear-gradient(180deg, var(--bg) 70%, transparent); margin: 1.4rem 0 0.4rem; }
+  nav.jump a { text-decoration: none; font-size: 0.78rem; font-weight: 700; color: var(--muted); border: 1px solid var(--border); background: var(--card);
+    padding: 0.35rem 0.8rem; border-radius: 999px; transition: color 0.15s, border-color 0.15s; }
+  nav.jump a:hover, nav.jump a.on { color: var(--green); border-color: var(--green); }
+  section { margin-top: 2.6rem; scroll-margin-top: 3.6rem; }
+  h2 { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.015em; display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+  h2 small { font-size: 0.8rem; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+  .intro { color: var(--muted); font-size: 0.9rem; margin-top: 0.45rem; max-width: 760px; }
+  .intro b { color: var(--text); }
+  /* ── how to read ── */
+  .read { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.7rem; margin-top: 1rem; }
+  @media (max-width: 860px) { .read { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 480px) { .read { grid-template-columns: 1fr; } }
+  .rd { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 0.9rem 1rem; }
+  .rd h3 { font-size: 0.95rem; font-weight: 800; }
+  .rd .q { font-size: 0.74rem; color: var(--green); font-weight: 700; margin-top: 0.1rem; }
+  .rd p { font-size: 0.8rem; color: var(--muted); margin-top: 0.45rem; }
+  .rd p b { color: var(--text); }
+  /* ── model cards ── */
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.8rem; margin-top: 1rem; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  .m { background: linear-gradient(180deg, var(--card2), var(--card)); border: 1px solid var(--border); border-radius: 16px; padding: 1rem 1.05rem 0.95rem; display: flex; flex-direction: column; gap: 0.7rem; }
+  .m-hd { display: flex; align-items: flex-start; gap: 0.6rem; }
+  .m-nm { font-size: 1.05rem; font-weight: 800; line-height: 1.2; }
+  .m-sub { font-size: 0.72rem; color: var(--muted); margin-top: 0.15rem; }
+  .chip { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border2);
+    border-radius: 999px; padding: 0.12rem 0.45rem; white-space: nowrap; }
+  .m-auc { margin-left: auto; text-align: right; flex: none; }
+  .m-auc b { display: block; font-family: var(--mono); font-size: 1.5rem; font-weight: 700; color: var(--strong); line-height: 1; }
+  .m-auc span { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+  .bar { height: 6px; border-radius: 99px; background: var(--card2); border: 1px solid var(--border); position: relative; overflow: hidden; }
+  .bar i { position: absolute; inset: 0 auto 0 0; border-radius: 99px; }
+  .bar-lbl { display: flex; justify-content: space-between; font-size: 0.6rem; color: var(--dim); margin-top: 0.2rem; font-family: var(--mono); }
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; }
+  .kpi { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 10px; padding: 0.45rem 0.55rem; }
+  .kpi b { display: block; font-family: var(--mono); font-size: 0.98rem; font-weight: 700; color: var(--strong); }
+  .kpi span { font-size: 0.64rem; color: var(--muted); line-height: 1.3; display: block; }
+  .m-how { font-size: 0.8rem; color: var(--muted); }
+  .m-how b { color: var(--text); }
+  .m-note { font-size: 0.72rem; color: var(--dim); border-left: 2px solid var(--border2); padding-left: 0.55rem; }
+  .m-foot { font-size: 0.66rem; color: var(--dim); font-family: var(--mono); display: flex; gap: 0.8rem; flex-wrap: wrap; }
+  .t-great { color: var(--green); } .t-good { color: #8fdc6a; } .t-ok { color: var(--gold); } .t-weak { color: #f0935a; } .t-flip { color: var(--dim); }
+  .bg-great { background: var(--green); } .bg-good { background: #8fdc6a; } .bg-ok { background: var(--gold); } .bg-weak { background: #f0935a; } .bg-flip { background: var(--dim); }
+  .cal { display: flex; flex-direction: column; gap: 0.3rem; }
+  .cal-row { display: grid; grid-template-columns: 4.5rem 1fr 1fr; gap: 0.5rem; font-size: 0.76rem; align-items: center; }
+  .cal-row span:first-child { color: var(--muted); }
+  .cal-row b { font-family: var(--mono); color: var(--strong); }
+  /* ── lists ── */
+  .rows { margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  .row { display: grid; grid-template-columns: 5.5rem 1fr; gap: 0.9rem; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 0.75rem 0.9rem; }
+  @media (max-width: 560px) { .row { grid-template-columns: 1fr; gap: 0.3rem; } }
+  .row .who { font-size: 0.66rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .row .verdict { display: inline-block; margin-top: 0.2rem; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.1rem 0.4rem; border-radius: 6px; }
+  .v-us { color: #06210f; background: var(--green); } .v-mkt { color: #2a0a0a; background: #ff9b9b; } .v-even { color: #1d1606; background: var(--gold); } .v-add { color: #061a36; background: var(--blue); }
+  .row h4 { font-size: 0.9rem; font-weight: 700; }
+  .row p { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+  .row p b { color: var(--text); font-family: var(--mono); font-weight: 600; }
+  .nulls { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; margin-top: 1rem; }
+  @media (max-width: 700px) { .nulls { grid-template-columns: 1fr; } }
+  .nl { background: var(--card); border: 1px dashed var(--border2); border-radius: 12px; padding: 0.75rem 0.9rem; }
+  .nl h4 { font-size: 0.86rem; font-weight: 700; display: flex; gap: 0.45rem; align-items: baseline; }
+  .nl h4 small { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+  .nl p { font-size: 0.78rem; color: var(--muted); margin-top: 0.25rem; }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.7rem; margin-top: 1rem; }
+  @media (max-width: 760px) { .steps { grid-template-columns: 1fr; } }
+  .st { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 0.9rem 1rem; }
+  .st i { font-style: normal; font-family: var(--mono); font-size: 0.72rem; color: var(--green); font-weight: 700; }
+  .st h4 { font-size: 0.92rem; font-weight: 800; margin-top: 0.2rem; }
+  .st p { font-size: 0.8rem; color: var(--muted); margin-top: 0.35rem; }
+  .loading { text-align: center; color: var(--muted); padding: 2rem 0; }
+  .foot { margin-top: 3rem; text-align: center; color: var(--dim); font-size: 0.72rem; }
+  .foot a { text-decoration: underline; text-underline-offset: 2px; }
+</style>
+<script defer src="/analytics.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a href="/">← Ron's Tools</a>
+    <span class="sports-mini"><a href="/nfl/">🏈 NFL</a><a href="/nhl/">🏒 NHL</a><a href="/nba/">🏀 NBA</a><a href="/mlb/">⚾ MLB</a></span>
+  </div>
+
+  <header class="hero">
+    <div class="kicker">Under the hood</div>
+    <h1>The Models</h1>
+    <p class="lede">Every price on the site comes from a model built on free, public data. Here is every one of them, <b>scored the same way</b>: each season predicted by a model that had never seen it, then checked against what actually happened. The good, the middling, and the markets where the book still knows more than we do.</p>
+    <div class="stats" id="stats">
+      <div class="stat"><b id="s-models">—</b><span>markets modelled</span></div>
+      <div class="stat"><b id="s-preds">—</b><span>predictions scored</span></div>
+      <div class="stat"><b id="s-scripts">98</b><span>research scripts</span></div>
+      <div class="stat"><b id="s-null">—</b><span>big ideas tested and dropped</span></div>
+    </div>
+  </header>
+
+  <nav class="jump" id="jump">
+    <a href="#read">How to read it</a><a href="#nfl">🏈 NFL</a><a href="#nhl">🏒 NHL</a><a href="#nba">🏀 NBA</a><a href="#mlb">⚾ MLB</a>
+    <a href="#market">vs the market</a><a href="#nulls">What didn't work</a><a href="#how">How it's tested</a>
+  </nav>
+
+  <section id="read">
+    <h2>How to read the numbers</h2>
+    <p class="intro">Four numbers per model. None of them is "win rate": a model can be great and still lose to a book that prices the same thing a little better. That's what the <a href="#market">vs the market</a> section is for.</p>
+    <div class="read">
+      <div class="rd"><h3>AUC</h3><div class="q">Does it rank the right players first?</div>
+        <p>Pick one player who hit and one who didn't: AUC is how often we priced the hitter higher. <b>0.50</b> is a coin flip, <b>0.70</b> is good for sports props, <b>0.80+</b> is strong. It's measured across <b>every</b> player we price, bench guys included, so markets driven by minutes (NBA) score higher than markets decided by one bounce (first basket).</p></div>
+      <div class="rd"><h3>Skill</h3><div class="q">How much better than guessing the average?</div>
+        <p>How much of the uncertainty the model removes compared with pricing everyone at the league average (log loss). <b>0%</b> means no information; <b>10%</b> is solid for a player prop; <b>30%+</b> is a market where the inputs (minutes, role) explain most of it. Unlike AUC, it punishes confident wrong prices.</p></div>
+      <div class="rd"><h3>Calibration</h3><div class="q">When we say 30%, does it hit 30%?</div>
+        <p>Players are sorted into ten groups by price; for each, the gap between what we priced and what actually happened, averaged. <b>Under 1 point</b> is excellent; <b>1–3 points</b> is fine. This is what makes a fair price a fair price, and what the EV numbers depend on.</p></div>
+      <div class="rd"><h3>Top 10%</h3><div class="q">What happens at the top of the board?</div>
+        <p>The hit rate of the tenth of players we price highest, next to the average for everyone. <b>2×</b> means the top of our board hits twice as often as a random player. It's where most people bet, so it's the number that matters most in practice.</p></div>
+    </div>
+  </section>
+
+  <div id="sports"><div class="loading">Loading the scorecard…</div></div>
+
+  <section id="market">
+    <h2>Against the market <small>where we've measured it</small></h2>
+    <p class="intro">The only test that decides whether a model <b>wins money</b>: score it next to the book or exchange price on the same games. We've done it where historical prices exist. <b>Honest summary:</b> on most markets the sharp price and ours are close. The edges are narrow, specific, and sometimes the other way.</p>
+    <div class="rows" id="mkt"></div>
+  </section>
+
+  <section id="nulls">
+    <h2>What didn't work <small>tested, and left out on purpose</small></h2>
+    <p class="intro">Every idea below was built and tested walk-forward, and <b>added nothing</b> out of sample, so it isn't in the price. A lot of popular betting angles are on this list.</p>
+    <div class="nulls" id="nl"></div>
+  </section>
+
+  <section id="how">
+    <h2>How it's tested</h2>
+    <div class="steps">
+      <div class="st"><i>01</i><h4>Walk-forward, always</h4><p>Every season is predicted by a model fitted only on the seasons before it, the same way it runs live. No peeking: a backtest that trains on the season it scores always looks better than it is.</p></div>
+      <div class="st"><i>02</i><h4>Research = what ships</h4><p>Each model's research is replayed against the site's own build code (a "parity check") so the numbers here are the model you see on the board, not a cleaner cousin of it.</p></div>
+      <div class="st"><i>03</i><h4>Graded live</h4><p>Every board is frozen at first pitch, puck drop or kickoff and graded afterwards. The Results tabs and each game's box score show how it did, misses included.</p></div>
+      <div class="st"><i>04</i><h4>Public data only</h4><p>MLB Stats API and Statcast, nflverse, the NHL's own API, ESPN. Anyone can rebuild these. The point isn't a secret; it's showing how far free data goes.</p></div>
+      <div class="st"><i>05</i><h4>Nulls are kept</h4><p>An idea that doesn't beat the model it's added to gets dropped, however good it sounds. The biggest ones are listed above.</p></div>
+      <div class="st"><i>06</i><h4>Re-run as it grows</h4><p>This page reads the scorecard straight from the research folder, so when a model is refit or a new one ships, the numbers here change with it.</p></div>
+    </div>
+  </section>
+
+  <div class="foot">These are fair prices, not picks. <a href="/">Ron's Tools</a> · inspired by Green Means Go · <a href="javascript:void(0)" onclick="RonWelcome.open()">About</a></div>
+</div>
+
+<script>
+  // The scorecard: research/model_audit.py writes research/model_audit.json
+  // (walk-forward, every model scored alike). Read it from the repo so a re-run
+  // shows up here without a deploy; local dev reads the local file.
+  const RAW = 'https://raw.githubusercontent.com/wizard-ron17/dong-tool/main/research/model_audit.json';
+  const local = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  const load = () => (local ? fetch('/research/model_audit.json') : fetch(RAW).then(r => r.ok ? r : Promise.reject()).catch(() => fetch('/research/model_audit.json'))).then(r => r.json());
+
+  const SPORT = {
+    NFL: { ico: '🏈', name: 'NFL', app: '/nfl/', blurb: 'Nine seasons of nflverse play-by-play and snap counts. Touchdowns are the flagship; the yardage markets are harder by design (see the note on their lines).' },
+    NHL: { ico: '🏒', name: 'NHL', app: '/nhl/', blurb: 'The NHL\'s own API, three seasons of every skater and goalie game. Ice time is the single most reliable input in any sport we model.' },
+    NBA: { ico: '🏀', name: 'NBA', app: '/nba/', blurb: 'ESPN box scores, five seasons. Minutes drive nearly everything, which is why the ranking numbers run high: the market knows minutes too.' },
+    MLB: { ico: '⚾', name: 'MLB', app: '/mlb/', blurb: 'Scored from the site\'s own live, graded history this season rather than a backtest. The HR boards publish a score, not a probability, so they get ranking numbers only.' },
+  };
+  // What drives each model, in a sentence or two. Keyed "SPORT|market".
+  const HOW = {
+    'NHL|Anytime goal': '<b>Shot volume × finishing.</b> Projected ice time and shots, his shooting over a long window, power-play time, and the matchup\'s goals for and against, into a Poisson model with an isotonic calibration layer.',
+    'NHL|2+ goals': 'Off the same goal rate as anytime: the chance of two or more from a Poisson count. Rare events, so the AUC runs high while the prices stay small.',
+    'NHL|Hat trick': 'Three or more from the anytime goal rate. At a 0.2% base rate it\'s mostly a ranking tool.',
+    'NHL|First goal': 'A race: every dressed skater\'s goal rate against the whole game\'s, so a player\'s share of the first goal depends on who else is in the lineup.',
+    'NHL|Last goal': 'The same race as first goal, run the other way.',
+    'NHL|1st-period goal': 'The anytime rate scaled to the first period (goals aren\'t spread evenly across periods; the share is fit from the data).',
+    'NHL|PP goal': '<b>Its own model:</b> power-play ice time and his PP scoring rate. PP time is almost a role label, which is why this ranks so well.',
+    'NHL|Shots on goal': '<b>Ice time × shot rate</b> with recent form, his team\'s shot volume and the opponent\'s shots allowed; a negative binomial spread (shot counts vary more than a simple average suggests).',
+    'NHL|Saves': 'The opponent\'s shot volume against his save rate, with a mix for the nights he gets pulled. A goalie\'s save % is mostly noise, so the model leans on the shots.',
+    'NHL|Goals allowed': 'The opposing offense against his team\'s defense, shrunk hard: a goalie\'s own goals-allowed history barely predicts his next start.',
+    'NHL|Points': 'Career scoring rate, ice time and power-play minutes, into a Poisson count. Goals and assists both count, including secondary assists.',
+    'NHL|Points 2+': 'Two or more points off the same rate.',
+    'NHL|Assists': 'Career assist rate and ice time. The weakest of the three: an assist is half somebody else\'s event.',
+    'NHL|PP points': '<b>Power-play minutes are the role.</b> Who plays on PP1 decides this market, and the model knows it.',
+    'NFL|Anytime TD': '<b>Snap share first</b> (alone it separates scorers 14× over), then his last three games, touches, red-zone role and the team\'s implied total. A logistic model, calibrated.',
+    'NFL|Passing TDs': 'The QB\'s TD rate against the team\'s implied total, into a Poisson count; the board adds a per-line calibration map on top of what\'s scored here.',
+    'NFL|Receptions': '<b>Targets are the role:</b> target share and routes, the team\'s pass volume and the game script, a negative binomial ladder.',
+    'NFL|Interceptions': 'Game script (a trailing QB throws more and riskier) and his bad-ball rate; the defense counts about half. A QB\'s own interception rate is mostly noise.',
+    'NFL|Kicker FG made': 'Favorites kick more field goals (drives that stall in range), plus cold and wind. A kicker\'s own FG% barely matters.',
+    'NFL|Kicker PATs made': 'PATs are the implied team total with a thin layer on top: this one is mostly the betting line.',
+    'NFL|Completions': 'Attempts × completion rate against the defense and game script.',
+    'NFL|Passing yards (starting QB)': 'Attempts, yards per attempt and the game script.',
+    'NFL|Rushing yards (starting QB)': 'Designed runs and scrambles: a small, noisy market.',
+    'NFL|Rushing yards (RB, 4+ carries)': 'Carry share × yards per carry, the team\'s run volume and script.',
+    'NFL|Receiving yards (2+ targets)': 'Targets × yards per target, the team\'s pass volume.',
+    'NFL|Rush + receiving yards': 'The two combined for the same player, with their correlation.',
+    'NBA|Made threes 1+': '<b>Minutes × three-point make rate</b>, pulled toward his position, with his last ten games, how long since his last make, the opponent and the total. A negative binomial over his minutes.',
+    'NBA|Made threes 2+': 'Same model, two or more.',
+    'NBA|Made threes 3+': 'Same model, three or more: the nights he just shoots more carry this tail.',
+    'NBA|Points 20+': '<b>Minutes × scoring rate</b>, minutes freed up by injured teammates (usage), the implied team total and the opponent. Points move in 1s, 2s and 3s, so the spread is wider than a Poisson.',
+    'NBA|Points 25+': 'The same projection further up the ladder.',
+    'NBA|Double-double': 'Points, rebounds and assists each at 10+, independent once minutes are known, then blended with his own recent rate.',
+    'NBA|Triple-double': 'The same three, all at 10+. A handful of players carry nearly all of it.',
+    'NBA|First basket': 'Who wins the tip (the jumpers\' records), the betting line for the better offense, then his own first-basket record among his team\'s starters. Even knowing the tip in advance wouldn\'t push this much higher: it\'s close to a lottery.',
+    'MLB|HR Picks (Chalk)': 'The Pick Score: base power, the pitcher\'s homer-proneness and pitch mix, platoon, park and weather. Scored <b>within</b> the ~16 best bats of each day, where every name is already a good one.',
+    'MLB|HR Picks (Value)': 'The longer-odds list: the same factors aimed at prices the market leaves long.',
+    'MLB|Stolen base': 'His steal rate, the catcher and pitcher\'s control of the running game, and his chances of being on first.',
+    'MLB|Pitcher strikeouts': 'Batters faced × strikeout rate against the actual lineup, with the pen taking over. Graded live at the board\'s low and high lines.',
+    'MLB|Pitcher walks': 'Batters faced × walk rate against the lineup\'s discipline. Graded live; the high line has run about 4.7 points over.',
+  };
+  const tone = (auc) => auc >= 0.8 ? 'great' : auc >= 0.7 ? 'good' : auc >= 0.62 ? 'ok' : auc >= 0.55 ? 'weak' : 'flip';
+  const WORD = { great: 'strong', good: 'good', ok: 'fair', weak: 'thin', flip: 'coin flip' };
+  const pc = (x, d = 1) => x == null ? '—' : (x * 100).toFixed(d) + '%';
+  const fmtN = (n) => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'k' : String(n);
+  const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+  function card(m) {
+    const t = m.auc != null ? tone(m.auc) : null;
+    const pos = m.auc != null ? Math.max(0, Math.min(1, (m.auc - 0.5) / 0.5)) * 100 : 0;
+    const kpis = m.cal
+      ? `<div class="cal">${m.cal.map(([k, pr, act]) => `<div class="cal-row"><span>${k} line</span><span>priced <b>${pc(pr)}</b></span><span>hit <b>${pc(act)}</b></span></div>`).join('')}
+         ${m.proj_bias ? `<div class="cal-row"><span>projected</span><span>${Object.values(m.proj_bias).map(v => `<b>${v.proj}</b>`).join(' / ')}</span><span>actual ${Object.values(m.proj_bias).map(v => `<b>${v.act}</b>`).join(' / ')}</span></div>` : ''}</div>`
+      : `<div class="kpis">
+          <div class="kpi"><b>${m.skill != null ? pc(m.skill) : '—'}</b><span>skill over the average</span></div>
+          <div class="kpi"><b>${m.ece != null ? m.ece.toFixed(2) + ' pts' : '—'}</b><span>calibration gap</span></div>
+          <div class="kpi"><b>${m.top10 != null ? pc(m.top10) : '—'}${m.lift != null ? ` <small class="t-${t || 'ok'}" style="font-size:0.72rem">${m.lift.toFixed(1)}×</small>` : ''}</b><span>top 10% hit rate${m.base != null ? ` (avg ${pc(m.base)})` : ''}</span></div>
+        </div>`;
+    return `<div class="m">
+      <div class="m-hd">
+        <div><div class="m-nm">${esc(m.market)}</div><div class="m-sub"><span class="chip">${esc(m.line)}</span> &nbsp;${esc(m.tool)} tool</div></div>
+        ${m.auc != null ? `<div class="m-auc"><b class="t-${t}">${m.auc.toFixed(3)}</b><span class="t-${t}">AUC · ${WORD[t]}</span></div>` : `<div class="m-auc"><b style="font-size:1.05rem">live</b><span style="color:var(--muted)">self-graded</span></div>`}
+      </div>
+      ${m.auc != null ? `<div><div class="bar"><i class="bg-${t}" style="width:${pos.toFixed(1)}%"></i></div><div class="bar-lbl"><span>0.50 coin flip</span><span>1.00 perfect</span></div></div>` : ''}
+      ${kpis}
+      ${HOW[m.sport + '|' + m.market] ? `<div class="m-how">${HOW[m.sport + '|' + m.market]}</div>` : ''}
+      ${m.note ? `<div class="m-note">${esc(m.note)}</div>` : ''}
+      <div class="m-foot"><span>${m.n.toLocaleString()} ${m.sport === 'MLB' ? 'graded' : 'walk-forward'} predictions</span><span>${typeof m.seasons === 'number' ? m.seasons + ' season' + (m.seasons === 1 ? '' : 's') : esc(m.seasons)}</span></div>
+    </div>`;
+  }
+
+  load().then(A => {
+    document.getElementById('s-models').textContent = A.length;
+    document.getElementById('s-preds').textContent = fmtN(A.reduce((a, m) => a + m.n, 0));
+    document.getElementById('sports').innerHTML = ['NFL', 'NHL', 'NBA', 'MLB'].map(sp => {
+      const ms = A.filter(m => m.sport === sp); if (!ms.length) return '';
+      const S = SPORT[sp], best = ms.filter(m => m.auc != null).sort((a, b) => b.auc - a.auc)[0];
+      return `<section id="${sp.toLowerCase()}">
+        <h2>${S.ico} ${S.name} <small>${ms.length} markets · ${fmtN(ms.reduce((a, m) => a + m.n, 0))} predictions${best ? ` · best ranker: ${esc(best.market)} (${best.auc.toFixed(3)})` : ''}</small></h2>
+        <p class="intro">${S.blurb} <a href="${S.app}">Open the ${S.name} tool →</a></p>
+        <div class="grid">${ms.map(card).join('')}</div>
+      </section>`;
+    }).join('');
+  }).catch(() => { document.getElementById('sports').innerHTML = '<div class="loading">Couldn\'t load the scorecard. Refresh to try again.</div>'; });
+
+  // Against the market: every head-to-head we've run, dated. verdict: us | mkt | even | add
+  const MKT = [
+    ['NBA', 'Made threes vs Kalshi', 'us', 'Last season, walk-forward, against Kalshi\'s pre-game mid: our log loss <b>.509</b> vs the market\'s <b>.517</b>. A resting order at the mid returned <b>+9.8%</b>; paying the spread (taking) broke about even. An edge for a patient bettor, not a lay-down.'],
+    ['NFL', 'First TD vs Kalshi (week 3, 2026)', 'us', 'Our first-touchdown prices beat Kalshi\'s mid on the week: log loss <b>.2167</b> vs <b>.2244</b>, and our +EV list returned <b>+10.5%</b> on 75 bets. One week: promising, not proven.'],
+    ['NFL', 'Anytime TD vs sportsbooks (2025 closing lines)', 'even', 'Against FanDuel, DraftKings and BetMGM closing lines, our ranking matches the market\'s. Where we lag is the <b>level</b> on players the market has figured out and our inputs haven\'t (a goal-line back with a small snap share). Books hold <b>3.2–3.4%</b> on these, so matching them isn\'t enough on its own.'],
+    ['NFL', 'Anytime TD and receptions vs Kalshi (week 3)', 'add', 'Kalshi\'s mid was sharper on both (anytime TD <b>.3354</b> vs <b>.3387</b>; receptions <b>.4794</b> vs <b>.4888</b>). But on receptions our price still added information <b>on top</b> of the mid (z = 3.0): the best number is a blend of both.'],
+    ['NBA', 'Points vs Kalshi', 'mkt', 'Kalshi\'s points prices were sharper than ours. We publish the ladder anyway: it\'s fair, it ranks well, and it\'s the base the other NBA markets build on.'],
+    ['NBA', 'Triple-doubles vs Kalshi', 'us', 'Last season Kalshi priced triple-doubles at an average <b>11.4%</b> on outcomes that hit <b>8.2%</b>: the market overpriced them. Our prices sat on the actual rate.'],
+    ['NHL', 'Goals, saves and GA vs closing lines', 'even', 'Adding ESPN\'s closing lines as an input improved our goal, saves and goals-allowed models by <b>at most 0.12%</b>: the model already carries what the line knows. Parity, not an edge by itself.'],
+    ['MLB', 'Home runs vs Kalshi', 'even', 'Across the late-season slates, our HR prices and Kalshi\'s mid were close, one night slightly ours (<b>.458</b> vs <b>.467</b> log loss). Homer-adjacent markets (4+ total bases, 3+ hits+runs+RBIs) were priced fair.'],
+    ['MLB', 'Strikeouts vs Kalshi', 'mkt', 'On the one fully graded slate Kalshi\'s mid beat us (<b>.529</b> vs <b>.552</b>) on a high-strikeout night. Our K ladders are calibrated overall (see the live grading above); the disagreement is per-pitcher.'],
+  ];
+  const VERD = { us: ['v-us', 'Ours better'], mkt: ['v-mkt', 'Market better'], even: ['v-even', 'Even'], add: ['v-add', 'Market better, ours adds'] };
+  document.getElementById('mkt').innerHTML = MKT.map(([sp, h, v, p]) => `<div class="row"><div><div class="who">${SPORT[sp].ico} ${sp}</div><span class="verdict ${VERD[v][0]}">${VERD[v][1]}</span></div><div><h4>${h}</h4><p>${p}</p></div></div>`).join('');
+
+  const NULL = [
+    ['NFL', 'The defense', 'The opponent\'s touchdowns allowed looked obvious and wasn\'t reliable from one half of a season to the other. Rebuilt twice; out.'],
+    ['NFL', 'Next Gen Stats', 'Separation, cushion, air yards and the rest: about 35 walk-forward tests across every NFL market, nothing added.'],
+    ['NFL', 'A QB\'s interception rate', 'Split-half reliability 0.10: last season\'s INT rate barely predicts this season\'s. Game script and bad-ball rate do the work.'],
+    ['NFL', 'A kicker\'s FG%', 'Mostly noise. Being a favorite, cold weather and wind predict field goals; the kicker doesn\'t.'],
+    ['NHL', 'Goalie quality (GSAx)', 'Goals saved above expected has split-half reliability 0.15 and made the saves and goals models worse.'],
+    ['NHL', 'Even-strength vs power-play goals', 'Splitting the goal model in two was worse than one model with PP time as an input.'],
+    ['NHL', 'Corsi, Fenwick, "involvement"', 'Shot-attempt shares and share-of-team-scoring failed in four different markets. They restate ice time.'],
+    ['NHL', 'Expected goals (xG)', 'A small real gain for goals only, not enough to ship yet.'],
+    ['MLB', 'Pitch-mix synergy', 'Matching a hitter\'s damage by pitch type to the pitcher\'s mix: no out-of-sample home-run signal. Removed from the score (the chart stays, for reading).'],
+    ['MLB', 'Stronger walk shrinkage', 'Shrinking walk rates harder, or a binomial model, lost log loss. The live high-line bias is a level issue, not variance.'],
+    ['NBA', '"Due" players', 'Every market we checked (threes, doubles, first basket): long droughts hit <b>at or below</b> their price, never above. Nobody is due.'],
+    ['All', 'Stable player traits vs the betting line', 'A trait that\'s reliable year to year (a QB\'s TD rate, a pitcher\'s K rate) is exactly what the implied total already prices. Confirmed three times: they add nothing over the line.'],
+  ];
+  document.getElementById('s-null').textContent = NULL.length;
+  document.getElementById('nl').innerHTML = NULL.map(([sp, h, p]) => `<div class="nl"><h4>${h}<small>${sp}</small></h4><p>${p}</p></div>`).join('');
+
+  // light the jump chip for the section in view
+  const chips = [...document.querySelectorAll('#jump a')];
+  addEventListener('scroll', () => {
+    let cur = null;
+    for (const a of chips) { const s = document.querySelector(a.getAttribute('href')); if (s && s.getBoundingClientRect().top < 120) cur = a; }
+    chips.forEach(a => a.classList.toggle('on', a === cur));
+  }, { passive: true });
+</script>
+<script src="/welcome.js?v=5" defer></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-"""One scorecard for every model that prices a market — NHL, NFL and MLB.
+"""One scorecard for every model that prices a market — NHL, NFL, NBA and MLB.
 
 Each model is re-run exactly as it ships, walk-forward (every season predicted
 by a model fitted only on the seasons before it), and scored on the SAME
@@ -17,6 +17,7 @@ its research data isn't on disk; its models publish a score, not a probability,
 so it gets ranking metrics only where that's all there is.
 
     python3 research/model_audit.py            # -> research/model_audit.json + a table
+    python3 research/model_audit.py nba        # just NBA, merged into the existing json
 """
 import json, os, sys, traceback
 import numpy as np
@@ -266,11 +267,46 @@ def mlb_live():
               + f"  | projection bias {H['projBias']}")
 
 
+# ── NBA ─────────────────────────────────────────────────────────────────────
+# Walk-forward predictions saved by the research scripts (each season priced by
+# a model fit only on the seasons before it), scored as they ship.
+def nba_threes():
+    R = pd.read_parquet(os.path.join(HERE, "nba_threes_form_oos.parquet")); ns = R.season.nunique()
+    for k, lab in ((1, "1+"), (2, "2+"), (3, "3+")):
+        score("NBA", f"Made threes {lab}", lab, R[f"n_{k}"], R.tpm >= k, ns, tool="Threes")
+
+
+def nba_points():
+    R = pd.read_parquet(os.path.join(HERE, "nba_points_oos.parquet")); ns = R.season.nunique()
+    for k in (20, 25):
+        score("NBA", f"Points {k}+", f"{k}+", R[f"pd_{k}"], R.pts >= k, ns, tool="Points")
+
+
+def nba_ddtd():
+    R = pd.read_parquet(os.path.join(HERE, "nba_ddtd_oos.parquet")); ns = R.season.nunique()
+    score("NBA", "Double-double", "yes", R.c_dd, R.dd > 0, ns, tool="Doubles")
+    score("NBA", "Triple-double", "yes", R.c_td, R.td > 0, ns, tool="Doubles")
+
+
+def nba_first():
+    import nba_firstbasket2 as F
+    R = F.main(export=False)
+    score("NBA", "First basket", "starters", R.tip_line_own, R.y, R.season.nunique(), tool="First Basket",
+          note="starters only; tip records + the line x his own first-basket record")
+
+
+if __name__ == "__main__" and _ARGV[1:] == ["nba"]:
+    print("NBA"); [guard(n, f) for n, f in (("threes", nba_threes), ("points", nba_points), ("ddtd", nba_ddtd), ("first", nba_first))]
+    path = os.path.join(HERE, "model_audit.json")
+    keep = [r for r in json.load(open(path)) if r["sport"] != "NBA"]
+    json.dump(keep + RESULTS, open(path, "w"), indent=1, default=float)
+    sys.exit(0)
 if __name__ == "__main__":
     print("NHL"); [guard(n, f) for n, f in (("goals", nhl_goals), ("sog", nhl_sog), ("saves", nhl_saves), ("points", nhl_points))]
     print("NFL"); [guard(n, f) for n, f in (("td", nfl_td), ("passing", nfl_passing), ("receptions", nfl_receptions),
                                             ("interceptions", nfl_interceptions), ("kickers", nfl_kickers),
                                             ("completions", nfl_completions), ("yards", nfl_yards))]
+    print("NBA"); [guard(n, f) for n, f in (("threes", nba_threes), ("points", nba_points), ("ddtd", nba_ddtd), ("first", nba_first))]
     print("MLB"); guard("mlb", mlb_live)
     json.dump(RESULTS, open(os.path.join(HERE, "model_audit.json"), "w"), indent=1, default=float)
     print(f"\nwrote research/model_audit.json — {len(RESULTS)} markets")
