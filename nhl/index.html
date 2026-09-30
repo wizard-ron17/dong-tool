@@ -5597,6 +5597,12 @@
     out.textContent = `${parDecAm(boosted)} after the boost · ${ev >= 0 ? '+' : '−'}${Math.abs(ev * 100).toFixed(1)}% EV${tax}`;
     out.className = 'par-ev-out ' + (ev >= 0 ? 'good' : 'bad');
   }
+  // the slip as text for Ron's odds-viewer bet tracker (its "Import from Ron's Tools")
+  function parCopyTracker(btn) {
+    const { p, corr } = parPrice();
+    if (PARLAY.legs.length && window.RonTracker) RonTracker.copy(PARLAY.legs, p, { corr, book: PARLAY.book }, btn);
+  }
+
   function parRender() {
     const slip = document.getElementById('par-slip'); if (!slip) return;
     slip.classList.toggle('open', PARLAY.open);
@@ -5649,7 +5655,8 @@
         <label for="par-book">Your book's price</label>
         <input type="text" id="par-book" inputmode="text" placeholder="+1400" value="${parEsc(PARLAY.book)}" oninput="parBook(this)">
         <span class="par-ev-out" id="par-ev-out"></span>
-      </div>`;
+      </div>
+      <button class="par-copy" onclick="parCopyTracker(this)" title="Copies this slip as text for the odds-viewer tracker's Import">Copy for tracker</button>`;
     parRenderEv();
   }
   function parInit() {

@@ -9377,6 +9377,12 @@ let pairStacks = false;
     out.className = 'par-ev-out ' + (ev >= 0 ? 'good' : 'bad');
   }
 
+  // the slip as text for Ron's odds-viewer bet tracker (its "Import from Ron's Tools")
+  function parCopyTracker(btn) {
+    const { p, corr } = parPrice();
+    if (PARLAY.legs.length && window.RonTracker) RonTracker.copy(PARLAY.legs, p, { corr, book: PARLAY.book }, btn);
+  }
+
   function parRender() {
     const slip = document.getElementById('par-slip'); if (!slip) return;
     slip.classList.toggle('open', PARLAY.open);
@@ -9432,6 +9438,7 @@ let pairStacks = false;
         <input type="text" id="par-book" inputmode="text" placeholder="+1400" value="${parEsc(PARLAY.book)}" oninput="parBook(this)">
         <span class="par-ev-out" id="par-ev-out"></span>
       </div>
+      <button class="par-copy" onclick="parCopyTracker(this)" title="Copies this slip as text for the odds-viewer tracker's Import">Copy for tracker</button>
       `;
     parRenderEv();
   }
@@ -9459,7 +9466,7 @@ let pairStacks = false;
     parRender(); parPaint();
   }
   window.parMode = parMode; window.parToggleOpen = parToggleOpen; window.parRemove = parRemove;
-  window.parClear = parClear; window.parSetBoost = parSetBoost; window.parCustomBoost = parCustomBoost; window.parBook = parBook;
+  window.parClear = parClear; window.parSetBoost = parSetBoost; window.parCustomBoost = parCustomBoost; window.parBook = parBook; window.parCopyTracker = parCopyTracker;
 
   // The slip's markup sits after this script, so on a cold load the elements
   // plRender() writes into do not exist yet — without this the restored slip
