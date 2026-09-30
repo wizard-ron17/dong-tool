@@ -16,6 +16,7 @@ Shared by every app, loaded in `<head>`:
 - `odds.js`: `Odds.am/pct/inline/both` (the only way to print a price) and `RonTracker` (the parlay slip's Copy for tracker).
 - `sgp.js`: the same-game parlay copula.
 - `parlay.js`: the parlay slip (state, pricing, markup, styles). Every sport's measured correlation rules live here, so a slip prices the same on every page. A page only tags rows with `parAttr({...})` and hands over its data with `RonParlay.provide(sport, {...})`.
+- `chrome.js`: the shared chrome. It draws the main nav, tools menu, sport switcher, theme toggle and footer. Each app keeps empty placeholders (`#main-nav`, `#nav-tools-menu`, `footer.site-foot`) and calls `RonChrome.mount({ sport, season, credit, tools: [...] })`. The Tools menu is data in that call. A new sport is one line in `SPORTS`. Page extras on a theme flip go in `RonChrome.onTheme(fn)`.
 - `welcome.js`: the About modal.
 
 Builds live in `scripts/build-*.js` (GitHub Actions crons in `.github/workflows/`). Link previews live in `netlify/edge-functions/` (`embed.js` meta per route, `og.js` live board cards, `stats.js`). Research lives in `research/` (Python + a few `.mjs` parity replays).
@@ -41,7 +42,7 @@ Builds live in `scripts/build-*.js` (GitHub Actions crons in `.github/workflows/
 
 **Editing the big pages.**
 - **Grep the stylesheet, not just the markup, before choosing a class or function prefix.** nfl/index.html carries MLB's dead-but-live `.pk-*` CSS, and NBA's birthdays had to be `bday*` because `bd*` was taken.
-- **Copy shared chrome verbatim from an existing app.** That means nav icons, the topbar and the schedule row (the parlay slip is a module now, so never copy it). Never redraw them; this was done wrong twice.
+- **Shared chrome is a module, not a copy.** The nav, tools menu, sport switcher, theme toggle, footer (`chrome.js`) and parlay slip (`parlay.js`) are drawn once. Change them there, never per app. What's still copied per app (the header's brand block, the schedule row, the chrome's CSS) is copied verbatim from an existing app, never redrawn: the nav icons were redrawn wrong twice.
 - `.wrap` is `z-index: 1`. An overlay inside it paints under a body-level backdrop, so re-parent it to `<body>`.
 - Colour: a position, type or tag never gets a hue from the good/bad ramp (green/amber/red). That ramp means quality.
 - Prices print through `Odds.*` only: American odds with the % beside it, no user setting.
@@ -52,7 +53,7 @@ Builds live in `scripts/build-*.js` (GitHub Actions crons in `.github/workflows/
 - Price off current rosters.
 - Hit-test overlays.
 - Grep prefixes.
-- CSS rule count equals what the browser parsed (`npm run check`).
+- CSS rule count equals what the browser parsed, with no empty values (`npm run check`).
 - CI builds only.
 - Link previews: `embed.js` ROUTES and metaFor, `og.js` board, `scripts/make-<sport>-icons.sh`, manifest.
 

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ron's Goal Tool</title>
 <script src="/odds.js?v=1"></script>
+<script src="/chrome.js"></script>
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="NHL player props, every line priced — anytime goals, points, shots on goal, saves, hits and blocked shots — plus parlays, live win probability and a goal-by-goal recap with clips. Inspired by Green Means Go.">
 <meta property="og:type" content="website">
@@ -1465,28 +1466,7 @@
       <h1>Ron's <em>Goal</em> Tool<span class="sport-switch"><button class="sport-switch-btn" id="sport-switch-btn" onclick="toggleSportMenu(event)" aria-label="Switch sport" title="Switch sport">▾</button></span></h1>
     </div>
     <div class="nav-shell">
-    <nav id="main-nav">
-      <button class="nav-btn active" data-nav="home" onclick="switchNav('home')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.2 12 4l9 7.2M5.5 9.4V20h13V9.4"/></svg>
-        <span>Home</span>
-      </button>
-      <button class="nav-btn" data-nav="stats" onclick="switchNav('stats')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20v-7M12 20V5.5M19 20v-10"/></svg>
-        <span>Stats</span>
-      </button>
-      <button class="nav-btn" data-nav="recap" onclick="switchNav('recap')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 1.9"/></svg>
-        <span>Recap</span>
-      </button>
-      <button class="nav-btn" data-nav="schedule" onclick="switchNav('schedule')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M8 3.5v4M16 3.5v4M4 10.5h16"/></svg>
-        <span>Schedule</span>
-      </button>
-      <button class="nav-btn" id="nav-tools-btn" onclick="toggleNavTools(event)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>
-        <span>Tools</span><span class="nav-caret">▶</span>
-      </button>
-    </nav>
+    <nav id="main-nav"></nav>
     </div>
     <div class="tb-right">
       <div class="tb-search" id="tb-search">
@@ -1498,56 +1478,27 @@
       <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light or dark mode" title="Toggle light/dark"></button>
     </div>
   </header>
+<script>
+  // The shared chrome (/chrome.js): what differs per app. Tools = the Tools menu, in order.
+  RonChrome.mount({ sport: "nhl", season: "2026-27", credit: "A goal tool", tools: [
+    {"group": "Offense", "g": "g1"},
+    {"nav": "picks", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><circle cx=\"12\" cy=\"12\" r=\"4.5\"/><circle cx=\"12\" cy=\"12\" r=\"0.75\" fill=\"currentColor\"/></svg>", "name": "Picks", "desc": "Every skater ranked by his odds of scoring a goal."},
+    {"nav": "points", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"7\" cy=\"12\" r=\"2.2\"/><circle cx=\"17\" cy=\"7\" r=\"2.2\"/><circle cx=\"17\" cy=\"17\" r=\"2.2\"/><path d=\"M9 11l6-3M9 13l6 3\"/></svg>", "name": "Points", "desc": "Points, assists and power-play points for every skater, priced at every line."},
+    {"nav": "shots", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><path d=\"M12 3.5v4M12 16.5v4M3.5 12h4M16.5 12h4\"/><circle cx=\"12\" cy=\"12\" r=\"2.2\" fill=\"currentColor\" stroke=\"none\"/></svg>", "name": "Shots", "desc": "Projected shots on goal for every skater, priced at every line."},
+    {"nav": "pairs", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"8.5\" cy=\"9\" r=\"3.2\"/><circle cx=\"15.5\" cy=\"9\" r=\"3.2\"/><path d=\"M3.5 19.5c.6-3 2.6-4.8 5-4.8s4.4 1.8 5 4.8M10.5 19.5c.6-3 2.6-4.8 5-4.8s4.4 1.8 5 4.8\"/></svg>", "name": "Pairs", "desc": "Who scores together and who sets up whom &mdash; priced with the measured correlation."},
+    {"group": "Defense", "g": "g3"},
+    {"nav": "saves", "g": "g3", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3.5l7 2.5v5.5c0 4-3 7.3-7 9-4-1.7-7-5-7-9V6z\"/><path d=\"M9 12l2 2 4-4\"/></svg>", "name": "Saves", "desc": "Projected saves for every projected starter, priced at every line."},
+    {"nav": "allowed", "g": "g3", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 18V8.5L12 5l8 3.5V18\"/><path d=\"M4 18h16\"/><circle cx=\"12\" cy=\"13\" r=\"2\" fill=\"currentColor\" stroke=\"none\"/></svg>", "name": "Goals Allowed", "desc": "Goals against for every projected starter, priced at every line."},
+    {"nav": "hits", "g": "g3", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 12h9M10 8l4 4-4 4\"/><path d=\"M17 5v14\"/></svg>", "name": "Hits", "desc": "Projected hits for every skater, priced at every line &mdash; rink scorekeeper built in."},
+    {"nav": "blocks", "g": "g3", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"9\" y=\"4\" width=\"6\" height=\"16\" rx=\"2\"/><path d=\"M3 12h4M19 9l2 3-2 3\"/></svg>", "name": "Blocked Shots", "desc": "Projected blocked shots for every skater, priced at every line."},
+    {"group": "Watch Lists", "g": "g4"},
+    {"nav": "due", "g": "g4", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6.5 3.5h11M6.5 20.5h11M8 3.5v2.6L12 12 8 17.9v2.6M16 3.5v2.6L12 12l4 5.9v2.6\"/></svg>", "name": "Due", "desc": "Goal droughts on tonight's board &mdash; games, shots and ice time since his last one."},
+    {"nav": "milestones", "g": "g4", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 21V3M6 4h11l-2.2 3L17 10H6\"/></svg>", "name": "Milestones", "desc": "Who's closing on a round number &mdash; career goals, assists, points, games and wins."},
+    {"nav": "birthdays", "g": "g4", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 21h16\"/><path d=\"M5.5 21v-9a2.5 2.5 0 0 1 2.5-2.5h8a2.5 2.5 0 0 1 2.5 2.5v9\"/><path d=\"M5.5 15.5h13\"/><path d=\"M9 9.5V7M12 9.5V7M15 9.5V7\"/></svg>", "name": "Birthdays", "desc": "Who's celebrating this week, who plays on the day, and whether it matters."}
+  ] });
+</script>
 
-  <div class="nav-tools-menu" id="nav-tools-menu">
-    <div class="nav-menu-group g1">Offense</div>
-    <button class="nav-menu-item g1" data-nav="picks" onclick="switchNav('picks')">
-      <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.75" fill="currentColor"/></svg></span><span class="nm-name">Picks</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
-      <span class="nm-desc">Every skater ranked by his odds of scoring a goal.</span>
-    </button>
-    <button class="nav-menu-item g1" data-nav="points" onclick="switchNav('points')">
-      <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="12" r="2.2"/><circle cx="17" cy="7" r="2.2"/><circle cx="17" cy="17" r="2.2"/><path d="M9 11l6-3M9 13l6 3"/></svg></span><span class="nm-name">Points</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
-      <span class="nm-desc">Points, assists and power-play points for every skater, priced at every line.</span>
-    </button>
-    <button class="nav-menu-item g1" data-nav="shots" onclick="switchNav('shots')">
-      <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v4M12 16.5v4M3.5 12h4M16.5 12h4"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/></svg></span><span class="nm-name">Shots</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
-      <span class="nm-desc">Projected shots on goal for every skater, priced at every line.</span>
-    </button>
-    <button class="nav-menu-item g1" data-nav="pairs" onclick="switchNav('pairs')">
-      <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="9" r="3.2"/><circle cx="15.5" cy="9" r="3.2"/><path d="M3.5 19.5c.6-3 2.6-4.8 5-4.8s4.4 1.8 5 4.8M10.5 19.5c.6-3 2.6-4.8 5-4.8s4.4 1.8 5 4.8"/></svg></span><span class="nm-name">Pairs</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
-      <span class="nm-desc">Who scores together and who sets up whom &mdash; priced with the measured correlation.</span>
-    </button>
-    <div class="nav-menu-group g3">Defense</div>
-    <button class="nav-menu-item g3" data-nav="saves" onclick="switchNav('saves')">
-      <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l7 2.5v5.5c0 4-3 7.3-7 9-4-1.7-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg></span><span class="nm-name">Saves</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
-      <span class="nm-desc">Projected saves for every projected starter, priced at every line.</span>
-    </button>
-    <button class="nav-menu-item g3" data-nav="allowed" onclick="switchNav('allowed')">
-      <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18V8.5L12 5l8 3.5V18"/><path d="M4 18h16"/><circle cx="12" cy="13" r="2" fill="currentColor" stroke="none"/></svg></span><span class="nm-name">Goals Allowed</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
-      <span class="nm-desc">Goals against for every projected starter, priced at every line.</span>
-    </button>
-    <button class="nav-menu-item g3" data-nav="hits" onclick="switchNav('hits')">
-      <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h9M10 8l4 4-4 4"/><path d="M17 5v14"/></svg></span><span class="nm-name">Hits</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
-      <span class="nm-desc">Projected hits for every skater, priced at every line &mdash; rink scorekeeper built in.</span>
-    </button>
-    <button class="nav-menu-item g3" data-nav="blocks" onclick="switchNav('blocks')">
-      <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="4" width="6" height="16" rx="2"/><path d="M3 12h4M19 9l2 3-2 3"/></svg></span><span class="nm-name">Blocked Shots</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
-      <span class="nm-desc">Projected blocked shots for every skater, priced at every line.</span>
-    </button>
-    <div class="nav-menu-group g4">Watch Lists</div>
-    <button class="nav-menu-item g4" data-nav="due" onclick="switchNav('due')">
-      <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h11M6.5 20.5h11M8 3.5v2.6L12 12 8 17.9v2.6M16 3.5v2.6L12 12l4 5.9v2.6"/></svg></span><span class="nm-name">Due</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
-      <span class="nm-desc">Goal droughts on tonight's board &mdash; games, shots and ice time since his last one.</span>
-    </button>
-    <button class="nav-menu-item g4" data-nav="milestones" onclick="switchNav('milestones')">
-      <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V3M6 4h11l-2.2 3L17 10H6"/></svg></span><span class="nm-name">Milestones</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
-      <span class="nm-desc">Who's closing on a round number &mdash; career goals, assists, points, games and wins.</span>
-    </button>
-    <button class="nav-menu-item g4" data-nav="birthdays" onclick="switchNav('birthdays')">
-      <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16"/><path d="M5.5 21v-9a2.5 2.5 0 0 1 2.5-2.5h8a2.5 2.5 0 0 1 2.5 2.5v9"/><path d="M5.5 15.5h13"/><path d="M9 9.5V7M12 9.5V7M15 9.5V7"/></svg></span><span class="nm-name">Birthdays</span><span class="nm-go" aria-hidden="true">&rarr;</span></span>
-      <span class="nm-desc">Who's celebrating this week, who plays on the day, and whether it matters.</span>
-    </button>
-  </div>
+  <div class="nav-tools-menu" id="nav-tools-menu"></div>
   <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
 
   <div id="panel-home" class="panel visible"><div id="home-content"><div class="empty">Loading…</div></div></div>
@@ -1823,18 +1774,9 @@
   </div>
 
 
-  <footer class="site-foot">
-    <span class="foot-data">NHL · <span id="eyebrow-season">2026-27</span> · <span id="status-badge" class="status-badge fetching">Loading</span></span>
-    <span class="foot-credit">A goal tool inspired by Green Means Go · <a class="rw-about" href="javascript:void(0)" onclick="RonWelcome.open()" style="color:inherit;text-decoration:underline;text-underline-offset:2px">About</a>
-      <span class="social-links">
-        <a href="https://www.youtube.com/@greenmeansgosports" target="_blank" rel="noopener" aria-label="YouTube"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2s-.2-1.6-.9-2.3c-.8-.9-1.8-.9-2.2-1C17.6 2.6 12 2.6 12 2.6h0s-5.6 0-8.4.3c-.4.1-1.4.1-2.2 1-.7.7-.9 2.3-.9 2.3S0 8.1 0 10v1.9c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.8.9 1.9.8 2.4.9 1.7.2 7.5.3 7.5.3s5.6 0 8.4-.3c.4 0 1.4-.1 2.2-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V10c0-1.9-.2-3.8-.2-3.8zM9.5 14.7V7.3l6.4 3.7-6.4 3.7z"/></svg></a>
-        <a href="https://x.com/GMGoBetting" target="_blank" rel="noopener" aria-label="X"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7.6 8.7L23 22h-6.6l-5.2-6.8L5 22H2l8.1-9.3L1.5 2h6.8l4.7 6.2L18.9 2z"/></svg></a>
-      </span>
-    </span>
-  </footer>
+  <footer class="site-foot"></footer>
+<script>RonChrome.mount()</script>
 </div>
-
-  <div class="sport-menu" id="sport-menu"><a class="sport-item" href="/mlb/"><span class="sport-ico">⚾</span><span class="sport-name">Ron's Dong Tool</span><span class="sport-sub">MLB</span></a><a class="sport-item" href="/nfl/"><span class="sport-ico">🏈</span><span class="sport-name">Ron's Tud Tool</span><span class="sport-sub">NFL</span></a><a class="sport-item current" href="/nhl/"><span class="sport-ico">🏒</span><span class="sport-name">Ron's Goal Tool</span><span class="sport-sub">NHL</span></a><a class="sport-item" href="/nba/"><span class="sport-ico">🏀</span><span class="sport-name">Ron's Hoop Tool</span><span class="sport-sub">NBA</span></a></div>
 <script>
   const APP_BASE = '/nhl';
   // Data files come straight from the repo (raw.githubusercontent.com: CORS-open,
@@ -2009,61 +1951,10 @@
   window.ntOpen = ntOpen; window.ntToggle = ntToggle;
   setTimeout(startNews, 0);
 
-  // ── Theme ──────────────────────────────────────────────────────────────
-  const SUN_SVG  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg>';
-  const MOON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg>';
-  function currentTheme() { return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'; }
-  function updateThemeToggleIcon() { const b = document.getElementById('theme-toggle'); if (b) b.innerHTML = currentTheme() === 'light' ? MOON_SVG : SUN_SVG; }
-  function toggleTheme() {
-    const n = currentTheme() === 'light' ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', n);
-    try { localStorage.setItem('theme', n); } catch (e) {}
-    updateThemeToggleIcon();
-    // Club marks ship in two cuts and the wrong one disappears into the page:
-    // the _dark file paints its blacks white. Repaint every logo on the flip.
-    document.querySelectorAll('img[data-team]').forEach(img => { img.src = teamLogo(img.dataset.team); });
-  }
-
-  // ── Tools menu ─────────────────────────────────────────────────────────
-  let navToolsOpen = false;
-  function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
-  function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
-  function toggleNavTools(e) { e.stopPropagation(); navToolsOpen ? closeNavTools() : openNavTools(); }
-  document.addEventListener('click', (e) => { if (navToolsOpen && !e.target.closest('#nav-tools-menu') && !e.target.closest('#nav-tools-btn')) closeNavTools(); });
-
-  // ── Sport switcher ─────────────────────────────────────────────────────
-  function sportBackdrop(on) {
-    let el = document.getElementById('sport-backdrop');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'sport-backdrop';
-      el.className = 'sport-backdrop';
-      el.addEventListener('click', closeSportMenu);
-      document.body.appendChild(el);
-    }
-    el.classList.toggle('open', on);
-    document.body.classList.toggle('sport-open', on);
-  }
-  /** Hang the menu under the arrow, right-aligned to it, clamped to the screen. */
-  function placeSportMenu(menu, btn) {
-    const r = btn.getBoundingClientRect(), w = menu.offsetWidth, pad = 12;
-    menu.style.top = Math.round(r.bottom + 8) + 'px';
-    menu.style.left = Math.round(Math.max(pad, Math.min(r.right - w, window.innerWidth - w - pad))) + 'px';
-  }
-  function toggleSportMenu(e) {
-    e.stopPropagation();
-    const menu = document.getElementById('sport-menu'), btn = document.getElementById('sport-switch-btn');
-    const open = menu.classList.toggle('open');
-    btn.classList.toggle('open', open);
-    sportBackdrop(open);
-    if (open) placeSportMenu(menu, btn);   // after .open, so offsetWidth is real
-  }
-  function closeSportMenu() {
-    document.getElementById('sport-menu')?.classList.remove('open');
-    document.getElementById('sport-switch-btn')?.classList.remove('open');
-    sportBackdrop(false);
-  }
-  document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch, .sport-menu')) closeSportMenu(); });
+  // ── Theme, sport switcher, tools menu: /chrome.js ─────────────────────────
+  // Club marks ship in two cuts and the wrong one disappears into the page:
+  // the _dark file paints its blacks white. Repaint every logo on the flip.
+  RonChrome.onTheme(() => document.querySelectorAll('img[data-team]').forEach(img => { img.src = teamLogo(img.dataset.team); }));
 
   // ── Nav + routing ──────────────────────────────────────────────────────
   const NHL_NAVS = ['home', 'stats', 'recap', 'schedule', 'picks', 'shots', 'saves', 'allowed', 'points', 'hits', 'blocks', 'pairs', 'due', 'milestones', 'birthdays'];   // tools added here as they ship

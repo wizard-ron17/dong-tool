@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ron's Dong Tool</title>
 <script src="/odds.js?v=1"></script>
+<script src="/chrome.js"></script>
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="Daily MLB home run picks, value bats, due hitters, and any batter-vs-pitcher matchup breakdown. Inspired by Green Means Go.">
 <!-- Social embed. These are the DEFAULTS; the Netlify edge function
@@ -2439,28 +2440,7 @@
       <span class="sport-switch"><button class="sport-switch-btn" id="sport-switch-btn" onclick="toggleSportMenu(event)" aria-label="Switch sport" title="Switch sport">▾</button></span>
     </div>
     <div class="nav-shell">
-    <nav id="main-nav">
-    <button class="nav-btn active" data-nav="home" onclick="switchNav('home')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.2 12 4l9 7.2M5.5 9.4V20h13V9.4"/></svg>
-      <span>Home</span>
-    </button>
-    <button class="nav-btn" data-nav="stats" onclick="switchNav('stats')" disabled>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20v-7M12 20V5.5M19 20v-10"/></svg>
-      <span>Stats</span>
-    </button>
-    <button class="nav-btn" data-nav="recap" onclick="switchNav('recap')" disabled>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 1.9"/></svg>
-      <span>Recap</span>
-    </button>
-    <button class="nav-btn" data-nav="schedule" onclick="switchNav('schedule')" disabled>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M8 3.5v4M16 3.5v4M4 10.5h16"/></svg>
-      <span>Schedule</span>
-    </button>
-    <button class="nav-btn" id="nav-tools-btn" onclick="toggleNavTools(event)" disabled>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>
-      <span>Tools</span><span class="nav-caret">▶</span>
-    </button>
-  </nav>
+    <nav id="main-nav"></nav>
   </div>
   <!-- Backdrop sits OUTSIDE nav: the nav's backdrop-filter makes it the
        containing block for its fixed children, so a backdrop inside could
@@ -2476,67 +2456,30 @@
       <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light or dark mode" title="Toggle light/dark"></button>
     </div>
   </header>
-    <div class="nav-tools-menu" id="nav-tools-menu">
-      <div class="nav-menu-group g1">Today's Boards</div>
-      <button class="nav-menu-item g1" data-nav="picks" onclick="switchNav('picks')" disabled>
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.75" fill="currentColor"/></svg></span><span class="nm-name">Picks</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Tonight's bats, ranked by how likely each one is to go deep.</span>
-      </button>
-      <button class="nav-menu-item g1" data-nav="due" onclick="switchNav('due')" disabled>
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h11M6.5 20.5h11M8 3.5v2.6L12 12 8 17.9v2.6M16 3.5v2.6L12 12l4 5.9v2.6"/></svg></span><span class="nm-name">Due</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Big power going quiet — barrels piling up with no homer to show.</span>
-      </button>
-      <button class="nav-menu-item g1" data-nav="pairs" onclick="switchNav('pairs')" disabled>
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="12" r="4.75"/><circle cx="15" cy="12" r="4.75"/></svg></span><span class="nm-name">Pairs</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Hitters who tend to leave the yard on the same night.</span>
-      </button>
-      <div class="nav-menu-group g2">Matchup Lab</div>
-      <button class="nav-menu-item nav-menu-new g2" data-nav="matchups" onclick="switchNav('matchups')" disabled>
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 20 4M15 4h5v5M4 9V4h5M9 20H4v-5"/></svg></span><span class="nm-name">Matchups</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Score any hitter against any arm, in tonight's real conditions.</span>
-      </button>
-      <button class="nav-menu-item nav-menu-new g2" data-nav="pitchtypes" onclick="switchNav('pitchtypes')" disabled>
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="4"/><path d="M11 11l8 8M17 19l2-2"/></svg></span><span class="nm-name">Pitch Types</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">What every lineup does to each pitch — and who throws it.</span>
-      </button>
-      <button class="nav-menu-item nav-menu-new g2" data-nav="steals" onclick="switchNav('steals')" disabled>
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h11M10 8l5 5-5 5"/><path d="M20 4v16"/></svg></span><span class="nm-name">Steals</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Tonight's likeliest base-stealers, runner against the battery.</span>
-      </button>
-      <button class="nav-menu-item nav-menu-new g2" data-nav="pitchervuln" onclick="switchNav('pitchervuln')" disabled>
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/></svg></span><span class="nm-name">Pitcher Vuln</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">The arms most likely to get taken deep tonight.</span>
-      </button>
-      <button class="nav-menu-item nav-menu-new g2" data-nav="pitcherks" onclick="switchNav('pitcherks')" disabled>
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v16M6 12l7-8M6 12l7 8"/></svg></span><span class="nm-name">Strikeouts <span class="nm-new">NEW</span></span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Starters priced at their own K line, with the fair odds.</span>
-      </button>
-      <button class="nav-menu-item nav-menu-new g2" data-nav="pitcherwalks" onclick="switchNav('pitcherwalks')" disabled>
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="5" width="9" height="14" rx="1"/><circle cx="3.6" cy="7" r="1.5"/><circle cx="20.4" cy="7" r="1.5"/><circle cx="3.6" cy="17" r="1.5"/><circle cx="20.4" cy="17" r="1.5"/></svg></span><span class="nm-name">Walks <span class="nm-new">NEW</span></span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Wild arms meeting patient lineups, priced both ways.</span>
-      </button>
-      <div class="nav-menu-group g3">Watch Lists</div>
-      <button class="nav-menu-item nav-menu-new g3" data-nav="milestones" onclick="switchNav('milestones')" disabled>
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V3M6 4h11l-2.2 3L17 10H6"/></svg></span><span class="nm-name">Milestones</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Who's a swing away from 100, 200 or 300 career homers.</span>
-      </button>
-      <button class="nav-menu-item g3" data-nav="prospects" onclick="switchNav('prospects')" disabled>
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3.8l2.3 5 5.4.5-4.1 3.7 1.2 5.4L12 15.6l-4.8 2.8 1.2-5.4-4.1-3.7 5.4-.5z"/></svg></span><span class="nm-name">Prospects</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Call-ups, debuts, and the first big-league bomb.</span>
-      </button>
-      <button class="nav-menu-item g3" data-nav="returning" onclick="switchNav('returning')" disabled>
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9.5 9 5M4 9.5h10a6 6 0 0 1 0 12h-3"/></svg></span><span class="nm-name">Returning</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Boppers on the IL and when they're back in a lineup.</span>
-      </button>
-      <button class="nav-menu-item g3" data-nav="daylate" onclick="switchNav('daylate')" disabled>
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3.5 4.5V9H8"/><path d="M12 8v4.3l2.8 1.7"/></svg></span><span class="nm-name">Day Late</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Yesterday's picks that missed — and line up to go again.</span>
-      </button>
-      <button class="nav-menu-item g3" data-nav="birthdays" onclick="switchNav('birthdays')" disabled>
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16"/><path d="M5.5 21v-9a2.5 2.5 0 0 1 2.5-2.5h8a2.5 2.5 0 0 1 2.5 2.5v9"/><path d="M5.5 15.5h13"/><path d="M9 9.5V7M12 9.5V7M15 9.5V7"/></svg></span><span class="nm-name">Birthdays</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Who's celebrating, and whether birthday boys actually hit.</span>
-      </button>
-    </div>
+<script>
+  // The shared chrome (/chrome.js): what differs per app. Tools = the Tools menu, in order.
+  RonChrome.mount({ sport: "mlb", season: "2026", source: "Stats API", credit: "A home run tool", navDisabled: true, toolsDisabled: true, tools: [
+    {"group": "Today's Boards", "g": "g1"},
+    {"nav": "picks", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><circle cx=\"12\" cy=\"12\" r=\"4.5\"/><circle cx=\"12\" cy=\"12\" r=\"0.75\" fill=\"currentColor\"/></svg>", "name": "Picks", "desc": "Tonight's bats, ranked by how likely each one is to go deep."},
+    {"nav": "due", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6.5 3.5h11M6.5 20.5h11M8 3.5v2.6L12 12 8 17.9v2.6M16 3.5v2.6L12 12l4 5.9v2.6\"/></svg>", "name": "Due", "desc": "Big power going quiet — barrels piling up with no homer to show."},
+    {"nav": "pairs", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"9\" cy=\"12\" r=\"4.75\"/><circle cx=\"15\" cy=\"12\" r=\"4.75\"/></svg>", "name": "Pairs", "desc": "Hitters who tend to leave the yard on the same night."},
+    {"group": "Matchup Lab", "g": "g2"},
+    {"nav": "matchups", "g": "g2", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 20 20 4M15 4h5v5M4 9V4h5M9 20H4v-5\"/></svg>", "name": "Matchups", "desc": "Score any hitter against any arm, in tonight's real conditions.", "isNew": true},
+    {"nav": "pitchtypes", "g": "g2", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"8\" cy=\"8\" r=\"4\"/><path d=\"M11 11l8 8M17 19l2-2\"/></svg>", "name": "Pitch Types", "desc": "What every lineup does to each pitch — and who throws it.", "isNew": true},
+    {"nav": "steals", "g": "g2", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 13h11M10 8l5 5-5 5\"/><path d=\"M20 4v16\"/></svg>", "name": "Steals", "desc": "Tonight's likeliest base-stealers, runner against the battery.", "isNew": true},
+    {"nav": "pitchervuln", "g": "g2", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><path d=\"M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3\"/><circle cx=\"12\" cy=\"12\" r=\"1.4\" fill=\"currentColor\"/></svg>", "name": "Pitcher Vuln", "desc": "The arms most likely to get taken deep tonight.", "isNew": true},
+    {"nav": "pitcherks", "g": "g2", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 4v16M6 12l7-8M6 12l7 8\"/></svg>", "name": "Strikeouts <span class=\"nm-new\">NEW</span>", "desc": "Starters priced at their own K line, with the fair odds.", "isNew": true},
+    {"nav": "pitcherwalks", "g": "g2", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"7.5\" y=\"5\" width=\"9\" height=\"14\" rx=\"1\"/><circle cx=\"3.6\" cy=\"7\" r=\"1.5\"/><circle cx=\"20.4\" cy=\"7\" r=\"1.5\"/><circle cx=\"3.6\" cy=\"17\" r=\"1.5\"/><circle cx=\"20.4\" cy=\"17\" r=\"1.5\"/></svg>", "name": "Walks <span class=\"nm-new\">NEW</span>", "desc": "Wild arms meeting patient lineups, priced both ways.", "isNew": true},
+    {"group": "Watch Lists", "g": "g3"},
+    {"nav": "milestones", "g": "g3", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 21V3M6 4h11l-2.2 3L17 10H6\"/></svg>", "name": "Milestones", "desc": "Who's a swing away from 100, 200 or 300 career homers.", "isNew": true},
+    {"nav": "prospects", "g": "g3", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linejoin=\"round\"><path d=\"M12 3.8l2.3 5 5.4.5-4.1 3.7 1.2 5.4L12 15.6l-4.8 2.8 1.2-5.4-4.1-3.7 5.4-.5z\"/></svg>", "name": "Prospects", "desc": "Call-ups, debuts, and the first big-league bomb."},
+    {"nav": "returning", "g": "g3", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 14 4 9.5 9 5M4 9.5h10a6 6 0 0 1 0 12h-3\"/></svg>", "name": "Returning", "desc": "Boppers on the IL and when they're back in a lineup."},
+    {"nav": "daylate", "g": "g3", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3.5 4.5V9H8\"/><path d=\"M12 8v4.3l2.8 1.7\"/></svg>", "name": "Day Late", "desc": "Yesterday's picks that missed — and line up to go again."},
+    {"nav": "birthdays", "g": "g3", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 21h16\"/><path d=\"M5.5 21v-9a2.5 2.5 0 0 1 2.5-2.5h8a2.5 2.5 0 0 1 2.5 2.5v9\"/><path d=\"M5.5 15.5h13\"/><path d=\"M9 9.5V7M12 9.5V7M15 9.5V7\"/></svg>", "name": "Birthdays", "desc": "Who's celebrating, and whether birthday boys actually hit."}
+  ] });
+</script>
+    <div class="nav-tools-menu" id="nav-tools-menu"></div>
+<script>RonChrome.mount()</script>
   <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
 
   <div id="offday-banner" class="offday-banner" style="display:none"></div>
@@ -3781,24 +3724,8 @@ function showLoadError(msg) {
     </div>`;
 }
 
-// ── Theme ──────────────────────────────────────────────────────────────
-// The pre-paint script in <head> already set data-theme; here we just wire the
-// toggle, persist the choice, keep the icon in sync, and re-render the visible
-// panel so theme-aware team logos swap to the matching cap-on-light/dark mark.
-const SUN_SVG  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2 12h2.4M19.6 12H22M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/></svg>';
-const MOON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.9A9 9 0 1 1 11.1 3a7 7 0 0 0 9.9 9.9z"/></svg>';
-function currentTheme() { return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'; }
-function updateThemeToggleIcon() {
-  const btn = document.getElementById('theme-toggle');
-  if (btn) btn.innerHTML = currentTheme() === 'light' ? MOON_SVG : SUN_SVG; // show what you'll switch TO
-}
-function toggleTheme() {
-  const next = currentTheme() === 'light' ? 'dark' : 'light';
-  document.documentElement.setAttribute('data-theme', next);
-  try { localStorage.setItem('theme', next); } catch (e) {}
-  updateThemeToggleIcon();
-  if (Object.keys(dailyHRs).length) renderCurrentPanel(); // reswap theme-matched logos
-}
+// ── Theme, sport switcher, tools menu: /chrome.js ─────────────────────────
+RonChrome.onTheme(() => { if (Object.keys(dailyHRs).length) renderCurrentPanel(); });   // reswap theme-matched logos
 
 // ── Nav ────────────────────────────────────────────────────────────────
 const VALID_NAVS = ['home', 'pairs', 'stats', 'recap', 'schedule', 'due', 'picks', 'matchups', 'prospects', 'daylate', 'returning', 'birthdays', 'milestones', 'steals', 'pitchtypes', 'pitchervuln', 'pitcherks', 'pitcherwalks'];
@@ -3898,7 +3825,6 @@ function migrateLegacyHash() {
 // The four pages that live in the Tools menu rather than the main bar; the
 // Tools pill lights up when any of them is active.
 const TOOLS_NAVS = ['matchups', 'milestones', 'steals', 'pitchtypes', 'pitchervuln', 'pitcherks', 'pitcherwalks', 'picks', 'due', 'pairs', 'prospects', 'daylate', 'returning', 'birthdays'];
-let navToolsOpen = false;
 // ── Top-bar search ──────────────────────────────────────────────────────────
 // Every man we carry — both sides of the ball — opening his player card. Today's
 // boards go in first and rank first, but the base is the matchup cards, so a
@@ -3993,46 +3919,7 @@ function siteSearchKey(e) {
 }
 document.addEventListener('click', (e) => { if (!e.target.closest('#tb-search')) { const b = document.getElementById('tb-results'); if (b) b.hidden = true; } });
 
-function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
-function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
-function toggleNavTools(e) { e.stopPropagation(); navToolsOpen ? closeNavTools() : openNavTools(); }
 
-// Sport switcher: jump straight to another live app, or click the logo for
-// the full landing/picker (incl. coming-soon sports).
-function sportBackdrop(on) {
-  let el = document.getElementById('sport-backdrop');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'sport-backdrop';
-    el.className = 'sport-backdrop';
-    el.addEventListener('click', closeSportMenu);
-    document.body.appendChild(el);
-  }
-  el.classList.toggle('open', on);
-  document.body.classList.toggle('sport-open', on);
-}
-/** Hang the menu under the arrow, right-aligned to it, clamped to the screen. */
-function placeSportMenu(menu, btn) {
-  const r = btn.getBoundingClientRect(), w = menu.offsetWidth, pad = 12;
-  menu.style.top = Math.round(r.bottom + 8) + 'px';
-  menu.style.left = Math.round(Math.max(pad, Math.min(r.right - w, window.innerWidth - w - pad))) + 'px';
-}
-function toggleSportMenu(e) {
-  e.stopPropagation();
-  const menu = document.getElementById('sport-menu'), btn = document.getElementById('sport-switch-btn');
-  const open = menu.classList.toggle('open');
-  btn.classList.toggle('open', open);
-  sportBackdrop(open);
-  if (open) placeSportMenu(menu, btn);   // after .open, so offsetWidth is real
-}
-function closeSportMenu() {
-  document.getElementById('sport-menu')?.classList.remove('open');
-  document.getElementById('sport-switch-btn')?.classList.remove('open');
-  sportBackdrop(false);
-}
-// The menu no longer lives inside .sport-switch, so it has to be named here
-// too or clicking one of its own items would close it out from under the tap.
-document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch, .sport-menu')) closeSportMenu(); });
 
 // Browser-tab titles per page (the edge function sets the same for shared/deep
 // links + crawlers; this keeps the tab in sync during client-side navigation).
@@ -12254,24 +12141,8 @@ if ('serviceWorker' in navigator) {
 // ── Parlay slip: /parlay.js (one module for every app: state, pricing,
 // markup, styles). Rows here only tag themselves with parAttr({...}).
 </script>
-<div class="sport-menu" id="sport-menu"><a class="sport-item current" href="/mlb/"><span class="sport-ico">⚾</span><span class="sport-name">Ron's Dong Tool</span><span class="sport-sub">MLB</span></a><a class="sport-item" href="/nfl/"><span class="sport-ico">🏈</span><span class="sport-name">Ron's Tud Tool</span><span class="sport-sub">NFL</span></a><a class="sport-item" href="/nba/"><span class="sport-ico">🏀</span><span class="sport-name">Ron's Hoop Tool</span><span class="sport-sub">NBA</span></a><a class="sport-item" href="/nhl/"><span class="sport-ico">🏒</span><span class="sport-name">Ron's Goal Tool</span><span class="sport-sub">NHL</span></a></div>
-  <footer class="site-foot">
-    <span class="foot-data">MLB · <span id="eyebrow-season">2026</span> · Stats API · <span id="status-badge" class="status-badge fetching">Loading</span></span>
-    <span class="foot-credit"><span>A home run tool inspired by Green Means Go · <a class="rw-about" href="javascript:void(0)" onclick="RonWelcome.open()" style="color:inherit;text-decoration:underline;text-underline-offset:2px">About</a>
-        <span class="social-links">
-          <a href="https://www.youtube.com/@greenmeansgosports" target="_blank" rel="noopener" aria-label="YouTube">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2s-.2-1.6-.9-2.3c-.8-.9-1.8-.9-2.2-1C17.6 2.6 12 2.6 12 2.6h0s-5.6 0-8.4.3c-.4.1-1.4.1-2.2 1-.7.7-.9 2.3-.9 2.3S0 8.1 0 10v1.9c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.8.9 1.9.8 2.4.9 1.7.2 7.5.3 7.5.3s5.6 0 8.4-.3c.4 0 1.4-.1 2.2-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V10c0-1.9-.2-3.8-.2-3.8zM9.5 14.7V7.3l6.4 3.7-6.4 3.7z"/></svg>
-          </a>
-          <a href="https://x.com/GMGoBetting" target="_blank" rel="noopener" aria-label="X">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7.6 8.7L23 22h-6.6l-5.2-6.8L5 22H2l8.1-9.3L1.5 2h6.8l4.7 6.2L18.9 2z"/></svg>
-          </a>
-          <a href="https://gmgsports.buildr.bet/" target="_blank" rel="noopener" aria-label="Discord">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 4.4A19.5 19.5 0 0 0 15.6 3c-.2.4-.5.9-.7 1.3a18 18 0 0 0-5.8 0c-.2-.4-.4-.9-.7-1.3a19.6 19.6 0 0 0-4.7 1.4C1.7 8 1 11.5 1.3 15a19.8 19.8 0 0 0 5.6 2.8c.4-.6.8-1.2 1.1-1.9-.6-.2-1.2-.5-1.7-.9.1-.1.3-.2.4-.3a14 14 0 0 0 11.8 0c.1.1.3.2.4.3-.5.4-1.1.7-1.7.9.3.7.7 1.3 1.1 1.9A19.8 19.8 0 0 0 22.7 15c.4-4-.6-7.5-2.4-10.6zM8.5 12.8c-.8 0-1.4-.7-1.4-1.6 0-.9.6-1.6 1.4-1.6.8 0 1.5.7 1.4 1.6 0 .9-.6 1.6-1.4 1.6zm7 0c-.8 0-1.4-.7-1.4-1.6 0-.9.6-1.6 1.4-1.6.8 0 1.5.7 1.4 1.6 0 .9-.6 1.6-1.4 1.6z"/></svg>
-          </a>
-        </span>
-      </span>
-    </span>
-  </footer>
+  <footer class="site-foot"></footer>
+<script>RonChrome.mount()</script>
 <script src="/welcome.js?v=5" defer></script>
 </body>
 </html>

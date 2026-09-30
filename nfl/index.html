@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ron's Tud Tool</title>
 <script src="/odds.js?v=1"></script>
+<script src="/chrome.js"></script>
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="NFL player props, every line priced — anytime touchdowns, yards, receptions, completions, interceptions and kickers — plus fantasy projections, parlays with same-game pricing, and a touchdown recap with replays. Inspired by Green Means Go.">
 <!-- Social embed. These are the DEFAULTS; the Netlify edge function
@@ -3017,28 +3018,7 @@
       <span class="sport-switch"><button class="sport-switch-btn" id="sport-switch-btn" onclick="toggleSportMenu(event)" aria-label="Switch sport" title="Switch sport">▾</button></span>
     </div>
     <div class="nav-shell">
-    <nav id="main-nav">
-    <button class="nav-btn active" data-nav="home" onclick="switchNav('home')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.2 12 4l9 7.2M5.5 9.4V20h13V9.4"/></svg>
-      <span>Home</span>
-    </button>
-    <button class="nav-btn" data-nav="stats" onclick="switchNav('stats')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20v-7M12 20V5.5M19 20v-10"/></svg>
-      <span>Stats</span>
-    </button>
-    <button class="nav-btn" data-nav="recap" onclick="switchNav('recap')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 1.9"/></svg>
-      <span>Recap</span>
-    </button>
-    <button class="nav-btn" data-nav="schedule" onclick="switchNav('schedule')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M8 3.5v4M16 3.5v4M4 10.5h16"/></svg>
-      <span>Schedule</span>
-    </button>
-    <button class="nav-btn" id="nav-tools-btn" onclick="toggleNavTools(event)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>
-      <span>Tools</span><span class="nav-caret">▶</span>
-    </button>
-  </nav>
+    <nav id="main-nav"></nav>
   </div>
     <div class="tb-right">
       <div class="tb-search" id="tb-search">
@@ -3050,59 +3030,28 @@
       <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light or dark mode" title="Toggle light/dark"></button>
     </div>
   </header>
-    <div class="nav-tools-menu" id="nav-tools-menu">
-      <div class="nav-menu-group g1">Scoring</div>
-      <button class="nav-menu-item g1" data-nav="picks" onclick="switchNav('picks')">
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.75" fill="currentColor"/></svg></span><span class="nm-name">Picks</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Every skill player ranked by his odds of finding the end zone.</span>
-      </button>
-      <button class="nav-menu-item g1" data-nav="kickers" onclick="switchNav('kickers')">
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 11V3M17.5 11V3M6.5 11h11M12 11v8M9 21h6"/></svg></span><span class="nm-name">Kickers</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Field goals and PATs, with the legs worth backing this week.</span>
-      </button>
-      <button class="nav-menu-item g1" data-nav="returners" onclick="switchNav('returners')">
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="14.5" cy="4" r="2"/><path d="M13 7.6 L10 13"/><path d="M13.2 9 L17.5 11.2"/><path d="M11.6 9.8 L7.5 8.6"/><path d="M10 13 L13 16 L12.4 21"/><path d="M10 13 L6.2 16.8"/></svg></span><span class="nm-name">Returners</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Return volume and the men who can take one the distance.</span>
-      </button>
-      <button class="nav-menu-item g1" data-nav="pairs" onclick="switchNav('pairs')">
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="12" r="4.75"/><circle cx="15" cy="12" r="4.75"/></svg></span><span class="nm-name">Pairs</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Teammates and rivals who tend to score the same week.</span>
-      </button>
-      <div class="nav-menu-group g2">Stat Lines</div>
-      <button class="nav-menu-item g2" data-nav="yards" onclick="switchNav('yards')">
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="8" width="19" height="8" rx="1.5"/><path d="M6.5 8v3M10.5 8v4.5M14.5 8v3M18.5 8v4.5"/></svg></span><span class="nm-name">Yards</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Passing, rushing and receiving lines, priced over and under.</span>
-      </button>
-      <button class="nav-menu-item g2" data-nav="receptions" onclick="switchNav('receptions')">
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11.5V5.4a1.5 1.5 0 0 1 3 0v5.6"/><path d="M12 11V4.2a1.5 1.5 0 0 1 3 0V11"/><path d="M15 11.4V6.2a1.5 1.5 0 0 1 3 0v6.6"/><path d="M9 11.5V9.4a1.5 1.5 0 0 0-3 0v5.4c0 3.6 2.6 6.2 6.2 6.2 3.4 0 5.8-2.6 5.8-6.2v-2"/></svg></span><span class="nm-name">Receptions</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Target share turned into a catch total, both sides priced.</span>
-      </button>
-      <button class="nav-menu-item g2" data-nav="completions" onclick="switchNav('completions')">
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M8 12.4l2.7 2.7L16.2 9.4"/></svg></span><span class="nm-name">Completions</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">QB completion lines, with the volume behind the number.</span>
-      </button>
-      <button class="nav-menu-item g2" data-nav="interceptions" onclick="switchNav('interceptions')">
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h11a5 5 0 0 1 0 10H9"/><path d="M12 14l-3 3 3 3"/></svg></span><span class="nm-name">Interceptions</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Game script, bad-ball rate, and which QBs hand it over.</span>
-      </button>
-      <div class="nav-menu-group g3">Watch Lists</div>
-      <button class="nav-menu-item g3" data-nav="fantasy" onclick="switchNav('fantasy')">
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M8.5 10h7M8.5 13.5h7M8.5 17h4"/></svg></span><span class="nm-name">Fantasy</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Half-PPR points for every player, added up from our stat projections.</span>
-      </button>
-      <button class="nav-menu-item g3" data-nav="due" onclick="switchNav('due')">
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h11M6.5 20.5h11M8 3.5v2.6L12 12 8 17.9v2.6M16 3.5v2.6L12 12l4 5.9v2.6"/></svg></span><span class="nm-name">Due</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Red-zone work piling up with no touchdown to show for it.</span>
-      </button>
-      <button class="nav-menu-item g3" data-nav="milestones" onclick="switchNav('milestones')">
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V3M6 4h11l-2.2 3L17 10H6"/></svg></span><span class="nm-name">Milestones</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Who's closing on 50, 100 or 150 career touchdowns.</span>
-      </button>
-      <button class="nav-menu-item g3" data-nav="birthdays" onclick="switchNav('birthdays')">
-        <span class="nm-head"><span class="nm-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16"/><path d="M5.5 21v-9a2.5 2.5 0 0 1 2.5-2.5h8a2.5 2.5 0 0 1 2.5 2.5v9"/><path d="M5.5 15.5h13"/><path d="M9 9.5V7M12 9.5V7M15 9.5V7"/></svg></span><span class="nm-name">Birthdays</span><span class="nm-go" aria-hidden="true">→</span></span>
-        <span class="nm-desc">Who's celebrating on the slate, and whether it matters.</span>
-      </button>
-    </div>
+<script>
+  // The shared chrome (/chrome.js): what differs per app. Tools = the Tools menu, in order.
+  RonChrome.mount({ sport: "nfl", season: "2026", credit: "A touchdown tool", tools: [
+    {"group": "Scoring", "g": "g1"},
+    {"nav": "picks", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><circle cx=\"12\" cy=\"12\" r=\"4.5\"/><circle cx=\"12\" cy=\"12\" r=\"0.75\" fill=\"currentColor\"/></svg>", "name": "Picks", "desc": "Every skill player ranked by his odds of finding the end zone."},
+    {"nav": "kickers", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6.5 11V3M17.5 11V3M6.5 11h11M12 11v8M9 21h6\"/></svg>", "name": "Kickers", "desc": "Field goals and PATs, with the legs worth backing this week."},
+    {"nav": "returners", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"14.5\" cy=\"4\" r=\"2\"/><path d=\"M13 7.6 L10 13\"/><path d=\"M13.2 9 L17.5 11.2\"/><path d=\"M11.6 9.8 L7.5 8.6\"/><path d=\"M10 13 L13 16 L12.4 21\"/><path d=\"M10 13 L6.2 16.8\"/></svg>", "name": "Returners", "desc": "Return volume and the men who can take one the distance."},
+    {"nav": "pairs", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"9\" cy=\"12\" r=\"4.75\"/><circle cx=\"15\" cy=\"12\" r=\"4.75\"/></svg>", "name": "Pairs", "desc": "Teammates and rivals who tend to score the same week."},
+    {"group": "Stat Lines", "g": "g2"},
+    {"nav": "yards", "g": "g2", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"2.5\" y=\"8\" width=\"19\" height=\"8\" rx=\"1.5\"/><path d=\"M6.5 8v3M10.5 8v4.5M14.5 8v3M18.5 8v4.5\"/></svg>", "name": "Yards", "desc": "Passing, rushing and receiving lines, priced over and under."},
+    {"nav": "receptions", "g": "g2", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 11.5V5.4a1.5 1.5 0 0 1 3 0v5.6\"/><path d=\"M12 11V4.2a1.5 1.5 0 0 1 3 0V11\"/><path d=\"M15 11.4V6.2a1.5 1.5 0 0 1 3 0v6.6\"/><path d=\"M9 11.5V9.4a1.5 1.5 0 0 0-3 0v5.4c0 3.6 2.6 6.2 6.2 6.2 3.4 0 5.8-2.6 5.8-6.2v-2\"/></svg>", "name": "Receptions", "desc": "Target share turned into a catch total, both sides priced."},
+    {"nav": "completions", "g": "g2", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><path d=\"M8 12.4l2.7 2.7L16.2 9.4\"/></svg>", "name": "Completions", "desc": "QB completion lines, with the volume behind the number."},
+    {"nav": "interceptions", "g": "g2", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 7h11a5 5 0 0 1 0 10H9\"/><path d=\"M12 14l-3 3 3 3\"/></svg>", "name": "Interceptions", "desc": "Game script, bad-ball rate, and which QBs hand it over."},
+    {"group": "Watch Lists", "g": "g3"},
+    {"nav": "fantasy", "g": "g3", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"5\" y=\"4\" width=\"14\" height=\"17\" rx=\"2\"/><path d=\"M9 4.5V3h6v1.5M8.5 10h7M8.5 13.5h7M8.5 17h4\"/></svg>", "name": "Fantasy", "desc": "Half-PPR points for every player, added up from our stat projections."},
+    {"nav": "due", "g": "g3", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6.5 3.5h11M6.5 20.5h11M8 3.5v2.6L12 12 8 17.9v2.6M16 3.5v2.6L12 12l4 5.9v2.6\"/></svg>", "name": "Due", "desc": "Red-zone work piling up with no touchdown to show for it."},
+    {"nav": "milestones", "g": "g3", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 21V3M6 4h11l-2.2 3L17 10H6\"/></svg>", "name": "Milestones", "desc": "Who's closing on 50, 100 or 150 career touchdowns."},
+    {"nav": "birthdays", "g": "g3", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 21h16\"/><path d=\"M5.5 21v-9a2.5 2.5 0 0 1 2.5-2.5h8a2.5 2.5 0 0 1 2.5 2.5v9\"/><path d=\"M5.5 15.5h13\"/><path d=\"M9 9.5V7M12 9.5V7M15 9.5V7\"/></svg>", "name": "Birthdays", "desc": "Who's celebrating on the slate, and whether it matters."}
+  ] });
+</script>
+    <div class="nav-tools-menu" id="nav-tools-menu"></div>
+<script>RonChrome.mount()</script>
   <div class="nav-tools-backdrop" id="nav-tools-backdrop" onclick="closeNavTools()"></div>
 
   <div id="panel-home" class="panel visible"><div id="home-content"><div class="empty">Loading…</div></div></div>
@@ -3637,16 +3586,7 @@
 
   window.ntOpen = ntOpen; window.ntToggle = ntToggle;
   setTimeout(startNews, 0);
-  const SUN_SVG  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2 12h2.4M19.6 12H22M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/></svg>';
-  const MOON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.9A9 9 0 1 1 11.1 3a7 7 0 0 0 9.9 9.9z"/></svg>';
-  function currentTheme() { return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'; }
-  function updateThemeToggleIcon() { const b = document.getElementById('theme-toggle'); if (b) b.innerHTML = currentTheme() === 'light' ? MOON_SVG : SUN_SVG; }
-  function toggleTheme() { const n = currentTheme() === 'light' ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', n); try { localStorage.setItem('theme', n); } catch (e) {} updateThemeToggleIcon(); }
 
-  let navToolsOpen = false;
-  function openNavTools()  { navToolsOpen = true;  document.getElementById('nav-tools-menu').classList.add('open');    document.getElementById('nav-tools-backdrop').classList.add('open');    document.getElementById('main-nav').classList.add('tools-open'); }
-  function closeNavTools() { navToolsOpen = false; document.getElementById('nav-tools-menu').classList.remove('open'); document.getElementById('nav-tools-backdrop').classList.remove('open'); document.getElementById('main-nav').classList.remove('tools-open'); }
-  function toggleNavTools(e) { e.stopPropagation(); navToolsOpen ? closeNavTools() : openNavTools(); }
 
   // ── Top-bar search ────────────────────────────────────────────────────────
   // Deliberately simple for now: every player this week's boards price, plus
@@ -3761,42 +3701,6 @@
   window.siteSearch = siteSearch; window.siteSearchKey = siteSearchKey; window.tbGo = tbGo;
   document.addEventListener('click', (e) => { if (!e.target.closest('#tb-search')) { const b = document.getElementById('tb-results'); if (b) b.hidden = true; } });
 
-  // Sport switcher: jump straight to another live app, or click the logo for
-  // the full landing/picker (incl. coming-soon sports).
-  function sportBackdrop(on) {
-    let el = document.getElementById('sport-backdrop');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'sport-backdrop';
-      el.className = 'sport-backdrop';
-      el.addEventListener('click', closeSportMenu);
-      document.body.appendChild(el);
-    }
-    el.classList.toggle('open', on);
-    document.body.classList.toggle('sport-open', on);
-  }
-  /** Hang the menu under the arrow, right-aligned to it, clamped to the screen. */
-  function placeSportMenu(menu, btn) {
-    const r = btn.getBoundingClientRect(), w = menu.offsetWidth, pad = 12;
-    menu.style.top = Math.round(r.bottom + 8) + 'px';
-    menu.style.left = Math.round(Math.max(pad, Math.min(r.right - w, window.innerWidth - w - pad))) + 'px';
-  }
-  function toggleSportMenu(e) {
-    e.stopPropagation();
-    const menu = document.getElementById('sport-menu'), btn = document.getElementById('sport-switch-btn');
-    const open = menu.classList.toggle('open');
-    btn.classList.toggle('open', open);
-    sportBackdrop(open);
-    if (open) placeSportMenu(menu, btn);   // after .open, so offsetWidth is real
-  }
-  function closeSportMenu() {
-    document.getElementById('sport-menu')?.classList.remove('open');
-    document.getElementById('sport-switch-btn')?.classList.remove('open');
-    sportBackdrop(false);
-  }
-  // The menu no longer lives inside .sport-switch, so it has to be named here
-// too or clicking one of its own items would close it out from under the tap.
-document.addEventListener('click', (e) => { if (!e.target.closest('.sport-switch, .sport-menu')) closeSportMenu(); });
 
   const NFL_NAVS = ['home', 'picks', 'stats', 'recap', 'schedule', 'pairs', 'birthdays', 'due', 'milestones', 'returners', 'receptions', 'completions', 'interceptions', 'yards', 'kickers', 'fantasy']; // tools added here as they ship
   const PAGE_TITLES = { home: "Ron's Tud Tool", stats: "Stats · Ron's Tud Tool", recap: "Recap · Ron's Tud Tool", schedule: "Schedule · Ron's Tud Tool", pairs: "Pairs · Ron's Tud Tool", due: "Due · Ron's Tud Tool", milestones: "Milestones · Ron's Tud Tool", returners: "Returners · Ron's Tud Tool", kickers: "Kickers · Ron's Tud Tool", fantasy: "Fantasy · Ron's Tud Tool" };
@@ -9035,7 +8939,6 @@ let pairStacks = false;
     tdOpenPending(); plOpenPending(); gmOpenPending();
   }
   window.addEventListener('popstate', applyRouteState);
-  document.addEventListener('click', (e) => { if (navToolsOpen && !e.target.closest('#nav-tools-menu') && !e.target.closest('#nav-tools-btn')) closeNavTools(); });
 
   document.addEventListener('DOMContentLoaded', () => { updateThemeToggleIcon(); applyRouteState(); loadNfl(); });
 
@@ -9088,16 +8991,8 @@ let pairStacks = false;
     decorate: (leg) => leg.m === 'td1' && !leg.pos ? { ...leg, pos: posOf(leg.i) || undefined } : leg,
   });
 </script>
-  <div class="sport-menu" id="sport-menu"><a class="sport-item" href="/mlb/"><span class="sport-ico">⚾</span><span class="sport-name">Ron's Dong Tool</span><span class="sport-sub">MLB</span></a><a class="sport-item current" href="/nfl/"><span class="sport-ico">🏈</span><span class="sport-name">Ron's Tud Tool</span><span class="sport-sub">NFL</span></a><a class="sport-item" href="/nba/"><span class="sport-ico">🏀</span><span class="sport-name">Ron's Hoop Tool</span><span class="sport-sub">NBA</span></a><a class="sport-item" href="/nhl/"><span class="sport-ico">🏒</span><span class="sport-name">Ron's Goal Tool</span><span class="sport-sub">NHL</span></a></div>
-  <footer class="site-foot">
-    <span class="foot-data">NFL · <span id="eyebrow-season">2026</span> · <span id="status-badge" class="status-badge fetching">Loading</span></span>
-    <span class="foot-credit">A touchdown tool inspired by Green Means Go · <a class="rw-about" href="javascript:void(0)" onclick="RonWelcome.open()" style="color:inherit;text-decoration:underline;text-underline-offset:2px">About</a>
-      <span class="social-links">
-        <a href="https://www.youtube.com/@greenmeansgosports" target="_blank" rel="noopener" aria-label="YouTube"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2s-.2-1.6-.9-2.3c-.8-.9-1.8-.9-2.2-1C17.6 2.6 12 2.6 12 2.6h0s-5.6 0-8.4.3c-.4.1-1.4.1-2.2 1-.7.7-.9 2.3-.9 2.3S0 8.1 0 10v1.9c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.8.9 1.9.8 2.4.9 1.7.2 7.5.3 7.5.3s5.6 0 8.4-.3c.4 0 1.4-.1 2.2-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V10c0-1.9-.2-3.8-.2-3.8zM9.5 14.7V7.3l6.4 3.7-6.4 3.7z"/></svg></a>
-        <a href="https://x.com/GMGoBetting" target="_blank" rel="noopener" aria-label="X"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7.6 8.7L23 22h-6.6l-5.2-6.8L5 22H2l8.1-9.3L1.5 2h6.8l4.7 6.2L18.9 2z"/></svg></a>
-      </span>
-    </span>
-  </footer>
+  <footer class="site-foot"></footer>
+<script>RonChrome.mount()</script>
 <script src="/welcome.js?v=5" defer></script>
 </body>
 </html>

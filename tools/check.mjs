@@ -69,6 +69,9 @@ function staticChecks() {
     const p = path.join(ROOT, f); if (!fs.existsSync(p)) continue;
     const html = fs.readFileSync(p, 'utf8');
     [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].forEach((m, k) => {
+      // an empty value ("border-top-color: ;") is a declaration the browser drops
+      // without a word: what a copy of the browser's serialized CSS leaves behind
+      for (const e of m[1].matchAll(/[;{]\s*([a-z-]+)\s*:\s*;/g)) fail(`${f} <style> #${k + 1}`, `empty value for ${e[1]}`);
       const d = braceDepth(m[1]);
       if (d.min < 0 || d.end !== 0) fail(`${f} <style> #${k + 1}`, `braces unbalanced (ends at depth ${d.end}${d.min < 0 ? ', closes one it never opened' : ''})`);
     });
