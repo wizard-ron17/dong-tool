@@ -251,20 +251,26 @@ def mlb_live():
                             base=float(y3.mean()), auc=auc(s3, y3), skill=None, brier_skill=None, ece=None, top10=float(y3[s3 >= np.quantile(s3, 0.9)].mean()),
                             top10_priced=None, lift=float(y3[s3 >= np.quantile(s3, 0.9)].mean() / y3.mean()), bottom10=None, note="live, players who played; score not a probability"))
         print(f"  MLB Steals (live)  n {len(y3)}  stole {y3.mean() * 100:.1f}%  AUC {auc(s3, y3):.3f}")
-    # Ks and walks: the tool grades itself at both of its lines (kbbHistory.lineStats):
-    # what the board priced the over at vs how often it hit, every start.
-    for key, lab in (("k", "Pitcher strikeouts"), ("bb", "Pitcher walks")):
+    # Ks and walks, every start the board priced (kbbHistory.days: projection and
+    # what he did), scored like the other models at a fixed headline line
+    # (strikeouts o5.5, walks o1.5), priced the way the board prices it: Poisson
+    # off the projection. A fixed line is the fair test of ranking; the board's
+    # own line sits at each pitcher's projection, where every start is near a
+    # coin flip by design. The board's live check at its two lines rides along.
+    for key, lab, L in (("k", "Pitcher strikeouts", 5.5), ("bb", "Pitcher walks", 1.5)):
         H = d.get("kbbHistory", {}).get(key)
         if not H: continue
-        tiers = {t["tier"]: t for t in H["lineStats"]}
-        cal = [(t["tier"], t["modelWin"], t["hits"] / t["n"]) for t in H["lineStats"]]
-        RESULTS.append(dict(sport="MLB", market=lab, line="board's low + high lines", tool="Pitchers", n=int(H["starts"]),
-                            seasons=f"{H['slates']} live slates", base=None, auc=None, skill=None, brier_skill=None,
-                            ece=float(np.mean([abs(a - b) for _, a, b in cal]) * 100), top10=None, top10_priced=None, lift=None, bottom10=None,
-                            cal=cal, proj_bias=H["projBias"],
-                            note="LIVE self-grading: priced vs hit at each line; per-start probabilities aren't stored, so no AUC"))
-        print(f"  MLB {lab}: " + "  ".join(f"{t}: priced {a * 100:.1f}% hit {b * 100:.1f}%" for t, a, b in cal)
-              + f"  | projection bias {H['projBias']}")
+        P, Y = [], []
+        for day in H.get("days", []):
+            for r in day.get("board", []):
+                if r.get("proj") is None or r.get("act") is None: continue
+                P.append(poisson.sf(int(L), float(r["proj"]))); Y.append(float(r["act"] > L))
+        score("MLB", lab, f"o{L}", P, Y, f"{len(H['days'])} live days", tool="Pitchers",
+              note=f"live board, every start it priced ({len(H['days'])} days, its top arms each day), graded at o{L}")
+        R = RESULTS[-1]; R["seasons"] = f"{len(H['days'])} live days"
+        R["cal"] = [(t["tier"], t["modelWin"], t["hits"] / t["n"]) for t in H["lineStats"]]
+        R["proj_bias"] = H["projBias"]
+        print(f"    board's own lines: " + "  ".join(f"{t}: priced {a * 100:.1f}% hit {b * 100:.1f}%" for t, a, b in R["cal"]))
 
 
 # ── NBA ─────────────────────────────────────────────────────────────────────

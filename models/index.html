@@ -61,6 +61,10 @@
   .intro b { color: var(--text); }
   /* ── how to read ── */
   .read { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.7rem; margin-top: 1rem; }
+  .rd.score { grid-column: 1 / -1; display: grid; grid-template-columns: 1.1fr 2fr; gap: 1.2rem; border-color: var(--green); }
+  @media (max-width: 700px) { .rd.score { grid-template-columns: 1fr; gap: 0.3rem; } }
+  .rd.score ul { list-style: none; font-size: 0.8rem; color: var(--muted); display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.1rem; }
+  .rd.score li b { color: var(--text); }
   @media (max-width: 860px) { .read { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 480px) { .read { grid-template-columns: 1fr; } }
   .rd { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 0.9rem 1rem; }
@@ -78,6 +82,15 @@
   .chip { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border2);
     border-radius: 999px; padding: 0.12rem 0.45rem; white-space: nowrap; }
   .m-auc { margin-left: auto; text-align: right; flex: none; }
+  .m-score { margin-left: auto; flex: none; width: 3.6rem; height: 3.6rem; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border: 1.5px solid currentColor; background: color-mix(in srgb, currentColor 9%, transparent); cursor: help; }
+  .m-score b { font-family: var(--mono); font-size: 1.45rem; font-weight: 800; line-height: 1; }
+  .m-score span { font-size: 0.52rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 0.15rem; }
+  .parts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+  .part span { display: flex; justify-content: space-between; font-size: 0.62rem; color: var(--muted); }
+  .part span b { font-family: var(--mono); color: var(--text); font-weight: 600; }
+  .part i { display: block; height: 4px; border-radius: 9px; background: var(--card2); border: 1px solid var(--border); margin-top: 0.2rem; overflow: hidden; }
+  .part i em { display: block; height: 100%; }
   .m-auc b { display: block; font-family: var(--mono); font-size: 1.5rem; font-weight: 700; color: var(--strong); line-height: 1; }
   .m-auc span { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
   .bar { height: 6px; border-radius: 99px; background: var(--card2); border: 1px solid var(--border); position: relative; overflow: hidden; }
@@ -151,8 +164,16 @@
 
   <section id="read">
     <h2>How to read the numbers</h2>
-    <p class="intro">Four numbers per model. None of them is "win rate": a model can be great and still lose to a book that prices the same thing a little better. That's what the <a href="#market">vs the market</a> section is for.</p>
+    <p class="intro">One score and four numbers per model. None of them is "win rate": a model can be great and still lose to a book that prices the same thing a little better. That's what the <a href="#market">vs the market</a> section is for.</p>
     <div class="read">
+      <div class="rd score"><div><h3>Model score · 0 to 100</h3><div class="q">How far can you trust this model's prices?</div>
+        <p>One number per model, made of three parts you can see on every card. <b>90+</b> is as robust as sports props get; <b>70s–80s</b> is solid; <b>around 50</b> means the prices are fair but the model knows little you couldn't guess; <b>under 30</b> means it publishes a score, not a probability.</p></div>
+        <ul>
+          <li><b>Ranking (45%)</b>: the AUC, from 0.50 (a coin flip, 0) to 0.85 or better (full marks).</li>
+          <li><b>Honest prices (35%)</b>: the calibration gap, minus the gap a perfectly priced model would still show on that many predictions by chance. Within noise = full marks; 4 points past it = 0. So a small sample isn't punished for being small.</li>
+          <li><b>Evidence (20%)</b>: how many walk-forward or graded predictions, from 100 (0) to 100,000+ (full).</li>
+          <li style="color:var(--dim)">It measures how <b>trustworthy</b> our prices are, not whether they beat the book (see <a href="#market">vs the market</a>), and minutes-driven NBA markets are easier to rank than one-bounce ones, so compare within a sport first.</li>
+        </ul></div>
       <div class="rd"><h3>AUC</h3><div class="q">Does it rank the right players first?</div>
         <p>Pick one player who hit and one who didn't: AUC is how often we priced the hitter higher. <b>0.50</b> is a coin flip, <b>0.70</b> is good for sports props, <b>0.80+</b> is strong. It's measured across <b>every</b> player we price, bench guys included, so markets driven by minutes (NBA) score higher than markets decided by one bounce (first basket).</p></div>
       <div class="rd"><h3>Skill</h3><div class="q">How much better than guessing the average?</div>
@@ -246,8 +267,8 @@
     'MLB|HR Picks (Chalk)': 'The Pick Score: base power, the pitcher\'s homer-proneness and pitch mix, platoon, park and weather. Scored <b>within</b> the ~16 best bats of each day, where every name is already a good one.',
     'MLB|HR Picks (Value)': 'The longer-odds list: the same factors aimed at prices the market leaves long.',
     'MLB|Stolen base': 'His steal rate, the catcher and pitcher\'s control of the running game, and his chances of being on first.',
-    'MLB|Pitcher strikeouts': 'Batters faced × strikeout rate against the actual lineup, with the pen taking over. Graded live at the board\'s low and high lines.',
-    'MLB|Pitcher walks': 'Batters faced × walk rate against the lineup\'s discipline. Graded live; the high line has run about 4.7 points over.',
+    'MLB|Pitcher strikeouts': '<b>Batters faced × strikeout rate</b> against the actual lineup, with the pen taking over. Scored here at a fixed o5.5 for every starter (the fair test of ranking); the board\'s own lines, which sit at each pitcher\'s projection, are graded live below. The average projection has run 6.00 against 5.96 actual.',
+    'MLB|Pitcher walks': 'Batters faced × walk rate against the lineup\'s discipline. <b>Walks barely repeat</b>: a pitcher\'s projection and his actual walks correlate at only 0.13, so this is a thin market for any model. The high line has run about 2.6 points over.',
   };
   const tone = (auc) => auc >= 0.8 ? 'great' : auc >= 0.7 ? 'good' : auc >= 0.62 ? 'ok' : auc >= 0.55 ? 'weak' : 'flip';
   const WORD = { great: 'strong', good: 'good', ok: 'fair', weak: 'thin', flip: 'coin flip' };
@@ -255,10 +276,25 @@
   const fmtN = (n) => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'k' : String(n);
   const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
+  // The model score: ranking 45%, honest prices 35% (calibration beyond what
+  // sampling noise explains at this n), evidence 20%. Models that publish a score,
+  // not a probability, have no calibration and are scored on the other two.
+  const cl = (x) => Math.max(0, Math.min(1, x));
+  function scoreOf(m) {
+    if (m.auc == null) return null;
+    const R = cl((m.auc - 0.5) / 0.35), E = cl((Math.log10(m.n) - 2) / 3);
+    let C = null, noise = null;
+    if (m.ece != null && m.base) { noise = 0.8 * 100 * Math.sqrt(m.base * (1 - m.base) / (m.n / 10)); C = cl(1 - Math.max(0, m.ece - noise) / 4); }
+    const total = C == null ? (0.45 * R + 0.2 * E) / 0.65 : 0.45 * R + 0.35 * C + 0.2 * E;
+    return { total: Math.round(100 * total), R, C, E, noise };
+  }
+  const sTone = (x) => x >= 85 ? 'great' : x >= 70 ? 'good' : x >= 55 ? 'ok' : x >= 35 ? 'weak' : 'flip';
   function card(m) {
+    const S = scoreOf(m), st = S ? sTone(S.total) : null;
+    const part = (lab, v, tip) => `<div class="part" title="${tip}"><span>${lab}<b>${v == null ? '—' : Math.round(v * 100)}</b></span><i><em class="bg-${v == null ? 'flip' : sTone(v * 100)}" style="width:${v == null ? 0 : (v * 100).toFixed(0)}%"></em></i></div>`;
     const t = m.auc != null ? tone(m.auc) : null;
     const pos = m.auc != null ? Math.max(0, Math.min(1, (m.auc - 0.5) / 0.5)) * 100 : 0;
-    const kpis = m.cal
+    const kpis = (m.auc == null && m.cal)
       ? `<div class="cal">${m.cal.map(([k, pr, act]) => `<div class="cal-row"><span>${k} line</span><span>priced <b>${pc(pr)}</b></span><span>hit <b>${pc(act)}</b></span></div>`).join('')}
          ${m.proj_bias ? `<div class="cal-row"><span>projected</span><span>${Object.values(m.proj_bias).map(v => `<b>${v.proj}</b>`).join(' / ')}</span><span>actual ${Object.values(m.proj_bias).map(v => `<b>${v.act}</b>`).join(' / ')}</span></div>` : ''}</div>`
       : `<div class="kpis">
@@ -269,10 +305,12 @@
     return `<div class="m">
       <div class="m-hd">
         <div><div class="m-nm">${esc(m.market)}</div><div class="m-sub"><span class="chip">${esc(m.line)}</span> &nbsp;${esc(m.tool)} tool</div></div>
-        ${m.auc != null ? `<div class="m-auc"><b class="t-${t}">${m.auc.toFixed(3)}</b><span class="t-${t}">AUC · ${WORD[t]}</span></div>` : `<div class="m-auc"><b style="font-size:1.05rem">live</b><span style="color:var(--muted)">self-graded</span></div>`}
+        ${S ? `<div class="m-score t-${st}" title="Model score ${S.total}/100: ranking ${Math.round(S.R * 100)}, honest prices ${S.C == null ? 'n/a (a score, not a probability)' : Math.round(S.C * 100)}, evidence ${Math.round(S.E * 100)}"><b>${S.total}</b><span>score</span></div>` : ''}
       </div>
-      ${m.auc != null ? `<div><div class="bar"><i class="bg-${t}" style="width:${pos.toFixed(1)}%"></i></div><div class="bar-lbl"><span>0.50 coin flip</span><span>1.00 perfect</span></div></div>` : ''}
+      ${S ? `<div class="parts">${part('Ranking', S.R, `AUC ${m.auc.toFixed(3)} (${WORD[t]})`)}${part('Honest prices', S.C, S.C == null ? 'publishes a score, not a probability' : `calibration gap ${m.ece.toFixed(2)} pts, ${S.noise.toFixed(2)} expected from noise alone`)}${part('Evidence', S.E, `${m.n.toLocaleString()} predictions`)}</div>` : ''}
+      ${m.auc != null ? `<div class="bar-lbl" style="margin-top:-0.3rem"><span>AUC <b class="t-${t}">${m.auc.toFixed(3)}</b> · ${WORD[t]} ranking</span><span>0.50 = coin flip</span></div>` : ''}
       ${kpis}
+      ${m.auc != null && m.cal ? `<div class="cal">${m.cal.map(([k, pr, act]) => `<div class="cal-row"><span>board's ${k}</span><span>priced <b>${pc(pr)}</b></span><span>hit <b>${pc(act)}</b></span></div>`).join('')}</div>` : ''}
       ${HOW[m.sport + '|' + m.market] ? `<div class="m-how">${HOW[m.sport + '|' + m.market]}</div>` : ''}
       ${m.note ? `<div class="m-note">${esc(m.note)}</div>` : ''}
       <div class="m-foot"><span>${m.n.toLocaleString()} ${m.sport === 'MLB' ? 'graded' : 'walk-forward'} predictions</span><span>${typeof m.seasons === 'number' ? m.seasons + ' season' + (m.seasons === 1 ? '' : 's') : esc(m.seasons)}</span></div>
@@ -284,9 +322,10 @@
     document.getElementById('s-preds').textContent = fmtN(A.reduce((a, m) => a + m.n, 0));
     document.getElementById('sports').innerHTML = ['NFL', 'NHL', 'NBA', 'MLB'].map(sp => {
       const ms = A.filter(m => m.sport === sp); if (!ms.length) return '';
-      const S = SPORT[sp], best = ms.filter(m => m.auc != null).sort((a, b) => b.auc - a.auc)[0];
+      ms.sort((a, b) => (scoreOf(b)?.total ?? -1) - (scoreOf(a)?.total ?? -1));
+      const S = SPORT[sp], best = ms[0], bs = scoreOf(best);
       return `<section id="${sp.toLowerCase()}">
-        <h2>${S.ico} ${S.name} <small>${ms.length} markets · ${fmtN(ms.reduce((a, m) => a + m.n, 0))} predictions${best ? ` · best ranker: ${esc(best.market)} (${best.auc.toFixed(3)})` : ''}</small></h2>
+        <h2>${S.ico} ${S.name} <small>${ms.length} markets · ${fmtN(ms.reduce((a, m) => a + m.n, 0))} predictions${bs ? ` · most robust: ${esc(best.market)} (${bs.total})` : ''}</small></h2>
         <p class="intro">${S.blurb} <a href="${S.app}">Open the ${S.name} tool →</a></p>
         <div class="grid">${ms.map(card).join('')}</div>
       </section>`;
