@@ -8,6 +8,7 @@
 <script src="/app.js"></script>
 <script src="/chrome.js"></script>
 <script src="/modal.js"></script>
+<script src="/slate.js"></script>
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="Daily MLB home run picks, value bats, due hitters, and any batter-vs-pitcher matchup breakdown. Inspired by Green Means Go.">
 <!-- Social embed. These are the DEFAULTS; the Netlify edge function
@@ -7030,18 +7031,51 @@ function renderSchedule() {
   const ours = schedOurPids(date);
   // in time order the day splits into its windows — afternoon, evening, late (Eastern)
   const slate = schedSort === 'time' ? schedSlates(sorted) : null;
-  contentEl.innerHTML = nav + legend + `<div class="sched-toolbar">${sortBar}<span class="sched-tb-r">${postBtn}${digestBtn}</span></div><div class="sched-list gc-list">${sorted.map(g => {
+  const list = `<div class="sched-list gc-list">${sorted.map(g => {
     const head = slate?.get(g.gamePk) || '';
     const away = g.away.teamAbbr || g.away.teamName, home = g.home.teamAbbr || g.home.teamName;
     const S = schedState(g);
     const lu = isSlate && !S.started ? schedLineupStatus(g) : null;
-    return `${head}<div class="sched-game gc-card${S.started ? ' started' : ''}" id="sched-game-${g.gamePk}" onclick="openSchedGame(${g.gamePk})" role="button" tabindex="0">
+    return `${head}<div class="sched-game gc-card${S.started ? ' started' : ''}" id="sched-game-${g.gamePk}" data-gid="${g.gamePk}" onclick="openSchedGame(${g.gamePk})" role="button" tabindex="0">
       <span class="gc-chev">▶</span>
       ${mlbGameCard(g, away, home, S.box, S.st, schedHomerTag(g))}
       ${S.started ? mlbHomers(g, away, home, S.box, ours) : schedVenueRow(g, date).replace('</div>', (lu ? ` · <span class="gc-lu ${lu.cls}">${lu.text}</span>` : '') + (g.away.probableProjected || g.home.probableProjected ? ` · <span class="gc-lu pending" title="A starter not announced yet — projected from his rotation (dashed underline)">Projected SP</span>` : '') + '</div>')}
       ${schedPickStrip(g, date, S)}
     </div>`;
   }).join('')}</div>`;
+  // /slate.js: the day's games down the left, the picked one's box score on the right (a pop-up on a phone)
+  const next = sorted.find(g => !schedState(g).final) || sorted[0];
+  RonSlate.render(contentEl, { key: 'mlb', top: nav + legend + `<div class="sched-toolbar">${sortBar}<span class="sched-tb-r">${postBtn}${digestBtn}</span></div>`,
+    list, rail: mlbRail(sorted, date, slate), panel: sgPanel, pick: next?.gamePk });
+}
+/** The split view's rail: the day by its windows (or postseason rounds), each game stacked like a scoreboard. */
+function mlbRail(sorted, date, slate) {
+  const out = [];
+  for (const g of sorted) {
+    const head = slate?.get(g.gamePk);
+    if (head || !out.length) {
+      const m = /<b>(.*?)<\/b><span>(.*?)<\/span>/.exec(head || '');
+      out.push({ label: m ? m[1] : '', sub: m ? m[2] : '', games: [] });
+    }
+    const S = schedState(g), L = g.lines?.cur, o = g.lines?.open || {}, box = S.box;
+    const aR = box?.away.r ?? g.away.score, hR = box?.home.r ?? g.home.score;
+    const team = (side, home) => {
+      const ab = side.teamAbbr || side.teamName, sp = L?.sp == null ? null : home ? L.sp : -L.sp;
+      const ml = home ? L?.mlH : L?.mlA, mlO = home ? o.mlH : o.mlA;
+      return { abbr: ab, logo: teamLogoImg(ab, ''), rec: box?.rec?.[home ? 'home' : 'away'] || '',
+        score: S.started ? (home ? hR : aR) ?? 0 : null, lost: S.final && (home ? hR < aR : aR < hR),
+        line: sp == null ? '' : sp === 0 ? 'PK' : (sp > 0 ? '+' : '') + lnNum(sp), odds: ml == null ? '' : lnAm(ml), moved: ml != null && mlO != null && ml !== mlO };
+    };
+    const t = schedTopPick(g, date), r = t ? schedPickResult(t, box, S.final) : null;
+    const ph = t ? t.pHR ?? (date === todayDate ? hrPOf(t.pid) : null) : null;
+    const top = /top|mid/i.test(box?.half || '');
+    out[out.length - 1].games.push({ id: g.gamePk, live: S.st === 'live',
+      when: S.final ? `Final${box?.innings?.length > 9 ? '/' + box.innings.length : ''}` : S.started ? (box?.inning ? `Live · ${top ? '▲' : '▼'} ${box.inning}` : 'Live') : schedTimeLabel(g),
+      note: g.series?.status ? parEsc(g.series.status) : !S.started && L?.tot != null ? `O/U ${L.tot}` : '',
+      teams: [team(g.away, false), team(g.home, true)],
+      pick: t ? `★ <b>${compactPlayerName(t.name)}</b>${r ? `<span class="${/hit/.test(r.cls) ? 'hit' : 'miss'}">${/hit/.test(r.cls) ? '✓' : '✗'}</span>` : ''}<span class="sl-od${ph >= 0.5 ? ' fav' : ''}">${ph > 0 ? Odds.am(ph) : `Pick ${Number(t.score).toFixed(1)}`}</span>` : '' });
+  }
+  return out;
 }
 
 // ── The game card ─────────────────────────────────────────────────────────
@@ -7049,6 +7083,7 @@ function renderSchedule() {
 // then Picks (our boards for this game), Matchup, Lines and Game.
 const sg = { pk: null, tab: null };
 function openSchedGame(pk) {
+  if (RonSlate.select(pk)) return;            // the Schedule's split view shows it in place
   sg.pk = pk; sg.tab = null;
   if (!document.getElementById('sg-back')) {
     document.body.insertAdjacentHTML('beforeend', `
@@ -7074,76 +7109,98 @@ function closeSchedGame() {
 }
 function sgStep(d) { const i = schedOrder.indexOf(sg.pk), nx = schedOrder[i + d]; if (nx == null) return; sg.pk = nx; sgRender(); }
 function setSgTab(t) { sg.tab = t; sgRender(); }
+/** The split view's panel: the same game card, in place. */
+function sgPanel(pk) {
+  pk = +pk;
+  if (sg.pk !== pk) { sg.pk = pk; sg.tab = null; }
+  const date = schedDay(), g = (schedGamesFor(date) || []).find(x => x.gamePk === pk); if (!g) return '';
+  if (date === todayDate) ensureMatchupCards();
+  return sgHtml(g, date);
+}
 function sgRender() {
+  RonSlate.refresh();
   const el = document.querySelector('#sg-back .sgm'); if (!el) return;
   const date = schedDay(), g = (schedGamesFor(date) || []).find(x => x.gamePk === sg.pk);
   if (!g) { closeSchedGame(); return; }
+  el.innerHTML = `<button class="pm-x" onclick="closeSchedGame()" aria-label="Close">×</button>` + sgHtml(g, date);
+  const at = schedOrder.indexOf(g.gamePk);
+  const back = document.getElementById('sg-back');
+  back.querySelector('.pk-side-prev').disabled = at <= 0;
+  back.querySelector('.pk-side-next').disabled = at < 0 || at >= schedOrder.length - 1;
+}
+function sgHtml(g, date) {
   const away = g.away.teamAbbr || g.away.teamName, home = g.home.teamAbbr || g.home.teamName;
   const S = schedState(g);
-  const tab = sg.tab || (S.started ? 'game' : 'picks');
-  const TABS = [['picks', 'Picks'], ['matchup', 'Matchup'], ['pens', 'Bullpens'], ['game', 'Game']];
+  const tab = sg.tab || 'picks';   // the box score leads, before and after
+  const TABS = [['picks', 'Box score'], ['matchup', 'Matchup'], ['pens', 'Bullpens'], ['game', 'Game']];
   const body = tab === 'picks' ? sgPicks(g, date, S, away, home)
     : tab === 'matchup' ? sgMatchup(g, date)
     : tab === 'pens' ? sgPens(g, date)
     : sgGame(g, date, S, away, home);
   const at = schedOrder.indexOf(g.gamePk);
-  el.innerHTML = `<button class="pm-x" onclick="closeSchedGame()" aria-label="Close">×</button>
-    <div class="sg-hero">${mlbGameCard(g, away, home, S.box, S.st, schedHomerTag(g))}
+  return `<div class="sg-hero">${mlbGameCard(g, away, home, S.box, S.st, schedHomerTag(g))}
       <div class="sg-sub">${schedDayLabel(date)} · ${g.venue}${at >= 0 ? ` · ${at + 1} / ${schedOrder.length}` : ''}</div></div>
     <div class="sub-tabs sg-tabs">${TABS.map(([v, l]) => `<button class="sub-btn${tab === v ? ' active' : ''}" onclick="setSgTab('${v}')">${l}</button>`).join('')}</div>
     <div class="sg-body">${body}</div>`;
-  const back = document.getElementById('sg-back');
-  back.querySelector('.pk-side-prev').disabled = at <= 0;
-  back.querySelector('.pk-side-next').disabled = at < 0 || at >= schedOrder.length - 1;
 }
-/** Picks: the top pick, every HR candidate in this game, both starters' K and walk lines. */
+/** The game's box score (/slate.js): every priced bat (the boards' and, once
+ *  the matchup cards load, the rest of each lineup) and both starters' K and
+ *  walk lines, with the top pick above. Graded as homers land. */
+const BX_BAT = [{ k: 'hr', lab: 'HR', title: 'Home run (fair odds)', yes: true }, { k: 'pick', lab: 'Pick', title: 'Pick Score (the boards\' ranking, not a probability)' }];
+const BX_SP = [{ k: 'k', lab: 'K', title: 'Strikeouts' }, { k: 'bb', lab: 'BB', title: 'Walks' }];
 function sgPicks(g, date, S, away, home) {
-  const tms = new Set([away, home]);
   const top = schedPickStrip(g, date, S);
   const homered = (pid) => (S.box?.hrs || []).filter(h => h.pid === String(pid)).length;
-  const res = (pid, hit) => { const n = homered(pid);
-    return n || hit === true ? `<span class="sgp-res hit">✓ ${n > 1 ? n + ' HR' : 'HR'}</span>` : S.final || hit === false ? '<span class="sgp-res miss">✗</span>' : ''; };
-  let hr;
+  const got = (pid, hit) => { const n = homered(pid); return n || hit === true ? Math.max(n, 1) : S.final || hit === false ? 0 : null; };
+  const rows = { [away]: new Map(), [home]: new Map() };
+  const put = (team, pid, r) => { if (rows[team] && !rows[team].has(pid)) rows[team].set(pid, r); return rows[team]?.get(pid); };
   if (date === todayDate) {
-    const seen = new Set(), rows = [];
-    for (const [r, board] of [...(picks || []).map(r => [r, 'chalk']), ...(value || []).map(r => [r, 'value'])])
-      if (tms.has(r.team) && !seen.has(r.pid) && !otherGameExclude(r.pid, r.team === g.home.teamAbbr ? g.away : g.home).chalk) { seen.add(r.pid); rows.push([r, board]); }
-    rows.sort((a, b) => b[0].pickScore - a[0].pickScore);
-    hr = rows.map(([r, board]) => `<div class="sgp-row" onclick="openPickModal('${r.pid}','${board}')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam)}>
-        ${teamLogoImg(r.team, 'gc-pick-logo')}<span class="sgp-nm">${compactPlayerName(playerNames[r.pid] || r.pid)}</span>
-        <span class="sgp-sub">${r.lineupOrder ? `#${r.lineupOrder} · ` : ''}vs ${r.oppName ? compactPlayerName(r.oppName) : r.oppTeam}${board === 'value' ? ' · Value' : ''}</span>
-        <span class="sgp-v">${r.pHR > 0 ? `<span class="sgp-fair" title="${HR_FAIR_TIP}">${hrFairFull(r.pHR)}</span> ` : ''}Pick <b class="ps-ramp" ${psRamp(r.pickScore)}>${r.pickScore.toFixed(1)}</b></span>${res(r.pid)}</div>`).join('');
+    for (const [r, board] of [...(picks || []).map(r => [r, 'chalk']), ...(value || []).map(r => [r, 'value'])]) {
+      if (!rows[r.team] || otherGameExclude(r.pid, r.team === g.home.teamAbbr ? g.away : g.home).chalk) continue;
+      const e = put(r.team, String(r.pid), { name: compactPlayerName(playerNames[r.pid] || r.pid), sub: r.lineupOrder ? `#${r.lineupOrder}` : '', open: `openPickModal('${r.pid}','${board}')`, cells: {} });
+      if (r.pHR > 0 && !e.cells.hr) e.cells.hr = { p: r.pHR, got: got(r.pid), leg: hrLegObj(r.pid, r.pHR, r.team, r.oppTeam), open: e.open };
+      if (!e.cells.pick) e.cells.pick = { info: true, big: r.pickScore.toFixed(1), sort: r.pickScore, small: board === 'value' ? 'Value' : 'Chalk', open: e.open };
+    }
+    for (const [pid, x] of hrToday()) {
+      if (!rows[x.team] || !(x.opp === away || x.opp === home)) continue;
+      const e = put(x.team, pid, { name: compactPlayerName(playerNames[pid] || pid), sub: '', open: `openMlbPlayer('${pid}')`, cells: {} });
+      if (!e.cells.hr) e.cells.hr = { p: x.p, got: got(pid), leg: hrLegObj(pid, x.p, x.team, x.opp), open: e.open };
+    }
   } else {
     const day = (picksHistory || []).find(e => e.date === date);
-    hr = (day?.picks || []).filter(p => tms.has(playerTeams[p.pid])).sort((a, b) => b.score - a.score).map(p => `<div class="sgp-row" onclick="openMlbPlayer('${p.pid}')">
-        ${teamLogoImg(playerTeams[p.pid], 'gc-pick-logo')}<span class="sgp-nm">${compactPlayerName(p.name)}</span><span class="sgp-sub"></span>
-        <span class="sgp-v">Pick <b class="ps-ramp" ${psRamp(p.score)}>${Number(p.score).toFixed(1)}</b></span>${res(p.pid, p.hit)}</div>`).join('');
+    for (const p of day?.picks || []) {
+      const team = playerTeams[p.pid]; if (!rows[team]) continue;
+      const e = put(team, String(p.pid), { name: compactPlayerName(p.name), sub: '', open: `openMlbPlayer('${p.pid}')`, cells: {} });
+      e.cells.hr = { p: null, got: got(p.pid, p.hit), small: '' };
+      e.cells.pick = { info: true, big: Number(p.score).toFixed(1), sort: +p.score, small: 'score' };
+    }
   }
-  // starters: his own K and walk lines (the rung nearest even money), fair odds
-  let arms = '';
+  // starters: his own K and walk lines, the rung nearest even money
+  const sp = { [away]: [], [home]: [] };
   if (date === todayDate) {
     const K = ppRankStarters('k').rows, B = ppRankStarters('bb').rows;
-    arms = [g.away, g.home].map(sd => {
-      const pid = sd.probablePitcherId ? String(sd.probablePitcherId) : null; if (!pid) return '';
-      const line = (r, lbl) => { if (r?.proj == null) return `<span class="sgk-l">${lbl} —</span>`;
-        const need = ppEven(r.proj), p = kbbWinProb(r.proj, need);
-        return `<span class="sgk-l">${lbl} <b>${r.proj.toFixed(1)}</b> <small>o${need - 0.5} ${Odds.inline(p)}</small></span>`; };
-      return `<div class="sgp-row sgp-arm" onclick="openPitcher('${pid}')">${teamLogoImg(sd.teamAbbr, 'gc-pick-logo')}<span class="sgp-nm">${compactPlayerName(sd.probablePitcher)}${spProjTag(sd.probableProjected)}</span>
-        <span class="sgk">${line(K.find(r => String(r.pid) === pid), 'K')}${line(B.find(r => String(r.pid) === pid), 'BB')}</span></div>`;
-    }).join('');
+    for (const side of [g.away, g.home]) {
+      const pid = side.probablePitcherId ? String(side.probablePitcherId) : null; if (!pid) continue;
+      const cells = {};
+      for (const [k, lbl, R, unit] of [['k', 'K', K, 'strikeouts'], ['bb', 'BB', B, 'walks']]) {
+        const r = R.find(x => String(x.pid) === pid); if (r?.proj == null) continue;
+        const need = ppEven(r.proj), L = need - 0.5, p = kbbWinProb(r.proj, need);
+        cells[k] = { proj: r.proj, dp: 1, line: L, p, open: `openPitcher('${pid}')`,
+          leg: { k: `p${lbl}|${pid}|${L}|o`, n: compactPlayerName(side.probablePitcher), t: side.teamAbbr, g: [away, home].sort().join(' vs '), m: `p${lbl}`, s: `Over ${L} ${unit}`, p, i: pid } };
+      }
+      sp[side.teamAbbr]?.push({ name: compactPlayerName(side.probablePitcher), sub: side.probableProjected ? 'projected' : 'SP', open: `openPitcher('${pid}')`, cells });
+    }
   }
-  // nobody made the boards: the game's best matchups, so every game has something to read
-  if (!hr && date === todayDate) {
-    const mu = schedTopMatchups(g);
-    if (mu.length) hr = `<div class="sg-note">Nobody in this game made the HR boards — its best matchups vs the starters:</div>` + mu.map(m => `<div class="sgp-row" onclick="openMlbPlayer('${m.pid}')">
-        ${teamLogoImg(m.team, 'gc-pick-logo')}<span class="sgp-nm">${compactPlayerName(playerNames[m.pid] || m.pid)}</span>
-        <span class="sgp-sub">${m.vs ? `vs ${compactPlayerName(m.vs)}` : ''}</span>
-        <span class="sgp-v">MU <b class="ps-ramp" ${psRamp(m.score)}>${m.score.toFixed(1)}</b></span>${res(m.pid)}</div>`).join('');
-  }
-  return `${top ? `<div class="sg-sec">${top}</div>` : ''}
-    <div class="sg-h">HR picks in this game</div>
-    ${hr || `<div class="sg-none">${date === todayDate ? 'Nobody in this game made the HR boards today.' : 'No HR board logged for this game.'}</div>`}
-    ${arms ? `<div class="sg-h">Starters · strikeouts and walks</div>${arms}` : ''}`;
+  const order = (e) => e.cells.hr?.p ?? (e.cells.pick?.sort ?? 0) / 100;
+  const teams = [away, home].map(t => ({ abbr: t, logo: teamLogoImg(t, ''), groups: [
+    { name: 'Batters', cols: BX_BAT, rows: [...rows[t].values()].sort((a, b) => order(b) - order(a)) },
+    { name: 'Starter', cols: BX_SP, rows: sp[t] }] }));
+  const state = S.final ? 'post' : S.started ? 'live' : 'pre';
+  return `${top ? `<div class="sg-sec">${top}</div>` : ''}` + RonSlate.box({ state: state === 'live' ? 'post' : state, teams,
+    note: date !== todayDate ? 'The HR board as it was logged that day, graded: ✓ homered.'
+      : state === 'pre' ? `Every priced bat: our fair HR odds (the boards' picks carry their Pick Score; the rest of each lineup is priced once the matchup data loads${matchupCards && matchupCards !== 'error' ? '' : ' — loading'}), and both starters' K and walk lines at their even-money rung. Tap a price for the card; in parlay mode a tap adds it to the slip.`
+      : 'The board at first pitch, graded as homers land: ✓ homered.',
+    empty: date === todayDate ? 'Nobody in this game is priced yet.' : 'No HR board logged for this game.' });
 }
 /** Matchup: the starters, park and weather, both lineups and pens (the current slate only). */
 function sgMatchup(g, date) {

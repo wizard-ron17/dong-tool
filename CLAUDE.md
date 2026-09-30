@@ -21,6 +21,7 @@ Shared by every app:
 - `modal.js`: the modal stack manager. Every card and sheet is a body-level backdrop that closes on its own click. This file owns the scroll lock (held while any modal is open) and the keys: Escape closes only the top modal, and ← → step only the top one through its ‹ › buttons. New modals use `RonModal.open(id, { cls, nav, onClose })` / `RonModal.close(id)` (NBA's ladder card is the example). Never add another per-modal keydown or `body.style.overflow` toggle. The modal frame's styles (backdrop, ‹ ›, close) live there too.
 - `ladder.js`: the ladder card (distribution chart, over/under bars, ladder of lines) for NFL counts and Yards, NHL and NBA: its styles, plus `RonLadder.chart / side / center / over`. Each app keeps its pmf, metrics and lines, and passes its drift as options (`trimTail`, `plus`, `even`).
 - `board.js`: the board toolbar (Filters card and chips, Board/Results tabs, Table/Cards/Compact switch, search box): its styles, plus `uiFilters / uiChip / uiTabs / uiView / uiSearch / matchQ`. New boards build their toolbar from these. `.u-tabs` stays in each app's CSS, because it resets the app's own `.sub-tabs` box and must load after it.
+- `slate.js`: the Schedule on every sport. Desktop is a split view: a rail of the day's games, and the picked game on the right. Phone is the list plus a pop-up. The game card leads with a box score, one row per priced player and a column per market, showing projection, even-money line and fair odds. Each cell is a parlay leg, and final games grade themselves. Each page supplies `*Rail(games)`, a panel `(gid) => html` and a box spec. `openGame` starts with `RonSlate.select(gid)`. It also holds the shared game-header styles (`.gm-hero`).
 - `welcome.js`: the About modal.
 
 Builds live in `scripts/build-*.js` (GitHub Actions crons in `.github/workflows/`). Link previews live in `netlify/edge-functions/` (`embed.js` meta per route, `og.js` live board cards, `stats.js`). Research lives in `research/` (Python + a few `.mjs` parity replays).
@@ -52,7 +53,7 @@ Builds live in `scripts/build-*.js` (GitHub Actions crons in `.github/workflows/
 - `.wrap` is `z-index: 1`. An overlay inside it paints under a body-level backdrop, so re-parent it to `<body>`.
 - Colour: a position, type or tag never gets a hue from the good/bad ramp (green/amber/red). That ramp means quality.
 - Prices print through `Odds.*` only: American odds with the % beside it, no user setting.
-- Schedule rows follow one design across sports: graded top pick, 2 columns on desktop, pop-up game card with Picks/Matchup/Lines/Game.
+- The Schedule is one design across sports (`slate.js`): a split view with a box score, and a graded top pick on every game.
 
 **Porting a tool or sport.**
 - A research-vs-build parity replay.

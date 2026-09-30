@@ -195,6 +195,8 @@
   const sortBy = (k) => { sortKey = sortKey === k ? null : k; refresh(); sortHooks.forEach(f => f()); };
   function cellHtml(c, col, state) {
     if (!c) return '<td class="bx-c none"><b>—</b></td>';
+    // an info cell: a number that isn't a price (MLB's pick score), no line, no odds
+    if (c.info) return `<td class="bx-c info"${c.open ? ` onclick="${esc(c.open)}"` : ''}><b>${c.big}</b><small>${c.small || ''}</small></td>`;
     const fin = c.got != null && c.got >= 0 && state !== 'pre';
     const hit = fin && (col.yes ? c.got >= 1 : c.got > c.line);
     const tone = c.p >= 0.5 ? 'odfav' : 'oddog';
@@ -202,16 +204,16 @@
     const title = col.yes ? `${col.title || col.lab}: fair ${Odds.am(c.p)} (${Odds.pct(c.p)})` : `${col.title || col.lab}: projected ${(+c.proj).toFixed(c.dp ?? 1)}, over ${c.line} fair ${Odds.am(c.p)} (${Odds.pct(c.p)})`;
     if (col.yes) {
       // a sub-1% price is noise in a box (a +47000 double-double off the bench): a dash, the price in the tooltip
-      if (!fin && c.p < 0.01) return `<td class="bx-c none" title="${esc(title)}"${attr}><b>—</b><small>&lt;1%</small></td>`;
+      if (!fin && c.p != null && c.p < 0.01) return `<td class="bx-c none" title="${esc(title)}"${attr}><b>—</b><small>&lt;1%</small></td>`;
       const big = fin ? (c.got >= 1 ? (c.got > 1 ? `✓ ${c.got}` : '✓') : '✗') : Odds.am(c.p);
-      const small = fin ? `was ${Odds.am(c.p)}` : Odds.pct(c.p);
+      const small = c.small ?? (fin ? `was ${Odds.am(c.p)}` : Odds.pct(c.p));
       return `<td class="bx-c${fin ? (hit ? ' hit' : ' miss') : ''}" title="${esc(title)}"${attr}><b>${big}</b><small>${small}</small></td>`;
     }
     const big = fin ? c.got : (+c.proj).toFixed(c.dp ?? 1);
     const small = fin ? `${(+c.proj).toFixed(c.dp ?? 1)} · o${c.line}` : `o${c.line} <i class="${tone}">${Odds.am(c.p)}</i>`;
     return `<td class="bx-c${fin ? (hit ? ' hit' : ' miss') : ''}" title="${esc(title)}"${attr}><b>${big}</b><small>${small}</small></td>`;
   }
-  const sortVal = (r, col) => { const c = r.cells[col.k]; return !c ? -1 : col.yes ? c.p : +c.proj; };
+  const sortVal = (r, col) => { const c = r.cells[col.k]; return !c ? -1 : c.info ? (c.sort ?? parseFloat(c.big)) : col.yes ? (c.p ?? -1) : +c.proj; };
   function box(spec) {
     const state = spec.state || 'pre';
     // the night graded: every call with a result, and how many we expected
@@ -222,7 +224,8 @@
         const c = r.cells[col.k]; if (!c || c.got == null || c.got < 0) continue;
         calls.push({ p: c.p, hit: col.yes ? c.got >= 1 : c.got > c.line });
       }
-      if (calls.length) sum = `<div class="bx-sum"><span><b>${calls.filter(x => x.hit).length}/${calls.length}</b> calls landed</span><span><b>${calls.reduce((a, x) => a + x.p, 0).toFixed(1)}</b> expected at our prices</span>${spec.extra || ''}</div>`;
+      const priced = calls.filter(x => x.p != null);
+      if (calls.length) sum = `<div class="bx-sum"><span><b>${calls.filter(x => x.hit).length}/${calls.length}</b> calls landed</span>${priced.length === calls.length ? `<span><b>${priced.reduce((a, x) => a + x.p, 0).toFixed(1)}</b> expected at our prices</span>` : ''}${spec.extra || ''}</div>`;
     }
     const table = (g) => {
       const cols = g.cols.filter(col => g.rows.some(r => r.cells[col.k]));
@@ -232,7 +235,7 @@
       return `<div class="bx-wrap"><table class="bx"><thead><tr><th>${esc(g.name || 'Player')}</th>${cols.map(c =>
         `<th class="${c.k === sortKey ? 'on' : ''}" title="${esc(c.title || c.lab)} — tap to sort" onclick="RonSlate.sortBy('${c.k}')">${esc(c.lab)}</th>`).join('')}</tr></thead>
         <tbody>${rows.map(r => `<tr class="${r.void ? 'void' : ''}">
-          <td><div class="bx-p"${r.open ? ` onclick="${esc(r.open)}"` : ''}>${r.face || ''}<span class="bx-nm"><b>${esc(r.name)}</b><small>${r.pos ? esc(r.pos) : ''}${r.sub ? ` · ${r.sub}` : ''}</small></span></div></td>
+          <td><div class="bx-p"${r.open ? ` onclick="${esc(r.open)}"` : ''}>${r.face || ''}<span class="bx-nm"><b>${esc(r.name)}</b><small>${[r.pos ? esc(r.pos) : '', r.sub || ''].filter(Boolean).join(' · ')}</small></span></div></td>
           ${cols.map(c => r.void ? '<td class="bx-c none"><b>—</b></td>' : cellHtml(r.cells[c.k], c, state)).join('')}</tr>`).join('')}</tbody></table></div>`;
     };
     const teams = spec.teams.map(t => {
