@@ -10,6 +10,7 @@
 <script src="/modal.js"></script>
 <script src="/board.js"></script>
 <script src="/ladder.js"></script>
+<script src="/slate.js"></script>
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="NHL player props, every line priced — anytime goals, points, shots on goal, saves, hits and blocked shots — plus parlays, live win probability and a goal-by-goal recap with clips. Inspired by Green Means Go.">
 <meta property="og:type" content="website">
@@ -2800,7 +2801,7 @@
         <i class="sc-wpbar" style="--h:${(hp * 100).toFixed(1)}%;--hc:${HC};--ac:${AC}"></i>
         <span><b>${Math.round(hp * 100)}%</b> ${g.home}</span></div>`;
     }
-    return `<div class="sc-game" onclick="openGame(${g.gameId})" role="button" tabindex="0">
+    return `<div class="sc-game" data-gid="${g.gameId}" onclick="openGame(${g.gameId})" role="button" tabindex="0">
       <div class="sc-top">
         ${side(g.away, false, aWin)}
         <div class="sc-mid">${mid}</div>
@@ -2825,13 +2826,45 @@
       return `<div class="sc-slate"><b>${w}</b><span>${a === z ? a : `${a} – ${z}`}</span><i>${gs.length} game${gs.length === 1 ? '' : 's'}</i></div>` + gs.map(gameRow).join('');
     }).join('');
   }
+  /** The split view's rail (/slate.js): the night by windows, each game stacked like a scoreboard. */
+  function nhlRail(games) {
+    const etH = (d) => +new Date(d).toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/New_York' }) % 24;
+    const win = (g) => { const h = etH(g.start); return h < 17 ? 'Afternoon' : h < 21 ? 'Evening' : 'Late'; };
+    const item = (g) => {
+      const state = gmState(g), L = liveOf(g), final = state === 'post' && g.awayScore != null, live = state === 'live';
+      const as = live ? L?.as ?? g.awayScore ?? 0 : g.awayScore, hs = live ? L?.hs ?? g.homeScore ?? 0 : g.homeScore;
+      const tot = g.move?.cur?.tot ?? g.lines?.tot?.line;
+      const T = D.schedTops?.[g.gameId], inGame = (D.picks?.picks || []).filter(p => p.gameId === g.gameId);
+      const best = T || (inGame.length ? inGame.reduce((x, y) => (y.p > x.p ? y : x)) : null);
+      const res = !T || T.res == null ? '' : T.res < 0 ? '<span class="miss">DNP</span>' : T.res ? '<span class="hit">✓</span>' : '<span class="miss">✗</span>';
+      const team = (ab, home) => {
+        const Ln = g.lines, c = g.move?.cur || {}, o = g.move?.open || {};
+        const ml = home ? c.mlH ?? Ln?.ml?.h : c.mlA ?? Ln?.ml?.a, mlO = home ? o.mlH : o.mlA;
+        const pl = (home ? Ln?.pl?.h : Ln?.pl?.a)?.line;
+        return { abbr: ab, logo: logoImg(ab, ''), rec: record(ab), lost: final && (home ? hs < as : as < hs),
+          score: state === 'pre' ? null : (home ? hs : as) ?? 0,
+          line: pl == null ? '' : (pl > 0 ? '+' : '') + String(pl).replace('-', '−'), odds: ml == null ? '' : amer(ml), moved: ml != null && mlO != null && ml !== mlO };
+      };
+      return { id: g.gameId, live,
+        when: final ? (g.end && g.end !== 'REG' ? 'Final/' + g.end : 'Final') : live ? `Live${L?.detail ? ' · ' + esc(L.detail) : ''}` : `${g.type === 1 ? 'Pre · ' : ''}${gameTime(g.start)}${g.tv?.[0] ? ' · ' + esc(g.tv[0]) : ''}`,
+        note: state === 'pre' && tot != null ? `O/U ${tot}` : '',
+        teams: [team(g.away, false), team(g.home, true)],
+        pick: best ? `★ <b>${esc(best.name)}</b>${res}<span class="sl-od${best.p >= 0.5 ? ' fav' : ''}">${Odds.am(best.p)}</span>` : '' };
+    };
+    const out = [];
+    for (const g of [...games].sort((a, b) => (a.start || '').localeCompare(b.start || ''))) {
+      const w = win(g), last = out[out.length - 1];
+      if (last?.label === w) last.games.push(item(g)); else out.push({ label: w, sub: gameTime(g.start), games: [item(g)] });
+    }
+    return out;
+  }
   function renderSchedule() {
     const el = dataGate('schedule-content'); if (!el) return;
     if (scheduleDate == null || !D.dates.includes(scheduleDate)) scheduleDate = nextGameDate();
     const i = D.dates.indexOf(scheduleDate), atFirst = i <= 0, atLast = i >= D.dates.length - 1;
     const games = D.schedule.filter(g => g.date === scheduleDate);
     const pre = games.filter(g => g.type === 1).length;
-    el.innerHTML = `<div class="rc-wknav">
+    const top = `<div class="rc-wknav">
         <button class="rc-jump" onclick="setScheduleDate('${openingDate()}')" title="Jump to opening night">Opening night</button>
         <div class="rc-wknav-center">
           <button class="rc-arrow" onclick="shiftScheduleDate(-1)" ${atFirst ? 'disabled' : ''} aria-label="Previous date">‹</button>
@@ -2840,9 +2873,12 @@
         </div>
         <button class="rc-jump" onclick="setScheduleDate(nextGameDate())" title="Jump to today, or the next date with games">Today</button>
       </div>
-      <div class="result-meta"><b>${dayLabel(scheduleDate, true)}</b> · ${games.length} games${pre ? ` · ${pre} preseason` : ''} · tap a game for projections, the matchup and the game flow${
-        D.standingsStale ? ` · records are ${esc(D.leaderSeasonLabel)} finals` : ''}</div>
-      <div class="sc-list">${nhlSlates(games) || '<div class="empty">No games on this date.</div>'}</div>`;
+      <div class="result-meta"><b>${dayLabel(scheduleDate, true)}</b> · ${games.length} games${pre ? ` · ${pre} preseason` : ''} · every game's projected box score, graded once it's played${
+        D.standingsStale ? ` · records are ${esc(D.leaderSeasonLabel)} finals` : ''}</div>`;
+    // /slate.js: the day's games down the left, the picked one's box score on the right (a pop-up on a phone)
+    const next = games.slice().sort((a, b) => (a.start || '').localeCompare(b.start || '')).find(g => gmState(g) !== 'post') || games[0];
+    RonSlate.render(el, { key: 'nhl', top, pick: next?.gameId, panel: gmPanel, rail: nhlRail(games),
+      list: `<div class="sc-list">${nhlSlates(games) || '<div class="empty">No games on this date.</div>'}</div>` });
   }
 
   // ── Stats ──────────────────────────────────────────────────────────────
@@ -4823,6 +4859,7 @@
 
   // The goal-group and stack multipliers come from this page's data, and the
   // stack needs this season's assists (loaded the first time a goal or assist leg is added).
+  RonSlate.onSort(() => gmRender());
   RonParlay.provide('nhl', {
     ctx: () => { try { return D?.parlay; } catch (e) { return null; } },
     links: (a, b) => parLinks(a, b),
@@ -5371,6 +5408,7 @@
     return 'pre';
   }
   function openGame(gid) {
+    if (RonSlate.select(gid)) return;          // the Schedule's split view shows it in place
     gm.gid = +gid; gm.tab = null; gm.all = false;
     if (!document.getElementById('gm-back')) {
       document.body.insertAdjacentHTML('beforeend', `
@@ -5421,20 +5459,20 @@
   function gmPlayers(g, state) {
     const M = new Map();
     const row = (pid, name, team, pos, mug) => { if (!M.has(pid)) M.set(pid, { pid, name, team, pos, mug, stats: [] }); return M.get(pid); };
-    const st = (e, k, lab, proj, line, p, got, open) => e.stats.push({ k, lab, proj, line, p, got, open });
+    const st = (e, k, lab, proj, line, p, got, open, leg) => e.stats.push({ k, lab, proj, line, p, got, open, leg });
     if (state === 'pre') {
       const inG = (arr) => (arr || []).filter(x => x.gameId === g.gameId);
-      for (const r of inG(D.picks?.picks)) { const e = row(r.pid, r.name, r.team, r.pos, r.mug); e.goal = r.p; e.open = `openPick(${r.pid})`; }
+      for (const r of inG(D.picks?.picks)) { const e = row(r.pid, r.name, r.team, r.pos, r.mug); e.goal = r.p; e.open = `openPick(${r.pid})`; e.leg = pkLeg(r, PK_MARKETS[0]); }
       for (const r of inG(D.shots?.board)) {
         const e = row(r.pid, r.name, r.team, r.pos, r.mug), pmf = lcPmf(r, 'sog'), [lo, hi] = LC.sog.range;
         let L = lo; for (let x = lo; x <= hi; x++) if (Math.abs(lcOver(pmf, x) - 0.5) < Math.abs(lcOver(pmf, L) - 0.5)) L = x;
-        st(e, 'sog', 'Shots', r.mu, L, lcOver(pmf, L), null, `openShot(${r.pid})`);
+        st(e, 'sog', 'Shots', r.mu, L, lcOver(pmf, L), null, `openShot(${r.pid})`, lcLegOf('sog', r, L, lcOver(pmf, L)));
       }
       for (const r of inG(D.points?.board)) {
         const e = row(r.pid, r.name, r.team, r.pos, r.mug);
         for (const [k, lab, mu] of [['pts', 'Points', r.mu.pts], ['ast', 'Assists', r.mu.a]]) {
           const pmf = poisPmf(mu); let L = 0.5; for (let x = 0.5; x <= 3.5; x++) if (Math.abs(lcOver(pmf, x) - 0.5) < Math.abs(lcOver(pmf, L) - 0.5)) L = x;
-          st(e, k, lab, mu, L, lcOver(pmf, L), null, `openPointsCard(${r.pid},'${k}')`);
+          st(e, k, lab, mu, L, lcOver(pmf, L), null, `openPointsCard(${r.pid},'${k}')`, lcLegOf(k, r, L, lcOver(pmf, L)));
         }
       }
       for (const r of inG(D.saves?.board)) {
@@ -5442,7 +5480,7 @@
         for (const [k, lab, mu] of [['sv', 'Saves', r.mu], ['ga', 'Goals allowed', r.muGa]]) {
           const pmf = lcPmf(r, k), [lo, hi] = LC[k].range; let L = lo;
           for (let x = lo; x <= hi; x++) if (Math.abs(lcOver(pmf, x) - 0.5) < Math.abs(lcOver(pmf, L) - 0.5)) L = x;
-          st(e, k, lab, mu, L, lcOver(pmf, L), null, `openSave(${r.pid},'${k}')`);
+          st(e, k, lab, mu, L, lcOver(pmf, L), null, `openSave(${r.pid},'${k}')`, lcLegOf(k, r, L, lcOver(pmf, L)));
         }
       }
     } else if (GH) {
@@ -5473,55 +5511,28 @@
     return [...M.values()].map(e => ({ ...e, dnp: e.got === -1 }))
       .sort((a, b) => (a.pos === 'G') - (b.pos === 'G') || (b.goal ?? 0) - (a.goal ?? 0));
   }
+  /** The game's box score (/slate.js): every priced skater and goalie, a column per market. */
+  const BX_SK = [{ k: 'goal', lab: 'Goal', title: 'Anytime goal', yes: true }, { k: 'sog', lab: 'SOG', title: 'Shots on goal' },
+                 { k: 'pts', lab: 'PTS', title: 'Points' }, { k: 'ast', lab: 'AST', title: 'Assists' }];
+  const BX_GL = [{ k: 'sv', lab: 'Saves', title: 'Saves' }, { k: 'ga', lab: 'GA', title: 'Goals allowed' }];
+  const BX_DP = { sog: 1, sv: 1, pts: 2, ast: 2, ga: 2 };
   function gmProjections(g, state) {
     if (state !== 'pre' && ghState !== 'ready') return '<div class="empty" style="padding:2rem 0">Loading what we had at puck drop…</div>';
     const all = gmPlayers(g, state);
-    // the key names: each club's four likeliest scorers and its goalie
-    const key = [];
-    for (const t of [g.away, g.home]) {
-      const mine = all.filter(r => r.team === t);
-      key.push(...mine.filter(r => r.pos !== 'G').slice(0, 4), ...mine.filter(r => r.pos === 'G').slice(0, 1));
-    }
-    const rows = gm.all ? all : all.filter(r => key.includes(r));
-    if (!rows.length) return `<div class="empty" style="padding:2rem 0">${state === 'pre'
-      ? 'Prices post once the slate is set — usually the night before.' : 'No board was frozen for this game.'}</div>`;
-    const done = state === 'post';
-    const tiles = (() => {
-      if (!done) return '';
-      const calls = rows.flatMap(r => [...r.stats.filter(s => s.got != null).map(s => ({ p: s.p, hit: s.got > s.line })),
-                                      ...(r.goal != null && r.got != null && r.got >= 0 ? [{ p: r.goal, hit: r.got >= 1 }] : [])]);
-      if (!calls.length) return '';
-      return `<div class="hm-tiles gm-tiles">
-        <div class="hm-tile"><b>${calls.filter(x => x.hit).length}/${calls.length}</b><span>Calls landed</span></div>
-        <div class="hm-tile"><b>${calls.reduce((a, x) => a + x.p, 0).toFixed(0)}</b><span>We expected</span></div>
-        <div class="hm-tile"><b>${g.awayScore}–${g.homeScore}</b><span>Final score</span></div></div>`;
-    })();
-    const card = (r) => {
-      const stat = (s) => {
-        const fin = s.got != null, hit = fin && s.got > s.line;
-        const pctv = fin ? Math.min(100, s.got / Math.max(+s.proj, 0.001) * 100) : 0;
-        return `<div class="gms${fin ? (hit ? ' hit' : ' miss') : ''}" onclick="event.stopPropagation();${s.open}">
-          <span class="gms-k">${s.lab}</span>
-          <span class="gms-v">${(+s.proj).toFixed(s.k === 'sv' ? 1 : s.k === 'sog' ? 1 : 2)}${fin ? `<em>${s.got}</em>` : ''}</span>
-          ${fin ? `<i class="gms-bar"><em style="width:${pctv.toFixed(0)}%"></em></i>` : ''}
-          <span class="gms-od ${s.p >= 0.5 ? 'odfav' : 'oddog'}">o${s.line}<b>${gmOdds(s.p)}</b></span>
-        </div>`;
-      };
-      return `<div class="gmc ${r.team === g.home ? 'home' : 'away'}${r.dnp ? ' void' : ''}">
-        <div class="gmc-top"${r.open ? ` onclick="event.stopPropagation();${r.open}"` : ''}>
-          ${faceHtml(r.mug || mugOf(r.pid, r.team, D.season), r.name)}
-          <span class="gmc-id"><b>${esc(r.name)}</b><span>${r.pos ? posBadge(r.pos) : ''}${esc(r.team)}</span></span>
-          ${r.goal != null ? `<span class="gmc-td${r.got > 0 ? ' hit' : ''}"><b>${gmOdds(r.goal)}</b><small>${r.got != null && r.got >= 0 ? (r.got ? `${r.got} G` : 'no goal') : 'anytime goal'}</small></span>` : ''}
-        </div>
-        ${r.dnp ? '<div class="gmc-void">Did not dress</div>' : `<div class="gmc-stats">${r.stats.map(stat).join('')}</div>`}
-      </div>`;
+    const row = (r) => {
+      const cells = {};
+      if (r.goal != null) cells.goal = { p: r.goal, got: state === 'post' ? r.got : null, leg: r.leg, open: r.open };
+      for (const x of r.stats) cells[x.k] = { proj: x.proj, dp: BX_DP[x.k], line: x.line, p: x.p, got: x.got, leg: x.leg, open: x.open };
+      return { name: r.name, pos: r.pos, face: faceHtml(r.mug || mugOf(r.pid, r.team, D.season), r.name), open: `openPlayer(${r.pid})`, void: r.dnp, cells };
     };
-    const note = state === 'pre' ? 'Projections and fair odds at each market\'s even-money line. Tap a line for the full card.'
+    const teams = [g.away, g.home].map(t => ({ abbr: t, logo: logoImg(t, ''), sub: esc(teamName(t)), groups: [
+      { name: 'Skaters', cols: BX_SK, rows: all.filter(r => r.team === t && r.pos !== 'G').map(row) },
+      { name: 'Goalie', cols: BX_GL, rows: all.filter(r => r.team === t && r.pos === 'G').map(row) }] }));
+    const note = state === 'pre' ? 'Our projection for every priced player, with the even-money line and our fair odds under it. Tap a number for its full ladder, a name for his card, a header to sort. In parlay mode a tap adds it to the slip.'
       : state === 'live' ? 'The board as it was frozen at puck drop. Results fill in when the game goes final.'
-      : 'What we had at puck drop, and what each player actually did.';
-    const more = all.length > rows.length || gm.all
-      ? `<button class="pbf-chip gm-more" onclick="gmShowAll(${!gm.all})">${gm.all ? 'Show the key players' : `Show all ${all.length} players`}</button>` : '';
-    return `${tiles}<div class="gm-grid">${rows.map(card).join('')}</div>${more}<p class="gb-note">${note}</p>`;
+      : 'What we had at puck drop, and what each player did: green cleared our line, red didn\'t.';
+    return RonSlate.box({ state, teams, note, extra: state === 'post' ? `<span>final <b>${g.awayScore}–${g.homeScore}</b></span>` : '',
+      empty: state === 'pre' ? 'Prices post once the slate is set — usually the night before.' : 'No board was frozen for this game.' });
   }
 
   /** Side by side: each club's rates against the league, and the two goalies. */
@@ -5547,13 +5558,28 @@
     </div>`;
   }
 
+  /** The split view's panel: the same game card, in place. */
+  function gmPanel(gid) {
+    if (gm.gid !== +gid) { gm.gid = +gid; gm.tab = null; }
+    const g = gmGame(); if (!g) return '';
+    if (gmState(g) !== 'pre') { loadGameHist(); if (!gameGoals(g)) loadPlayersLog(); }
+    return gmHtml(g);
+  }
   function gmRender() {
+    RonSlate.refresh();
     const g = gmGame(); if (!g) return;
     const box = document.querySelector('#gm-back .gmm'); if (!box) return;
+    box.innerHTML = `<button class="pm-x" onclick="closeGame()" aria-label="Close">×</button>` + gmHtml(g);
+    const deck = gmDeck(), at = deck.findIndex(x => x.gameId === g.gameId);
+    const back = document.getElementById('gm-back');
+    back.querySelector('.pk-side-prev').disabled = at <= 0;
+    back.querySelector('.pk-side-next').disabled = at < 0 || at >= deck.length - 1;
+  }
+  function gmHtml(g) {
     const state = gmState(g), L = liveOf(g);
-    // the standard game card: Picks, Matchup, Lines, Game — opening on Game once it starts
-    const tabs = [['proj', 'Picks'], ['matchup', 'Matchup']].concat(g.lines ? [['lines', 'Lines']] : []).concat(state === 'pre' ? [] : [['flow', state === 'live' ? 'Live' : 'Game']]);
-    if (!gm.tab || !tabs.some(([v]) => v === gm.tab)) gm.tab = state === 'pre' ? 'proj' : 'flow';
+    // the standard game card: Box score, Matchup, Lines, Game
+    const tabs = [['proj', 'Box score'], ['matchup', 'Matchup']].concat(g.lines ? [['lines', 'Lines']] : []).concat(state === 'pre' ? [] : [['flow', state === 'live' ? 'Live' : 'Game']]);
+    if (!gm.tab || !tabs.some(([v]) => v === gm.tab)) gm.tab = 'proj';   // the box score leads, before and after
     const deck = gmDeck(), at = deck.findIndex(x => x.gameId === g.gameId);
     const as = state === 'live' ? L?.as ?? g.awayScore : g.awayScore, hs = state === 'live' ? L?.hs ?? g.homeScore : g.homeScore;
     const goals = gameGoals(g) || [];
@@ -5564,8 +5590,7 @@
       : gm.tab === 'lines' ? scLinesDetail(g)
       : gm.tab === 'flow' ? gameFlow(g, state).replace('<div class="gf"', '<div class="gf flat"') + goalList + (state === 'post' ? gameVidButtons({ ...g, ...(D.recapGames?.[g.gameId] || {}) }, 'sc-vids') : '')
       : gmProjections(g, state);
-    box.innerHTML = `
-      <button class="pm-x" onclick="closeGame()" aria-label="Close">×</button>
+    return `
       <header class="gm-hero">
         <div class="gm-team">${logoImg(g.away, '')}<b>${g.away}</b>${state === 'pre' ? scSide(g, false) : ''}</div>
         <div class="gm-mid">
@@ -5578,9 +5603,6 @@
       </header>
       <div class="sub-tabs u-tabs gm-tabs">${tabs.map(([v, l]) => `<button class="sub-btn${gm.tab === v ? ' active' : ''}" onclick="setGmTab('${v}')">${l}</button>`).join('')}</div>
       ${body}`;
-    const back = document.getElementById('gm-back');
-    back.querySelector('.pk-side-prev').disabled = at <= 0;
-    back.querySelector('.pk-side-next').disabled = at < 0 || at >= deck.length - 1;
   }
 
   document.addEventListener('DOMContentLoaded', () => { updateThemeToggleIcon(); applyRouteState(); loadNhl(); });
