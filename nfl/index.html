@@ -10,6 +10,7 @@
 <script src="/modal.js"></script>
 <script src="/board.js"></script>
 <script src="/ladder.js"></script>
+<script src="/slate.js"></script>
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="NFL player props, every line priced — anytime touchdowns, yards, receptions, completions, interceptions and kickers — plus fantasy projections, parlays with same-game pricing, and a touchdown recap with replays. Inspired by Green Means Go.">
 <!-- Social embed. These are the DEFAULTS; the Netlify edge function
@@ -2885,9 +2886,10 @@
         <span class="due-explainer-cta"></span>
         <span class="due-explainer-chevron" id="schedule-explainer-chevron">▶</span>
       </div>
-      <div class="due-explainer-teaser">The full slate by week, with the DraftKings spread and total — where each opened, and every move since.</div>
+      <div class="due-explainer-teaser">The week game by game: every game's projected box score, its lines and how they've moved, graded once it's played.</div>
       <div class="due-explainer-body" id="schedule-explainer-body" style="display:none">
         <ul>
+          <li><b>Box score.</b> Pick a game (down the left on a computer, a tap on a phone) and it opens on its box score before it's played: our projection for every priced player, one row each, a column per market, with the even-money line and our fair odds under each number. Tap a number for its full card, a header to sort. In parlay mode a tap adds it to the slip. Once the game is final the same box fills in with what each player did, green where he cleared our line.</li>
           <li><b>Lines.</b> Each game shows DraftKings' spread and total via ESPN — the favorite carries the minus (e.g. <em>SEA -3.5</em>). These are the book's numbers, not ours.</li>
           <li><b>Line movement.</b> Each game shows both teams' spread and moneyline, with the total beneath. A number drawn in blue has moved since it opened &mdash; the stronger the blue, the bigger the move &mdash; and a quiet <em>opened</em> line under it says where it started (e.g. <em>opened DET −9.5 · DET −440 · O/U 44.5</em>). The game card's <b>Lines</b> tab has open vs now for the spread, total and both moneylines, and every move our builds caught with the time they caught it — daily through the week, hourly on game days.</li>
           <li><b>Sort.</b> By kickoff, by spread (biggest favorite first), by total (highest first), or by line move (whichever game's spread and total have moved furthest from their opens).</li>
@@ -4713,8 +4715,11 @@
     openGame(gid, true);
   }
   function openGame(gid, fromRoute) {
-    const og = (nflData?.schedule || []).find(x => x.gameId === gid);
-    gm.gid = gid; gm.tab = og && og.homeScore != null ? 'flow' : 'proj'; gm.all = false;
+    if (RonSlate.select(gid)) {                // the Schedule's split view shows it in place
+      if (!fromRoute && location.pathname !== gmPathOf(gid)) history.replaceState(history.state, '', gmPathOf(gid));
+      return;
+    }
+    gm.gid = gid; gm.tab = 'proj'; gm.all = false;
     if (!fromRoute && location.pathname !== gmPathOf(gid)) { history.pushState({ gm: 1 }, '', gmPathOf(gid)); gmPushed = true; }
     if (!document.getElementById('gm-back')) {
       document.body.insertAdjacentHTML('beforeend', `
@@ -4754,6 +4759,7 @@
     gmRender();
   }
   function setGmTab(t) { gm.tab = t; gmRender(); }
+  RonSlate.onSort(() => gmRender());
   window.gmShowAll = (v) => { gm.all = v; gmRender(); };
   window.openGame = openGame; window.closeGame = closeGame; window.gmStep = gmStep; window.setGmTab = setGmTab;
   const gmGame = () => (nflData?.schedule || []).find(x => x.gameId === gm.gid);
@@ -4780,34 +4786,37 @@
       if (!M.has(pid)) M.set(pid, e);
       return e;
     };
-    const st = (e, k, lab, proj, line, p, got, open) => e.stats.push({ k, lab, proj, line, p, got, open });
+    const st = (e, k, lab, proj, line, p, got, open, leg) => e.stats.push({ k, lab, proj, line, p, got, open, leg });
+    const lg = (r, k, m, L, p, s2) => ({ k: `${k}|${r.pid}|${L}`, n: r.name, t: r.team, g: parGame(r), m, s: s2, p, i: r.pid });
     const res = ge?.res;
     const graded = !!res;
     if (state === 'pre') {
       const P = nflData.picks, inG = (arr) => (arr || []).filter(x => x.gameId === g.gameId);
       if (!P || P.week !== g.week) return [];
-      for (const r of inG(P.picks)) { const e = row(r.pid, r.name, r.team, r.pos); e.td = r.p; e.open = `openPick('${r.pid}')`; }
+      for (const r of inG(P.picks)) { const e = row(r.pid, r.name, r.team, r.pos); e.td = r.p; e.open = `openPick('${r.pid}')`; e.leg = { k: `td1|${r.pid}`, n: r.name, t: r.team, g: parGame(r), m: 'td1', s: 'Anytime TD', p: r.p, i: r.pid }; }
       for (const r of inG(nflData.completions)) {
         const { L, p } = nbEven(r.mu, nflData.completionModel?.alpha, nflData.completionModel?.lines || [20.5]);
-        const e = row(r.pid, r.name, r.team, 'QB'); st(e, 'cmp', 'Completions', r.mu, L, p, null, `openCmp('${r.pid}')`);
+        const e = row(r.pid, r.name, r.team, 'QB'); st(e, 'cmp', 'Completions', r.mu, L, p, null, `openCmp('${r.pid}')`, lg(r, 'cmp', 'cmp', L, p, `Over ${L} completions`));
       }
       for (const r of inG(nflData.interceptions)) {
-        const e = row(r.pid, r.name, r.team, 'QB'); st(e, 'int', 'Interceptions', r.mu, 0.5, r.p['0.5'] ?? r.p[0.5], null, `openInt('${r.pid}')`);
+        const e = row(r.pid, r.name, r.team, 'QB'), pi = r.p['0.5'] ?? r.p[0.5]; st(e, 'int', 'Interceptions', r.mu, 0.5, pi, null, `openInt('${r.pid}')`, lg(r, 'int', 'int', 0.5, pi, 'Over 0.5 interceptions'));
       }
       for (const r of inG(nflData.receptions)) {
         const { L, p } = nbEven(r.mu, nflData.receptionModel?.alpha, nflData.receptionModel?.lines || [2.5]);
-        const e = row(r.pid, r.name, r.team, r.pos); st(e, 'rec', 'Receptions', r.mu, L, p, null, `openRec('${r.pid}')`);
+        const e = row(r.pid, r.name, r.team, r.pos); st(e, 'rec', 'Receptions', r.mu, L, p, null, `openRec('${r.pid}')`, lg(r, 'rec', 'rec', L, p, `Over ${L} receptions`));
       }
       for (const [mk, lab] of [['pass', 'Pass yds'], ['rush', 'Rush yds'], ['rec', 'Rec yds'], ['rr', 'Rush + rec']])
         for (const r of inG(nflData.yards?.[mk])) {
           const e = row(r.pid, r.name, r.team, r.pos), L = Math.floor(r.med) + 0.5;
-          st(e, mk === 'rec' ? 'recy' : mk, lab, r.med, L, ydPOver(r.m, L, r.mu), null, `openYds('${r.pid}','${r.m}')`);
+          const yp = ydPOver(r.m, L, r.mu);
+          st(e, mk === 'rec' ? 'recy' : mk, lab, r.med, L, yp, null, `openYds('${r.pid}','${r.m}')`, lg(r, 'y' + mk, 'y' + mk, L, yp, `Over ${L} ${PLW_YD[mk].toLowerCase()}`));
         }
       for (const r of inG(kkAll())) {
         const e = row(r.pid, r.name, r.team, 'K'); e.open = `openKick('${r.pid}')`;
         const L = kkLine('pts', r.mu.pts);
-        st(e, 'kpts', 'Kicker pts', r.mu.pts, L, kkOver('pts', L, r.mu.pts), null, `openKick('${r.pid}')`);
-        st(e, 'kfg', 'FG made', r.mu.fgm, kkLine('fgm', r.mu.fgm), kkOver('fgm', kkLine('fgm', r.mu.fgm), r.mu.fgm), null, `openKick('${r.pid}')`);
+        st(e, 'kpts', 'Kicker pts', r.mu.pts, L, kkOver('pts', L, r.mu.pts), null, `openKick('${r.pid}')`, lg(r, 'kpts', 'kpts', L, kkOver('pts', L, r.mu.pts), `Over ${L} kicker points`));
+        const Lf = kkLine('fgm', r.mu.fgm), pf = kkOver('fgm', Lf, r.mu.fgm);
+        st(e, 'kfg', 'FG made', r.mu.fgm, Lf, pf, null, `openKick('${r.pid}')`, lg(r, 'kfgm', 'kfgm', Lf, pf, `Over ${Lf} field goals made`));
       }
     } else if (ge) {
       for (const [pid, name, team, pos, p1] of ge.td ?? []) { const e = row(pid, name, team, pos); e.td = p1; e.tdGot = graded ? (res.td?.[pid] ?? 0) : null; e.open = `openPick('${pid}')`; }
@@ -4838,70 +4847,54 @@
       .sort((a, b) => (POS_ORDER[a.pos] ?? 5) - (POS_ORDER[b.pos] ?? 5) || (b.td ?? 0) - (a.td ?? 0) || (b.stats[0]?.proj ?? 0) - (a.stats[0]?.proj ?? 0));
   }
 
-  /** the names worth a card: both quarterbacks, each team's top three skill
-   *  players and its kicker. The rest are a tap away on their own board. */
-  function gmTrim(rows, g) {
-    const out = [];
-    for (const team of [g.away, g.home]) {
-      const mine = rows.filter(r => r.team === team);
-      out.push(...mine.filter(r => r.pos === 'QB').slice(0, 2));
-      // by price, not by position — a position-ordered slice is three running backs
-      out.push(...mine.filter(r => ['RB', 'WR', 'TE', 'FB'].includes(r.pos))
-        .sort((a, b) => (b.td ?? 0) - (a.td ?? 0) || (b.stats[0]?.proj ?? 0) - (a.stats[0]?.proj ?? 0)).slice(0, 3));
-      out.push(...mine.filter(r => r.pos === 'K').slice(0, 1));
-    }
-    return rows.filter(r => out.includes(r));
-  }
+  /** The game's box score (/slate.js): quarterbacks, skill players and kickers, a column per market. */
+  const BX_QB = [{ k: 'td', lab: 'TD', title: 'Anytime TD', yes: true }, { k: 'cmp', lab: 'CMP', title: 'Completions' }, { k: 'pass', lab: 'Pass', title: 'Passing yards' },
+                 { k: 'int', lab: 'INT', title: 'Interceptions' }, { k: 'rush', lab: 'Rush', title: 'Rushing yards' }];
+  const BX_SK = [{ k: 'td', lab: 'TD', title: 'Anytime TD', yes: true }, { k: 'rec', lab: 'Rec', title: 'Receptions' }, { k: 'recy', lab: 'Rec yds', title: 'Receiving yards' },
+                 { k: 'rush', lab: 'Rush', title: 'Rushing yards' }, { k: 'rr', lab: 'R+R', title: 'Rush + receiving yards' }];
+  const BX_K = [{ k: 'kpts', lab: 'Pts', title: 'Kicking points' }, { k: 'kfg', lab: 'FG', title: 'Field goals made' }];
+  const BX_DP = { cmp: 1, int: 1, rec: 1, kpts: 1, kfg: 1, pass: 0, rush: 0, recy: 0, rr: 0 };
   function gmProjections(g, ge, state) {
     const all = gmPlayers(g, ge, state);
-    const rows = gm.all ? all : gmTrim(all, g);
-    if (!rows.length) return `<div class="empty" style="padding:2rem 0">${state === 'pre'
-      ? 'Prices post once this week has lines — usually a week out.'
-      : liveLogState === 'loading' || liveLogState === 'idle' ? 'Loading what we had at kickoff…' : 'No board was logged for this game.'}</div>`;
-    const graded = state === 'post';
-    const tiles = (() => {
-      if (!graded) return '';
-      const all = rows.flatMap(r => [...r.stats.filter(s2 => s2.got != null).map(s2 => ({ p: s2.p, hit: s2.got > s2.line })),
-                                     ...(r.td != null && r.tdGot != null ? [{ p: r.td, hit: r.tdGot >= 1 }] : [])]);
-      if (!all.length) return '';
-      const hits = all.filter(x => x.hit).length;
-      return `<div class="hm-tiles gm-tiles">
-        <div class="hm-tile"><b>${hits}/${all.length}</b><span>Calls landed</span></div>
-        <div class="hm-tile"><b>${all.reduce((a, x) => a + x.p, 0).toFixed(0)}</b><span>We expected</span></div>
-        <div class="hm-tile"><b>${g.awayScore}–${g.homeScore}</b><span>Final score</span></div></div>`;
-    })();
-    const card = (r) => {
-      const teamCls = r.team === g.home ? 'home' : 'away';
-      const stat = (s2) => {
-        const hit = s2.got != null && s2.got > s2.line, done = s2.got != null;
-        const pctv = done ? Math.min(100, s2.got / Math.max(+s2.proj, 0.001) * 100) : 0;
-        return `<div class="gms${done ? (hit ? ' hit' : ' miss') : ''}" onclick="event.stopPropagation();${s2.open}">
-          <span class="gms-k">${s2.lab}</span>
-          <span class="gms-v">${gmFmt(s2.proj, ['cmp', 'int', 'rec', 'kpts', 'kfg'].includes(s2.k) ? 1 : 0)}${done ? `<em>${gmFmt(s2.got, 0)}</em>` : ''}</span>
-          ${done ? `<i class="gms-bar"><em style="width:${pctv.toFixed(0)}%"></em></i>` : ''}
-          <span class="gms-od ${s2.p >= 0.5 ? 'odfav' : 'oddog'}">o${s2.line}<b>${pbOdds(s2.p)}</b></span>
-        </div>`;
-      };
-      return `<div class="gmc ${teamCls}${r.dnp ? ' void' : ''}">
-        <div class="gmc-top"${r.open ? ` onclick="event.stopPropagation();${r.open}"` : ''}>
-          ${faceHtml(r.pid, r.name)}
-          <span class="gmc-id"><b>${r.name}</b><span>${r.pos ? `<i class="posb ${r.pos}">${r.pos}</i>` : ''}${r.team}</span></span>
-          ${r.td != null ? `<span class="gmc-td${r.tdGot ? ' hit' : ''}"><b>${Odds.inline(r.td)}</b><small>${r.tdGot != null ? (r.tdGot ? `${r.tdGot} TD` : 'no TD') : 'anytime TD'}</small></span>` : ''}
-        </div>
-        ${r.dnp ? '<div class="gmc-void">Did not play</div>' : `<div class="gmc-stats">${r.stats.map(stat).join('')}</div>`}
-      </div>`;
+    if (state !== 'pre' && !all.length && (liveLogState === 'loading' || liveLogState === 'idle')) return '<div class="empty" style="padding:2rem 0">Loading what we had at kickoff…</div>';
+    const row = (r) => {
+      const cells = {};
+      if (r.td != null) cells.td = { p: r.td, got: state === 'post' ? r.tdGot : null, leg: r.leg, open: r.open };
+      for (const x of r.stats) cells[x.k] = { proj: x.proj, dp: BX_DP[x.k] ?? 1, line: x.line, p: x.p, got: x.got, leg: x.leg, open: x.open };
+      return { name: r.name, pos: r.pos, face: faceHtml(r.pid, r.name), open: r.open || null, void: r.dnp, cells };
     };
-    const note = state === 'pre' ? 'Projections and fair odds at each market\'s even-money line. Tap a line for the full card.'
+    const teams = [g.away, g.home].map(t => {
+      const mine = all.filter(r => r.team === t);
+      return { abbr: t, logo: `<img src="${teamLogo(t)}" alt="" loading="lazy">`, groups: [
+        { name: 'Quarterback', cols: BX_QB, rows: mine.filter(r => r.pos === 'QB').map(row) },
+        { name: 'Skill players', cols: BX_SK, rows: mine.filter(r => !['QB', 'K'].includes(r.pos)).map(row) },
+        { name: 'Kicker', cols: BX_K, rows: mine.filter(r => r.pos === 'K').map(row) }] };
+    });
+    const note = state === 'pre' ? 'Our projection for every priced player, with the even-money line and our fair odds under it. Tap a number for its full card, a header to sort. In parlay mode a tap adds it to the slip.'
       : state === 'live' ? 'The board as it was locked at kickoff. Results fill in when the game goes final.'
-      : 'What we had at kickoff, and what each player actually did.';
-    const more = all.length > rows.length || gm.all
-      ? `<button class="pbf-chip gm-more" onclick="gmShowAll(${!gm.all})">${gm.all ? 'Show the key players' : `Show all ${all.length} players`}</button>` : '';
-    return `${tiles}<div class="gm-grid">${rows.map(card).join('')}</div>${more}<p class="gb-note">${note}</p>`;
+      : 'What we had at kickoff, and what each player did: green cleared our line.';
+    return RonSlate.box({ state, teams, note, extra: state === 'post' ? `<span>final <b>${g.awayScore}–${g.homeScore}</b></span>` : '',
+      empty: state === 'pre' ? 'Prices post once this week has lines — usually a week out.' : 'No board was logged for this game.' });
   }
 
+  /** The split view's panel: the same game card, in place. */
+  function gmPanel(gid) {
+    if (gm.gid !== gid) { gm.gid = gid; gm.tab = 'proj'; }
+    const g = gmGame(); if (!g) return '';
+    ensureLiveLog(); loadPlays();
+    return gmHtml(g);
+  }
   function gmRender() {
+    RonSlate.refresh();
     const g = gmGame(); if (!g) return;
     const box = document.querySelector('#gm-back .gmm'); if (!box) return;
+    box.innerHTML = `<button class="pm-x" onclick="closeGame()" aria-label="Close">×</button>` + gmHtml(g);
+    const deck = gmDeck(), at = deck.findIndex(x => x.gameId === g.gameId);
+    const back = document.getElementById('gm-back');
+    back.querySelector('.pk-side-prev').disabled = at <= 0;
+    back.querySelector('.pk-side-next').disabled = at < 0 || at >= deck.length - 1;
+  }
+  function gmHtml(g) {
     const ge = liveLog?.games?.[g.gameId];
     const played = g.homeScore != null && g.awayScore != null;
     const live = !played && ge && new Date(ge.kick) <= new Date();
@@ -4913,13 +4906,12 @@
       const w = nflData.wind?.[g.gameId], k = (nflData.kickers || []).find(x => x.gameId === g.gameId);
       return [k?.f?.temp != null ? `${k.f.temp}°F` : null, w != null ? `${Math.round(w)} mph` : null].filter(Boolean).join(' · ') || g.roof;
     })();
-    const tabs = [['proj', 'Picks'], ['matchup', 'Matchup']].concat(g.lines?.cur ? [['lines', 'Lines']] : []).concat(played ? [['flow', 'Game']] : []);
+    const tabs = [['proj', 'Box score'], ['matchup', 'Matchup']].concat(g.lines?.cur ? [['lines', 'Lines']] : []).concat(played ? [['flow', 'Game']] : []);
     const body = gm.tab === 'lines' ? lnPanel(g.lines, g.away, g.home)
       : gm.tab === 'matchup' ? matchupPanel(g).replace('<div class="mx"', '<div class="mx flat"')
       : gm.tab === 'flow' ? (gameFlow(g) || '<div class="empty">No win-probability line for this game.</div>').replace('<div class="gf"', '<div class="gf flat"')
       : gmProjections(g, ge, state);
-    box.innerHTML = `
-      <button class="pm-x" onclick="closeGame()" aria-label="Close">×</button>
+    return `
       <header class="gm-hero">
         <div class="gm-team"><img src="${teamLogo(g.away)}" alt="" loading="lazy"><b>${g.away}</b>${played ? '' : lnSide(g.lines, false)}</div>
         <div class="gm-mid">
@@ -4932,9 +4924,6 @@
       </header>
       <div class="sub-tabs u-tabs gm-tabs">${tabs.map(([v, l]) => `<button class="sub-btn${gm.tab === v ? ' active' : ''}" onclick="setGmTab('${v}')">${l}</button>`).join('')}</div>
       ${body}`;
-    const back = document.getElementById('gm-back');
-    back.querySelector('.pk-side-prev').disabled = at <= 0;
-    back.querySelector('.pk-side-next').disabled = at < 0 || at >= deck.length - 1;
   }
 
   function matchupPanel(g) {
@@ -5104,13 +5093,9 @@
   }
 
   const spreadLabel = (g) => g.spread === 0 ? 'PK' : `${g.home} ${g.spread > 0 ? '-' : '+'}${Math.abs(g.spread)}`;
-  function gameRow(g, { noWhen = false } = {}) {
-    const played = g.homeScore != null && g.awayScore != null;
-    const time = kickLocal(g);
-    const when = `${(g.weekday || '').slice(0, 3)}${g.gameday ? ' ' + g.gameday.slice(5) : ''}${time ? ' · ' + time : ''}`.trim();
-
-    // Records. The current season's, once it has games; before that the last
-    // completed season's, marked, since "0-0" for all 32 teams says nothing.
+  /** A team's record: this season's once it has games; before that the last
+   *  completed season's, marked old, since "0-0" for all 32 teams says nothing. */
+  function nflRecOf(abbr) {
     const S = nflData?.teamStats || {};
     const cur = {};
     for (const x of (nflData?.schedule || [])) {
@@ -5120,13 +5105,35 @@
       else if (x.awayScore > x.homeScore) { cur[x.away][0]++; cur[x.home][1]++; }
       else { cur[x.home][2]++; cur[x.away][2]++; }
     }
-    const seasonStarted = Object.keys(cur).length > 0;
-    const recOf = (abbr) => {
-      if (seasonStarted) { const r = cur[abbr] || [0, 0, 0]; return { txt: r[2] ? `${r[0]}-${r[1]}-${r[2]}` : `${r[0]}-${r[1]}`, old: false }; }
-      const t = S[abbr];
-      if (!t || (t.w == null)) return null;
-      return { txt: t.t ? `${t.w}-${t.l}-${t.t}` : `${t.w}-${t.l}`, old: true };
-    };
+    if (Object.keys(cur).length) { const r = cur[abbr] || [0, 0, 0]; return { txt: r[2] ? `${r[0]}-${r[1]}-${r[2]}` : `${r[0]}-${r[1]}`, old: false }; }
+    const t = S[abbr];
+    if (!t || (t.w == null)) return null;
+    return { txt: t.t ? `${t.w}-${t.l}-${t.t}` : `${t.w}-${t.l}`, old: true };
+  }
+  /** A game's top pick (the shortest anytime-TD price in it) and, once it's played, how it went. */
+  function nflTop(g) {
+    const played = g.homeScore != null && g.awayScore != null;
+    const P = nflData?.picks, L = liveLog?.games?.[g.gameId];
+    let best = null, res = null;
+    if (L?.td?.length) {
+      const r = L.td.reduce((x, y) => (y[4] > x[4] ? y : x));
+      best = { pid: r[0], name: r[1], pos: r[3], p: r[4] };
+      const n = L.res?.td?.[r[0]] ?? 0;
+      res = (L.res?.dnp || []).includes(r[0]) && L.final ? { cls: 'miss', txt: 'DNP' }
+        : n ? { cls: 'hit', txt: n > 1 ? `✓ ${n} TD` : '✓ TD' } : L.final ? { cls: 'miss', txt: '✗ no TD' } : played ? null : L.live ? { cls: 'pend', txt: 'live' } : null;
+    } else if (P?.picks && P.week === g.week) {
+      // schedule rows carry no season field — the slate IS the upcoming season
+      const inGame = P.picks.filter(p => p.gameId === g.gameId);
+      if (inGame.length) best = inGame.reduce((x, y) => (y.p > x.p ? y : x));
+    }
+    return best ? { best, res } : null;
+  }
+  function gameRow(g, { noWhen = false } = {}) {
+    const played = g.homeScore != null && g.awayScore != null;
+    const time = kickLocal(g);
+    const when = `${(g.weekday || '').slice(0, 3)}${g.gameday ? ' ' + g.gameday.slice(5) : ''}${time ? ' · ' + time : ''}`.trim();
+
+    const recOf = nflRecOf;
     const aWin = played && g.awayScore > g.homeScore, hWin = played && g.homeScore > g.awayScore;
     const side = (abbr, alignEnd) => {
       const r = recOf(abbr);
@@ -5160,19 +5167,7 @@
     // before kickoff from the live board, after it from the board logged at
     // kickoff (results.json), graded: ✓ once he scores, ✗ if the game ends.
     const pick = (() => {
-      const P = nflData?.picks, L = liveLog?.games?.[g.gameId];
-      let best = null, res = null;
-      if (L?.td?.length) {
-        const r = L.td.reduce((x, y) => (y[4] > x[4] ? y : x));
-        best = { pid: r[0], name: r[1], pos: r[3], p: r[4] };
-        const n = L.res?.td?.[r[0]] ?? 0;
-        res = (L.res?.dnp || []).includes(r[0]) && L.final ? { cls: 'miss', txt: 'DNP' }
-          : n ? { cls: 'hit', txt: n > 1 ? `✓ ${n} TD` : '✓ TD' } : L.final ? { cls: 'miss', txt: '✗ no TD' } : played ? null : L.live ? { cls: 'pend', txt: 'live' } : null;
-      } else if (P?.picks && P.week === g.week) {
-        // schedule rows carry no season field — the slate IS the upcoming season
-        const inGame = P.picks.filter(p => p.gameId === g.gameId);
-        if (inGame.length) best = inGame.reduce((x, y) => (y.p > x.p ? y : x));
-      }
+      const { best, res } = nflTop(g) || {};
       if (!best) return '';
       return `<div class="sc-pick${res && res.cls !== 'pend' ? ' ' + res.cls : ''}" onclick="event.stopPropagation();openPick('${best.pid}')">
           <span class="sc-pick-star">★</span><span class="sc-pick-lbl">top pick</span>
@@ -5182,7 +5177,7 @@
           ${res ? `<span class="sc-pick-res${res.cls === 'pend' ? ' pend' : ''}">${res.txt}</span>` : ''}</div>`;
     })();
 
-    return `<div class="sc-game" onclick="openGame('${g.gameId}')">
+    return `<div class="sc-game" data-gid="${g.gameId}" onclick="openGame('${g.gameId}')">
       <div class="sc-top">
         ${side(g.away, false)}${mid}${side(g.home, true)}
         <span class="sc-chev">▶</span>
@@ -8345,7 +8340,7 @@ let pairStacks = false;
     const anyLines = games.some(g => g.lines?.cur || g.spread != null);
     const sortBar = anyLines ? `<div class="pairs-filter-row sc-sort"><span class="due-filter-label">Sort</span>${[['time', 'Kickoff'], ['spread', 'Spread'], ['total', 'Total'], ['moved', 'Line move']]
       .map(([v, l]) => `<button class="due-filter-chip mode-chip${schedSort === v ? ' active' : ''}" onclick="setSchedSort('${v}')">${l}</button>`).join('')}</div>` : '';
-    el.innerHTML = `<div class="rc-wknav">
+    const top = `<div class="rc-wknav">
         <button class="rc-jump" onclick="setScheduleWeek(${wks[0]})" ${atFirst ? 'disabled' : ''} title="Jump to the first week">Week ${wks[0]}</button>
         <div class="rc-wknav-center">
           <button class="rc-arrow" onclick="shiftScheduleWeek(-1)" ${atFirst ? 'disabled' : ''} aria-label="Previous week">‹</button>
@@ -8354,9 +8349,46 @@ let pairStacks = false;
         </div>
         <button class="rc-jump" onclick="setScheduleWeek(${firstUpcomingWeek()})" title="Jump to this week">This week</button>
       </div>
-      <div class="result-meta"><b>${WK_LABEL(scheduleWeek)}</b> · ${games.length} games · tap a game for the matchup${games.some(g => g.lines?.cur) ? ' · DK lines via ESPN · a number in blue has moved (the stronger, the further) · "opened" shows where it started' : ''}</div>
-      ${sortBar}
-      <div class="sc-list">${schedSort === 'time' ? nflSlates(games) : games.map(g => gameRow(g)).join('')}</div>`;
+      <div class="result-meta"><b>${WK_LABEL(scheduleWeek)}</b> · ${games.length} games · every game's projected box score, graded once it's played${games.some(g => g.lines?.cur) ? ' · DK lines via ESPN · a number in blue has moved' : ''}</div>
+      ${sortBar}`;
+    // /slate.js: the week's games down the left, the picked one's box score on the right (a pop-up on a phone)
+    const next = games.find(g => g.homeScore == null) || games[0];
+    RonSlate.render(el, { key: 'nfl', top, pick: next?.gameId, panel: gmPanel, rail: nflRail(games, schedSort === 'time'),
+      list: `<div class="sc-list">${schedSort === 'time' ? nflSlates(games) : games.map(g => gameRow(g)).join('')}</div>` });
+  }
+  /** The split view's rail (/slate.js): the week by its slates, each game stacked like a scoreboard. */
+  function nflRail(games, grouped) {
+    const hm = (t) => { const [h, m] = (t || '00:00').split(':').map(Number); return h * 60 + m; };
+    const win = (g) => { const x = hm(g.gametime); return x < 12 * 60 ? 'morning' : x < 16 * 60 ? 'early' : x < 19 * 60 ? 'late' : 'night'; };
+    const item = (g) => {
+      const played = g.homeScore != null && g.awayScore != null, live = !played && gameStarted(g.gameId);
+      const c = g.lines?.cur || {}, o = g.lines?.open || {}, T = nflTop(g);
+      const team = (ab, home) => {
+        const r = nflRecOf(ab), sp = c.sp == null ? (g.spread != null ? (home ? -g.spread : g.spread) : null) : home ? c.sp : -c.sp;
+        const ml = home ? c.mlH : c.mlA, mlO = home ? o.mlH : o.mlA;
+        return { abbr: ab, logo: `<img src="${teamLogo(ab)}" alt="" loading="lazy">`, rec: r ? r.txt : '',
+          score: played ? (home ? g.homeScore : g.awayScore) : null, lost: played && (home ? g.homeScore < g.awayScore : g.awayScore < g.homeScore),
+          line: sp == null ? '' : sp === 0 ? 'PK' : (sp > 0 ? '+' : '') + lnNum(sp), odds: ml == null ? '' : lnAm(ml), moved: ml != null && mlO != null && ml !== mlO };
+      };
+      const res = T?.res ? `<span class="${T.res.cls === 'hit' ? 'hit' : T.res.cls === 'miss' ? 'miss' : ''}">${T.res.cls === 'hit' ? '✓' : T.res.cls === 'miss' ? (T.res.txt === 'DNP' ? 'DNP' : '✗') : ''}</span>` : '';
+      const tot = c.tot ?? g.total;
+      return { id: g.gameId, live,
+        when: played ? `Final${g.overtime ? '/OT' : ''}` : live ? 'Live' : `${(g.weekday || '').slice(0, 3)} · ${kickLocal(g)}`,
+        note: !played && tot != null ? `O/U ${tot}` : '',
+        teams: [team(g.away, false), team(g.home, true)],
+        pick: T ? `★ <b>${T.best.name}</b>${res}<span class="sl-od${T.best.p >= 0.5 ? ' fav' : ''}">${Odds.am(T.best.p)}</span>` : '' };
+    };
+    if (!grouped) return [{ label: '', games: games.map(item) }];
+    const out = [];
+    for (const g of games) {
+      const k = `${g.gameday}|${win(g)}`, last = out[out.length - 1];
+      if (last?.k === k) last.games.push(item(g));
+      else {
+        const w = win(g), day = g.weekday || '';
+        out.push({ k, label: w === 'night' ? `${day} Night` : w === 'morning' ? `${day} morning` : w === 'late' ? `${day} late` : day, sub: kickLocal(g), games: [item(g)] });
+      }
+    }
+    return out;
   }
   // The week as its slates: a day's windows (morning, early, late afternoon),
   // with every primetime game its own. A card inside a one-kickoff slate drops
