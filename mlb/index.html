@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ron's Dong Tool</title>
 <script src="/odds.js?v=1"></script>
+<script src="/app.js"></script>
 <script src="/chrome.js"></script>
 <script src="/modal.js"></script>
 <meta name="theme-color" content="#05080f">
@@ -3621,15 +3622,6 @@ function removeTag(idx) {
 // picker, /mlb is this app, /football is Tud Tool). All routes and same-origin
 // assets are prefixed with this base. Shared branding (/icons) stays at root.
 const APP_BASE = '/mlb';
-// Data files come straight from the repo (raw.githubusercontent.com: CORS-open,
-// gzipped, CDN-cached 5 min), so the builds' hourly data commits don't have to
-// redeploy the site — netlify.toml skips any commit that only touches data.
-// Falls back to the deployed copy if GitHub is unreachable; local dev reads
-// the local files, so a local build is what you see.
-const DATA_RAW = 'https://raw.githubusercontent.com/wizard-ron17/dong-tool/main';
-const dataFetch = (f, opts) => /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
-  ? fetch(`${APP_BASE}/${f}`, opts)
-  : fetch(`${DATA_RAW}${APP_BASE}/${f}`, opts).then(r => r.ok ? r : Promise.reject(r)).catch(() => fetch(`${APP_BASE}/${f}`, opts));
 async function loadData() {
   setStatus('fetching');
   try {
@@ -3824,8 +3816,6 @@ function migrateLegacyHash() {
   history.replaceState(null, '', path);
 }
 // The four pages that live in the Tools menu rather than the main bar; the
-// Tools pill lights up when any of them is active.
-const TOOLS_NAVS = ['matchups', 'milestones', 'steals', 'pitchtypes', 'pitchervuln', 'pitcherks', 'pitcherwalks', 'picks', 'due', 'pairs', 'prospects', 'daylate', 'returning', 'birthdays'];
 // ── Top-bar search ──────────────────────────────────────────────────────────
 // Every man we carry — both sides of the ball — opening his player card. Today's
 // boards go in first and rank first, but the base is the matchup cards, so a
@@ -3939,13 +3929,7 @@ const PAGE_TITLES = {
 };
 function switchNav(nav) {
   activeNav = nav;
-  document.title = PAGE_TITLES[nav] || "Ron's Dong Tool";
-  closeNavTools();
-  document.querySelectorAll('.nav-btn[data-nav]').forEach(b => b.classList.toggle('active', b.dataset.nav === nav));
-  document.getElementById('nav-tools-btn').classList.toggle('active', TOOLS_NAVS.includes(nav));
-  document.querySelectorAll('.nav-menu-item').forEach(b => b.classList.toggle('active', b.dataset.nav === nav));
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('visible'));
-  document.getElementById('panel-' + nav).classList.add('visible');
+  RonChrome.show(nav, { title: PAGE_TITLES[nav] });
   renderCurrentPanel();
   commitRoute();
 }

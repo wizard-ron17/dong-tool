@@ -12,11 +12,12 @@ landing page, all static HTML deployed by Netlify from `main`:
 | `/nhl` | Goal Tool | `nhl/index.html` (~6.5k) |
 | `/nba` | Hoop Tool | `nba/index.html` (~2.5k) |
 
-Shared by every app, loaded in `<head>`:
+Shared by every app:
 - `odds.js`: `Odds.am/pct/inline/both` (the only way to print a price) and `RonTracker` (the parlay slip's Copy for tracker).
 - `sgp.js`: the same-game parlay copula.
 - `parlay.js`: the parlay slip (state, pricing, markup, styles). Every sport's measured correlation rules live here, so a slip prices the same on every page. A page only tags rows with `parAttr({...})` and hands over its data with `RonParlay.provide(sport, {...})`.
-- `chrome.js`: the shared chrome. It draws the main nav, tools menu, sport switcher, theme toggle and footer. Each app keeps empty placeholders (`#main-nav`, `#nav-tools-menu`, `footer.site-foot`) and calls `RonChrome.mount({ sport, season, credit, tools: [...] })`. The Tools menu is data in that call. A new sport is one line in `SPORTS`. Page extras on a theme flip go in `RonChrome.onTheme(fn)`.
+- `app.js`: `dataFetch(file)`, which reads `/<sport>/<file>` from raw GitHub, falls back to the deployed copy, and on localhost reads the local file first.
+- `chrome.js`: the shared chrome. It draws the main nav, tools menu, sport switcher, theme toggle and footer. Each app keeps empty placeholders (`#main-nav`, `#nav-tools-menu`, `footer.site-foot`) and calls `RonChrome.mount({ sport, season, credit, tools: [...] })`. The Tools menu is data in that call. A new sport is one line in `SPORTS`. Page extras on a theme flip go in `RonChrome.onTheme(fn)`. An app's `switchNav` calls `RonChrome.show(nav)` for the panel, active states and tab title (derived from the tools menu when the app has none).
 - `modal.js`: the modal stack manager. Every card and sheet is a body-level backdrop that closes on its own click. This file owns the scroll lock (held while any modal is open) and the keys: Escape closes only the top modal, and ← → step only the top one through its ‹ › buttons. New modals use `RonModal.open(id, { cls, nav, onClose })` / `RonModal.close(id)` (NBA's ladder card is the example). Never add another per-modal keydown or `body.style.overflow` toggle.
 - `welcome.js`: the About modal.
 

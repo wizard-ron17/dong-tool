@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ron's Goal Tool</title>
 <script src="/odds.js?v=1"></script>
+<script src="/app.js"></script>
 <script src="/chrome.js"></script>
 <script src="/modal.js"></script>
 <meta name="theme-color" content="#05080f">
@@ -1780,15 +1781,6 @@
 </div>
 <script>
   const APP_BASE = '/nhl';
-  // Data files come straight from the repo (raw.githubusercontent.com: CORS-open,
-  // gzipped, CDN-cached 5 min), so the builds' hourly data commits don't have to
-  // redeploy the site — netlify.toml skips any commit that only touches data.
-  // Falls back to the deployed copy if GitHub is unreachable; local dev reads
-  // the local files, so a local build is what you see.
-  const DATA_RAW = 'https://raw.githubusercontent.com/wizard-ron17/dong-tool/main';
-  const dataFetch = (f, opts) => /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
-    ? fetch(`${APP_BASE}/${f}`, opts)
-    : fetch(`${DATA_RAW}${APP_BASE}/${f}`, opts).then(r => r.ok ? r : Promise.reject(r)).catch(() => fetch(`${APP_BASE}/${f}`, opts));
   // ── News: injury chips, the ticker, board alerts, player-card news ────────
   // news.json (the build: ESPN's injury report and transaction wire, matched to
   // our ids) drives the chips beside a name and the card's status line. The
@@ -1963,12 +1955,8 @@
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
     activeNav = nav;
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('visible'));
-    document.getElementById('panel-' + nav)?.classList.add('visible');
-    document.querySelectorAll('.nav-btn[data-nav]').forEach(b => b.classList.toggle('active', b.dataset.nav === nav));
-    document.title = PAGE_TITLES[nav] || "Ron's Goal Tool";
+    RonChrome.show(nav, { title: PAGE_TITLES[nav] });
     renderPanel(nav);
-    closeNavTools();
     if (!applyingRoute) commitRoute();
   }
   function currentPath() { return activeNav === 'home' ? APP_BASE + '/' : APP_BASE + '/' + activeNav; }

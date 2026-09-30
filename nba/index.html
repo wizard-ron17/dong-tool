@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ron's Hoop Tool</title>
 <script src="/odds.js?v=1"></script>
+<script src="/app.js"></script>
 <script src="/chrome.js"></script>
 <script src="/modal.js"></script>
 <meta name="theme-color" content="#05080f">
@@ -996,7 +997,6 @@
   // ESPN ships a dark-background cut of every mark; repaint on the flip.
   RonChrome.onTheme(() => document.querySelectorAll('img[data-team]').forEach(img => { img.src = teamLogo(img.dataset.team); }));
 
-  const TOOL_NAVS = ['threes', 'first', 'points', 'stocks', 'doubles', 'due', 'milestones', 'birthdays'];                            // live tools; the menu's dimmed items ship into here
 
   // ── Nav + routing ──────────────────────────────────────────────────────
   const NBA_NAVS = ['home', 'stats', 'recap', 'threes', 'first', 'points', 'stocks', 'doubles', 'due', 'milestones', 'birthdays', 'schedule'];   // tools added here as they ship
@@ -1004,15 +1004,8 @@
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
     activeNav = nav;
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('visible'));
-    document.getElementById('panel-' + nav)?.classList.add('visible');
-    document.querySelectorAll('.nav-btn[data-nav]').forEach(b => b.classList.toggle('active', b.dataset.nav === nav));
-    // on a tool page the Tools button is the lit one, and the menu marks which tool
-    document.getElementById('nav-tools-btn')?.classList.toggle('active', TOOL_NAVS.includes(nav));
-    document.querySelectorAll('.nav-menu-item[data-nav]').forEach(b => b.classList.toggle('active', b.dataset.nav === nav));
-    document.title = PAGE_TITLES[nav] || "Ron's Hoop Tool";
+    RonChrome.show(nav, { title: PAGE_TITLES[nav] });
     renderPanel(nav);
-    closeNavTools();
     if (!applyingRoute) commitRoute();
   }
   function currentPath() { return activeNav === 'home' ? APP_BASE + '/' : APP_BASE + '/' + activeNav; }
@@ -1063,14 +1056,6 @@
     const nights = new Set((d.recap || []).map(g => g.date)).size;
     return `${nights}n · ${(d.recap || []).length} gm · upd ${timeAgo(d.generated)}`;
   }
-  // Data files come straight from the repo (raw.githubusercontent.com: CORS-open,
-  // and a data-only commit doesn't redeploy the site — see netlify.toml). On
-  // localhost the local file wins, so a local build can be looked at.
-  const DATA_RAW = 'https://raw.githubusercontent.com/wizard-ron17/dong-tool/main';
-  // Local first on localhost, but a missing local file falls back to the repo's rather than erroring.
-  const dataFetch = (f, opts) => /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
-    ? fetch(`${APP_BASE}/${f}`, opts).then(r => r.ok ? r : Promise.reject(r)).catch(() => fetch(`${DATA_RAW}${APP_BASE}/${f}`, opts))
-    : fetch(`${DATA_RAW}${APP_BASE}/${f}`, opts).then(r => r.ok ? r : Promise.reject(r)).catch(() => fetch(`${APP_BASE}/${f}`, opts));
   async function loadNba() {
     setStatus('fetching');
     try {

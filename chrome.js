@@ -157,7 +157,28 @@
   });
   document.addEventListener('DOMContentLoaded', () => mount());
 
-  window.RonChrome = { mount, onTheme, SPORTS };
+  // ── Showing a page ────────────────────────────────────────────────────────
+  /**
+   * The part of every app's switchNav that's the same everywhere: show the
+   * panel, light its nav button (the Tools button on a tool's page, and the
+   * tool in the menu), set the tab title, close the menu. The app keeps its
+   * own state, rendering and URL.
+   */
+  function show(nav, { title } = {}) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.toggle('visible', p.id === 'panel-' + nav));
+    document.querySelectorAll('.nav-btn[data-nav]').forEach(b => b.classList.toggle('active', b.dataset.nav === nav));
+    document.getElementById('nav-tools-btn')?.classList.toggle('active', (CFG?.tools || []).some(t => t.nav === nav));
+    document.querySelectorAll('.nav-menu-item[data-nav]').forEach(b => b.classList.toggle('active', b.dataset.nav === nav));
+    // a page with no title of its own gets one from its tools-menu name
+    const app = (SPORTS.find(x => x[0] === CFG?.sport) || [])[2] || document.title;
+    const t = (CFG?.tools || []).find(x => x.nav === nav), btn = NAV.find(x => x[0] === nav);
+    const plain = (html) => { const d = document.createElement('div'); d.innerHTML = html; d.querySelectorAll('.nm-new, .nm-soon').forEach(x => x.remove()); return d.textContent.trim(); };
+    const name = t ? plain(t.name) : nav !== 'home' && btn ? btn[2] : '';
+    document.title = title || (name ? `${name} · ${app}` : app);
+    closeNavTools();
+  }
+
+  window.RonChrome = { mount, onTheme, show, SPORTS };
   Object.assign(window, { currentTheme, updateThemeToggleIcon, toggleTheme, sportBackdrop, placeSportMenu, toggleSportMenu, closeSportMenu, openNavTools, closeNavTools, toggleNavTools });
   Object.defineProperty(window, 'navToolsOpen', { get: () => navToolsOpen, configurable: true });
 })();
