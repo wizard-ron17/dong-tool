@@ -17,6 +17,7 @@ Shared by every app, loaded in `<head>`:
 - `sgp.js`: the same-game parlay copula.
 - `parlay.js`: the parlay slip (state, pricing, markup, styles). Every sport's measured correlation rules live here, so a slip prices the same on every page. A page only tags rows with `parAttr({...})` and hands over its data with `RonParlay.provide(sport, {...})`.
 - `chrome.js`: the shared chrome. It draws the main nav, tools menu, sport switcher, theme toggle and footer. Each app keeps empty placeholders (`#main-nav`, `#nav-tools-menu`, `footer.site-foot`) and calls `RonChrome.mount({ sport, season, credit, tools: [...] })`. The Tools menu is data in that call. A new sport is one line in `SPORTS`. Page extras on a theme flip go in `RonChrome.onTheme(fn)`.
+- `modal.js`: the modal stack manager. Every card and sheet is a body-level backdrop that closes on its own click. This file owns the scroll lock (held while any modal is open) and the keys: Escape closes only the top modal, and ← → step only the top one through its ‹ › buttons. New modals use `RonModal.open(id, { cls, nav, onClose })` / `RonModal.close(id)` (NBA's ladder card is the example). Never add another per-modal keydown or `body.style.overflow` toggle.
 - `welcome.js`: the About modal.
 
 Builds live in `scripts/build-*.js` (GitHub Actions crons in `.github/workflows/`). Link previews live in `netlify/edge-functions/` (`embed.js` meta per route, `og.js` live board cards, `stats.js`). Research lives in `research/` (Python + a few `.mjs` parity replays).
