@@ -4295,7 +4295,7 @@
   // ESPN calls the game final, what happened. Loaded the first time a Results
   // tab opens — the board never needs it.
   let liveLog = null, liveLogState = 'idle';
-  const lrF = { wk: null, mkt: '1', all: false };
+  const lrF = { wk: null, mkt: '1', recLine: 'all', all: false };
   function setLr(k, v) {
     lrF[k] = v;
     if (k !== 'all') lrF.all = false;
@@ -4342,7 +4342,7 @@
     }
     if (kind === 'rec') return (g.rec ?? []).map(([pid, name, team, pos, mu, L, p]) => {
       const got = res?.rec?.[pid] ?? 0;
-      return { pid, name, team, game: vs(team), p, line: 'o' + L, proj: mu?.toFixed(1), got: g.final ? got : '', st: state(pid, got > L) };
+      return { pid, name, team, game: vs(team), p, line: 'o' + L, lineValue: L, proj: mu?.toFixed(1), sortProj: mu, got: g.final ? got : '', st: state(pid, got > L) };
     });
     if (kind === 'yds') {
       const mk = ydF.mkt;
@@ -4350,7 +4350,7 @@
         const got = !res ? 0 : mk === 'pass' ? (res.pyds?.[pid] ?? 0) : mk === 'rush' ? (res.rush?.[pid] ?? 0)
           : mk === 'rec' ? (res.ryds?.[pid] ?? 0) : (res.rush?.[pid] ?? 0) + (res.ryds?.[pid] ?? 0);
         const L = Math.floor(med) + 0.5;
-        return { pid, name, team, game: vs(team), p: ydPOver(m, L, mu), line: 'o' + L, proj: med.toFixed(0), got: g.final ? got : '', st: state(pid, got > L), miss: Math.abs(got - med) };
+        return { pid, name, team, game: vs(team), p: ydPOver(m, L, mu), line: 'o' + L, proj: med.toFixed(0), sortProj: med, got: g.final ? got : '', st: state(pid, got > L), miss: Math.abs(got - med) };
       });
     }
     if (kind === 'kick') {
@@ -4358,7 +4358,7 @@
       return (g.kicks ?? []).map(([team, pid, name, mf, mp, mt]) => {
         const b = res?.kick?.[team] ?? [0, 0, 0, 0], mu = { fgm: mf, patm: mp, pts: mt }[mkt], L = kkLine(mkt, mu);
         const got = mkt === 'fgm' ? b[0] : mkt === 'patm' ? b[2] : 3 * b[0] + b[2];
-        return { pid: pid || team, name, team, game: vs(team), p: kkOver(mkt, L, mu), line: 'o' + L, proj: mu?.toFixed(1),
+        return { pid: pid || team, name, team, game: vs(team), p: kkOver(mkt, L, mu), line: 'o' + L, proj: mu?.toFixed(1), sortProj: mu,
                  got: g.final ? got : '', st: !g.final ? (g.live ? 'live' : 'pend') : got > L ? 'hit' : 'miss' };
       });
     }
@@ -4368,7 +4368,7 @@
     });
     return (g.cmp ?? []).map(([pid, name, team, mu, L, p]) => {
       const got = res?.cmp?.[pid] ?? 0;
-      return { pid, name, team, game: vs(team), p, line: 'o' + L, proj: mu?.toFixed(1), got: g.final ? got : '', st: state(pid, got > L) };
+      return { pid, name, team, game: vs(team), p, line: 'o' + L, proj: mu?.toFixed(1), sortProj: mu, got: g.final ? got : '', st: state(pid, got > L) };
     });
   }
 
@@ -4390,10 +4390,14 @@
     const nFinal = wk.filter(g => g.final).length;
     const label = `${Math.floor(lrF.wk / 100)} · ${WK_LABEL(lrF.wk % 100)}`;
 
-    const rows = wk.flatMap(g => lrRows(kind, g)).filter(r => r.p != null);
-    const ORDER = { hit: 0, miss: 0, void: 1, live: 2, pend: 3 };
-    // yards prices all sit near even money at the median line, so rank by the projection
-    rows.sort((a, b) => ORDER[a.st] - ORDER[b.st] || (kind === 'yds' ? +b.proj - +a.proj : b.p - a.p));
+    const allRows = wk.flatMap(g => lrRows(kind, g));
+    const rows = allRows.filter(r => r.p != null && (kind !== 'rec' || lrF.recLine === 'all' || r.lineValue === Number(lrF.recLine)));
+    // Keep week results in the board's default order, regardless of whether each row is graded yet.
+    // Count boards rank by projection; probability boards rank by the quoted price.
+    const byProjection = ['rec', 'yds', 'cmp', 'kick'].includes(kind);
+    rows.sort((a, b) => byProjection
+      ? ((+b.sortProj || 0) - (+a.sortProj || 0)) || (b.p - a.p)
+      : b.p - a.p);
     const graded = rows.filter(r => r.st === 'hit' || r.st === 'miss');
     const byPrice = [...graded].sort((a, b) => b.p - a.p);
     const hits = (list) => list.filter(r => r.st === 'hit').length;
@@ -4416,6 +4420,13 @@
 
     const mktChips = kind === 'td' ? `<div class="pbf-chips" style="margin-bottom:0.6rem">${LR_TD_MKTS.map(([v, l]) =>
       `<button class="pbf-chip${lrF.mkt === v ? ' on' : ''}" onclick="${setFn}('mkt','${v}')">${l}</button>`).join('')}</div>` : '';
+    const recLineBins = kind === 'rec'
+      ? [...new Set(games.flatMap(g => (g.rec || []).map(r => r[5])).filter(Number.isFinite))].sort((a, b) => a - b)
+      : [];
+    const recLineChips = kind === 'rec' ? `<div class="pbf-chips" style="margin-bottom:0.6rem">
+      ${[['all', 'All lines'], ...recLineBins.map(L => [String(L), 'o' + L])].map(([v, lab]) =>
+        `<button class="pbf-chip${lrF.recLine === v ? ' on' : ''}" onclick="${setFn}('recLine','${v}')">${lab}</button>`).join('')}
+    </div>` : '';
 
     const pending = wk.filter(g => !g.final);
     const pendLine = pending.length ? `<div class="lr-pending">${pending.map(g =>
@@ -4436,6 +4447,7 @@
     const more = rows.length > LIMIT ? `<button class="pbf-chip lr-more" onclick="${setFn}('all',${!lrF.all})">${lrF.all ? 'Show top ' + LIMIT : `Show all ${rows.length}`}</button>` : '';
 
     return `
+      ${recLineChips}
       ${mktChips}
       ${tiles}
       <div class="cp-wknav">
@@ -4445,7 +4457,9 @@
       </div>
       ${pendLine}
       ${wk.some(g => g.rebuilt?.includes(kind)) ? `<div class="lr-pending">This board launched after some of these games, so theirs were <b>rebuilt</b> from the lines and starters known before kickoff — nothing from the games themselves.</div>` : ''}
-      ${logged ? head + list + more : '<div class="empty">This market wasn\'t on the board for these games yet.</div>'}
+      ${logged ? head + list + more : kind === 'rec' && lrF.recLine !== 'all' && allRows.some(r => r.p != null)
+        ? `<div class="empty">No players were priced at o${lrF.recLine} this week.</div>`
+        : '<div class="empty">This market wasn\'t on the board for these games yet.</div>'}
       <div class="lr-note">Each game is graded against the board as it stood at <b>kickoff</b> — the last build before it started — and scored from the box score as soon as it goes final. A player with no stats is checked against snap counts the next morning: no snaps means he didn't play, which books treat as a void (<b>DNP</b>).</div>`;
   }
 

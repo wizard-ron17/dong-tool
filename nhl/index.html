@@ -3103,8 +3103,7 @@
     const rows = shHist[sgF.night].map(([pid, mu, L, p, got, gid, name, team, opp]) => ({
       pid, mu, L, p, got, name, team, opp,
       st: got == null ? 'pend' : got < 0 ? 'void' : got > L ? 'hit' : 'miss' }));
-    const ORDER = { hit: 0, miss: 0, void: 1, pend: 3 };
-    rows.sort((a, b) => ORDER[a.st] - ORDER[b.st] || b.mu - a.mu);
+    rows.sort((a, b) => b.mu - a.mu);
     const graded = rows.filter(r => r.st === 'hit' || r.st === 'miss');
     const hits = graded.filter(r => r.st === 'hit').length;
     const said = graded.reduce((a, r) => a + r.p, 0);
@@ -3407,8 +3406,7 @@
     const ni = nights.indexOf(F.night);
     const rows = phHist[F.night].map(x => ({ pid: x[0], mu: x[iMu], L: x[iL], p: x[iP], got: x[iGot], name: x[6], team: x[7], opp: x[8],
       st: x[iGot] == null ? 'pend' : x[iGot] < 0 ? 'void' : x[iGot] > x[iL] ? 'hit' : 'miss' }));
-    const ORDER = { hit: 0, miss: 0, void: 1, pend: 3 };
-    rows.sort((a, b) => ORDER[a.st] - ORDER[b.st] || b.mu - a.mu);
+    rows.sort((a, b) => b.mu - a.mu);
     const graded = rows.filter(r => r.st === 'hit' || r.st === 'miss');
     const top = [...graded].sort((a, b) => b.mu - a.mu).slice(0, 20);
     const gids = new Set(phHist[F.night].map(x => x[5]));
@@ -3481,8 +3479,7 @@
       return { pid, mu, L, p, got, name: x[6], team: x[7], opp: x[8],
                st: got == null ? 'pend' : got < 0 ? 'void' : got > L ? 'hit' : 'miss' };
     });
-    const ORDER = { hit: 0, miss: 0, void: 1, pend: 3 };
-    rows.sort((a, b) => ORDER[a.st] - ORDER[b.st] || b.mu - a.mu);
+    rows.sort((a, b) => b.mu - a.mu);
     const graded = rows.filter(r => r.st === 'hit' || r.st === 'miss');
     const hits = graded.filter(r => r.st === 'hit').length, said = graded.reduce((a, r) => a + r.p, 0);
     const gids = new Set(svHist[F.night].map(x => x[5]));
@@ -3652,8 +3649,7 @@
     const ni = nights.indexOf(ptF.night);
     const rows = ptHist[ptF.night].map(x => ({ name: x[2], team: x[3], opp: x[4], mu: x[iMu], L: x[iL], p: x[iP], got: x[iGot],
       st: x[iGot] == null ? 'pend' : x[iGot] < 0 ? 'void' : x[iGot] > x[iL] ? 'hit' : 'miss' }));
-    const ORDER = { hit: 0, miss: 0, void: 1, pend: 3 };
-    rows.sort((a, b) => ORDER[a.st] - ORDER[b.st] || b.mu - a.mu);
+    rows.sort((a, b) => b.mu - a.mu);
     const graded = rows.filter(r => r.st === 'hit' || r.st === 'miss');
     const hits = graded.filter(r => r.st === 'hit').length, said = graded.reduce((a, r) => a + r.p, 0);
     const gids = new Set(ptHist[ptF.night].map(x => x[1]));

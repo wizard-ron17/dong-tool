@@ -819,11 +819,11 @@
   /** Today, on the NBA's clock: its day boundary is US Eastern, and so are its date keys. */
   const todayET = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 
-  /** Headshots 404 for anyone without one; fall back to initials. */
+  /** NBA CDN headshots; fall back to initials when a player has no image. */
   function faceHtml(pid, name, cls) {
     const ini = (name || '').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
     if (!pid) return `<div class="rc-photo rc-noface ${cls || ''}">${esc(ini)}</div>`;
-    return `<img class="rc-photo ${cls || ''}" src="https://a.espncdn.com/i/headshots/nba/players/full/${esc(pid)}.png" alt="" loading="lazy"
+    return `<img class="rc-photo ${cls || ''}" src="https://cdn.nba.com/headshots/nba/latest/1040x760/${esc(pid)}.png" alt="" loading="lazy"
       onerror="this.outerHTML='&lt;div class=\\'rc-photo rc-noface ${cls || ''}\\'&gt;${esc(ini)}&lt;/div&gt;'">`;
   }
   const typeTag = (t) => t === 1 ? '<span class="sc-pre">PRE</span>' : t === 5 ? '<span class="sc-pre">PLAY-IN</span>' : t === 3 ? '<span class="sc-pre">PLAYOFFS</span>' : '';
