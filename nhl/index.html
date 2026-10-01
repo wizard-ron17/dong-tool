@@ -1164,7 +1164,7 @@
   // The shared chrome (/chrome.js): what differs per app. Tools = the Tools menu, in order.
   RonChrome.mount({ sport: "nhl", season: "2026-27", credit: "A goal tool", tools: [
     {"group": "Offense", "g": "g1"},
-    {"nav": "picks", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><circle cx=\"12\" cy=\"12\" r=\"4.5\"/><circle cx=\"12\" cy=\"12\" r=\"0.75\" fill=\"currentColor\"/></svg>", "name": "Picks", "desc": "Every skater ranked by his odds of scoring a goal."},
+    {"nav": "picks", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><circle cx=\"12\" cy=\"12\" r=\"4.5\"/><circle cx=\"12\" cy=\"12\" r=\"0.75\" fill=\"currentColor\"/></svg>", "name": "Goals", "desc": "Every skater ranked by his odds of scoring a goal."},
     {"nav": "points", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"7\" cy=\"12\" r=\"2.2\"/><circle cx=\"17\" cy=\"7\" r=\"2.2\"/><circle cx=\"17\" cy=\"17\" r=\"2.2\"/><path d=\"M9 11l6-3M9 13l6 3\"/></svg>", "name": "Points", "desc": "Points, assists and power-play points for every skater, priced at every line."},
     {"nav": "shots", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><path d=\"M12 3.5v4M12 16.5v4M3.5 12h4M16.5 12h4\"/><circle cx=\"12\" cy=\"12\" r=\"2.2\" fill=\"currentColor\" stroke=\"none\"/></svg>", "name": "Shots", "desc": "Projected shots on goal for every skater, priced at every line."},
     {"nav": "pairs", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"8.5\" cy=\"9\" r=\"3.2\"/><circle cx=\"15.5\" cy=\"9\" r=\"3.2\"/><path d=\"M3.5 19.5c.6-3 2.6-4.8 5-4.8s4.4 1.8 5 4.8M10.5 19.5c.6-3 2.6-4.8 5-4.8s4.4 1.8 5 4.8\"/></svg>", "name": "Pairs", "desc": "Who scores together and who sets up whom &mdash; priced with the measured correlation."},
@@ -3993,6 +3993,52 @@
     ['Team offence', ['team_gf_prior'], r => `${r.team} scores ${r.f.teamGf.toFixed(2)}/g`, 'Goals his own team scores a game.'],
     ['Home ice', ['is_home'], r => r.home ? 'home' : 'away', 'Home skaters score slightly more.'],
   ];
+  function openGoalHelp(mkt) {
+    const raw = (D.picks?.picks || []).find(x => x.pid === pmOpen);
+    if (!raw) return;
+    const r = raw, fx = pkFx(r), f = r.f || {}, name = esc(r.name);
+    const selected = PK_MARKETS.find(x => x.v === mkt)?.long || 'Anytime goal';
+    const marketText = mkt === 'pp'
+      ? `${selected} has its own model. The factors shown here explain his anytime-goal profile, not the separate power-play price.`
+      : mkt === 'first' || mkt === 'last'
+        ? `${selected} is a race: each dressed skater’s calibrated anytime-goal rate is his share of the game’s scoring threat.`
+        : mkt === '2' || mkt === '3' || mkt === 'p1'
+          ? `${selected} is derived from the same calibrated expected-goal rate as anytime. The model converts that rate to a count/period probability; it does not fit a separate player ranking.`
+          : 'Anytime is the calibrated chance of at least one goal, derived from his expected goals.';
+    const pct = p => `${(p * 100).toFixed(p < 0.1 ? 1 : 0)}%`;
+    const baseXg = Math.exp(pkBaseF()), rawXg = Math.exp(r.mu);
+    const allFactors = rawXg / baseXg;
+    const impact = value => Math.abs(value - 1) < 0.005
+      ? { plural: 'have little effect on', singular: 'has little effect on' }
+      : value > 1 ? { plural: 'raise', singular: 'raises' } : { plural: 'lower', singular: 'lowers' };
+    const reads = {
+      talent: `${name} has ${f.goalsPg.toFixed(2)} goals and ${f.sogPg.toFixed(1)} shots per game, with ${(f.shpct * 100).toFixed(1)}% shooting. Together these inputs ${impact(fx.talent).plural} his expected goals.`,
+      ice: `${name} averages ${(f.toi / 60).toFixed(1)} minutes per game, weighted toward his last five; that usage ${impact(fx.ice).singular} expected goals.`,
+      pp: `${name} averages ${(f.pptoi / 60).toFixed(1)} power-play minutes per game over his last five; that role ${impact(fx.pp).singular} expected goals.`,
+      form: `${name} has ${f.sogL10.toFixed(1)} shots per game over his last ten; that recent form ${impact(fx.form).singular} expected goals.`,
+      spot: `${r.opp} allows ${f.oppGa.toFixed(2)} goals per game; ${r.team} scores ${f.teamGf.toFixed(2)}, and he is ${r.home ? 'at home' : 'on the road'}. Together those conditions ${impact(fx.spot).plural} expected goals.`,
+    };
+    const helpGroups = [
+      { key: 'talent', label: 'Scoring talent', definition: PK_GROUPS[0][3] },
+      { key: 'ice', label: 'Ice time', definition: PK_GROUPS[1][3] },
+      { key: 'pp', label: 'Power play', definition: PK_GROUPS[2][3] },
+      { key: 'form', label: 'Recent shots', definition: PK_GROUPS[3][3] },
+      { key: 'spot', label: 'Game spot', definition: `${PK_GROUPS[4][3]} ${PK_GROUPS[5][3]} ${PK_GROUPS[6][3]} The game effect is small compared with player role.` },
+    ];
+    const rows = helpGroups.map(({ key, label, definition }) => {
+      const value = fx[key];
+      return `<div class="model-help-row"><div class="model-help-row-hd"><b>${label}</b><strong>${value.toFixed(2)}×</strong></div><p>${reads[key]}</p><p class="model-help-def">${definition}</p></div>`;
+    }).join('');
+    const dlg = RonModal.open('goal-help-back', { cls: 'pm model-help-dialog', label: 'How the goal price is built' });
+    dlg.innerHTML = `<button class="pm-x" onclick="RonModal.close('goal-help-back')" aria-label="Close">×</button>
+      <div class="model-help-title">How this score was built</div>
+      <div class="model-help-eq"><span><b>${baseXg.toFixed(3)}</b><small>base xG</small></span><i>×</i><span><b>${allFactors.toFixed(2)}×</b><small>all factors</small></span><i>=</i><span><b>${rawXg.toFixed(3)}</b><small>expected goals</small></span><i>→</i><span><b>${pct(r.p)}</b><small>anytime chance</small></span></div>
+      <p class="model-help-intro">${marketText}</p>
+      <p class="model-help-intro"><b>Base xG</b> is the top baseline rate on tonight’s board before the individual fit terms. Talent, role and game factors move that anchor to this skater’s expected goals. <b>1.00× is neutral</b>; above is more, below is fewer. The anytime chance is calibrated from the final expected-goal rate.</p>
+      ${rows}
+      <p class="model-help-note"><b>Not in the number:</b> recent goals add nothing once recent shots are in; opponent shots allowed and penalty kill were tested and were nulls. 2+, hat trick, period and race prices derive from the same calibrated rate, not extra independent chances. PP goal is a separate model and is not represented by these bars.</p>
+      <p class="model-help-note"><b>Fair odds, no vig.</b> A sportsbook’s price includes its margin; this model price alone is not evidence of an edge.</p>`;
+  }
   let pmOpen = null;
 
   function openPick(pid) {
@@ -4051,7 +4097,7 @@
           </div>
           <div class="pm-pl" id="pm-pl-add" style="text-align:center;margin:0.55rem 0 0.2rem">${pmAddBtn(r)}</div>
           <div class="pm-link"><button class="vid-btn" style="float:right;margin-left:0.5rem" onclick="closePick();openPlayer(${r.pid})">Player card →</button>we project <b>${r.mu.toFixed(2)}</b> expected goals for him — a <b>${pkPct(r.p)}</b> chance of at least one</div>
-          <div class="pm-sec">What moves the price</div>
+          <div class="pm-sec">${pkF.mkt === 'pp' ? 'Underlying goal profile' : 'What moves the price'}<button class="model-help-btn" onclick="openGoalHelp('${pkF.mkt}')" aria-label="How this goal price is built" title="How this price is built">?</button></div>
           <div class="pm-body">
             <div class="fbar-legend">← tougher · 1.0× neutral · juicier →</div>
             <div class="fbars"><div class="fbar-baseline"></div>${bars}</div>
@@ -4065,7 +4111,7 @@
     document.addEventListener('keydown', pmKey);
   }
   function closePick() { document.getElementById('pm-back')?.remove(); document.removeEventListener('keydown', pmKey); pmOpen = null; }
-  function pmKey(e) { if (e.key === 'Escape') closePick(); else if (e.key === 'ArrowLeft') pmStep(-1); else if (e.key === 'ArrowRight') pmStep(1); }
+  function pmKey(e) { if (RonModal.top()?.id === 'goal-help-back') return; if (e.key === 'Escape') closePick(); else if (e.key === 'ArrowLeft') pmStep(-1); else if (e.key === 'ArrowRight') pmStep(1); }
   function pmStep(d) {
     const deck = pkRows(), at = deck.findIndex(x => x.pid === pmOpen), nx = deck[at + d]; if (!nx) return;
     document.removeEventListener('keydown', pmKey); openPick(nx.pid);

@@ -2742,7 +2742,7 @@
   // The shared chrome (/chrome.js): what differs per app. Tools = the Tools menu, in order.
   RonChrome.mount({ sport: "nfl", season: "2026", credit: "A touchdown tool", tools: [
     {"group": "Scoring", "g": "g1"},
-    {"nav": "picks", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><circle cx=\"12\" cy=\"12\" r=\"4.5\"/><circle cx=\"12\" cy=\"12\" r=\"0.75\" fill=\"currentColor\"/></svg>", "name": "Picks", "desc": "Every skill player ranked by his odds of finding the end zone."},
+    {"nav": "picks", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><circle cx=\"12\" cy=\"12\" r=\"4.5\"/><circle cx=\"12\" cy=\"12\" r=\"0.75\" fill=\"currentColor\"/></svg>", "name": "Tuds", "desc": "Every skill player ranked by his odds of finding the end zone."},
     {"nav": "kickers", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6.5 11V3M17.5 11V3M6.5 11h11M12 11v8M9 21h6\"/></svg>", "name": "Kickers", "desc": "Field goals and PATs, with the legs worth backing this week."},
     {"nav": "returners", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"14.5\" cy=\"4\" r=\"2\"/><path d=\"M13 7.6 L10 13\"/><path d=\"M13.2 9 L17.5 11.2\"/><path d=\"M11.6 9.8 L7.5 8.6\"/><path d=\"M10 13 L13 16 L12.4 21\"/><path d=\"M10 13 L6.2 16.8\"/></svg>", "name": "Returners", "desc": "Return volume and the men who can take one the distance."},
     {"nav": "pairs", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"9\" cy=\"12\" r=\"4.75\"/><circle cx=\"15\" cy=\"12\" r=\"4.75\"/></svg>", "name": "Pairs", "desc": "Teammates and rivals who tend to score the same week."},
@@ -4004,6 +4004,57 @@
     return { base: base + fixed, parts: out, z };
   }
 
+  function openTdHelp(mkt) {
+    const P = nflData?.picks, raw = P?.picks?.find(x => x.pid === pmOpen);
+    if (!P || !raw) return;
+    const r = pbEnrich(raw, pbGameMap()), M = P.model;
+    const { base, parts, z } = pmContribs(r, M);
+    const sig = x => 1 / (1 + Math.exp(-x));
+    const factors = parts.slice().sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
+    const multiplier = Math.exp(z - base);
+    const rawChance = sig(z);
+    const direction = v => Math.abs(v - 1) < 0.005 ? 'about neutral' : v > 1 ? 'pushes his odds up' : 'pulls his odds down';
+    const pct = p => `${(p * 100).toFixed(p < 0.1 ? 1 : 0)}%`;
+    const f = r.f || {}, name = nwEsc(r.name);
+    const marketText = {
+      '1': 'Anytime is the modelled chance of at least one offensive touchdown. Return chances, when present, are added separately.',
+      '2': 'Two-plus touchdowns start from the anytime chance, then apply the player’s conditional chance of scoring again.',
+      '3': 'First touchdown is a race: his scoring chance is divided by the game’s total scoring threat.',
+      '4': 'Last touchdown is also a race against the other players likely to score in the game.',
+      '5': 'Passing touchdowns use a separate Poisson model based on projected passing TDs, attempts, his recent TD rate and the team total. The role bars below do not produce this price.',
+    }[mkt] || 'This market is derived from the player’s modelled scoring chance.';
+    const dlg = RonModal.open('td-help-back', { cls: 'pm model-help-dialog', label: 'How the touchdown price is built' });
+    const rows = factors.map(({ f: key, d }) => {
+      const value = Math.exp(d), def = PM_LABELS[key];
+      const read = key === '__calib' ? 'The out-of-sample calibration trims the raw price toward what actually happened.'
+        : key === 'snap_last3' ? `${name} played <b>${Math.round((f.snap3 || 0) * 100)}%</b> of his team’s snaps over the last three games; that ${direction(value)}.`
+        : key === 'snap_share_prior' ? `${name}’s longer-run snap share is <b>${Math.round((f.snapPrior || 0) * 100)}%</b>; it ${direction(value)}.`
+        : key === 'rz_touches_log' ? `${name} has <b>${(f.rz || 0).toFixed(1)}</b> red-zone touches per game; that ${direction(value)}.`
+        : key === 'touches_log2' ? `${name} averages <b>${(f.touches || 0).toFixed(1)}</b> touches per game; that ${direction(value)}.`
+        : key === '__trend' ? `${name} averages <b>${(f.touch3 || 0).toFixed(1)}</b> touches over his last three, versus <b>${(f.touches || 0).toFixed(1)}</b> usually; the change ${direction(value)}.`
+        : key === 'implied_total' ? `${r.team} is implied to score <b>${(f.implied || 0).toFixed(1)}</b> points; that ${direction(value)}.`
+        : key === 'mates_out' ? `${f.matesOut || 0} same-position teammate${f.matesOut === 1 ? '' : 's'} unavailable; that ${direction(value)}.`
+        : key === 'new_absence' ? `${f.newAbsence ? 'A same-position role has newly opened' : 'No new same-position absence is flagged'}; that ${direction(value)}.`
+        : key === 'qb_gl5' ? `${name} averages <b>${(f.gl5 || 0).toFixed(2)}</b> designed carries inside the five per game; that ${direction(value)}.`
+        : key === 'td_share_log' ? `${name} accounts for <b>${Math.round((f.tdShare || 0) * 100)}%</b> of his team’s touchdowns; that ${direction(value)}.`
+        : `${name}’s ${def?.[0] || 'model input'} contributes a ${value.toFixed(2)}× odds multiplier.`;
+      return `<div class="model-help-row"><div class="model-help-row-hd"><b>${def?.[0] || 'Calibration'}</b><strong>${value.toFixed(2)}×</strong></div><p>${read}</p><p class="model-help-def">${def?.[2] || 'A walk-forward correction learned from prices and outcomes in earlier seasons.'}</p></div>`;
+    }).join('');
+    const calibrated = r.pRaw != null && Math.abs(r.p - r.pRaw) >= 0.005
+      ? `<p class="model-help-note"><b>Calibration:</b> raw chance ${pct(r.pRaw)} → displayed chance ${pct(r.p)}. The walk-forward calibration trims favourite prices toward observed outcomes.</p>` : '';
+    dlg.innerHTML = `<button class="pm-x" onclick="RonModal.close('td-help-back')" aria-label="Close">×</button>
+      <div class="model-help-title">How this score was built</div>
+      <div class="model-help-eq"><span><b>${Math.exp(base).toFixed(2)}:1</b><small>position odds</small></span><i>×</i><span><b>${multiplier.toFixed(2)}×</b><small>all model factors</small></span><i>=</i><span><b>${Math.exp(z).toFixed(2)}:1</b><small>raw odds</small></span><i>→</i><span><b>${pct(rawChance)}</b><small>raw chance</small></span><i>→</i><span><b>${pct(r.p)}</b><small>displayed chance</small></span></div>
+      <p class="model-help-intro">${marketText}</p>
+      <p class="model-help-intro"><b>Position baseline</b> is the model’s starting chance for an average player at this position. Each factor multiplies <b>odds</b>, not probability: 1.00× is neutral, 1.10× means 10% longer odds in the scoring direction. The final price can also include calibration, injury shading or a return-role adjustment.</p>
+      ${rows}
+      ${calibrated}
+      ${r.pRet ? `<p class="model-help-note"><b>Return role:</b> this player’s return chance is added after the offensive model; it is included in the shown price but not in the factor bars.</p>` : ''}
+      ${mkt === '5' ? `<p class="model-help-note"><b>Passing TD:</b> this is a separate projection model, not the role model above. The passing ladder is priced from his projected passing touchdowns and team context.</p>` : ''}
+      <p class="model-help-note"><b>Not in the number:</b> opposing defense, weapon quality and red-zone efficiency were tested and added nothing once team total and player role were included.</p>
+      <p class="model-help-note"><b>Fair odds, no vig.</b> A sportsbook’s price will include its margin; this model price is not by itself evidence of an edge.</p>`;
+  }
+
   // Factors view: the anytime model's inputs grouped the way the MLB table
   // splits Score = Power × Spot. Role = who he is (touches, snaps, TD share,
   // red zone, QB goal line), Trend = last 3 games vs his usual touches, Spot =
@@ -4172,7 +4223,7 @@
             : mkt === '3' || mkt === '4'
             ? `his share of <b>${(rivals).toFixed(1)}</b> units of scoring threat in this game — ${mkt === '3' ? 'first' : 'last'} TD is a race, so who else is likely to score matters as much as he does`
             : `if he scores, <b>${((r.pCond2 ?? 0) * 100).toFixed(0)}%</b> chance of a second — which is what turns the first price into the second`}</div>
-          <div class="pm-sec">${mkt === '5' ? 'The passing ladder' : 'What moves the price'}</div>
+          <div class="pm-sec">${mkt === '5' ? 'The passing ladder' : 'What moves the price'}<button class="model-help-btn" onclick="openTdHelp('${mkt}')" aria-label="How this touchdown price is built" title="How this price is built">?</button></div>
           <div class="pm-body">
             ${mkt === '5' ? pmPassBody(r) : `
             <div class="fbar-legend">← tougher · 1.0× neutral · juicier →</div>
@@ -4201,6 +4252,7 @@
     pmOpen = null;
   }
   function pmKey(e) {
+    if (RonModal.top()?.id === 'td-help-back') return;
     if (e.key === 'Escape') closePick();
     else if (e.key === 'ArrowLeft') pmStep(-1);
     else if (e.key === 'ArrowRight') pmStep(1);

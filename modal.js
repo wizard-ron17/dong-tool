@@ -32,6 +32,23 @@
   .pm-back .pk-side-next { right: max(0.35rem, calc(50% - 322px)); }
   .pm-x { position: absolute; top: 0.55rem; right: 0.7rem; background: none; border: none; color: var(--dim); font-size: 1.45rem; line-height: 1; cursor: pointer; z-index: 2; }
   .pm-x:hover { color: var(--text); }
+  .model-help-btn { display: inline-flex; align-items: center; justify-content: center; width: 1.05rem; height: 1.05rem; margin-left: 0.4rem; padding: 0; vertical-align: -0.1rem; border: 1px solid var(--border2); border-radius: 50%; background: none; color: var(--dim); font: 700 0.66rem/1 var(--font-b); cursor: pointer; transition: color 0.14s, border-color 0.14s; }
+  .model-help-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .model-help-dialog { max-width: 620px; padding: 1rem 1.3rem 1.3rem; }
+  .model-help-title { margin: 0 1.3rem 0.75rem; color: var(--text-strong); font: 700 0.88rem var(--font-d); letter-spacing: 0.08em; text-align: center; text-transform: uppercase; }
+  .model-help-intro, .model-help-note { margin: 0 0 0.75rem; color: var(--muted); font-size: 0.8rem; line-height: 1.5; }
+  .model-help-eq { display: flex; align-items: flex-end; justify-content: center; gap: 0.55rem; flex-wrap: wrap; margin: 0.2rem 0 0.8rem; padding: 0.6rem; border: 1px solid var(--border); border-radius: 10px; background: var(--surface0); }
+  .model-help-eq span { display: flex; flex-direction: column; align-items: center; }
+  .model-help-eq b { color: var(--text-strong); font: 700 1rem var(--font-d); }
+  .model-help-eq small { margin-top: 0.1rem; color: var(--dim); font-size: 0.6rem; text-align: center; text-transform: uppercase; }
+  .model-help-eq i { padding-bottom: 0.8rem; color: var(--dim); font: normal 0.9rem var(--font-d); }
+  .model-help-row { padding: 0.6rem 0 0.1rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.8rem; line-height: 1.5; }
+  .model-help-row-hd { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+  .model-help-row-hd strong { color: var(--accent); font: 700 0.8rem var(--font-d); white-space: nowrap; }
+  .model-help-row p { margin: 0.22rem 0; }
+  .model-help-row .model-help-def { color: var(--dim); }
+  .model-help-row b, .model-help-intro b, .model-help-note b { color: var(--text); }
+  .model-help-note { padding-top: 0.65rem; border-top: 1px solid var(--border); margin: 0; }
   @media (min-width: 620px) {
     .pk-side-prev { left: calc(50% - 296px); }
     .pk-side-next { right: calc(50% - 296px); }
