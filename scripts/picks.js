@@ -1664,7 +1664,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   return {
     season, week, generatedAt: new Date().toISOString(),
     shots,
-    receptions, receptionModel: { alpha: RECEPTION_MODEL.alpha, lines: REC_LINES,
+    receptions, receptionModel: { alpha: RECEPTION_MODEL.alpha, varPow: RECEPTION_MODEL.var_pow ?? null, lines: REC_LINES,
                                   windFactor: RECEPTION_MODEL.wind_factor },
     wind: Object.fromEntries(windByGame),
     receptionsHistory,

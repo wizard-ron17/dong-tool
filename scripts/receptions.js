@@ -119,8 +119,11 @@ export function scoreMu(row) {
   let base = raw;
   if (cal) {
     const { x, y } = cal;
+    const n = x.length;
     if (raw <= x[0]) base = y[0] * (raw / x[0]);
-    else if (raw >= x[x.length - 1]) base = y[y.length - 1];
+    // past the last knot: extended along its last slope (research/receptions_disp.py) —
+    // flat, it capped every elite receiver's mean (projected 9.4 → priced 6.3, caught 6.9)
+    else if (raw >= x[n - 1]) base = MODEL.mu_cal_extend ? y[n - 1] + (y[n - 1] - y[n - 3]) / (x[n - 1] - x[n - 3]) * (raw - x[n - 1]) : y[n - 1];
     else {
       let i = 1;
       while (i < x.length && x[i] < raw) i++;
@@ -129,10 +132,8 @@ export function scoreMu(row) {
     }
   }
   // Wind multiplies the calibrated mean rather than entering the fit. Applied
-  // AFTER the recalibration on purpose: the map is flat past its last knot,
-  // which is honest about usage but would swallow wind whole — a 25 mph game
-  // moved the top of the board 6.34 -> 6.34, zero effect on exactly the players
-  // most likely to be bet.
+  // AFTER the recalibration on purpose: a map fit on calm games would otherwise
+  // bend wind along with usage.
   return base * windFactor(row.wind_mph);
 }
 
@@ -150,13 +151,26 @@ export function windFactor(mph) {
 }
 
 /**
+ * The dispersion for a projection. The spread scales with volume
+ * (research/receptions_disp.py): Var = c mu^p, so a fringe 1-catch projection
+ * is far noisier for its size than a WR1's 7. One alpha for everyone made the
+ * top of the board ~7% too long on the over; this beat it at every line
+ * walk-forward. NB2: alpha = (Var - mu) / mu^2, floored.
+ */
+export function alphaOf(mu) {
+  const V = MODEL.var_pow;
+  if (!V || !(mu > 0)) return MODEL.alpha;
+  return Math.max(V.floor, (V.c * Math.pow(mu, V.p) - mu) / (mu * mu));
+}
+
+/**
  * P(receptions > line) under NB2, Var = mu + alpha*mu^2.
  *
  * Summing the pmf up to floor(line) rather than using a Poisson tail is the
  * whole point: the extra variance moves probability out of the middle and the
  * over gets cheaper, by up to 9 points at the longer lines.
  */
-export function pOver(line, mu, alpha = MODEL.alpha) {
+export function pOver(line, mu, alpha = alphaOf(mu)) {
   const k = Math.floor(line);
   const r = 1 / alpha;
   const p = r / (r + mu);

@@ -167,11 +167,11 @@
     <p class="intro">One score and four numbers per model. None of them is "win rate": a model can be great and still lose to a book that prices the same thing a little better. That's what the <a href="#market">vs the market</a> section is for.</p>
     <div class="read">
       <div class="rd score"><div><h3>Model score · 0 to 100</h3><div class="q">How far can you trust this model's prices?</div>
-        <p>One number per model, made of three parts you can see on every card. <b>90+</b> is as robust as sports props get; <b>70s–80s</b> is solid; <b>around 50</b> means the prices are fair but the model knows little you couldn't guess; <b>under 30</b> means it publishes a score, not a probability.</p></div>
+        <p>One number per model, made of three parts you can see on every card. <b>90+</b> is as robust as sports props get; <b>70s–80s</b> is solid; <b>around 50</b> means limited signal beyond a guess; <b>under 30</b> means the ranking, prices, or evidence need substantial caution.</p></div>
         <ul>
           <li><b>Ranking (45%)</b>: the AUC, from 0.50 (a coin flip, 0) to 0.85 or better (full marks).</li>
-          <li><b>Honest prices (35%)</b>: the calibration gap, minus the gap a perfectly priced model would still show on that many predictions by chance. Within noise = full marks; 4 points past it = 0. So a small sample isn't punished for being small.</li>
-          <li><b>Evidence (20%)</b>: how many walk-forward or graded predictions, from 100 (0) to 100,000+ (full).</li>
+          <li><b>Honest prices (35%)</b>: at the top of the board (the tenth we price highest, where people bet), how far our price is from what actually happened, <b>in relative terms</b>, minus what chance alone explains at that sample. Within noise = full marks; 15% past it = 0. Relative matters: a 0.2% hat trick priced at 0.24% is only 0.04 points off, but its odds are 20% too short.</li>
+          <li><b>Evidence (20%)</b>: how many actual hits (or misses, whichever is rarer) back it up, from 10 (0) to 10,000+ (full). 140,000 skater-games hold only 288 hat tricks.</li>
           <li style="color:var(--dim)">It measures how <b>trustworthy</b> our prices are, not whether they beat the book (see <a href="#market">vs the market</a>), and minutes-driven NBA markets are easier to rank than one-bounce ones, so compare within a sport first.</li>
         </ul></div>
       <div class="rd"><h3>AUC</h3><div class="q">Does it rank the right players first?</div>
@@ -276,17 +276,29 @@
   const fmtN = (n) => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'k' : String(n);
   const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
-  // The model score: ranking 45%, honest prices 35% (calibration beyond what
-  // sampling noise explains at this n), evidence 20%. Models that publish a score,
-  // not a probability, have no calibration and are scored on the other two.
+  // The model score: ranking 45%, honest prices 35%, evidence 20%.
+  //   honest prices  the relative error at the TOP of the board (the tenth we price
+  //                  highest, where the bets are), minus what sampling noise explains
+  //                  at that many hits; 15% past the noise = 0. Relative, because a
+  //                  0.2% hat trick priced at 0.24% is only 0.04 points off yet 20%
+  //                  too short in odds.
+  //   evidence       the hits (or misses, if rarer) behind it, not the predictions:
+  //                  140k skater-games hold only 288 hat tricks. 10 → 0, 10,000+ → full.
+  // Models that publish a score, not a probability, are scored on the other two.
   const cl = (x) => Math.max(0, Math.min(1, x));
   function scoreOf(m) {
     if (m.auc == null) return null;
-    const R = cl((m.auc - 0.5) / 0.35), E = cl((Math.log10(m.n) - 2) / 3);
-    let C = null, noise = null;
-    if (m.ece != null && m.base) { noise = 0.8 * 100 * Math.sqrt(m.base * (1 - m.base) / (m.n / 10)); C = cl(1 - Math.max(0, m.ece - noise) / 4); }
+    const R = cl((m.auc - 0.5) / 0.35);
+    const events = m.base != null ? m.n * Math.min(m.base, 1 - m.base) : m.n;
+    const E = cl((Math.log10(Math.max(events, 1)) - 1) / 3);
+    let C = null, rel = null, noise = null;
+    if (m.top10_priced != null && m.top10) {
+      const topHits = m.n / 10 * m.top10;
+      rel = m.top10_priced / m.top10 - 1; noise = 1 / Math.sqrt(Math.max(topHits, 1));
+      C = cl(1 - Math.max(0, Math.abs(rel) - noise) / 0.15);
+    }
     const total = C == null ? (0.45 * R + 0.2 * E) / 0.65 : 0.45 * R + 0.35 * C + 0.2 * E;
-    return { total: Math.round(100 * total), R, C, E, noise };
+    return { total: Math.round(100 * total), R, C, E, rel, noise, events };
   }
   const sTone = (x) => x >= 85 ? 'great' : x >= 70 ? 'good' : x >= 55 ? 'ok' : x >= 35 ? 'weak' : 'flip';
   function card(m) {
@@ -307,7 +319,7 @@
         <div><div class="m-nm">${esc(m.market)}</div><div class="m-sub"><span class="chip">${esc(m.line)}</span> &nbsp;${esc(m.tool)} tool</div></div>
         ${S ? `<div class="m-score t-${st}" title="Model score ${S.total}/100: ranking ${Math.round(S.R * 100)}, honest prices ${S.C == null ? 'n/a (a score, not a probability)' : Math.round(S.C * 100)}, evidence ${Math.round(S.E * 100)}"><b>${S.total}</b><span>score</span></div>` : ''}
       </div>
-      ${S ? `<div class="parts">${part('Ranking', S.R, `AUC ${m.auc.toFixed(3)} (${WORD[t]})`)}${part('Honest prices', S.C, S.C == null ? 'publishes a score, not a probability' : `calibration gap ${m.ece.toFixed(2)} pts, ${S.noise.toFixed(2)} expected from noise alone`)}${part('Evidence', S.E, `${m.n.toLocaleString()} predictions`)}</div>` : ''}
+      ${S ? `<div class="parts">${part('Ranking', S.R, `AUC ${m.auc.toFixed(3)} (${WORD[t]})`)}${part('Honest prices', S.C, S.C == null ? 'publishes a score, not a probability' : `top of the board priced ${pc(m.top10_priced)}, hit ${pc(m.top10)}: ${S.rel >= 0 ? '+' : ''}${(S.rel * 100).toFixed(1)}% (noise alone ±${(S.noise * 100).toFixed(1)}%)`)}${part('Evidence', S.E, `${Math.round(S.events).toLocaleString()} hits behind ${m.n.toLocaleString()} predictions`)}</div>` : ''}
       ${m.auc != null ? `<div class="bar-lbl" style="margin-top:-0.3rem"><span>AUC <b class="t-${t}">${m.auc.toFixed(3)}</b> · ${WORD[t]} ranking</span><span>0.50 = coin flip</span></div>` : ''}
       ${kpis}
       ${m.auc != null && m.cal ? `<div class="cal">${m.cal.map(([k, pr, act]) => `<div class="cal-row"><span>board's ${k}</span><span>priced <b>${pc(pr)}</b></span><span>hit <b>${pc(act)}</b></span></div>`).join('')}</div>` : ''}

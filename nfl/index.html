@@ -4783,7 +4783,7 @@
         const e = row(r.pid, r.name, r.team, 'QB'), pi = r.p['0.5'] ?? r.p[0.5]; st(e, 'int', 'Interceptions', r.mu, 0.5, pi, null, `openInt('${r.pid}')`, lg(r, 'int', 'int', 0.5, pi, 'Over 0.5 interceptions'));
       }
       for (const r of inG(nflData.receptions)) {
-        const { L, p } = nbEven(r.mu, nflData.receptionModel?.alpha, nflData.receptionModel?.lines || [2.5]);
+        const { L, p } = nbEven(r.mu, rcAlpha(r.mu), nflData.receptionModel?.lines || [2.5]);
         const e = row(r.pid, r.name, r.team, r.pos); st(e, 'rec', 'Receptions', r.mu, L, p, null, `openRec('${r.pid}')`, lg(r, 'rec', 'rec', L, p, `Over ${L} receptions`));
       }
       for (const [mk, lab] of [['pass', 'Pass yds'], ['rush', 'Rush yds'], ['rec', 'Rec yds'], ['rr', 'Rush + rec']])
@@ -6623,6 +6623,12 @@ let pairStacks = false;
   window.clearRecSearch = clearRecSearch;
 
   const RC_LINES = () => nflData?.receptionModel?.lines || [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5];
+  /** Receptions dispersion for a projection: the spread scales with volume (scripts/receptions.js alphaOf). */
+  const rcAlpha = (mu) => {
+    const M = nflData?.receptionModel, V = M?.varPow;
+    return V && mu > 0 ? Math.max(V.floor, (V.c * Math.pow(mu, V.p) - mu) / (mu * mu)) : M?.alpha;
+  };
+  window.rcAlpha = rcAlpha;
   // Same interpolation the build uses, so the modal reports the multiplier that
   // was actually applied rather than re-deriving one.
   function rcWindFactor(mph) {
@@ -7702,7 +7708,7 @@ let pairStacks = false;
   const LC = {
     rec: {
       rows: () => rcRows(), all: () => nflData?.receptions || [],
-      alpha: () => nflData.receptionModel?.alpha, unit: 'receptions', big: (r) => [r.mu.toFixed(1), 'Projected receptions'],
+      alpha: (r) => rcAlpha(r?.mu), unit: 'receptions', big: (r) => [r.mu.toFixed(1), 'Projected receptions'],
       lines: [0.5, 12.5],
       metrics: (r) => {
         const f = r.f, pct = (x) => Math.round((x || 0) * 100) + '%';
@@ -7787,7 +7793,7 @@ let pairStacks = false;
       for (const v of r.tq) pmf[Math.min(K, Math.max(0, Math.round(v)))] += 1 / r.tq.length;
       return pmf;
     }
-    const alpha = cfg.alpha() ?? 0.05, rr = 1 / alpha, pp = rr / (rr + r.mu);
+    const alpha = cfg.alpha(r) ?? 0.05, rr = 1 / alpha, pp = rr / (rr + r.mu);
     const pmf = [Math.pow(pp, rr)];
     let cdf = pmf[0], k = 0;
     while ((cdf < 0.9985 || k < Math.ceil(r.mu) + 2) && k < 60) {

@@ -78,6 +78,16 @@ export const GOAL_MODEL = MODEL;
 const TM = JSON.parse(
   fs.readFileSync(new URL('../research/nhl_goal_types_model.json', import.meta.url), 'utf8'));
 
+function calibrateGoalMarket(key, p) {
+  const scale = TM.cal_scale?.[key];
+  if (scale != null) return Math.max(1e-6, Math.min(1 - 1e-6, p * scale));
+  const coeff = TM.cal?.[key];
+  if (!coeff) return p;
+  const bounded = Math.max(1e-6, Math.min(1 - 1e-6, p));
+  const x = Math.log(bounded / (1 - bounded));
+  return 1 / (1 + Math.exp(-(coeff[0] + coeff[1] * x)));
+}
+
 /** Power-play goal features — rates on a log scale, the same transforms as the research. */
 export function ppFeatures({ role, gp, ppg, sogPrior, shpct, pptoiL5, pptoiL10, oppPk, teamGf, isHome }) {
   const P = TM.pp, R = P.role[role] || P.role.F, off = P.log_offset;
@@ -118,12 +128,12 @@ export function goalMarkets(picks, dressed) {
   for (const p of picks) if (dressed(p)) M.set(p.gameId, (M.get(p.gameId) || 0) + mu(p));
   for (const p of picks) {
     const m = mu(p), g = M.get(p.gameId) || m;
-    p.p2 = +(1 - Math.exp(-m) * (1 + m)).toFixed(5);
-    p.p3 = +(1 - Math.exp(-m) * (1 + m + m * m / 2)).toFixed(6);
-    p.pP1 = +(1 - Math.exp(-TM.s1 * m)).toFixed(5);
+    p.p2 = +calibrateGoalMarket('p2', 1 - Math.exp(-m) * (1 + m)).toFixed(5);
+    p.p3 = +calibrateGoalMarket('p3', 1 - Math.exp(-m) * (1 + m + m * m / 2)).toFixed(6);
+    p.pP1 = +calibrateGoalMarket('p1', 1 - Math.exp(-TM.s1 * m)).toFixed(5);
     const share = m / (dressed(p) ? g : g + m) * (1 - Math.exp(-g));
-    p.pFirst = +share.toFixed(5);
-    p.pLast = p.pFirst;                               // same race; a D factor for empty-netters moved nothing
+    p.pFirst = +calibrateGoalMarket('first', share).toFixed(5);
+    p.pLast = +calibrateGoalMarket('last', share).toFixed(5);   // same race, its own layer: it ran cold where first ran hot
   }
 }
 export const MARKET_CUTS = TM.cuts;

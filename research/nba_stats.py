@@ -2,6 +2,7 @@
 steals, blocks, stocks — plus double/triple-doubles built from pts/reb/ast (research).
 
     python3 research/nba_stats.py            # walk-forward check, then export into nba_model.json
+    python3 research/nba_stats.py oos        # walk-forward only: save nba_stats_oos.parquet (the model audit scores it), no export
 
 Every stat is the same shape (nba_points.py found it, round three):
   mu = projected minutes (nba_minutes.py) x his per-minute rate, times the game
@@ -19,7 +20,7 @@ Double/triple-double (nba_ddtd.py): pts, reb, ast independent GIVEN minutes
 (residual r <= .07), a shared night factor g ~ Gamma(1, v) on all three, and
 his own last-40 double-double rate blended in on the logit scale.
 """
-import json, os
+import json, sys, os
 import numpy as np
 import pandas as pd
 from scipy.stats import nbinom, gamma as gamma_dist
@@ -161,7 +162,7 @@ def main():
             cells.append(f"{k}+ {ll(L[:, j], y):.4f}/{ll(h, y):.4f}")
         print(f"{st:5s} " + "  ".join(cells))
     R = pd.concat(ddrows); lgt = lambda x: np.log(np.clip(x, 1e-6, 1 - 1e-6) / (1 - np.clip(x, 1e-6, 1 - 1e-6)))
-    blend = {}
+    blend, DDOUT = {}, {"dd": [], "td": []}
     for c in ("dd", "td"):
         # his own rate blended on the logit scale — fit on earlier seasons, scored on the next
         out = []
@@ -170,11 +171,26 @@ def main():
             X = np.column_stack([np.ones(len(tr)), lgt(tr[f"p_{c}"]), lgt(tr[f"l40_{c}"])]); bb = np.array([0, 1.0, 0]); yy = tr[c].values
             for _ in range(40):
                 q = 1 / (1 + np.exp(-X @ bb)); W = q * (1 - q); bb += np.linalg.solve(X.T @ (X * W[:, None]) + 1e-8 * np.eye(3), X.T @ (yy - q))
-            out.append((te[c].values, 1 / (1 + np.exp(-(bb[0] + bb[1] * lgt(te[f"p_{c}"]) + bb[2] * lgt(te[f"l40_{c}"])))), te[f"l40_{c}"].values, te[f"p_{c}"].values))
+            out.append((te[c].values, 1 / (1 + np.exp(-(bb[0] + bb[1] * lgt(te[f"p_{c}"]) + bb[2] * lgt(te[f"l40_{c}"])))), te[f"l40_{c}"].values, te[f"p_{c}"].values, s))
+            DDOUT[c].append(out[-1])
             blend[c] = [float(x) for x in bb]
         y = np.concatenate([o[0] for o in out]); pb = np.concatenate([o[1] for o in out]); pl = np.concatenate([o[2] for o in out]); pm = np.concatenate([o[3] for o in out])
         top = np.argsort(-pb)[:2000]
         print(f"\n{c}: log loss his last-40 {ll(pl, y):.5f} · model {ll(pm, y):.5f} · blended {ll(pb, y):.5f} · top 2,000 priced {pb[top].mean():.3f} hit {y[top].mean():.3f}")
+
+    if ONLY_OOS:
+        # Keep the diagnostic export opt-in; normal model builds should not write extra artifacts.
+        oos = []
+        for st in STATS:
+            for (y, L, _), s in zip(res[st], ss[2:]):
+                for j, k in enumerate(RUNGS[st]):
+                    oos.append(pd.DataFrame({"season": s, "stat": st, "rung": k, "p": L[:, j], "y": (y >= k).astype(float)}))
+        O = pd.concat(oos, ignore_index=True)
+        O.to_parquet(os.path.join(HERE, "nba_stats_oos.parquet"))
+        DD = pd.concat([pd.DataFrame({"season": o[4], "stat": c, "rung": 1, "p": o[1], "y": o[0].astype(float)}) for c, outs in DDOUT.items() for o in outs], ignore_index=True)
+        DD.to_parquet(os.path.join(HERE, "nba_stats_dd_oos.parquet"))
+        print(f"\nsaved nba_stats_oos.parquet ({len(O):,} rows) and nba_stats_dd_oos.parquet ({len(DD):,})")
+        return
 
     # export: every stat fit on all seasons
     fits = {st: fit_stat(D, st) for st in STATS}
@@ -192,5 +208,6 @@ def main():
     print("\nexported stats models:", {st: (round(fits[st][1], 2), round(fits[st][2], 2)) for st in STATS}, "dd", M["stats"]["dd"])
 
 
+ONLY_OOS = len(sys.argv) > 1 and sys.argv[1] == "oos"
 if __name__ == "__main__":
     main()

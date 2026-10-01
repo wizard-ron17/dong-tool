@@ -18,6 +18,8 @@ so it gets ranking metrics only where that's all there is.
 
     python3 research/model_audit.py            # -> research/model_audit.json + a table
     python3 research/model_audit.py nba        # just NBA, merged into the existing json
+    NHL_CACHE=research/.cache/nhl python3 research/model_audit.py nhl-goals
+    python3 research/model_audit.py nfl-receptions
 """
 import json, os, sys, traceback
 import numpy as np
@@ -64,9 +66,20 @@ def guard(name, fn):
         traceback.print_exc(limit=2)
 
 
+def merge_report():
+    """Replace only the report rows emitted by a targeted audit command."""
+    path = os.path.join(HERE, "model_audit.json")
+    existing = json.load(open(path))
+    replace = {(r["sport"], r["market"]): r for r in RESULTS}
+    merged = [replace.pop((r["sport"], r["market"]), r) for r in existing]
+    merged.extend(replace.values())
+    json.dump(merged, open(path, "w"), indent=1, default=float)
+    print(f"\nupdated {path} — {len(RESULTS)} audit rows")
+
+
 # ── NHL ─────────────────────────────────────────────────────────────────────
 def nhl_goals():
-    import nhl_goal_types as T, nhl_goals as G
+    import nhl_goal_types as T, nhl_goals as G, nhl_goal_cal as C
     from nhl_goals import isotonic_fit
     F = T.seq_flags(); games = F[F.pid < 0]; F = F[F.pid > 0]
     O = T.oos_anytime().merge(F, on=["season", "date", "pid"], how="left")
@@ -74,14 +87,16 @@ def nhl_goals():
     have = set(zip(games.season, games.date)); O = O[[(s, d) in have for s, d in zip(O.season, O.date)]].copy()
     O["mu"] = -np.log(1 - O.p_any); ns = O.season.nunique()
     score("NHL", "Anytime goal", "1+", O.p_any, O.scored, ns, tool="Picks")
-    score("NHL", "2+ goals", "2+", 1 - np.exp(-O.mu) * (1 + O.mu), O.goals >= 2, ns, tool="Picks")
-    score("NHL", "Hat trick", "3+", 1 - np.exp(-O.mu) * (1 + O.mu + O.mu ** 2 / 2), O.goals >= 3, ns, tool="Picks")
+    _, calibrated = C.walkforward()
+    for key, market, line in (("p2", "2+ goals", "2+"), ("p3", "Hat trick", "3+"),
+                              ("first", "First goal", "1st"), ("last", "Last goal", "last"), ("p1", "1st-period goal", "1+ in P1")):
+        item = calibrated[key]
+        note = ("top-decile scale with a 50-hit prior fit on earlier seasons" if key == "p3"
+            else "logistic calibration fit on earlier seasons")
+        score("NHL", market, line, item["calibrated_prices"], item["outcomes"], item["test_seasons"],
+              tool="Picks", note=note)
     O["game"] = O.groupby(["season", "date"]).ngroup().astype(str) + "|" + O[["team", "opp"]].apply(lambda r: "|".join(sorted(r)), axis=1)
     M = O.groupby("game").mu.transform("sum"); pf = O.mu / M * (1 - np.exp(-M))
-    score("NHL", "First goal", "1st", pf, O["first"] > 0, ns, tool="Picks")
-    score("NHL", "Last goal", "last", pf, O["last"] > 0, ns, tool="Picks")
-    s1 = json.load(open(os.path.join(HERE, "nhl_goal_types_model.json")))["s1"]
-    score("NHL", "1st-period goal", "1+ in P1", 1 - np.exp(-s1 * O.mu), O.p1 > 0, ns, tool="Picks", note="s1 from all seasons")
     # PP goal: its own model, nested isotonic
     D = G.D
     for c, off in T.PP_LOG.items(): D["log_" + c] = np.log(D[c].clip(lower=0) + off)
@@ -171,15 +186,11 @@ def nfl_passing():
 
 
 def nfl_receptions():
-    import receptions as R
-    from receptions import nb_sf
-    mu, y = R.oos_mu_pairs()
-    M = json.load(open(os.path.join(HERE, "receptions_model.json")))
-    x, yy = np.array(M["mu_cal"]["x"]), np.array(M["mu_cal"]["y"])
-    # the board's mean calibration, as scripts/receptions.js applies it
-    mc = np.where(mu <= x[0], yy[0] * mu / x[0], np.where(mu >= x[-1], yy[-1], np.interp(mu, x, yy)))
-    score("NFL", "Receptions", "o3.5", nb_sf(3.5, mc, M["alpha"]), y > 3.5, 7, tool="Receptions",
-          note="as priced (NB + mu_cal); mu_cal was fitted on these same OOS pairs, so calibration is slightly flattering")
+    import receptions_disp as D
+    _, _, seasons, rows = D.walkforward()
+    score("NFL", "Receptions", "o3.5", np.concatenate(rows[3.5]["pow"]), np.concatenate(rows[3.5]["y"]),
+          len(seasons) - 1, tool="Receptions",
+            note="walk-forward mean calibration and volume-scaled NB dispersion, both fit on earlier seasons")
 
 
 def nfl_yards():
@@ -283,9 +294,14 @@ def nba_threes():
 
 
 def nba_points():
-    R = pd.read_parquet(os.path.join(HERE, "nba_points_oos.parquet")); ns = R.season.nunique()
+    path = os.path.join(HERE, "nba_stats_oos.parquet")
+    if not os.path.exists(path):
+        raise FileNotFoundError("Run python3 research/nba_stats.py oos to score the shipped NBA stats engine")
+    R = pd.read_parquet(path)
     for k in (20, 25):
-        score("NBA", f"Points {k}+", f"{k}+", R[f"pd_{k}"], R.pts >= k, ns, tool="Points")
+        rows = R[(R.stat == "pts") & (R.rung == k)]
+        score("NBA", f"Points {k}+", f"{k}+", rows.p, rows.y, rows.season.nunique(), tool="Points",
+              note="walk-forward predictions from the shipped negative-binomial engine")
 
 
 def nba_ddtd():
@@ -301,11 +317,23 @@ def nba_first():
           note="starters only; tip records + the line x his own first-basket record")
 
 
+if __name__ == "__main__" and _ARGV[1:] == ["nhl-goals"]:
+    print("NHL goals")
+    guard("goals", nhl_goals)
+    affected = {"2+ goals", "Hat trick", "First goal", "Last goal", "1st-period goal"}
+    RESULTS[:] = [r for r in RESULTS if r["sport"] == "NHL" and r["market"] in affected]
+    merge_report()
+    sys.exit(0)
+if __name__ == "__main__" and _ARGV[1:] == ["nfl-receptions"]:
+    print("NFL receptions")
+    guard("receptions", nfl_receptions)
+    merge_report()
+    sys.exit(0)
 if __name__ == "__main__" and _ARGV[1:] == ["nba"]:
     print("NBA"); [guard(n, f) for n, f in (("threes", nba_threes), ("points", nba_points), ("ddtd", nba_ddtd), ("first", nba_first))]
-    path = os.path.join(HERE, "model_audit.json")
-    keep = [r for r in json.load(open(path)) if r["sport"] != "NBA"]
-    json.dump(keep + RESULTS, open(path, "w"), indent=1, default=float)
+    affected = {"Points 20+", "Points 25+"}
+    RESULTS[:] = [r for r in RESULTS if r["sport"] == "NBA" and r["market"] in affected]
+    merge_report()
     sys.exit(0)
 if __name__ == "__main__":
     print("NHL"); [guard(n, f) for n, f in (("goals", nhl_goals), ("sog", nhl_sog), ("saves", nhl_saves), ("points", nhl_points))]
