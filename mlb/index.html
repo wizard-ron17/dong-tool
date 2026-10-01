@@ -7036,7 +7036,7 @@ function renderSchedule() {
     const away = g.away.teamAbbr || g.away.teamName, home = g.home.teamAbbr || g.home.teamName;
     const S = schedState(g);
     const lu = isSlate && !S.started ? schedLineupStatus(g) : null;
-    return `${head}<div class="sched-game gc-card${S.started ? ' started' : ''}" id="sched-game-${g.gamePk}" data-gid="${g.gamePk}" onclick="openSchedGame(${g.gamePk})" role="button" tabindex="0">
+    return `${head}<div class="sched-game gc-card${S.started ? ' started' : ''}" id="sched-game-${g.gamePk}" data-gid="${g.gamePk}" onclick="openGame(${g.gamePk})" role="button" tabindex="0">
       <span class="gc-chev">▶</span>
       ${mlbGameCard(g, away, home, S.box, S.st, schedHomerTag(g))}
       ${S.started ? mlbHomers(g, away, home, S.box, ours) : schedVenueRow(g, date).replace('</div>', (lu ? ` · <span class="gc-lu ${lu.cls}">${lu.text}</span>` : '') + (g.away.probableProjected || g.home.probableProjected ? ` · <span class="gc-lu pending" title="A starter not announced yet — projected from his rotation (dashed underline)">Projected SP</span>` : '') + '</div>')}
@@ -7082,7 +7082,7 @@ function mlbRail(sorted, date, slate) {
 // Every sport's schedule opens a game the same way: the scoreboard on top,
 // then Picks (our boards for this game), Matchup, Lines and Game.
 const sg = { pk: null, tab: null };
-function openSchedGame(pk) {
+function openGame(pk) {
   if (RonSlate.select(pk)) return;            // the Schedule's split view shows it in place
   sg.pk = pk; sg.tab = null;
   if (!document.getElementById('sg-back')) {
