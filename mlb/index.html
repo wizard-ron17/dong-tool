@@ -8494,13 +8494,13 @@ const muBoardEnv = (row) => ({ sW: row.starterShare ?? 1, pen: row.bullpenPlatoo
 /** The opposing pen's platoon vulnerability for a batter from this side — shipped per team by the build. */
 const muPenFor = (team, hand) => penVuln?.[team]?.[hand] ?? null;
 /** P(HR) for any pairing: the build ships each card's part of the odds model
- *  (hrZ) and its constants (hrOdds); the page adds his slot and the park —
+ *  (hrZ) and its constants (hrOdds); the page adds his slot, the park and the game's weather + day/night —
  *  the same sum as scripts/hr-odds.js hrProb(). null before the cards carry it. */
 function muHrProb(b, p, order, venue) {
   const K = matchupCards?.hrOdds;
   if (!K || b?.hrZ == null) return null;
   const slot = K.slot[order >= 1 && order <= 9 ? order : 5] ?? 0;
-  const z = K.const + b.hrZ + (p?.hrZ ?? 0) + slot + K.park * Math.log(K.parkTable[venue] ?? 1);
+  const z = K.const + b.hrZ + (p?.hrZ ?? 0) + (K.gameZ?.[venue] ?? 0) + slot + K.park * Math.log(K.parkTable[venue] ?? 1);
   return 1 / (1 + Math.exp(-(K.platt.a + K.platt.b * z)));
 }
 function muEnvFor(b, p) {

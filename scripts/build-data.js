@@ -4,7 +4,7 @@
 // have to do this work themselves.
 
 import { fetchEspnLines, trackLine } from './espn-lines.js';
-import { batterZ, pitcherZ, contactCounts, oddsConstants, hrProb } from './hr-odds.js';
+import { batterZ, pitcherZ, gameZ, contactCounts, pulledAir, oddsConstants, hrProb } from './hr-odds.js';
 import { logSlate, gradeSlates, fetchKalshiHR } from './slate-log.js';
 
 const MLB          = 'https://statsapi.mlb.com/api/v1';
@@ -885,18 +885,29 @@ const ODDS = oddsConstants(normalizeVenue);
 function oddsBatterZ(pid, hr, ab, balls, discipline) {
   const { barrels, blasts } = contactCounts(balls);
   const pa = discipline?.[pid]?.pa ?? Math.round(ab * 1.12);
-  return batterZ({ pid, hr, ab, pa, barrels, blasts });
+  return batterZ({ pid, hr, ab, pa, barrels, blasts, pulled: pulledAir(balls), daysSinceHr: daysSinceHR(pid) });
 }
+/** Days since his last homer before today (null = none this season; the model caps it at 60). */
+function daysSinceHR(pid) {
+  const today = todayET(), last = hrDatesFor(pid).filter(d => d < today).pop();
+  return last ? Math.round((Date.parse(today) - Date.parse(last)) / 86400000) : null;
+}
+/** The game's part of the odds: its forecast (none under a roof) and whether it's a day game. */
+const oddsGameZ = (game, wx) => gameZ({ roofed: !!wx?.roofed, temp: wx?.temp ?? null, windMph: wx?.windMph ?? 0,
+  windTo: wx?.windTo ?? null, cfAzimuth: wx?.cfAzimuth ?? null, day: game?.dayNight === 'day' });
 // Barrels allowed from the stuff pull (barrel% of his batted balls) over batters
 // faced from his season line. No stuff read = no barrels counted, so he shrinks
 // to last season and the league like any thin sample.
 function oddsPitcherZ(pid, stuff, seasonStats) {
   const bf = seasonStats?.[pid]?.bf ?? 0;
   const barrels = stuff?.barrelPct != null && stuff.bbe ? Math.round(stuff.barrelPct * stuff.bbe) : 0;
-  return pitcherZ({ pid, barrels: bf ? barrels : 0, bf });
+  return pitcherZ({ pid, barrels: bf ? barrels : 0, bf, velo: stuff?.hrVeloN >= 15 ? stuff.hrVelo : null });
 }
 
 async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {}, openerBulk = {}, weatherByVenue = {}, batMetaMap = {}, injuryStatus = {}, batterDiscipline = {}) {
+  // each park's game part of the odds today (weather, day/night): same for every bat in it
+  const gameZByVenue = {};
+  for (const g of todaySchedule) if (g.venue && !(g.venue in gameZByVenue)) gameZByVenue[g.venue] = Math.round(oddsGameZ(g, weatherByVenue[g.venue]) * 10000) / 10000;
   try {
     // Identify a team's likely everyday starters when the official lineup
     // hasn't posted yet. Uses season-long data: guys who've appeared in at
@@ -1317,7 +1328,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       // it reads batter power, contact quality, the starter's barrels per batter
       // faced, his slot and the park, and none of the matchup factors above.
       const hrZp = oddsPitcherZ(r.oppPid, pstuff, pitcherSeasonStats);
-      r.pHR = Math.round(hrProb(r.hrZb, hrZp, r.lineupOrder, r.venue, ODDS) * 10000) / 10000;
+      r.pHR = Math.round(hrProb(r.hrZb, hrZp, r.lineupOrder, r.venue, ODDS, gameZByVenue[r.venue] ?? 0) * 10000) / 10000;
       delete r.hrZb;
 
       // Lineup-position PA multiplier — extra plate appearances up top mean more
@@ -1477,7 +1488,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
         generatedAt: new Date().toISOString(), ratioClamp: [PICKS_RATIO_MIN, PICKS_RATIO_MAX],
         synergyBaseline: Math.round(synergyBaseline * 1000) / 1000, synergyHrFull: SYNERGY_HR_FULL,
         valueContactGain: VALUE_CONTACT_GAIN, parkFactors, lineupPA: LINEUP_PA_FACTOR,
-        hrOdds: ODDS,       // the odds model's constants: the page adds slot + park to a batter's and a starter's hrZ
+        hrOdds: { ...ODDS, gameZ: gameZByVenue },   // the odds model's constants: the page adds slot, park and the game's part to a batter's and a starter's hrZ
         default: top ? { batterPid: top.pid, pitcherPid: top.oppPid, venue: top.venue } : null,
         batters, pitchers,
       };
@@ -2210,7 +2221,7 @@ async function fetchWeather(games) {
   const OM = 'https://api.open-meteo.com/v1/forecast';
   const byVenue = {};
   await Promise.all(games.map(async g => {
-    if (g.roofType && g.roofType !== 'Open') { g.weather = { roofed: true, ratio: 1 }; byVenue[g.venue] = { carry: 1, windForR: 0, windForL: 0 }; return; }
+    if (g.roofType && g.roofType !== 'Open') { g.weather = { roofed: true, ratio: 1 }; byVenue[g.venue] = { carry: 1, windForR: 0, windForL: 0, roofed: true }; return; }
     if (g.lat == null || g.cfAzimuth == null) { g.weather = null; return; }
     try {
       const q = `latitude=${g.lat}&longitude=${g.lon}&hourly=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=GMT`;
@@ -2240,7 +2251,7 @@ async function fetchWeather(games) {
         temp: Math.round(temp), rh: Math.round(rh),
         windMph: Math.round(spd), windDir: read.dir, windFavors: read.favors,
       };
-      byVenue[g.venue] = { carry, windForR, windForL };
+      byVenue[g.venue] = { carry, windForR, windForL, temp, windMph: spd, windTo: to, cfAzimuth: g.cfAzimuth };
     } catch (e) { g.weather = null; }
   }));
   return byVenue;
@@ -2338,6 +2349,7 @@ async function fetchTodaySchedule(teamIdToAbbr) {
         lon: loc.defaultCoordinates?.longitude ?? null,
         cfAzimuth: loc.azimuthAngle ?? null,
         roofType: g.venue?.fieldInfo?.roofType ?? null,
+        dayNight: g.dayNight ?? null,
         gameType: g.gameType ?? 'R',
         // postseason: the round, which game of the series, and where it stands
         series: g.gameType && g.gameType !== 'R' ? {
@@ -2763,9 +2775,11 @@ async function fetchPitchMixSide(chunk, stands) {
     (counts[pid] ??= {})[name] = (counts[pid][name] ?? 0) + 1;
     // Stuff, from the same rows: 4-seam velo (over every fastball) + hard-hit%
     // allowed (over batted balls, rows that carry a launch_speed).
-    const s = (stuff[pid] ??= { vSum: 0, vN: 0, hard: 0, brl: 0, bbe: 0 });
+    const s = (stuff[pid] ??= { vSum: 0, vN: 0, hvSum: 0, hvN: 0, hard: 0, brl: 0, bbe: 0 });
     const velo = parseFloat(row.release_speed);
     if (name === '4-Seam Fastball' && !isNaN(velo)) { s.vSum += velo; s.vN++; }
+    // the odds' velo (research/mlb_hr_factors.py): 4-seams and sinkers together
+    if ((name === '4-Seam Fastball' || name === 'Sinker' || name === '2-Seam Fastball') && !isNaN(velo)) { s.hvSum += velo; s.hvN++; }
     const ev = parseFloat(row.launch_speed);
     if (!isNaN(ev)) { s.bbe++; if (ev >= 95) s.hard++; if (row.launch_speed_angle === '6') s.brl++; }
   }
@@ -2790,8 +2804,8 @@ async function fetchPitchMix(pids) {
     const [lc, rc] = await Promise.all([fetchPitchMixSide(chunk, 'L'), fetchPitchMixSide(chunk, 'R')]);
     for (const pid of chunk) {
       byPid[pid] = { L: lc.counts[pid] ?? {}, R: rc.counts[pid] ?? {} };
-      const agg = (stuffRaw[pid] ??= { vSum: 0, vN: 0, hard: 0, brl: 0, bbe: 0 });
-      for (const src of [lc.stuff[pid], rc.stuff[pid]]) if (src) { agg.vSum += src.vSum; agg.vN += src.vN; agg.hard += src.hard; agg.brl += src.brl; agg.bbe += src.bbe; }
+      const agg = (stuffRaw[pid] ??= { vSum: 0, vN: 0, hvSum: 0, hvN: 0, hard: 0, brl: 0, bbe: 0 });
+      for (const src of [lc.stuff[pid], rc.stuff[pid]]) if (src) { agg.vSum += src.vSum; agg.vN += src.vN; agg.hvSum += src.hvSum; agg.hvN += src.hvN; agg.hard += src.hard; agg.brl += src.brl; agg.bbe += src.bbe; }
     }
   }
   const sum = o => Object.values(o).reduce((a, b) => a + b, 0);
@@ -2810,7 +2824,8 @@ async function fetchPitchMix(pids) {
   const stuff = {};
   for (const pid in stuffRaw) {
     const s = stuffRaw[pid];
-    stuff[pid] = { fbVelo: s.vN ? s.vSum / s.vN : null, fbN: s.vN, hardPct: s.bbe ? s.hard / s.bbe : null, barrelPct: s.bbe ? s.brl / s.bbe : null, bbe: s.bbe };
+    stuff[pid] = { fbVelo: s.vN ? s.vSum / s.vN : null, fbN: s.vN, hrVelo: s.hvN ? s.hvSum / s.hvN : null, hrVeloN: s.hvN,
+                   hardPct: s.bbe ? s.hard / s.bbe : null, barrelPct: s.bbe ? s.brl / s.bbe : null, bbe: s.bbe };
   }
   return { mix, stuff };
 }

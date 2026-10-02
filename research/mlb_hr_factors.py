@@ -169,8 +169,9 @@ def frame():
     # 4. recent contact (as shipped: mean Statcast contact grade, last 15 game-dates vs the rest of his season, shrunk 20, capped .85-1.15)
     bb = pa[pa.lsa.notna()]
     dd = bb.groupby(["batter", "season", "date"], as_index=False).agg(q=("lsa", "sum"), n=("lsa", "size"),
-          brl=("barrel", "sum"), hard=("hard", "sum"), qf=("qfly", "sum"), pull=("pull_air", "sum"))
-    pd_ = pa.groupby(["batter", "season", "date"], as_index=False).agg(pa_n=("one", "sum"), hr=("hr", "sum"))
+          brl=("barrel", "sum"), hard=("hard", "sum"), qf=("qfly", "sum"))
+    # pulled air balls over every PA (graded or not), as the live build counts them
+    pd_ = pa.groupby(["batter", "season", "date"], as_index=False).agg(pa_n=("one", "sum"), hr=("hr", "sum"), pull=("pull_air", "sum"))
     dd = pd_.merge(dd, on=["batter", "season", "date"], how="left").fillna(0).sort_values(["batter", "date"])
     g = dd.groupby(["batter", "season"], sort=False)
     for c in ("q", "n", "brl", "hard", "qf", "pull", "pa_n", "hr"):
@@ -360,5 +361,68 @@ def main():
     return rows
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and "export" not in _ARGV:
     main()
+
+
+# ── v2 export ─────────────────────────────────────────────────────────────
+# v1 plus what earned its place in the scan and the live build can compute:
+# conditions, the starter's fastball velo, the batter's pulled-air-ball rate,
+# and days since his last homer. Pitching vuln as a level also earned a little
+# (-0.02% log loss) but needs bullpen splits the build doesn't fetch, so it waits.
+V2_EXTRA = ("temp_x", "wind_out", "day", "velo_td", "pull_air_rate", "days_since_hr")
+
+
+def export_v2():
+    """python3 research/mlb_hr_factors.py export — adds a "v2" block to
+    research/mlb_hr_model.json (v1 stays, so the build can fall back):
+    coefficients fit on all of 2025-26, the log-odds slope that calibrated the
+    walk-forward predictions, an intercept matching 2026's rate, and the
+    constants the live features need."""
+    import json
+    df = frame().reset_index(drop=True).dropna(subset=["bat_rate", "bat_brl", "bat_bls", "sp_bpf", "park"]).reset_index(drop=True)
+    # 2025 rows have no prior season (the replay starts there) and no park
+    # factor, so, like v1, the coefficients are fit on 2026 only; the slope comes
+    # from 2026's walk-forward months.
+    p, ix = walk(df, extra=V2_EXTRA)
+    in26 = (df.season.to_numpy()[ix] == 2026)
+    y = df.y.to_numpy()[ix][in26]
+    lgt = np.log(p[in26] / (1 - p[in26]))
+    (a_cal, b_cal), _ = fit(np.column_stack([np.ones(len(lgt)), lgt]), y)
+    d26m = (df.season == 2026).to_numpy()
+    X = np.column_stack([R.design(df, R.V1)] + [col(df, f) for f in V2_EXTRA])
+    w, se = fit(X[d26m], df.y.to_numpy()[d26m])
+    names = ["const"] + [x for ff in R.V1 for x in ([f"slot{s}" for s in range(2, 10)] if ff == "slot" else [ff])] + list(V2_EXTRA)
+    c = dict(zip(names, map(float, w)))
+    d26 = df.season == 2026
+    z = X[d26.to_numpy()] @ w
+    a = 0.0
+    for _ in range(60):
+        pr = 1 / (1 + np.exp(-(a + b_cal * z)))
+        a += (df.y[d26].mean() - pr.mean()) / (pr * (1 - pr)).mean()
+    pa = load_pa()
+    # the velo fill-in exactly as frame() made it: the median season-to-date velo
+    v = load_velo(); vd = v.groupby(["pitcher", "season", "date"], as_index=False).fb_velo.mean().sort_values(["pitcher", "date"])
+    vd = vd.groupby(["pitcher", "season"]).fb_velo.transform(lambda s_: s_.shift(1).expanding().mean())
+    out = {
+        "trained": 2026, "note": "v2 = v1's terms refit with conditions, starter velo, pulled air balls and days since HR "
+                "(research/mlb_hr_factors.py export). logit P = platt.a + platt.b * (const + Σ coef·x). "
+                "temp_x = (forecast F - 72)/10, 0 under a roof; wind_out = mph if blowing out (to within 60° of CF), "
+                "-mph if in, 0 across or under a roof; day = 1 for a day game; velo_td = the starter's season "
+                "4-seam + sinker velo (median if none yet); pull_air_rate = his pulled fly balls + line drives per PA "
+                "this season, (n + 60·lg)/(PA + 60)/lg; days_since_hr = days since his last homer, capped 60 (60 if none).",
+        "coef": c, "platt": {"a": float(a), "b": float(b_cal)},
+        # pull_lg exactly as frame() normalised it (every season in the PA cache)
+        "velo_median": float(vd.median()), "pull_lg": float(pa.pull_air.sum() / len(pa)), "pull_k": 60,
+        "wind_out_deg": 60, "temp_ref": 72, "days_cap": 60,
+    }
+    path = os.path.join(HERE, "mlb_hr_model.json")
+    M = json.load(open(path)); M["v2"] = out
+    json.dump(M, open(path, "w"), separators=(",", ":"))
+    print(f"v2 -> {path}: walk-forward calibration slope {b_cal:.3f} (a {a_cal:+.3f}); platt a {a:.3f}")
+    print({k: round(v_, 4) for k, v_ in c.items()})
+    print({k: v_ for k, v_ in out.items() if k not in ("note", "coef", "platt")})
+
+
+if __name__ == "__main__" and "export" in _ARGV:
+    export_v2()
