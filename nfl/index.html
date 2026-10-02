@@ -6229,7 +6229,7 @@
       const r = (nflData?.yards?.[m] || []).find(x => x.pid === pid);
       if (!r) continue;
       see(r);
-      const L = ydPick(r, m), p = ydPOver(r.m, L, r.mu, r.tq);
+      const L = ydPick(r), p = ydPOver(r.m, L, r.mu, r.tq);
       add(PLW_YD[m], 'o' + L, p, `openYds('${pid}','${m}')`,
           { k: `y${m}|${pid}|${L}`, n: r.name, t: r.team, g: parGame(r), m: 'y' + m,
             s: `Over ${L} ${PLW_YD[m].toLowerCase()}`, p, i: pid }, liveChip('yds', r, L));
@@ -7432,19 +7432,26 @@ let pairStacks = false;
     const cdf = q[i] === q[i - 1] ? hi : lo + (r - q[i - 1]) / (q[i] - q[i - 1]) * (hi - lo);
     return Math.min(0.995, Math.max(0.005, 1 - cdf));
   }
+  // Alt lines sit on x4.5 / x9.5 (x9.5 for passing), but a book's MAIN line is
+  // any half yard near his median (St. Brown at 82.5 or 83.5, not 84.5). So the
+  // default is the half-yard line closest to even money, and the card's ladder
+  // runs yard by yard around it, then out along the alt-line grid.
   const ydStep = (mk) => mk === 'pass' ? 10 : 5;
-  // a book-style line just under his median: 265 -> o264.5, 73.9 -> o69.5
-  // Book-style lines sit on x4.5 / x9.5 (x9.5 for passing). The default is the
-  // rung closest to even money — the first rung under the median always leaned
-  // over (Worthy: 24.5 at -141 when 29.5 is -101).
-  const ydRungs = (mk, med, below, above) => {
-    const st = ydStep(mk), base = Math.floor(med / st) * st - 0.5;
-    const out = [];
-    for (let k = -below; k <= above; k++) { const x = base + k * st; if (x > 0) out.push(x); }
-    return out;
+  const ydPick = (r) => {
+    const base = Math.floor(r.med) + 0.5, d = (x) => Math.abs(ydPOver(r.m, x, r.mu, r.tq) - 0.5);
+    let best = base;
+    for (let k = -6; k <= 6; k++) { const x = base + k; if (x > 0 && d(x) < d(best)) best = x; }
+    return best;
   };
-  const ydPick = (r, mk = ydF.mkt) =>
-    ydRungs(mk, r.med, 1, 2).reduce((b, x) => Math.abs(ydPOver(r.m, x, r.mu, r.tq) - 0.5) < Math.abs(ydPOver(r.m, b, r.mu, r.tq) - 0.5) ? x : b);
+  /** The card's ladder: every half yard within 3 of the even line, then the next alt line each way. */
+  function ydLadder(mk, pick) {
+    const st = ydStep(mk), out = [];
+    for (let k = -3; k <= 3; k++) out.push(pick + k);
+    const lo = Math.floor((pick - 3) / st) * st - 0.5;               // first grid line under the yard-by-yard run
+    for (let x = lo, n = 0; n < 1; x -= st) if (x < pick - 3 && x > 0) { out.unshift(x); n++; } else if (x <= 0) break;
+    for (let x = lo + st, n = 0; n < 1; x += st) if (x > pick + 3) { out.push(x); n++; }
+    return out.filter(x => x > 0);
+  }
   function ydRows() {
     const q = pbNorm(ydF.q.trim());
     const all = nflData?.yards?.[ydF.mkt] || [];
@@ -7637,12 +7644,9 @@ let pairStacks = false;
     const L = ydm.line;
     const p = ydPOver(r.m, L, r.mu, r.tq);
     const pick = ydPick(r);
-    // 8 rungs around the even line: three shorter, the even line, four longer.
-    // A low median slides the window up rather than quoting lines at or below 0.
-    const st = ydStep(ydF.mkt);
-    let first = pick - 3 * st;
-    while (first <= 0) first += st;
-    const ladder = Array.from({ length: 8 }, (_, i) => first + i * st).map(x => {
+    const rungs = ydLadder(ydF.mkt, pick);
+    if (!rungs.some(x => Math.abs(x - L) < 0.01)) rungs.push(L), rungs.sort((a, b) => a - b);   // a line reached by the arrow keys
+    const ladder = rungs.map(x => {
       const px = ydPOver(r.m, x, r.mu, r.tq);
       return `<button class="ydl-row${Math.abs(x - L) < 0.01 ? ' on' : ''}" onclick="ydSetLine(${x})" aria-pressed="${Math.abs(x - L) < 0.01}">
         <span class="ydl-ln">${x}${Math.abs(x - pick) < 0.01 ? '<small>even</small>' : ''}</span>
@@ -7746,7 +7750,7 @@ let pairStacks = false;
     else if (e.key === 'ArrowRight') ydStepTo(1);
     else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {       // walk the ladder
       e.preventDefault();
-      const x = ydm.line + (e.key === 'ArrowUp' ? -1 : 1) * ydStep(ydF.mkt);
+      const x = ydm.line + (e.key === 'ArrowUp' ? -1 : 1);
       if (x > 0) window.ydSetLine(x);
     }
   }
