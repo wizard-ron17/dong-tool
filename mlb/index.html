@@ -6182,7 +6182,7 @@ async function psRender(withImages = true) {
   const dLabel = todayDate ? new Date(todayDate + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' }) : '';
   x.fillStyle = PS_C.muted; x.font = F(600, 20, 'b'); x.fillText(dLabel, PAD, 94);
   x.textAlign = 'right'; x.fillStyle = PS_C.accent; x.font = F(700, 24, 'd'); x.fillText("Ron's Dong Tool", W - PAD, 62);
-  x.fillStyle = PS_C.dim; x.font = F(500, 16, 'b'); x.fillText(`${todaySchedule.length} games`, W - PAD, 92);
+  x.fillStyle = PS_C.dim; x.font = F(500, 16, 'b'); x.fillText(`${todaySchedule.length} game${todaySchedule.length === 1 ? '' : 's'}`, W - PAD, 92);
   x.textAlign = 'left';
   // load every picture first
   const imgs = new Map();
@@ -6213,7 +6213,7 @@ async function psRender(withImages = true) {
       const res = hit ? '✓ HR' : done ? '✗' : '';
       x.fillStyle = PS_C.text; x.font = F(700, 20, 'b');
       const name = playerNames[r.pid] || r.pid;
-      const maxName = COLW - (nx - cx) - 200;   // room for the score and the fair odds
+      const maxName = COLW - (nx - cx) - 150;   // room for the fair odds and the result
       let nm = name; while (x.measureText(nm).width > maxName && nm.length > 4) nm = nm.slice(0, -2);
       x.fillText(nm === name ? nm : nm.trimEnd() + '…', nx, y + 28);
       const lg = imgs.get('t' + r.team);
@@ -6221,32 +6221,28 @@ async function psRender(withImages = true) {
       x.fillStyle = PS_C.muted; x.font = F(500, 14, 'b');
       const spot = r.lineupOrder ? `#${r.lineupOrder}${r.projected ? ' proj' : ''} · ` : '';
       x.fillText(`${r.team} · ${spot}vs ${r.oppName ? compactPlayerName(r.oppName) : r.oppTeam}${r.oppHand ? ` (${r.oppHand})` : ''}`, nx + (lg ? 21 : 0), y + 49);
-      // score, on the ramp; the result beside it once the game is underway
+      // the fair price, coloured by how likely (the ramp runs lo..hi %), and the result beside it once the game is underway
       const sc = scoreOf(r);
       x.textAlign = 'right';
+      let rx = cx + COLW - 16;
       if (res) {
         x.font = F(700, 15, 'd'); const rw = x.measureText(res).width + 16;
         x.fillStyle = hit ? 'rgba(53,201,110,0.18)' : 'rgba(141,155,178,0.14)';
-        x.beginPath(); x.roundRect(cx + COLW - 12 - rw, y + 18, rw, 24, 12); x.fill();
-        x.fillStyle = hit ? PS_C.accent : PS_C.miss; x.fillText(res, cx + COLW - 20, y + 36);
+        x.beginPath(); x.roundRect(rx - rw + 4, y + 18, rw, 24, 12); x.fill();
+        x.fillStyle = hit ? PS_C.accent : PS_C.miss; x.fillText(res, rx - 4, y + 36);
+        rx -= rw + 14;
       }
-      const sx = cx + COLW - (res ? 30 + x.measureText(res).width + 16 : 16);
-      x.fillStyle = `hsl(${psHue(sc, lo, hi)} 72% 58%)`; x.font = F(700, 26, 'd'); x.fillText(sc.toFixed(1), sx, y + 34);
-      x.fillStyle = PS_C.dim; x.font = F(600, 11, 'b'); x.fillText(lab, sx, y + 50);
-      // the fair odds (the HR model), left of the score
       if (r.pHR > 0) {
-        x.font = F(700, 26, 'd'); const sw = x.measureText(sc.toFixed(1)).width;
-        const ox = sx - Math.max(sw, 30) - 18;
-        x.fillStyle = PS_C.text; x.font = F(700, 20, 'd'); x.fillText(kbbOdds(r.pHR), ox, y + 32);
-        x.fillStyle = PS_C.dim; x.font = F(600, 11, 'b'); x.fillText('FAIR ODDS', ox, y + 50);
+        x.fillStyle = `hsl(${psHue(sc, lo, hi)} 72% 58%)`; x.font = F(700, 24, 'd'); x.fillText(kbbOdds(r.pHR), rx, y + 32);
+        x.fillStyle = PS_C.dim; x.font = F(600, 11, 'b'); x.fillText(`${lab} · ${(r.pHR * 100).toFixed(1)}%`, rx, y + 50);
       }
       x.textAlign = 'left';
     });
     if (!list.length) { x.fillStyle = PS_C.muted; x.font = F(500, 18, 'b'); x.fillText('No picks on this board yet.', cx, y0 + COLHEAD + 30); }
     if (total > list.length) { x.fillStyle = PS_C.dim; x.font = F(500, 14, 'b'); x.fillText(`+${total - list.length} more on the board`, cx + 4, y0 + COLHEAD + list.length * ROW + 10); }
   };
-  col(chalk, PAD, '🔒 Chalk', 'shortest fair prices', r => (r.pHR ?? 0) * 100, 8, 25, '% TO HOMER', nChalk);
-  col(val, PAD * 2 + COLW, '🎯 Value', "Bueno's longshot screen", r => (r.pHR ?? 0) * 100, 4, 12, '% TO HOMER', nVal);
+  col(chalk, PAD, '🔒 Chalk', 'shortest fair prices', r => (r.pHR ?? 0) * 100, 8, 25, 'FAIR', nChalk);
+  col(val, PAD * 2 + COLW, '🎯 Value', "Bueno's longshot screen", r => (r.pHR ?? 0) * 100, 4, 12, 'FAIR', nVal);
   // footer
   x.fillStyle = PS_C.line; x.fillRect(PAD, H - 58, W - PAD * 2, 1);
   x.fillStyle = PS_C.dim; x.font = F(500, 15, 'b');
@@ -7826,6 +7822,12 @@ function whyChips(r) {
     return `<span class="pick-ind ${cls}" title="${tip}: ${v.toFixed(2)}× his odds vs an average starter">${lab} ${v.toFixed(2)}×</span>`;
   }).join('');
 }
+// Table cells for the same reads: a multiplier, coloured only when it moves the price;
+// a slate rank, as "top N%". "—" on a board built before the field existed.
+const whyCell = (v) => v == null ? '<td class="lb-num" style="color:var(--dim)">—</td>'
+  : `<td class="lb-num"${v >= 1.04 ? ' style="color:var(--accent)"' : v <= 0.96 ? ' style="color:#ff7040"' : ''}>${v.toFixed(2)}×</td>`;
+const greenCell = (pct) => pct == null ? '<td class="lb-num" style="color:var(--dim)">—</td>'
+  : `<td class="lb-num"${pct >= 0.6 ? ' style="color:var(--accent)"' : ''}>top ${Math.max(1, Math.round((1 - pct) * 100) + 1)}%</td>`;
 // Bueno's screen: where he sits on today's slate for each of the three (build: r.green, percentiles)
 function greenChips(r) {
   const g = r.green; if (!g) return pickIndicators(r);
@@ -9485,7 +9487,8 @@ function renderValueBoard() {
         </div>
       </div></td>
       ${hrFairCell(hp(r))}
-      ${r.green ? ['platoon', 'vuln', 'recent'].map(k => `<td class="lb-num">${Math.round(r.green[k] * 100)}</td>`).join('') : `<td class="lb-num hr-col">${fmtBlast(r)}</td><td class="lb-num stat-col">${fmtSurplus(r)}</td><td></td>`}
+      ${['platoon', 'vuln', 'recent'].map(k => greenCell(r.green?.[k])).join('')}
+      <td class="lb-num">${r.hrs ?? '—'}</td>
     </tr>`;
   }).join('');
   const compactHtml = pool.map(r => {
@@ -9510,9 +9513,10 @@ function renderValueBoard() {
             <th style="width:24px"></th>
             <th>Player</th>
             <th class="r" title="${HR_FAIR_TIP}">Fair</th>
-            <th class="r" title="Batter platoon: percentile on today's slate">Platoon</th>
-            <th class="r" title="Pitching vuln to his side: percentile on today's slate">Vuln</th>
-            <th class="r" title="Recent contact: percentile on today's slate">Contact</th>
+            <th class="r" title="Batter platoon split vs this arm: his rank on today's slate">Platoon</th>
+            <th class="r" title="Pitching vuln to his side (starter over his share, pen over the rest): his rank on today's slate">Vuln</th>
+            <th class="r" title="Recent contact quality vs his season: his rank on today's slate">Contact</th>
+            <th class="r" title="Season home runs">HR</th>
           </tr></thead>
           <tbody>${tableRows}</tbody>
         </table>
@@ -9854,8 +9858,8 @@ function renderPicks() {
         </div>
       </div></td>
       ${hrFairCell(hp(r))}
-      <td class="lb-num hr-col">${r.hrs}</td>
-      <td class="lb-num stat-col">${r.venue}</td>
+      ${WHY_PARTS.map(([k]) => whyCell(r.why?.[k])).join('')}
+      <td class="lb-num">${r.hrs}</td>
     </tr>`;
   }).join('');
 
@@ -9904,8 +9908,8 @@ function renderPicks() {
             <th style="width:24px"></th>
             <th>Player</th>
             <th class="r" title="${HR_FAIR_TIP}">Fair</th>
-            <th class="r">HR</th>
-            <th class="r">Park</th>
+            ${WHY_PARTS.map(([, lab, tip]) => `<th class="r" title="${tip}, as a multiplier on his odds vs today's average starter">${lab}</th>`).join('')}
+            <th class="r" title="Season home runs">HR</th>
           </tr></thead>
           <tbody>${tableRows}</tbody>
         </table>
