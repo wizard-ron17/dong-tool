@@ -751,6 +751,7 @@
     background: var(--surface0); font-size: 0.86rem; }
   .cp-res.head { background: none; border: none; padding-block: 0.1rem; color: var(--muted); font-size: 0.7rem;
     text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+  .cp-res.pkr { grid-template-columns: 1fr 5.6rem 2.6rem 4.6rem; cursor: pointer; }
   .cp-res.hit { border-color: rgba(51,208,124,0.45); background: rgba(51,208,124,0.07); }
   .cp-res-nm { font-family: var(--font-d); font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cp-res.head .cp-res-nm { font-family: inherit; color: var(--muted); }
@@ -4129,7 +4130,7 @@
   // ── Picks results ───────────────────────────────────────────────────────
   // Every night's board is frozen before the first puck drops and graded the
   // next morning against the goals actually scored (scripts/build-nhl.js).
-  // picksHistory rows: [pid, p, scored, p2, p3, pFirst, pLast, pP1, pPP, goals, first, last, p1Goals, ppGoals]
+  // picksHistory rows: [pid, p, scored, p2, p3, pFirst, pLast, pP1, pPP, goals, first, last, p1Goals, ppGoals, name, team, opp]
   const PK_RES = {
     any:   { p: x => x[1], y: x => x[2] },
     '2':   { p: x => x[3], y: x => +(x[9] >= 2) },
@@ -4139,15 +4140,61 @@
     p1:    { p: x => x[7], y: x => +(x[12] > 0) },
     pp:    { p: x => x[8], y: x => +(x[13] > 0) },
   };
+  // which night the Results tab shows, and whether the whole night is listed (not persisted)
+  const pkRes = { night: null, all: false };
+  function setPkRes(k, v) { pkRes[k] = v; renderPicks(); }
+  window.setPkRes = setPkRes;
+  const PK_TAG = { any: ['GOAL', 'NO GOAL'], '2': ['2+', 'MISS'], '3': ['HATTY', 'MISS'], first: ['FIRST', 'MISS'],
+                   last: ['LAST', 'MISS'], p1: ['P1 GOAL', 'MISS'], pp: ['PP GOAL', 'MISS'] };
   function renderPicksResults() {
     const H = D.picksHistory || {};
-    const nights = Object.keys(H).sort();
     const R = PK_RES[pkF.mkt] || PK_RES.any, M = pkMkt();
     const mkt = `<div class="pairs-filter-row"><span class="due-filter-label">Market</span>${
       PK_MARKETS.map(m => `<button class="due-filter-chip${pkF.mkt === m.v ? ' active' : ''}" onclick="setPkMkt('${m.v}')">${m.lab}</button>`).join('')}</div>`;
-    const rows = nights.flatMap(d => (H[d] || []).filter(x => x[2] != null && (pkF.mkt === 'any' || x.length > 3))
+    // nights that carry this market (the first nights only logged anytime goals)
+    const nights = Object.keys(H).sort().filter(d => (H[d] || []).some(x => pkF.mkt === 'any' || x.length > 3));
+    if (!nights.length) return mkt + `<div class="empty">No nights graded yet. Every board is frozen game by game before puck drop and graded the next morning against the goals scored — the first will be opening night, ${D.seasonStart ? dayLabel(D.seasonStart, true) : ''}.</div>` + pkCalib(H, R);
+    if (pkRes.night == null || !nights.includes(pkRes.night)) pkRes.night = nights[nights.length - 1];
+    const ni = nights.indexOf(pkRes.night);
+    const board = new Map((D.picks?.picks || []).map(r => [r.pid, r]));
+    const rows = (H[pkRes.night] || []).filter(x => pkF.mkt === 'any' || x.length > 3).map(x => {
+      const b = board.get(x[0]) || {};
+      return { pid: x[0], p: R.p(x), y: R.y(x), goals: x.length > 9 ? x[9] : x[2],
+               name: x[14] || b.name || '#' + x[0], team: x[15] || b.team || '', opp: x[16] || '' };
+    }).filter(r => r.p > 0).sort((a, b) => b.p - a.p);
+    const hits = rows.filter(r => r.y).length, said = rows.reduce((a, r) => a + r.p, 0);
+    const top = rows.slice(0, 10), longest = rows.filter(r => r.y).sort((a, b) => a.p - b.p)[0];
+    const games = new Set(rows.map(r => [r.team, r.opp].sort().join())).size;
+    const tiles = `
+      <div class="hm-tiles" style="margin-bottom:0.6rem">
+        <div class="hm-tile"><b>${top.filter(r => r.y).length}/${top.length}</b><span>Top ${top.length} hit · said ${top.reduce((a, r) => a + r.p, 0).toFixed(1)}</span></div>
+        <div class="hm-tile"><b>${hits}/${rows.length}</b><span>${esc(M.lab)} · we said ${said.toFixed(0)}</span></div>
+        <div class="hm-tile"><b>${longest ? Odds.am(longest.p) : '—'}</b><span>${longest ? `Longest hit · ${esc(longest.name.split(' ').slice(-1)[0])}` : 'Longest hit'}</span></div>
+      </div>`;
+    const [YES, NO] = PK_TAG[pkF.mkt] || PK_TAG.any;
+    const LIMIT = 30, shown = pkRes.all ? rows : rows.slice(0, LIMIT);
+    const head = `<div class="cp-res pkr head"><span class="cp-res-nm">Skater</span><span class="cp-res-line">Price</span><span class="cp-res-act">Goals</span><span class="cp-res-tag"></span></div>`;
+    const list = shown.map(r => `<div class="cp-res pkr ${r.y ? 'hit' : 'miss'}" onclick="openPick(${r.pid})">
+        <span class="cp-res-nm">${esc(r.name)}<span class="cp-res-tm">${esc(r.team)}${r.opp ? ' v ' + esc(r.opp) : ''}</span></span>
+        <span class="cp-res-line"><span class="cp-res-od">${Odds.inline(r.p)}</span></span>
+        <span class="cp-res-act">${r.goals}</span>
+        <span class="cp-res-tag">${r.y ? YES : NO}</span></div>`).join('');
+    const more = rows.length > LIMIT ? `<button class="pbf-chip lr-more" onclick="setPkRes('all',${!pkRes.all})">${pkRes.all ? 'Show top ' + LIMIT : `Show all ${rows.length}`}</button>` : '';
+    return mkt + tiles + `
+      <div class="cp-wknav">
+        <button class="due-filter-chip mode-chip" onclick="setPkRes('night','${nights[ni - 1] ?? pkRes.night}')"${ni <= 0 ? ' disabled' : ''}>‹</button>
+        <span class="cp-wk">${dayLabel(pkRes.night)} · ${games} game${games === 1 ? '' : 's'}</span>
+        <button class="due-filter-chip mode-chip" onclick="setPkRes('night','${nights[ni + 1] ?? pkRes.night}')"${ni >= nights.length - 1 ? ' disabled' : ''}>›</button>
+      </div>
+      ${head + list + more}
+      <div class="lr-note">Each game is graded against the board as it stood at its own <b>puck drop</b> — the last build before it started — and against the goals in the final box score (shootout goals don't count). A skater who did not dress is a void and is left out, which is how books settle it.</div>
+      ${pkCalib(H, R)}`;
+  }
+  /** Every graded night pooled: does a price mean what it says, and how the max-price cuts are running against the backtest. */
+  function pkCalib(H, R) {
+    const rows = Object.keys(H).sort().flatMap(d => (H[d] || []).filter(x => x[2] != null && (pkF.mkt === 'any' || x.length > 3))
       .map(x => ({ d, p: R.p(x), y: R.y(x) })));
-    if (!rows.length) return mkt + `<div class="empty">No nights graded yet. Every board is frozen before puck drop and graded the next morning against the goals scored — the first will be opening night, ${D.seasonStart ? dayLabel(D.seasonStart, true) : ''}.</div>`;
+    if (!rows.length) return '';
     const n = rows.length, hits = rows.reduce((a, x) => a + x.y, 0), exp = rows.reduce((a, x) => a + x.p, 0);
     const graded = new Set(rows.map(x => x.d)).size;
     const edges = pkF.mkt === 'any' ? [0, 0.1, 0.2, 0.3] : pkF.mkt === '3' ? [0, 0.005, 0.01, 0.02] : [0, 0.03, 0.06, 0.1];
@@ -4161,18 +4208,14 @@
       const b = rows.filter(x => x.p >= c.p);
       return { lab: c.lab, n: b.length, hit: b.length ? b.reduce((a, x) => a + x.y, 0) / b.length : 0, bt: c.hit };
     });
-    return mkt + `
-      <div class="hm-tiles">
-        <div class="hm-tile"><b>${graded}</b><span>Nights graded</span></div>
-        <div class="hm-tile"><b>${hits}</b><span>${esc(M.lab)} hits / ${n} priced</span></div>
-        <div class="hm-tile"><b>${(hits / n * 100).toFixed(1)}%</b><span>Scored · ${(exp / n * 100).toFixed(1)}% expected</span></div>
-      </div>
+    return `<details class="lr-bt"${window.pkCalOpen ? ' open' : ''} ontoggle="window.pkCalOpen = this.open"><summary>Season so far — ${graded} night${graded === 1 ? '' : 's'}, ${n.toLocaleString()} skaters priced: ${hits} hit, ${exp.toFixed(0)} expected</summary>
       <div class="result-meta" style="margin-top:0.9rem">Calibration — does a price mean what it says?</div>
-      <div class="rc-tablewrap"><table class="rc-table"><thead><tr><th>Priced at</th><th class="num">Skaters</th><th class="num">Expected</th><th class="num">Scored</th></tr></thead>
+      <div class="rc-tablewrap"><table class="rc-table"><thead><tr><th>Priced at</th><th class="num">Skaters</th><th class="num">Expected</th><th class="num">Hit</th></tr></thead>
         <tbody>${buckets.map(b => `<tr><td>${b.lab}</td><td class="num">${b.n}</td><td class="num">${(b.pred * 100).toFixed(1)}%</td><td class="num"><b>${b.n ? (b.act * 100).toFixed(1) + '%' : '—'}</b></td></tr>`).join('')}</tbody></table></div>
       <div class="result-meta" style="margin-top:0.9rem">Max-price cuts — live against the backtest</div>
       <div class="rc-tablewrap"><table class="rc-table"><thead><tr><th>Cut</th><th class="num">Picks</th><th class="num">Live hit</th><th class="num">Backtest</th></tr></thead>
-        <tbody>${cuts.map(c => `<tr><td>${c.lab} or shorter</td><td class="num">${c.n}</td><td class="num"><b>${c.n ? (c.hit * 100).toFixed(1) + '%' : '—'}</b></td><td class="num dim">${c.bt}%</td></tr>`).join('')}</tbody></table></div>`;
+        <tbody>${cuts.map(c => `<tr><td>${c.lab} or shorter</td><td class="num">${c.n}</td><td class="num"><b>${c.n ? (c.hit * 100).toFixed(1) + '%' : '—'}</b></td><td class="num dim">${c.bt}%</td></tr>`).join('')}</tbody></table></div>
+    </details>`;
   }
 
   // ── Ladder card ────────────────────────────────────────────────────────

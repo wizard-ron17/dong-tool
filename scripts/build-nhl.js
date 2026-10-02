@@ -337,8 +337,9 @@ async function main() {
     const kept = (H[upcoming] || []).filter(x => puckDropped.has(x[gi]));
     H[upcoming] = [...kept, ...fresh.filter(x => !puckDropped.has(x[gi]))];
   };
+  // [pid, p, scored, gameId, p2, p3, pFirst, pLast, pP1, pPP, goals, first, last, p1Goals, ppGoals, name, team]
   if (upcoming && picks.picks.length) refreeze(hist, picks.picks.map(r => [r.pid, r.p, null, r.gameId,
-      r.p2, r.p3, r.pFirst, r.pLast, r.pP1, r.pPP, null, null, null, null, null]), 3);
+      r.p2, r.p3, r.pFirst, r.pLast, r.pP1, r.pPP, null, null, null, null, null, r.name, r.team]), 3);
   // One boxscore read per game, shared by both graders: who dressed, and how
   // many shots each put on net. null when the fetch fails — the next build retries.
   // Goalies ride along in goalieBox: pid -> { starter, saves, ga }.
@@ -387,11 +388,12 @@ async function main() {
     for (const x of recap[d] || []) if (x.ptype !== 'SO') (byGame[x.gameId] ??= []).push(x);
     for (const g of Object.values(byGame)) g.sort((a, b) => a.k - b.k);
     hist[d] = rows.map(([pid, pp, , gid, ...mk]) => {
-      if (!dressed.has(pid)) return [pid, pp, -1, gid, ...mk.slice(0, 6), -1, -1, -1, -1, -1];
+      const who = mk.slice(11);                                 // name, team (rows frozen since 10/2)
+      if (!dressed.has(pid)) return [pid, pp, -1, gid, ...mk.slice(0, 6), -1, -1, -1, -1, -1, ...who];
       const gl = byGame[gid] || [], mine = gl.filter(x => x.pid === pid);
       return [pid, pp, scorers.has(pid) ? 1 : 0, gid, ...mk.slice(0, 6),
               mine.length, gl[0]?.pid === pid ? 1 : 0, gl[gl.length - 1]?.pid === pid ? 1 : 0,
-              mine.filter(x => x.period === 1).length, mine.filter(x => x.strength === 'pp').length];
+              mine.filter(x => x.period === 1).length, mine.filter(x => x.strength === 'pp').length, ...who];
     });
     graded++;
   }
@@ -587,12 +589,24 @@ async function main() {
     winprob: (({ late, m_lead, m_trail, ot_shrink }) => ({ late, m_lead, m_trail, ot_shrink }))(
       JSON.parse(fs.readFileSync(new URL('../research/nhl_winprob_model.json', import.meta.url), 'utf8'))),
     // graded nights only, voids dropped, as
-    //   [pid, p, scored, p2, p3, pFirst, pLast, pP1, pPP, goals, first, last, p1Goals, ppGoals]
-    // (nights frozen before the extra markets carry only the first three)
+    //   [pid, p, scored, p2, p3, pFirst, pLast, pP1, pPP, goals, first, last, p1Goals, ppGoals, name, team, opp]
+    // (nights frozen before the extra markets carry only the first three). Name and
+    // team are as frozen, else from today's rosters; the opponent is off the game.
     schedTops,
-    picksHistory: Object.fromEntries(Object.entries(hist)
-      .filter(([, r]) => r.every(x => x[2] != null))
-      .map(([d, r]) => [d, r.filter(x => x[2] >= 0).map(x => x.length > 4 ? [x[0], x[1], x[2], ...x.slice(4)] : [x[0], x[1], x[2]])])),
+    picksHistory: (() => {
+      const who = new Map();
+      for (const r of fun?.roster || []) who.set(String(r.pid), [r.name, r.team]);
+      for (const r of picks.picks || []) who.set(String(r.pid), [r.name, r.team]);
+      return Object.fromEntries(Object.entries(hist)
+        .filter(([, r]) => r.every(x => x[2] != null))
+        .map(([d, r]) => [d, r.filter(x => x[2] >= 0).map(x => {
+          if (x.length <= 4) return [x[0], x[1], x[2]];
+          const [name, team] = x[15] ? [x[15], x[16]] : (who.get(String(x[0])) || ['', '']);
+          const g = recapGames[x[3]] || {};
+          const opp = team && g.home === team ? g.away : team && g.away === team ? g.home : '';
+          return [x[0], x[1], x[2], ...x.slice(4, 15), name, team, opp];
+        })]));
+    })(),
   };
   const out = new URL('../nhl/data.json', import.meta.url);
   fs.mkdirSync(new URL('../nhl/', import.meta.url), { recursive: true });
