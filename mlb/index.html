@@ -2566,7 +2566,7 @@
       <div class="due-explainer-body" id="schedule-explainer-body" style="display:none">
         <ul>
           <li><b>Homer Score.</b> Each game blends both probable pitchers' HR-vulnerability (HR/9, with K/9 as a cue), the park's HR factor, and game-time weather into one number — how homer-friendly the game projects overall. Greener = juicier.</li>
-          <li><b>Top pick.</b> Every game's best HR bat by Pick Score — the better of the two clubs' — frozen at first pitch and graded: ✓ once he homers, ✗ if the game ends without one.</li>
+          <li><b>Top pick.</b> Every game's best HR bat by fair odds — the better of the two clubs' — frozen at first pitch and graded: ✓ once he homers, ✗ if the game ends without one.</li>
           <li><b>The game card.</b> Tap any game: <b>Picks</b> (every HR candidate in it and both starters' strikeout and walk lines), <b>Matchup</b> (starters, lineups — confirmed or projected — bullpens, park and weather), <b>Lines</b> (open, now and every move) and <b>Game</b> (the line score and every homer).</li>
           <li><b>Other days.</b> ‹ › pages back to results and ahead to probable starters. Lineups, pens and live Homer Scores are the current slate's; a finished day keeps its closing lines, Homer Scores and graded picks.</li>
         </ul>
@@ -6828,7 +6828,7 @@ function schedPickResult(t, box, final) {
 function schedPickStrip(g, date, S) {
   const t = schedTopPick(g, date); if (!t) return '';
   const r = schedPickResult(t, S.box, S.final);
-  return `<div class="gc-pick${r ? ' ' + r.cls : ''}" title="The game's top HR pick by Pick Score${S.started ? ' — as it stood at first pitch' : ''}">
+  return `<div class="gc-pick${r ? ' ' + r.cls : ''}" title="The game's top HR pick by fair odds${S.started ? ' — as it stood at first pitch' : ''}">
     <span class="gc-pick-star">★</span><span class="gc-pick-lbl">Top pick</span>${teamLogoImg(t.team, 'gc-pick-logo')}
     <span class="gc-pick-nm">${compactPlayerName(t.name)}</span>${injChip(t.pid)}<span class="gc-pick-sc">Pick <b class="ps-ramp" ${psRamp(t.score)}>${Number(t.score).toFixed(1)}</b>${(() => { const ph = t.pHR ?? (date === todayDate ? hrPOf(t.pid) : null); return ph > 0 ? `<span class="gc-pick-fair" title="${HR_FAIR_TIP}"> · ${hrFairFull(ph)}</span>` : ''; })()}</span>
     ${r ? `<span class="gc-pick-res">${r.txt}</span>` : S.started ? '<span class="gc-pick-res pend">live</span>' : ''}
@@ -7192,7 +7192,7 @@ function sgPicks(g, date, S, away, home) {
   const state = S.final ? 'post' : S.started ? 'live' : 'pre';
   return `${top ? `<div class="sg-sec">${top}</div>` : ''}` + RonSlate.box({ state: state === 'live' ? 'post' : state, teams,
     note: date !== todayDate ? 'The HR board as it was logged that day, graded: ✓ homered.'
-      : state === 'pre' ? `Every priced bat: our fair HR odds (the boards' picks carry their Pick Score; the rest of each lineup is priced once the matchup data loads${matchupCards && matchupCards !== 'error' ? '' : ' — loading'}), and both starters' K and walk lines at their even-money rung. Tap a price for the card; in parlay mode a tap adds it to the slip.`
+      : state === 'pre' ? `Every priced bat: our fair HR odds (the Board column marks who's on Chalk or Value; the rest of each lineup is priced once the matchup data loads${matchupCards && matchupCards !== 'error' ? '' : ' — loading'}), and both starters' K and walk lines at their even-money rung. Tap a price for the card; in parlay mode a tap adds it to the slip.`
       : 'The board at first pitch, graded as homers land: ✓ homered.',
     empty: date === todayDate ? 'Nobody in this game is priced yet.' : 'No HR board logged for this game.' });
 }
@@ -10759,7 +10759,7 @@ const mfCls = (v) => v == null ? '' : mfR(v) >= 1.05 ? 'great' : mfR(v) > 1 ? 'g
 // A separate layer from the Pick Score: it reads his power, contact quality,
 // the starter's barrels per batter faced, his slot and the park, and none of
 // the matchup factors. Rows frozen before the model existed carry no pHR.
-const HR_FAIR_TIP = 'Fair odds (no vig) from the HR model: his power and contact quality, the starter\'s barrels allowed, lineup slot and park — calibrated on every 2025-26 starter-game. A separate read from the Pick Score.';
+const HR_FAIR_TIP = 'Fair odds (no vig) from the HR model: his power, contact quality and pulled air balls, the starter\'s barrels allowed and velo, park, weather, day or night, and lineup slot. Fitted on every 2026 starter-game and tested on games it never saw.';
 const hrFair = (p) => p > 0 ? kbbOdds(p) : '—';
 const hrFairPct = (p) => p > 0 ? `${(p * 100).toFixed(1)}%` : '';
 /** "+412 (19.5%)" — the one format wherever there's room for it. */
