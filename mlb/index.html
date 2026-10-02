@@ -3584,6 +3584,7 @@ function applyData(data) {
   });
 
   setStatus('ready', `${data.daysWithData}d · ${data.totalHRCount} HR · upd ${timeAgo(data.generatedAt)}`);
+  RonChrome.fresh(data.generatedAt, { starts: (data.todaySchedule || []).filter(g => !/final|game over|completed|postponed/i.test(g.status || '')).map(g => g.gameDate) });
 
   // Hidden health view: auto-open on first load if ?status is present, and keep
   // it fresh if it's already open when data reloads.
@@ -9727,7 +9728,7 @@ function viewSwitcherHtml(shareFn, extra = '') {
   const btn = (v, label) => `<button class="view-btn${listView===v?' active':''}" data-vb="${v}" onclick="setListView('${v}')">${label}</button>`;
   return `<div class="lb-toolbar">
     <div class="view-switch">${btn('table','Table')}${btn('cards','Cards')}${btn('compact','Compact')}</div>
-    ${extra}<button class="share-btn" onclick="${shareFn}()">↗ Share</button>
+    ${RonChrome.freshHtml()}${extra}<button class="share-btn" onclick="${shareFn}()">↗ Share</button>
   </div>`;
 }
 function setListView(v) {

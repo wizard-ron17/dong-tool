@@ -22,6 +22,11 @@
   const CSS = `
   .tb-brand { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
   .tb-right { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
+  .ron-fresh { font-size: 0.68rem; font-weight: 600; color: var(--dim); white-space: nowrap; letter-spacing: 0.02em; }
+  .ron-fresh.stale { color: var(--gold); }
+  .lb-toolbar .ron-fresh { margin-right: auto; }
+  .ron-stale { margin: 0 0 0.8rem; padding: 0.55rem 0.8rem; border: 1px solid var(--gold); border-radius: 9px; background: color-mix(in srgb, var(--gold) 10%, transparent); color: var(--text); font-size: 0.78rem; line-height: 1.45; }
+  .ron-stale b { color: var(--gold); }
   .site-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; margin: 2.2rem 0 0; padding: 0.9rem 0 0.4rem; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--muted); }
   .social-links { display: inline-flex; align-items: center; gap: 0.55rem; margin-left: 0.5rem; vertical-align: middle; }
   .social-links a { color: var(--muted); display: inline-flex; transition: color 0.15s; }
@@ -275,7 +280,57 @@
     closeNavTools();
   }
 
-  window.RonChrome = { mount, onTheme, show, SPORTS };
+  // ── Freshness ─────────────────────────────────────────────────────────────
+  // How old the prices are, on every board, and a banner when they're too old
+  // to trust: a build cron can fail (NHL's opening day) and the page would
+  // keep serving yesterday's scratches without a word. Each app reports its
+  // data's build time once it loads, with the start times of its unfinished games:
+  //   RonChrome.fresh(data.generatedAt, { starts: [iso, ...] })
+  // and boards print RonChrome.freshHtml() wherever they want the label; every
+  // label on the page ticks once a minute. The banner shows only around games
+  // (one in progress or starting within 6 hours) and only once the build is
+  // over STALE_MIN old: off days build once a morning, and NHL's afternoon has
+  // a 4-hour gap between builds by design.
+  const STALE_MIN = 270;
+  let FRESH = null;
+  function freshAgo(t) {
+    const m = Math.floor((Date.now() - t) / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + 'm ago';
+    if (m < 48 * 60) return Math.floor(m / 60) + 'h' + (m < 6 * 60 && m % 60 ? ' ' + (m % 60) + 'm' : '') + ' ago';
+    return Math.floor(m / 1440) + 'd ago';
+  }
+  const freshLive = () => { const now = Date.now(); return !!FRESH && FRESH.starts.some(s => s > now - 4 * 3600e3 && s < now + 6 * 3600e3); };
+  const freshStale = () => freshLive() && (Date.now() - FRESH.t) / 60000 > STALE_MIN;
+  const freshTitle = () => FRESH ? `Prices built ${new Date(FRESH.t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}` : '';
+  function freshHtml() {
+    if (!FRESH) return '<span class="ron-fresh"></span>';
+    return `<span class="ron-fresh${freshStale() ? ' stale' : ''}" title="${freshTitle()}">Updated ${freshAgo(FRESH.t)}</span>`;
+  }
+  function freshPaint() {
+    if (!FRESH) return;
+    for (const el of document.querySelectorAll('.ron-fresh')) {
+      el.textContent = 'Updated ' + freshAgo(FRESH.t); el.title = freshTitle(); el.classList.toggle('stale', freshStale());
+    }
+    let b = document.getElementById('ron-stale');
+    if (freshStale()) {
+      if (!b) {
+        const top = document.querySelector('header.topbar'); if (!top) return;
+        top.insertAdjacentHTML('afterend', '<div class="ron-stale" id="ron-stale" role="status"></div>');
+        b = document.getElementById('ron-stale');
+      }
+      b.innerHTML = `<b>These prices are ${freshAgo(FRESH.t).replace(' ago', '')} old.</b> Lineup news, scratches and line moves since then aren't in them. Our hourly update is late; check back soon.`;
+    } else b?.remove();
+  }
+  function fresh(iso, { starts = [] } = {}) {
+    const t = Date.parse(iso); if (!(t > 0)) return;
+    FRESH = { t, starts: starts.map(x => Date.parse(x)).filter(x => x > 0) };
+    freshPaint();
+  }
+  setInterval(freshPaint, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) freshPaint(); });
+
+  window.RonChrome = { mount, onTheme, show, fresh, freshHtml, SPORTS };
   Object.assign(window, { currentTheme, updateThemeToggleIcon, toggleTheme, sportBackdrop, placeSportMenu, toggleSportMenu, closeSportMenu, openNavTools, closeNavTools, toggleNavTools });
   Object.defineProperty(window, 'navToolsOpen', { get: () => navToolsOpen, configurable: true });
 })();

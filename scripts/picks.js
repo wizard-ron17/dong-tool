@@ -1078,6 +1078,16 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   }
 
   const starterQb = passStarters(roster, passLog, season, depth, outIds);
+  // How each starter was decided, for the boards' QB tag: the depth chart's
+  // own QB1 (projected), the next man up for a QB1 ruled out, or a hand override.
+  const depthQb = passStarters(roster, passLog, season, depth);
+  const qbStatus = {};
+  for (const [team, pid] of starterQb) {
+    const qb1 = depthQb.get(team);
+    qbStatus[team] = qb1 && qb1 !== pid && outIds.has(qb1)
+      ? { pid, how: 'injury', note: `${roster.get(qb1)?.name ?? 'The starter'} is out` }
+      : { pid, how: 'depth' };
+  }
   // Late QB news no feed carries: a healthy backup benched for the third
   // stringer (CHI wk 3 2026: Bagent "Questionable"/Active, Keenum starting on
   // Glazer's report — the depth chart and ESPN still listed Bagent 2nd). The
@@ -1086,6 +1096,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     if (o.season !== season || o.week !== week || !roster.has(o.pid)) continue;
     console.log(`  QB override: ${o.team} starts ${roster.get(o.pid)?.name ?? o.pid} (was ${roster.get(starterQb.get(o.team))?.name ?? '—'}) — ${o.why || ''}`);
     starterQb.set(o.team, o.pid);
+    qbStatus[o.team] = { pid: o.pid, how: 'override', note: o.why || '' };
   }
   console.log(`  passing market: ${starterQb.size} starting QBs identified`);
 
@@ -1726,6 +1737,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
 
   return {
     season, week, generatedAt: new Date().toISOString(),
+    qbStatus,
     shots,
     receptions, receptionModel: { alpha: RECEPTION_MODEL.alpha, varPow: RECEPTION_MODEL.var_pow ?? null, lines: REC_LINES,
                                   windFactor: RECEPTION_MODEL.wind_factor },

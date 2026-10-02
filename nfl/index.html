@@ -3446,6 +3446,9 @@
       nflData = await r.json();
       setEyebrowSeason();
       setStatus('ready', statusSummary(nflData));
+      // kickoffs are listed in ET: EDT until November, EST after
+      const et = (d, t) => `${d}T${t}:00${[11, 12, 1, 2].includes(+d.slice(5, 7)) ? '-05:00' : '-04:00'}`;
+      RonChrome.fresh(nflData.generatedAt, { starts: (nflData.schedule || []).filter(g => g.homeScore == null && g.gametime).map(g => et(g.gameday, g.gametime)) });
     }
     catch (e) { nflData = 'error'; setStatus('error'); }
     renderPanel(activeNav);
@@ -4333,7 +4336,7 @@
       <div class="lb-toolbar">
         <div class="view-switch">${[['table', 'Table'], ['factors', 'Factors'], ['cards', 'Cards'], ['compact', 'Compact']]
           .map(([v, l]) => `<button class="view-btn${pbF.view === v ? ' active' : ''}" onclick="setPbF('view','${v}')">${l}</button>`).join('')}</div>
-        ${parSideToggleHtml('picks', !pbMkt().qbOnly, 'renderPicks()')}
+        ${RonChrome.freshHtml()}${parSideToggleHtml('picks', !pbMkt().qbOnly, 'renderPicks()')}
       </div>
       ${cut && cut.v ? `<div class="pb-cutnote">At <b>${cut.lab}</b> or shorter, ${pbMkt().lab} historically hit <b>${cut.hit}%</b> — against a <b>${pbMkt().base}%</b> base rate.</div>`
                      : `<div class="pb-cutnote">Full board. ${pbMkt().lab} base rate is <b>${pbMkt().base}%</b>.</div>`}
@@ -7032,8 +7035,18 @@ let pairStacks = false;
                           s: `Over ${r.L} completions`, p: r.p, i: r.pid }, r.side, false);
   const cpChip = (k, v, lab, cur) =>
     uiChip('setCp', k, v, lab, cur);
+  // How we know he starts: a hand override (late news, nfl/qb-overrides.json) or
+  // the next man up for a starter ESPN has out. A plain depth-chart QB1 gets no tag.
+  const qbTag = (r) => {
+    const s = nflData?.picks?.qbStatus?.[r.team];
+    if (!s || s.pid !== r.pid || s.how === 'depth') return '';
+    const tip = String(s.note || '').replace(/"/g, '&quot;');
+    return s.how === 'override'
+      ? `<span class="rc-wind" title="Set by hand from late news: ${tip}">confirmed starter</span>`
+      : `<span class="rc-wind" title="${tip} — he's next on the depth chart">starting: ${tip.replace(/ is out$/, '').split(' ').slice(-1)[0]} out</span>`;
+  };
   const cpNotes = (r) => {
-    const n = [];
+    const n = [qbTag(r)];
     if (r.f.windX < 0.995) n.push(`<span class="rc-wind" title="Forecast wind at kickoff — already in the projection">${Math.round(r.f.windMph)} mph</span>`);
     if (r.f.defX < 0.995) n.push(`<span class="rc-wind" title="Elite pass defense — already in the projection">tough D</span>`);
     if (r.f.thinX < 0.999) n.push(`<span class="rc-wind" title="Fewer than 3 starts in the last two seasons — projection discounted ×${r.f.thinX.toFixed(2)}, the measured shortfall for starters with thin history">limited history</span>`);
@@ -7162,7 +7175,7 @@ let pairStacks = false;
                           s: `Over ${r.L} interceptions`, p: r.p, i: r.pid }, r.side, false);
   const spreadTxt = (fav) => fav === 0 ? 'pick’em' : fav > 0 ? `−${fav} fav` : `+${-fav} dog`;
   const inNotes = (r) => {
-    const n = [];
+    const n = [qbTag(r)];
     if (r.f.fav <= -7) n.push(`<span class="rc-wind" title="Big underdog — teams expected to trail throw riskier passes; already in the price">big dog</span>`);
     if (r.f.thinX > 1.001) n.push(`<span class="rc-wind" title="Fewer than 3 starts in the last two seasons — marked up ×${r.f.thinX.toFixed(2)}, the measured extra for starters with thin history">limited history</span>`);
     return n.join('');
@@ -7523,7 +7536,7 @@ let pairStacks = false;
           <div class="pb-info">
             <div class="pb-nm">${r.name}${injChip(r.pid)}${pos(r)}</div>
             <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
-              ${liveChip('yds', r, r.med)}${roleTag(r.f)}${r.f.thinRole ? '<span class="rc-wind" title="No NFL history — priced from his depth-chart snap share against what rookies at his position and snap tier produced">rookie baseline</span>' : ''}${r.f.thin ? '<span class="rc-wind" title="Fewer than 3 recent starts — his numbers lean on a league-average QB">limited history</span>' : ''}${r.f.recent ? `<span class="rc-wind" title="Under 2 targets a game over two seasons, but ${r.f.tgtL3} a game over his last three: priced off the measured shortfall for this group (they land ~25% under the main model) with its wider spread">recent role</span>` : ''}</div>
+              ${liveChip('yds', r, r.med)}${roleTag(r.f)}${r.f.thinRole ? '<span class="rc-wind" title="No NFL history — priced from his depth-chart snap share against what rookies at his position and snap tier produced">rookie baseline</span>' : ''}${r.f.thin ? '<span class="rc-wind" title="Fewer than 3 recent starts — his numbers lean on a league-average QB">limited history</span>' : ''}${r.pos === 'QB' ? qbTag(r) : ''}${r.f.recent ? `<span class="rc-wind" title="Under 2 targets a game over two seasons, but ${r.f.tgtL3} a game over his last three: priced off the measured shortfall for this group (they land ~25% under the main model) with its wider spread">recent role</span>` : ''}</div>
           </div>
           <div class="pb-facts">${ydFacts(r).map(([v, l, t]) => `<span class="pb-f" title="${t}"><b>${v}</b> ${l}</span>`).join('')}</div>
           <div class="pb-price"><span class="pb-odds" style="color:var(--text-strong)">${r.med.toFixed(0)}</span><span class="pb-pct">median · ${parSideLine(r)} ${Odds.inline(r.p)}</span></div>

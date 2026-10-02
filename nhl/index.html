@@ -1711,6 +1711,7 @@
       const el = document.getElementById('eyebrow-season');
       if (el && D.seasonLabel) el.textContent = D.seasonLabel;
       setStatus('ready', statusSummary(D));
+      RonChrome.fresh(D.generated, { starts: (D.schedule || []).filter(g => !['OFF', 'FINAL'].includes(g.state)).map(g => g.start) });
     } catch (e) { D = 'error'; setStatus('error'); }
     renderPanel(activeNav);
     liveStart();
@@ -3975,7 +3976,7 @@
       <div class="lb-toolbar">
         <div class="view-switch">${[['table', 'Table'], ['factors', 'Factors'], ['cards', 'Cards'], ['compact', 'Compact']]
           .map(([v, l]) => `<button class="view-btn${pkF.view === v ? ' active' : ''}" onclick="setPkF('view','${v}')">${l}</button>`).join('')}</div>
-        ${parSideToggleHtml('picks', true, 'renderPicks()')}
+        ${RonChrome.freshHtml()}${parSideToggleHtml('picks', true, 'renderPicks()')}
       </div>
       ${cut && cut.v ? `<div class="pb-cutnote">At <b>${cut.lab}</b> or shorter, anytime goal historically hit <b>${cut.hit}%</b> — against a <b>${base}%</b> base rate.</div>`
                      : `<div class="pb-cutnote">Full board. Anytime-goal base rate is <b>${base}%</b>.</div>`}
