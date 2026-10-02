@@ -8,6 +8,7 @@
 <script src="/app.js"></script>
 <script src="/chrome.js"></script>
 <script src="/modal.js"></script>
+<script src="/share.js"></script>
 <script src="/board.js"></script>
 <script src="/ladder.js"></script>
 <script src="/slate.js"></script>
@@ -823,6 +824,11 @@
   // ESPN has no headshot for this prospect; don't request its known-404 URL.
   const NO_ESPN_HEADSHOT = new Set(['5176420']);
   /** ESPN headshots; fall back to initials when a player has no image. */
+  // ── Share cards (share.js): each board's top 10 as an image ──
+  const shareRow = (r, p, tag, extra = '') => ({ name: r.name, p, tag,
+    img: r.pid && !NO_ESPN_HEADSHOT.has(String(r.pid)) ? `https://a.espncdn.com/i/headshots/nba/players/full/${r.pid}.png` : null,
+    logo: D?.teams?.[r.team]?.logoDark || D?.teams?.[r.team]?.logo || null,
+    line: `${r.team} ${r.home ? 'vs' : '@'} ${r.opp}${extra ? ' · ' + extra : ''}` });
   function faceHtml(pid, name, cls) {
     const ini = (name || '').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
     if (!pid || NO_ESPN_HEADSHOT.has(String(pid))) return `<div class="rc-photo rc-noface ${cls || ''}">${esc(ini)}</div>`;
@@ -1538,6 +1544,8 @@
     const games = [...new Map(lcRows(kind).map(r => [r.gid, r])).values()].sort((a, b) => a.start.localeCompare(b.start));
     if (F.game !== 'all' && !games.some(g => g.gid === F.game)) F.game = 'all';
     const rows = bdRows(nav, true);
+    RonShare.set(set, () => ({ title: C.unit.replace(/^./, c => c.toUpperCase()), sub: dayLabel(src.date, true),
+      rows: rows.map(r => shareRow(r, r.pAt, parSideLine(r), `${r.mu.toFixed(1)} proj`)) }));
     const changed = (F.line !== 'auto') + (F.pos !== 'ALL') + (F.game !== 'all') + (F.sort !== 'proj');
     const tabs = cfg.tabs.length > 1 ? uiTabs(set, F.tab, cfg.tabs) : '';
     const controls = uiFilters(set, F.open, [
@@ -1628,6 +1636,11 @@
     const games = [...new Map(R0.map(r => [r.gid, r])).values()].sort((a, b) => a.start.localeCompare(b.start));
     if (dblF.game !== 'all' && !games.some(g => g.gid === dblF.game)) dblF.game = 'all';
     const rows = dblRows(), td = dblF.sort === 'td';
+    RonShare.set('setDblF', () => {
+      const no = parSideGet('doubles') === 'under';
+      return { title: `${no ? 'No ' : ''}${td ? 'Triple-double' : 'Double-double'}`, sub: dayLabel(D.stats.date, true),
+        rows: rows.map(r => shareRow(r, parSidePrice(r[dblF.sort], parSideGet('doubles')), '', `${r.pts} · ${r.reb} · ${r.ast} proj`)) };
+    });
     const controls = uiFilters('setDblF', dblF.open, [
       ['Market', [['dd', 'Double-double'], ['td', 'Triple-double']].map(([v, l]) => uiChip('setDblF', 'sort', v, l, dblF.sort)).join('')],
       ['Game', [['all', 'All games'], ...games.map(g => [g.gid, `${g.home ? g.opp : g.team} @ ${g.home ? g.team : g.opp}`])].map(([v, l]) => uiChip('setDblF', 'game', v, l, dblF.game)).join('')],
@@ -1721,6 +1734,7 @@
     const shown = games.filter(g => fbF.game === 'all' || g.gid === fbF.game);
     const all = shown.flatMap(g => g.players.map(r => ({ ...r, g, opp: r.team === g.home ? g.away : g.home, home: r.team === g.home })))
       .filter(r => matchQ(r, fbF.q)).sort((a, b) => b.p - a.p);
+    RonShare.set('setFbF', () => ({ title: 'First basket', sub: dayLabel(B.date, true), rows: all.map(r => shareRow(r, r.p, '', r.jumper ? 'takes the tip' : '')) }));
     const controls = uiFilters('setFbF', fbF.open, [
       ['Game', [['all', 'All games'], ...games.map(g => [g.gid, `${g.away} @ ${g.home}`])].map(([v, l]) => uiChip('setFbF', 'game', v, l, fbF.game)).join('')],
     ], fbF.game !== 'all') + uiSearch('first-search', 'setFbF', fbF.q, 'Search a player, team or position…');

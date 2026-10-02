@@ -8,6 +8,7 @@
 <script src="/app.js"></script>
 <script src="/chrome.js"></script>
 <script src="/modal.js"></script>
+<script src="/share.js"></script>
 <script src="/board.js"></script>
 <script src="/ladder.js"></script>
 <script src="/slate.js"></script>
@@ -3541,6 +3542,10 @@
   // than an 'all' sentinel so "QB + RB" is expressible at all.
   const PB_DEFAULTS = { mkt: '1', pos: [], team: 'all', cut: 0.25, sort: 'p', dir: 'desc', view: 'cards' };
   let pbF = { ...PB_DEFAULTS };
+  // Table is the factor table now (the price beside what drives it), and the
+  // old Compact screenshot view is the Share card: a saved 'factors' or
+  // 'compact' view reads as its replacement.
+  const pbView = () => pbF.view === 'factors' ? 'table' : pbF.view === 'compact' ? 'cards' : pbF.view;
   // Search is deliberately NOT persisted with the other filters: coming back
   // tomorrow to a board silently narrowed to one player you searched once is a
   // bug report waiting to happen.
@@ -3745,7 +3750,7 @@
     // Comma-separated terms are OR here, unlike Pairs where they're AND — a
     // group has to contain every name, but a board should show any of them.
     if (pbF.team !== 'all') rows = rows.filter(r => r.team === pbF.team);
-    if (pbF.view === 'factors' && !pbMkt().qbOnly) {
+    if (pbView() === 'table' && !pbMkt().qbOnly) {
       const lo = pbAmToP(pbF.fxLo);
       if (lo != null) rows = rows.filter(r => pbP(r) <= lo + 1e-9);
       if (pbF.fxTrend) rows = rows.filter(r => pbFx(r).trend >= 1.005);
@@ -3877,23 +3882,21 @@
     </div>`;
   }
 
-  function pbTable(rows) {
+  /** Passing TDs are their own Poisson model (no Role/Trend/Spot): the table shows what it's built from. */
+  function pbPassTable(rows) {
     const th = (v, lab, cls = '') => `<th class="${cls}${pbF.sort === v ? ' on' : ''}" onclick="setPbSort('${v}')">${lab}${pbF.sort === v ? `<span class="ar">${pbF.dir === 'desc' ? '▼' : '▲'}</span>` : ''}</th>`;
     return `<div class="pb-tablewrap"><table class="pb-table">
-      <thead><tr><th class="static">#</th>${th('name', 'Player')}${th('pos', 'Pos')}${th('time', 'Game')}${th('p', 'Price', 'num')}${th('pct', 'Chance', 'num')}${th('alt', pbF.mkt === '1' ? '2+ TD' : '1+ TD', 'num')}${th('first', '1st TD', 'num')}${th('last', 'Last TD', 'num')}${th('snap3', 'Snap%', 'num')}${th('rz', 'RZ/g', 'num')}${th('imp', 'Total', 'num')}</tr></thead>
+      <thead><tr><th class="static">#</th>${th('name', 'Quarterback')}${th('p', 'Fair', 'num')}${th('proj', 'Proj TD', 'num')}<th class="static num">Att/g</th>${th('imp', 'Total', 'num')}<th class="static num">O0.5</th><th class="static num">O2.5</th>${th('time', 'Game')}</tr></thead>
       <tbody>${rows.map((r, i) => `<tr onclick="openPick('${r.pid}')"${parAttr(pbLeg(r))}>
         <td class="num">${r.rank ?? i + 1}</td>
-        <td class="nm">${r.name}${r.f?.newAbsence ? ' <span class="pb-flag">ROLE OPEN</span>' : ''}</td>
-        <td>${posBadge(r.pos)}</td>
-        <td><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}${r.kick ? ` <span style="color:var(--dim)">${r.kick}</span>` : ''}</td>
-        <td class="od${pbShown(r) < 0.5 ? ' dog' : ''}">${pbOdds(pbShown(r))}</td>
-        <td class="num">${(pbShown(r) * 100).toFixed(pbShown(r) < 0.1 ? 1 : 0)}%</td>
-        <td class="num" style="color:var(--dim)">${Odds.inline(pbF.mkt === '1' ? r.p2 : r.p)}</td>
-        <td class="num" style="color:var(--dim)">${Odds.inline(r.pFirst)}</td>
-        <td class="num" style="color:var(--dim)">${Odds.inline(r.pLast)}</td>
-        <td class="num">${Math.round((r.f?.snap3 ?? 0) * 100)}%</td>
-        <td class="num">${(r.f?.rz ?? 0).toFixed(1)}</td>
+        <td class="nm">${r.name}</td>
+        <td class="od${pbShown(r) < 0.5 ? ' dog' : ''}">${pbOdds(pbShown(r))}<small>${(pbShown(r) * 100).toFixed(0)}%</small></td>
+        <td class="num">${(r.pass?.proj ?? 0).toFixed(2)}</td>
+        <td class="num">${(r.pass?.attPg ?? 0).toFixed(0)}</td>
         <td class="num">${(r.f?.implied ?? 0).toFixed(1)}</td>
+        <td class="num" style="color:var(--dim)">${Odds.inline(r.pass?.p?.['1'])}</td>
+        <td class="num" style="color:var(--dim)">${Odds.inline(r.pass?.p?.['3'])}</td>
+        <td><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}${r.kick ? ` <span style="color:var(--dim)">${r.kick}</span>` : ''}</td>
       </tr>`).join('')}</tbody></table></div>`;
   }
 
@@ -3929,47 +3932,6 @@
       </tr>`; }).join('')}</tbody></table></div>
       <div class="pbx-note">Anytime price = position base × <b>Role</b> × <b>Trend</b> × <b>Spot</b>, each an odds multiplier against an average player. <b>Role</b> is NFL's base power — who he is. <b>Spot</b> is this game, and it's mostly the team total: football moves on role, not matchup. The NFL longshot is a role that just grew — <b>Trend +</b> or ROLE OPEN — on a high total. Questionable and return-TD adjustments sit on top of the factors.</div>`;
   }
-
-  // Compact is the share/screenshot view, so it carries its own header and
-  // footer: a crop of it still says what it is, which week, which market, and
-  // that the prices are fair odds rather than a book's.
-  function pbCompact(rows, P) {
-    const posLbl = pbF.pos.length ? ' · ' + pbF.pos.join('/') : '';
-    return `<div class="pbc">
-      <div class="pbc-hd">
-        <span class="pbc-brand">Ron's <em>Tud</em> Tool</span>
-        <span class="pbc-sub">${WK_LABEL(P.week)} · ${pbMkt().lab}${posLbl}</span>
-      </div>
-      ${rows.map((r, i) => `<div class="pbc-row" onclick="openPick('${r.pid}')"${parAttr(pbLeg(r))}>
-        <span class="pbc-rank">${r.rank ?? i + 1}</span>
-        <img class="pbc-logo" src="${teamLogo(r.team)}" alt="${r.team}" loading="lazy">
-        <span class="pbc-nm">${r.name}</span>
-        ${posBadge(r.pos)}
-        <span class="pbc-opp">${r.home ? 'vs' : '@'} ${r.opp}</span>
-        <span class="pbc-od${pbShown(r) < 0.5 ? ' dog' : ''}">${Odds.inline(pbShown(r))}</span>
-      </div>`).join('')}
-      <div class="pbc-ft"><span>${rows.length} picks · fair odds, no vig</span><span>dong-tool.netlify.app/nfl</span></div>
-    </div>`;
-  }
-
-  // ── Pick modal ──────────────────────────────────────────────────────────
-  // A logistic model is additive in log-odds, so each feature's push is exactly
-  // coef * (x - mean) / sd. Nothing here is a heuristic or a re-fit — it is the
-  // same arithmetic that produced the price, shown one term at a time.
-  const PM_LABELS = {
-    snap_last3:       ['Recent snaps',  r => Math.round((r.f?.snap3 ?? 0) * 100) + '% of plays', 'Share of his offense\'s snaps over the last three games. About 87% of the model\'s signal lives here.'],
-    snap_share_prior: ['Career snaps',  r => Math.round((r.f?.snapPrior ?? 0) * 100) + '%',      'His longer-run snap share, shrunk toward his position when the sample is thin. A correction on the recent window.'],
-    rz_touches_log:   ['Red zone',      r => (r.f?.rz ?? 0).toFixed(2) + ' touches/g',           'Rushes plus targets inside the 20, per game. For a quarterback this is the whole story — it is what separates a runner from a pocket passer.'],
-    touches_log2:     ['Touches',       r => (r.f?.touches ?? 0).toFixed(1) + ' /g',              'Carries plus targets per game — how much of the offense runs through him at all, not just near the goal line. Covers both of the model\'s touch terms at his usual rate; Touch trend is the recent change.'],
-    implied_total:    ['Team total',    r => (r.f?.implied ?? 0).toFixed(1) + ' pts',            'Points his team is implied to score, from the game total and spread. The only market input, and it prices the matchup better than any defensive stat tested.'],
-    mates_out:        ['Mates out',     r => String(r.f?.matesOut ?? 0),                          'Same-position teammates ruled out or doubtful this week.'],
-    new_absence:      ['Role opened',   r => (r.f?.newAbsence ? 'yes' : 'no'),                    'Whether that absence is new this week — the case where recent snaps have not yet caught up to a vacated role.'],
-    __trend:          ['Touch trend',   r => (r.f?.touch3 ?? 0).toFixed(1) + ' /g last 3',        'His last three games against his usual touches. Green = a role growing, red = shrinking, 1.00 = holding. (Touches and last-3 touches move together, so the model\'s two touch terms are shown as usage + trend — same total.)'],
-    qb_gl5:           ['QB goal line',  r => (r.f?.gl5 ?? 0).toFixed(2) + ' /g',                  'Designed quarterback carries inside the 5 per game — the sneak and the goal-line keeper. Quarterbacks only.'],
-    td_share_log:     ['TD share',      r => Math.round((r.f?.tdShare ?? 0) * 100) + '% of team',  'Of the touchdowns his team scored, how many were his. Everything else here measures opportunity; this is the only thing that measures conversion — and it is what separates the players who actually find the end zone from the ones who merely play a lot.'],
-  };
-  const pmLogit = (p) => Math.log(Math.min(Math.max(p, 1e-9), 1 - 1e-9) / (1 - Math.min(Math.max(p, 1e-9), 1 - 1e-9)));
-  let pmOpen = null;
 
   function pmContribs(r, M) {
     const c = M.coef, out = [];
@@ -4277,6 +4239,10 @@
       return;
     }
     const rows = pbRows();
+    RonShare.set('setPbF', () => {
+      const M = pbMkt(), no = parSideGet('picks') === 'under';
+      return { title: `${no ? 'No ' : ''}${M.lab}`, sub: WK_LABEL(P.week), rows: rows.map(r => shareRow(r, pbShown(r), M.qbOnly ? (no ? 'u1.5' : 'o1.5') : '')) };
+    });
     const cut = pbMkt().cuts.find(c => c.v === pbF.cut);
     // Say when the search found someone the filters are hiding. Searching a
     // name and getting a board without him on it is the confusing case — the
@@ -4298,7 +4264,7 @@
     // An empty board is usually the price cut, not an empty pool — quarterbacks
     // in particular are all longer than the default +300. Say what would bring
     // them back instead of leaving a dead end.
-    const fxOn = pbF.view === 'factors' && (pbF.fxLo || pbF.fxTrend || pbF.fxSpot);
+    const fxOn = pbView() === 'table' && (pbF.fxLo || pbF.fxTrend || pbF.fxSpot);
     const body = !rows.length && !fxOn ? (() => {
       const gm = pbGameMap();
       let pool = P.picks.map(x => pbEnrich(x, gm));
@@ -4323,9 +4289,7 @@
         The shortest is <b>${Odds.inline(pbP(best))}</b> (${best.name}).
         ${wider ? `<a href="javascript:void(0)" onclick="setPbF('cut',${wider.v})">Widen to ${wider.v ? wider.lab : 'the full board'} →</a>` : ''}</div>`;
     })()
-      : pbF.view === 'table' ? pbTable(rows)
-      : pbF.view === 'factors' ? pbFactors(rows)
-      : pbF.view === 'compact' ? pbCompact(rows, P)
+      : pbView() === 'table' ? (pbMkt().qbOnly ? pbPassTable(rows) : pbFactors(rows))
       : `<div class="pb-list">${rows.map((r, i) => pbCard(r, r.rank ?? i + 1)).join('')}</div>`;
     el.innerHTML = `
       <div class="pb-head">
@@ -4334,9 +4298,9 @@
       </div>
       ${dayBar()}
       <div class="lb-toolbar">
-        <div class="view-switch">${[['table', 'Table'], ['factors', 'Factors'], ['cards', 'Cards'], ['compact', 'Compact']]
-          .map(([v, l]) => `<button class="view-btn${pbF.view === v ? ' active' : ''}" onclick="setPbF('view','${v}')">${l}</button>`).join('')}</div>
-        ${RonChrome.freshHtml()}${parSideToggleHtml('picks', !pbMkt().qbOnly, 'renderPicks()')}
+        <div class="view-switch">${[['table', 'Table'], ['cards', 'Cards']]
+          .map(([v, l]) => `<button class="view-btn${pbView() === v ? ' active' : ''}" onclick="setPbF('view','${v}')">${l}</button>`).join('')}</div>
+        ${RonChrome.freshHtml()}${parSideToggleHtml('picks', !pbMkt().qbOnly, 'renderPicks()')}${RonShare.button('setPbF')}
       </div>
       ${cut && cut.v ? `<div class="pb-cutnote">At <b>${cut.lab}</b> or shorter, ${pbMkt().lab} historically hit <b>${cut.hit}%</b> — against a <b>${pbMkt().base}%</b> base rate.</div>`
                      : `<div class="pb-cutnote">Full board. ${pbMkt().lab} base rate is <b>${pbMkt().base}%</b>.</div>`}
@@ -5269,6 +5233,10 @@
   // frames are square — object-fit: cover scales to the SHORT side, so a 40px
   // circle needs ~56px of width at 1×, and double that on a retina screen.
   const FACE_PX = 120, FACE_HERO_PX = 280;
+  // ── Share cards (share.js): each board's top 10 as an image ──
+  const shareFace = (pid) => { const s = nflData?.headshots?.[pid]; return s ? faceUrl(s, 120) : null; };
+  const shareRow = (r, p, tag, extra = '') => ({ name: r.name, img: shareFace(r.pid), logo: teamLogo(r.team), p, tag,
+    line: `${r.team} ${r.home ? 'vs' : '@'} ${r.opp}${extra ? ' · ' + extra : ''}` });
   function faceUrl(s, px) {
     // Only touch the shape we know; anything else is passed through untouched.
     return s.replace(/\/image\/upload\/([^/]*)\//, (m, t) =>
@@ -6815,6 +6783,8 @@ let pairStacks = false;
       return;
     }
     const rows = rcRows();
+    RonShare.set('setRc', () => ({ title: 'Receptions', sub: `${WK_LABEL(w)} · ${rcF.line === 'auto' ? 'each at his best line' : parSideGet('rec') + ' ' + rcF.line}`,
+      rows: rows.map(r => shareRow(r, r.p, parSideLine(r), `${r.mu.toFixed(1)} proj`)) }));
     const controls = rcTabs() + `
       ${uiFilters('setRc', rcF.open, [['Line', lineChips], ['Position', posChips], ['Sort', sortChips]],
         (rcF.line !== 'auto') + (rcF.pos !== 'ALL') + (rcF.sort !== 'proj'))}
@@ -6953,6 +6923,8 @@ let pairStacks = false;
     if (nflData === 'error') { el.innerHTML = `<div class="empty">Couldn't load NFL data. <a href="javascript:void(0)" onclick="loadNfl()">Retry</a></div>`; return; }
     if (!(nflData.picks?.picks || []).length) { el.innerHTML = '<div class="empty">No projections yet — they fill in once the slate has lines.</div>'; return; }
     const rows = ffRows(), w = firstUpcomingWeek();
+    RonShare.set('setFf', () => ({ title: 'Fantasy', sub: `${WK_LABEL(w)} · half-PPR projections`, foot: 'Projected half-PPR points from our stat models.',
+      rows: rows.map(r => ({ ...shareRow(r, 0, ''), big: r.total.toFixed(1), small: `${r.pos} · pts` })) }));
     const controls = uiFilters('setFf', ffF.open, [
       ['Position', ['ALL', 'QB', 'RB', 'WR', 'TE'].map(v => uiChip('setFf', 'pos', v, v === 'ALL' ? 'All' : v, ffF.pos, v === 'ALL' ? '' : 'pos ' + v)).join('')],
       ['Sort', [['pts', 'Projected points'], ['yds', 'Yardage points'], ['td', 'TD points']].map(([v, l]) => uiChip('setFf', 'sort', v, l, ffF.sort)).join('')],
@@ -7066,6 +7038,8 @@ let pairStacks = false;
     const R = nflData.completions || [];
     if (!R.length) { el.innerHTML = tabs + '<div class="empty">No projections yet — they fill in once the slate has lines.</div>'; return; }
     const rows = cpRows();
+    RonShare.set('setCp', () => ({ title: 'Completions', sub: WK_LABEL(firstUpcomingWeek()),
+      rows: rows.map(r => shareRow(r, r.p, parSideLine(r), `${r.mu.toFixed(1)} proj`)) }));
     const controls = tabs + `
       ${uiFilters('setCp', cpF.open, [['Line', (() => {
         // 15 lines wrap to two rows; offer only the ones this slate's projections sit near
@@ -7194,6 +7168,8 @@ let pairStacks = false;
     const R = nflData.interceptions || [];
     if (!R.length) { el.innerHTML = tabs + '<div class="empty">No prices yet — they fill in once the slate has lines.</div>'; return; }
     const rows = inRows();
+    RonShare.set('setIn', () => ({ title: 'Interceptions', sub: WK_LABEL(firstUpcomingWeek()),
+      rows: rows.map(r => shareRow(r, r.p, parSideLine(r))) }));
     const lines = nflData.interceptionModel?.lines || [0.5, 1.5];
     const controls = tabs + `
       ${uiFilters('setIn', inF.open, [
@@ -7332,6 +7308,8 @@ let pairStacks = false;
     }
     if (!(nflData.kickers || []).length) { el.innerHTML = tabs + '<div class="empty">No prices yet — they fill in once the slate has lines.</div>'; return; }
     const rows = kkRows();
+    RonShare.set('setKk', () => ({ title: KK_MKTS[kkF.mkt].lab, sub: WK_LABEL(firstUpcomingWeek()),
+      rows: rows.map(r => shareRow(r, r.pp, parSideLine(r), `${kkProj(r)} proj`)) }));
     const controls = tabs + `
       <div class="pbf-chips" style="margin-bottom:0.6rem">${mktChips}</div>
       ${uiFilters('setKk', kkF.open, [
@@ -7504,6 +7482,8 @@ let pairStacks = false;
     if (ydF.tab === 'results') { el.innerHTML = tabs + mktChips + liveResults('yds', 'setLr'); return; }
     if (!nflData.yards) { el.innerHTML = tabs + '<div class="empty">No projections yet — they fill in once the slate has lines.</div>'; return; }
     const rows = ydRows();
+    RonShare.set('setYd', () => ({ title: `${YD_MKTS.find(x => x[0] === ydF.mkt)[1]} yards`, sub: WK_LABEL(firstUpcomingWeek()),
+      rows: rows.map(r => shareRow(r, r.p, parSideLine(r), `${r.med.toFixed(0)} median`)) }));
     const posList = YD_POS[ydF.mkt];
     const filterRows = [['Sort', uiChip('setYd', 'sort', 'high', 'Most yards', ydF.sort) + uiChip('setYd', 'sort', 'low', 'Fewest yards', ydF.sort)]];
     if (posList.length) filterRows.unshift(['Position', ['ALL', ...posList].map(v => uiChip('setYd', 'pos', v, v === 'ALL' ? 'All' : v, ydF.pos, v === 'ALL' ? '' : 'pos ' + v)).join('')]);

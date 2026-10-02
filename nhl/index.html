@@ -8,6 +8,7 @@
 <script src="/app.js"></script>
 <script src="/chrome.js"></script>
 <script src="/modal.js"></script>
+<script src="/share.js"></script>
 <script src="/board.js"></script>
 <script src="/ladder.js"></script>
 <script src="/slate.js"></script>
@@ -1758,6 +1759,10 @@
   }
   /** Mug for a leader board row, built from the season and club he finished on. */
   const mugOf = (pid, team, season) => `https://assets.nhle.com/mugs/nhl/${season}/${team}/${pid}.png`;
+  // ── Share cards (share.js): each board's top 10 as an image ──
+  const shareRow = (r, p, tag, extra = '') => ({ name: r.name, img: r.mug || mugOf(r.pid, r.team, D.leaderSeason), p, tag,
+    logo: `https://assets.nhle.com/logos/nhl/svg/${r.team}_dark.svg`,
+    line: `${r.team} ${r.home ? 'vs' : '@'} ${r.opp}${extra ? ' · ' + extra : ''}` });
 
   const GOAL_BADGES = (g) => {
     const out = [];
@@ -3005,6 +3010,7 @@
     }
     const lines = S.model?.lines || [1.5, 2.5, 3.5];
     const rows = sgRows(true);
+    RonShare.set('setSg', () => ({ title: 'Shots on goal', sub: S.date ? dayLabel(S.date, true) : '', rows: rows.map(r => shareRow(r, r.pAt, parSideLine(r), `${r.mu.toFixed(1)} proj`)) }));
     const nFilt = (sgF.pos !== 'ALL') + (sgF.line !== 'auto') + (sgF.sort !== 'proj');
 
     const controls = uiFilters('setSg', sgF.open, [
@@ -3211,6 +3217,8 @@
     if (!B.board?.length) { el.innerHTML = tabs + `<div class="empty">No goalie projections yet — the board fills in once the slate is set.</div>`; return; }
     const ga = P.kind === 'ga', dp = P.dp;
     const rows = svRows(P.kind, true);
+    RonShare.set(fn, () => ({ title: P.kind === 'ga' ? 'Goals allowed' : 'Saves', sub: B.date ? dayLabel(B.date, true) : '',
+      rows: rows.map(r => shareRow(r, r.pAt, parSideLine(r), `${r.m.toFixed(P.kind === 'ga' ? 2 : 1)} proj`)) }));
     const controls = uiFilters(fn, F.open, [
         ['Line', ['auto', ...P.lines].map(v => uiChip(fn, 'line', v, v === 'auto' ? 'Best line' : 'o' + v, F.line)).join('')],
         ['Sort', [['proj', 'Projection'], ['odds', 'Shortest price']].map(([v, l]) => uiChip(fn, 'sort', v, l, F.sort)).join('')],
@@ -3331,6 +3339,8 @@
     if (!B.board?.length) { el.innerHTML = tabs + `<div class="empty">No projections yet — the board fills in once the slate is set.</div>`; return; }
     const lines = B.model?.lines || [0.5, 1.5, 2.5];
     const rows = pxRows(page, true);
+    RonShare.set(fn, () => ({ title: page === 'hits' ? 'Hits' : 'Blocked shots', sub: B.date ? dayLabel(B.date, true) : '',
+      rows: rows.map(r => shareRow(r, r.pAt, parSideLine(r), `${r.mu.toFixed(1)} proj`)) }));
     const controls = uiFilters(fn, F.open, [
         ['Line', ['auto', ...lines].map(v => uiChip(fn, 'line', v, v === 'auto' ? 'Best line' : 'o' + v, F.line)).join('')],
         ['Position', [['ALL', 'All'], ['F', 'Forwards'], ['C', 'C'], ['L', 'LW'], ['R', 'RW'], ['D', 'D']].map(([v, l]) => uiChip(fn, 'pos', v, l, F.pos)).join('')],
@@ -3570,6 +3580,8 @@
     const B = D.points || {}, P = PT[ptF.tab];
     if (!B.board?.length) { el.innerHTML = tabs + `<div class="empty">No projections yet — the board fills in once the slate is set.</div>`; return; }
     const rows = ptRows(ptF.tab, true);
+    RonShare.set('setPt', () => ({ title: { pts: 'Points', ast: 'Assists', ppp: 'Power-play points' }[ptF.tab] || 'Points', sub: B.date ? dayLabel(B.date, true) : '',
+      rows: rows.map(r => shareRow(r, r.pAt, parSideLine(r), `${r.m.toFixed(2)} proj`)) }));
     const controls = uiFilters('setPt', ptF.open, [
         ['Line', ['auto', ...P.lines].map(v => uiChip('setPt', 'line', v, v === 'auto' ? 'Best line' : 'o' + v, ptF.line)).join('')],
         ['Position', [['ALL', 'All'], ['F', 'Forwards'], ['C', 'C'], ['L', 'LW'], ['R', 'RW'], ['D', 'D']].map(([v, l]) => uiChip('setPt', 'pos', v, l, ptF.pos)).join('')],
@@ -3717,6 +3729,10 @@
     { v: 'pp',    key: 'pPP',    lab: 'PP goal',    long: 'Power-play goal' },
   ];
   const PK_DEFAULTS = { mkt: 'any', cut: 0, pos: [], team: 'all', sort: 'p', dir: 'desc', view: 'cards' };
+  // Table is the factor table now (the price beside what drives it), and the
+  // old Compact screenshot view is the Share card: a saved 'factors' or
+  // 'compact' view reads as its replacement.
+  const pkView = () => pkF.view === 'factors' ? 'table' : pkF.view === 'compact' ? 'cards' : pkF.view;
   let pkF = (() => { try { return { ...PK_DEFAULTS, ...JSON.parse(localStorage.getItem('nhlPicksFilters') || '{}') }; } catch (e) { return { ...PK_DEFAULTS }; } })();
   let pkFiltersOpen = false, pkSub = 'board', pkSearch = [];
   const pkSave = () => { try { localStorage.setItem('nhlPicksFilters', JSON.stringify(pkF)); } catch (e) {} };
@@ -3781,7 +3797,7 @@
     rows = rows.filter(r => pkP(r) >= pkCutP(pkF.cut));
     if (pkF.pos.length) rows = rows.filter(r => pkF.pos.includes(r.pos));
     if (pkF.team !== 'all') rows = rows.filter(r => r.team === pkF.team);
-    if (pkF.view === 'factors') {
+    if (pkView() === 'table') {
       const lo = pkAmToP(pkF.fxLo);
       if (lo != null) rows = rows.filter(r => pkP(r) <= lo + 1e-9);
       for (const [k, on] of Object.entries(pkF.fxPos || {})) if (on) rows = rows.filter(r => pkFx(r)[k] >= 1.005);
@@ -3859,25 +3875,6 @@
     </div>`;
   }
 
-  function pkTable(rows) {
-    const th = (v, lab, cls = '') => `<th class="${cls}${pkF.sort === v ? ' on' : ''}" onclick="setPkSort('${v}')">${lab}${pkF.sort === v ? `<span class="ar">${pkF.dir === 'desc' ? '▼' : '▲'}</span>` : ''}</th>`;
-    return `<div class="pb-tablewrap"><table class="pb-table">
-      <thead><tr><th class="static">#</th>${th('name', 'Skater')}<th class="static">Pos</th>${th('time', 'Game')}${th('p', 'Price', 'num')}<th class="static num">Chance</th><th class="static num">xG</th>${th('sog', 'Shots/g', 'num')}${th('toi', 'TOI', 'num')}${th('pp', 'PP', 'num')}<th class="static num">Sh%</th></tr></thead>
-      <tbody>${rows.map(r => `<tr onclick="openPick(${r.pid})"${parAttr(pkSideLeg(r))}>
-        <td class="num">${r.rank}</td>
-        <td class="nm">${esc(r.name)}</td>
-        <td>${posBadge(r.pos)}</td>
-        <td>${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}${pkTime(r) ? ` <span style="color:var(--dim)">${pkTime(r)}</span>` : ''}</td>
-        <td class="od${pkShown(r) < 0.5 ? ' dog' : ''}">${Odds.inline(pkShown(r))}</td>
-        <td class="num">${pkPct(pkShown(r))}</td>
-        <td class="num" style="color:var(--dim)">${r.mu.toFixed(2)}</td>
-        <td class="num">${r.f.sogPg.toFixed(1)}</td>
-        <td class="num">${(r.f.toi / 60).toFixed(1)}</td>
-        <td class="num">${(r.f.pptoi / 60).toFixed(1)}</td>
-        <td class="num" style="color:var(--dim)">${(r.f.shpct * 100).toFixed(1)}%</td>
-      </tr>`).join('')}</tbody></table></div>`;
-  }
-
   function pkFactors(rows) {
     const on = (v) => pkF.sort === v ? ' on' : '';
     const th = (v, lab, cls = '', tip = '') => `<th class="${cls}${on(v)}" onclick="setPkSort('${v}')"${tip ? ` title="${tip}"` : ''}>${lab}${pkF.sort === v ? `<span class="ar">${pkF.dir === 'desc' ? '▼' : '▲'}</span>` : ''}</th>`;
@@ -3914,25 +3911,6 @@
 
   // Compact is the share/screenshot view, so it carries its own header and
   // footer: a crop of it still says what it is and that the odds are fair.
-  function pkCompact(rows) {
-    const posLbl = pkF.pos.length ? ' · ' + pkF.pos.map(x => POS_NAME[x]).join('/') : '';
-    return `<div class="pbc">
-      <div class="pbc-hd">
-        <span class="pbc-brand">Ron's <em>Goal</em> Tool</span>
-        <span class="pbc-sub">${D.picks?.date ? dayLabel(D.picks.date) : ''} · ${esc(pkMkt().long)}${posLbl}</span>
-      </div>
-      ${rows.map(r => `<div class="pbc-row" onclick="openPick(${r.pid})"${parAttr(pkSideLeg(r))}>
-        <span class="pbc-rank">${r.rank}</span>
-        ${logoImg(r.team, 'pbc-logo')}
-        <span class="pbc-nm">${esc(r.name)}</span>
-        ${posBadge(r.pos)}
-        <span class="pbc-opp">${r.home ? 'vs' : '@'} ${esc(r.opp)}</span>
-        <span class="pbc-od${pkShown(r) < 0.5 ? ' dog' : ''}">${Odds.inline(pkShown(r))}</span>
-      </div>`).join('')}
-      <div class="pbc-ft"><span>${rows.length} picks · fair odds, no vig</span><span>dong-tool.netlify.app/nhl</span></div>
-    </div>`;
-  }
-
   function renderPicks() {
     renderPicksFilters();
     const el = dataGate('picks-content'); if (!el) return;
@@ -3940,6 +3918,10 @@
     const P = D.picks;
     if (!P?.picks?.length) { el.innerHTML = `<div class="empty">No picks yet — the board is built once the next slate is set.</div>`; return; }
     const rows = pkRows();
+    RonShare.set('setPkF', () => {
+      const no = parSideGet('picks') === 'under';
+      return { title: `${no ? 'No ' : ''}${pkMkt().long || pkMkt().lab}`, sub: P.date ? dayLabel(P.date) : '', rows: rows.map(r => shareRow(r, pkShown(r), '')) };
+    });
     const hint = document.getElementById('picks-search-hint');
     if (hint) {
       let msg = 'Commas match any of them — narrows whatever the filters already show';
@@ -3954,7 +3936,7 @@
     }
     const cut = pkCuts().find(c => c.v === pkF.cut);
     const base = ((P.model?.base || 0) * 100).toFixed(1);
-    const fxOn = pkF.view === 'factors' && (pkF.fxLo || Object.values(pkF.fxPos || {}).some(Boolean));
+    const fxOn = pkView() === 'table' && (pkF.fxLo || Object.values(pkF.fxPos || {}).some(Boolean));
     const body = !rows.length && !fxOn ? (() => {
       if (pkSearch.length) {
         const hits = P.picks.filter(x => pkSearch.some(t => pkMatch(x, t)));
@@ -3964,9 +3946,7 @@
       const best = P.picks.reduce((a, b) => (b.p > a.p ? b : a));
       return `<div class="empty">Nothing here is shorter than <b>${cut?.lab || ''}</b>. The shortest is <b>${Odds.inline(best.p)}</b> (${esc(best.name)}). <a href="javascript:void(0)" onclick="setPkF('cut',0)">Show the full board →</a></div>`;
     })()
-      : pkF.view === 'table' ? pkTable(rows)
-      : pkF.view === 'factors' ? pkFactors(rows)
-      : pkF.view === 'compact' ? pkCompact(rows)
+      : pkView() === 'table' ? pkFactors(rows)
       : `<div class="pb-list">${rows.map(pkCard).join('')}</div>`;
     el.innerHTML = `
       <div class="pb-head">
@@ -3974,9 +3954,9 @@
         <span class="pb-meta">${esc(D.seasonLabel || '')} · ${esc(pkMkt().long)}${pkF.pos.length ? ' · ' + pkF.pos.map(x => POS_NAME[x]).join('/') : ''}${pkSearch.length ? ' · “' + esc(pkSearch.join('”, “')) + '”' : ''} · ${rows.length} shown · fair odds, no vig</span>
       </div>
       <div class="lb-toolbar">
-        <div class="view-switch">${[['table', 'Table'], ['factors', 'Factors'], ['cards', 'Cards'], ['compact', 'Compact']]
-          .map(([v, l]) => `<button class="view-btn${pkF.view === v ? ' active' : ''}" onclick="setPkF('view','${v}')">${l}</button>`).join('')}</div>
-        ${RonChrome.freshHtml()}${parSideToggleHtml('picks', true, 'renderPicks()')}
+        <div class="view-switch">${[['table', 'Table'], ['cards', 'Cards']]
+          .map(([v, l]) => `<button class="view-btn${pkView() === v ? ' active' : ''}" onclick="setPkF('view','${v}')">${l}</button>`).join('')}</div>
+        ${RonChrome.freshHtml()}${parSideToggleHtml('picks', true, 'renderPicks()')}${RonShare.button('setPkF')}
       </div>
       ${cut && cut.v ? `<div class="pb-cutnote">At <b>${cut.lab}</b> or shorter, anytime goal historically hit <b>${cut.hit}%</b> — against a <b>${base}%</b> base rate.</div>`
                      : `<div class="pb-cutnote">Full board. Anytime-goal base rate is <b>${base}%</b>.</div>`}

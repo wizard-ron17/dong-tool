@@ -8,6 +8,7 @@
 <script src="/app.js"></script>
 <script src="/chrome.js"></script>
 <script src="/modal.js"></script>
+<script src="/share.js"></script>
 <script src="/slate.js"></script>
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="Daily MLB home run picks, value bats, due hitters, and any batter-vs-pitcher matchup breakdown. Inspired by Green Means Go.">
@@ -3131,7 +3132,8 @@ function saveValueFilters() { try { localStorage.setItem('valueFilters', JSON.st
 // Shared leaderboard view mode (Picks + Due). Defaults to the responsive
 // choice — cards on phones, table on wider screens — then remembers the pick.
 let listView = (() => {
-  try { const v = localStorage.getItem('dt_listview'); if (v) return v; } catch (e) {}
+  // Compact is the share card now (share.js); a saved Compact view opens as Cards
+  try { const v = localStorage.getItem('dt_listview'); if (v) return v === 'compact' ? 'cards' : v; } catch (e) {}
   return (window.matchMedia && window.matchMedia('(max-width: 600px)').matches) ? 'cards' : 'table';
 })();
 let picksFiltersPanelOpen = false;
@@ -7825,7 +7827,7 @@ function whyChips(r) {
 // Table cells for the same reads: a multiplier, coloured only when it moves the price;
 // a slate rank, as "top N%". "—" on a board built before the field existed.
 const whyCell = (v) => v == null ? '<td class="lb-num" style="color:var(--dim)">—</td>'
-  : `<td class="lb-num"${v >= 1.04 ? ' style="color:var(--accent)"' : v <= 0.96 ? ' style="color:#ff7040"' : ''}>${v.toFixed(2)}×</td>`;
+  : `<td class="lb-num" style="font-family:var(--font-d);font-weight:700;color:var(${v >= 1.02 ? '--good' : v <= 0.98 ? '--bad' : '--muted'})">${v.toFixed(2)}×</td>`;
 const greenCell = (pct) => pct == null ? '<td class="lb-num" style="color:var(--dim)">—</td>'
   : `<td class="lb-num"${pct >= 0.6 ? ' style="color:var(--accent)"' : ''}>top ${Math.max(1, Math.round((1 - pct) * 100) + 1)}%</td>`;
 // Bueno's screen: where he sits on today's slate for each of the three (build: r.green, percentiles)
@@ -9743,7 +9745,7 @@ function renderPicksResults() {
 function viewSwitcherHtml(shareFn, extra = '') {
   const btn = (v, label) => `<button class="view-btn${listView===v?' active':''}" data-vb="${v}" onclick="setListView('${v}')">${label}</button>`;
   return `<div class="lb-toolbar">
-    <div class="view-switch">${btn('table','Table')}${btn('cards','Cards')}${btn('compact','Compact')}</div>
+    <div class="view-switch">${btn('table','Table')}${btn('cards','Cards')}</div>
     ${RonChrome.freshHtml()}${extra}<button class="share-btn" onclick="${shareFn}()">↗ Share</button>
   </div>`;
 }
@@ -9797,6 +9799,12 @@ function shareValueText() {
 function shareDue() {
   const rows = sortDueRows(applyDueFilters(dueRows.slice()));
   if (!rows.length) { dtToast('Nobody to share'); return; }
+  RonShare.set('due', () => ({ title: 'Due for a Bomb', sub: fmtDateLong(todayDate), foot: 'Longest droughts against each hitter\'s own homer rhythm. Not a price: droughts predict nothing beyond power.',
+    text: shareDueText, rows: rows.map(r => ({ name: r.name, img: playerPhotoUrl(r.pid), logo: teamLogoUrl(r.team), line: `${r.team} · ${r.droughtABs} AB since his last HR`, big: r.dueScore.toFixed(1), small: 'due score' })) }));
+  RonShare.open('due');
+}
+function shareDueText() {
+  const rows = sortDueRows(applyDueFilters(dueRows.slice()));
   const top = rows.slice(0, 15);
   const lines = top.map((r, i) =>
     `${i + 1}. ${r.name} — ${r.dueScore.toFixed(1)} · ${r.team} · ${r.droughtABs} AB since HR`);
@@ -10261,6 +10269,12 @@ function stealCompactRow(s, rank) {
 function setStealSort(s) { stealSort = s; renderSteals(); }
 function shareSteals() {
   if (!steals.length) { dtToast('No steal board to share'); return; }
+  RonShare.set('steals', () => ({ title: 'Steal Board', sub: fmtDateLong(todayDate), foot: 'Expected successful steals per 100 chances, from his speed and the battery he faces.',
+    rows: steals.map(r => ({ name: playerNames[r.pid] || r.name, img: playerPhotoUrl(r.pid), logo: teamLogoUrl(r.team),
+      line: `${r.team} vs ${compactPlayerName(r.oppName || 'TBD')}${r.pHand ? ` (${r.pHand}HP)` : ''}`, big: String(r.stealScore), small: 'steal score' })), text: shareStealsText }));
+  RonShare.open('steals');
+}
+function shareStealsText() {
   const top = steals.slice(0, 15);
   const lines = top.map((r, i) =>
     `${i + 1}. ${playerNames[r.pid] || r.name} — ${r.stealScore} · ${r.team} vs ${compactPlayerName(r.oppName || 'TBD')} (${r.pHand}HP)`);
