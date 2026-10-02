@@ -24,7 +24,3 @@ Dated and open work. Newest decisions at the top of each section. Remove items w
 - Pick-factor regression (MLB HR): ran 9/25 on 474 rows, too small. Re-run with more data, or log every lineup batter instead of only the board.
 - NFL receptions: our term z 3.0 beside the Kalshi mid in the week 3 grade, so blend it with the mid.
 - HRR3 (MLB H+R+RBI 3+) model: 2.2x the HR hit rate and smoother, but priced fair on Kalshi.
-
-## Waiting on Ron
-- odds-viewer first commit. Git is set up, and `circa.key` and `keys.json` are gitignored. Claude's commit was blocked by a safety check, so run it yourself:
-  `cd ~/Desktop/odds-viewer && git add -A && git commit -m "first commit"`
