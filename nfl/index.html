@@ -7420,8 +7420,15 @@ let pairStacks = false;
   window.clearYdSearch = () => { ydF.q = ''; renderYards(); };
   // P(yards > line) from the shipped ratio tables — the same math as scripts/yards.js
   function ydPOver(m, line, mu, tq) {
-    // rookie baseline rows ship their own quantiles (research/thin.py)
-    if (tq) return Math.min(0.995, Math.max(0.005, tq.filter(v => v > line).length / tq.length));
+    // rookie baseline and recent-role rows ship their own quantiles (research/thin.py,
+    // yards.py --rec-low), read between the stored points so each yard prices
+    if (tq) {
+      const n = tq.length; if (line < tq[0]) return 0.995; if (line >= tq[n - 1]) return 0.005;
+      let i = 1; while (i < n - 1 && tq[i] <= line) i++;      // tq[i-1] <= line < tq[i]
+      const lo = (i - 1) / (n - 1), hi = i / (n - 1);
+      const cdf = tq[i] === tq[i - 1] ? hi : lo + (line - tq[i - 1]) / (tq[i] - tq[i - 1]) * (hi - lo);
+      return Math.min(0.995, Math.max(0.005, 1 - cdf));
+    }
     const t = nflData?.yardsModel?.[m]; if (!t) return 0.5;
     let b = 0; while (b < t.edges.length && mu > t.edges[b]) b++;
     const q = t.q[b], n = q.length, r = line / Math.max(mu, 1e-6);
@@ -7516,7 +7523,7 @@ let pairStacks = false;
           <div class="pb-info">
             <div class="pb-nm">${r.name}${injChip(r.pid)}${pos(r)}</div>
             <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
-              ${liveChip('yds', r, r.med)}${roleTag(r.f)}${r.f.thinRole ? '<span class="rc-wind" title="No NFL history — priced from his depth-chart snap share against what rookies at his position and snap tier produced">rookie baseline</span>' : ''}${r.f.thin ? '<span class="rc-wind" title="Fewer than 3 recent starts — his numbers lean on a league-average QB">limited history</span>' : ''}</div>
+              ${liveChip('yds', r, r.med)}${roleTag(r.f)}${r.f.thinRole ? '<span class="rc-wind" title="No NFL history — priced from his depth-chart snap share against what rookies at his position and snap tier produced">rookie baseline</span>' : ''}${r.f.thin ? '<span class="rc-wind" title="Fewer than 3 recent starts — his numbers lean on a league-average QB">limited history</span>' : ''}${r.f.recent ? `<span class="rc-wind" title="Under 2 targets a game over two seasons, but ${r.f.tgtL3} a game over his last three: priced off the measured shortfall for this group (they land ~25% under the main model) with its wider spread">recent role</span>` : ''}</div>
           </div>
           <div class="pb-facts">${ydFacts(r).map(([v, l, t]) => `<span class="pb-f" title="${t}"><b>${v}</b> ${l}</span>`).join('')}</div>
           <div class="pb-price"><span class="pb-odds" style="color:var(--text-strong)">${r.med.toFixed(0)}</span><span class="pb-pct">median · ${parSideLine(r)} ${Odds.inline(r.p)}</span></div>

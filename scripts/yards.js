@@ -54,7 +54,7 @@ export function skillYardsFeatures({ pid, position, season, week, snapLog, recLo
   return {
     position,
     ryds_prior: prior('ryds'), tgt_prior: prior('tgt'), rush_prior: prior('rush'), car_prior: prior('car'), rr_prior: prior('rr'),
-    ryds_l3: l3('ryds'), car_l3: l3('car'), rush_l3: l3('rush'), rr_l3: l3('rr'), snap_l3: l3('snap'), share_l3: l3('share'),
+    ryds_l3: l3('ryds'), tgt_l3: l3('tgt'), car_l3: l3('car'), rush_l3: l3('rush'), rr_l3: l3('rr'), snap_l3: l3('snap'), share_l3: l3('share'),
     ypt: (sum('ryds') + 40 * M.league.ypt) / (sum('tgt') + 40),
     ypc: (sum('rush') + 60 * M.league.ypc) / (sum('car') + 60),
     implied_total: implied, spread_own: spread,
@@ -152,6 +152,17 @@ export function thinQuantiles(market, position, snap) {
 export const thinTier = (snap) => { let t = 0; while (t < THIN.tiers.length - 2 && snap >= THIN.tiers[t + 1]) t++; return t; };
 /** P(value > line) from the quantiles: share of them strictly above. */
 export const thinOver = (qs, line) => Math.min(0.995, Math.max(0.005, qs.filter(v => v > line).length / qs.length));
+/**
+ * Receiving yards below the 2-target prior with a real recent role (last-3
+ * targets >= 2): the main model's mean times a measured scale, priced from the
+ * group's own spread (research/yards.py --rec-low). Returns { mu, tq } or null.
+ */
+export function recLow(f) {
+  const R = M.rec_low;
+  if (!R || !(f.tgt_prior < 2) || !(f.tgt_l3 >= 2)) return null;
+  const mu = scoreMu('rec', f) * R.scale;
+  return { mu, tq: R.ratio_q.map(r => +(mu * r).toFixed(1)) };
+}
 export const qMean = (qs) => qs.reduce((a, b) => a + b, 0) / qs.length;
 export const qMedian = (qs) => qs[Math.floor(qs.length / 2)];
 

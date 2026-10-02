@@ -469,5 +469,41 @@ def export():
     print("\nwrote yards_model.json")
 
 
+def rec_low():
+    """Receiving yards for pass-catchers BELOW the 2-target prior who have a real
+    recent role (last-3 targets >= 2): a backup RB his team throws to more than
+    it runs (Raheim Sanders, 2026 wk 4). The shipped model projects this group
+    ~30% high (16.9 vs 12.6 yards) and their spread is wider than the main
+    population's, so they get two numbers of their own, both walk-forward:
+    a scale on the main model's mean (sum actual / sum projected) and one pooled
+    ratio table (actual / scaled projection; 2-3k games can't fill five bins).
+    Tested: scale alone priced overs 4pp cold; scale + own spread within ~1.5pp
+    at the median and +/-30% lines. Writes only the "rec_low" block."""
+    d = load_pbp(port=True)
+    q, _ = skill_frame(d)
+    q = last3(q, "tgt", "tgt_l3")
+    _, y, pop, fs = MARKETS["rec"]
+    q = q[q.position.isin(["WR", "TE", "RB"]) & (q.games_prior >= 3)].dropna(subset=fs + [y]).copy()
+    main_pop, low = pop(q), (~pop(q)) & (q.tgt_l3 >= 2)
+    parts = []
+    for s in range(2019, 2026):
+        tr, te = q[main_pop & (q.season < s)], q[low & (q.season == s)]
+        _, mu_te = fit_predict(tr, te, fs, y)
+        parts.append(te.assign(mu=mu_te))
+    t = pd.concat(parts)
+    k = float(t[y].sum() / t.mu.sum())
+    r = t[y].to_numpy(float) / (k * t.mu.to_numpy(float))
+    qs = np.linspace(0, 1, QN)
+    path = os.path.join(HERE, "yards_model.json")
+    M = json.load(open(path))
+    M["rec_low"] = {"rule": "WR/TE/RB, tgt_prior < 2, mean targets over his last 3 games >= 2",
+                    "scale": round(k, 4), "ratio_q": [round(float(v), 4) for v in np.quantile(r, qs)], "n": int(len(t)),
+                    "note": "research/yards.py --rec-low: mean = rec model x scale; P(over) from this pooled ratio table"}
+    json.dump(M, open(path, "w"), indent=1)
+    print(f"rec_low: n={len(t):,} out-of-sample, scale {k:.3f} (projected {t.mu.mean():.1f}, actual {t[y].mean():.1f}) -> yards_model.json")
+
+
 if __name__ == "__main__" and "--export" in sys.argv:
     export()
+if __name__ == "__main__" and "--rec-low" in sys.argv:
+    rec_low()

@@ -24,7 +24,7 @@ import fs from 'node:fs';
 import { REL, fetchText, fetchOptional, parseCsv, num } from './nflverse.js';
 import { loadWind } from './wind.js';
 import { skillYardsFeatures, qbYardsFeatures, startKeys, scoreMu as ydsMu, quantile as ydsQ,
-         YARDS_MODEL, thinQuantiles, thinTier, thinOver, qMean, qMedian, THIN_MIN_SNAP } from './yards.js';
+         YARDS_MODEL, thinQuantiles, thinTier, thinOver, qMean, qMedian, THIN_MIN_SNAP, recLow } from './yards.js';
 import { kickerFeatures, muFgm, muPat, pOverFgm, pOverPat, pOverPts, contributions as kickParts,
          KICK_LINES, KICKERS_MODEL } from './kickers.js';
 import { interceptionFeatures, scoreMu as intMu, pOver as intOver, thinFactor as intThin,
@@ -958,6 +958,58 @@ export async function loadInjuries(season, week) {
 }
 
 /**
+ * ESPN's live injury report, for the statuses nflverse's injuries file is too
+ * late to carry. nflverse publishes a week's official report after the fact:
+ * every TNF build of 2026 week 4 priced Rico Dowdle (ruled Out Wednesday,
+ * inactive Thursday) because his week-4 row only landed the next morning, and
+ * his snaps never went back to the backs who played. ESPN has the report as it
+ * is issued, game-day inactives included. [{ pid, status, ret }] (ret = the
+ * expected return date, YYYY-MM-DD, or null). No User-Agent: ESPN 403s a custom one.
+ */
+export async function loadEspnInjuries(espnToGsis) {
+  try {
+    const r = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/injuries');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const out = [];
+    for (const grp of (await r.json()).injuries || []) for (const x of grp.injuries || []) {
+      const a = x.athlete || {}, h = (a.links || []).map(l => l.href || '').find(u => /\/id\/\d+/.test(u));
+      const pid = espnToGsis.get(h ? h.match(/\/id\/(\d+)/)[1] : String(a.id || ''));
+      if (pid && x.status) out.push({ pid, status: String(x.status), ret: x.details?.returnDate || null });
+    }
+    console.log(`  ESPN injury report: ${out.length} players matched`);
+    return out;
+  } catch (e) { console.warn('  ESPN injury report unavailable:', e.message); return []; }
+}
+
+/**
+ * Fold ESPN's live statuses into the week's injury sets, in place. For the
+ * team's game this week:
+ *   Out           out, unless ESPN expects him back by this game (a stale
+ *                 entry from last week: his return date is this game day)
+ *   Doubtful      out (as the official report is used everywhere here)
+ *   IR, PUP, NFI, suspended   out
+ *   Questionable  shaded, if it's for this game (return date on or after it)
+ * Only Out and Doubtful add to mates_out, as in training: IR players never
+ * appear on the weekly report.
+ */
+export function mergeEspnInjuries({ live, roster, gameDay, week, byWeek, outIds, questionable }) {
+  let out = 0, q = 0;
+  for (const x of live) {
+    const info = roster.get(x.pid); if (!info) continue;
+    const day = gameDay.get(info.team); if (!day) continue;
+    const st = x.status.toLowerCase(), ret = x.ret ? x.ret.slice(0, 10) : null;
+    const reportOut = st === 'doubtful' || (st === 'out' && (!ret || ret > day));
+    const longOut = /injured reserve|physically unable|suspension|non-football/.test(st);
+    if (reportOut || longOut) {
+      if (outIds.has(x.pid)) continue;
+      outIds.add(x.pid); questionable.delete(x.pid); out++;
+      if (reportOut) { const k = `${info.team}|${info.position}|${week}`; byWeek.set(k, (byWeek.get(k) ?? 0) + 1); }
+    } else if (st === 'questionable' && (!ret || ret >= day) && !outIds.has(x.pid) && !questionable.has(x.pid)) { questionable.add(x.pid); q++; }
+  }
+  console.log(`  ESPN injury report: +${out} out, +${q} questionable beyond nflverse's`);
+}
+
+/**
  * mates_out for this week, and whether that is an increase on what it was at
  * the player's previous appearance this season (new_absence).
  */
@@ -1002,12 +1054,18 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   const games = schedule.filter(g => g.week === week && g.total != null);
   console.log(`Picks: scoring ${season} week ${week} (${games.length} games)…`);
 
-  const { xwalk, birth, shot } = await loadPlayers();
+  const { xwalk, birth, shot, espn } = await loadPlayers();
   const snapLog = await loadSnapLog(snapSeasons, xwalk);
   const { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog, defLog, rushLog, kickLog, touchLog, glLog } = await loadPbpLogs(rzSeasons);
   const roster = await loadRoster(upcomingSeason);
   const depth = await loadDepthChart(upcomingSeason);
   const { byWeek, outIds, questionable = new Set() } = await loadInjuries(season, week);
+  {
+    const gameDay = new Map();
+    for (const g of games) { gameDay.set(g.home, g.gameday); gameDay.set(g.away, g.gameday); }
+    // live statuses only make sense for the week being played next
+    if (season === upcomingSeason && !target?.week) mergeEspnInjuries({ live: await loadEspnInjuries(espn), roster, gameDay, week, byWeek, outIds, questionable });
+  }
 
   // Position priors for the shrinkage fallback come from the trained model, so
   // this build does not need all ten seasons loaded to reproduce add_form().
@@ -1431,10 +1489,15 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
         yards.rush.push({ ...base, m: 'rush', mu: r1(mu), med: r1(ydsQ('rush', mu)),
           f: { ...common, avg: r1(f.rush_prior), car: r1(f.car_prior), l3: r1(f.rush_l3), carL3: r1(f.car_l3), ypc: +f.ypc.toFixed(2) } });
       }
+      const recF = { ...common, avg: r1(f.ryds_prior), tgt: r1(f.tgt_prior), l3: r1(f.ryds_l3), shareL3: +f.share_l3.toFixed(3), ypt: +f.ypt.toFixed(2) };
       if (f.tgt_prior >= 2) {
         const mu = ydsMu('rec', f);
-        yards.rec.push({ ...base, m: 'rec', mu: r1(mu), med: r1(ydsQ('rec', mu)),
-          f: { ...common, avg: r1(f.ryds_prior), tgt: r1(f.tgt_prior), l3: r1(f.ryds_l3), shareL3: +f.share_l3.toFixed(3), ypt: +f.ypt.toFixed(2) } });
+        yards.rec.push({ ...base, m: 'rec', mu: r1(mu), med: r1(ydsQ('rec', mu)), f: recF });
+      } else {
+        // a low two-season average but targets lately (a backup back his team
+        // throws to): scaled down, with the group's own wider spread
+        const lo = recLow(f);
+        if (lo && qMedian(lo.tq) >= 3) yards.rec.push({ ...base, m: 'rec', mu: r1(lo.mu), med: r1(qMedian(lo.tq)), tq: lo.tq, f: { ...recF, recent: true, tgtL3: r1(f.tgt_l3) } });
       }
       if (f.tgt_prior + f.car_prior >= 5) {
         const mu = ydsMu('rr', f);
