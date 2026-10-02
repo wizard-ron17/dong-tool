@@ -15,10 +15,10 @@ Dated and open work. Newest decisions at the top of each section. Remove items w
   - Verify the first real build: early-season term, rosters, recap, and grading of the new Due/Milestones.
 
 ## Next up
+- Season-rollover tests: run each build against fixed dates (opening day, the day before, first playoff day).
+- Fair-odds explainer: tap-to-explain wherever a fair price appears.
+- For outside agents: llms.txt, documented JSON endpoints, a RONBET spec.
 - Public track record per tool: calibration and results vs close, from the graded histories we already keep.
-- Freshness: "updated N min ago" on boards, a stale-build banner, and a "QB confirmed / projected" marker when an override applies.
-- Cron failure alerts (a notification when a build workflow fails).
-- Run `npm run check` in CI before deploys. It's local only for now.
 
 ## Research queue
 - Pick-factor regression (MLB HR): ran 9/25 on 474 rows, too small. Re-run with more data, or log every lineup batter instead of only the board.
