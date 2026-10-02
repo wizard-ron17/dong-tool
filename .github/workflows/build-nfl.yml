@@ -21,6 +21,7 @@ on:
 
 permissions:
   contents: write
+  issues: write        # build alerts (scripts/build-alert.sh)
 
 concurrency:
   group: build-nfl
@@ -58,3 +59,16 @@ jobs:
             git commit -m "Update nfl/data.json"
           done
           echo "Failed to push after 5 attempts"; exit 1
+
+      # One issue per failing build, closed by the next green run (scripts/build-alert.sh)
+      - name: Alert on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/build-alert.sh fail "nfl data"
+
+      - name: Clear the alert
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/build-alert.sh ok "nfl data"

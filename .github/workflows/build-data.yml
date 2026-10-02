@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  issues: write        # build alerts (scripts/build-alert.sh)
 
 # Serialize runs so two builds (e.g. a cron tick overlapping a manual trigger)
 # can never race to push data.json to main — the classic "fetch first" rejection.
@@ -74,3 +75,16 @@ jobs:
             git commit -m "Update data.json"
           done
           echo "Failed to push after 5 attempts"; exit 1
+
+      # One issue per failing build, closed by the next green run (scripts/build-alert.sh)
+      - name: Alert on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/build-alert.sh fail "mlb data"
+
+      - name: Clear the alert
+        if: success() && steps.gate.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/build-alert.sh ok "mlb data"

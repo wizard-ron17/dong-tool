@@ -1,0 +1,71 @@
+name: Site check
+
+# `npm run check` (tools/check.mjs) on every push that changes the site:
+# static checks, then every app and key routes in Chromium at desktop and
+# phone width (page errors, dropped CSS rules, sideways scroll, empty
+# renders). Netlify deploys the same push in parallel, so this can't block a
+# deploy; a failure opens a "Build failing: site check" issue within minutes
+# (scripts/build-alert.sh), with the screenshots attached to the run.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.html'
+      - '*.js'
+      - 'netlify/**'
+      - 'netlify.toml'
+      - 'tools/check.mjs'
+      - 'scripts/dev-server.js'
+      - 'nfl/qb-overrides.json'
+      - 'mlb/pitching-overrides.json'
+      - '.github/workflows/check.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: site-check
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/package-lock.json
+
+      - name: Install Playwright
+        run: |
+          npm ci --prefix tools
+          npx --prefix tools playwright install --with-deps chromium
+
+      - name: npm run check
+        run: npm run check
+
+      - name: Screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: check-shots
+          path: tools/shots/
+          retention-days: 7
+
+      - name: Alert on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/build-alert.sh fail "site check"
+
+      - name: Clear the alert
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/build-alert.sh ok "site check"

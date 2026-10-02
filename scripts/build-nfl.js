@@ -335,7 +335,7 @@ async function main() {
   // Model + methodology live in research/; this only computes features and
   // applies exported coefficients. research/validate_port.py checks the two
   // agree to machine precision on real historical weeks.
-  let picks = null;
+  let picks = null, picksFailed = null;
   try {
     // Lines for the last two seasons feed the receptions results replay —
     // implied totals are a model input, so grading past boards needs past lines.
@@ -350,6 +350,7 @@ async function main() {
     // A picks failure must not take the whole build down — recap/stats/schedule
     // are independent of it and are what the site mostly shows.
     console.error('  picks failed (continuing without them):', e.message);
+    picksFailed = e.message;
   }
 
   // ── 4b) Live results: log each game's board at kickoff, grade it when final ─
@@ -656,5 +657,9 @@ async function main() {
     console.log(`  news: ${news.matched}/${news.total} injuries matched, ${news.tx.length} transactions, ${Object.keys(news.espn).length} ESPN ids`);
   } catch (e) { console.warn('  news skipped:', e.message); }
   console.log(`Wrote nfl/data.json — ${schedule.length} ${UPCOMING_SEASON} games, ${tdTotal} TDs across ${weeks.length} weeks, ${tdLeaders.length} TD leaders, ${picks?.picks.length ?? 0} picks.`);
+  // Degraded-build guard (as NHL's and MLB's): everything else is written, but
+  // a picks crash would ship every board empty. Fail instead, so the commit is
+  // skipped, the site keeps the last good boards and the build alert fires.
+  if (picksFailed) { console.error('Degraded build: picks failed — ' + picksFailed); process.exit(1); }
 }
 main().catch(e => { console.error(e); process.exit(1); });
