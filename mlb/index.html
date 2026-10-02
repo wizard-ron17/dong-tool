@@ -9393,6 +9393,8 @@ function blastSurplusBadge(surplus) {
 }
 
 function renderValueBoard() {
+  // the Yes / No toggle: prices and legs follow it, the scores and order don't
+  const hs = parSideGet('hr'), hp = (r) => parSidePrice(r.pHR, hs);
   const metaEl = document.getElementById('picks-meta');
   const el = document.getElementById('picks-content');
   if (!value.length) {
@@ -9438,7 +9440,7 @@ function renderValueBoard() {
     const cls = valueScoreClass(r.valueScore ?? 0);
     const hrBadge = `<span class="pick-ind" title="Season HR">${r.hrs ?? 0} HR</span>`;
     const rk = valueRankMap[r.pid];
-    return `<div class="lbc-card due-row-clickable" onclick="openPickModal('${r.pid}','value')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam)}>
+    return `<div class="lbc-card due-row-clickable" onclick="openPickModal('${r.pid}','value')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam, null, hs)}>
       <div class="lbc-top">
         <span class="lbc-rank ${rankClass(rk)}">${rk}</span>
         <img class="lbc-photo" src="${photo}" alt="">
@@ -9447,7 +9449,7 @@ function renderValueBoard() {
           <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'}${spProjTag(r.oppProjected)} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
-        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${(r.valueScore ?? 0).toFixed(1)}</span><span class="lbc-headline-lbl">Value</span>${r.pHR > 0 ? `<span class="lbc-fair" title="${HR_FAIR_TIP}">Fair ${hrFairFull(r.pHR)}</span>` : ''}</div>
+        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${(r.valueScore ?? 0).toFixed(1)}</span><span class="lbc-headline-lbl">Value</span>${r.pHR > 0 ? `<span class="lbc-fair" title="${HR_FAIR_TIP}">Fair ${hrFairFull(hp(r))}</span>` : ''}</div>
       </div>
       <div class="pick-indicators">${blastPctBadge(r.blastPct)}${blastSurplusBadge(r.blastSurplus)}${hrBadge}${pickIndicators(r)}</div>
     </div>`;
@@ -9458,7 +9460,7 @@ function renderValueBoard() {
     const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const cls = valueScoreClass(r.valueScore ?? 0);
     const rk = valueRankMap[r.pid];
-    return `<tr class="due-row-clickable" onclick="openPickModal('${r.pid}','value')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam)}>
+    return `<tr class="due-row-clickable" onclick="openPickModal('${r.pid}','value')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam, null, hs)}>
       <td class="lb-rank ${rankClass(rk)}">${rk}</td>
       <td><div class="lb-player">
         <img class="lb-photo" src="${photo}" alt="">
@@ -9469,7 +9471,7 @@ function renderValueBoard() {
         </div>
       </div></td>
       <td class="pick-z ${cls}">${(r.valueScore ?? 0).toFixed(1)}</td>
-      ${hrFairCell(r.pHR)}
+      ${hrFairCell(hp(r))}
       <td class="lb-num hr-col">${fmtBlast(r)}</td>
       <td class="lb-num stat-col">${fmtSurplus(r)}</td>
     </tr>`;
@@ -9477,17 +9479,17 @@ function renderValueBoard() {
   const compactHtml = pool.map(r => {
     const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const cls = valueScoreClass(r.valueScore ?? 0);
-    return `<div class="lb-compact-row due-row-clickable" onclick="openPickModal('${r.pid}','value')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam)}>
+    return `<div class="lb-compact-row due-row-clickable" onclick="openPickModal('${r.pid}','value')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam, null, hs)}>
       <span class="lbcp-rank ${rankClass(valueRankMap[r.pid])}">${valueRankMap[r.pid]}</span>
       <img class="lbcp-photo" src="${photo}" alt="">
       <span class="lbcp-name">${playerNames[r.pid] || r.pid}</span>
       ${teamLogoImg(r.team,'lbcp-logo')}
-      <span class="lbcp-fair" title="${hrFairPct(r.pHR)} to homer · fair odds">${r.pHR > 0 ? hrFair(r.pHR) : ''}</span>
+      <span class="lbcp-fair" title="${hrFairPct(hp(r))} ${hs === 'under' ? 'no homer' : 'to homer'} · fair odds">${r.pHR > 0 ? hrFair(hp(r)) : ''}</span>
       <span class="lbcp-score ${cls}">${(r.valueScore ?? 0).toFixed(1)}</span>
     </div>`;
   }).join('');
   el.innerHTML = `
-    ${viewSwitcherHtml('shareValue')}
+    ${viewSwitcherHtml('shareValue', parSideToggleHtml('hr', true, 'renderPicks()'))}
     ${sortBar}
     <div class="lb-views" data-view="${listView}">
       <div class="lb-view-table tbl-scroll">
@@ -9721,11 +9723,11 @@ function renderPicksResults() {
 // Share button. Switching view just flips the data-view attribute on every
 // mounted .lb-views container (no re-render/flicker), since each render emits
 // all three view blocks.
-function viewSwitcherHtml(shareFn) {
+function viewSwitcherHtml(shareFn, extra = '') {
   const btn = (v, label) => `<button class="view-btn${listView===v?' active':''}" data-vb="${v}" onclick="setListView('${v}')">${label}</button>`;
   return `<div class="lb-toolbar">
     <div class="view-switch">${btn('table','Table')}${btn('cards','Cards')}${btn('compact','Compact')}</div>
-    <button class="share-btn" onclick="${shareFn}()">↗ Share</button>
+    ${extra}<button class="share-btn" onclick="${shareFn}()">↗ Share</button>
   </div>`;
 }
 function setListView(v) {
@@ -9786,6 +9788,7 @@ function shareDue() {
 }
 
 function renderPicks() {
+  const hs = parSideGet('hr'), hp = (r) => parSidePrice(r.pHR, hs);
   renderPicksFilters(); // branches to Value's filter chips when in Value mode
   if (picksMode === 'value') return renderValueBoard();
   const metaEl = document.getElementById('picks-meta');
@@ -9827,7 +9830,7 @@ function renderPicks() {
   const tableRows = ranked.map((r, i) => {
     const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const cls = pickScoreClass(r.pickScore);
-    return `<tr class="due-row-clickable" onclick="openPickModal('${r.pid}')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam)}>
+    return `<tr class="due-row-clickable" onclick="openPickModal('${r.pid}')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam, null, hs)}>
       <td class="lb-rank ${rankClass(scoreRank[r.pid])}">${scoreRank[r.pid]}</td>
       <td><div class="lb-player">
         <img class="lb-photo" src="${photo}" alt="">
@@ -9838,7 +9841,7 @@ function renderPicks() {
         </div>
       </div></td>
       <td class="pick-z ${cls}">${r.pickScore.toFixed(1)}</td>
-      ${hrFairCell(r.pHR)}
+      ${hrFairCell(hp(r))}
       <td class="lb-num hr-col">${r.hrs}</td>
       <td class="lb-num stat-col">${r.venue}</td>
     </tr>`;
@@ -9847,7 +9850,7 @@ function renderPicks() {
   const cardsHtml = ranked.map((r, i) => {
     const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const cls = pickScoreClass(r.pickScore);
-    return `<div class="lbc-card due-row-clickable" onclick="openPickModal('${r.pid}')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam)}>
+    return `<div class="lbc-card due-row-clickable" onclick="openPickModal('${r.pid}')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam, null, hs)}>
       <div class="lbc-top">
         <span class="lbc-rank ${rankClass(scoreRank[r.pid])}">${scoreRank[r.pid]}</span>
         <img class="lbc-photo" src="${photo}" alt="">
@@ -9856,7 +9859,7 @@ function renderPicks() {
           <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'}${spProjTag(r.oppProjected)} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
-        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${r.pickScore.toFixed(1)}</span><span class="lbc-headline-lbl">Pick Score</span>${r.pHR > 0 ? `<span class="lbc-fair" title="${HR_FAIR_TIP}">Fair ${hrFairFull(r.pHR)}</span>` : ''}</div>
+        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${r.pickScore.toFixed(1)}</span><span class="lbc-headline-lbl">Pick Score</span>${r.pHR > 0 ? `<span class="lbc-fair" title="${HR_FAIR_TIP}">Fair ${hrFairFull(hp(r))}</span>` : ''}</div>
       </div>
       <div class="pick-indicators">${pickIndicators(r)}</div>
     </div>`;
@@ -9865,18 +9868,18 @@ function renderPicks() {
   const compactHtml = ranked.map(r => {
     const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_60,q_auto:best/v1/people/${r.pid}/headshot/67/current`;
     const cls = pickScoreClass(r.pickScore);
-    return `<div class="lb-compact-row due-row-clickable" onclick="openPickModal('${r.pid}')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam)}>
+    return `<div class="lb-compact-row due-row-clickable" onclick="openPickModal('${r.pid}')"${hrLeg(r.pid, r.pHR, r.team, r.oppTeam, null, hs)}>
       <span class="lbcp-rank ${rankClass(scoreRank[r.pid])}">${scoreRank[r.pid]}</span>
       <img class="lbcp-photo" src="${photo}" alt="">
       <span class="lbcp-name">${playerNames[r.pid] || r.pid}</span>
       ${teamLogoImg(r.team,'lbcp-logo')}
-      <span class="lbcp-fair" title="${hrFairPct(r.pHR)} to homer · fair odds">${r.pHR > 0 ? hrFair(r.pHR) : ''}</span>
+      <span class="lbcp-fair" title="${hrFairPct(hp(r))} ${hs === 'under' ? 'no homer' : 'to homer'} · fair odds">${r.pHR > 0 ? hrFair(hp(r)) : ''}</span>
       <span class="lbcp-score ${cls}">${r.pickScore.toFixed(1)}</span>
     </div>`;
   }).join('');
 
   contentEl.innerHTML = `
-    ${viewSwitcherHtml('sharePicks')}
+    ${viewSwitcherHtml('sharePicks', parSideToggleHtml('hr', true, 'renderPicks()'))}
     <div class="picks-sort">
       <span class="due-filter-label">Sort</span>
       <button class="due-filter-chip${picksSort==='score'?' active':''}" onclick="setPicksSort('score')">Pick Score</button>
@@ -10749,7 +10752,7 @@ const hrFairFull = (p) => p > 0 ? `${kbbOdds(p)} (${hrFairPct(p)})` : '';
 /** A 1+ HR parlay leg. Same key for a player on any board, so he's one leg. */
 const hrLegObj = (pid, p, team, opp, name) => ({ k: `hr|${pid}`, n: compactPlayerName(name || playerNames[pid] || pid),
   t: team, g: [team, opp].sort().join(' vs '), m: 'hr', s: '1+ HR', p, i: String(pid) });
-const hrLeg = (pid, p, team, opp, name) => p > 0 ? parAttr(hrLegObj(pid, p, team, opp, name)) : '';
+const hrLeg = (pid, p, team, opp, name, side = 'over') => p > 0 ? parAttr(parSideLeg(hrLegObj(pid, p, team, opp, name), side, true)) : '';
 /** Today's odds for every lineup bat: the boards' pHR, then the Matchup table's
  *  own pricing for everyone else (needs the matchup cards; null until loaded). */
 function hrToday() {

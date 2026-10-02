@@ -3836,12 +3836,15 @@
   const PB_LEGM = { '1': 'td1', '2': 'td2', '3': 'tdf', '4': 'tdl', '5': 'ptd' };
   const pbLeg = (r) => {
     const M = pbMkt(), m = PB_LEGM[pbF.mkt] || 'td1';
-    return { k: `${m}|${r.pid}`, n: r.name, t: r.team, g: parGame(r), m,
-             s: M.qbOnly ? 'Over 1.5 pass TD' : M.lab, p: pbP(r), i: r.pid };
+    return parSideTag({ k: `${m}|${r.pid}`, n: r.name, t: r.team, g: parGame(r), m,
+             s: M.qbOnly ? 'Over 1.5 pass TD' : M.lab, p: pbShown(r), i: r.pid }, parSideGet('picks'), !M.qbOnly);
   };
+  // The price shown and added: the Yes (or over) unless the board is on No.
+  // Price cuts, sorts and factor filters stay on the chance he scores.
+  const pbShown = (r) => parSidePrice(pbP(r), parSideGet('picks'));
 
   function pbCard(r, i) {
-    const M = pbMkt(); const shown = pbP(r);
+    const M = pbMkt(); const shown = pbShown(r);
     const dog = shown < 0.5;
     // The companion price. On the passing board that has to be the neighbouring
     // passing line — quoting his anytime RUSHING price next to a passing number
@@ -3880,8 +3883,8 @@
         <td class="nm">${r.name}${r.f?.newAbsence ? ' <span class="pb-flag">ROLE OPEN</span>' : ''}</td>
         <td>${posBadge(r.pos)}</td>
         <td><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}${r.kick ? ` <span style="color:var(--dim)">${r.kick}</span>` : ''}</td>
-        <td class="od${pbP(r) < 0.5 ? ' dog' : ''}">${pbOdds(pbP(r))}</td>
-        <td class="num">${(pbP(r) * 100).toFixed(pbP(r) < 0.1 ? 1 : 0)}%</td>
+        <td class="od${pbShown(r) < 0.5 ? ' dog' : ''}">${pbOdds(pbShown(r))}</td>
+        <td class="num">${(pbShown(r) * 100).toFixed(pbShown(r) < 0.1 ? 1 : 0)}%</td>
         <td class="num" style="color:var(--dim)">${Odds.inline(pbF.mkt === '1' ? r.p2 : r.p)}</td>
         <td class="num" style="color:var(--dim)">${Odds.inline(r.pFirst)}</td>
         <td class="num" style="color:var(--dim)">${Odds.inline(r.pLast)}</td>
@@ -3915,7 +3918,7 @@
         <td class="num">${r.rank ?? i + 1}</td>
         ${td('name', `${r.name}${f.newAbsence ? ' <span class="pb-flag">ROLE OPEN</span>' : ''}`, 'nm')}
         ${td('pos', posBadge(r.pos), '')}
-        <td class="od pbx-fair${pbP(r) < 0.5 ? ' dog' : ''}${on('p')}" title="${(pbP(r) * 100).toFixed(1)}% to score">${pbOdds(pbP(r))}<small>${(pbP(r) * 100).toFixed(pbP(r) < 0.1 ? 1 : 0)}%</small></td>
+        <td class="od pbx-fair${pbShown(r) < 0.5 ? ' dog' : ''}${on('p')}" title="${(pbP(r) * 100).toFixed(1)}% to score">${pbOdds(pbShown(r))}<small>${(pbShown(r) * 100).toFixed(pbShown(r) < 0.1 ? 1 : 0)}%</small></td>
         ${td('role', mx(x.role))}${td('trend', mx(x.trend))}${td('spot', mx(x.spot), 'num pbx-div')}
         ${td('touch', (f.touches ?? 0).toFixed(1))}${td('touch3', (f.touch3 ?? 0).toFixed(1))}${td('snap3', Math.round((f.snap3 ?? 0) * 100) + '%')}
         ${td('tds', Math.round((f.tdShare ?? 0) * 100) + '%')}${td('rz', (f.rz ?? 0).toFixed(1))}${td('imp', (f.implied ?? 0).toFixed(1))}
@@ -3940,7 +3943,7 @@
         <span class="pbc-nm">${r.name}</span>
         ${posBadge(r.pos)}
         <span class="pbc-opp">${r.home ? 'vs' : '@'} ${r.opp}</span>
-        <span class="pbc-od${pbP(r) < 0.5 ? ' dog' : ''}">${Odds.inline(pbP(r))}</span>
+        <span class="pbc-od${pbShown(r) < 0.5 ? ' dog' : ''}">${Odds.inline(pbShown(r))}</span>
       </div>`).join('')}
       <div class="pbc-ft"><span>${rows.length} picks · fair odds, no vig</span><span>dong-tool.netlify.app/nfl</span></div>
     </div>`;
@@ -4330,6 +4333,7 @@
       <div class="lb-toolbar">
         <div class="view-switch">${[['table', 'Table'], ['factors', 'Factors'], ['cards', 'Cards'], ['compact', 'Compact']]
           .map(([v, l]) => `<button class="view-btn${pbF.view === v ? ' active' : ''}" onclick="setPbF('view','${v}')">${l}</button>`).join('')}</div>
+        ${parSideToggleHtml('picks', !pbMkt().qbOnly, 'renderPicks()')}
       </div>
       ${cut && cut.v ? `<div class="pb-cutnote">At <b>${cut.lab}</b> or shorter, ${pbMkt().lab} historically hit <b>${cut.hit}%</b> — against a <b>${pbMkt().base}%</b> base rate.</div>`
                      : `<div class="pb-cutnote">Full board. ${pbMkt().lab} base rate is <b>${pbMkt().base}%</b>.</div>`}
@@ -6713,8 +6717,8 @@ let pairStacks = false;
     return { L, p: r.p[L] ?? r.p[String(L)] };
   };
 
-  const rcLeg = (r) => ({ k: `rec|${r.pid}|${r.L}`, n: r.name, t: r.team, g: parGame(r), m: 'rec',
-                          s: `Over ${r.L} receptions`, p: r.p, i: r.pid });
+  const rcLeg = (r) => parSideTag({ k: `rec|${r.pid}|${r.L}`, n: r.name, t: r.team, g: parGame(r), m: 'rec',
+                          s: `Over ${r.L} receptions`, p: r.p, i: r.pid }, r.side, false);
 
   /** The filtered, sorted board — shared by the view and the modal's arrows. */
   function rcRows() {
@@ -6722,6 +6726,7 @@ let pairStacks = false;
     const q = pbNorm(rcF.q.trim());
     return dayScope(R.map(r => ({ ...r, ...rcPick(r) })))
       .filter(r => r.p != null)
+      .map(r => parSideRow(r, 'rec'))
       .filter(r => rcF.pos === 'ALL' || r.pos === rcF.pos)
       .sort((a, b) => rcF.sort === 'proj' ? b.mu - a.mu : b.p - a.p)
       .map((r, i) => ({ ...r, rank: i + 1 }))          // ranked before the search narrows it
@@ -6822,7 +6827,7 @@ let pairStacks = false;
     const meta = `<div class="pb-head"><span class="pb-week">${WK_LABEL(w)}</span><span class="pb-meta">${rows.length} of ${R.length} pass-catchers${(() => {
       const ws = Object.values(nflData.wind || {}); const hi = ws.filter(v => v >= 15).length;
       return ws.length ? ` · wind forecast on ${ws.length} games${hi ? `, ${hi} at 15+ mph` : ''}` : '';
-    })()}</span></div>${dayBar()}${uiView('setRc', rcF.view)}`;
+    })()}</span></div>${dayBar()}${uiView('setRc', rcF.view, parSideToggleHtml('rec', false, 'renderReceptions()'))}`;
 
     if (!rows.length) {
       el.innerHTML = controls + dayBar() + `<div class="empty">Nothing matches that filter.</div>`;
@@ -6842,7 +6847,7 @@ let pairStacks = false;
             <td class="num"><b>${r.mu.toFixed(2)}</b></td>
             <td class="num dim">${Math.round((r.f.snapL3 || 0) * 100)}%</td>
             <td class="num dim">${r.f.thinRole ? '—' : Math.round((r.f.shareL3 || 0) * 100) + '%'}</td>
-            <td class="num dim">o${r.L}</td>
+            <td class="num dim">${parSideLine(r)}</td>
             <td class="num"><b class="${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</b></td>
           </tr>`).join('')}</tbody></table></div>`;
     } else if (rcF.view === 'compact') {
@@ -6853,7 +6858,7 @@ let pairStacks = false;
           <span class="rc-cteam">${r.team}</span>
           <span class="rc-cproj">${r.mu.toFixed(1)}</span>
           <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.p)}</span>
-          <span class="rc-cline">o${r.L}</span>
+          <span class="rc-cline">${parSideLine(r)}</span>
         </div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map((r, i) => `
@@ -6874,7 +6879,7 @@ let pairStacks = false;
           </div>
           <div class="pb-price">
             <span class="pb-odds${r.p < 0.5 ? ' dog' : ''}">${pbOdds(r.p)}</span>
-            <span class="pb-pct">over ${r.L} · ${Odds.pct(r.p)}</span>
+            <span class="pb-pct">${r.side} ${r.L} · ${Odds.pct(r.p)}</span>
           </div>
         </div>`).join('')}</div>`;
     }
@@ -7018,12 +7023,13 @@ let pairStacks = false;
     const q = pbNorm(cpF.q.trim());
     return dayScope((nflData?.completions || []).map(r => ({ ...r, ...cpPick(r) })))
       .filter(r => r.p != null)
+      .map(r => parSideRow(r, 'cmp'))
       .sort((a, b) => cpF.sort === 'proj' ? b.mu - a.mu : b.p - a.p)
       .map((r, i) => ({ ...r, rank: i + 1 }))
       .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q));
   }
-  const cpLeg = (r) => ({ k: `cmp|${r.pid}|${r.L}`, n: r.name, t: r.team, g: parGame(r), m: 'cmp',
-                          s: `Over ${r.L} completions`, p: r.p, i: r.pid });
+  const cpLeg = (r) => parSideTag({ k: `cmp|${r.pid}|${r.L}`, n: r.name, t: r.team, g: parGame(r), m: 'cmp',
+                          s: `Over ${r.L} completions`, p: r.p, i: r.pid }, r.side, false);
   const cpChip = (k, v, lab, cur) =>
     uiChip('setCp', k, v, lab, cur);
   const cpNotes = (r) => {
@@ -7067,12 +7073,12 @@ let pairStacks = false;
       body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>QB</th><th>Game</th><th class="num">Proj</th><th class="num">Att</th><th class="num">Cmp%</th><th class="num">Line</th><th class="num">Price</th></tr></thead><tbody>${rows.map((r, i) => `
         <tr onclick="openCmp('${r.pid}')"${parAttr(cpLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
           <td class="num"><b>${r.mu.toFixed(1)}</b></td><td class="num dim">${r.f.attPrior.toFixed(0)}</td><td class="num dim">${(r.f.rate * 100).toFixed(0)}%</td>
-          <td class="num dim">o${r.L}</td><td class="num"><b class="${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</b></td></tr>`).join('')}</tbody></table></div>`;
+          <td class="num dim">${parSideLine(r)}</td><td class="num"><b class="${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</b></td></tr>`).join('')}</tbody></table></div>`;
     } else if (cpF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map((r, i) => `
         <div class="rc-crow" onclick="openCmp('${r.pid}')"${parAttr(cpLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${r.mu.toFixed(1)}</span>
-          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
+          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.p)}</span><span class="rc-cline">${parSideLine(r)}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map((r, i) => `
         <div class="pb-card" onclick="openCmp('${r.pid}')"${parAttr(cpLeg(r))}>
@@ -7087,10 +7093,10 @@ let pairStacks = false;
             <span class="pb-f" title="Attempts per start"><b>${r.f.attPrior.toFixed(0)}</b> att</span>
             <span class="pb-f" title="Completion rate"><b>${(r.f.rate * 100).toFixed(0)}%</b></span>
           </div>
-          <div class="pb-price"><span class="pb-odds${r.p < 0.5 ? ' dog' : ''}">${pbOdds(r.p)}</span><span class="pb-pct">over ${r.L}</span></div>
+          <div class="pb-price"><span class="pb-odds${r.p < 0.5 ? ' dog' : ''}">${pbOdds(r.p)}</span><span class="pb-pct">${r.side} ${r.L}</span></div>
         </div>`).join('')}</div>`;
     }
-    el.innerHTML = controls + uiView('setCp', cpF.view) + body;
+    el.innerHTML = controls + uiView('setCp', cpF.view, parSideToggleHtml('cmp', false, 'renderCompletions()')) + body;
   }
 
   // Results the way the MLB tools do it: one week, every starter, what hit.
@@ -7149,11 +7155,11 @@ let pairStacks = false;
     return dayScope((nflData?.interceptions || []).map(r => ({ ...r, L: inF.line, p: inP(r) })))
       .filter(r => r.p != null)
       .sort((a, b) => inF.sort === 'most' ? b.p - a.p : a.p - b.p)
-      .map((r, i) => ({ ...r, rank: i + 1 }))
+      .map((r, i) => parSideRow({ ...r, rank: i + 1 }, 'int'))
       .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q));
   }
-  const inLeg = (r) => ({ k: `int|${r.pid}|${r.L}`, n: r.name, t: r.team, g: parGame(r), m: 'int',
-                          s: `Over ${r.L} interceptions`, p: r.p, i: r.pid });
+  const inLeg = (r) => parSideTag({ k: `int|${r.pid}|${r.L}`, n: r.name, t: r.team, g: parGame(r), m: 'int',
+                          s: `Over ${r.L} interceptions`, p: r.p, i: r.pid }, r.side, false);
   const spreadTxt = (fav) => fav === 0 ? 'pick’em' : fav > 0 ? `−${fav} fav` : `+${-fav} dog`;
   const inNotes = (r) => {
     const n = [];
@@ -7186,20 +7192,20 @@ let pairStacks = false;
         <input type="text" id="int-search" placeholder="Search a quarterback or team…" value="${inF.q.replace(/"/g, '&quot;')}" oninput="onIntSearch()" autocomplete="off" spellcheck="false">
         <button class="pb-search-x" onclick="clearIntSearch()" aria-label="Clear"${inF.q ? ' style="display:flex"' : ''}>×</button>
       </div>
-      <div class="pb-head"><span class="pb-week">${WK_LABEL(firstUpcomingWeek())}</span><span class="pb-meta">${rows.length} starting QBs · over ${inF.line} interceptions · fair odds, no vig</span></div>${dayBar()}`;
+      <div class="pb-head"><span class="pb-week">${WK_LABEL(firstUpcomingWeek())}</span><span class="pb-meta">${rows.length} starting QBs · ${parSideGet('int')} ${inF.line} interceptions · fair odds, no vig</span></div>${dayBar()}`;
     if (!rows.length) { el.innerHTML = controls + '<div class="empty">Nothing matches that search.</div>'; return; }
-    const under = (r) => Odds.inline(1 - r.p);
+    const under = (r) => Odds.inline(1 - r.pO);
     let body;
     if (inF.view === 'table') {
       body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>QB</th><th>Game</th><th class="num">Spread</th><th class="num">Bad balls</th><th class="num">Opp INT%</th><th class="num">Over</th><th class="num">Under</th></tr></thead><tbody>${rows.map(r => `
         <tr onclick="openInt('${r.pid}')"${parAttr(inLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
           <td class="num dim">${spreadTxt(r.f.fav)}</td><td class="num dim">${(r.f.bad * 100).toFixed(1)}%</td><td class="num dim">${(r.f.defInt * 100).toFixed(1)}%</td>
-          <td class="num"><b class="${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</b></td><td class="num dim">${under(r)}</td></tr>`).join('')}</tbody></table></div>`;
+          <td class="num${r.side === 'under' ? ' dim' : ''}"><b class="${r.pO < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.pO)}</b></td><td class="num${r.side === 'under' ? '' : ' dim'}">${under(r)}</td></tr>`).join('')}</tbody></table></div>`;
     } else if (inF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
         <div class="rc-crow" onclick="openInt('${r.pid}')"${parAttr(inLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${Math.round(r.p * 100)}%</span>
-          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
+          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</span><span class="rc-cline">${parSideLine(r)}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
         <div class="pb-card" onclick="openInt('${r.pid}')"${parAttr(inLeg(r))}>
@@ -7214,10 +7220,10 @@ let pairStacks = false;
             <span class="pb-f" title="Share of his passes intercepted or broken up, last two seasons (shrunk toward league average)"><b>${(r.f.bad * 100).toFixed(1)}%</b> bad</span>
             <span class="pb-f" title="Share of passes this defense intercepts, last two seasons"><b>${(r.f.defInt * 100).toFixed(1)}%</b> opp INT</span>
           </div>
-          <div class="pb-price"><span class="pb-odds${r.p < 0.5 ? ' dog' : ''}">${pbOdds(r.p)}</span><span class="pb-pct">over ${r.L} · u ${under(r)}</span></div>
+          <div class="pb-price"><span class="pb-odds${r.p < 0.5 ? ' dog' : ''}">${pbOdds(r.p)}</span><span class="pb-pct">${r.side === 'under' ? `under ${r.L} · o ${Odds.inline(r.pO)}` : `over ${r.L} · u ${under(r)}`}</span></div>
         </div>`).join('')}</div>`;
     }
-    el.innerHTML = controls + uiView('setIn', inF.view) + body;
+    el.innerHTML = controls + uiView('setIn', inF.view, parSideToggleHtml('int', false, 'renderInterceptions()')) + body;
   }
 
   // ── Kickers ─────────────────────────────────────────────────────────────
@@ -7285,7 +7291,7 @@ let pairStacks = false;
     const q = pbNorm(kkF.q.trim());
     return dayScope(kkAll().map(r => { const L = kkLine(kkF.mkt, r.mu[kkF.mkt]); return { ...r, L, pp: kkP(r, kkF.mkt, L) }; }))
       .sort((a, b) => kkF.sort === 'proj' ? b.mu[kkF.mkt] - a.mu[kkF.mkt] || b.pp - a.pp : kkF.sort === 'most' ? b.pp - a.pp : a.pp - b.pp)
-      .map((r, i) => ({ ...r, rank: i + 1 }))
+      .map((r, i) => parSideRow({ ...r, rank: i + 1 }, 'kick', 'pp'))
       .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q) || pbNorm(r.opp).includes(q));
   }
   const kkWx = (f) => f.indoor ? 'dome' : [f.temp != null ? `${f.temp}°F` : null, f.windKnown ? `${Math.round(f.wind)} mph` : null].filter(Boolean).join(' · ') || 'outdoors';
@@ -7297,8 +7303,8 @@ let pairStacks = false;
     return n.join('');
   };
   const kkProj = (r, mkt = kkF.mkt) => mkt === 'pts' ? r.mu.pts.toFixed(1) : r.mu[mkt].toFixed(1);
-  const kkLeg = (r) => ({ k: `k${kkF.mkt}|${r.pid}|${r.L}`, n: r.name, t: r.team, g: parGame(r),
-                          m: 'k' + kkF.mkt, s: `Over ${r.L} ${KK_MKTS[kkF.mkt].unit}`, p: r.pp, i: r.pid });
+  const kkLeg = (r) => parSideTag({ k: `k${kkF.mkt}|${r.pid}|${r.L}`, n: r.name, t: r.team, g: parGame(r),
+                          m: 'k' + kkF.mkt, s: `Over ${r.L} ${KK_MKTS[kkF.mkt].unit}`, p: r.pp, i: r.pid }, r.side, false);
 
   function renderKickers() {
     const el = document.getElementById('kickers-content'); if (!el) return;
@@ -7324,20 +7330,20 @@ let pairStacks = false;
         <input type="text" id="kk-search" placeholder="Search a kicker or team…" value="${kkF.q.replace(/"/g, '&quot;')}" oninput="onKkSearch()" autocomplete="off" spellcheck="false">
         <button class="pb-search-x" onclick="clearKkSearch()" aria-label="Clear"${kkF.q ? ' style="display:flex"' : ''}>×</button>
       </div>
-      <div class="pb-head"><span class="pb-week">${WK_LABEL(firstUpcomingWeek())}</span><span class="pb-meta">${rows.length} kickers · ${kkF.line === 'even' ? `${M.unit} at each kicker's median line` : `over ${kkF.line} ${M.unit}`} · fair odds, no vig</span></div>${dayBar()}`;
+      <div class="pb-head"><span class="pb-week">${WK_LABEL(firstUpcomingWeek())}</span><span class="pb-meta">${rows.length} kickers · ${kkF.line === 'even' ? `${M.unit} at each kicker's median line` : `${parSideGet('kick')} ${kkF.line} ${M.unit}`} · fair odds, no vig</span></div>${dayBar()}`;
     if (!rows.length) { el.innerHTML = controls + '<div class="empty">Nothing matches that search.</div>'; return; }
-    const under = (r) => Odds.inline(1 - r.pp);
+    const under = (r) => Odds.inline(1 - r.pO);
     let body;
     if (kkF.view === 'table') {
       body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>Kicker</th><th>Game</th><th class="num">Team total</th><th class="num">Spread</th><th class="num">Weather</th><th class="num">Proj</th><th class="num">Over</th><th class="num">Under</th></tr></thead><tbody>${rows.map(r => `
         <tr onclick="openKick('${r.pid}')"${parAttr(kkLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
           <td class="num dim">${r.f.implied.toFixed(1)}</td><td class="num dim">${spreadTxt(r.f.fav)}</td><td class="num dim">${kkWx(r.f)}</td><td class="num">${kkProj(r)}</td>
-          <td class="num"><b class="${r.pp < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.pp)}</b></td><td class="num dim">${under(r)}</td></tr>`).join('')}</tbody></table></div>`;
+          <td class="num${r.side === 'under' ? ' dim' : ''}"><b class="${r.pO < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.pO)}</b></td><td class="num${r.side === 'under' ? '' : ' dim'}">${under(r)}</td></tr>`).join('')}</tbody></table></div>`;
     } else if (kkF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
         <div class="rc-crow" onclick="openKick('${r.pid}')"${parAttr(kkLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${kkProj(r)}</span>
-          <span class="rc-cod ${r.pp < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.pp)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
+          <span class="rc-cod ${r.pp < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.pp)}</span><span class="rc-cline">${parSideLine(r)}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
         <div class="pb-card" onclick="openKick('${r.pid}')"${parAttr(kkLeg(r))}>
@@ -7352,10 +7358,10 @@ let pairStacks = false;
             <span class="pb-f" title="Point spread — favorites kick more field goals"><b>${spreadTxt(r.f.fav)}</b></span>
             <span class="pb-f" title="Forecast at kickoff — cold and wind cost field goals"><b>${kkWx(r.f)}</b></span>
           </div>
-          <div class="pb-price"><span class="pb-odds${r.pp < 0.5 ? ' dog' : ''}">${pbOdds(r.pp)}</span><span class="pb-pct">over ${r.L} · ${Odds.pct(r.pp)} · proj ${kkProj(r)}</span></div>
+          <div class="pb-price"><span class="pb-odds${r.pp < 0.5 ? ' dog' : ''}">${pbOdds(r.pp)}</span><span class="pb-pct">${r.side} ${r.L} · ${Odds.pct(r.pp)} · proj ${kkProj(r)}</span></div>
         </div>`).join('')}</div>`;
     }
-    el.innerHTML = controls + uiView('setKk', kkF.view) + body;
+    el.innerHTML = controls + uiView('setKk', kkF.view, parSideToggleHtml('kick', false, 'renderKickers()')) + body;
   }
   window.openKick = (pid) => openLc(KK_MKTS[kkF.mkt].kind, pid);
   window.lcKind = (kind) => { const r = lcRow(); lc.kind = kind; if (r) lc.line = lcPick(lcRow(), lcPmf(lcRow())); lcRender(); };
@@ -7405,8 +7411,8 @@ let pairStacks = false;
   // ── Yards ───────────────────────────────────────────────────────────────
   const YD_MKTS = [['pass', 'Passing'], ['rush', 'Rushing'], ['rec', 'Receiving'], ['rr', 'Rush + Rec']];
   const YD_POS = { pass: [], rush: ['QB', 'RB'], rec: ['WR', 'TE', 'RB'], rr: ['RB', 'WR', 'TE'] };
-  const ydLeg = (r) => ({ k: `y${r.m}|${r.pid}|${r.L}`, n: r.name, t: r.team, g: parGame(r), m: 'y' + r.m,
-                          s: `Over ${r.L} ${(YD_MKTS.find(x => x[0] === r.m)?.[1] || '').toLowerCase()} yards`, p: r.p, i: r.pid });
+  const ydLeg = (r) => parSideTag({ k: `y${r.m}|${r.pid}|${r.L}`, n: r.name, t: r.team, g: parGame(r), m: 'y' + r.m,
+                          s: `Over ${r.L} ${(YD_MKTS.find(x => x[0] === r.m)?.[1] || '').toLowerCase()} yards`, p: r.p, i: r.pid }, r.side, false);
   const ydF = { mkt: 'rec', pos: 'ALL', sort: 'high', view: 'cards', q: '', tab: 'board', open: false };
   function setYd(k, v) { ydF[k] = v; if (k === 'mkt') { ydF.pos = 'ALL'; if (activeNav === 'yards') history.replaceState(history.state, '', currentPath()); } renderYards(); }
   window.setYd = setYd;
@@ -7445,7 +7451,7 @@ let pairStacks = false;
     return dayScope(all)
       .filter(r => ydF.pos === 'ALL' || r.pos === ydF.pos)
       .sort((a, b) => ydF.sort === 'high' ? b.med - a.med : a.med - b.med)
-      .map((r, i) => { const L = ydPick(r); return { ...r, rank: i + 1, L, p: ydPOver(r.m, L, r.mu, r.tq) }; })
+      .map((r, i) => { const L = ydPick(r); return parSideRow({ ...r, rank: i + 1, L, p: ydPOver(r.m, L, r.mu, r.tq) }, 'yds'); })
       .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q) || pbNorm(r.pos) === q);
   }
   // the two or three numbers behind a card, per market
@@ -7490,12 +7496,12 @@ let pairStacks = false;
       body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Median</th><th class="num">Avg</th><th class="num">Last 3</th><th class="num">Line</th><th class="num">Over</th><th class="num">Under</th></tr></thead><tbody>${rows.map(r => `
         <tr onclick="openYds('${r.pid}','${r.m}')"${parAttr(ydLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b> <span class="dim">${r.pos}</span></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
           <td class="num"><b>${r.med.toFixed(0)}</b></td><td class="num dim">${r.f.avg != null ? r.f.avg.toFixed(0) : '—'}</td><td class="num dim">${r.f.l3 != null ? r.f.l3.toFixed(0) : '—'}</td>
-          <td class="num dim">o${r.L}</td><td class="num"><b class="${r.p < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.p)}</b></td><td class="num dim">${Odds.inline(1 - r.p)}</td></tr>`).join('')}</tbody></table></div>`;
+          <td class="num dim">${r.L}</td><td class="num${r.side === 'under' ? ' dim' : ''}"><b class="${r.pO < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.pO)}</b></td><td class="num${r.side === 'under' ? '' : ' dim'}">${Odds.inline(1 - r.pO)}</td></tr>`).join('')}</tbody></table></div>`;
     } else if (ydF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
         <div class="rc-crow" onclick="openYds('${r.pid}','${r.m}')"${parAttr(ydLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${r.med.toFixed(0)}</span>
-          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.p)}</span><span class="rc-cline">o${r.L}</span></div>`).join('')}</div>`;
+          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.p)}</span><span class="rc-cline">${parSideLine(r)}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
         <div class="pb-card p-${r.pos}" onclick="openYds('${r.pid}','${r.m}')"${parAttr(ydLeg(r))}>
@@ -7506,10 +7512,10 @@ let pairStacks = false;
               ${liveChip('yds', r, r.med)}${roleTag(r.f)}${r.f.thinRole ? '<span class="rc-wind" title="No NFL history — priced from his depth-chart snap share against what rookies at his position and snap tier produced">rookie baseline</span>' : ''}${r.f.thin ? '<span class="rc-wind" title="Fewer than 3 recent starts — his numbers lean on a league-average QB">limited history</span>' : ''}</div>
           </div>
           <div class="pb-facts">${ydFacts(r).map(([v, l, t]) => `<span class="pb-f" title="${t}"><b>${v}</b> ${l}</span>`).join('')}</div>
-          <div class="pb-price"><span class="pb-odds" style="color:var(--text-strong)">${r.med.toFixed(0)}</span><span class="pb-pct">median · o${r.L} ${Odds.inline(r.p)}</span></div>
+          <div class="pb-price"><span class="pb-odds" style="color:var(--text-strong)">${r.med.toFixed(0)}</span><span class="pb-pct">median · ${parSideLine(r)} ${Odds.inline(r.p)}</span></div>
         </div>`).join('')}</div>`;
     }
-    el.innerHTML = controls + uiView('setYd', ydF.view) + body;
+    el.innerHTML = controls + uiView('setYd', ydF.view, parSideToggleHtml('yds', false, 'renderYards()')) + body;
   }
 
   // ── Yards player card ───────────────────────────────────────────────────
@@ -7655,13 +7661,13 @@ let pairStacks = false;
     const r = ydRow(); if (!r) return null;
     const L = ydm.line, p = ydPOver(r.m, L, r.mu, r.tq);
     if (!(p > 0)) return null;
-    return { k: `y${r.m}|${r.pid}|${L}`, n: r.name, t: r.team, g: parGame(r), m: 'y' + r.m,
-             s: `Over ${L} ${(YD_MKTS.find(x => x[0] === r.m)?.[1] || '').toLowerCase()} yards`, p, i: r.pid };
+    return parSideLeg({ k: `y${r.m}|${r.pid}|${L}`, n: r.name, t: r.team, g: parGame(r), m: 'y' + r.m,
+             s: `Over ${L} ${(YD_MKTS.find(x => x[0] === r.m)?.[1] || '').toLowerCase()} yards`, p, i: r.pid }, parSideGet('yds'), false);
   }
   function ydAddBtn() {
     const leg = ydmLeg(); if (!leg) return '';
     const on = PARLAY.legs.some(l => l.k === parLeg(leg).k);
-    return `<button class="par-add${on ? ' on' : ''}" onclick="ydAddLeg()">${on ? '✓ In your parlay' : `+ Add o${ydm.line} to parlay`}</button>`;
+    return `<button class="par-add${on ? ' on' : ''}" onclick="ydAddLeg()">${on ? '✓ In your parlay' : `+ Add ${parSideGet('yds') === 'under' ? 'u' : 'o'}${ydm.line} to parlay`}</button>`;
   }
   window.ydAddLeg = () => {
     const leg = ydmLeg(); if (!leg) return;
@@ -7890,12 +7896,14 @@ let pairStacks = false;
     const [m, unit] = LC_MKT[lc.kind] || [lc.kind, LC[lc.kind]?.unit || ''];
     const L = lc.line, p = lc.kind === 'int' ? inP(r, L) : lcOver(lcPmf(r), L);
     if (!(p > 0)) return null;
-    return { k: `${m}|${r.pid}|${L}`, n: r.name, t: r.team, g: parGame(r), m, s: `Over ${L} ${unit}`, p, i: r.pid };
+    return parSideLeg({ k: `${m}|${r.pid}|${L}`, n: r.name, t: r.team, g: parGame(r), m, s: `Over ${L} ${unit}`, p, i: r.pid }, lcSideOf(), false);
   }
+  // the board's Over / Under toggle decides which side the card adds
+  const lcSideOf = () => parSideGet(lc.kind?.startsWith('k') ? 'kick' : lc.kind);
   function lcAddBtn() {
     const leg = lcLeg(); if (!leg) return '';
     const on = PARLAY.legs.some(l => l.k === parLeg(leg).k);
-    return `<button class="par-add${on ? ' on' : ''}" onclick="lcAddLeg()">${on ? '✓ In your parlay' : `+ Add o${lc.line} to parlay`}</button>`;
+    return `<button class="par-add${on ? ' on' : ''}" onclick="lcAddLeg()">${on ? '✓ In your parlay' : `+ Add ${lcSideOf() === 'under' ? 'u' : 'o'}${lc.line} to parlay`}</button>`;
   }
   function lcAddLeg() {
     const leg = lcLeg(); if (!leg) return;

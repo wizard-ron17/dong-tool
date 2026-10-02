@@ -1444,14 +1444,16 @@
     document.querySelectorAll('.lc-add').forEach(el => { el.innerHTML = lcAddBtn(); });
     lcCenter();
   }
+  // the board's Over / Under toggle decides which side the card adds
+  const lcSideOf = () => parSideGet(BD_TOOL(lc.kind));
   function lcLeg() {
     const r = lcRow(); if (!r) return null;
-    return bdLeg(lc.kind, r, lc.line, overAt(lcPmf(r), lc.line));
+    return parSideLeg(bdLeg(lc.kind, r, lc.line, overAt(lcPmf(r), lc.line)), lcSideOf(), false);
   }
   function lcAddBtn() {
     const leg = lcLeg(); if (!leg || !(leg.p > 0)) return '';
     const on = PARLAY.legs.some(l => l.k === parLeg(leg).k);
-    return `<button class="par-add${on ? ' on' : ''}" onclick="lcAddLeg()">${on ? '✓ In your parlay' : `+ Add o${lc.line} to parlay`}</button>`;
+    return `<button class="par-add${on ? ' on' : ''}" onclick="lcAddLeg()">${on ? '✓ In your parlay' : `+ Add ${lcSideOf() === 'under' ? 'u' : 'o'}${lc.line} to parlay`}</button>`;
   }
   function lcAddLeg() {
     const leg = lcLeg(); if (!leg) return;
@@ -1506,22 +1508,24 @@
   const setStocksF = (k, v, t) => bdSet('stocks', k, v, t);
   const BD_SET = { threes: 'setThreesF', points: 'setPointsF', stocks: 'setStocksF' };
   /** A board's rows with the line each is priced at (fixed, or his closest to even) and that price. */
-  function bdRows(nav) {
+  function bdRows(nav, sided) {
     const F = bdState(nav), kind = F.tab, all = lcRows(kind);
     const rows = all.filter(r => (F.pos === 'ALL' || (POS_FAM[r.pos] || 'F') === F.pos) && (F.game === 'all' || r.gid === F.game) && matchQ(r, F.q))
       .map(r => {
         const pmf = lcPmf(r, kind); let L = F.line;
         if (L === 'auto') { const [lo, hi] = LC[kind].range; L = lo; for (let x = lo; x <= hi; x++) if (Math.abs(overAt(pmf, x) - 0.5) < Math.abs(overAt(pmf, L) - 0.5)) L = x; }
-        return { ...r, L, pAt: overAt(pmf, L) };
+        const row = { ...r, L, pAt: overAt(pmf, L) };
+        return sided ? parSideRow(row, nav, 'pAt') : row;
       });
     rows.sort(F.sort === 'odds' ? (a, b) => b.pAt - a.pAt : (a, b) => b.mu - a.mu);
     rows.forEach((r, i) => { r.rank = i + 1; });
     return rows;
   }
   // ── Parlay legs (the slip itself is /parlay.js) ──
-  /** An over on a line board; the line is in the key, so o1.5 and o2.5 replace each other. */
-  const bdLeg = (kind, r, L, p) => ({ k: `${kind}|${r.pid}|${L}`, n: r.name, t: r.team, g: parGame(r), m: kind, s: `Over ${L} ${LC[kind].unit}`, p, i: r.pid, L });
-  const dblLeg = (r, m) => ({ k: `${m}|${r.pid}`, n: r.name, t: r.team, g: parGame(r), m, s: m === 'td' ? 'Triple-double' : 'Double-double', p: r[m], i: r.pid });
+  /** A line-board leg; the line is in the key, so o1.5 and o2.5 replace each other. A board row carries its tool's side (parSideRow). */
+  const bdLeg = (kind, r, L, p) => parSideTag({ k: `${kind}|${r.pid}|${L}`, n: r.name, t: r.team, g: parGame(r), m: kind, s: `Over ${L} ${LC[kind].unit}`, p, i: r.pid, L }, r.side, false);
+  const BD_TOOL = (kind) => Object.keys(BD).find(nav => BD[nav].tabs.some(([k]) => k === kind)) || kind;
+  const dblLeg = (r, m, side = 'over') => parSideLeg({ k: `${m}|${r.pid}`, n: r.name, t: r.team, g: parGame(r), m, s: m === 'td' ? 'Triple-double' : 'Double-double', p: r[m], i: r.pid }, side, true);
   const fbLeg = (r, g) => ({ k: `fb|${r.pid}`, n: r.name, t: r.team, g: `${g.away}@${g.home}`, m: 'fb', s: 'First basket', p: r.p, i: r.pid });
   function renderBoard(nav) {
     const el = dataGate(nav + '-content'); if (!el) return;
@@ -1532,7 +1536,7 @@
     const lines = []; for (let x = lo; x <= hi; x++) lines.push(x);
     const games = [...new Map(lcRows(kind).map(r => [r.gid, r])).values()].sort((a, b) => a.start.localeCompare(b.start));
     if (F.game !== 'all' && !games.some(g => g.gid === F.game)) F.game = 'all';
-    const rows = bdRows(nav);
+    const rows = bdRows(nav, true);
     const changed = (F.line !== 'auto') + (F.pos !== 'ALL') + (F.game !== 'all') + (F.sort !== 'proj');
     const tabs = cfg.tabs.length > 1 ? uiTabs(set, F.tab, cfg.tabs) : '';
     const controls = uiFilters(set, F.open, [
@@ -1541,7 +1545,7 @@
       ['Game', [['all', 'All games'], ...games.map(g => [g.gid, `${g.home ? g.opp : g.team} @ ${g.home ? g.team : g.opp}`])].map(([v, l]) => uiChip(set, 'game', v, l, F.game)).join('')],
       ['Sort', [['proj', 'Projection'], ['odds', 'Shortest price']].map(([v, l]) => uiChip(set, 'sort', v, l, F.sort)).join('')],
     ], changed) + uiSearch(nav + '-search', set, F.q, 'Search a player, team or position…');
-    const meta = `<div class="result-meta"><b>${dayLabel(src.date, true)}</b> · ${rows.length} of ${lcRows(kind).length} players · ${esc(C.unit)} · fair odds, no vig</div>` + uiView(set, F.view);
+    const meta = `<div class="result-meta"><b>${dayLabel(src.date, true)}</b> · ${rows.length} of ${lcRows(kind).length} players · ${esc(C.unit)} · fair odds, no vig</div>` + uiView(set, F.view, parSideToggleHtml(nav, false, `renderBoard('${nav}')`));
     if (!rows.length) { el.innerHTML = tabs + controls + meta + '<div class="empty">Nothing matches that filter.</div>'; return; }
     const open = (r) => `openBoardCard('${nav}','${r.pid}')`;
     const started = (r) => new Date(r.start) <= new Date();
@@ -1559,7 +1563,7 @@
             <td class="num dim">${r.min.toFixed(1)}</td>
             <td class="num dim">${(kind === '3pm' ? f(r).tpa : f(r).l10) ?? '—'}</td>
             <td class="num dim">×${(f(r).opp ?? 1).toFixed(2)}</td>
-            <td class="num dim">o${r.L}</td>
+            <td class="num dim">${parSideLine(r)}</td>
             <td class="num"><b>${Odds.inline(r.pAt)}</b></td>
           </tr>`).join('')}</tbody></table></div>`;
     } else if (F.view === 'compact') {
@@ -1570,7 +1574,7 @@
           <span class="rc-cteam">${esc(r.team)}</span>
           <span class="rc-cproj">${r.mu.toFixed(1)}</span>
           <span class="rc-cod">${Odds.inline(r.pAt)}</span>
-          <span class="rc-cline">o${r.L}</span>
+          <span class="rc-cline">${parSideLine(r)}</span>
         </div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
@@ -1588,14 +1592,14 @@
           </div>
           <div class="pb-price">
             <span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${fairOdds(r.pAt)}</span>
-            <span class="pb-pct">over ${r.L} · ${Math.round(r.pAt * 100)}%</span>
+            <span class="pb-pct">${r.side} ${r.L} · ${Math.round(r.pAt * 100)}%</span>
           </div>
         </div>`).join('')}</div>`;
     }
     el.innerHTML = tabs + controls + meta + body + `<div class="t3-note">${cfg.note || BD_NOTE}</div>`;
   }
   function openBoardCard(nav, pid) {
-    const rows = bdRows(nav), r = rows.find(x => x.pid === String(pid));
+    const rows = bdRows(nav, true), r = rows.find(x => x.pid === String(pid));
     openLc(bdState(nav).tab, pid, rows, bdState(nav).line === 'auto' ? undefined : r?.L);
   }
   const renderThrees = () => renderBoard('threes');
@@ -1627,32 +1631,32 @@
       ['Market', [['dd', 'Double-double'], ['td', 'Triple-double']].map(([v, l]) => uiChip('setDblF', 'sort', v, l, dblF.sort)).join('')],
       ['Game', [['all', 'All games'], ...games.map(g => [g.gid, `${g.home ? g.opp : g.team} @ ${g.home ? g.team : g.opp}`])].map(([v, l]) => uiChip('setDblF', 'game', v, l, dblF.game)).join('')],
     ], (dblF.sort !== 'dd') + (dblF.game !== 'all')) + uiSearch('doubles-search', 'setDblF', dblF.q, 'Search a player, team or position…');
-    const meta = `<div class="result-meta"><b>${dayLabel(D.stats.date, true)}</b> · ${rows.length} of ${R0.length} players · ${td ? 'triple' : 'double'}-double · fair odds, no vig</div>` + uiView('setDblF', dblF.view);
+    const meta = `<div class="result-meta"><b>${dayLabel(D.stats.date, true)}</b> · ${rows.length} of ${R0.length} players · ${td ? 'triple' : 'double'}-double · fair odds, no vig</div>` + uiView('setDblF', dblF.view, parSideToggleHtml('doubles', true, 'renderDoubles()'));
     if (!rows.length) { el.innerHTML = controls + meta + '<div class="empty">Nothing matches that filter.</div>'; return; }
     const open = (r) => `openDoubleCard('${r.pid}')`, started = (r) => new Date(r.start) <= new Date();
-    const pk = (r) => r[dblF.sort];
+    const side = parSideGet('doubles'), pk = (r) => parSidePrice(r[dblF.sort], side);
     let body;
     if (dblF.view === 'table') {
       body = `<div class="rc-tablewrap"><table class="rc-table">
         <thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Pts</th><th class="num">Reb</th><th class="num">Ast</th><th class="num">Last ${R0[0].l40 || 40}</th><th class="num">DD</th><th class="num">TD</th></tr></thead>
         <tbody>${rows.map(r => `
-          <tr onclick="${open(r)}"${started(r) ? ' class="dim"' : ''}${parAttr(dblLeg(r, dblF.sort))}>
+          <tr onclick="${open(r)}"${started(r) ? ' class="dim"' : ''}${parAttr(dblLeg(r, dblF.sort, side))}>
             <td class="num dim">${r.rank}</td>
             <td><b>${esc(r.name)}</b> <span class="dim">${esc(r.pos || '')}</span></td>
             <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}</td>
             <td class="num">${r.pts}</td><td class="num">${r.reb}</td><td class="num">${r.ast}</td>
             <td class="num dim">${r.dd40} DD · ${r.td40} TD</td>
-            <td class="num"><b>${Odds.inline(r.dd)}</b></td><td class="num"><b>${Odds.inline(r.td)}</b></td>
+            <td class="num"><b>${Odds.inline(parSidePrice(r.dd, side))}</b></td><td class="num"><b>${Odds.inline(parSidePrice(r.td, side))}</b></td>
           </tr>`).join('')}</tbody></table></div>`;
     } else if (dblF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
-        <div class="rc-crow" onclick="${open(r)}"${parAttr(dblLeg(r, dblF.sort))}>
+        <div class="rc-crow" onclick="${open(r)}"${parAttr(dblLeg(r, dblF.sort, side))}>
           <span class="rc-crank">${r.rank}</span><span class="rc-cnm">${esc(r.name)}</span><span class="rc-cteam">${esc(r.team)}</span>
-          <span class="rc-cproj">${Math.round(pk(r) * 100)}%</span><span class="rc-cod">${fairOdds(pk(r))}</span><span class="rc-cline">${td ? 'TD' : 'DD'}</span>
+          <span class="rc-cproj">${Math.round(pk(r) * 100)}%</span><span class="rc-cod">${fairOdds(pk(r))}</span><span class="rc-cline">${side === 'under' ? 'no ' : ''}${td ? 'TD' : 'DD'}</span>
         </div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
-        <div class="pb-card${started(r) ? ' t3-started' : ''}" onclick="${open(r)}"${parAttr(dblLeg(r, dblF.sort))}>
+        <div class="pb-card${started(r) ? ' t3-started' : ''}" onclick="${open(r)}"${parAttr(dblLeg(r, dblF.sort, side))}>
           <div class="pb-rank">${r.rank}</div>${faceHtml(r.pid, r.name)}
           <div class="pb-info">
             <div class="pb-nm">${esc(r.name)}<span class="pb-flag">${esc(r.pos || '')}</span></div>
@@ -1664,7 +1668,7 @@
           </div>
           <div class="pb-price">
             <span class="pb-odds${pk(r) < 0.5 ? ' dog' : ''}">${fairOdds(pk(r))}</span>
-            <span class="pb-pct">${td ? 'triple' : 'double'}-double · ${(pk(r) * 100).toFixed(pk(r) < 0.1 ? 1 : 0)}%</span>
+            <span class="pb-pct">${side === 'under' ? 'no ' : ''}${td ? 'triple' : 'double'}-double · ${(pk(r) * 100).toFixed(pk(r) < 0.1 ? 1 : 0)}%</span>
           </div>
         </div>`).join('')}</div>`;
     }

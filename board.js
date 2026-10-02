@@ -7,7 +7,7 @@
 //   uiFilters(setFn, open, [[label, chipsHtml], ...], changedCount)
 //   uiChip(setFn, key, value, label, current, extraClass)
 //   uiTabs(setFn, current, [[value, label], ...])     (defaults to Board / Results)
-//   uiView(setFn, current)                            (table / cards / compact)
+//   uiView(setFn, current, extra)                     (table / cards / compact; extra = more toolbar, e.g. parSideToggleHtml)
 //   uiSearch(inputId, setFn, query, placeholder)      (setFn('q', text, true) as you type)
 //   matchQ(row, query)                                name, team, opponent or position
 (function () {
@@ -84,9 +84,9 @@
   const uiTabs = (setFn, cur, tabs = [['board', 'Board'], ['results', 'Results']]) => `
     <div class="sub-tabs u-tabs">${tabs.map(([v, l]) =>
       `<button class="sub-btn${cur === v ? ' active' : ''}" onclick="${setFn}('tab','${v}')">${l}</button>`).join('')}</div>`;
-  const uiView = (setFn, cur) => `
+  const uiView = (setFn, cur, extra = '') => `
     <div class="lb-toolbar"><div class="view-switch">${[['table', 'Table'], ['cards', 'Cards'], ['compact', 'Compact']].map(([v, l]) =>
-      `<button class="view-btn${cur === v ? ' active' : ''}" onclick="${setFn}('view','${v}')">${l}</button>`).join('')}</div></div>`;
+      `<button class="view-btn${cur === v ? ' active' : ''}" onclick="${setFn}('view','${v}')">${l}</button>`).join('')}</div>${extra}</div>`;
   const uiSearch = (id, setFn, q, ph) => `
       <div class="pb-search${q ? ' on' : ''}">
         <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">

@@ -29,10 +29,12 @@
 (function () {
   const APP = (location.pathname.split('/')[1] || '').toLowerCase();
   const PAR_SPORT = ['mlb', 'nfl', 'nhl', 'nba'].includes(APP) ? APP : 'mlb';
-  const PAR_KEY = 'dtParlay', CTX_KEY = 'dtParlayCtx';
+  const PAR_KEY = 'dtParlay', CTX_KEY = 'dtParlayCtx', SIDE_KEY = 'dtParSides';
   const PAR_SPORT_LBL = { mlb: 'MLB', nfl: 'NFL', nhl: 'NHL', nba: 'NBA' };
   const PAR_BOOSTS = [0, 0.25, 0.5, 1];
   const PARLAY = { on: false, open: false, legs: [], boost: 0, book: '' };
+  let PAR_SIDES = {};
+  try { PAR_SIDES = JSON.parse(localStorage.getItem(SIDE_KEY) || '{}') || {}; } catch (e) {}
   const am = (p) => window.Odds ? Odds.am(p) : String(p);
 
   const parEsc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -40,6 +42,50 @@
   const parLeg = (leg) => leg.sp ? leg : { ...leg, sp: PAR_SPORT, k: PAR_SPORT + ':' + leg.k };
   /** Attribute for a priced row. Keys are short because this ships on every row. */
   const parAttr = (leg) => leg && leg.p > 0 ? ` data-leg="${parEsc(JSON.stringify(parLeg(leg)))}"` : '';
+  // ── Sides ─────────────────────────────────────────────────────────────────
+  // Every board prices the over (or the Yes); a toggle at the top of each tool
+  // flips the whole board to the under (or the No). The side is kept per tool,
+  // per sport, and an under leg is keyed `|u`, which flips its correlations.
+  //   const side = parSideGet('rec');                          // 'over' | 'under'
+  //   parSideToggleHtml('rec', false, 'renderRec()')           // the toggle; re-renders on click
+  //   parAttr(parSideLeg(leg, side))  ·  Odds.both(parSidePrice(p, side))
+  //   rows.map(r => parSideRow(r, 'rec'))   then   parAttr(parSideTag(leg, r.side)) and parSideLine(r)
+  const parUnder = (side) => side === 'under' || side === 'no';
+  /** Re-key and re-label a leg for this side, keeping its p (for rows already priced on that side). */
+  function parSideTag(leg, side, binary) {
+    if (!leg) return leg;
+    const rawKey = String(leg.k || ''), hasSide = /\|[ou]$/.test(rawKey), baseKey = rawKey.replace(/\|[ou]$/, '');
+    const under = parUnder(side), label = String(leg.s || '').replace(/^(?:over|under|yes|no)\s+/i, '');
+    if (binary == null) binary = !/\d/.test(label);
+    return { ...leg, k: under ? baseKey + '|u' : hasSide ? baseKey + '|o' : baseKey,
+      s: binary ? (under ? `No ${label}` : label) : `${under ? 'Under' : 'Over'} ${label}` };
+  }
+  /** The leg for this side from its over / Yes leg: 1 - p, a `|u` key, an Under / No label. */
+  function parSideLeg(leg, side, binary) {
+    if (!leg || !(leg.p > 0)) return leg;
+    const overP = /\|u$/.test(String(leg.k || '')) ? 1 - leg.p : leg.p;
+    return { ...parSideTag(leg, side, binary), p: parUnder(side) ? 1 - overP : overP };
+  }
+  const parSideId = (market) => PAR_SPORT + '|' + market;
+  const parSideGet = (market) => PAR_SIDES[parSideId(market)] === 'under' ? 'under' : 'over';
+  function parSideSet(market, side) {
+    PAR_SIDES[parSideId(market)] = parUnder(side) ? 'under' : 'over';
+    try { localStorage.setItem(SIDE_KEY, JSON.stringify(PAR_SIDES)); } catch (e) {}
+  }
+  const parSidePrice = (overP, side) => overP == null || !parUnder(side) ? overP : 1 - overP;
+  /** Over / Under (or Yes / No) for one tool. `rerender` is the page call that redraws the board. */
+  function parSideToggleHtml(market, binary = false, rerender = '') {
+    const u = parSideGet(market) === 'under', go = (sd) => `setParSide('${market}','${sd}');${rerender}`;
+    return `<div class="view-switch par-side-toggle" role="group" aria-label="${binary ? 'Yes or No' : 'Over or Under'}" title="Which side the board prices, and adds to a parlay">
+    <button class="view-btn${u ? '' : ' active'}" onclick="${go('over')}">${binary ? 'Yes' : 'Over'}</button>
+    <button class="view-btn${u ? ' active' : ''}" onclick="${go('under')}">${binary ? 'No' : 'Under'}</button>
+  </div>`;
+  }
+  const setParSide = (market, side) => parSideSet(market, side);
+  /** A board row on its tool's side: `side`, the over price kept as `pO`, and `key` (default p) flipped for an under. */
+  const parSideRow = (r, market, key = 'p') => { const side = parSideGet(market); return { ...r, side, pO: r[key], [key]: parSidePrice(r[key], side) }; };
+  /** "o4.5" / "u4.5" for a row from parSideRow. */
+  const parSideLine = (r, L = r.L) => (parUnder(r.side) ? 'u' : 'o') + L;
   /** Canonical away@home key, so two legs in the same game always collide. */
   const parGame = (r) => r.home ? `${r.opp}@${r.team}` : `${r.team}@${r.opp}`;
   const parDecAm = (d) => !(d > 1) ? '—' : d >= 2 ? '+' + Math.round((d - 1) * 100) : '-' + Math.round(100 / (d - 1));
@@ -100,7 +146,8 @@
     }
   }
 
-  const side = (l) => /\|u$/.test(l.k) ? -1 : 1;   // an under is the other side of the same latent: flips the sign
+  const side = (l) => /\|u$/.test(l.k) ? -1 : 1;   // an under (or a No) is the other side of the same latent: flips the sign.
+  // The measured group multipliers (TD groups, goal groups, scorer + assist stacks) are for Yes legs only.
   const pairs = (legs, f) => { for (let x = 0; x < legs.length; x++) for (let y = x + 1; y < legs.length; y++) f(legs[x], legs[y]); };
   const moreLess = (p, naive) => p > naive ? ((p / naive - 1) * 100).toFixed(0) + '% more' : ((1 - p / naive) * 100).toFixed(0) + '% less';
 
@@ -201,7 +248,7 @@
     const teams = {};
     for (const l of legs) if (l.t) teams[l.t] = (teams[l.t] || 0) + 1;
     const mates = Object.values(teams).some(n => n > 1);
-    if (legs.length > 1 && legs.every(l => l.m === 'td1' && l.i)) {
+    if (legs.length > 1 && legs.every(l => l.m === 'td1' && l.i && side(l) > 0)) {
       const p = tdGroupNFL(legs);
       if (p != null) return { p, corr: true, notes: [`Priced with the measured touchdown correlation rather than by multiplying${mates ? ' — teammates compete for the same end-zone trips' : ''}. Straight multiplication says <b>${am(naive)}</b>.`] };
     }
@@ -334,19 +381,19 @@
     }
     return null;
   }
-  const sgpRhoNHL = (a, b) => { const k = sgpRuleNHL(a, b); return k ? SGP_NHL[k] : 0; };   // NHL legs are overs
+  const sgpRhoNHL = (a, b) => { const k = sgpRuleNHL(a, b); return k ? side(a) * side(b) * SGP_NHL[k] : 0; };
   /** A player's goal or assist (1+) already IS a point: over 0.5 points on the same player adds nothing. */
-  const impliedNHL = (legs) => legs.filter(l => !(NHL_KIND[l.m] === 'p' && l.m === 'pts' && l.L === 0.5 &&
-    legs.some(o => o !== l && o.i === l.i && ['g1', 'ast'].includes(o.m))));
+  const impliedNHL = (legs) => legs.filter(l => !(side(l) > 0 && l.m === 'pts' && l.L === 0.5 &&
+    legs.some(o => o !== l && side(o) > 0 && o.i === l.i && ['g1', 'ast'].includes(o.m))));
   function priceNHL(legs, naive) {
-    if (legs.length > 1 && legs.every(l => l.m === 'g1')) {
+    if (legs.length > 1 && legs.every(l => l.m === 'g1' && side(l) > 0)) {
       const f = goalGroupMult(legs);
       if (f != null) {
         const p = naive * f, gap = Math.round((p / naive - 1) * 100);
         return { p, corr: 'goals', notes: gap ? [`Priced with the measured goal-scorer correlation — ${gap < 0 ? 'teammates share a fixed number of goals, so a big same-club group lands below' : 'these legs land above'} straight multiplication, which says <b>${am(naive)}</b> (${gap > 0 ? '+' : ''}${gap}%).`] : [] };
       }
     } else if (legs.length === 2) {
-      const A = legs.find(l => l.m === 'g1'), B = legs.find(l => l.m === 'ast' && l.L === 0.5);
+      const A = legs.find(l => l.m === 'g1' && side(l) > 0), B = legs.find(l => l.m === 'ast' && l.L === 0.5 && side(l) > 0);
       if (A && B && A.t === B.t && A.i !== B.i && A.g === B.g) {
         const st = stackMult(A.i, B.i);
         if (st) {
@@ -550,6 +597,7 @@
   .par-fab svg { width: 16px; height: 16px; }
   body.par-has .par-fab { display: inline-flex; }
   body.par-mode .par-fab, body.par-legs .par-fab { display: none; }
+  .lb-toolbar .par-side-toggle { margin-left: auto; }
   body.par-mode [data-leg] { position: relative; cursor: pointer; }
   body.par-mode div[data-leg], body.par-mode a[data-leg] { padding-left: 2.15rem; }
   body.par-mode tr[data-leg] td:first-child { position: relative; padding-left: 1.9rem; }
@@ -656,7 +704,7 @@
 
   window.RonParlay = { provide, price: parPrice, rho: { mlb: sgpRhoMLB, nfl: sgpRhoNFL, nhl: sgpRhoNHL }, goalGroupMult, stackMult };
   Object.assign(window, {
-    PARLAY, PAR_SPORT, parLeg, parAttr, parGame, parEsc, parDecAm, parAmDec, parSave, parPrice,
+    PARLAY, PAR_SPORT, parLeg, parAttr, parGame, parSideGet, parSideSet, parSideLeg, parSideTag, parSideRow, parSideLine, parSidePrice, parSideToggleHtml, setParSide, parEsc, parDecAm, parAmDec, parSave, parPrice,
     parMode, parToggleOpen, parToggleLeg, parRemove, parClear, parSetBoost, parCustomBoost, parBook,
     parPaint, parRender, parRenderEv, parCopyTracker,
     // older names the apps' own tools still call

@@ -2977,7 +2977,7 @@
     }
     return best;
   }
-  function sgRows() {
+  function sgRows(sided) {
     const S = D.shots || {}, lines = S.model?.lines || [1.5, 2.5, 3.5];
     let rows = (S.board || []).map(r => {
       const L = sgF.line === 'auto' ? sgBestLine(r, lines) : +sgF.line;
@@ -2988,6 +2988,7 @@
     }
     const q = sgF.q.trim().toLowerCase();
     if (q) rows = rows.filter(r => (r.name + ' ' + r.team + ' ' + r.opp + ' ' + r.pos).toLowerCase().includes(q));
+    if (sided) rows = rows.map(r => parSideRow(r, 'shots', 'pAt'));
     rows.sort(sgF.sort === 'odds' ? (a, b) => b.pAt - a.pAt : (a, b) => b.mu - a.mu);
     return rows.map((r, i) => ({ ...r, rank: i + 1 }));
   }
@@ -3001,7 +3002,7 @@
       return;
     }
     const lines = S.model?.lines || [1.5, 2.5, 3.5];
-    const rows = sgRows();
+    const rows = sgRows(true);
     const nFilt = (sgF.pos !== 'ALL') + (sgF.line !== 'auto') + (sgF.sort !== 'proj');
 
     const controls = uiFilters('setSg', sgF.open, [
@@ -3020,7 +3021,7 @@
       </div>`;
 
     const meta = `<div class="result-meta"><b>${S.date ? dayLabel(S.date, true) : ''}</b> · ${rows.length} of ${S.board.length} skaters · negative-binomial prices</div>`
-      + uiView('setSg', sgF.view);
+      + uiView('setSg', sgF.view, parSideToggleHtml('shots', false, 'renderShots()'));
 
     if (!rows.length) { el.innerHTML = controls + meta + `<div class="empty">Nothing matches that filter.</div>`; return; }
 
@@ -3041,7 +3042,7 @@
             <td class="num dim">${(r.toi / 60).toFixed(1)}</td>
             <td class="num dim">${r.sogL10.toFixed(1)}</td>
             <td class="num dim">${r.oppSa.toFixed(1)}</td>
-            <td class="num dim">o${r.L}</td>
+            <td class="num dim">${parSideLine(r)}</td>
             <td class="num"><b>${Odds.inline(r.pAt)}</b></td>
           </tr>`).join('')}</tbody></table></div>`;
     } else if (sgF.view === 'compact') {
@@ -3052,7 +3053,7 @@
           <span class="rc-cteam">${esc(r.team)}</span>
           <span class="rc-cproj">${r.mu.toFixed(1)}</span>
           <span class="rc-cod">${Odds.inline(r.pAt)}</span>
-          <span class="rc-cline">o${r.L}</span>
+          <span class="rc-cline">${parSideLine(r)}</span>
         </div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
@@ -3070,7 +3071,7 @@
           </div>
           <div class="pb-price">
             <span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span>
-            <span class="pb-pct">over ${r.L} · ${Odds.pct(r.pAt)}</span>
+            <span class="pb-pct">${r.side} ${r.L} · ${Odds.pct(r.pAt)}</span>
           </div>
         </div>`).join('')}</div>`;
     }
@@ -3180,7 +3181,7 @@
   const gtSetFn = (page) => page === 'saves' ? 'setGtSaves' : 'setGtAllowed';
 
   /** The board for one market, priced at its best (or chosen) line. */
-  function svRows(kind) {
+  function svRows(kind, sided) {
     const page = kind === 'ga' ? 'allowed' : 'saves', P = GT[page], F = gtF[page];
     let rows = (D.saves?.board || []).map(r => {
       const pmf = lcPmf(r, P.kind), mu = P.kind === 'ga' ? r.muGa : r.mu;
@@ -3191,6 +3192,7 @@
     });
     const q = F.q.trim().toLowerCase();
     if (q) rows = rows.filter(r => (r.name + ' ' + r.team + ' ' + r.opp).toLowerCase().includes(q));
+    if (sided) rows = rows.map(r => parSideRow(r, page, 'pAt'));
     rows.sort(F.sort === 'odds' ? (a, b) => b.pAt - a.pAt : (a, b) => b.m - a.m);
     return rows.map((r, i) => ({ ...r, rank: i + 1 }));
   }
@@ -3206,7 +3208,7 @@
     const B = D.saves || {};
     if (!B.board?.length) { el.innerHTML = tabs + `<div class="empty">No goalie projections yet — the board fills in once the slate is set.</div>`; return; }
     const ga = P.kind === 'ga', dp = P.dp;
-    const rows = svRows(P.kind);
+    const rows = svRows(P.kind, true);
     const controls = uiFilters(fn, F.open, [
         ['Line', ['auto', ...P.lines].map(v => uiChip(fn, 'line', v, v === 'auto' ? 'Best line' : 'o' + v, F.line)).join('')],
         ['Sort', [['proj', 'Projection'], ['odds', 'Shortest price']].map(([v, l]) => uiChip(fn, 'sort', v, l, F.sort)).join('')],
@@ -3219,7 +3221,7 @@
         <button class="pb-search-x" onclick="clearGtSearch('${page}')" aria-label="Clear">×</button>
       </div>`;
     const meta = `<div class="result-meta"><b>${B.date ? dayLabel(B.date, true) : ''}</b> · ${rows.length} projected starters · ${P.meta}</div>`
-      + uiView(fn, F.view);
+      + uiView(fn, F.view, parSideToggleHtml(page, false, `renderGoalie('${page}')`));
     if (!rows.length) { el.innerHTML = tabs + controls + meta + `<div class="empty">Nothing matches that search.</div>`; return; }
     const open = (r) => `openSave(${r.pid},'${P.kind}')`;
     const spark = (r) => `<span class="sg-spark" title="His last starts — bars over the line are green">${
@@ -3239,7 +3241,7 @@
             <td class="num dim">${(ga ? r.oppGf : r.teamSa).toFixed(ga ? 2 : 1)}</td>
             <td class="num dim">${pct3(r.svPct)}</td>
             <td class="num dim">${r.starter.of ? `${r.starter.starts}/${r.starter.of}` : '—'}</td>
-            <td class="num dim">o${r.L}</td>
+            <td class="num dim">${parSideLine(r)}</td>
             <td class="num"><b>${Odds.inline(r.pAt)}</b></td>
           </tr>`).join('')}</tbody></table></div>`;
     } else if (F.view === 'compact') {
@@ -3250,7 +3252,7 @@
           <span class="rc-cteam">${esc(r.team)}</span>
           <span class="rc-cproj">${r.m.toFixed(dp)}</span>
           <span class="rc-cod">${Odds.inline(r.pAt)}</span>
-          <span class="rc-cline">o${r.L}</span>
+          <span class="rc-cline">${parSideLine(r)}</span>
         </div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
@@ -3271,7 +3273,7 @@
           </div>
           <div class="pb-price">
             <span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span>
-            <span class="pb-pct">over ${r.L} · ${Odds.pct(r.pAt)}</span>
+            <span class="pb-pct">${r.side} ${r.L} · ${Odds.pct(r.pAt)}</span>
           </div>
         </div>`).join('')}</div>`;
     }
@@ -3298,7 +3300,7 @@
   function renderHits() { renderPx('hits'); }
   function renderBlocks() { renderPx('blocks'); }
 
-  function pxRows(page) {
+  function pxRows(page, sided) {
     const P = PX[page], F = pxF[page], B = P.data(), lines = B.model?.lines || [0.5, 1.5, 2.5];
     let rows = (B.board || []).map(r => {
       const L = F.line === 'auto' ? sgBestLine(r, lines) : +F.line;
@@ -3307,6 +3309,7 @@
     if (F.pos !== 'ALL') rows = rows.filter(r => F.pos === 'F' ? r.pos !== 'D' : r.pos === F.pos);
     const q = F.q.trim().toLowerCase();
     if (q) rows = rows.filter(r => (r.name + ' ' + r.team + ' ' + r.opp + ' ' + r.pos).toLowerCase().includes(q));
+    if (sided) rows = rows.map(r => parSideRow(r, page, 'pAt'));
     rows.sort(F.sort === 'odds' ? (a, b) => b.pAt - a.pAt : (a, b) => b.mu - a.mu);
     return rows.map((r, i) => ({ ...r, rank: i + 1 }));
   }
@@ -3325,7 +3328,7 @@
     const B = P.data();
     if (!B.board?.length) { el.innerHTML = tabs + `<div class="empty">No projections yet — the board fills in once the slate is set.</div>`; return; }
     const lines = B.model?.lines || [0.5, 1.5, 2.5];
-    const rows = pxRows(page);
+    const rows = pxRows(page, true);
     const controls = uiFilters(fn, F.open, [
         ['Line', ['auto', ...lines].map(v => uiChip(fn, 'line', v, v === 'auto' ? 'Best line' : 'o' + v, F.line)).join('')],
         ['Position', [['ALL', 'All'], ['F', 'Forwards'], ['C', 'C'], ['L', 'LW'], ['R', 'RW'], ['D', 'D']].map(([v, l]) => uiChip(fn, 'pos', v, l, F.pos)).join('')],
@@ -3338,7 +3341,7 @@
                value="${esc(F.q)}" oninput="onPxSearch('${page}')" autocomplete="off" spellcheck="false">
         <button class="pb-search-x" onclick="clearPxSearch('${page}')" aria-label="Clear">×</button>
       </div>`;
-    const meta = `<div class="result-meta"><b>${B.date ? dayLabel(B.date, true) : ''}</b> · ${rows.length} of ${B.board.length} skaters · negative-binomial prices</div>` + uiView(fn, F.view);
+    const meta = `<div class="result-meta"><b>${B.date ? dayLabel(B.date, true) : ''}</b> · ${rows.length} of ${B.board.length} skaters · negative-binomial prices</div>` + uiView(fn, F.view, parSideToggleHtml(page, false, `renderPx('${page}')`));
     if (!rows.length) { el.innerHTML = tabs + controls + meta + `<div class="empty">Nothing matches that filter.</div>`; return; }
     const open = (r) => `openLc('${P.kind}',${r.pid})`;
     const leg = (r) => parAttr(lcLegOf(P.kind, r, r.L, r.pAt));
@@ -3353,13 +3356,13 @@
             <td class="num dim">${r.rank}</td><td><b>${esc(r.name)}</b> <span class="dim">${POS_NAME[r.pos] || r.pos}</span></td>
             <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}</td><td class="num"><b>${r.mu.toFixed(2)}</b></td>
             <td class="num dim">${r.f.prior.toFixed(2)}</td><td class="num dim">${r.f.l10.toFixed(1)}</td><td class="num dim">${(r.f.toi / 60).toFixed(1)}</td>
-            <td class="num dim">${r.f.rinkGames ? '×' + r.f.arena.toFixed(2) : '—'}</td><td class="num dim">o${r.L}</td><td class="num"><b>${Odds.inline(r.pAt)}</b></td>
+            <td class="num dim">${r.f.rinkGames ? '×' + r.f.arena.toFixed(2) : '—'}</td><td class="num dim">${parSideLine(r)}</td><td class="num"><b>${Odds.inline(r.pAt)}</b></td>
           </tr>`).join('')}</tbody></table></div>`;
     } else if (F.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
         <div class="rc-crow" onclick="${open(r)}"${leg(r)}>
           <span class="rc-crank">${r.rank}</span><span class="rc-cnm">${esc(r.name)}</span><span class="rc-cteam">${esc(r.team)}</span>
-          <span class="rc-cproj">${r.mu.toFixed(1)}</span><span class="rc-cod">${Odds.inline(r.pAt)}</span><span class="rc-cline">o${r.L}</span>
+          <span class="rc-cproj">${r.mu.toFixed(1)}</span><span class="rc-cod">${Odds.inline(r.pAt)}</span><span class="rc-cline">${parSideLine(r)}</span>
         </div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
@@ -3376,7 +3379,7 @@
             ${page === 'blocks' ? `<span class="pb-f" title="Penalty-kill minutes per game, last five — blocks happen on the kill"><b>${(r.f.shtoi / 60).toFixed(1)}</b> PK</span>` : ''}
             ${pxRink(r, P)}
           </div>
-          <div class="pb-price"><span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span><span class="pb-pct">over ${r.L} · ${Odds.pct(r.pAt)}</span></div>
+          <div class="pb-price"><span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span><span class="pb-pct">${r.side} ${r.L} · ${Odds.pct(r.pAt)}</span></div>
         </div>`).join('')}</div>`;
     }
     el.innerHTML = tabs + controls + meta + body;
@@ -3540,7 +3543,7 @@
   function clearPtSearch() { ptF.q = ''; renderPoints(); }
   const poisPmf = (mu, K = 8) => { const o = [Math.exp(-mu)]; for (let k = 1; k <= K; k++) o.push(o[k - 1] * mu / k); return o; };
 
-  function ptRows(kind = ptF.tab) {
+  function ptRows(kind = ptF.tab, sided) {
     const P = PT[kind];
     let rows = (D.points?.board || []).map(r => {
       const pmf = poisPmf(P.mu(r));
@@ -3552,6 +3555,7 @@
     if (ptF.pos !== 'ALL') rows = rows.filter(r => ptF.pos === 'F' ? r.pos !== 'D' : r.pos === ptF.pos);
     const q = ptF.q.trim().toLowerCase();
     if (q) rows = rows.filter(r => (r.name + ' ' + r.team + ' ' + r.opp + ' ' + r.pos).toLowerCase().includes(q));
+    if (sided) rows = rows.map(r => parSideRow(r, 'points', 'pAt'));
     rows.sort(ptF.sort === 'odds' ? (a, b) => b.pAt - a.pAt : (a, b) => b.m - a.m);
     return rows.map((r, i) => ({ ...r, rank: i + 1 }));
   }
@@ -3563,7 +3567,7 @@
     if (ptF.tab === 'results') { el.innerHTML = tabs + ptResults(); return; }
     const B = D.points || {}, P = PT[ptF.tab];
     if (!B.board?.length) { el.innerHTML = tabs + `<div class="empty">No projections yet — the board fills in once the slate is set.</div>`; return; }
-    const rows = ptRows();
+    const rows = ptRows(ptF.tab, true);
     const controls = uiFilters('setPt', ptF.open, [
         ['Line', ['auto', ...P.lines].map(v => uiChip('setPt', 'line', v, v === 'auto' ? 'Best line' : 'o' + v, ptF.line)).join('')],
         ['Position', [['ALL', 'All'], ['F', 'Forwards'], ['C', 'C'], ['L', 'LW'], ['R', 'RW'], ['D', 'D']].map(([v, l]) => uiChip('setPt', 'pos', v, l, ptF.pos)).join('')],
@@ -3577,7 +3581,7 @@
         <button class="pb-search-x" onclick="clearPtSearch()" aria-label="Clear">×</button>
       </div>`;
     const meta = `<div class="result-meta"><b>${B.date ? dayLabel(B.date, true) : ''}</b> · ${rows.length} of ${B.board.length} skaters · Poisson prices${ptF.tab === 'ppp' ? ', recalibrated' : ''}</div>`
-      + uiView('setPt', ptF.view);
+      + uiView('setPt', ptF.view, parSideToggleHtml('points', false, 'renderPoints()'));
     if (!rows.length) { el.innerHTML = tabs + controls + meta + `<div class="empty">Nothing matches that filter.</div>`; return; }
     const open = (r) => `openPointsCard(${r.pid},'${ptF.tab}')`;
     const spark = (r) => `<span class="sg-spark" title="His last games — bars over the line are green">${
@@ -3599,13 +3603,13 @@
             <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}</td><td class="num"><b>${r.m.toFixed(2)}</b></td>
             <td class="num dim">${((ptF.tab === 'ppp' ? r.f.pptoi : r.f.toi) / 60).toFixed(1)}</td>
             <td class="num dim">${(ptF.tab === 'ast' ? r.f.aPg : ptF.tab === 'ppp' ? r.f.pppPg : r.f.ptsPg).toFixed(2)}</td>
-            <td class="num dim">${r.f.oppGa.toFixed(2)}</td><td class="num dim">o${r.L}</td><td class="num"><b>${Odds.inline(r.pAt)}</b></td>
+            <td class="num dim">${r.f.oppGa.toFixed(2)}</td><td class="num dim">${parSideLine(r)}</td><td class="num"><b>${Odds.inline(r.pAt)}</b></td>
           </tr>`).join('')}</tbody></table></div>`;
     } else if (ptF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
         <div class="rc-crow" onclick="${open(r)}"${parAttr(lcLegOf(ptF.tab, r, r.L, r.pAt))}>
           <span class="rc-crank">${r.rank}</span><span class="rc-cnm">${esc(r.name)}</span><span class="rc-cteam">${esc(r.team)}</span>
-          <span class="rc-cproj">${r.m.toFixed(2)}</span><span class="rc-cod">${Odds.inline(r.pAt)}</span><span class="rc-cline">o${r.L}</span>
+          <span class="rc-cproj">${r.m.toFixed(2)}</span><span class="rc-cod">${Odds.inline(r.pAt)}</span><span class="rc-cline">${parSideLine(r)}</span>
         </div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
@@ -3617,7 +3621,7 @@
               <span class="sg-proj"><b>${r.m.toFixed(2)}</b> proj</span>${spark(r)}</div>
           </div>
           <div class="pb-facts">${facts(r)}</div>
-          <div class="pb-price"><span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span><span class="pb-pct">over ${r.L} · ${Odds.pct(r.pAt)}</span></div>
+          <div class="pb-price"><span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span><span class="pb-pct">${r.side} ${r.L} · ${Odds.pct(r.pAt)}</span></div>
         </div>`).join('')}</div>`;
     }
     el.innerHTML = tabs + controls + meta + body;
@@ -3718,6 +3722,10 @@
                     { v: 'pp', lab: 'PP min' }, { v: 'time', lab: 'Game' }, { v: 'name', lab: 'Name' }];
   const pkMkt = () => PK_MARKETS.find(m => m.v === pkF.mkt) || PK_MARKETS[0];
   const pkP = (r) => r[pkMkt().key] ?? 0;
+  // The price the board shows and adds: Yes, or No when the toggle says so.
+  // Price cuts, sorts and factor filters stay on the chance he scores.
+  const pkShown = (r) => parSidePrice(pkP(r), parSideGet('picks'));
+  const pkSideLeg = (r) => parSideLeg(pkLeg(r), parSideGet('picks'), true);
   const pkCuts = () => {
     const M = pkMkt(), src = M.v === 'any' ? D.picks?.model?.cuts : D.picks?.model?.markets?.[M.key]?.cuts;
     return [{ v: 0, lab: 'All' }, ...(src || []).filter(c => c.hit != null && c.per > 0).map(c => ({ v: c.v, lab: '+' + c.v, p: c.p, hit: c.hit, per: c.per }))];
@@ -3833,8 +3841,8 @@
   const pkTime = (r) => r.start ? gameTime(r.start) : '';
 
   function pkCard(r) {
-    const pm = pkP(r), dog = pm < 0.5, f = r.f;
-    return `<div class="pb-card p-${r.pos}" onclick="openPick(${r.pid})"${parAttr(pkLeg(r))}>
+    const pm = pkShown(r), dog = pm < 0.5, f = r.f;
+    return `<div class="pb-card p-${r.pos}" onclick="openPick(${r.pid})"${parAttr(pkSideLeg(r))}>
       <div class="pb-rank">${r.rank}</div>${faceHtml(pkMug(r), r.name)}
       <div class="pb-info">
         <div class="pb-nm">${esc(r.name)}${injChip(r.pid)}${posBadge(r.pos)}</div>
@@ -3853,13 +3861,13 @@
     const th = (v, lab, cls = '') => `<th class="${cls}${pkF.sort === v ? ' on' : ''}" onclick="setPkSort('${v}')">${lab}${pkF.sort === v ? `<span class="ar">${pkF.dir === 'desc' ? '▼' : '▲'}</span>` : ''}</th>`;
     return `<div class="pb-tablewrap"><table class="pb-table">
       <thead><tr><th class="static">#</th>${th('name', 'Skater')}<th class="static">Pos</th>${th('time', 'Game')}${th('p', 'Price', 'num')}<th class="static num">Chance</th><th class="static num">xG</th>${th('sog', 'Shots/g', 'num')}${th('toi', 'TOI', 'num')}${th('pp', 'PP', 'num')}<th class="static num">Sh%</th></tr></thead>
-      <tbody>${rows.map(r => `<tr onclick="openPick(${r.pid})"${parAttr(pkLeg(r))}>
+      <tbody>${rows.map(r => `<tr onclick="openPick(${r.pid})"${parAttr(pkSideLeg(r))}>
         <td class="num">${r.rank}</td>
         <td class="nm">${esc(r.name)}</td>
         <td>${posBadge(r.pos)}</td>
         <td>${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}${pkTime(r) ? ` <span style="color:var(--dim)">${pkTime(r)}</span>` : ''}</td>
-        <td class="od${pkP(r) < 0.5 ? ' dog' : ''}">${Odds.inline(pkP(r))}</td>
-        <td class="num">${pkPct(pkP(r))}</td>
+        <td class="od${pkShown(r) < 0.5 ? ' dog' : ''}">${Odds.inline(pkShown(r))}</td>
+        <td class="num">${pkPct(pkShown(r))}</td>
         <td class="num" style="color:var(--dim)">${r.mu.toFixed(2)}</td>
         <td class="num">${r.f.sogPg.toFixed(1)}</td>
         <td class="num">${(r.f.toi / 60).toFixed(1)}</td>
@@ -3889,11 +3897,11 @@
         ${th('form', 'Form ×', 'num', 'Shots on goal over his last ten.')}
         ${th('spot', 'Spot ×', 'num pbx-div', 'This game: goals the opponent allows, his own team\'s scoring, home ice. Small in hockey — about 3% of the board\'s spread.')}
         ${th('sog', 'Shots/g', 'num')}${th('l10', 'L10', 'num')}${th('toi', 'TOI', 'num')}${th('pp', 'PP', 'num')}${th('sh', 'Sh%', 'num')}${th('oga', 'Opp GA', 'num')}${th('time', 'Game')}</tr></thead>
-      <tbody>${rows.map(r => { const x = pkFx(r), f = r.f; return `<tr onclick="openPick(${r.pid})"${parAttr(pkLeg(r))}>
+      <tbody>${rows.map(r => { const x = pkFx(r), f = r.f; return `<tr onclick="openPick(${r.pid})"${parAttr(pkSideLeg(r))}>
         <td class="num">${r.rank}</td>
         ${td('name', esc(r.name), 'nm')}
         <td>${posBadge(r.pos)}</td>
-        <td class="od pbx-fair${pkP(r) < 0.5 ? ' dog' : ''}${on('p')}">${sgOdds(pkP(r))}<small>${pkPct(pkP(r))}</small></td>
+        <td class="od pbx-fair${pkShown(r) < 0.5 ? ' dog' : ''}${on('p')}">${sgOdds(pkShown(r))}<small>${pkPct(pkShown(r))}</small></td>
         ${td('talent', mx(x.talent))}${td('ice', mx(x.ice))}${td('ppx', mx(x.pp))}${td('form', mx(x.form))}${td('spot', mx(x.spot), 'num pbx-div')}
         ${td('sog', f.sogPg.toFixed(1))}${td('l10', f.sogL10.toFixed(1))}${td('toi', (f.toi / 60).toFixed(1))}${td('pp', (f.pptoi / 60).toFixed(1))}
         ${td('sh', (f.shpct * 100).toFixed(1) + '%')}${td('oga', f.oppGa.toFixed(2))}
@@ -3911,13 +3919,13 @@
         <span class="pbc-brand">Ron's <em>Goal</em> Tool</span>
         <span class="pbc-sub">${D.picks?.date ? dayLabel(D.picks.date) : ''} · ${esc(pkMkt().long)}${posLbl}</span>
       </div>
-      ${rows.map(r => `<div class="pbc-row" onclick="openPick(${r.pid})"${parAttr(pkLeg(r))}>
+      ${rows.map(r => `<div class="pbc-row" onclick="openPick(${r.pid})"${parAttr(pkSideLeg(r))}>
         <span class="pbc-rank">${r.rank}</span>
         ${logoImg(r.team, 'pbc-logo')}
         <span class="pbc-nm">${esc(r.name)}</span>
         ${posBadge(r.pos)}
         <span class="pbc-opp">${r.home ? 'vs' : '@'} ${esc(r.opp)}</span>
-        <span class="pbc-od${pkP(r) < 0.5 ? ' dog' : ''}">${Odds.inline(pkP(r))}</span>
+        <span class="pbc-od${pkShown(r) < 0.5 ? ' dog' : ''}">${Odds.inline(pkShown(r))}</span>
       </div>`).join('')}
       <div class="pbc-ft"><span>${rows.length} picks · fair odds, no vig</span><span>dong-tool.netlify.app/nhl</span></div>
     </div>`;
@@ -3966,6 +3974,7 @@
       <div class="lb-toolbar">
         <div class="view-switch">${[['table', 'Table'], ['factors', 'Factors'], ['cards', 'Cards'], ['compact', 'Compact']]
           .map(([v, l]) => `<button class="view-btn${pkF.view === v ? ' active' : ''}" onclick="setPkF('view','${v}')">${l}</button>`).join('')}</div>
+        ${parSideToggleHtml('picks', true, 'renderPicks()')}
       </div>
       ${cut && cut.v ? `<div class="pb-cutnote">At <b>${cut.lab}</b> or shorter, anytime goal historically hit <b>${cut.hit}%</b> — against a <b>${base}%</b> base rate.</div>`
                      : `<div class="pb-cutnote">Full board. Anytime-goal base rate is <b>${base}%</b>.</div>`}
@@ -4189,28 +4198,28 @@
   // the chart, ladder and keyboard are shared.
   const lc = { pid: null, line: null, kind: 'sog' };
   const LC = {
-    sog: { rows: () => D.shots?.board || [], mu: r => r.mu, range: [0.5, 8.5], deck: () => sgRows(), unit: 'shots',
+    sog: { rows: () => D.shots?.board || [], mu: r => r.mu, range: [0.5, 8.5], deck: () => sgRows(true), unit: 'shots',
            title: 'shots on goal distribution', big: 'Projected shots on goal',
            blurb: 'Negative-binomial spread around his projection — shot counts vary more than a simple average suggests' },
-    sv:  { rows: () => D.saves?.board || [], mu: r => r.mu, range: [12.5, 40.5], deck: () => svRows('saves'), unit: 'saves',
+    sv:  { rows: () => D.saves?.board || [], mu: r => r.mu, range: [12.5, 40.5], deck: () => svRows('saves', true), unit: 'saves',
            title: 'saves distribution', big: 'Projected saves',
            blurb: 'A full game\'s spread plus the chance he gets pulled — which is why the left side has a tail a single curve can\'t draw' },
-    ga:  { rows: () => D.saves?.board || [], mu: r => r.muGa, range: [0.5, 6.5], deck: () => svRows('ga'), unit: 'goals',
+    ga:  { rows: () => D.saves?.board || [], mu: r => r.muGa, range: [0.5, 6.5], deck: () => svRows('ga', true), unit: 'goals',
            title: 'goals allowed distribution', big: 'Projected goals allowed',
            blurb: 'Tighter than a Poisson: a goalie who leaks gets pulled, which cuts off the long tail' },
-    pts: { rows: () => D.points?.board || [], mu: r => r.mu.pts, range: [0.5, 4.5], deck: () => ptRows('pts'), unit: 'points',
+    pts: { rows: () => D.points?.board || [], mu: r => r.mu.pts, range: [0.5, 4.5], deck: () => ptRows('pts', true), unit: 'points',
            title: 'points distribution', big: 'Projected points',
            blurb: 'Poisson around his projection — a wider curve was tested on every line and did no better' },
-    ast: { rows: () => D.points?.board || [], mu: r => r.mu.a, range: [0.5, 3.5], deck: () => ptRows('ast'), unit: 'assists',
+    ast: { rows: () => D.points?.board || [], mu: r => r.mu.a, range: [0.5, 3.5], deck: () => ptRows('ast', true), unit: 'assists',
            title: 'assists distribution', big: 'Projected assists',
            blurb: 'Poisson around his projection — assists are half a teammate\'s event, so this is the least certain of the three' },
-    hit: { rows: () => D.hits?.board || [], mu: r => r.mu, range: [0.5, 7.5], deck: () => pxRows('hits'), unit: 'hits',
+    hit: { rows: () => D.hits?.board || [], mu: r => r.mu, range: [0.5, 7.5], deck: () => pxRows('hits', true), unit: 'hits',
            title: 'hits distribution', big: 'Projected hits',
            blurb: 'Negative-binomial spread around his projection — hit counts swing more than a simple average suggests, and the rink\'s scorekeeper is part of the number' },
-    blk: { rows: () => D.blocks?.board || [], mu: r => r.mu, range: [0.5, 5.5], deck: () => pxRows('blocks'), unit: 'blocked shots',
+    blk: { rows: () => D.blocks?.board || [], mu: r => r.mu, range: [0.5, 5.5], deck: () => pxRows('blocks', true), unit: 'blocked shots',
            title: 'blocked shots distribution', big: 'Projected blocked shots',
            blurb: 'Negative-binomial spread around his projection — defencemen and penalty-killers carry the tail' },
-    ppp: { rows: () => D.points?.board || [], mu: r => r.mu.ppp, range: [0.5, 2.5], deck: () => ptRows('ppp'), unit: 'PP points',
+    ppp: { rows: () => D.points?.board || [], mu: r => r.mu.ppp, range: [0.5, 2.5], deck: () => ptRows('ppp', true), unit: 'PP points',
            title: 'power-play points distribution', big: 'Projected PP points',
            blurb: 'Poisson around a recalibrated projection — power-play minutes make this the sharpest model on the site' },
   };
@@ -4829,8 +4838,9 @@
     return { k: `${m}|${r.pid}`, n: r.name, t: r.team, g: parGame(r), m, s: M.long, p: r[M.key], i: r.pid };
   }
   const LEG_UNIT = { sog: 'shots', sv: 'saves', ga: 'goals allowed', pts: 'points', ast: 'assists', ppp: 'PP points', hit: 'hits', blk: 'blocked shots' };
-  /** An over leg on a ladder market. The line is in the key, so o2.5 and o3.5 are different legs — and replace each other. */
-  const lcLegOf = (kind, r, L, p) => ({ k: `${kind}|${r.pid}|${L}`, n: r.name, t: r.team, g: parGame(r), m: kind, s: `Over ${L} ${LEG_UNIT[kind]}`, p, i: r.pid, L });
+  /** A leg on a ladder market. The line is in the key, so o2.5 and o3.5 are different legs — and replace each other.
+   *  A board row carries its tool's side (parSideRow); a row without one is the over. */
+  const lcLegOf = (kind, r, L, p) => parSideTag({ k: `${kind}|${r.pid}|${L}`, n: r.name, t: r.team, g: parGame(r), m: kind, s: `Over ${L} ${LEG_UNIT[kind]}`, p, i: r.pid, L }, r.side, false);
 
   /** Games this season B assisted a goal of A's — from the goal archive, once it's loaded. */
   function parLinks(a, b) {
@@ -4852,14 +4862,16 @@
     parToggleLeg(pkLeg(r));
     const b = document.getElementById('pm-pl-add'); if (b) b.innerHTML = pmAddBtn(r);
   };
+  const LC_TOOL = { sog: 'shots', sv: 'saves', ga: 'allowed', pts: 'points', ast: 'points', ppp: 'points', hit: 'hits', blk: 'blocks' };
+  const lcSideOf = () => parSideGet(LC_TOOL[lc.kind] || lc.kind);
   function lcLeg() {
     const r = lcRow(); if (!r) return null;
-    return lcLegOf(lc.kind, r, lc.line, lcOver(lcPmf(r), lc.line));
+    return parSideLeg(lcLegOf(lc.kind, r, lc.line, lcOver(lcPmf(r), lc.line)), lcSideOf(), false);
   }
   function lcAddBtn() {
     const leg = lcLeg(); if (!leg) return '';
     const on = PARLAY.legs.some(l => l.k === parLeg(leg).k);
-    return `<button class="par-add${on ? ' on' : ''}" onclick="lcAddLeg()">${on ? '✓ In your parlay' : `+ Add o${lc.line} to parlay`}</button>`;
+    return `<button class="par-add${on ? ' on' : ''}" onclick="lcAddLeg()">${on ? '✓ In your parlay' : `+ Add ${lcSideOf() === 'under' ? 'u' : 'o'}${lc.line} to parlay`}</button>`;
   }
   window.lcAddLeg = () => {
     const leg = lcLeg(); if (!leg) return;
