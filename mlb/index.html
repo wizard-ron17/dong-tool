@@ -2623,40 +2623,37 @@
   <div id="panel-picks" class="panel">
     <div class="due-explainer" id="picks-explainer-toggle" onclick="togglePicksExplainer()" aria-expanded="false">
       <div class="due-explainer-head">
-        <span class="due-explainer-title">How Pick Score Works</span>
+        <span class="due-explainer-title">How Picks Work</span>
         <span class="due-explainer-cta"></span>
         <span class="due-explainer-chevron" id="picks-explainer-chevron">▶</span>
       </div>
-      <div class="due-explainer-teaser">Today's best HR matchups, combining recent contact quality, platoon edge, pitch-type overlap, pitcher homer rate, and park.</div>
+      <div class="due-explainer-teaser">Every starting bat priced to homer, fair odds with no vig. Chalk is the shortest prices; Value is Bueno's longshot screen.</div>
       <div class="due-explainer-body" id="picks-explainer-body" style="display:none">
-        <p style="margin:0 0 0.5rem"><b>Pick Score = base power × every matchup multiplier below.</b> Base power is each batter's season HR rate (HR/AB) blended toward his <b>Blast%</b>-implied rate and regressed toward league average when the AB sample is thin (4 HR in 51 AB won't hold up a full season, so it's pulled back until it grows). Every factor after that is a <b>× multiplier</b> — the tornado bars in each pick's modal, where <b>1.00× is neutral</b>, above 1 is juicier, below 1 is tougher.</p>
-        <div style="font-size:0.692rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);margin:0.55rem 0 0.35rem">Every multiplier in the matchup breakdown</div>
+        <p style="margin:0 0 0.5rem"><b>The board is ranked by fair odds</b>: our chance he homers today, from a model fitted on every 2026 starter-game and tested on games it never saw. Each price splits into the parts that move it, as multipliers on his odds against today's average starter (1.00× is average):</p>
         <ul>
-          <li><b>Recent Contact.</b> Statcast's 1–6 contact-quality grade (weak contact → barrel, a joint read on exit velo + launch angle) over his last ~15 game dates vs his own season baseline — how well he's actually squaring the ball up right now. The same grade the Due tool uses, here time-windowed instead of drought-anchored.</li>
-          <li><b>Batter Platoon.</b> How this batter's HR rate vs today's pitcher's handedness compares to his rate against the opposite side — his own platoon edge. Shrunk hard toward the league-average platoon split, since one season of HR-rate splits is too thin to trust at face value.</li>
-          <li><b>Starter Vuln.</b> The flip side: how homer-prone this specific starter is to batters of this hitter's side vs the opposite side. Also shrunk toward league.</li>
-          <li><b>Arm Stuff.</b> The pitcher's HR-vulnerability from his <b>4-seam velocity</b> and <b>barrel%-allowed</b> (the exit-velo/launch-angle combo that actually leaves the yard) — both predict homers far better than raw HR/9, and barrel beats hard-hit% because it ignores hard grounders that stay in the park. Big velo and few barrels pull it below 1× (tougher); fringe velo and lots of barrels push it above 1× (juicier).</li>
-          <li><b>Bullpen Vuln.</b> The opponent bullpen's platoon HR-proneness to this batter's side — the rested arms likely to relieve, so the middle innings are priced in too, not just the starter.</li>
-          <li><b>Lineup PA.</b> His batting-order slot → how many plate appearances he projects to get (leadoff ≈ +9%, bottom of the order less). Only applies once a real lineup is known — neutral (and hidden) when the slot is projected.</li>
-          <li><b>Park.</b> The venue's HR/game rate vs league average — the same park signal shown on the Schedule tab, baked into the score.</li>
-          <li><b>Weather.</b> Game-time air density (temperature, humidity, pressure, altitude) plus wind projected onto the park's home-plate→center-field axis: hot thin air and a wind blowing out help carry, cold dense air and a wind blowing in suppress it. Roofed parks are neutral.</li>
+          <li><b>Power.</b> His home-run rate, barrels and "blasts" (fast, squared-up swings) per plate appearance, each this season shrunk toward last season, plus how often he pulls the ball in the air and how long since his last homer (a long drought is slightly <em>worse</em>, never "due").</li>
+          <li><b>Pitcher.</b> The starter's barrels allowed per batter faced, and his fastball velocity (every mph is about 4% fewer homers).</li>
+          <li><b>Park.</b> Last season's home runs there against the league.</li>
+          <li><b>Weather.</b> Temperature (about +11% odds per 10°F), wind blowing out or in, and day games (about 5% fewer). Roofed parks are neutral.</li>
+          <li><b>Slot.</b> Higher in the order means more trips to the plate.</li>
         </ul>
-        <p class="due-explainer-note"><b>What about pitch-type synergy?</b> We used to score the overlap between a hitter's HR-by-pitch profile and the pitcher's mix. A leak-free backtest (~1,700 homers out-of-sample) showed it adds nothing to HR prediction beyond base power — a masher mashes every pitch, so the "great overlap" is really just power we already count. We <b>removed it from the score</b> as of Aug 15. The <b>Pitch Matchup</b> chart still appears in each card as context — it's interesting to see the overlap — it just no longer moves the number.</p>
-        <div style="font-size:0.692rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);margin:0.7rem 0 0.35rem">Chalk vs Value — two lenses on the same slate</div>
+        <div style="font-size:0.692rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);margin:0.7rem 0 0.35rem">Why there's no Pick Score any more</div>
+        <p style="margin:0 0 0.5rem">Until October 2026 the board ranked a <b>Pick Score</b>: power times a list of matchup multipliers (batter platoon, starter and bullpen vuln, arm stuff, recent contact, park, weather), each at full weight. We tested every one of them against 72,594 starter-games, and against Kalshi's prices. At those weights they made the odds <b>worse</b>. Platoon and pitcher vuln are real but about a seventh as strong, and recent contact, hot streaks, "due" droughts and blast surplus predicted nothing. Chalk ranked by score lost 14.7% at Kalshi's asking prices. What did earn a weight is in the price above. The matchup factors still show in each pick's card as context; they don't move the price.</p>
+        <div style="font-size:0.692rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);margin:0.7rem 0 0.35rem">Chalk vs Value</div>
         <ul>
-          <li><b>🔒 Chalk = proven power.</b> Base power is HR/AB blended toward the <b>Blast%</b>-implied rate, so a hitter squaring the ball up gets credit before the homers land. The standard board keeps bats whose blast-blend power clears a self-calibrating floor (above the league regulars' median, so it means the same in April or August) at <b>Pick Score ≥ 9</b>; flip to <b>Full board</b> to drop the power floor and see every Score-9 candidate. This is your "most likely to go deep" list.</li>
-          <li><b>🎯 Value = underpriced power.</b> Ranked by <b>blast surplus</b> — how far a hitter's Blast%-implied HR rate runs <em>ahead of</em> his actual HR total — × matchup. The book prices off HR totals, so a bat squaring it up faster than the homers have landed is underpriced, until they land. A slugger already cashing his blast (surplus ≤ 1) isn't value — he sits on Chalk, so the two boards no longer share names. Value is the long-odds money: only take it at a real price (roughly <b>+600</b> or better). The pick modal shows both the Value Score and, beneath it, the straight Pick Score so you can see the matchup grade too.</li>
+          <li><b>🔒 Chalk = the shortest fair prices</b>: every bat at about +614 or shorter (14%+), top 15. The most likely to go deep, and the market knows it: shop the price.</li>
+          <li><b>🎯 Value = Bueno's screen, experimental.</b> Longshots (+900 or longer) whose batter platoon, pitching vuln (starter and pen) and recent contact all sit in the <b>top 40% of today's slate</b>. Each of those alone predicts nothing beyond the market, but together they're the one idea that held up against Kalshi: +6.5% at the ask (945 picks) where every bat lost 4.1%. That's not proven yet, so it's tracked here until it is, or isn't.</li>
         </ul>
         <div style="font-size:0.692rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);margin:0.7rem 0 0.35rem">Good to know</div>
         <ul>
-          <li><b>Lineups.</b> Uses confirmed lineups when posted; before they drop, it falls back to projected starters (15+ games, 1.5+ AB/game, active in the last 7 days, one per position + DH) — the same pool the books use pre-lineup. Projected picks are labeled. Because the Lineup-PA multiplier is neutral pre-lineup, scores tend to firm up (and the Chalk board fill in) once lineups post.</li>
-          <li><b>Openers.</b> When today's "starter" is really an opener (2+ starts averaging ≤3 IP on a team using the piggyback pattern), his weight drops to the inning or two he covers and the likely <b>bulk arm</b> gets his own platoon + pitch-mix slice of the score. Flagged in the pick modal so you know who you're really betting against.</li>
+          <li><b>Lineups.</b> Confirmed lineups when posted; before then, projected starters (labeled). The slot part is neutral until his slot is known.</li>
+          <li><b>Fair means no vig.</b> A book always prices worse than this. Our odds rank homers about as well as a good model can, but Kalshi's prices still rank them a little better, so treat a gap between our price and the market as a reason to look, not a bet.</li>
         </ul>
       </div>
     </div>
     <div class="picks-mode" id="picks-mode-bar">
-      <button class="picks-mode-btn active" id="picks-mode-chalk" onclick="setPicksMode('chalk')" title="Proven power — HR/AB blended toward a Blast%-implied rate">🔒 Chalk</button>
-      <button class="picks-mode-btn" id="picks-mode-value" onclick="setPicksMode('value')" title="Best value — ranked by Blast%, surfaces underpriced power">🎯 Value</button>
+      <button class="picks-mode-btn active" id="picks-mode-chalk" onclick="setPicksMode('chalk')" title="The shortest fair prices today">🔒 Chalk</button>
+      <button class="picks-mode-btn" id="picks-mode-value" onclick="setPicksMode('value')" title="Bueno's screen: longshots with green platoon, pitching vuln and recent contact (experimental)">🎯 Value</button>
     </div>
     <div class="sub-tabs" id="picks-sub-tabs">
       <button class="sub-btn active" id="picks-sub-today" onclick="switchPicksSub('today')">Today's Picks</button>
@@ -3104,7 +3101,7 @@ let picksHistory = [];
 // Standard board = "proven power" (each pick's blast-blend basePower clears the
 // self-calibrating league-regular floor, computed in the build → provenPower).
 // No more Min-HR / Min-Score knobs — just Proven vs Full board + Hide unavailable.
-const PICKS_FILTER_DEFAULTS = { board: 'proven', hideUnavailable: true };
+const PICKS_FILTER_DEFAULTS = { board: 'full', hideUnavailable: true };   // 'proven' power floor retired 2026-10-02 (Chalk = shortest fair prices)
 // Bump this to force-reset everyone's saved Pick filters to the current defaults
 // once (older saved prefs are discarded on next load, then the version restamped).
 const PICKS_FILTER_VERSION = 3;
@@ -3403,7 +3400,7 @@ function isJustBack(pid)  { return (justBack || []).some(e => e.pid === pid); }
 // wherever the name shows, independent of which Picks mode is on screen.
 function valueRank(pid) {
   if (!value.length) return null;
-  const pool = value.filter(r => !isUnavailableToday(r.pid)).sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0));
+  const pool = value.filter(r => !isUnavailableToday(r.pid)).sort((a, b) => (b.pHR ?? 0) - (a.pHR ?? 0));
   const idx = pool.findIndex(r => r.pid === pid);
   return idx >= 0 ? idx + 1 : null;
 }
@@ -3912,7 +3909,6 @@ function renderHome() {
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
       <span class="hm-name">${playerNames[r.pid] || r.pid}${birthdayBadge(r.pid)}<span class="hm-subtle"> vs ${compactPlayerName(r.oppName || '')} (${r.oppHand || '?'}HP)${r.oppProjected ? ' · SP proj' : ''}${r.projected ? ' · proj' : ''}</span></span>
       ${r.pHR > 0 ? `<span class="hm-fair" title="${HR_FAIR_TIP}">${hrFairFull(r.pHR)}</span>` : ''}
-      <span class="hm-score ${pickScoreClass(r.pickScore)}">${r.pickScore.toFixed(1)}</span>
     </div>`).join('');
 
   // Match the Due page default: only actionable overdue hitters (skip anyone
@@ -3959,13 +3955,12 @@ function renderHome() {
   }).join('');
 
   // Best value bats — the underpriced board's top names (blast surplus × matchup).
-  const topValue = [...applyValueFilters(value)].sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0)).slice(0, 3).map((r, i) => `
+  const topValue = [...applyValueFilters(value)].sort((a, b) => (b.pHR ?? 0) - (a.pHR ?? 0)).slice(0, 3).map((r, i) => `
     <div class="hm-row">
       <span class="hm-rank">${i+1}</span>
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
       <span class="hm-name">${playerNames[r.pid] || r.pid}${birthdayBadge(r.pid)}<span class="hm-subtle"> vs ${compactPlayerName(r.oppName || '')} (${r.oppHand || '?'}HP)${r.oppProjected ? ' · SP proj' : ''}${r.projected ? ' · proj' : ''}</span></span>
       ${r.pHR > 0 ? `<span class="hm-fair" title="${HR_FAIR_TIP}">${hrFairFull(r.pHR)}</span>` : ''}
-      <span class="hm-score ${valueScoreClass(r.valueScore ?? 0)}">${(r.valueScore ?? 0).toFixed(1)}</span>
     </div>`).join('');
 
   // Returning boppers — just-back bats first (the first-games-back window), then
@@ -5972,7 +5967,7 @@ function ddTeamLeans(teamAbbr) {
   applyPicksFilters(picks, PICKS_FILTER_DEFAULTS).forEach((r, i) => {
     if (r.team === teamAbbr && !seen.has(r.pid)) { seen.add(r.pid); out.push({ pid: r.pid, tier: 0, ord: i }); }
   });
-  value.filter(r => !isUnavailableToday(r.pid)).sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0))
+  value.filter(r => !isUnavailableToday(r.pid)).sort((a, b) => (b.pHR ?? 0) - (a.pHR ?? 0))
     .forEach((r, i) => { if (r.team === teamAbbr && !seen.has(r.pid)) { seen.add(r.pid); out.push({ pid: r.pid, tier: 1, ord: i }); } });
   { let rank = 0; for (const r of dueRows) { if (isUnavailableToday(r.pid)) continue; rank++;
     if (r.team === teamAbbr && !seen.has(r.pid)) { seen.add(r.pid); out.push({ pid: r.pid, tier: 2, ord: rank }); } } }
@@ -6164,7 +6159,7 @@ function psLoadImg(src) {
 const psHue = (s, lo, hi) => Math.round(Math.max(0, Math.min(1, ((+s || 0) - lo) / (hi - lo))) * 130);
 async function psRender(withImages = true) {
   const chalk = applyPicksFilters(picks).slice(0, 12);
-  const val = applyValueFilters(value).sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0)).slice(0, 12);
+  const val = applyValueFilters(value).sort((a, b) => (b.pHR ?? 0) - (a.pHR ?? 0)).slice(0, 12);
   const nChalk = applyPicksFilters(picks).length, nVal = applyValueFilters(value).length;
   if (todayDate) await Promise.race([loadMlbDay(todayDate), new Promise(r => setTimeout(r, 3000))]);
   const hrs = new Set(), finals = new Set();
@@ -6243,19 +6238,19 @@ async function psRender(withImages = true) {
         x.font = F(700, 26, 'd'); const sw = x.measureText(sc.toFixed(1)).width;
         const ox = sx - Math.max(sw, 30) - 18;
         x.fillStyle = PS_C.text; x.font = F(700, 20, 'd'); x.fillText(kbbOdds(r.pHR), ox, y + 32);
-        x.fillStyle = PS_C.dim; x.font = F(600, 11, 'b'); x.fillText(`FAIR · ${(r.pHR * 100).toFixed(1)}%`, ox, y + 50);
+        x.fillStyle = PS_C.dim; x.font = F(600, 11, 'b'); x.fillText('FAIR ODDS', ox, y + 50);
       }
       x.textAlign = 'left';
     });
     if (!list.length) { x.fillStyle = PS_C.muted; x.font = F(500, 18, 'b'); x.fillText('No picks on this board yet.', cx, y0 + COLHEAD + 30); }
     if (total > list.length) { x.fillStyle = PS_C.dim; x.font = F(500, 14, 'b'); x.fillText(`+${total - list.length} more on the board`, cx + 4, y0 + COLHEAD + list.length * ROW + 10); }
   };
-  col(chalk, PAD, '🔒 Chalk', 'proven power', r => r.pickScore ?? 0, 3, 15, 'PICK', nChalk);
-  col(val, PAD * 2 + COLW, '🎯 Value', 'underpriced power', r => r.valueScore ?? 0, 20, 100, 'VALUE', nVal);
+  col(chalk, PAD, '🔒 Chalk', 'shortest fair prices', r => (r.pHR ?? 0) * 100, 8, 25, '% TO HOMER', nChalk);
+  col(val, PAD * 2 + COLW, '🎯 Value', "Bueno's longshot screen", r => (r.pHR ?? 0) * 100, 4, 12, '% TO HOMER', nVal);
   // footer
   x.fillStyle = PS_C.line; x.fillRect(PAD, H - 58, W - PAD * 2, 1);
   x.fillStyle = PS_C.dim; x.font = F(500, 15, 'b');
-  x.fillText('Pick = HR matchup grade · Value = power the results haven’t caught up to · Fair = HR model odds, no vig', PAD, H - 28);
+  x.fillText('Chalk = shortest fair prices · Value = longshots with green platoon, vuln and recent contact · Fair = HR model odds, no vig', PAD, H - 28);
   x.textAlign = 'right'; x.fillStyle = PS_C.muted; x.font = F(700, 16, 'd'); x.fillText('dong-tool.netlify.app', W - PAD, H - 28); x.textAlign = 'left';
   return new Promise((res, rej) => { try { cv.toBlob(b => b ? res(b) : rej(new Error('empty')), 'image/png'); } catch (e) { rej(e); } });
 }
@@ -7149,7 +7144,7 @@ function sgHtml(g, date) {
 /** The game's box score (/slate.js): every priced bat (the boards' and, once
  *  the matchup cards load, the rest of each lineup) and both starters' K and
  *  walk lines, with the top pick above. Graded as homers land. */
-const BX_BAT = [{ k: 'hr', lab: 'HR', title: 'Home run (fair odds)', yes: true }, { k: 'pick', lab: 'Pick', title: 'Pick Score (the boards\' ranking, not a probability)' }];
+const BX_BAT = [{ k: 'hr', lab: 'HR', title: 'Home run (fair odds)', yes: true }, { k: 'pick', lab: 'Board', title: 'Which Picks board he is on: Chalk (the shortest fair prices) or Value (Bueno\'s longshot screen)' }];
 const BX_SP = [{ k: 'k', lab: 'K', title: 'Strikeouts' }, { k: 'bb', lab: 'BB', title: 'Walks' }];
 function sgPicks(g, date, S, away, home) {
   const top = schedPickStrip(g, date, S);
@@ -7162,7 +7157,7 @@ function sgPicks(g, date, S, away, home) {
       if (!rows[r.team] || otherGameExclude(r.pid, r.team === g.home.teamAbbr ? g.away : g.home).chalk) continue;
       const e = put(r.team, String(r.pid), { name: compactPlayerName(playerNames[r.pid] || r.pid), sub: r.lineupOrder ? `#${r.lineupOrder}` : '', open: `openPickModal('${r.pid}','${board}')`, cells: {} });
       if (r.pHR > 0 && !e.cells.hr) e.cells.hr = { p: r.pHR, got: got(r.pid), leg: hrLegObj(r.pid, r.pHR, r.team, r.oppTeam), open: e.open };
-      if (!e.cells.pick) e.cells.pick = { info: true, big: r.pickScore.toFixed(1), sort: r.pickScore, small: board === 'value' ? 'Value' : 'Chalk', open: e.open };
+      if (!e.cells.pick) e.cells.pick = { info: true, big: board === 'value' ? 'Value' : 'Chalk', sort: r.pHR ?? 0, small: '', open: e.open };
     }
     for (const [pid, x] of hrToday()) {
       if (!rows[x.team] || !(x.opp === away || x.opp === home)) continue;
@@ -7175,7 +7170,7 @@ function sgPicks(g, date, S, away, home) {
       const team = playerTeams[p.pid]; if (!rows[team]) continue;
       const e = put(team, String(p.pid), { name: compactPlayerName(p.name), sub: '', open: `openMlbPlayer('${p.pid}')`, cells: {} });
       e.cells.hr = { p: null, got: got(p.pid, p.hit), small: '' };
-      e.cells.pick = { info: true, big: Number(p.score).toFixed(1), sort: +p.score, small: 'score' };
+      e.cells.pick = { info: true, big: 'Chalk', sort: p.p ?? +p.score / 100, small: p.p == null ? `score ${Number(p.score).toFixed(1)}` : '' };
     }
   }
   // starters: his own K and walk lines, the rung nearest even money
@@ -7716,30 +7711,27 @@ function setPicksSort(s)     { picksSort = s; renderPicks(); }
 function togglePicksFilter(key) { picksFilters[key] = !picksFilters[key]; savePicksFilters(); renderPicks(); }
 function clearPicksFilters() { picksFilters = { ...PICKS_FILTER_DEFAULTS }; savePicksFilters(); renderPicks(); renderPicksResults(); }
 // "Active" = a deviation from the standard board (proven power / hide unavailable).
-function picksFiltersActive() { return picksFilters.board !== PICKS_FILTER_DEFAULTS.board || picksFilters.hideUnavailable !== PICKS_FILTER_DEFAULTS.hideUnavailable; }
+function picksFiltersActive() { return picksFilters.hideUnavailable !== PICKS_FILTER_DEFAULTS.hideUnavailable; }
 // f defaults to the user's live Picks filters (for the Picks board itself), but
 // callers can pass PICKS_FILTER_DEFAULTS — cross-tab badges do, so a player's
 // "#N Pick" standing reflects the standard board, not whatever the user last set.
 // Standard board keeps only proven-power bats (build-flagged); Full shows the
 // whole candidate pool. Older data without the flag counts as proven.
 function applyPicksFilters(rows, f = picksFilters) {
-  return rows.filter(r =>
-    (f.board === 'full' || r.provenPower !== false) &&
-    !(f.hideUnavailable && isUnavailableToday(r.pid)) // off / bench / IL
-  );
+  return rows.filter(r => !(f.hideUnavailable && isUnavailableToday(r.pid)))   // off / bench / IL
+    .sort((a, b) => (b.pHR ?? 0) - (a.pHR ?? 0));                                 // fair-price order
 }
 function renderPicksFilters() {
   if (picksMode === 'value') return renderValueFilters();
   const boardBtn = (val, label, title) => `<button class="due-filter-chip${picksFilters.board===val?' active':''}" onclick="setPicksBoard('${val}')" title="${title}">${label}</button>`;
   document.getElementById('picks-filter-row').innerHTML = `
-    <div class="due-filter-group"><span class="due-filter-label" title="Proven power = bats whose blast-blend power clears the self-calibrating league-regular floor. Full = every candidate.">Board</span><div class="due-filter-chips">${boardBtn('proven', 'Proven power', 'Above-average real power vs the league regulars (season-agnostic)')}${boardBtn('full', 'Full board', 'Every candidate in a lineup today, no power floor')}</div></div>
     <button class="due-filter-toggle${picksFilters.hideUnavailable?' active':''}" onclick="togglePicksFilter('hideUnavailable')">🚫 Hide Off / Bench / IL</button>
     ${picksFiltersActive() ? `<button class="due-filter-clear" onclick="clearPicksFilters()">Reset ×</button>` : ''}
   `;
   document.getElementById('picks-filter-row').style.display = picksFiltersPanelOpen ? '' : 'none';
   document.getElementById('picks-filters-chevron').classList.toggle('open', picksFiltersPanelOpen);
   document.getElementById('picks-filters-toggle').setAttribute('aria-expanded', String(picksFiltersPanelOpen));
-  const activeCount = (picksFilters.board !== PICKS_FILTER_DEFAULTS.board ? 1 : 0) + (picksFilters.hideUnavailable !== PICKS_FILTER_DEFAULTS.hideUnavailable ? 1 : 0);
+  const activeCount = picksFilters.hideUnavailable !== PICKS_FILTER_DEFAULTS.hideUnavailable ? 1 : 0;
   const badge = document.getElementById('picks-filters-badge');
   badge.style.display = activeCount ? 'inline-flex' : 'none';
   badge.textContent = activeCount;
@@ -7747,11 +7739,9 @@ function renderPicksFilters() {
 
 // ── Value board filters + sort (parallel to Chalk's, tuned to Value's axes) ──
 function applyValueFilters(rows, f = valueFilters) {
-  return rows.filter(r =>
-    (r.blastPct ?? 0) >= f.minBlast &&
-    (r.blastSurplus ?? 1) >= f.minSurplus &&
-    !(f.hideUnavailable && isUnavailableToday(r.pid))
-  );
+  // Value is Bueno's screen now (picked by the build); the old blast floors would only hide it.
+  return rows.filter(r => r.green ? !(f.hideUnavailable && isUnavailableToday(r.pid))
+    : (r.blastPct ?? 0) >= f.minBlast && (r.blastSurplus ?? 1) >= f.minSurplus && !(f.hideUnavailable && isUnavailableToday(r.pid)));
 }
 function valueFiltersActive() {
   return valueFilters.minBlast !== VALUE_FILTER_DEFAULTS.minBlast
@@ -7822,6 +7812,29 @@ function pitchSynergyScore(hrProfile, pitcherMix) {
   return score;
 }
 
+// Why a price is what it is: the odds' parts as multipliers on his odds against
+// today's average starter (build: r.why). 1.00× is average.
+const WHY_PARTS = [['power', 'Power', 'His power: HR rate, barrels, blasts, pulled air balls, days since his last homer'],
+  ['pitcher', 'Pitcher', "The starter: barrels allowed per batter faced and his fastball velo"],
+  ['park', 'Park', 'The park, from last season'], ['weather', 'Weather', 'Temperature, wind out or in, day or night (roofs neutral)'],
+  ['slot', 'Slot', 'Lineup slot: trips to the plate']];
+function whyChips(r) {
+  if (!r.why) return pickIndicators(r);                  // a board from before fair-odds ranking
+  return WHY_PARTS.map(([k, lab, tip]) => {
+    const v = r.why[k]; if (v == null) return '';
+    const cls = v >= 1.15 ? 'great' : v >= 1.04 ? 'good' : v <= 0.9 ? 'bad' : '';
+    return `<span class="pick-ind ${cls}" title="${tip}: ${v.toFixed(2)}× his odds vs an average starter">${lab} ${v.toFixed(2)}×</span>`;
+  }).join('');
+}
+// Bueno's screen: where he sits on today's slate for each of the three (build: r.green, percentiles)
+function greenChips(r) {
+  const g = r.green; if (!g) return pickIndicators(r);
+  return [['platoon', 'Platoon', 'Batter platoon split vs this arm'], ['vuln', 'Vuln', 'Pitching vuln to his side: starter over his share, pen over the rest'],
+          ['recent', 'Contact', 'Recent contact quality vs his season']].map(([k, lab, tip]) => {
+    const top = Math.max(1, Math.round((1 - g[k]) * 100) + 1);
+    return `<span class="pick-ind ${g[k] >= 0.8 ? 'great' : g[k] >= 0.6 ? 'good' : ''}" title="${tip}: top ${top}% of today's slate">${lab} · top ${top}%</span>`;
+  }).join('');
+}
 function pickIndicators(r) {
   const inds = [];
   const ratioLabel = (ratio, label) => {
@@ -8157,10 +8170,10 @@ function pickModalInner(r, board = 'chalk') {
         </div>
         <div class="pk-vs">
           <span class="pk-vs-txt">VS</span>
-          <span class="pick-score-big ${headCls}">${headScore.toFixed(1)}</span>
-          <span class="due-modal-headline-lbl">${headLbl}</span>
-          ${r.pHR > 0 ? `<span class="pk-fair" title="${HR_FAIR_TIP}">Fair <b>${hrFair(r.pHR)}</b> (${hrFairPct(r.pHR)})</span>` : ''}
-          ${isValue ? `<span class="pk-score-sub ${pickScoreClass(r.pickScore)}" title="Pick Score — the composite HR-matchup grade (power × platoons, arm stuff, park &amp; weather) the Chalk board ranks by">Pick <b>${(r.pickScore ?? 0).toFixed(1)}</b></span>` : ''}
+          <span class="pick-score-big" title="${HR_FAIR_TIP}">${r.pHR > 0 ? hrFair(r.pHR) : '—'}</span>
+          <span class="due-modal-headline-lbl">Fair odds · ${r.pHR > 0 ? hrFairPct(r.pHR) : ''}</span>
+          <span class="pk-fair" style="display:flex;flex-wrap:wrap;justify-content:center;gap:0.25rem;max-width:11rem">${isValue && r.green ? greenChips(r) : whyChips(r)}</span>
+          <span class="pk-score-sub" title="The old Pick Score: power × the matchup factors below at full weight. Context only since 2026-10-02; the factor scan found those weights made the odds worse.">matchup score <b>${(headScore ?? 0).toFixed(1)}</b> · context</span>
         </div>
         <div class="pk-side">
           ${muPhotoTag(r.oppPid, r.oppTeam)}
@@ -8178,7 +8191,7 @@ function pickModalInner(r, board = 'chalk') {
 
       ${bullpenModalHtml(r)}
 
-      <div class="pick-section-title pm-title">Matchup Factors${mfHelpBtn()}</div>
+      <div class="pick-section-title pm-title" title="The old Pick Score's multipliers, kept to look at. They don't move the fair price: at these weights they made it worse.">Matchup Factors · context, not in the price${mfHelpBtn()}</div>
       ${factorBarsHtml(mfSetCtx({
         basePower: r.basePower, score: r.pickScore, mf: r.matchupFactor, venue: r.venue,
         bHand: r.bHand, pHand: r.oppHand, stand: r.bHand === 'S' ? (r.oppHand === 'L' ? 'R' : 'L') : r.bHand,
@@ -8257,7 +8270,7 @@ function openPickModal(pid, board = 'chalk') {
   let deck = board === 'value' ? pickValueOrder : pickChalkOrder;
   if (!deck || !deck.includes(pid)) {
     deck = (board === 'value'
-      ? [...applyValueFilters(value)].sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0))
+      ? [...applyValueFilters(value)].sort((a, b) => (b.pHR ?? 0) - (a.pHR ?? 0))
       : applyPicksFilters(picks)).map(x => x.pid);
     if (!deck.includes(pid)) deck = [pid];
   }
@@ -8624,10 +8637,10 @@ function mpToday(pid) {
   // Each row opens that tool's own card rather than dropping you on its board —
   // you came here for this player, so you should leave with his number, not a
   // page you have to find him on again.
-  if (chalk) rows.push({ tool: 'picks', lab: 'Picks · Chalk', sub: `#${chalkIdx + 1} on the board${chalk.pHR > 0 ? ` · fair ${hrFairFull(chalk.pHR)}` : ''}`,
-                         val: chalk.pickScore.toFixed(1), cls: pickScoreClass(chalk.pickScore), open: `mpOpenTool('pick','${pid}','chalk')` });
-  if (val) rows.push({ tool: 'picks', lab: 'Picks · Value', sub: `#${valIdx + 1} — blast running ahead of his HR total${val.pHR > 0 ? ` · fair ${hrFairFull(val.pHR)}` : ''}`,
-                       val: (val.valueScore ?? 0).toFixed(1), cls: valueScoreClass(val.valueScore ?? 0), open: `mpOpenTool('pick','${pid}','value')` });
+  if (chalk) rows.push({ tool: 'picks', lab: 'Picks · Chalk', sub: `#${chalkIdx + 1} on the board, by fair price`,
+                         val: chalk.pHR > 0 ? hrFair(chalk.pHR) : '—', foot: chalk.pHR > 0 ? hrFairPct(chalk.pHR) : '', cls: 'avg', open: `mpOpenTool('pick','${pid}','chalk')` });
+  if (val) rows.push({ tool: 'picks', lab: 'Picks · Value', sub: `#${valIdx + 1} on Bueno's screen: green platoon, vuln and recent contact`,
+                       val: val.pHR > 0 ? hrFair(val.pHR) : '—', foot: val.pHR > 0 ? hrFairPct(val.pHR) : '', cls: 'avg', open: `mpOpenTool('pick','${pid}','value')` });
   if (due) rows.push({ tool: 'due', lab: 'Due', sub: due.droughtBarrels ? `${due.droughtBarrels} barrels since his last homer` : 'on the drought board',
                        val: due.barrelPct != null ? due.barrelPct.toFixed(1) + '%' : '—', foot: 'barrel', cls: 'avg', open: `mpOpenTool('due','${pid}')` });
   for (const kind of ['k', 'bb']) {
@@ -9414,9 +9427,9 @@ function renderValueBoard() {
   const gameTimeOf = r => { const d = gameDateOf(r); return d ? new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''; };
   // Rank/medal always follows Value score, no matter the display sort (mirrors Chalk).
   const valueRankMap = {};
-  [...filtered].sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0)).forEach((r, i) => { valueRankMap[r.pid] = i + 1; });
+  [...filtered].sort((a, b) => (b.pHR ?? 0) - (a.pHR ?? 0)).forEach((r, i) => { valueRankMap[r.pid] = i + 1; });
   const sorters = {
-    value:   (a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0),
+    value:   (a, b) => (b.pHR ?? 0) - (a.pHR ?? 0),
     blast:   (a, b) => (b.blastPct ?? 0) - (a.blastPct ?? 0),
     surplus: (a, b) => (b.blastSurplus ?? 1) - (a.blastSurplus ?? 1),
     game:    (a, b) => gameDateOf(a).localeCompare(gameDateOf(b)) || (b.valueScore ?? 0) - (a.valueScore ?? 0),
@@ -9425,17 +9438,15 @@ function renderValueBoard() {
   pickValueOrder = pool.map(r => r.pid); // swipe-deck order for the pick modal
   const rankClass = rk => rk===1?'gold':rk===2?'silver':rk===3?'bronze':'';
   const filtersOn = valueFiltersActive();
-  const sortLbl = { value: 'Value score', blast: 'Blast%', surplus: 'surplus', game: 'game time' }[valueSort] || 'Value score';
-  metaEl.textContent = `${pool.length}${filtersOn ? ` of ${value.length}` : ''} value bat${pool.length===1?'':'s'} · sorted by ${sortLbl} · underpriced long-odds board (take at ≈ +600 or better)`;
+  const sortLbl = { value: 'fair odds', blast: 'Blast%', surplus: 'surplus', game: 'game time' }[valueSort] || 'fair odds';
+  metaEl.textContent = `${pool.length}${filtersOn ? ` of ${value.length}` : ''} longshot${pool.length===1?'':'s'} · sorted by ${sortLbl} · Bueno's screen: platoon, pitching vuln and recent contact all in the top 40% of the slate (experimental)`;
   if (!pool.length) {
     el.innerHTML = `<div class="empty">Nobody matches these filters. <a href="javascript:void(0)" onclick="clearValueFilters()">Reset</a></div>`;
     return;
   }
   const sortBar = `<div class="picks-sort">
     <span class="due-filter-label">Sort</span>
-    <button class="due-filter-chip${valueSort==='value'?' active':''}" onclick="setValueSort('value')">Value</button>
-    <button class="due-filter-chip${valueSort==='blast'?' active':''}" onclick="setValueSort('blast')">Blast%</button>
-    <button class="due-filter-chip${valueSort==='surplus'?' active':''}" onclick="setValueSort('surplus')">Surplus</button>
+    <button class="due-filter-chip${valueSort==='value'?' active':''}" onclick="setValueSort('value')">Fair odds</button>
     <button class="due-filter-chip${valueSort==='game'?' active':''}" onclick="setValueSort('game')">Game Time</button>
   </div>`;
   const cards = pool.map((r, i) => {
@@ -9452,9 +9463,9 @@ function renderValueBoard() {
           <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'}${spProjTag(r.oppProjected)} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
-        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${(r.valueScore ?? 0).toFixed(1)}</span><span class="lbc-headline-lbl">Value</span>${r.pHR > 0 ? `<span class="lbc-fair" title="${HR_FAIR_TIP}">Fair ${hrFairFull(hp(r))}</span>` : ''}</div>
+        <div class="lbc-headline"><span class="lbc-headline-num" title="${HR_FAIR_TIP}">${r.pHR > 0 ? hrFair(hp(r)) : '—'}</span><span class="lbc-headline-lbl">Fair · ${hrFairPct(hp(r))}</span></div>
       </div>
-      <div class="pick-indicators">${blastPctBadge(r.blastPct)}${blastSurplusBadge(r.blastSurplus)}${hrBadge}${pickIndicators(r)}</div>
+      <div class="pick-indicators">${r.green ? greenChips(r) + hrBadge : blastPctBadge(r.blastPct) + blastSurplusBadge(r.blastSurplus) + hrBadge + pickIndicators(r)}</div>
     </div>`;
   }).join('');
   const fmtBlast   = r => r.blastPct != null ? `${Math.round(r.blastPct * 100)}%` : '—';
@@ -9473,10 +9484,8 @@ function renderValueBoard() {
           <div class="pick-opp">vs ${r.oppName || 'TBD'}${spProjTag(r.oppProjected)} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
       </div></td>
-      <td class="pick-z ${cls}">${(r.valueScore ?? 0).toFixed(1)}</td>
       ${hrFairCell(hp(r))}
-      <td class="lb-num hr-col">${fmtBlast(r)}</td>
-      <td class="lb-num stat-col">${fmtSurplus(r)}</td>
+      ${r.green ? ['platoon', 'vuln', 'recent'].map(k => `<td class="lb-num">${Math.round(r.green[k] * 100)}</td>`).join('') : `<td class="lb-num hr-col">${fmtBlast(r)}</td><td class="lb-num stat-col">${fmtSurplus(r)}</td><td></td>`}
     </tr>`;
   }).join('');
   const compactHtml = pool.map(r => {
@@ -9488,7 +9497,7 @@ function renderValueBoard() {
       <span class="lbcp-name">${playerNames[r.pid] || r.pid}</span>
       ${teamLogoImg(r.team,'lbcp-logo')}
       <span class="lbcp-fair" title="${hrFairPct(hp(r))} ${hs === 'under' ? 'no homer' : 'to homer'} · fair odds">${r.pHR > 0 ? hrFair(hp(r)) : ''}</span>
-      <span class="lbcp-score ${cls}">${(r.valueScore ?? 0).toFixed(1)}</span>
+      <span class="lbcp-score">${hrFairPct(hp(r))}</span>
     </div>`;
   }).join('');
   el.innerHTML = `
@@ -9500,10 +9509,10 @@ function renderValueBoard() {
           <thead><tr>
             <th style="width:24px"></th>
             <th>Player</th>
-            <th class="r">Value</th>
             <th class="r" title="${HR_FAIR_TIP}">Fair</th>
-            <th class="r">Blast%</th>
-            <th class="r">Surplus</th>
+            <th class="r" title="Batter platoon: percentile on today's slate">Platoon</th>
+            <th class="r" title="Pitching vuln to his side: percentile on today's slate">Vuln</th>
+            <th class="r" title="Recent contact: percentile on today's slate">Contact</th>
           </tr></thead>
           <tbody>${tableRows}</tbody>
         </table>
@@ -9583,7 +9592,7 @@ function picksResultMatch(p) { return picksFilters.board === 'full' || p.provenP
 // isn't strictly comparable to one after, so we surface these both as a list and
 // as dividers on the day-by-day timeline. Newest first; dates are ET (build day).
 const MODEL_CHANGELOG = [
-  { date: '2026-10-02', title: 'Postseason Chalk floor: Pick Score 6', detail: 'From the wild card round the board showed the top 20 bats with no floor, so short slates against aces filled it with 2s and 3s (9/30: 21 shown, 7 under 6). Postseason scores run lower than the regular season\'s (better arms, colder parks), so the floor is 6 instead of the regular 9, still capped at 20. Logged boards: scores 7-8 homered 13.5-15.6% and 9-11 about 19%; under 7 there are too few picks to say.' },
+  { date: '2026-10-02', title: 'Pick Score retired: Chalk is the shortest fair prices, Value is Bueno\'s screen', detail: 'We tested every Pick Score factor against 72,594 starter-games (each month predicted only from the months before it) and against Kalshi\'s prices. At the score\'s weights the matchup factors made the odds worse; platoon and pitcher vuln are real but about a seventh as strong; recent contact, hot streaks, droughts and blast surplus predicted nothing. Chalk ranked by score lost 14.7% at Kalshi\'s asks. So the board now ranks by fair odds (HR model v2: power, starter barrels and velo, park, slot, temperature, wind, day/night, pulled air balls, days since his last homer): Chalk is every bat at 14%+ (about +614 or shorter), top 15. Value is now Bueno\'s screen, experimental: longshots under 10% whose platoon, pitching vuln and recent contact all sit in the top 40% of the slate, the one idea that held up against Kalshi (+6.5% at the ask over 945 picks, not yet proven). Records before this date were ranked by Pick Score (and Value by blast surplus), so compare across the line with care. This replaces the same day\'s earlier postseason floor of Pick Score 6.' },
   { date: '2026-08-15', noDivider: true, title: 'Value board trimmed to top 8', detail: 'Over 16 tracked days the Value hit rate held ~21% through the top 8, then cliffed — picks 9-12 hit ~11% combined, below the 14.8% base (dead weight that diluted the board, which used to run 30 deep). The edge lives in the top 8. Rank cap beat an HR floor ~3:1 and keeps the low-HR "surplus" bats the board exists for. Since a limit just slices an already-ranked list, the results record above is capped to the top 8 for EVERY day — so the hit rate stays comparable across the change (no timeline divider needed). Chalk unchanged.' },
   { date: '2026-08-15', title: 'Pitch-mix synergy removed from the score', detail: 'A leak-free backtest (~1,700 HR out-of-sample) found pitch-type synergy adds nothing to HR prediction beyond base power — in any form. Removed it as a scoring factor (the Pitch Matchup chart stays as context). Reshuffles the board a little; base power already captured the "good overlap" signal.' },
   { date: '2026-08-15', title: 'Arm Stuff now keys on barrel%-allowed', detail: 'Swapped the pitcher contact-quality input from hard-hit% to barrel%-allowed — a leak-free backtest showed barrel is the sharper HR predictor. Scores shift a little (~±3%).' },
@@ -9766,18 +9775,18 @@ function shareValue() { sharePicks(); }
 function sharePicksText() {
   const filtered = applyPicksFilters(picks);
   if (!filtered.length) { dtToast('No picks to share'); return; }
-  const ranked = [...filtered].sort((a, b) => b.pickScore - a.pickScore).slice(0, 15);
+  const ranked = [...filtered].sort((a, b) => (b.pHR ?? 0) - (a.pHR ?? 0)).slice(0, 15);
   const lines = ranked.map((r, i) =>
-    `${i + 1}. ${playerNames[r.pid] || r.pid} — ${r.pickScore.toFixed(1)}${r.pHR > 0 ? ` (fair ${Odds.both(r.pHR)})` : ''} · ${r.team} vs ${r.oppName || 'TBD'}${r.oppHand ? ` (${r.oppHand}HP)` : ''}`);
+    `${i + 1}. ${playerNames[r.pid] || r.pid} — fair ${r.pHR > 0 ? Odds.both(r.pHR) : '—'} · ${r.team} vs ${r.oppName || 'TBD'}${r.oppHand ? ` (${r.oppHand}HP)` : ''}`);
   const more = filtered.length > ranked.length ? `\n…+${filtered.length - ranked.length} more` : '';
   shareText(`🌭 Dong Tool — HR Picks · ${fmtDateLong(todayDate)}\n\n${lines.join('\n')}${more}`);
 }
 function shareValueText() {
   const filtered = applyValueFilters(value);
   if (!filtered.length) { dtToast('No value bats to share'); return; }
-  const ranked = [...filtered].sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0)).slice(0, 15);
+  const ranked = [...filtered].sort((a, b) => (b.pHR ?? 0) - (a.pHR ?? 0)).slice(0, 15);
   const lines = ranked.map((r, i) =>
-    `${i + 1}. ${playerNames[r.pid] || r.pid} — ${(r.valueScore ?? 0).toFixed(1)}${r.pHR > 0 ? ` (fair ${Odds.both(r.pHR)})` : ''} · ${r.team} vs ${r.oppName || 'TBD'}${r.oppHand ? ` (${r.oppHand}HP)` : ''}`);
+    `${i + 1}. ${playerNames[r.pid] || r.pid} — fair ${r.pHR > 0 ? Odds.both(r.pHR) : '—'} · ${r.team} vs ${r.oppName || 'TBD'}${r.oppHand ? ` (${r.oppHand}HP)` : ''}`);
   const more = filtered.length > ranked.length ? `\n…+${filtered.length - ranked.length} more` : '';
   shareText(`🌭 Dong Tool — Value Bats · ${fmtDateLong(todayDate)}\n\n${lines.join('\n')}${more}`);
 }
@@ -9812,7 +9821,7 @@ function renderPicks() {
     ? `${confirmedCount} confirmed · ${projCount} projected`
     : projCount ? `${projCount} projected (no lineups posted yet)`
     : `${confirmedCount} confirmed`;
-  metaEl.textContent = `${filtered.length}${filtersOn ? ` of ${picks.length}` : ''} picks · ${lineupNote} · sorted by ${picksSort === 'game' ? 'game time' : 'Pick Score'}`;
+  metaEl.textContent = `${filtered.length}${filtersOn ? ` of ${picks.length}` : ''} picks · ${lineupNote} · sorted by ${picksSort === 'game' ? 'game time' : 'fair odds'}`;
   if (!filtered.length) {
     contentEl.innerHTML = `<div class="empty">Nobody matches these filters. <a href="javascript:void(0)" onclick="clearPicksFilters()">Reset</a></div>`;
     return;
@@ -9823,7 +9832,7 @@ function renderPicks() {
   const gameDateOf = r => gameByTeam[r.team]?.gameDate || '';
   const gameTimeOf = r => { const d = gameDateOf(r); return d ? new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''; };
   const ranked = picksSort === 'game'
-    ? [...filtered].sort((a, b) => gameDateOf(a).localeCompare(gameDateOf(b)) || b.pickScore - a.pickScore)
+    ? [...filtered].sort((a, b) => gameDateOf(a).localeCompare(gameDateOf(b)) || (b.pHR ?? 0) - (a.pHR ?? 0))
     : filtered; // already Pick Score desc
   pickChalkOrder = ranked.map(r => r.pid); // swipe-deck order for the pick modal
 
@@ -9844,7 +9853,6 @@ function renderPicks() {
           <div class="pick-opp">vs ${r.oppName || 'TBD'}${spProjTag(r.oppProjected)} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
       </div></td>
-      <td class="pick-z ${cls}">${r.pickScore.toFixed(1)}</td>
       ${hrFairCell(hp(r))}
       <td class="lb-num hr-col">${r.hrs}</td>
       <td class="lb-num stat-col">${r.venue}</td>
@@ -9863,9 +9871,9 @@ function renderPicks() {
           <div class="lbc-team">${teamLogoImg(r.team,'team-logo')}${r.team}${injuryBadge(r.pid)}${lineupBadge(r.pid)}</div>
           <div class="pick-opp">vs ${r.oppName || 'TBD'}${spProjTag(r.oppProjected)} ${r.oppHand ? '('+r.oppHand+'HP)' : ''}${r.projected ? '<span class="pick-projected" title="Lineup not yet posted — based on recent playing time">Projected</span>' : ''}${gameTimeOf(r) ? `<span class="pick-gametime"> · ${gameTimeOf(r)}</span>` : ''}</div>
         </div>
-        <div class="lbc-headline"><span class="lbc-headline-num ${cls}">${r.pickScore.toFixed(1)}</span><span class="lbc-headline-lbl">Pick Score</span>${r.pHR > 0 ? `<span class="lbc-fair" title="${HR_FAIR_TIP}">Fair ${hrFairFull(hp(r))}</span>` : ''}</div>
+        <div class="lbc-headline"><span class="lbc-headline-num" title="${HR_FAIR_TIP}">${r.pHR > 0 ? hrFair(hp(r)) : '—'}</span><span class="lbc-headline-lbl">Fair · ${hrFairPct(hp(r))}</span></div>
       </div>
-      <div class="pick-indicators">${pickIndicators(r)}</div>
+      <div class="pick-indicators">${whyChips(r)}</div>
     </div>`;
   }).join('');
 
@@ -9878,7 +9886,7 @@ function renderPicks() {
       <span class="lbcp-name">${playerNames[r.pid] || r.pid}</span>
       ${teamLogoImg(r.team,'lbcp-logo')}
       <span class="lbcp-fair" title="${hrFairPct(hp(r))} ${hs === 'under' ? 'no homer' : 'to homer'} · fair odds">${r.pHR > 0 ? hrFair(hp(r)) : ''}</span>
-      <span class="lbcp-score ${cls}">${r.pickScore.toFixed(1)}</span>
+      <span class="lbcp-score">${hrFairPct(hp(r))}</span>
     </div>`;
   }).join('');
 
@@ -9886,7 +9894,7 @@ function renderPicks() {
     ${viewSwitcherHtml('sharePicks', parSideToggleHtml('hr', true, 'renderPicks()'))}
     <div class="picks-sort">
       <span class="due-filter-label">Sort</span>
-      <button class="due-filter-chip${picksSort==='score'?' active':''}" onclick="setPicksSort('score')">Pick Score</button>
+      <button class="due-filter-chip${picksSort==='score'?' active':''}" onclick="setPicksSort('score')">Fair odds</button>
       <button class="due-filter-chip${picksSort==='game'?' active':''}" onclick="setPicksSort('game')">Game Time</button>
     </div>
     <div class="lb-views" data-view="${listView}">
@@ -9895,7 +9903,6 @@ function renderPicks() {
           <thead><tr>
             <th style="width:24px"></th>
             <th>Player</th>
-            <th class="r">Score</th>
             <th class="r" title="${HR_FAIR_TIP}">Fair</th>
             <th class="r">HR</th>
             <th class="r">Park</th>

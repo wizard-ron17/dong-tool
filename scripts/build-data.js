@@ -672,9 +672,18 @@ async function attachContactQuality(dueRows) {
 // overfit-prone; that cut lives in the client filter chips instead.)
 const PICKS_MIN_HR        = 3;
 const PICKS_MIN_SCORE     = 9; // Chalk pool floor (Full board). Proven adds the power floor on top.
-const PICKS_POST_MIN      = 6; // Postseason Chalk floor: aces and short slates score lower, so the regular 9 leaves
-                               // a handful; top 20 at no floor reached 2-3 scores (9/30: 21 shown, 7 under 6).
-                               // Logged boards: 7-8 hit 13.5-15.6%, 9-11 ~19%; under 7 only 27 picks ever.
+// Chalk is the shortest fair prices, not a Pick Score floor (2026-10-02): the
+// factor scan (research/mlb_hr_factors.py) found the score's matchup factors at
+// their weights made the odds WORSE, and Chalk lost 14.7% at Kalshi's asks.
+const CHALK_MIN_P = 0.14;      // a fair price of about +614 or shorter (the league's starters homer ~11.5% of games)
+const CHALK_LIMIT = 15;
+// Value is Ron and Bueno's screen from the Matchup table: a longshot whose
+// batter platoon, pitching vuln (starter + pen) and recent contact all sit in
+// the top 40% of the day's slate. The one idea that survived against Kalshi
+// (+6.5% ± 8.8 at the ask vs -4.1% for every bat, 945 picks), not yet proven.
+const BUENO_MAX_P = 0.10;      // longshots: about +900 or longer
+const BUENO_PCT   = 0.6;       // "green" = top 40% of the slate on each of the three
+const BUENO_LIMIT = 12;
 const POWER_FLOOR_MULT    = 1.25; // Chalk "proven power" = basePower ≥ this × the regular-hitter median HR/AB
 const PICKS_RATIO_MIN     = 0.7;
 const PICKS_RATIO_MAX     = 1.4;
@@ -1329,6 +1338,9 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       // faced, his slot and the park, and none of the matchup factors above.
       const hrZp = oddsPitcherZ(r.oppPid, pstuff, pitcherSeasonStats);
       r.pHR = Math.round(hrProb(r.hrZb, hrZp, r.lineupOrder, r.venue, ODDS, gameZByVenue[r.venue] ?? 0) * 10000) / 10000;
+      r._parts = { power: r.hrZb, pitcher: hrZp, weather: gameZByVenue[r.venue] ?? 0,
+                   park: ODDS.park * Math.log(ODDS.parkTable[r.venue] ?? 1),
+                   slot: ODDS.slot[r.lineupOrder >= 1 && r.lineupOrder <= 9 ? r.lineupOrder : 5] ?? 0 };
       delete r.hrZb;
 
       // Lineup-position PA multiplier — extra plate appearances up top mean more
@@ -1373,12 +1385,36 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
     // than he's produced), re-ranked by that surplus-weighted blast score. A
     // slugger already homering at his blast rate falls below the surplus gate and
     // stays on Chalk — so Value and Chalk no longer surface the same names.
-    const value = rows
-      .filter(r => (r.blastSurplus ?? 1) >= VALUE_SURPLUS_MIN)
-      .sort((a, b) => (b.valueScore ?? 0) - (a.valueScore ?? 0))
-      .slice(0, VALUE_LIMIT);
+    // Why each price is what it is: the odds' parts as multipliers on the odds
+    // against today's average starter (the log-odds slope included), so
+    // Power × Pitcher × Park × Weather × Slot reads the way the price moves.
+    {
+      const mean = (k) => rows.reduce((a, r) => a + (r._parts?.[k] ?? 0), 0) / Math.max(1, rows.length);
+      const avg = Object.fromEntries(['power', 'pitcher', 'park', 'weather', 'slot'].map(k => [k, mean(k)]));
+      for (const r of rows) if (r._parts) {
+        r.why = Object.fromEntries(Object.entries(r._parts).map(([k, v]) => [k, Math.round(Math.exp(ODDS.platt.b * (v - avg[k])) * 100) / 100]));
+        delete r._parts;
+      }
+    }
+    // Value: Bueno's screen (BUENO_*), ranked by fair price. The vuln read is the
+    // score's blend: the starter's platoon split over his share, the pen's over the rest.
+    {
+      const pct = (key) => {
+        const vals = rows.map(key).map(v => v ?? 1).sort((a, b) => a - b);
+        return (r) => { const v = key(r) ?? 1; let lo = 0, hi = vals.length; while (lo < hi) { const m = (lo + hi) >> 1; if (vals[m] < v) lo = m + 1; else hi = m; } return vals.length ? (lo + 1) / vals.length : 0; };
+      };
+      const vuln = (r) => r.pitcherPlatoonRatio == null && r.bullpenPlatoonFactor == null ? null
+        : (r.starterShare ?? 1) * (r.pitcherPlatoonRatio ?? 1) + (1 - (r.starterShare ?? 1)) * (r.bullpenPlatoonFactor ?? 1);
+      const pPlat = pct(r => r.batterPlatoonRatio), pVuln = pct(vuln), pForm = pct(r => r.recentFormRatio);
+      for (const r of rows) {
+        r.green = { platoon: Math.round(pPlat(r) * 100) / 100, vuln: Math.round(pVuln(r) * 100) / 100, recent: Math.round(pForm(r) * 100) / 100 };
+        r.bueno = r.pHR != null && r.pHR < BUENO_MAX_P && r.recentFormRatio != null
+          && r.green.platoon >= BUENO_PCT && r.green.vuln >= BUENO_PCT && r.green.recent >= BUENO_PCT;
+      }
+    }
+    const value = rows.filter(r => r.bueno).sort((a, b) => (b.pHR ?? 0) - (a.pHR ?? 0)).slice(0, BUENO_LIMIT);
 
-    rows.sort((a, b) => b.pickScore - a.pickScore);
+    rows.sort((a, b) => (b.pHR ?? 0) - (a.pHR ?? 0));
     // ── Matchup Lab cards ────────────────────────────────────────────────
     // Ship per-entity components (a batter card × a pitcher card) so the client
     // can reproduce this exact breakdown for ANY batter vs ANY pitcher — the
@@ -1512,11 +1548,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       const l = topByTeam[r.team] ??= [];
       if (!l.some(t => t.oppPid === r.oppPid)) l.push({ pid: r.pid, team: r.team, oppPid: r.oppPid ?? null, score: Math.round(r.pickScore * 10) / 10, pHR: r.pHR ?? null });
     }
-    // Postseason: two to four games a day would leave the regular floor with a
-    // handful of names, so the board takes a lower one (PICKS_POST_MIN), top 20.
-    const post = todaySchedule.some(g => g.gameType && g.gameType !== 'R');
-    const floor = post ? PICKS_POST_MIN : PICKS_MIN_SCORE;
-    const board = rows.filter(r => Math.round(r.pickScore * 10) / 10 >= floor).slice(0, post ? 20 : Infinity);
+    const board = rows.filter(r => (r.pHR ?? 0) >= CHALK_MIN_P).slice(0, CHALK_LIMIT);   // rows are in fair-price order
     const penVuln = {};
     for (const team of Object.keys(bullpensMap || {})) {
       const arms = penArms(team);
@@ -3453,9 +3485,9 @@ async function main() {
 
   // Freeze picks whose game has already started (pre-game score from the last
   // build); only not-yet-started games get fresh scores.
-  const picks = freezeStartedRows(freshPicks, prevPicks, sameSlate, started, (a, b) => b.pickScore - a.pickScore);
+  const picks = freezeStartedRows(freshPicks, prevPicks, sameSlate, started, (a, b) => (b.pHR ?? 0) - (a.pHR ?? 0));
   // Value board freezes the same way — a started game shouldn't shift the board.
-  const value = freezeStartedRows(freshValue, prevValue, sameSlate, started, (a, b) => b.valueScore - a.valueScore);
+  const value = freezeStartedRows(freshValue, prevValue, sameSlate, started, (a, b) => (b.pHR ?? 0) - (a.pHR ?? 0));
 
   // The schedule's top pick per game: the better of the two clubs' best bats.
   // A started game keeps the pick it had at first pitch, so it grades honestly.
@@ -3475,7 +3507,7 @@ async function main() {
           : !sides.some(sd => sd !== oppSide && String(sd.probablePitcherId || '') === String(t.oppPid)));
       };
       const a = fits(g.away.teamAbbr, g.home), h = fits(g.home.teamAbbr, g.away);
-      const t = !a ? h : !h ? a : a.score >= h.score ? a : h;
+      const t = !a ? h : !h ? a : (a.pHR ?? 0) >= (h.pHR ?? 0) ? a : h;
       if (t) { const { oppPid, ...top } = t; g.topPick = { ...top, name: playerNames[t.pid] ?? t.pid }; }
     }
   }
@@ -3623,6 +3655,7 @@ async function main() {
           pid:   p.pid,
           name:  playerNames[p.pid] ?? p.pid,
           score: Math.round(p.pickScore * 10) / 10,
+          p:     p.pHR ?? null,              // fair P(HR) at bet time (the board's ranking since 2026-10-02)
           hr:    hrTotals[p.pid] ?? 0,      // season HR total at time of scoring
           hit:   !!(dayHRs[p.pid]),          // did they go deep that day?
           projected: p.projected ?? false,
@@ -3658,6 +3691,8 @@ async function main() {
         pid:   p.pid,
         name:  playerNames[p.pid] ?? p.pid,
         score: Math.round((p.valueScore ?? 0) * 10) / 10,
+        p:     p.pHR ?? null,                  // fair P(HR) at bet time
+        green: p.green ?? null,                // Bueno's screen (2026-10-02 on): slate percentile of platoon, vuln, recent contact
         hr:    p.hrs ?? hrTotals[p.pid] ?? 0, // season HR when LISTED (bet-time)
         blastPct: p.blastPct != null ? Math.round(p.blastPct * 1000) / 10 : null, // % at bet-time
         hit:   !!(dayHRs[p.pid]),
