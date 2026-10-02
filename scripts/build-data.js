@@ -672,6 +672,9 @@ async function attachContactQuality(dueRows) {
 // overfit-prone; that cut lives in the client filter chips instead.)
 const PICKS_MIN_HR        = 3;
 const PICKS_MIN_SCORE     = 9; // Chalk pool floor (Full board). Proven adds the power floor on top.
+const PICKS_POST_MIN      = 6; // Postseason Chalk floor: aces and short slates score lower, so the regular 9 leaves
+                               // a handful; top 20 at no floor reached 2-3 scores (9/30: 21 shown, 7 under 6).
+                               // Logged boards: 7-8 hit 13.5-15.6%, 9-11 ~19%; under 7 only 27 picks ever.
 const POWER_FLOOR_MULT    = 1.25; // Chalk "proven power" = basePower ≥ this × the regular-hitter median HR/AB
 const PICKS_RATIO_MIN     = 0.7;
 const PICKS_RATIO_MAX     = 1.4;
@@ -1498,10 +1501,11 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       const l = topByTeam[r.team] ??= [];
       if (!l.some(t => t.oppPid === r.oppPid)) l.push({ pid: r.pid, team: r.team, oppPid: r.oppPid ?? null, score: Math.round(r.pickScore * 10) / 10, pHR: r.pHR ?? null });
     }
-    // Postseason: two to four games a day would leave the Chalk floor with a
-    // handful of names, so the board ranks every scored bat (top 20) instead.
+    // Postseason: two to four games a day would leave the regular floor with a
+    // handful of names, so the board takes a lower one (PICKS_POST_MIN), top 20.
     const post = todaySchedule.some(g => g.gameType && g.gameType !== 'R');
-    const board = post ? rows.slice(0, 20) : rows.filter(r => Math.round(r.pickScore * 10) / 10 >= PICKS_MIN_SCORE);
+    const floor = post ? PICKS_POST_MIN : PICKS_MIN_SCORE;
+    const board = rows.filter(r => Math.round(r.pickScore * 10) / 10 >= floor).slice(0, post ? 20 : Infinity);
     const penVuln = {};
     for (const team of Object.keys(bullpensMap || {})) {
       const arms = penArms(team);

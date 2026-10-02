@@ -9026,7 +9026,7 @@ function renderMatchups() {
   const bar = `<div class="lb-toolbar mu-viewbar"><div class="view-switch">
       <button class="view-btn${muView === 'matchup' ? ' active' : ''}" onclick="setMuView('matchup')" title="One batter vs one arm, every factor explained">Matchup</button>
       <button class="view-btn${muView === 'table' ? ' active' : ''}" onclick="setMuView('table')" title="Every lineup today vs its starter, one row each, sortable by any factor">Table</button>
-    </div></div>`;
+    </div>${RonChrome.freshHtml()}</div>`;
   el.innerHTML = bar + (muView === 'table' ? muTableHtml()
     : (b && p) ? matchupBreakdownHtml(b, p) : '<div class="empty">Pick a batter and a pitcher.</div>');
 }
@@ -9583,6 +9583,7 @@ function picksResultMatch(p) { return picksFilters.board === 'full' || p.provenP
 // isn't strictly comparable to one after, so we surface these both as a list and
 // as dividers on the day-by-day timeline. Newest first; dates are ET (build day).
 const MODEL_CHANGELOG = [
+  { date: '2026-10-02', title: 'Postseason Chalk floor: Pick Score 6', detail: 'From the wild card round the board showed the top 20 bats with no floor, so short slates against aces filled it with 2s and 3s (9/30: 21 shown, 7 under 6). Postseason scores run lower than the regular season\'s (better arms, colder parks), so the floor is 6 instead of the regular 9, still capped at 20. Logged boards: scores 7-8 homered 13.5-15.6% and 9-11 about 19%; under 7 there are too few picks to say.' },
   { date: '2026-08-15', noDivider: true, title: 'Value board trimmed to top 8', detail: 'Over 16 tracked days the Value hit rate held ~21% through the top 8, then cliffed — picks 9-12 hit ~11% combined, below the 14.8% base (dead weight that diluted the board, which used to run 30 deep). The edge lives in the top 8. Rank cap beat an HR floor ~3:1 and keeps the low-HR "surplus" bats the board exists for. Since a limit just slices an already-ranked list, the results record above is capped to the top 8 for EVERY day — so the hit rate stays comparable across the change (no timeline divider needed). Chalk unchanged.' },
   { date: '2026-08-15', title: 'Pitch-mix synergy removed from the score', detail: 'A leak-free backtest (~1,700 HR out-of-sample) found pitch-type synergy adds nothing to HR prediction beyond base power — in any form. Removed it as a scoring factor (the Pitch Matchup chart stays as context). Reshuffles the board a little; base power already captured the "good overlap" signal.' },
   { date: '2026-08-15', title: 'Arm Stuff now keys on barrel%-allowed', detail: 'Swapped the pitcher contact-quality input from hard-hit% to barrel%-allowed — a leak-free backtest showed barrel is the sharper HR predictor. Scores shift a little (~±3%).' },
@@ -11437,7 +11438,7 @@ function renderPitcherProp(kind) {
   </div>` : ''}${ppView === 'pitcher' ? `<div class="view-switch pp-lines">
     <button class="view-btn${ppLine === 'even' ? ' active' : ''}" onclick="ppSetLine('even')" title="Each arm at whichever graded rung sits nearest even money">His line</button>
     ${ppRungs(rows).map(L => `<button class="view-btn${ppLine === L ? ' active' : ''}" onclick="ppSetLine(${L})" title="Price every arm at ${L}">${L}</button>`).join('')}
-  </div>` : ''}</div>`;
+  </div>` : ''}${RonChrome.freshHtml()}</div>`;
   if (ppView === 'batter') { el.innerHTML = toggle + ppBatterBoard(isK, lg, K0, log5, lbl, word); return; }
   if (!rows.length) { el.innerHTML = toggle + '<div class="empty">No probable starters with data posted yet — check back closer to game time.</div>'; return; }
   const meta = `<div class="pt-meta">Today's starters by <b>${ppSort === 'proj' ? `~Proj ${lbl}` : `Exp ${lbl}%`}</b>${ppSort === 'proj'
