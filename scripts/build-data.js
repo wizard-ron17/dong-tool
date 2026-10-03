@@ -675,8 +675,10 @@ const PICKS_MIN_SCORE     = 9; // Chalk pool floor (Full board). Proven adds the
 // Chalk is the shortest fair prices, not a Pick Score floor (2026-10-02): the
 // factor scan (research/mlb_hr_factors.py) found the score's matchup factors at
 // their weights made the odds WORSE, and Chalk lost 14.7% at Kalshi's asks.
-const CHALK_MIN_P = 0.14;      // a fair price of about +614 or shorter (the league's starters homer ~11.5% of games)
-const CHALK_LIMIT = 15;
+// Every priced bat is on the board, shortest first (like the NFL and NHL boards);
+// the page's max-price filter narrows it. The top CHALK_TOP is what the daily
+// record grades, so it stays comparable with the capped boards before it.
+const CHALK_TOP = 15;
 // Value is Ron and Bueno's screen from the Matchup table: a longshot whose
 // batter platoon, pitching vuln (starter + pen) and recent contact all sit in
 // the top 40% of the day's slate. The one idea that survived against Kalshi
@@ -1548,7 +1550,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
       const l = topByTeam[r.team] ??= [];
       if (!l.some(t => t.oppPid === r.oppPid)) l.push({ pid: r.pid, team: r.team, oppPid: r.oppPid ?? null, score: Math.round(r.pickScore * 10) / 10, pHR: r.pHR ?? null });
     }
-    const board = rows.filter(r => (r.pHR ?? 0) >= CHALK_MIN_P).slice(0, CHALK_LIMIT);   // rows are in fair-price order
+    const board = rows.filter(r => r.pHR > 0);   // rows are in fair-price order
     const penVuln = {};
     for (const team of Object.keys(bullpensMap || {})) {
       const arms = penArms(team);
@@ -3649,7 +3651,7 @@ async function main() {
     const dayHRs = dailyHRs[prevDate] ?? {};
     const entry = {
       date: prevDate,
-      picks: prevPicks.map(p => {
+      picks: prevPicks.slice().sort((a, b) => (b.pHR ?? 0) - (a.pHR ?? 0)).slice(0, CHALK_TOP).map(p => {
         const r3 = v => v == null ? null : Math.round(v * 1000) / 1000;
         return {
           pid:   p.pid,

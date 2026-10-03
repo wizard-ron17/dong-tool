@@ -2642,7 +2642,7 @@
         <p style="margin:0 0 0.5rem">Until October 2026 the board ranked a <b>Pick Score</b>: power times a list of matchup multipliers (batter platoon, starter and bullpen vuln, arm stuff, recent contact, park, weather), each at full weight. We tested every one of them against 72,594 starter-games, and against Kalshi's prices. At those weights they made the odds <b>worse</b>. Platoon and pitcher vuln are real but about a seventh as strong, and recent contact, hot streaks, "due" droughts and blast surplus predicted nothing. Chalk ranked by score lost 14.7% at Kalshi's asking prices. What did earn a weight is in the price above. The matchup factors still show in each pick's card as context; they don't move the price.</p>
         <div style="font-size:0.692rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);margin:0.7rem 0 0.35rem">Chalk vs Value</div>
         <ul>
-          <li><b>🔒 Chalk = the shortest fair prices</b>: every bat at about +614 or shorter (14%+), top 15. The most likely to go deep, and the market knows it: shop the price.</li>
+          <li><b>🔒 Chalk = every starting bat, shortest price first.</b> Narrow it with <b>Max price</b> in Filters. The top 15 are "on the board": they carry the badge on other tools and make up the daily record. The most likely to go deep, and the market knows it: shop the price.</li>
           <li><b>🎯 Value = Bueno's screen, experimental.</b> Longshots (+900 or longer) whose batter platoon, pitching vuln (starter and pen) and recent contact all sit in the <b>top 40% of today's slate</b>. Each of those alone predicts nothing beyond the market, but together they're the one idea that held up against Kalshi: +6.5% at the ask (945 picks) where every bat lost 4.1%. That's not proven yet, so it's tracked here until it is, or isn't.</li>
         </ul>
         <div style="font-size:0.692rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);margin:0.7rem 0 0.35rem">Good to know</div>
@@ -3102,7 +3102,10 @@ let picksHistory = [];
 // Standard board = "proven power" (each pick's blast-blend basePower clears the
 // self-calibrating league-regular floor, computed in the build → provenPower).
 // No more Min-HR / Min-Score knobs — just Proven vs Full board + Hide unavailable.
-const PICKS_FILTER_DEFAULTS = { board: 'full', hideUnavailable: true };   // 'proven' power floor retired 2026-10-02 (Chalk = shortest fair prices)
+const PICKS_FILTER_DEFAULTS = { board: 'full', hideUnavailable: true, maxP: 0 };   // 'proven' power floor retired 2026-10-02; maxP = the shortest chance shown (0 = every bat)
+// Chalk prices every bat; the top CHALK_TOP is "on the board" for badges and the daily record
+const CHALK_TOP = 15;
+const CHALK_CUTS = [[0, 'All'], [0.2, '+400'], [0.143, '+600'], [0.1, '+900']];   // [min chance, "this price or shorter"]
 // Bump this to force-reset everyone's saved Pick filters to the current defaults
 // once (older saved prefs are discarded on next load, then the version restamped).
 const PICKS_FILTER_VERSION = 3;
@@ -3441,7 +3444,7 @@ function crossTabBadge(pid, exclude = {}, compact = false) {
   if (!exclude.birthday) { const bd = birthdayBadge(pid); if (bd) parts.push(bd); } // rides along next to the name on every board
   if (!exclude.chalk) {
     const idx = applyPicksFilters(picks, PICKS_FILTER_DEFAULTS).findIndex(r => r.pid === pid);
-    if (idx >= 0) parts.push(`<span class="cross-tab-badge chalk-rank${c}" title="Ranked #${idx+1} on the Chalk board (proven power)">${compact ? '🔒' + (idx+1) : '#' + (idx+1) + ' Chalk'}</span>`);
+    if (idx >= 0 && idx < CHALK_TOP) parts.push(`<span class="cross-tab-badge chalk-rank${c}" title="#${idx+1} on the Chalk board: the ${CHALK_TOP} shortest fair prices today">${compact ? '🔒' + (idx+1) : '#' + (idx+1) + ' Chalk'}</span>`);
   }
   if (!exclude.value) {
     const vr = valueRank(pid);
@@ -7142,7 +7145,7 @@ function sgHtml(g, date) {
 /** The game's box score (/slate.js): every priced bat (the boards' and, once
  *  the matchup cards load, the rest of each lineup) and both starters' K and
  *  walk lines, with the top pick above. Graded as homers land. */
-const BX_BAT = [{ k: 'hr', lab: 'HR', title: 'Home run (fair odds)', yes: true }, { k: 'pick', lab: 'Board', title: 'Which Picks board he is on: Chalk (the shortest fair prices) or Value (Bueno\'s longshot screen)' }];
+const BX_BAT = [{ k: 'hr', lab: 'HR', title: 'Home run (fair odds)', yes: true }, { k: 'pick', lab: 'Board', title: 'Chalk: among today\'s 15 shortest fair prices. Value: on Bueno\'s longshot screen.' }];
 const BX_SP = [{ k: 'k', lab: 'K', title: 'Strikeouts' }, { k: 'bb', lab: 'BB', title: 'Walks' }];
 function sgPicks(g, date, S, away, home) {
   const top = schedPickStrip(g, date, S);
@@ -7151,7 +7154,7 @@ function sgPicks(g, date, S, away, home) {
   const rows = { [away]: new Map(), [home]: new Map() };
   const put = (team, pid, r) => { if (rows[team] && !rows[team].has(pid)) rows[team].set(pid, r); return rows[team]?.get(pid); };
   if (date === todayDate) {
-    for (const [r, board] of [...(picks || []).map(r => [r, 'chalk']), ...(value || []).map(r => [r, 'value'])]) {
+    for (const [r, board] of [...(picks || []).slice(0, CHALK_TOP).map(r => [r, 'chalk']), ...(value || []).map(r => [r, 'value'])]) {
       if (!rows[r.team] || otherGameExclude(r.pid, r.team === g.home.teamAbbr ? g.away : g.home).chalk) continue;
       const e = put(r.team, String(r.pid), { name: compactPlayerName(playerNames[r.pid] || r.pid), sub: r.lineupOrder ? `#${r.lineupOrder}` : '', open: `openPickModal('${r.pid}','${board}')`, cells: {} });
       if (r.pHR > 0 && !e.cells.hr) e.cells.hr = { p: r.pHR, got: got(r.pid), leg: hrLegObj(r.pid, r.pHR, r.team, r.oppTeam), open: e.open };
@@ -7709,27 +7712,29 @@ function setPicksSort(s)     { picksSort = s; renderPicks(); }
 function togglePicksFilter(key) { picksFilters[key] = !picksFilters[key]; savePicksFilters(); renderPicks(); }
 function clearPicksFilters() { picksFilters = { ...PICKS_FILTER_DEFAULTS }; savePicksFilters(); renderPicks(); renderPicksResults(); }
 // "Active" = a deviation from the standard board (proven power / hide unavailable).
-function picksFiltersActive() { return picksFilters.hideUnavailable !== PICKS_FILTER_DEFAULTS.hideUnavailable; }
+function picksFiltersActive() { return picksFilters.hideUnavailable !== PICKS_FILTER_DEFAULTS.hideUnavailable || !!picksFilters.maxP; }
+function setPicksCut(v) { picksFilters.maxP = v; savePicksFilters(); renderPicks(); }
 // f defaults to the user's live Picks filters (for the Picks board itself), but
 // callers can pass PICKS_FILTER_DEFAULTS — cross-tab badges do, so a player's
 // "#N Pick" standing reflects the standard board, not whatever the user last set.
 // Standard board keeps only proven-power bats (build-flagged); Full shows the
 // whole candidate pool. Older data without the flag counts as proven.
 function applyPicksFilters(rows, f = picksFilters) {
-  return rows.filter(r => !(f.hideUnavailable && isUnavailableToday(r.pid)))   // off / bench / IL
+  return rows.filter(r => !(f.hideUnavailable && isUnavailableToday(r.pid)) && (r.pHR ?? 0) >= (f.maxP || 0))   // off / bench / IL; the price cut
     .sort((a, b) => (b.pHR ?? 0) - (a.pHR ?? 0));                                 // fair-price order
 }
 function renderPicksFilters() {
   if (picksMode === 'value') return renderValueFilters();
   const boardBtn = (val, label, title) => `<button class="due-filter-chip${picksFilters.board===val?' active':''}" onclick="setPicksBoard('${val}')" title="${title}">${label}</button>`;
   document.getElementById('picks-filter-row').innerHTML = `
+    <div class="due-filter-group"><span class="due-filter-label" title="Only bats priced this short or shorter">Max price</span><div class="due-filter-chips">${CHALK_CUTS.map(([v, l]) => `<button class="due-filter-chip${(picksFilters.maxP || 0) === v ? ' active' : ''}" onclick="setPicksCut(${v})">${v ? l + ' or shorter' : l}</button>`).join('')}</div></div>
     <button class="due-filter-toggle${picksFilters.hideUnavailable?' active':''}" onclick="togglePicksFilter('hideUnavailable')">🚫 Hide Off / Bench / IL</button>
     ${picksFiltersActive() ? `<button class="due-filter-clear" onclick="clearPicksFilters()">Reset ×</button>` : ''}
   `;
   document.getElementById('picks-filter-row').style.display = picksFiltersPanelOpen ? '' : 'none';
   document.getElementById('picks-filters-chevron').classList.toggle('open', picksFiltersPanelOpen);
   document.getElementById('picks-filters-toggle').setAttribute('aria-expanded', String(picksFiltersPanelOpen));
-  const activeCount = picksFilters.hideUnavailable !== PICKS_FILTER_DEFAULTS.hideUnavailable ? 1 : 0;
+  const activeCount = (picksFilters.hideUnavailable !== PICKS_FILTER_DEFAULTS.hideUnavailable ? 1 : 0) + (picksFilters.maxP ? 1 : 0);
   const badge = document.getElementById('picks-filters-badge');
   badge.style.display = activeCount ? 'inline-flex' : 'none';
   badge.textContent = activeCount;
@@ -8634,7 +8639,7 @@ function mpDongs(pid, isP = mpIsPitcher(pid)) {
 function mpToday(pid) {
   const rows = [];
   const chalkIdx = (picks || []).findIndex(r => r.pid === pid);
-  const chalk = chalkIdx >= 0 ? picks[chalkIdx] : null;
+  const chalk = chalkIdx >= 0 && chalkIdx < CHALK_TOP ? picks[chalkIdx] : null;   // the top of the board; every bat has a price
   const valIdx = (value || []).findIndex(r => r.pid === pid);
   const val = valIdx >= 0 ? value[valIdx] : null;
   const due = (dueRows || []).find(r => r.pid === pid);
@@ -9598,7 +9603,7 @@ function picksResultMatch(p) { return picksFilters.board === 'full' || p.provenP
 // isn't strictly comparable to one after, so we surface these both as a list and
 // as dividers on the day-by-day timeline. Newest first; dates are ET (build day).
 const MODEL_CHANGELOG = [
-  { date: '2026-10-02', title: 'Pick Score retired: Chalk is the shortest fair prices, Value is Bueno\'s screen', detail: 'We tested every Pick Score factor against 72,594 starter-games (each month predicted only from the months before it) and against Kalshi\'s prices. At the score\'s weights the matchup factors made the odds worse; platoon and pitcher vuln are real but about a seventh as strong; recent contact, hot streaks, droughts and blast surplus predicted nothing. Chalk ranked by score lost 14.7% at Kalshi\'s asks. So the board now ranks by fair odds (HR model v2: power, starter barrels and velo, park, slot, temperature, wind, day/night, pulled air balls, days since his last homer): Chalk is every bat at 14%+ (about +614 or shorter), top 15. Value is now Bueno\'s screen, experimental: longshots under 10% whose platoon, pitching vuln and recent contact all sit in the top 40% of the slate, the one idea that held up against Kalshi (+6.5% at the ask over 945 picks, not yet proven). Records before this date were ranked by Pick Score (and Value by blast surplus), so compare across the line with care. This replaces the same day\'s earlier postseason floor of Pick Score 6.' },
+  { date: '2026-10-02', title: 'Pick Score retired: Chalk is the shortest fair prices, Value is Bueno\'s screen', detail: 'We tested every Pick Score factor against 72,594 starter-games (each month predicted only from the months before it) and against Kalshi\'s prices. At the score\'s weights the matchup factors made the odds worse; platoon and pitcher vuln are real but about a seventh as strong; recent contact, hot streaks, droughts and blast surplus predicted nothing. Chalk ranked by score lost 14.7% at Kalshi\'s asks. So the board now ranks by fair odds (HR model v2: power, starter barrels and velo, park, slot, temperature, wind, day/night, pulled air balls, days since his last homer): Chalk is every priced bat, shortest first (the top 15 make the daily record). Value is now Bueno\'s screen, experimental: longshots under 10% whose platoon, pitching vuln and recent contact all sit in the top 40% of the slate, the one idea that held up against Kalshi (+6.5% at the ask over 945 picks, not yet proven). Records before this date were ranked by Pick Score (and Value by blast surplus), so compare across the line with care. This replaces the same day\'s earlier postseason floor of Pick Score 6.' },
   { date: '2026-08-15', noDivider: true, title: 'Value board trimmed to top 8', detail: 'Over 16 tracked days the Value hit rate held ~21% through the top 8, then cliffed — picks 9-12 hit ~11% combined, below the 14.8% base (dead weight that diluted the board, which used to run 30 deep). The edge lives in the top 8. Rank cap beat an HR floor ~3:1 and keeps the low-HR "surplus" bats the board exists for. Since a limit just slices an already-ranked list, the results record above is capped to the top 8 for EVERY day — so the hit rate stays comparable across the change (no timeline divider needed). Chalk unchanged.' },
   { date: '2026-08-15', title: 'Pitch-mix synergy removed from the score', detail: 'A leak-free backtest (~1,700 HR out-of-sample) found pitch-type synergy adds nothing to HR prediction beyond base power — in any form. Removed it as a scoring factor (the Pitch Matchup chart stays as context). Reshuffles the board a little; base power already captured the "good overlap" signal.' },
   { date: '2026-08-15', title: 'Arm Stuff now keys on barrel%-allowed', detail: 'Swapped the pitcher contact-quality input from hard-hit% to barrel%-allowed — a leak-free backtest showed barrel is the sharper HR predictor. Scores shift a little (~±3%).' },
