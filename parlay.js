@@ -520,6 +520,20 @@
     if (PARLAY.legs.length && window.RonTracker) RonTracker.copy(PARLAY.legs, p, { corr, book: PARLAY.book }, btn);
   }
 
+  // Gambly line-shops a slip, SGPs included, from a chat prompt; its site takes the
+  // prompt in the URL (gambly.com/chat?q= pre-fills the chat box). A link, not an API:
+  // it opens in your browser and you press Enter there.
+  function parGamblyURL() {
+    const legs = PARLAY.legs, games = [...new Set(legs.map(l => String(l.g || '').replace('@', ' @ ')).filter(Boolean))];
+    const sport = [...new Set(legs.map(l => String(l.sp || '').toUpperCase()).filter(Boolean))].join('/');
+    const sgp = new Set(legs.map(l => l.g)).size < legs.length;
+    const leg = (l) => `${l.n}${l.s ? ' ' + l.s : ''}${l.t ? ` (${l.t})` : ''}`;
+    const q = legs.length === 1
+      ? `Find me the best price for ${leg(legs[0])}${games.length ? ` — ${sport ? sport + ' ' : ''}${games[0]}` : ''}`
+      : `Build me a betslip${sgp ? ' (same game parlay)' : ''} and find the best price: ${legs.map(leg).join(' + ')}${games.length ? ` — ${sport ? sport + ' ' : ''}${games.join(', ')}` : ''}`;
+    return 'https://gambly.com/chat?q=' + encodeURIComponent(q);
+  }
+
   function parRender() {
     const slip = document.getElementById('par-slip'); if (!slip) return;
     slip.classList.toggle('open', PARLAY.open);
@@ -571,7 +585,10 @@
         <input type="text" id="par-book" inputmode="text" placeholder="+1400" value="${parEsc(PARLAY.book)}" oninput="parBook(this)">
         <span class="par-ev-out" id="par-ev-out"></span>
       </div>
-      <button class="par-copy" onclick="parCopyTracker(this)" title="Copies this slip as text for the odds-viewer tracker's Import">Copy for tracker</button>`;
+      <div class="par-outs">
+        <a class="par-copy par-gambly" href="${parEsc(parGamblyURL())}" target="_blank" rel="noopener" title="Opens Gambly with this slip typed in: press Enter there and it finds the best price, SGPs included">Shop on Gambly ↗</a>
+        <button class="par-copy" onclick="parCopyTracker(this)" title="Copies this slip as text for the odds-viewer tracker's Import">Copy for tracker</button>
+      </div>`;
     parRenderEv();
   }
 
@@ -673,6 +690,8 @@
   }
   .par-copy { display: block; width: 100%; margin: 0.55rem 0 0.2rem; padding: 0.42rem; border-radius: 8px; cursor: pointer; font: 600 0.74rem inherit; background: transparent; color: var(--muted); border: 1px dashed var(--border2); }
   .par-copy:hover { color: var(--accent); border-color: var(--accent); }
+  .par-outs { display: flex; gap: 0.4rem; }
+  .par-outs .par-copy { flex: 1; text-align: center; text-decoration: none; }
 `;
   if (!document.getElementById('par-css')) document.head.insertAdjacentHTML('beforeend', `<style id="par-css">${CSS}</style>`);
 
