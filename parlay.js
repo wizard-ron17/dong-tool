@@ -586,7 +586,7 @@
         <span class="par-ev-out" id="par-ev-out"></span>
       </div>
       <div class="par-outs">
-        <a class="par-copy par-gambly" href="${parEsc(parGamblyURL())}" target="_blank" rel="noopener" title="Opens Gambly with this slip typed in: press Enter there and it finds the best price, SGPs included">Shop on Gambly ↗</a>
+        <a class="par-copy par-gambly" href="${parEsc(parGamblyURL())}" target="_blank" rel="noopener" title="Opens Gambly with this slip typed in: press Enter there and it finds the best price, SGPs included"><img src="https://www.google.com/s2/favicons?domain=gambly.com&amp;sz=64" alt="" width="14" height="14" onerror="this.remove()">Shop on Gambly ↗</a>
         <button class="par-copy" onclick="parCopyTracker(this)" title="Copies this slip as text for the odds-viewer tracker's Import">Copy for tracker</button>
       </div>`;
     parRenderEv();
@@ -692,6 +692,8 @@
   .par-copy:hover { color: var(--accent); border-color: var(--accent); }
   .par-outs { display: flex; gap: 0.4rem; }
   .par-outs .par-copy { flex: 1; text-align: center; text-decoration: none; }
+  .par-gambly { display: inline-flex !important; align-items: center; justify-content: center; gap: 0.35rem; }
+  .par-gambly img { border-radius: 3px; }
 `;
   if (!document.getElementById('par-css')) document.head.insertAdjacentHTML('beforeend', `<style id="par-css">${CSS}</style>`);
 
