@@ -5,7 +5,8 @@
 //            late-news override files have the fields the builds read; every
 //            <style> block's braces balance (an unclosed brace silently eats
 //            every rule after it)
-//   browser  each app + a few deep routes, desktop and phone width: no page
+//   browser  each app + a few deep routes, desktop and phone width (and one of
+//            each card it opens: openPick, openLc, openGame…): no page
 //            errors, the browser parsed exactly as many CSS rules as the file
 //            has (a rule it drops is a typo it forgave), no sideways scroll
 //            at phone width, something actually rendered
@@ -142,6 +143,24 @@ async function browserChecks() {
             if (want !== s.parsed) fail(where, `<style${s.id ? ' #' + s.id : ''}> has ${want} rules in the file, the browser kept ${s.parsed} (a malformed rule it dropped)`);
           }
           if (r.text < 150) fail(where, `almost nothing rendered (${r.text} characters of text)`);
+          // Open one of each kind of card the page offers (openPick, openLc, openGame…):
+          // a card that throws on open never shows in a board render (10/4: NFL picks).
+          const openers = await page.evaluate(() => {
+            const root = document.querySelector('.panel.visible') || document.body, seen = new Map();
+            for (const el of root.querySelectorAll('[onclick]')) {
+              const m = (el.getAttribute('onclick') || '').match(/\b(open[A-Z]\w*)\(/);
+              if (!m || seen.has(m[1]) || !el.offsetParent) continue;
+              el.dataset.chkOpen = seen.size; seen.set(m[1], seen.size);
+            }
+            return [...seen.keys()].slice(0, 6);
+          });
+          for (let i = 0; i < openers.length; i++) {
+            const before = errs.length;
+            await page.evaluate((i) => document.querySelector(`[data-chk-open="${i}"]`)?.click(), i);
+            await page.waitForTimeout(350);
+            errs.slice(before).forEach(e => fail(where, `${openers[i]}() threw: ${e.slice(0, 180)}`));
+            await page.keyboard.press('Escape'); await page.waitForTimeout(150);
+          }
           if (vname === 'phone' && r.overflow > 1) fail(where, `scrolls sideways by ${r.overflow}px at phone width`);
           await page.screenshot({ path: path.join(shots, `${ename}-${vname}-${route.replace(/\W+/g, '_') || 'root'}.png`) }).catch(() => {});
           await page.close();
