@@ -3933,6 +3933,21 @@
       <div class="pbx-note">Anytime price = position base × <b>Role</b> × <b>Trend</b> × <b>Spot</b>, each an odds multiplier against an average player. <b>Role</b> is NFL's base power — who he is. <b>Spot</b> is this game, and it's mostly the team total: football moves on role, not matchup. The NFL longshot is a role that just grew — <b>Trend +</b> or ROLE OPEN — on a high total. Questionable and return-TD adjustments sit on top of the factors.</div>`;
   }
 
+  const PM_LABELS = {
+    snap_last3:       ['Recent snaps',  r => Math.round((r.f?.snap3 ?? 0) * 100) + '% of plays', 'Share of his offense\'s snaps over the last three games. About 87% of the model\'s signal lives here.'],
+    snap_share_prior: ['Career snaps',  r => Math.round((r.f?.snapPrior ?? 0) * 100) + '%',      'His longer-run snap share, shrunk toward his position when the sample is thin. A correction on the recent window.'],
+    rz_touches_log:   ['Red zone',      r => (r.f?.rz ?? 0).toFixed(2) + ' touches/g',           'Rushes plus targets inside the 20, per game. For a quarterback this is the whole story — it is what separates a runner from a pocket passer.'],
+    touches_log2:     ['Touches',       r => (r.f?.touches ?? 0).toFixed(1) + ' /g',              'Carries plus targets per game — how much of the offense runs through him at all, not just near the goal line. Covers both of the model\'s touch terms at his usual rate; Touch trend is the recent change.'],
+    implied_total:    ['Team total',    r => (r.f?.implied ?? 0).toFixed(1) + ' pts',            'Points his team is implied to score, from the game total and spread. The only market input, and it prices the matchup better than any defensive stat tested.'],
+    mates_out:        ['Mates out',     r => String(r.f?.matesOut ?? 0),                          'Same-position teammates ruled out or doubtful this week.'],
+    new_absence:      ['Role opened',   r => (r.f?.newAbsence ? 'yes' : 'no'),                    'Whether that absence is new this week — the case where recent snaps have not yet caught up to a vacated role.'],
+    __trend:          ['Touch trend',   r => (r.f?.touch3 ?? 0).toFixed(1) + ' /g last 3',        'His last three games against his usual touches. Green = a role growing, red = shrinking, 1.00 = holding. (Touches and last-3 touches move together, so the model\'s two touch terms are shown as usage + trend — same total.)'],
+    qb_gl5:           ['QB goal line',  r => (r.f?.gl5 ?? 0).toFixed(2) + ' /g',                  'Designed quarterback carries inside the 5 per game — the sneak and the goal-line keeper. Quarterbacks only.'],
+    td_share_log:     ['TD share',      r => Math.round((r.f?.tdShare ?? 0) * 100) + '% of team',  'Of the touchdowns his team scored, how many were his. Everything else here measures opportunity; this is the only thing that measures conversion — and it is what separates the players who actually find the end zone from the ones who merely play a lot.'],
+  };
+  const pmLogit = (p) => Math.log(Math.min(Math.max(p, 1e-9), 1 - 1e-9) / (1 - Math.min(Math.max(p, 1e-9), 1 - 1e-9)));
+  let pmOpen = null;
+
   function pmContribs(r, M) {
     const c = M.coef, out = [];
     let z = c.intercept;
