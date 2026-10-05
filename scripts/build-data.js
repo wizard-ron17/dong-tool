@@ -2725,6 +2725,69 @@ async function computeBatterKBB(todaySchedule, pitcherStats, batterDiscipline, b
   } catch (e) { console.warn('batter K/BB failed:', e.message); return []; }
 }
 
+// ── 2+ HRs and the game's first homer (research/mlb_hr_multi.py) ─────────
+// Both come off the HR model's P(1+). Per-PA rate q: P(1+) = 1 - sum_n w_n (1-q)^n
+// over his slot's PA distribution; P(2+) from the same mix. First homer: both
+// posted lineups, half-innings of 3-12 PAs (2025's distribution), the order
+// carrying over, each PA a homer at the batter's q; a seeded simulation per game.
+// Walk-forward Aug-Sep 2026: 2+ predicted 0.62% vs 0.64% actual (logloss .03754
+// vs .03848 base); first homer 4.99% vs 4.86% per bat, calibrated, beating the
+// naive P(any) x share split (.19039 vs .19057); no homer 10.2% vs 10.3%.
+const HR_HALF_PA = { 3: 0.3823, 4: 0.2853, 5: 0.1712, 6: 0.0884, 7: 0.0397, 8: 0.0191, 9: 0.0079, 10: 0.0034, 11: 0.0016, 12: 0.0011 };
+const HR_DEFAULT_P = 0.05;   // a lineup bat the HR model didn't price (little power): still takes his turns
+const HR_SIMS = 20000;
+function hrPerPA(p1, slot) {
+  const W = BKBB.PA[slot] || BKBB.PA[5];
+  let lo = 0, hi = 0.5;
+  for (let i = 0; i < 50; i++) {
+    const mid = (lo + hi) / 2;
+    const f = 1 - W.reduce((t, w, j) => t + w * Math.pow(1 - mid, j + 1), 0);
+    if (f > p1) hi = mid; else lo = mid;
+  }
+  return (lo + hi) / 2;
+}
+function hrTwoPlus(q, slot) {
+  const W = BKBB.PA[slot] || BKBB.PA[5];
+  let p0 = 0, p1 = 0;
+  W.forEach((w, j) => { const n = j + 1; p0 += w * Math.pow(1 - q, n); p1 += w * n * q * Math.pow(1 - q, n - 1); });
+  return Math.max(0, 1 - p0 - p1);
+}
+function seededRandom(seed) {            // mulberry32: the same game prices the same on every build
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6D2B79F5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+/** Adds p2HR (every priced bat) and pFirstHR (bats in games with both lineups posted); returns { gamePk: { pNoHR } }. */
+function computeHRMulti(rowSets, todaySchedule) {
+  const p1Of = new Map();
+  for (const rows of rowSets) for (const r of rows) if (r.pHR > 0) p1Of.set(String(r.pid), { p: r.pHR, slot: r.lineupOrder >= 1 && r.lineupOrder <= 9 ? r.lineupOrder : 5 });
+  const out = new Map();
+  for (const [pid, { p, slot }] of p1Of) out.set(pid, { p2HR: Math.round(hrTwoPlus(hrPerPA(p, slot), slot) * 10000) / 10000 });
+  const halves = Object.entries(HR_HALF_PA).map(([n, w]) => [+n, w]);
+  const games = {};
+  for (const g of todaySchedule) {
+    const sides = [g.away, g.home].map(t => (t.lineup || []).filter(x => x.position !== 'P' && x.order >= 1 && x.order <= 9).sort((a, b) => a.order - b.order));
+    if (sides.some(s => s.length !== 9)) continue;                     // the order decides who bats first: posted lineups only
+    const q = sides.map(s => s.map(x => hrPerPA(p1Of.get(String(x.pid))?.p ?? HR_DEFAULT_P, x.order)));
+    const rnd = seededRandom(g.gamePk || 1), counts = new Array(19).fill(0);
+    const half = () => { let u = rnd(); for (const [n, w] of halves) { if ((u -= w) <= 0) return n; } return 4; };
+    for (let sim = 0; sim < HR_SIMS; sim++) {
+      const pos = [0, 0]; let first = -1;
+      outer: for (let inning = 0; inning < 9; inning++) for (let side = 0; side < 2; side++) {
+        const n = half();
+        for (let k = 0; k < n; k++) { const i = (pos[side] + k) % 9; if (rnd() < q[side][i]) { first = i + 9 * side; break outer; } }
+        pos[side] = (pos[side] + n) % 9;
+      }
+      counts[first + 1]++;
+    }
+    games[g.gamePk] = { pNoHR: Math.round(counts[0] / HR_SIMS * 10000) / 10000 };
+    sides.forEach((s, side) => s.forEach((x, i) => {
+      const e = out.get(String(x.pid)) || {}; e.pFirstHR = Math.round(counts[1 + i + 9 * side] / HR_SIMS * 10000) / 10000; out.set(String(x.pid), e);
+    }));
+  }
+  for (const rows of rowSets) for (const r of rows) { const e = out.get(String(r.pid)); if (e) Object.assign(r, e); }
+  return games;
+}
+
 // ── Opener / bulk-arm detection ─────────────────────────────────────────
 // Some teams run "the opener": a reliever starts the 1st, then a rotation
 // arm throws the bulk innings (WSH 7/4: Palmquist 1 IP, then Littell 6 IP).
@@ -3621,6 +3684,8 @@ async function main() {
   console.log('Scoring per-game Homer Scores...');
   computeHomerScores(todaySchedule, pitcherStats, bullpens);
   const batterKBB = await computeBatterKBB(todaySchedule, pitcherStats, batterDiscipline, batMeta, injuryStatus);
+  const hrGames = computeHRMulti([freshPicks, freshValue], todaySchedule);
+  console.log(`2+ HR / first HR: ${freshPicks.filter(r => r.p2HR != null).length} bats, first homer in ${Object.keys(hrGames).length} games`);
   console.log(`batter K/BB: ${batterKBB.length} bats priced`);
   freezeStartedHomer(todaySchedule, prevSchedule, sameSlate); // keep started games' Homer Score pre-game
 
@@ -3979,7 +4044,7 @@ async function main() {
     totalHRCount,
     dailyHRs, hrTypes, hrDetails, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR, playerLastGame,
     teamGameDays, venueGameDays, venueHRsByDate, groupSummary, dueRows, prospects, injuryStatus, dtdStatus,
-    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, teamStatus, teamOffense, batterDiscipline, batterKBB, bullpens, penVuln, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, schedHistory,
+    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, teamStatus, teamOffense, batterDiscipline, batterKBB, hrGames, bullpens, penVuln, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, schedHistory,
     // postseason mode: on from the first playoff slate, and through the off days between rounds
     postseason: postDates.size > 0 || todaySchedule.some(g => g.gameType && g.gameType !== 'R') || null, postDates: [...postDates].sort(), birthdays, birthdayHistory,
     // { venue -> { carry, windForL, windForR } }. The picks rows already bake

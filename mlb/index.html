@@ -1476,6 +1476,8 @@
   .pair-today-add:hover { border-color: var(--accent); }
   .pick-fair { font-family: var(--font-d); color: var(--text); white-space: nowrap; }
   .pick-fair-pct { display: block; font-size: 0.66rem; color: var(--muted); font-weight: 400; }
+  .pk-more { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.15rem 0.7rem; margin: 0.2rem 0 0.35rem; font-size: 0.7rem; color: var(--muted); }
+  .pk-more b { color: var(--text); font-weight: 700; }
   .hm-fair { font-family: var(--font-d); font-size: 0.72rem; color: var(--muted); margin-left: auto; margin-right: 0.5rem; white-space: nowrap; }
   .gc-pick-fair { font-family: var(--font-d); color: var(--muted); white-space: nowrap; }
   .sgp-fair { font-family: var(--font-d); color: var(--muted); white-space: nowrap; }
@@ -8183,6 +8185,7 @@ function pickModalInner(r, board = 'chalk') {
           <span class="pk-vs-txt">VS</span>
           <span class="pick-score-big" title="${HR_FAIR_TIP}">${r.pHR > 0 ? hrFair(r.pHR) : '—'}</span>
           <span class="due-modal-headline-lbl">Fair odds · ${r.pHR > 0 ? hrFairPct(r.pHR) : ''}</span>
+          ${r.p2HR != null || r.pFirstHR != null ? `<span class="pk-more">${r.p2HR != null ? `<span title="Fair odds he homers twice: his per-PA homer rate from the price above, over the PAs his spot gets (research/mlb_hr_multi.py)">2+ HR <b>${Odds.inline(r.p2HR)}</b></span>` : ''}${r.pFirstHR != null ? `<span title="Fair odds his is the game's first homer: both lineups in order, every bat's homer rate, simulated (needs both lineups posted)">1st HR <b>${Odds.inline(r.pFirstHR)}</b></span>` : ''}</span>` : ''}
           <span class="pk-fair" style="display:flex;flex-wrap:wrap;justify-content:center;gap:0.25rem;max-width:11rem">${isValue && r.green ? greenChips(r) : whyChips(r)}</span>
           <span class="pk-score-sub" title="The old Pick Score: power × the matchup factors below at full weight. Context only since 2026-10-02; the factor scan found those weights made the odds worse.">matchup score <b>${(headScore ?? 0).toFixed(1)}</b> · context</span>
         </div>
