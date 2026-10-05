@@ -600,6 +600,17 @@
   .fbar-fill.neg { background: linear-gradient(270deg, rgba(229,83,75,0.32), rgba(229,83,75,0.85)); }
   .fbar-val { font-family: var(--font-d); font-weight: 700; font-size: 0.779rem; text-align: right; }
   .fbar-note { font-size: 0.680rem; color: var(--muted); margin-top: 0.5rem; }
+  /* percentile mode: wider value column ("81st 1.36×"), so the 50th baseline sits at calc(50% + (6rem - 5.6rem)/2) */
+  .fbars.pct .fbar { grid-template-columns: 6rem 1fr 5.6rem; }
+  .fbars.pct .fbar-baseline { left: calc(50% + 0.2rem); }
+  .fbars.pct .fbar-baseline::before { content: '50th'; }
+  .fbars.pct .fbar-val small { font-size: 0.68rem; font-weight: 500; color: var(--dim); margin-left: 0.3rem; }
+  .fbar-head { display: flex; align-items: baseline; justify-content: center; gap: 0.5rem; margin: 0.1rem 0 0.5rem; font-size: 0.74rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .fbar-head b { font-family: var(--font-d); font-size: 1.05rem; color: var(--good); text-transform: none; }
+  .fbar-head em { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--dim); font-weight: 500; }
+  .fbar-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: center; margin-top: 0.55rem; }
+  .fbar-chip { font-size: 0.66rem; font-weight: 700; border-radius: 999px; padding: 0.1rem 0.5rem; border: 1px solid var(--border); color: var(--muted); }
+  .fbar-chip.pos { color: var(--good); } .fbar-chip.neg { color: var(--bad); }
   /* Pitch matchup: batter's HR pitches vs pitcher's arsenal, squared up like the fight card. */
   .pk-pitch-face { display: flex; align-items: stretch; gap: 0.45rem; margin-bottom: 0.35rem; }
   .pk-pitch-side { flex: 1; min-width: 0; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.45rem; }
@@ -4106,6 +4117,35 @@
     const b = document.getElementById('pm-pl-add'); if (b) b.innerHTML = pmAddBtn(r);
   };
 
+  // Percentile bars: each factor's contribution ranked against this week's players at
+  // the same position. Rows run heaviest first (how much the factor moves prices across
+  // that board), the same order for everyone at the position. Touches, the base of every
+  // price, is the headline, not a bar; yes/no factors are chips. Below PM_PCT_MIN players
+  // at the position the card falls back to the multiplier bars.
+  const PM_BASE = 'touches_log2', PM_FLAGS = new Set(['mates_out', 'new_absence']), PM_PCT_MIN = 20;
+  let pmPoolCache = null;
+  function pmPool(pos) {
+    const P = nflData?.picks;
+    if (!pmPoolCache || pmPoolCache.week !== P.week) pmPoolCache = { week: P.week, byPos: {} };
+    if (pmPoolCache.byPos[pos]) return pmPoolCache.byPos[pos];
+    const gm = pbGameMap(), vals = {};
+    let n = 0;
+    for (const raw of P.picks) {
+      if (raw.pos !== pos) continue;
+      n++;
+      for (const x of pmContribs(pbEnrich(raw, gm), P.model).parts) (vals[x.f] ||= []).push(x.d);
+    }
+    const pool = { n, sorted: {}, weight: {} };
+    for (const [k, v] of Object.entries(vals)) {
+      pool.sorted[k] = v.slice().sort((a, b) => a - b);
+      const m = v.reduce((a, b) => a + b, 0) / v.length;
+      pool.weight[k] = Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / v.length);
+    }
+    return (pmPoolCache.byPos[pos] = pool);
+  }
+  const pmRank = (pool, k, d) => { const s = pool.sorted[k] || []; let lo = 0, hi = 0; for (const y of s) { if (y < d - 1e-9) lo++; if (y <= d + 1e-9) hi++; } return s.length ? (lo + hi) / 2 / s.length : 0.5; };
+  const pmOrd = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' })[n % 10] || 'th');
+
   function openPick(pid) {
     const P = nflData?.picks; if (!P) return;
     const raw = P.picks.find(x => x.pid === pid);
@@ -4127,6 +4167,26 @@
     const shown = parts.filter(p => Math.abs(p.d) >= 0.015)
                        .sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
     const maxAbs = Math.max(0.4, ...shown.map(p => Math.abs(p.d)));
+    const pool = pmPool(r.pos), pctMode = pool.n >= PM_PCT_MIN;
+    const pctBars = () => {
+      const base = parts.find(p => p.f === PM_BASE);
+      const rows = parts.filter(p => p.f !== PM_BASE && p.f !== '__calib' && !PM_FLAGS.has(p.f))
+        .sort((a, b) => (pool.weight[b.f] ?? 0) - (pool.weight[a.f] ?? 0));
+      const head = base ? (() => { const pc = Math.max(1, Math.min(99, Math.round(pmRank(pool, PM_BASE, base.d) * 100)));
+        return `<div class="fbar-head" title="${(PM_LABELS[PM_BASE] || [,, ''])[2]}"><span>${(PM_LABELS[PM_BASE] || ['Touches'])[0]}</span><b>${Math.exp(base.d).toFixed(2)}×</b><em>${pmOrd(pc)} of ${pool.n} ${r.pos}s</em></div>`; })() : '';
+      const chips = [...parts.filter(p => PM_FLAGS.has(p.f) && Math.abs(p.d) >= 0.015), ...parts.filter(p => p.f === '__calib')].map(p => {
+        const lab = p.f === '__calib' ? 'Calibration' : (PM_LABELS[p.f] || [p.f])[0];
+        return `<span class="fbar-chip ${p.d >= 0 ? 'pos' : 'neg'}" title="${p.f === '__calib' ? 'The out-of-sample calibration trims the raw price toward what happened' : (PM_LABELS[p.f] || [,, ''])[2]}">${lab} ${Math.exp(p.d).toFixed(2)}×</span>`;
+      }).join('');
+      const bars = rows.map(p => {
+        const pc = pmRank(pool, p.f, p.d), t = (pc - 0.5) * 2, n = Math.max(1, Math.min(99, Math.round(pc * 100)));
+        const [lab] = PM_LABELS[p.f] || [p.f], tip = (PM_LABELS[p.f] || [,, ''])[2] || lab;
+        return `<div class="fbar"><span class="fbar-label" title="${tip}">${lab}</span>
+          <div class="fbar-track"><div class="fbar-fill ${t >= 0 ? 'pos' : 'neg'}" style="${t >= 0 ? 'left:50%' : 'right:50%'};width:${Math.abs(t) * 50}%"></div></div>
+          <span class="fbar-val" style="color:${t >= 0 ? 'var(--good)' : 'var(--bad)'}">${pmOrd(n)}<small>${Math.exp(p.d).toFixed(2)}×</small></span></div>`;
+      }).join('');
+      return { head, chips, bars };
+    };
     const bars = shown.map(p => {
       const mult = Math.exp(p.d);
       const w = Math.min(50, Math.abs(p.d) / maxAbs * 50);
@@ -4209,9 +4269,15 @@
           <div class="pm-sec">${mkt === '5' ? 'The passing ladder' : 'What moves the price'}<button class="model-help-btn" onclick="openTdHelp('${mkt}')" aria-label="How this touchdown price is built" title="How this price is built">?</button></div>
           <div class="pm-body">
             ${mkt === '5' ? pmPassBody(r) : `
+            ${pctMode ? (() => { const pb = pctBars(); return `
+            ${pb.head}
+            <div class="fbar-legend">← below this week's ${r.pos}s · middle · above →</div>
+            <div class="fbars pct"><div class="fbar-baseline"></div>${pb.bars}</div>
+            ${pb.chips ? `<div class="fbar-chips">${pb.chips}</div>` : ''}
+            <div class="fbar-note">Each bar ranks him against this week's <b>${pool.n}</b> ${r.pos}s on that factor, the factors that move prices most on top; the grey number is what it does to his odds. A league-average ${r.pos} in a neutral spot sits at <b>${(sig(base) * 100).toFixed(0)}%</b>; all of it takes him to <b>${((r.pOff ?? r.p) * 100).toFixed(1)}%</b>. The <b>?</b> shows the full build.${r.pRet ? ` His return work adds the rest, up to <b>${(r.p * 100).toFixed(1)}%</b>.` : ''}</div>`; })() : `
             <div class="fbar-legend">← tougher · 1.0× neutral · juicier →</div>
             <div class="fbars"><div class="fbar-baseline"></div>${bars}</div>
-            <div class="fbar-note">Each bar multiplies his odds of scoring. A league-average ${r.pos} in a neutral spot sits at <b>${(sig(base) * 100).toFixed(0)}%</b>; these take him to <b>${((r.pOff ?? r.p) * 100).toFixed(1)}%</b>.${r.pRet ? ` His return work adds the rest, up to <b>${(r.p * 100).toFixed(1)}%</b> — the bars are the offense model and don't see it.` : ''}</div>`}
+            <div class="fbar-note">Each bar multiplies his odds of scoring. A league-average ${r.pos} in a neutral spot sits at <b>${(sig(base) * 100).toFixed(0)}%</b>; these take him to <b>${((r.pOff ?? r.p) * 100).toFixed(1)}%</b>.${r.pRet ? ` His return work adds the rest, up to <b>${(r.p * 100).toFixed(1)}%</b> — the bars are the offense model and don't see it.` : ''}</div>`}`}
             ${f.snap3Raw != null && Math.abs(f.snap3Raw - f.snap3) > 0.02 ? `<p class="pm-note" style="margin-top:0.7rem">
               <b>Team snap adjustment:</b> ${Math.round(f.snap3Raw * 100)}% on his old room → <b>${Math.round(f.snap3 * 100)}%</b>${f.depthRank ? ` as its ${['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth'][f.depthRank] || `${f.depthRank}th`} ${r.pos}` : ''} — shares resolved to a real depth chart. Details in <b>How Picks Works</b>.
             </p>` : ''}
