@@ -943,6 +943,21 @@
   .pk-stat-dim { color: var(--muted); font-weight: 400; font-size: 0.766rem; }
   .pk-vs { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.15rem; flex-shrink: 0; padding: 0 0.15rem; }
   .pk-vs-txt { font-family: var(--font-d); font-weight: 700; font-size: 1rem; color: var(--dim); letter-spacing: 0.08em; }
+  /* pick card on a phone: the price block (price + why chips) is too wide to sit between
+     the two faces, so the faces share the top row and the price takes the full row under them */
+  @media (max-width: 520px) {
+    .pk-face-pick { flex-wrap: wrap; row-gap: 0.55rem; }
+    .pk-face-pick .pk-vs { order: 3; flex-basis: 100%; }
+    .pk-face-pick .pk-vs-txt { display: none; }
+    .pk-face-pick .pk-fair { max-width: none !important; }
+    .pk-face-pick .pk-side > img.mu-photo { width: 60px; height: 60px; }
+  }
+  /* the pick deck's arrows on a phone: the slim size modal.js gives .pm-back cards, off the card's content */
+  @media (max-width: 619px) {
+    #pick-modal-backdrop .pk-side-nav { width: 28px; height: 48px; font-size: 1.35rem; }
+    #pick-modal-backdrop .pk-side-prev { left: 0.3rem; }
+    #pick-modal-backdrop .pk-side-next { right: 0.3rem; }
+  }
   .pk-hand { display: inline-flex; align-items: center; justify-content: center; min-width: 1.05rem; padding: 0.02rem 0.25rem; border-radius: 4px; font-size: 0.692rem; font-weight: 700; vertical-align: middle; }
   .pk-hand.l { color: #3cb4f5; background: rgba(56,176,240,0.16); }
   .pk-hand.r { color: var(--gold); background: rgba(240,192,64,0.14); }
@@ -8183,7 +8198,7 @@ function pickModalInner(r, board = 'chalk') {
   return `<div class="due-modal">
       <button class="due-modal-close" onclick="closePickModal()" aria-label="Close">&times;</button>
       ${deckCount}
-      <div class="pk-face">
+      <div class="pk-face pk-face-pick">
         <div class="pk-side">
           ${muPhotoTag(r.pid, r.team)}
           <div class="pk-name">${playerNames[r.pid] || r.pid}${injChip(r.pid)}</div>
