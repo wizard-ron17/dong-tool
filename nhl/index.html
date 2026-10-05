@@ -663,6 +663,17 @@
   .fbar-fill.neg { background: linear-gradient(270deg, rgba(229,83,75,0.32), rgba(229,83,75,0.85)); }
   .fbar-val { font-family: var(--font-d); font-weight: 700; font-size: 0.779rem; text-align: right; }
   .fbar-note { font-size: 0.680rem; color: var(--muted); margin-top: 0.5rem; }
+  /* percentile mode: wider value column ("81st 1.36×"), so the 50th baseline sits at calc(50% + (6rem - 5.6rem)/2) */
+  .fbars.pct .fbar { grid-template-columns: 6rem 1fr 5.6rem; }
+  .fbars.pct .fbar-baseline { left: calc(50% + 0.2rem); }
+  .fbars.pct .fbar-baseline::before { content: '50th'; }
+  .fbars.pct .fbar-val small { font-size: 0.68rem; font-weight: 500; color: var(--dim); margin-left: 0.3rem; }
+  .fbar-head { display: flex; align-items: baseline; justify-content: center; gap: 0.5rem; margin: 0.1rem 0 0.5rem; font-size: 0.74rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .fbar-head b { font-family: var(--font-d); font-size: 1.05rem; color: var(--good); text-transform: none; }
+  .fbar-head em { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--dim); font-weight: 500; }
+  .fbar-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: center; margin-top: 0.55rem; }
+  .fbar-chip { font-size: 0.66rem; font-weight: 700; border-radius: 999px; padding: 0.1rem 0.5rem; border: 1px solid var(--border); color: var(--muted); }
+  .fbar-chip.pos { color: var(--good); } .fbar-chip.neg { color: var(--bad); }
   .pk-side { flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; align-items: center; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.65rem 0.4rem 0.55rem; text-align: center; }
   .pk-side:focus-within { z-index: 30; }
   .pk-side > img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: var(--surface2); border: 1px solid var(--border2); margin-bottom: 0.3rem; }
@@ -4032,6 +4043,35 @@
   }
   let pmOpen = null;
 
+  // Percentile bars: each group's contribution ranked against tonight's skaters in the
+  // same role (forwards or defencemen). Rows run heaviest first (how much the group moves
+  // prices across that board). Scoring talent, the base of every price, is the headline;
+  // home ice is a chip. Below PK_PCT_MIN skaters the card keeps the multiplier bars.
+  const PK_PCT_BASE = 'Scoring talent', PK_PCT_FLAGS = new Set(['Home ice']), PK_PCT_MIN = 20;
+  const pkRole = (pos) => pos === 'D' ? 'D' : 'F';
+  let pkPoolCache = null;
+  function pkPool(role) {
+    const P = D.picks;
+    if (!pkPoolCache || pkPoolCache.picks !== P.picks) pkPoolCache = { picks: P.picks, byRole: {} };
+    if (pkPoolCache.byRole[role]) return pkPoolCache.byRole[role];
+    const vals = {};
+    let n = 0;
+    for (const x of P.picks) {
+      if (!x.c || pkRole(x.pos) !== role) continue;
+      n++;
+      for (const [lab, keys] of PK_GROUPS) (vals[lab] ||= []).push(keys.reduce((a, k) => a + (x.c[k] || 0), 0));
+    }
+    const pool = { n, sorted: {}, weight: {} };
+    for (const [k, v] of Object.entries(vals)) {
+      pool.sorted[k] = v.slice().sort((a, b) => a - b);
+      const m = v.reduce((a, b) => a + b, 0) / v.length;
+      pool.weight[k] = Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / v.length);
+    }
+    return (pkPoolCache.byRole[role] = pool);
+  }
+  const pkRank = (pool, k, d) => { const s = pool.sorted[k] || []; let lo = 0, hi = 0; for (const y of s) { if (y < d - 1e-9) lo++; if (y <= d + 1e-9) hi++; } return s.length ? (lo + hi) / 2 / s.length : 0.5; };
+  const pkOrd = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' })[n % 10] || 'th');
+
   function openPick(pid) {
     const P = D.picks; if (!P) return;
     const r = (P.picks || []).find(x => x.pid === pid); if (!r) return;
@@ -4052,6 +4092,24 @@
         <div class="fbar-track"><div class="fbar-fill ${pos ? 'pos' : 'neg'}" style="${pos ? 'left:50%' : 'right:50%'};width:${w}%"></div></div>
         <span class="fbar-val" style="color:${pos ? 'var(--good)' : 'var(--bad)'}">${Math.exp(x.d).toFixed(2)}×</span></div>`;
     }).join('');
+    const pool = pkPool(pkRole(r.pos)), pctMode = pool.n >= PK_PCT_MIN;
+    const roleNames = pkRole(r.pos) === 'D' ? 'defencemen' : 'forwards';
+    const pctBars = () => {
+      const pc100 = (x) => Math.max(1, Math.min(99, Math.round(pkRank(pool, x.lab, x.d) * 100)));
+      const base = parts.find(x => x.lab === PK_PCT_BASE);
+      const head = base ? `<div class="fbar-head" title="${esc(base.tip)} (${esc(base.det)})"><span>${base.lab}</span><b>${Math.exp(base.d).toFixed(2)}×</b><em>${pkOrd(pc100(base))} of ${pool.n} ${roleNames}</em></div>` : '';
+      const chips = parts.filter(x => (PK_PCT_FLAGS.has(x.lab) || x.lab === 'Calibration') && Math.abs(x.d) >= 0.015)
+        .map(x => `<span class="fbar-chip ${x.d >= 0 ? 'pos' : 'neg'}" title="${esc(x.tip)}">${x.lab} ${Math.exp(x.d).toFixed(2)}×</span>`).join('');
+      const rows = parts.filter(x => x.lab !== PK_PCT_BASE && x.lab !== 'Calibration' && !PK_PCT_FLAGS.has(x.lab))
+        .sort((a, b) => (pool.weight[b.lab] ?? 0) - (pool.weight[a.lab] ?? 0));
+      const bars = rows.map(x => {
+        const pc = pkRank(pool, x.lab, x.d), t = (pc - 0.5) * 2;
+        return `<div class="fbar"><span class="fbar-label" title="${esc(x.tip)} (${esc(x.det)})">${x.lab}</span>
+          <div class="fbar-track"><div class="fbar-fill ${t >= 0 ? 'pos' : 'neg'}" style="${t >= 0 ? 'left:50%' : 'right:50%'};width:${Math.abs(t) * 50}%"></div></div>
+          <span class="fbar-val" style="color:${t >= 0 ? 'var(--good)' : 'var(--bad)'}">${pkOrd(pc100(x))}<small>${Math.exp(x.d).toFixed(2)}×</small></span></div>`;
+      }).join('');
+      return { head, chips, bars };
+    };
 
     const pctl = (get, v) => { const arr = P.picks.map(get).filter(x => typeof x === 'number'); return arr.length ? Math.round(arr.filter(x => x <= v).length / arr.length * 100) : 0; };
     const stat = (v, l, pc, tip) => `<div class="pm-stat" title="${tip}"><div class="pm-stat-v">${v}</div><div class="pm-stat-l">${l}</div><div class="pm-stat-bar"><i style="width:${pc}%"></i></div></div>`;
@@ -4090,9 +4148,15 @@
           <div class="pm-link"><button class="vid-btn" style="float:right;margin-left:0.5rem" onclick="closePick();openPlayer(${r.pid})">Player card →</button>we project <b>${r.mu.toFixed(2)}</b> expected goals for him — a <b>${pkPct(r.p)}</b> chance of at least one</div>
           <div class="pm-sec">${pkF.mkt === 'pp' ? 'Underlying goal profile' : 'What moves the price'}<button class="model-help-btn" onclick="openGoalHelp('${pkF.mkt}')" aria-label="How this goal price is built" title="How this price is built">?</button></div>
           <div class="pm-body">
+            ${pctMode ? (() => { const pb = pctBars(); return `
+            ${pb.head}
+            <div class="fbar-legend">← below tonight's ${roleNames} · middle · above →</div>
+            <div class="fbars pct"><div class="fbar-baseline"></div>${pb.bars}</div>
+            ${pb.chips ? `<div class="fbar-chips">${pb.chips}</div>` : ''}
+            <div class="fbar-note">Each bar ranks him against tonight's <b>${pool.n}</b> ${roleNames} on that factor, the factors that move prices most on top; the grey number is what it does to his expected goals. A league-average ${roleName} in a neutral spot is expected <b>${muBase.toFixed(2)}</b> goals — <b>${(pBase * 100).toFixed(0)}%</b> to score; all of it takes him to <b>${r.mu.toFixed(2)}</b> — <b>${pkPct(r.p)}</b>. The <b>?</b> shows the full build.</div>`; })() : `
             <div class="fbar-legend">← tougher · 1.0× neutral · juicier →</div>
             <div class="fbars"><div class="fbar-baseline"></div>${bars}</div>
-            <div class="fbar-note">Each bar multiplies his expected goals. A league-average ${roleName} in a neutral spot is expected <b>${muBase.toFixed(2)}</b> goals — <b>${(pBase * 100).toFixed(0)}%</b> to score; these take him to <b>${r.mu.toFixed(2)}</b> — <b>${pkPct(r.p)}</b>.</div>
+            <div class="fbar-note">Each bar multiplies his expected goals. A league-average ${roleName} in a neutral spot is expected <b>${muBase.toFixed(2)}</b> goals — <b>${(pBase * 100).toFixed(0)}%</b> to score; these take him to <b>${r.mu.toFixed(2)}</b> — <b>${pkPct(r.p)}</b>.</div>`}
             <div class="pm-sec">The numbers</div>
             <div class="pm-stats">${stats}</div>
             <p class="pm-foot">Bars show percentile on tonight's board. Fair odds, no vig — a book prices worse. Priced off ${r.gp} NHL games.</p>
