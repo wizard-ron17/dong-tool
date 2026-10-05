@@ -3083,6 +3083,7 @@ let pitcherStats = {}; // pid -> { hr, hr9, ip, era } for today's probable pitch
 let teamStatus = {};   // club -> 'clinched' | 'eliminated' | 'race', going into today
 let teamOffense = { teams: {}, lg: { kPct: 0.22, bbPct: 0.083 } }; // team K%/BB% for the Pitcher Ks/Walks tools
 let batterDiscipline = {}; // pid -> { k, bb, pa } for the Ks/Walks drill-down (bats most likely to whiff/walk)
+let batterKBB = [];        // priced bats: { pid, k: [P1+, P2+, P3+], bb: [P1+, P2+], kExp, bbExp, slot, ... } (scripts/build-data.js computeBatterKBB)
 let penVuln = {};  // team abbr -> { L, R, S }: that pen's platoon vulnerability to a batter from each side (build's penPlatoon)
 let bullpens = {}; // team abbr -> [{ pid, name, hand, era, saves, holds, gamesPitched, lastOuting, pitchMix }]
 let weatherByVenue = {}; // venue -> { carry, windForL, windForR } — raw forecast, so any batter's wind can be resolved
@@ -3564,6 +3565,7 @@ function applyData(data) {
   teamStatus = data.teamStatus ?? {};
   teamOffense  = data.teamOffense  ?? teamOffense;
   batterDiscipline = data.batterDiscipline ?? {};
+  batterKBB = data.batterKBB ?? [];
   bullpens = data.bullpens ?? {};
   penVuln = data.penVuln ?? {};
   weatherByVenue = data.weatherByVenue ?? {};
@@ -11551,6 +11553,10 @@ function renderPitcherProp(kind) {
 // log5, both lightly regressed. Flat list (no drill; the matchup is the pitcher).
 function ppBatterBoard(isK, lg, K0, log5, lbl, word) {
   const brows = [], seen = new Set();
+  // the build prices every lineup bat for the game (his plate appearances, starter
+  // then pen): research/mlb_batter_kbb.py, calibrated walk-forward on 2026
+  const priced = batterKBB.length ? new Map(batterKBB.map(r => [String(r.pid), r])) : null;
+  const key = isK ? 'k' : 'bb';
   for (const g of (todaySchedule || [])) {
     for (const [me, opp] of [[g.home, g.away], [g.away, g.home]]) {
       // me = batting side, opp = pitching side
@@ -11569,13 +11575,16 @@ function ppBatterBoard(isK, lg, K0, log5, lbl, word) {
         const bCnt = isK ? bd.k : bd.bb;
         const bRate = (bCnt + K0 * lg) / (bd.pa + K0);
         brows.push({ pid, name: playerNames[pid] || pid, team: me.teamAbbr, hand: hnd, spid, spName: playerNames[spid] || spid,
-                     throws: opp.probablePitcherThrows, bRaw: bCnt / bd.pa, pRaw: pCnt / ps.bf, exp: log5(bRate, pRate, lg) });
+                     throws: opp.probablePitcherThrows, bRaw: bCnt / bd.pa, pRaw: pCnt / ps.bf, exp: log5(bRate, pRate, lg),
+                     fair: priced?.get(pid) || null });
       }
     }
   }
   if (!brows.length) { return '<div class="empty">No lineups with data posted yet — check back closer to game time.</div>'; }
-  brows.sort((a, b) => b.exp - a.exp);
-  const meta = `<div class="pt-meta">Today's hitters by <b>Exp ${lbl}%</b> — their season ${lbl}% blended (log5) against the starter they face. Higher = likeliest to ${word} today.</div>`;
+  brows.sort((a, b) => (b.fair?.[key]?.[0] ?? b.exp) - (a.fair?.[key]?.[0] ?? a.exp));
+  const meta = priced
+    ? `<div class="pt-meta">Today's hitters by their fair odds to ${isK ? 'strike out' : 'walk'} at least once — his ${lbl}% against this starter for the plate appearances he'll get off him, then the pen, over the PAs his lineup spot usually gets. Calibrated on every 2026 batter-game it never saw.</div>`
+    : `<div class="pt-meta">Today's hitters by <b>Exp ${lbl}%</b> — their season ${lbl}% blended (log5) against the starter they face. Higher = likeliest to ${word} today.</div>`;
   const mtr = (l, v) => `<span class="pv-mtr"><span class="pv-mtr-lbl">${l}</span><span class="pv-mtr-val">${v}</span></span>`;
   const cards = brows.map((r, i) => {
     const cls = pvClass(r.exp / lg);
@@ -11589,11 +11598,14 @@ function ppBatterBoard(isK, lg, K0, log5, lbl, word) {
           <div class="pv-sub">${teamLogoImg(r.team, 'team-logo')}${r.team} vs ${compactPlayerName(r.spName)}${r.throws ? ` (${r.throws}HP)` : ''}</div>
         </div>
         <div class="pv-score">
-          <span class="pv-juice hrg-val ${cls}">${(r.exp * 100).toFixed(1)}%</span>
-          <span class="pv-juice-lbl">Exp ${lbl}%</span>
+          ${r.fair ? `<span class="pv-juice hrg-val ${cls}" title="Fair odds (no vig) he ${isK ? 'strikes out' : 'walks'} at least once">${Odds.inline(r.fair[key][0])}</span>
+          <span class="pv-juice-lbl">1+ ${isK ? 'K' : 'BB'} fair</span>`
+          : `<span class="pv-juice hrg-val ${cls}">${(r.exp * 100).toFixed(1)}%</span>
+          <span class="pv-juice-lbl">Exp ${lbl}%</span>`}
         </div>
       </div>
       <div class="pv-metrics">
+        ${r.fair ? mtr(`2+ ${isK ? 'K' : 'BB'}`, Odds.inline(r.fair[key][1])) + mtr(`Exp ${isK ? 'Ks' : 'walks'}`, r.fair[key + 'Exp'].toFixed(2)) + (r.fair.slot ? mtr('Slot', r.fair.slot) : '') : ''}
         ${mtr(`Batter ${lbl}%`, `${(r.bRaw * 100).toFixed(1)}%`)}
         ${mtr(`Pitcher ${lbl}%`, `${(r.pRaw * 100).toFixed(1)}%`)}
         ${mtr('Lg', `${(lg * 100).toFixed(1)}%`)}

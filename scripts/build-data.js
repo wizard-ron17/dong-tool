@@ -915,6 +915,26 @@ function oddsPitcherZ(pid, stuff, seasonStats) {
   return pitcherZ({ pid, barrels: bf ? barrels : 0, bf, velo: stuff?.hrVeloN >= 15 ? stuff.hrVelo : null });
 }
 
+// A team's likely everyday starters when its official lineup hasn't posted:
+// season-long regulars (15+ games, 1.5+ AB/game, some power, seen in the last
+// week, not on the IL), fielded as a positionally valid nine. No batting order.
+function projectLineupFor(teamAbbr, batMetaMap = {}, injuryStatus = {}) {
+  const eligible = Object.keys(playerTeams)
+    .filter(pid =>
+      playerTeams[pid] === teamAbbr &&
+      (playerGames[pid] ?? 0) >= 15 &&
+      (playerABs[pid] ?? 0) / Math.max(playerGames[pid] ?? 1, 1) >= 1.5 &&
+      (hrTotals[pid] ?? 0) >= PICKS_MIN_HR &&
+      !injuryStatus[pid] &&
+      daysSince(playerLastGame[pid] || '2000-01-01') <= 7
+    )
+    .sort((a, b) => (playerGames[b] ?? 0) - (playerGames[a] ?? 0));
+  // Field a positionally-valid lineup (one per spot + DH), not just the 9
+  // most-played — sorting by games alone could start two 3B and skip 1B.
+  return pickPositionalLineup(eligible, pid => batMetaMap[pid]?.p || '')
+    .map(pid => ({ pid, name: playerNames[pid] || pid, position: '', order: 0 }));
+}
+
 async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {}, openerBulk = {}, weatherByVenue = {}, batMetaMap = {}, injuryStatus = {}, batterDiscipline = {}) {
   // each park's game part of the odds today (weather, day/night): same for every bat in it
   const gameZByVenue = {};
@@ -926,22 +946,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
     // under universal DH), have some power this season, and showed up in a
     // game within the last 7 days (catches injuries/demotions without needing
     // the IL feed, which runs AFTER this function in main()).
-    function projectedLineup(teamAbbr) {
-      const eligible = Object.keys(playerTeams)
-        .filter(pid =>
-          playerTeams[pid] === teamAbbr &&
-          (playerGames[pid] ?? 0) >= 15 &&
-          (playerABs[pid] ?? 0) / Math.max(playerGames[pid] ?? 1, 1) >= 1.5 &&
-          (hrTotals[pid] ?? 0) >= PICKS_MIN_HR &&
-          !injuryStatus[pid] &&
-          daysSince(playerLastGame[pid] || '2000-01-01') <= 7
-        )
-        .sort((a, b) => (playerGames[b] ?? 0) - (playerGames[a] ?? 0));
-      // Field a positionally-valid lineup (one per spot + DH), not just the 9
-      // most-played — sorting by games alone could start two 3B and skip 1B.
-      return pickPositionalLineup(eligible, pid => batMetaMap[pid]?.p || '')
-        .map(pid => ({ pid, name: playerNames[pid] || pid, position: '', order: 0 }));
-    }
+    const projectedLineup = (teamAbbr) => projectLineupFor(teamAbbr, batMetaMap, injuryStatus);
 
     const candidates = [];
     for (const g of todaySchedule) {
@@ -2621,6 +2626,105 @@ async function fetchBatterDiscipline() {
   } catch (e) { return {}; }
 }
 
+// ── Batter strikeouts and walks (research/mlb_batter_kbb.py) ─────────────
+// Per-PA rates: batter (this season + half of last, shrunk K0B PA toward league)
+// log5 the starter (same, K0P batters faced); league for the pen PAs (the pen's own
+// rate added 0.0003 log loss: not worth a fetch). PAs: the slot's count
+// distribution; the k-th PA of slot j is the (9(k-1)+j)-th batter his opponents
+// face, so it's against the starter while that's within his usual batters faced
+// (shrunk to 22; flat 22 tested as well). P(count >= m) mixes over the PA count.
+// Walk-forward on 2026 (tuned on 2025): 1+ K logloss .6420 vs .6457 batter-only,
+// .6684 league; calibrated within ~1pt per decile; 1+ BB .5962 vs .5983.
+const BKBB = {
+  k:  { K0B: 60,  K0P: 200 },
+  bb: { K0B: 100, K0P: 200 },
+  PREV_W: 0.5,
+  // P(PA = 1..7 | slot), 2025 starters (research/mlb_batter_kbb.json)
+  PA: {
+    1: [0.0012, 0.0051, 0.0426, 0.4352, 0.4648, 0.0489, 0.0020],     2: [0.0031, 0.0061, 0.0458, 0.5177, 0.3894, 0.0361, 0.0018],
+    3: [0.0029, 0.0086, 0.0546, 0.5799, 0.3286, 0.0248, 0.0006],     4: [0.0008, 0.0114, 0.0706, 0.6260, 0.2696, 0.0210, 0.0006],
+    5: [0.0021, 0.0198, 0.1094, 0.6490, 0.2057, 0.0138, 0.0002],     6: [0.0035, 0.0361, 0.1595, 0.6337, 0.1590, 0.0079, 0.0002],
+    7: [0.0025, 0.0514, 0.2310, 0.5870, 0.1213, 0.0068, 0.0000],     8: [0.0022, 0.0670, 0.3138, 0.5208, 0.0902, 0.0058, 0.0002],
+    9: [0.0045, 0.1070, 0.3773, 0.4449, 0.0620, 0.0041, 0.0002],
+  },
+};
+async function fetchSeasonCounts(season, group) {
+  try {
+    const res = await fetch(`${MLB}/stats?stats=season&group=${group}&season=${season}&sportId=1&gameType=R&limit=3000&playerPool=All`).then(r => r.json());
+    const out = {};
+    for (const s of res.stats?.[0]?.splits ?? []) {
+      const pid = s.player?.id, st = s.stat; if (!pid || !st) continue;
+      out[String(pid)] = group === 'hitting'
+        ? { k: st.strikeOuts ?? 0, bb: st.baseOnBalls ?? 0, pa: st.plateAppearances ?? 0 }
+        : { k: st.strikeOuts ?? 0, bb: st.baseOnBalls ?? 0, bf: st.battersFaced ?? 0, gs: st.gamesStarted ?? 0 };
+    }
+    return out;
+  } catch (e) { return {}; }
+}
+/** P(X >= m) for m = 1..M: nSp PAs at pSp plus nPen at pPen, both binomial. */
+function bkbbAtLeast(nSp, pSp, nPen, pPen, M) {
+  const pmf = (n, p) => { const out = [Math.pow(1 - p, n)]; for (let k = 1; k <= n; k++) out.push(out[k - 1] * (n - k + 1) / k * p / (1 - p)); return out; };
+  const a = pmf(nSp, pSp), b = pmf(nPen, pPen), tot = new Array(a.length + b.length).fill(0);
+  a.forEach((x, i) => b.forEach((y, j) => { tot[i + j] += x * y; }));
+  const res = []; let below = 0;
+  for (let m = 1; m <= M; m++) { below += tot[m - 1] ?? 0; res.push(Math.max(0, 1 - below)); }
+  return res;
+}
+async function computeBatterKBB(todaySchedule, pitcherStats, batterDiscipline, batMetaMap, injuryStatus) {
+  try {
+    const prevYear = String(+SEASON_YEAR - 1);
+    const [prevBat, prevPit] = await Promise.all([fetchSeasonCounts(prevYear, 'hitting'), fetchSeasonCounts(prevYear, 'pitching')]);
+    const W = BKBB.PREV_W, sum = (o, k) => Object.values(o).reduce((t, x) => t + (x[k] ?? 0), 0);
+    const lgN = sum(batterDiscipline, 'pa') + W * sum(prevBat, 'pa');
+    if (!(lgN > 0)) return [];
+    const lg = { k: (sum(batterDiscipline, 'k') + W * sum(prevBat, 'k')) / lgN, bb: (sum(batterDiscipline, 'bb') + W * sum(prevBat, 'bb')) / lgN };
+    const log5 = (b, p, l) => { const num = b * p / l; return num / (num + (1 - b) * (1 - p) / (1 - l)); };
+    const shr = (cur, prv, cnt, n, K0, l) => ((cur?.[cnt] ?? 0) + W * (prv?.[cnt] ?? 0) + K0 * l) / ((cur?.[n] ?? 0) + W * (prv?.[n] ?? 0) + K0);
+    const rows = [];
+    for (const g of todaySchedule) {
+      for (const [me, opp] of [[g.home, g.away], [g.away, g.home]]) {
+        const spid = opp.probablePitcherId ? String(opp.probablePitcherId) : null;
+        if (!spid) continue;
+        const ps = pitcherStats[spid] || {}, pp = prevPit[spid];
+        const cur = { k: ps.k ?? 0, bb: ps.bb ?? 0, bf: ps.bf ?? 0 };
+        // his usual batters faced per start, shrunk to 22; an announced opener covers only his stint
+        // (a flat 22 tested as good: this is a small refinement, not a driver)
+        const gs = ps.gamesStarted ?? 0;
+        const bf = opp.openerIP ? opp.openerIP * 4.242 : ((ps.avgStartBF ?? 22) * gs + 5 * 22) / (gs + 5);
+        const posted = me.lineup?.length > 0;
+        const bats = posted ? me.lineup.filter(p => p.position !== 'P').map(p => ({ pid: String(p.pid), order: p.order }))
+                            : projectLineupFor(me.teamAbbr, batMetaMap, injuryStatus).map(p => ({ pid: String(p.pid), order: 0 }));
+        for (const { pid, order } of bats) {
+          if (injuryStatus[pid]) continue;
+          const bd = batterDiscipline[pid], bp = prevBat[pid];
+          if ((bd?.pa ?? 0) + W * (bp?.pa ?? 0) < 30) continue;            // research floor: 30 PA of history
+          const slot = order >= 1 && order <= 9 ? order : 5;
+          const out = {};
+          for (const which of ['k', 'bb']) {
+            const { K0B, K0P } = BKBB[which];
+            const b = shr(bd, bp, which, 'pa', K0B, lg[which]), s = shr(cur, pp, which, 'bf', K0P, lg[which]);
+            const pSp = log5(b, s, lg[which]), pPen = b;               // pen PAs: the batter vs a league-average pen
+            const M = which === 'k' ? 3 : 2, at = new Array(M).fill(0);
+            let exp = 0;
+            BKBB.PA[slot].forEach((w, i) => {
+              const n = i + 1;
+              let nSp = 0; for (let k = 1; k <= n; k++) if (9 * (k - 1) + slot <= bf) nSp++;
+              bkbbAtLeast(nSp, pSp, n - nSp, pPen, M).forEach((v, m) => { at[m] += w * v; });
+              exp += w * (nSp * pSp + (n - nSp) * pPen);
+            });
+            out[which] = at.map(v => Math.round(v * 10000) / 10000);
+            out[which + 'Exp'] = Math.round(exp * 1000) / 1000;
+            out[which + 'Rate'] = { bat: Math.round(b * 1000) / 1000, sp: Math.round(s * 1000) / 1000, pa: Math.round(pSp * 1000) / 1000 };
+          }
+          rows.push({ pid, name: playerNames[pid] || pid, team: me.teamAbbr, opp: opp.teamAbbr, spid, spName: playerNames[spid] || opp.probablePitcher || spid,
+                      slot: order >= 1 && order <= 9 ? order : null, projected: !posted, start: g.gameDate, ...out });
+        }
+      }
+    }
+    return rows;
+  } catch (e) { console.warn('batter K/BB failed:', e.message); return []; }
+}
+
 // ── Opener / bulk-arm detection ─────────────────────────────────────────
 // Some teams run "the opener": a reliever starts the 1st, then a rotation
 // arm throws the bulk innings (WSH 7/4: Palmquist 1 IP, then Littell 6 IP).
@@ -3516,6 +3620,8 @@ async function main() {
 
   console.log('Scoring per-game Homer Scores...');
   computeHomerScores(todaySchedule, pitcherStats, bullpens);
+  const batterKBB = await computeBatterKBB(todaySchedule, pitcherStats, batterDiscipline, batMeta, injuryStatus);
+  console.log(`batter K/BB: ${batterKBB.length} bats priced`);
   freezeStartedHomer(todaySchedule, prevSchedule, sameSlate); // keep started games' Homer Score pre-game
 
   console.log('Checking for rookie debuts and recent call-ups...');
@@ -3873,7 +3979,7 @@ async function main() {
     totalHRCount,
     dailyHRs, hrTypes, hrDetails, dailyGames, hrTotals, playerNames, playerTeams, playerABs, playerGames, playerLastHR, playerLastGame,
     teamGameDays, venueGameDays, venueHRsByDate, groupSummary, dueRows, prospects, injuryStatus, dtdStatus,
-    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, teamStatus, teamOffense, batterDiscipline, bullpens, penVuln, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, schedHistory,
+    todayDate: todayET(), todaySchedule, teamIds, pitcherStats, teamStatus, teamOffense, batterDiscipline, batterKBB, bullpens, penVuln, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, schedHistory,
     // postseason mode: on from the first playoff slate, and through the off days between rounds
     postseason: postDates.size > 0 || todaySchedule.some(g => g.gameType && g.gameType !== 'R') || null, postDates: [...postDates].sort(), birthdays, birthdayHistory,
     // { venue -> { carry, windForL, windForR } }. The picks rows already bake
