@@ -750,6 +750,12 @@
   .pk-pitch-note { font-size: 0.692rem; color: var(--muted); margin-bottom: 0.8rem; }
   .pk-pitch-note b { color: var(--accent); }
   .pk-pitch-note.pk-thin { margin-top: -0.5rem; color: var(--gold); }
+  /* collapsed like the bullpen list (.pk-pen-head / .pk-pen-chev) */
+  .pk-pitch-dd > summary { cursor: pointer; list-style: none; user-select: none; }
+  .pk-pitch-dd > summary:hover { color: var(--text); }
+  .pk-pitch-dd > summary::-webkit-details-marker { display: none; }
+  .pk-pitch-dd > summary::after { content: '▶'; display: inline-block; color: var(--dim); font-size: 0.785rem; font-weight: 900; line-height: 1; margin-left: 0.2rem; transition: transform 0.18s ease; }
+  .pk-pitch-dd[open] > summary::after { transform: rotate(90deg); }
   .pk-pitch-note.pk-thin b { color: var(--gold); }
 
   /* Pick modal fight card: batter and pitcher squared up, score in the middle.
@@ -8091,6 +8097,8 @@ function factorBarsHtml(items) {
   }).join('');
   return `<div class="fbar-legend">← tougher · <b>1.0× neutral</b> · juicier →</div><div class="fbars"><div class="fbar-baseline"></div>${bars}</div>`;
 }
+// Pitch Matchup is context, collapsed under the factors; it stays open across the deck once opened.
+let pkPitchOpen = false;
 function pickModalInner(r, board = 'chalk') {
   // The headline reflects the board you opened from: Chalk shows Pick Score,
   // Value shows the Value score (blast surplus × matchup) it was ranked by.
@@ -8135,11 +8143,12 @@ function pickModalInner(r, board = 'chalk') {
   // regressed" fired for everyone; only genuinely thin samples should surface.
   const thinProfile = r.hrs != null && r.hrs < 8;    // pitch-overlap viz built from few HRs
   const thinPower   = r.abs != null && r.abs < 130;  // HR rate from too few ABs (still regresses the score)
-  const thinBits = [];
-  if (thinPower)   thinBits.push(`only ${r.abs} AB on the season, so his HR rate is regressed toward league average — a short hot streak won’t top the board on its own`);
-  if (thinProfile) thinBits.push(`the pitch overlap above is built from just ${r.hrs} HR, so read it as a rough sketch (it’s shown for context and no longer moves the score)`);
-  const thinNote = thinBits.length
-    ? `<div class="pk-pitch-note pk-thin"><b>Thin sample:</b> ${thinBits.join('; and ')}.</div>`
+  // The power note sits under the factors; the overlap note stays with the chart it describes.
+  const thinPowerNote = thinPower
+    ? `<div class="pk-pitch-note pk-thin" style="margin-top:0.5rem"><b>Thin sample:</b> only ${r.abs} AB on the season, so his HR rate is regressed toward league average — a short hot streak won’t top the board on its own.</div>`
+    : '';
+  const thinNote = thinProfile
+    ? `<div class="pk-pitch-note pk-thin"><b>Thin sample:</b> the pitch overlap above is built from just ${r.hrs} HR, so read it as a rough sketch (it’s shown for context and no longer moves the score).</div>`
     : '';
 
   const factorRatio = (val, label, digits=2) => val == null ? '' : `
@@ -8199,12 +8208,6 @@ function pickModalInner(r, board = 'chalk') {
         </div>
       </div>
       ${bulkStripHtml}
-      <div class="pick-section-title pm-title">Pitch Matchup</div>
-      ${pitchMatchupHtml(r.hrProfile, r.pitcherMix, r.pitcherMixHand)}
-      ${thinNote}
-
-      ${bullpenModalHtml(r)}
-
       <div class="pick-section-title pm-title" title="The old Pick Score's multipliers, kept to look at. They don't move the fair price: at these weights they made it worse.">Matchup Factors · context, not in the price${mfHelpBtn()}</div>
       ${factorBarsHtml(mfSetCtx({
         basePower: r.basePower, score: r.pickScore, mf: r.matchupFactor, venue: r.venue,
@@ -8223,6 +8226,15 @@ function pickModalInner(r, board = 'chalk') {
         ],
       }))}
       <div class="fbar-note">Venue: <span class="hrg-val ${venueCls}">${venueHRG.toFixed(2)} HR/G</span> at ${r.venue}</div>
+      ${thinPowerNote}
+
+      <details class="pk-pitch-dd"${pkPitchOpen ? ' open' : ''} ontoggle="pkPitchOpen=this.open">
+        <summary class="pick-section-title">Pitch Matchup</summary>
+        ${pitchMatchupHtml(r.hrProfile, r.pitcherMix, r.pitcherMixHand)}
+        ${thinNote}
+      </details>
+
+      ${bullpenModalHtml(r)}
     </div>`;
 }
 // Deck arrows live OUTSIDE the modal card (flanking it), so re-rendering the
