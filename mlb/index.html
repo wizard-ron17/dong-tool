@@ -2666,7 +2666,7 @@
         <p style="margin:0 0 0.5rem">Until October 2026 the board ranked a <b>Pick Score</b>: power times a list of matchup multipliers (batter platoon, starter and bullpen vuln, arm stuff, recent contact, park, weather), each at full weight. We tested every one of them against 72,594 starter-games, and against Kalshi's prices. At those weights they made the odds <b>worse</b>. Platoon and pitcher vuln are real but about a seventh as strong, and recent contact, hot streaks, "due" droughts and blast surplus predicted nothing. Chalk ranked by score lost 14.7% at Kalshi's asking prices. What did earn a weight is in the price above. The matchup factors still show in each pick's card as context; they don't move the price.</p>
         <div style="font-size:0.692rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);margin:0.7rem 0 0.35rem">Chalk vs Value</div>
         <ul>
-          <li><b>🔒 Chalk = every starting bat, shortest price first.</b> Narrow it with <b>Max price</b> in Filters. The top 15 are "on the board": they carry the badge on other tools and make up the daily record. The most likely to go deep, and the market knows it: shop the price.</li>
+          <li><b>🔒 Chalk = every starting bat, shortest price first.</b> Narrow it with <b>Max price</b> in Filters. The top 10% of the slate's bats (at most 15) are "on the board" and carry the badge on other tools; the top 15 make up the daily record. The most likely to go deep, and the market knows it: shop the price.</li>
           <li><b>🎯 Value = Bueno's screen, experimental.</b> Longshots (+900 or longer) whose batter platoon, pitching vuln (starter and pen) and recent contact all sit in the <b>top 40% of today's slate</b>. Each of those alone predicts nothing beyond the market, but together they're the one idea that held up against Kalshi: +6.5% at the ask (945 picks) where every bat lost 4.1%. That's not proven yet, so it's tracked here until it is, or isn't.</li>
         </ul>
         <div style="font-size:0.692rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);margin:0.7rem 0 0.35rem">Good to know</div>
@@ -3132,8 +3132,11 @@ let picksHistory = [];
 // self-calibrating league-regular floor, computed in the build → provenPower).
 // No more Min-HR / Min-Score knobs — just Proven vs Full board + Hide unavailable.
 const PICKS_FILTER_DEFAULTS = { board: 'full', hideUnavailable: true, maxP: 0 };   // 'proven' power floor retired 2026-10-02; maxP = the shortest chance shown (0 = every bat)
-// Chalk prices every bat; the top CHALK_TOP is "on the board" for badges and the daily record
-const CHALK_TOP = 15;
+// Chalk prices every bat; the top chalkTop() is "on the board" for badges, tags and the
+// Digest: the top 10% of the slate's starting bats, at most 15. A full slate (~270 bats)
+// keeps 15; a two-game playoff day (36) badges its best 4, not everyone.
+const CHALK_TOP_MAX = 15, CHALK_TOP_SHARE = 0.10;
+const chalkTop = () => Math.min(CHALK_TOP_MAX, Math.max(3, Math.round(CHALK_TOP_SHARE * 18 * ((todaySchedule || []).length || 15))));
 const CHALK_CUTS = [[0, 'All'], [0.2, '+400'], [0.143, '+600'], [0.1, '+900']];   // [min chance, "this price or shorter"]
 // Bump this to force-reset everyone's saved Pick filters to the current defaults
 // once (older saved prefs are discarded on next load, then the version restamped).
@@ -3473,7 +3476,7 @@ function crossTabBadge(pid, exclude = {}, compact = false) {
   if (!exclude.birthday) { const bd = birthdayBadge(pid); if (bd) parts.push(bd); } // rides along next to the name on every board
   if (!exclude.chalk) {
     const idx = applyPicksFilters(picks, PICKS_FILTER_DEFAULTS).findIndex(r => r.pid === pid);
-    if (idx >= 0 && idx < CHALK_TOP) parts.push(`<span class="cross-tab-badge chalk-rank${c}" title="#${idx+1} on the Chalk board: the ${CHALK_TOP} shortest fair prices today">${compact ? '🔒' + (idx+1) : '#' + (idx+1) + ' Chalk'}</span>`);
+    if (idx >= 0 && idx < chalkTop()) parts.push(`<span class="cross-tab-badge chalk-rank${c}" title="#${idx+1} on the Chalk board: the ${chalkTop()} shortest fair prices today">${compact ? '🔒' + (idx+1) : '#' + (idx+1) + ' Chalk'}</span>`);
   }
   if (!exclude.value) {
     const vr = valueRank(pid);
@@ -5998,14 +6001,9 @@ function ddPitcherColor(pid, nLeans) {
 // Our leans for one team, tiered Chalk > Value > Due, in the same rank order
 // the cross-tab badges use (so the digest and the badges never disagree).
 // Only available bats today (off/bench/IL already excluded by each board).
-// The Chalk board keeps 36 bats: on a full slate that's its top ~2.4 a game, but on a
-// two-game playoff day it's every starter. A Chalk lean is a bat inside that full-slate
-// density (DD_CHALK_PER_GAME x games), so a short slate names its best few, not everyone.
-const DD_CHALK_PER_GAME = 2.4;
-const ddChalkCap = () => Math.max(4, Math.round(DD_CHALK_PER_GAME * (todaySchedule?.length || 15)));
 function ddTeamLeans(teamAbbr) {
   const seen = new Set(), out = [];
-  applyPicksFilters(picks, PICKS_FILTER_DEFAULTS).slice(0, ddChalkCap()).forEach((r, i) => {
+  applyPicksFilters(picks, PICKS_FILTER_DEFAULTS).slice(0, chalkTop()).forEach((r, i) => {
     if (r.team === teamAbbr && !seen.has(r.pid)) { seen.add(r.pid); out.push({ pid: r.pid, tier: 0, ord: i }); }
   });
   value.filter(r => !isUnavailableToday(r.pid)).sort((a, b) => (b.pHR ?? 0) - (a.pHR ?? 0))
@@ -7191,7 +7189,7 @@ function sgPicks(g, date, S, away, home) {
   const rows = { [away]: new Map(), [home]: new Map() };
   const put = (team, pid, r) => { if (rows[team] && !rows[team].has(pid)) rows[team].set(pid, r); return rows[team]?.get(pid); };
   if (date === todayDate) {
-    for (const [r, board] of [...(picks || []).slice(0, CHALK_TOP).map(r => [r, 'chalk']), ...(value || []).map(r => [r, 'value'])]) {
+    for (const [r, board] of [...(picks || []).slice(0, chalkTop()).map(r => [r, 'chalk']), ...(value || []).map(r => [r, 'value'])]) {
       if (!rows[r.team] || otherGameExclude(r.pid, r.team === g.home.teamAbbr ? g.away : g.home).chalk) continue;
       const e = put(r.team, String(r.pid), { name: compactPlayerName(playerNames[r.pid] || r.pid), sub: r.lineupOrder ? `#${r.lineupOrder}` : '', open: `openPickModal('${r.pid}','${board}')`, cells: {} });
       if (r.pHR > 0 && !e.cells.hr) e.cells.hr = { p: r.pHR, got: got(r.pid), leg: hrLegObj(r.pid, r.pHR, r.team, r.oppTeam), open: e.open };
@@ -8683,7 +8681,7 @@ function mpDongs(pid, isP = mpIsPitcher(pid)) {
 function mpToday(pid) {
   const rows = [];
   const chalkIdx = (picks || []).findIndex(r => r.pid === pid);
-  const chalk = chalkIdx >= 0 && chalkIdx < CHALK_TOP ? picks[chalkIdx] : null;   // the top of the board; every bat has a price
+  const chalk = chalkIdx >= 0 && chalkIdx < chalkTop() ? picks[chalkIdx] : null;   // the top of the board; every bat has a price
   const valIdx = (value || []).findIndex(r => r.pid === pid);
   const val = valIdx >= 0 ? value[valIdx] : null;
   const due = (dueRows || []).find(r => r.pid === pid);
@@ -9155,6 +9153,7 @@ function muTblOpen(bpid, ppid, venue) { muView = 'matchup'; try { localStorage.s
 const muBueno = (f) => { const v = [f.effPlat, f.form, f.batP].filter(x => x != null); return v.length ? v.reduce((a, b) => a * b, 1) : null; };
 function muTableRows() {
   const C = matchupCards, out = [];
+  const chalkSet = new Set(applyPicksFilters(picks, PICKS_FILTER_DEFAULTS).slice(0, chalkTop()).map(r => String(r.pid)));
   for (const g of (todaySchedule || [])) {
     if (muTbl.game !== 'all' && String(g.gamePk) !== muTbl.game) continue;
     for (const [me, opp] of [[g.away, g.home], [g.home, g.away]]) {
@@ -9168,7 +9167,7 @@ function muTableRows() {
         const env = row ? { ...muBoardEnv(row), exactMF: row.matchupFactor ?? undefined }
           : { sW: muStarterShare(p.pid) ?? 1, pen: muPenFor(opp.teamAbbr, b.hand), pa: muPaFactor(ord), wx: muWeatherRatio(g.venue, b.hand, p.hand) ?? 1 };
         const s = scoreMatchup(b, p, g.venue, env), f = s.factors;
-        out.push({ g, b, p, ord, posted, s, f, spProj: !!opp.probableProjected, board: row ? ((picks || []).includes(row) ? 'chalk' : 'value') : null,
+        out.push({ g, b, p, ord, posted, s, f, spProj: !!opp.probableProjected, board: chalkSet.has(bpid) ? 'chalk' : valueRank(bpid) ? 'value' : null,
           pHR: row?.pHR ?? muHrProb(b, p, ord, g.venue),
           arm: f.effPlat != null && f.effStuff != null ? f.effPlat * f.effStuff : (f.effPlat ?? f.effStuff ?? null),
           bueno: muBueno(f) });
