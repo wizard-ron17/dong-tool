@@ -1,6 +1,6 @@
 #!/bin/bash
-# Regenerate the Tud Tool icon set from icons/nfl-logo.svg — the white football
-# with green laces, drawn in the same line as the ball, puck and hoop marks.
+# Regenerate the Tud Tool icon set from icons/nfl-logo.svg — Ron's football (white,
+# grey rim, green laces and seam), drawn by scripts/nfl-logo-gen.py.
 # The topbar inlines the same drawing (nfl/index.html .brand-football).
 # App icons are transparent, like the other three sports'; only the
 # platforms that need a tile get one (apple-touch: iOS paints transparency
@@ -10,9 +10,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 SRC=icons/nfl-logo.svg
-BODY=$(sed -n '/<g /,/<\/g>/p' "$SRC")
+BODY=$(sed -n '/<g /,/^  <\/g>/p' "$SRC")   # to the outer group's close: the laces nest a <g>
 # favicons: the ball's own outline in a dark rim, so the white reads on a light tab
-RIM=$(printf '%s' "$BODY" | sed 's#fill="\#ffffff"/>#fill="\#ffffff" stroke="\#05080f" stroke-width="3.5" stroke-linejoin="round"/>#')
+RIM=$(printf '%s' "$BODY" | sed 's#stroke="\#b6bcc2" stroke-width="1.9"#stroke="\#05080f" stroke-width="3.5"#')
 { echo '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'; printf '%s\n' "$RIM"; echo '</svg>'; } > icons/nfl-favicon.svg
 MK=$(mktemp -t nflmk).svg
 { echo '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512"><rect width="64" height="64" fill="#05080f"/>'
