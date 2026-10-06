@@ -1941,6 +1941,7 @@
   .hm-photo { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: var(--surface2); flex-shrink: 0; }
   .hm-name { font-family: var(--font-d); font-weight: 700; font-size: 1.04rem; letter-spacing: 0.005em; line-height: 1.25; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
   .hm-name:has(.hm-subtle) { display: flex; flex-direction: column; white-space: normal; }
+  .hm-nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* name + badge on one line inside the column */
   .hm-subtle { font-size: 0.779rem; color: var(--muted); font-weight: 500; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .hm-combo-tag { flex-shrink: 0; text-align: center; font-family: var(--font-b); font-size: 0.729rem; font-weight: 700; color: var(--text); background: var(--surface2); border: 1px solid var(--border2); border-radius: 5px; padding: 0.1rem 0.38rem; letter-spacing: 0.02em; }
   .hm-tag-sub { color: var(--muted); font-weight: 600; }
@@ -3937,7 +3938,7 @@ function renderHome() {
     <div class="hm-row">
       <span class="hm-rank">${i+1}</span>
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
-      <span class="hm-name">${playerNames[r.pid] || r.pid}${birthdayBadge(r.pid)}<span class="hm-subtle"> vs ${compactPlayerName(r.oppName || '')} (${r.oppHand || '?'}HP)${r.oppProjected ? ' · SP proj' : ''}${r.projected ? ' · proj' : ''}</span></span>
+      <span class="hm-name"><span class="hm-nm">${playerNames[r.pid] || r.pid}${birthdayBadge(r.pid)}</span><span class="hm-subtle"> vs ${compactPlayerName(r.oppName || '')} (${r.oppHand || '?'}HP)${r.oppProjected ? ' · SP proj' : ''}${r.projected ? ' · proj' : ''}</span></span>
       ${r.pHR > 0 ? `<span class="hm-fair" title="${HR_FAIR_TIP}">${hrFairFull(r.pHR)}</span>` : ''}
     </div>`).join('');
 
@@ -3949,7 +3950,7 @@ function renderHome() {
     return `<div class="hm-row">
       <span class="hm-rank">${i+1}</span>
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
-      <span class="hm-name">${r.name}${birthdayBadge(r.pid)}<span class="hm-subtle">${days ? `${days}d on list · ` : ''}${r.droughtABs} AB</span></span>
+      <span class="hm-name"><span class="hm-nm">${r.name}${birthdayBadge(r.pid)}</span><span class="hm-subtle">${days ? `${days}d on list · ` : ''}${r.droughtABs} AB</span></span>
       <span class="hm-score ${dueScoreClass(r.dueScore)}">${r.dueScore.toFixed(1)}</span>
     </div>`;
   }).join('');
@@ -3979,7 +3980,7 @@ function renderHome() {
     const sub = [r.team, line?.hrs != null ? `${line.hrs} HR` : null, line?.ops ? `${line.ops} OPS` : null].filter(Boolean).join(' · ');
     return `<div class="hm-row">
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
-      <span class="hm-name">${compactPlayerName(r.name)}${birthdayBadge(r.pid)}<span class="hm-subtle">${sub}</span></span>
+      <span class="hm-name"><span class="hm-nm">${compactPlayerName(r.name)}${birthdayBadge(r.pid)}</span><span class="hm-subtle">${sub}</span></span>
       <span class="hm-score" style="color:var(--gold)">${r.milbAbPerHR ? r.milbAbPerHR.toFixed(1) : '—'}<span class="hm-subtle" style="font-size:0.766rem"> ${lvl} AB/HR</span></span>
     </div>`;
   }).join('');
@@ -3989,7 +3990,7 @@ function renderHome() {
     <div class="hm-row">
       <span class="hm-rank">${i+1}</span>
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
-      <span class="hm-name">${playerNames[r.pid] || r.pid}${birthdayBadge(r.pid)}<span class="hm-subtle"> vs ${compactPlayerName(r.oppName || '')} (${r.oppHand || '?'}HP)${r.oppProjected ? ' · SP proj' : ''}${r.projected ? ' · proj' : ''}</span></span>
+      <span class="hm-name"><span class="hm-nm">${playerNames[r.pid] || r.pid}${birthdayBadge(r.pid)}</span><span class="hm-subtle"> vs ${compactPlayerName(r.oppName || '')} (${r.oppHand || '?'}HP)${r.oppProjected ? ' · SP proj' : ''}${r.projected ? ' · proj' : ''}</span></span>
       ${r.pHR > 0 ? `<span class="hm-fair" title="${HR_FAIR_TIP}">${hrFairFull(r.pHR)}</span>` : ''}
     </div>`).join('');
 
@@ -4004,7 +4005,7 @@ function renderHome() {
     const sub = r.back ? '🔥 just back' : (shortDate(r.returnDate) ? `back ~${shortDate(r.returnDate)}` : (r.status || 'out'));
     return `<div class="hm-row">
       <img class="hm-photo" src="${playerPhotoUrl(r.pid)}" alt="" loading="lazy">
-      <span class="hm-name">${compactPlayerName(playerNames[r.pid] || r.pid)}${birthdayBadge(r.pid)}<span class="hm-subtle">${playerTeams[r.pid] || ''} · ${sub}</span></span>
+      <span class="hm-name"><span class="hm-nm">${compactPlayerName(playerNames[r.pid] || r.pid)}${birthdayBadge(r.pid)}</span><span class="hm-subtle">${playerTeams[r.pid] || ''} · ${sub}</span></span>
       <span class="hm-score" style="color:var(--accent)">${hrTotals[r.pid] || 0}<span class="hm-subtle" style="font-size:0.766rem"> HR</span></span>
     </div>`;
   }).join('');
@@ -5992,9 +5993,14 @@ function ddPitcherColor(pid, nLeans) {
 // Our leans for one team, tiered Chalk > Value > Due, in the same rank order
 // the cross-tab badges use (so the digest and the badges never disagree).
 // Only available bats today (off/bench/IL already excluded by each board).
+// The Chalk board keeps 36 bats: on a full slate that's its top ~2.4 a game, but on a
+// two-game playoff day it's every starter. A Chalk lean is a bat inside that full-slate
+// density (DD_CHALK_PER_GAME x games), so a short slate names its best few, not everyone.
+const DD_CHALK_PER_GAME = 2.4;
+const ddChalkCap = () => Math.max(4, Math.round(DD_CHALK_PER_GAME * (todaySchedule?.length || 15)));
 function ddTeamLeans(teamAbbr) {
   const seen = new Set(), out = [];
-  applyPicksFilters(picks, PICKS_FILTER_DEFAULTS).forEach((r, i) => {
+  applyPicksFilters(picks, PICKS_FILTER_DEFAULTS).slice(0, ddChalkCap()).forEach((r, i) => {
     if (r.team === teamAbbr && !seen.has(r.pid)) { seen.add(r.pid); out.push({ pid: r.pid, tier: 0, ord: i }); }
   });
   value.filter(r => !isUnavailableToday(r.pid)).sort((a, b) => (b.pHR ?? 0) - (a.pHR ?? 0))
@@ -6015,7 +6021,7 @@ function ddIsTopPick(pid) {
 function ddLeanLine(l) {
   const emoji = l.tier === 0 ? '🔒' : l.tier === 1 ? '🎯' : '⏳';
   const top = ddIsTopPick(l.pid);
-  const ph = l.tier < 2 ? hrPOf(l.pid) : null;
+  const ph = hrPOf(l.pid);                                  // any priced bat, Due included
   return `<div class="dd-lean${top ? ' dd-lean-top' : ''}"${top ? ' title="Top-5 pick of the day (Chalk or Value)"' : ''}>${emoji} ${ddAbbrevName(playerNames[l.pid] || l.pid)}${ph > 0 ? ` <b title="Fair HR odds · ${hrFairPct(ph)}">${hrFair(ph)}</b>` : ''}</div>`;
 }
 function ddTeamCell(side) { return `<td class="dd-team">${ddLogoImg(side.teamAbbr)}</td>`; }
@@ -6035,9 +6041,10 @@ function ddPropArms() {
   return { k: top('k'), bb: top('bb') };
 }
 function ddArmLine(x, kind) {
-  const need = ppEven(x.r.proj), p = kbbWinProb(x.r.proj, need);
+  // the rung nearest even money, on the side we favour: a plus-money over isn't a lean
+  const need = ppEven(x.r.proj), pOver = kbbWinProb(x.r.proj, need), over = pOver >= 0.5;
   const k = kind === 'k';
-  return `<div class="dd-lean" title="#${x.rk} on the ${k ? 'Strikeouts' : 'Walks'} board · projects ${x.r.proj.toFixed(1)} ${k ? 'K' : 'BB'}">${k ? '🔥' : '🚶'} ${ddLastName(playerNames[x.r.pid] || x.r.name)} o${need - 0.5} ${k ? 'K' : 'BB'} <b>${Odds.inline(p)}</b></div>`;
+  return `<div class="dd-lean" title="#${x.rk} on the ${k ? 'Strikeouts' : 'Walks'} board · projects ${x.r.proj.toFixed(1)} ${k ? 'K' : 'BB'}">${k ? '🔥' : '🚶'} ${ddLastName(playerNames[x.r.pid] || x.r.name)} ${over ? 'o' : 'u'}${need - 0.5} ${k ? 'K' : 'BB'} <b>${Odds.inline(over ? pOver : 1 - pOver)}</b></div>`;
 }
 function ddGameRows(g, arms = ddPropArms()) {
   const awayLeans = ddTeamLeans(g.away.teamAbbr), homeLeans = ddTeamLeans(g.home.teamAbbr);
