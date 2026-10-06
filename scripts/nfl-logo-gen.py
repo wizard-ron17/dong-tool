@@ -26,8 +26,8 @@ svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512
        a green seam that tapers to both tips and five laces across it -->
   <g transform="translate({CX} {CY}) rotate({ANG})">
     <path d="{ball}" fill="#ffffff" stroke="#b6bcc2" stroke-width="1.9" stroke-linejoin="round"/>
-    <path d="{seam}" fill="#78c43e"/>
-    <g fill="none" stroke="#78c43e" stroke-width="2.6" stroke-linecap="butt">{''.join(laces)}</g>
+    <path d="{seam}" fill="#66bc07"/>
+    <g fill="none" stroke="#66bc07" stroke-width="2.6" stroke-linecap="butt">{''.join(laces)}</g>
   </g>
 </svg>
 '''
