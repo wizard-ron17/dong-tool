@@ -11628,9 +11628,15 @@ function ppBatterBoard(isK, lg, K0, log5, lbl, word) {
     }
   }
   if (!brows.length) { return '<div class="empty">No lineups with data posted yet — check back closer to game time.</div>'; }
-  brows.sort((a, b) => (b.fair?.[key]?.[0] ?? b.exp) - (a.fair?.[key]?.[0] ?? a.exp));
+  brows.sort((a, b) => (b.fair?.[key + 'Exp'] ?? b.exp) - (a.fair?.[key + 'Exp'] ?? a.exp));
+  // Each bat on his own line, as on the pitcher board: the rung (0.5 / 1.5 / 2.5) whose
+  // price is nearest even money, quoted on the board's Over/Under side. A bat who is
+  // -300 to strike out once is a fair coin to strike out twice.
+  const over = ppSide === 'over', u = isK ? 'K' : 'BB';
+  const evenRung = (arr) => arr.reduce((best, q, j) => Math.abs(q - 0.5) < Math.abs(arr[best] - 0.5) ? j : best, 0);
+  const side = (q) => over ? q : 1 - q;
   const meta = priced
-    ? `<div class="pt-meta">Today's hitters by their fair odds to ${isK ? 'strike out' : 'walk'} at least once — his ${lbl}% against this starter for the plate appearances he'll get off him, then the pen, over the PAs his lineup spot usually gets. Calibrated on every 2026 batter-game it never saw.</div>`
+    ? `<div class="pt-meta">Today's hitters by expected ${isK ? 'strikeouts' : 'walks'}, each on his own line: the one nearest even money, quoted on the <b>${over ? 'over' : 'under'}</b>. Built from his ${lbl}% against this starter for the plate appearances he'll get off him, then the pen, over the PAs his lineup spot usually gets. Calibrated on every 2026 batter-game it never saw.</div>`
     : `<div class="pt-meta">Today's hitters by <b>Exp ${lbl}%</b> — their season ${lbl}% blended (log5) against the starter they face. Higher = likeliest to ${word} today.</div>`;
   const mtr = (l, v) => `<span class="pv-mtr"><span class="pv-mtr-lbl">${l}</span><span class="pv-mtr-val">${v}</span></span>`;
   const cards = brows.map((r, i) => {
@@ -11645,14 +11651,18 @@ function ppBatterBoard(isK, lg, K0, log5, lbl, word) {
           <div class="pv-sub">${teamLogoImg(r.team, 'team-logo')}${r.team} vs ${compactPlayerName(r.spName)}${r.throws ? ` (${r.throws}HP)` : ''}</div>
         </div>
         <div class="pv-score">
-          ${r.fair ? `<span class="pv-juice hrg-val ${cls}" title="Fair odds (no vig) he ${isK ? 'strikes out' : 'walks'} at least once">${Odds.inline(r.fair[key][0])}</span>
-          <span class="pv-juice-lbl">1+ ${isK ? 'K' : 'BB'} fair</span>`
+          ${r.fair ? (() => { const arr = r.fair[key], j = evenRung(arr), L = j + 0.5;
+            return `<span class="pv-juice hrg-val ${cls}" title="Fair odds (no vig): ${over ? 'over' : 'under'} ${L} ${isK ? 'strikeouts' : 'walks'}, the line nearest even money for him">${Odds.inline(side(arr[j]))}</span>
+          <span class="pv-juice-lbl">${over ? 'o' : 'u'}${L} ${u} fair</span>`; })()
           : `<span class="pv-juice hrg-val ${cls}">${(r.exp * 100).toFixed(1)}%</span>
           <span class="pv-juice-lbl">Exp ${lbl}%</span>`}
         </div>
       </div>
       <div class="pv-metrics">
-        ${r.fair ? mtr(`2+ ${isK ? 'K' : 'BB'}`, Odds.inline(r.fair[key][1])) + mtr(`Exp ${isK ? 'Ks' : 'walks'}`, r.fair[key + 'Exp'].toFixed(2)) + (r.fair.slot ? mtr('Slot', r.fair.slot) : '') : ''}
+        ${r.fair ? (() => { const arr = r.fair[key], j = evenRung(arr);
+          // the other rungs, same side, so the card shows what the next line pays
+          return arr.map((q, i) => i === j ? '' : mtr(`${over ? 'o' : 'u'}${i + 0.5} ${u}`, Odds.inline(side(q)))).join('')
+            + mtr(`Exp ${isK ? 'Ks' : 'walks'}`, r.fair[key + 'Exp'].toFixed(2)) + (r.fair.slot ? mtr('Slot', r.fair.slot) : ''); })() : ''}
         ${mtr(`Batter ${lbl}%`, `${(r.bRaw * 100).toFixed(1)}%`)}
         ${mtr(`Pitcher ${lbl}%`, `${(r.pRaw * 100).toFixed(1)}%`)}
         ${mtr('Lg', `${(lg * 100).toFixed(1)}%`)}
