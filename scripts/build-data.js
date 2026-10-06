@@ -52,6 +52,10 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 // Regular season plus the postseason rounds: Wild Card, Division Series, LCS, World Series.
 const GAME_TYPES = 'R,F,D,L,W';
 const postDates = new Set();   // dates that had a postseason game
+// date -> Set of clubs in a postseason game that day. teamGameDays leaves playoff
+// games out (it feeds the season's club rates), but grading a playoff day still
+// needs to know who played — the Due board's denominator.
+const postTeamDays = {};
 function daysSince(d) {
   const [y,m,day] = d.split('-').map(Number);
   return Math.round((new Date() - new Date(y,m-1,day)) / 86400000);
@@ -96,6 +100,7 @@ async function fetchDay(date) {
         const teamAbbr = t.team?.abbreviation ?? '';
         const batters  = t.batters ?? [];
         const players  = t.players ?? {};
+        if (teamAbbr && post) (postTeamDays[date] ??= new Set()).add(teamAbbr);
         if (teamAbbr && !post) {
           if (!teamGameDays[teamAbbr]) teamGameDays[teamAbbr] = {};
           teamGameDays[teamAbbr][date] = (teamGameDays[teamAbbr][date] || 0) + 1;
@@ -2517,6 +2522,30 @@ async function fetchTeamStatus(idToAbbr) {
   } catch (e) { console.warn(`  team status skipped: ${e.message}`); return {}; }
 }
 
+// Clubs still alive in the postseason: everyone in a series that isn't over, plus
+// the winner of any finished series (between rounds the next one can still read
+// "NL Low"); a finished series' loser is out. null outside the postseason or on a
+// failed fetch, so the page shows everyone rather than no one.
+async function fetchPostAlive(idToAbbr) {
+  try {
+    const res = await fetch(`${MLB}/schedule/postseason/series?season=${SEASON_YEAR}&sportId=1&hydrate=seriesStatus,team`).then(r => r.json());
+    const alive = new Set(), out = new Set();
+    for (const s of res.series ?? []) {
+      const g = s.games?.[s.games.length - 1]; if (!g) continue;
+      const ss = g.seriesStatus ?? {};
+      // real clubs only: a round not yet set lists placeholders ("NL Low", "AL High")
+      const ab = (side) => { const t = g.teams?.[side]?.team, c = t?.id && (idToAbbr?.[t.id] || t.abbreviation); return /^[A-Z]{2,3}$/.test(c || '') ? c : null; };
+      const both = [ab('away'), ab('home')].filter(Boolean);
+      if (!ss.isOver) { both.forEach(t => alive.add(t)); continue; }
+      const win = (ss.result || '').match(/^(\S+) wins/)?.[1];
+      for (const t of both) (t === win ? alive : out).add(t);
+    }
+    for (const t of out) alive.delete(t);
+    console.log(`  postseason: ${alive.size} clubs alive (${[...alive].sort().join(' ')})`);
+    return alive.size ? [...alive].sort() : null;
+  } catch (e) { console.warn(`  postseason alive skipped: ${e.message}`); return null; }
+}
+
 async function fetchPitcherHRStats(pids) {
   const stats = {};
   const BATCH = 6;
@@ -3608,6 +3637,7 @@ async function main() {
   const probablePitcherIds = todaySchedule.flatMap(g => [g.home.probablePitcherId, g.away.probablePitcherId]).filter(Boolean);
   const pitcherStats = await fetchPitcherHRStats(probablePitcherIds);
   const teamStatus = await fetchTeamStatus(teamIdToAbbr);
+  const postAlive = (postDates.size || todaySchedule.some(g => g.gameType && g.gameType !== 'R')) ? await fetchPostAlive(teamIdToAbbr) : null;
 
   console.log('Fetching team plate discipline (K% / BB%) for the Pitcher Ks/Walks tools...');
   const teamOffense = await fetchTeamOffense(teamIdToAbbr);
@@ -3949,7 +3979,10 @@ async function main() {
   // ~24-man list. grads keeps each guy's FULL due-list rank (i+1), so ranks read
   // the same as on the live board.
   const hadGames        = date => (dailyGames[date] ?? 0) >= 1;
-  const dueEligibleCount = (rows, date) => rows.reduce((n, r) => n + (teamGameDays[playerTeams[r.pid]]?.[date] ? 1 : 0), 0);
+  const dueEligibleCount = (rows, date) => rows.reduce((n, r) => {
+    const t = playerTeams[r.pid];
+    return n + (teamGameDays[t]?.[date] || postTeamDays[date]?.has(t) ? 1 : 0);
+  }, 0);
   if (prevDueRows.length && scorable(prevDate) && hadGames(prevDate) && !dueHistory.some(e => e.date === prevDate)) {
     const dayHRs = dailyHRs[prevDate] ?? {};
     const grads = [];
@@ -4046,7 +4079,7 @@ async function main() {
     teamGameDays, venueGameDays, venueHRsByDate, groupSummary, dueRows, prospects, injuryStatus, dtdStatus,
     todayDate: todayET(), todaySchedule, teamIds, pitcherStats, teamStatus, teamOffense, batterDiscipline, batterKBB, hrGames, bullpens, penVuln, batMeta, picks, value, valueLimit: VALUE_LIMIT, picksHistory, valueHistory, schedHistory,
     // postseason mode: on from the first playoff slate, and through the off days between rounds
-    postseason: postDates.size > 0 || todaySchedule.some(g => g.gameType && g.gameType !== 'R') || null, postDates: [...postDates].sort(), birthdays, birthdayHistory,
+    postseason: postDates.size > 0 || todaySchedule.some(g => g.gameType && g.gameType !== 'R') || null, postDates: [...postDates].sort(), postAlive, birthdays, birthdayHistory,
     // { venue -> { carry, windForL, windForR } }. The picks rows already bake
     // this into weatherRatio, but only for the two dozen bats on those boards —
     // the Matchup tool has to score anyone in a posted lineup, so it needs the

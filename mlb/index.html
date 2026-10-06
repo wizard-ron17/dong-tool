@@ -3096,6 +3096,10 @@ let returningInjured = []; // injured hitters (IL + DTD) with ESPN's estimated r
 let justBack = [];         // [{ pid, backDate, from, type }] — activated in the last 3 days, the first-game-back window
 let returningHistory = []; // [{ pid, name, team, backDate, from, type, hrDate, done }] — graded return-window HR log
 let postDates     = [];     // dates with a postseason game (build)
+let postAlive     = null;   // clubs still alive in the postseason (build); null = show everyone
+// In the postseason, a club that's out has nothing left to track: Due, Prospects,
+// Birthdays and Milestones hide its players.
+const psOut = (team) => postseasonOn && !!postAlive && !!team && !postAlive.includes(team);
 let schedHistory  = [];     // finished slates: closing lines, Homer Scores, graded top picks (build)
 let todayDate     = null;   // YYYY-MM-DD, ET — the same "today" build-data.js used for todaySchedule
 let todaySchedule = [];     // [{ gamePk, gameDate, status, venue, home:{...}, away:{...} }]
@@ -3580,6 +3584,7 @@ function applyData(data) {
   returningHistory = data.returningHistory ?? [];
   todayDate = data.todayDate ?? null;
   postDates = data.postDates ?? [];
+  postAlive = data.postAlive ?? null;
   applyPostseason(data.postseason);
   setTimeout(maybePostWelcome, 700);
   schedHistory = data.schedHistory ?? [];
@@ -7443,7 +7448,7 @@ function renderDue() {
     r.lastBarrelAgo  = r.lastBarrel ? daysSince(r.lastBarrel) : 9999;
   });
   renderDueFilters();
-  const filtered = applyDueFilters(dueRows.slice());
+  const filtered = applyDueFilters(dueRows.filter(r => !psOut(r.team ?? playerTeams[r.pid])));
   // Each hitter keeps his Due Score rank (and medal) no matter which column the
   // list is sorted by. Captured here — while `filtered` is still in Due Score
   // order — over the available set, so the injury/bench/off filter renumbers it.
@@ -10013,10 +10018,11 @@ let activeProspectTab = 'justCalledUp';
 function prospectDaysWaiting(sinceDate) { return sinceDate ? Math.max(0, Math.round((new Date(todayDate) - new Date(sinceDate)) / 86400000)) : null; }
 function switchProspectTab(tab) { activeProspectTab = tab; renderProspects(); commitRoute(); }
 function renderProspects() {
-  const justCalledUp = prospects.justCalledUp || [];
+  const watchAll = prospects.justCalledUp || [], justCalledUp = watchAll.filter(r => !psOut(r.team));
   const history = prospects.history || [];
+  const outN = watchAll.length - justCalledUp.length;
   document.getElementById('prospects-meta').textContent =
-    `${justCalledUp.length} on watch · ${history.length} homered after call-up · watch is rookie call-ups with ≤35 AB/HR minors power, ranked by that pedigree`;
+    `${justCalledUp.length} on watch${outN ? ` (${outN} on eliminated clubs hidden)` : ''} · ${history.length} homered after call-up · watch is rookie call-ups with ≤35 AB/HR minors power, ranked by that pedigree`;
 
   const tabsHtml = `
     <div class="sub-tabs">
@@ -10028,7 +10034,9 @@ function renderProspects() {
     ? renderProspectResultsHtml()
     : (justCalledUp.length
         ? `<div class="prospect-grid">${justCalledUp.map(r=>prospectCard(r,false)).join('')}</div>`
-        : `<div class="empty">No power call-ups on watch right now — a rookie needs ≤35 AB/HR pedigree in the minors to make the list.</div>`);
+        : outN
+          ? `<div class="empty">No power call-ups left on a playoff roster — the watch picks back up in spring. Results has the season's call-up homers.</div>`
+          : `<div class="empty">No power call-ups on watch right now — a rookie needs ≤35 AB/HR pedigree in the minors to make the list.</div>`);
 
   document.getElementById('prospects-content').innerHTML = tabsHtml + body;
 }
@@ -10085,13 +10093,14 @@ function renderBirthdays() {
   const meta = document.getElementById('birthdays-meta');
   const el   = document.getElementById('birthdays-content');
   const dateStr = todayDate ? fmtDateLong(todayDate) : '';
-  if (!birthdays.length) {
+  const bdays = birthdays.filter(b => !psOut(b.team));
+  if (!bdays.length) {
     meta.textContent = '';
-    el.innerHTML = `<div class="empty">🎂 No hitter birthdays today${dateStr?` · ${dateStr}`:''} — check back tomorrow.</div>`;
+    el.innerHTML = `<div class="empty">🎂 No hitter birthdays today${birthdays.length ? ' on a club still in the playoffs' : ''}${dateStr?` · ${dateStr}`:''} — check back tomorrow.</div>`;
     return;
   }
-  meta.textContent = `🎂 ${birthdays.length} birthday${birthdays.length===1?'':'s'} today · ${dateStr}`;
-  const cards = birthdays.map(b => {
+  meta.textContent = `🎂 ${bdays.length} birthday${bdays.length===1?'':'s'} today · ${dateStr}`;
+  const cards = bdays.map(b => {
     const photo = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_120,q_auto:best/v1/people/${b.pid}/headshot/67/current`;
     const plays = todayTeamsPlaying.has(b.team);
     const sub = [
@@ -10167,7 +10176,7 @@ function renderBirthdayResults() {
 // Server ships {career, next, away, seasonHrs, games, reached}; the pace/ETA is
 // computed here from this season's HR rate.
 function milestoneCard(m) {
-  const plays = todayTeamsPlaying.has(m.team);
+  const plays = !postseasonOn && todayTeamsPlaying.has(m.team);   // a playoff homer doesn't move his career total
   const tier = m.away <= 2 ? 'doorstep' : 'close';
   // Pace ETA — games to the next hundred at this year's HR rate.
   let pace = '';
@@ -10207,14 +10216,16 @@ function renderMilestones() {
   const meta = document.getElementById('milestones-meta');
   const el   = document.getElementById('milestones-content');
   const dateStr = todayDate ? fmtDateLong(todayDate) : '';
-  const hunting = (milestones || []).filter(m => m.reached === 0 && m.away <= MILESTONE_MAX_AWAY);
+  const hunting = (milestones || []).filter(m => m.reached === 0 && m.away <= MILESTONE_MAX_AWAY && !psOut(m.team));
   if (!hunting.length) {
     meta.textContent = '';
     el.innerHTML = `<div class="empty">🎯 Nobody's within striking distance of a career HR milestone right now — check back as the totals climb.</div>`;
     return;
   }
   meta.textContent = `🎯 ${hunting.length} within reach of a career HR milestone${dateStr ? ` · ${dateStr}` : ''}`;
-  el.innerHTML = `<div class="ms-list">${hunting.map(milestoneCard).join('')}</div>`;
+  // career totals are regular-season only, so in October the chase is on hold
+  const psNote = postseasonOn ? `<div class="empty" style="margin-bottom:0.7rem">Postseason homers don't count toward career totals, so these chases pick up on Opening Day. Shown: players still in the playoffs.</div>` : '';
+  el.innerHTML = `${psNote}<div class="ms-list">${hunting.map(milestoneCard).join('')}</div>`;
 }
 
 // Results tab: everyone who crossed a round hundred this season.
