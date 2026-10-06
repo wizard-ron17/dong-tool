@@ -2916,7 +2916,7 @@
       </div>
     </div>
     <div class="sub-tabs" id="pitcherks-sub-tabs">
-      <button class="sub-btn active" id="pitcherks-sub-board" onclick="switchKbbSub('pitcherks','board')">⚾ Board</button>
+      <button class="sub-btn active" id="pitcherks-sub-board" onclick="switchKbbSub('pitcherks','board')"><img class="sp-logo" src="/icons/logo.svg" alt=""> Board</button>
       <button class="sub-btn" id="pitcherks-sub-results" onclick="switchKbbSub('pitcherks','results')">Results</button>
     </div>
     <div id="pitcherks-board-wrap">
@@ -2952,7 +2952,7 @@
       </div>
     </div>
     <div class="sub-tabs" id="pitcherwalks-sub-tabs">
-      <button class="sub-btn active" id="pitcherwalks-sub-board" onclick="switchKbbSub('pitcherwalks','board')">⚾ Board</button>
+      <button class="sub-btn active" id="pitcherwalks-sub-board" onclick="switchKbbSub('pitcherwalks','board')"><img class="sp-logo" src="/icons/logo.svg" alt=""> Board</button>
       <button class="sub-btn" id="pitcherwalks-sub-results" onclick="switchKbbSub('pitcherwalks','results')">Results</button>
     </div>
     <div id="pitcherwalks-board-wrap">
@@ -4941,7 +4941,7 @@ function updateOffdayBanner() {
   if (!noGamesToday()) { el.style.display = 'none'; return; }
   const last = recapLatestDate();
   el.style.display = '';
-  el.innerHTML = `⚾ <b>No MLB games today.</b> ${last ? `Recap shows the last slate (${fmtDateLong(last)}), and Due` : 'Due'} still lists who's overdue to go deep. Picks & Schedule come back when the next slate does.`;
+  el.innerHTML = `${RonChrome.logo('mlb')} <b>No MLB games today.</b> ${last ? `Recap shows the last slate (${fmtDateLong(last)}), and Due` : 'Due'} still lists who's overdue to go deep. Picks & Schedule come back when the next slate does.`;
 }
 function recapLatestDate() { const d = recapAvailableDates(); return d[d.length - 1]; }
 function shiftRecapDate(delta) {
@@ -10902,7 +10902,7 @@ function renderKbbResults(nav) {
   const h    = kbbHistory?.[isK ? 'k' : 'bb'];
   if (!h || !h.days?.length) {
     meta.textContent = '';
-    el.innerHTML = `<div class="empty">No graded slates yet — the tracker fills in once the season has enough games to rank a board. ⚾</div>`;
+    el.innerHTML = `<div class="empty">No graded slates yet — the tracker fills in once the season has enough games to rank a board. ${RonChrome.logo('mlb')}</div>`;
     return;
   }
   const lbl = isK ? 'K' : 'BB', word = isK ? 'strikeout' : 'walk';
@@ -11002,7 +11002,7 @@ function renderKbbResults(nav) {
   // Lift is the honest headline: the board's arms vs the arms it picked FROM,
   // not vs the league (which includes starters the tool never would have shown).
   const liftCls = lift >= 1.15 ? 'great' : lift >= 1.06 ? 'good' : lift >= 0.98 ? 'avg' : 'bad';
-  meta.textContent = `⚾ ${h.days.length} slates replayed · top ${Math.round(rows.length / h.days.length)} arms each`;
+  meta.textContent = `${h.days.length} slates replayed · top ${Math.round(rows.length / h.days.length)} arms each`;
 
   // Expected-vs-actual is a real miss worth showing rather than burying: ranking
   // the top of a slate selects for arms whose estimate is running high, so Exp%

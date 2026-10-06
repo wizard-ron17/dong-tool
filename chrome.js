@@ -55,6 +55,9 @@
   a.sport-item:hover { background: var(--surface2); }
   .sport-item.current { background: rgba(51,208,124,0.12); }
   .sport-ico { font-size: 1.25rem; line-height: 1; width: 1.5rem; text-align: center; }
+  .sport-ico img { width: 1.35rem; height: 1.35rem; object-fit: contain; display: block; margin: 0 auto; }
+  /* a sport's logo inline in text, where an emoji used to sit: RonChrome.logo(sport) */
+  .sp-logo { width: 1.15em; height: 1.15em; object-fit: contain; vertical-align: -0.2em; display: inline-block; }
   .sport-name { font-family: var(--font-d); font-weight: 700; font-size: 0.92rem; }
   .sport-sub { margin-left: auto; font-size: 0.692rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
   .sport-item.current .sport-sub { color: var(--accent); }
@@ -120,10 +123,10 @@
 
   // One list for the switcher, in launch order. A new sport is one line here.
   const SPORTS = [
-    ['mlb', '⚾', "Ron's Dong Tool", 'MLB'],
-    ['nfl', '🏈', "Ron's Tud Tool", 'NFL'],
-    ['nhl', '🏒', "Ron's Goal Tool", 'NHL'],
-    ['nba', '🏀', "Ron's Hoop Tool", 'NBA'],
+    ['mlb', '/icons/logo.svg', "Ron's Dong Tool", 'MLB'],
+    ['nfl', '/icons/nfl-logo.svg', "Ron's Tud Tool", 'NFL'],
+    ['nhl', '/icons/nhl-logo.svg', "Ron's Goal Tool", 'NHL'],
+    ['nba', '/icons/nba-logo.svg', "Ron's Hoop Tool", 'NBA'],
   ];
   const NAV = [
     ["home", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 11.2 12 4l9 7.2M5.5 9.4V20h13V9.4\"/></svg>", "Home"],
@@ -165,7 +168,7 @@
   }
   function sportMenuHtml(cur) {
     return SPORTS.map(([sp, ico, name, sub]) =>
-      `<a class="sport-item${sp === cur ? ' current' : ''}" href="/${sp}/"><span class="sport-ico">${ico}</span><span class="sport-name">${name}</span><span class="sport-sub">${sub}</span></a>`).join('');
+      `<a class="sport-item${sp === cur ? ' current' : ''}" href="/${sp}/"><span class="sport-ico"><img src="${ico}" alt=""></span><span class="sport-name">${name}</span><span class="sport-sub">${sub}</span></a>`).join('');
   }
   function footHtml(c) {
     const lbl = (SPORTS.find(s => s[0] === c.sport) || [])[3] || c.sport.toUpperCase();
@@ -330,7 +333,8 @@
   setInterval(freshPaint, 60000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) freshPaint(); });
 
-  window.RonChrome = { mount, onTheme, show, fresh, freshHtml, SPORTS };
+  const logo = (sp) => { const s = SPORTS.find(x => x[0] === sp); return s ? `<img class="sp-logo" src="${s[1]}" alt="">` : ''; };
+  window.RonChrome = { mount, onTheme, show, fresh, freshHtml, SPORTS, logo };
   Object.assign(window, { currentTheme, updateThemeToggleIcon, toggleTheme, sportBackdrop, placeSportMenu, toggleSportMenu, closeSportMenu, openNavTools, closeNavTools, toggleNavTools });
   Object.defineProperty(window, 'navToolsOpen', { get: () => navToolsOpen, configurable: true });
 })();
