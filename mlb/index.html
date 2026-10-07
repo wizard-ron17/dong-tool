@@ -9103,9 +9103,18 @@ function renderMatchups() {
   if (!matchupCards) { el.innerHTML = '<div class="empty">Loading matchup data…</div>'; ensureMatchupCards(); return; }
   const C = matchupCards;
   if (!muInitialized) {
-    muBatterPid  = (C.default?.batterPid  && C._bIdx[C.default.batterPid])  ? C.default.batterPid  : C.batters[0]?.pid;
-    muPitcherPid = (C.default?.pitcherPid && C._pIdx[C.default.pitcherPid]) ? C.default.pitcherPid : C.pitchers[0]?.pid;
-    muVenue = (C.default?.venue && C.parkFactors[C.default.venue]) ? C.default.venue : '__neutral__';
+    // Open on today's chalk: the #1 bat on the Chalk board (shortest fair HR price) vs the
+    // starter he faces, in his park. The build's default pair only when there's no board.
+    const top = applyPicksFilters(picks, PICKS_FILTER_DEFAULTS)
+      .find(r => C._bIdx[String(r.pid)] && r.oppPid && C._pIdx[String(r.oppPid)]);
+    if (top) {
+      muBatterPid = String(top.pid); muPitcherPid = String(top.oppPid);
+      muVenue = (top.venue && C.parkFactors[top.venue]) ? top.venue : '__neutral__';
+    } else {
+      muBatterPid  = (C.default?.batterPid  && C._bIdx[C.default.batterPid])  ? C.default.batterPid  : C.batters[0]?.pid;
+      muPitcherPid = (C.default?.pitcherPid && C._pIdx[C.default.pitcherPid]) ? C.default.pitcherPid : C.pitchers[0]?.pid;
+      muVenue = (C.default?.venue && C.parkFactors[C.default.venue]) ? C.default.venue : '__neutral__';
+    }
     muInitialized = true;
   }
   const b = C._bIdx[muBatterPid], p = C._pIdx[muPitcherPid];
