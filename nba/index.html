@@ -2028,7 +2028,7 @@
       for (let x = lo; x <= hi; x++) if (Math.abs(overAt(pmf, x) - 0.5) < Math.abs(overAt(pmf, L) - 0.5)) L = x; return [L, overAt(pmf, L)]; };
     const boardHome = (kind, nav, word) => [...lcRows(kind)].sort((a, b) => b.mu - a.mu).slice(0, 3).map(r => {
       const [L, p] = evenLine(r, kind);
-      return `<div class="hm-row" onclick="event.stopPropagation(); switchNav('${nav}'); openLc('${kind}','${r.pid}')">
+      return `<div class="hm-row">
         ${faceHtml(r.pid, r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · proj ${r.mu.toFixed(1)} ${word}</span></span>
         ${bet('o' + L, p)}</div>`;
@@ -2040,7 +2040,7 @@
         <span class="hm-name">${esc(x.name)}<span class="hm-subtle">${esc(x.team)} ${x.team === x.g.home ? 'vs' : '@'} ${esc(x.team === x.g.home ? x.g.away : x.g.home)}${x.jumper ? ' · takes the tip' : ''}</span></span>
         ${bet('1st', x.p)}</div>`).join('');
     const dblHome = [...(D.stats?.doubles || [])].sort((a, b) => b.dd - a.dd).slice(0, 3).map(r => `
-      <div class="hm-row" onclick="event.stopPropagation(); switchNav('doubles'); openDoubleCard('${r.pid}')">
+      <div class="hm-row">
         ${faceHtml(r.pid, r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${r.pts} · ${r.reb} · ${r.ast} proj</span></span>
         ${bet('DD', r.dd)}</div>`).join('');
@@ -2050,7 +2050,7 @@
     // ── Watch lists: Due, Milestones, Birthdays ──────────────────────────
     const FUN = D.fun || {};
     const dueHome = (FUN.due?.t1 || []).slice(0, 3).map(r => `
-      <div class="hm-row" onclick="event.stopPropagation(); switchNav('due'); dueOpen('t1','${r.pid}','${r.gid}')">
+      <div class="hm-row">
         ${faceHtml(r.pid, r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} · no three since ${r.last ? dayLabel(r.last) : '—'} · ${Odds.inline(r.p)}</span></span>
         <span class="hm-score warm">${r.n}<span class="hm-subtle" style="font-size:0.766rem"> gms</span></span></div>`).join('');

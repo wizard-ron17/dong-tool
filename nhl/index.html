@@ -4580,7 +4580,7 @@
     // ── Picks: the top of tonight's anytime-goal board ───────────────────
     const PKB = D.picks || {};
     const pkHome = (PKB.picks || []).slice(0, 4).map(r => `
-      <div class="hm-row" onclick="event.stopPropagation(); switchNav('picks'); openPick(${r.pid})">
+      <div class="hm-row">
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${POS_NAME[r.pos] || r.pos} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${r.mu.toFixed(2)} xG</span></span>
         <span class="hm-score hm-bet"><small>goal</small><b class="${r.p >= 0.5 ? 'odfav' : 'oddog'}">${Odds.inline(r.p)}</b></span></div>`).join('');
@@ -4590,7 +4590,7 @@
     const sbRows = (SB.board || []).slice(0, 3).map(r => {
       const L = sbLines.reduce((b, x) => Math.abs((r.p[x] ?? 0) - 0.5) < Math.abs((r.p[b] ?? 0) - 0.5) ? x : b, sbLines[0]);
       const p = r.p[L] ?? r.p[String(L)] ?? 0;
-      return `<div class="hm-row" onclick="event.stopPropagation(); switchNav('shots'); openShot(${r.pid})">
+      return `<div class="hm-row">
         ${faceHtml(mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · proj ${r.mu.toFixed(1)} shots</span></span>
         ${bet(L, p)}</div>`;
@@ -4598,7 +4598,7 @@
 
     // ── Points: the top of tonight's board ──────────────────────────────
     const PTB = D.points || {};
-    const ptHome = PTB.board?.length ? ptRows('pts').slice(0, 3).map(r => `<div class="hm-row" onclick="event.stopPropagation(); switchNav('points'); openPointsCard(${r.pid},'pts')">
+    const ptHome = PTB.board?.length ? ptRows('pts').slice(0, 3).map(r => `<div class="hm-row">
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · proj ${r.m.toFixed(2)} pts</span></span>
         ${bet(r.L, r.pAt)}</div>`).join('') : '';
@@ -4606,16 +4606,16 @@
     // ── Saves: the busiest goalies tonight ───────────────────────────────
     const SVB = D.saves || {};
     // ── Hits / Blocked shots: the top of tonight's boards ────────────────
-    const pxHome = (page, kind, word) => (PX[page].data().board?.length ? pxRows(page).slice(0, 3).map(r => `<div class="hm-row" onclick="event.stopPropagation(); switchNav('${page}'); openLc('${kind}',${r.pid})">
+    const pxHome = (page, kind, word) => (PX[page].data().board?.length ? pxRows(page).slice(0, 3).map(r => `<div class="hm-row">
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · proj ${r.mu.toFixed(1)} ${word}</span></span>
         ${bet(r.L, r.pAt)}</div>`).join('') : '');
     const hitHome = pxHome('hits', 'hit', 'hits'), blkHome = pxHome('blocks', 'blk', 'blk');
-    const svHome = SVB.board?.length ? svRows('saves').slice(0, 3).map(r => `<div class="hm-row" onclick="event.stopPropagation(); switchNav('saves'); openSave(${r.pid},'sv')">
+    const svHome = SVB.board?.length ? svRows('saves').slice(0, 3).map(r => `<div class="hm-row">
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · proj ${r.m.toFixed(1)} saves</span></span>
         ${bet(r.L, r.pAt)}</div>`).join('') : '';
-    const gaHome = SVB.board?.length ? svRows('ga').slice(0, 3).map(r => `<div class="hm-row" onclick="event.stopPropagation(); switchNav('allowed'); openSave(${r.pid},'ga')">
+    const gaHome = SVB.board?.length ? svRows('ga').slice(0, 3).map(r => `<div class="hm-row">
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · proj ${r.m.toFixed(2)} GA</span></span>
         ${bet(r.L, r.pAt)}</div>`).join('') : '';
@@ -4646,19 +4646,19 @@
     const FUN = D.fun || {};
     const drMap = new Map((FUN.due || []).map(x => [x.pid, x]));
     const dueHome = (D.picks?.picks || []).filter(p => (drMap.get(p.pid)?.games ?? 0) >= DUE_MIN_GAMES).slice(0, 3).map(r => `
-      <div class="hm-row" onclick="event.stopPropagation(); switchNav('due'); openPick(${r.pid})">
+      <div class="hm-row">
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} · ${drMap.get(r.pid).shots} shots since · ${Odds.inline(r.p)}</span></span>
         <span class="hm-score warm">${drMap.get(r.pid).games}<span class="hm-subtle" style="font-size:0.766rem"> gms</span></span></div>`).join('');
     const msHome = (FUN.milestones || []).slice(0, 3).map(m => `
-      <div class="hm-row" onclick="event.stopPropagation(); openPlayer(${m.pid})">
+      <div class="hm-row">
         ${faceHtml(m.mug || mugOf(m.pid, m.team, D.leaderSeason), m.name, 'hm-photo')}
         <span class="hm-name">${esc(m.name)}<span class="hm-subtle">${esc(m.team)} · ${m.career.toLocaleString()} career ${MS_UNIT[m.stat]}</span></span>
         <span class="hm-score hot">${m.away}<span class="hm-subtle" style="font-size:0.766rem"> from ${m.next}</span></span></div>`).join('');
     const bdT0 = Date.parse(todayET() + 'T00:00:00Z') / 864e5;
     const bdHome = (FUN.birthdays || []).map(b => ({ ...b, o: Date.parse(b.day + 'T00:00:00Z') / 864e5 - bdT0 }))
       .filter(b => b.o >= 0).slice(0, 3).map(b => `
-      <div class="hm-row" onclick="event.stopPropagation(); openPlayer(${b.pid})">
+      <div class="hm-row">
         ${faceHtml(b.mug || mugOf(b.pid, b.team, D.leaderSeason), b.name, 'hm-photo')}
         <span class="hm-name">${esc(b.name)}<span class="hm-subtle">${esc(b.team)} · turns ${b.turning}${b.game ? ' · game day' : ''}</span></span>
         <span class="hm-score ${b.o === 0 ? 'hot' : 'warm'}">${b.o === 0 ? 'today' : `${b.o}d`}</span></div>`).join('');
