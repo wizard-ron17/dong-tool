@@ -62,6 +62,8 @@ jobs:
           for attempt in 1 2 3 4 5; do
             if git push; then echo "Pushed on attempt $attempt"; exit 0; fi
             echo "Push rejected (attempt $attempt) — replaying generated files onto latest main"
+            # back off 5/20/45/80s: a GitHub 500 blip outlasted 3s retries on 10/7
+            sleep $((attempt * attempt * 5))
             git fetch origin main
             # Mixed reset: HEAD + index move to latest main, but our freshly built
             # files stay in the working tree. Re-staging only the pure-DATA files

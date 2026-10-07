@@ -54,6 +54,8 @@ jobs:
           for attempt in 1 2 3 4 5; do
             if git push; then echo "Pushed on attempt $attempt"; exit 0; fi
             echo "Push rejected (attempt $attempt) — replaying onto latest main"
+            # back off 5/20/45/80s: a GitHub 500 blip outlasted 3s retries on 10/7
+            sleep $((attempt * attempt * 5))
             git fetch origin main
             git reset FETCH_HEAD
             git add nba/*.json
