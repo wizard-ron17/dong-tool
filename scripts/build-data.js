@@ -923,13 +923,16 @@ function oddsPitcherZ(pid, stuff, seasonStats) {
 // A team's likely everyday starters when its official lineup hasn't posted:
 // season-long regulars (15+ games, 1.5+ AB/game, some power, seen in the last
 // week, not on the IL), fielded as a positionally valid nine. No batting order.
-function projectLineupFor(teamAbbr, batMetaMap = {}, injuryStatus = {}) {
+// minHr: the HR board's power floor. Other markets (batter Ks / walks) pass 0, so every
+// bat the page projects into a lineup (index.html projectedLineupFor, which has no
+// floor) gets a price.
+function projectLineupFor(teamAbbr, batMetaMap = {}, injuryStatus = {}, minHr = PICKS_MIN_HR) {
   const eligible = Object.keys(playerTeams)
     .filter(pid =>
       playerTeams[pid] === teamAbbr &&
       (playerGames[pid] ?? 0) >= 15 &&
       (playerABs[pid] ?? 0) / Math.max(playerGames[pid] ?? 1, 1) >= 1.5 &&
-      (hrTotals[pid] ?? 0) >= PICKS_MIN_HR &&
+      (hrTotals[pid] ?? 0) >= minHr &&
       !injuryStatus[pid] &&
       daysSince(playerLastGame[pid] || '2000-01-01') <= 7
     )
@@ -2722,7 +2725,7 @@ async function computeBatterKBB(todaySchedule, pitcherStats, batterDiscipline, b
         const bf = opp.openerIP ? opp.openerIP * 4.242 : ((ps.avgStartBF ?? 22) * gs + 5 * 22) / (gs + 5);
         const posted = me.lineup?.length > 0;
         const bats = posted ? me.lineup.filter(p => p.position !== 'P').map(p => ({ pid: String(p.pid), order: p.order }))
-                            : projectLineupFor(me.teamAbbr, batMetaMap, injuryStatus).map(p => ({ pid: String(p.pid), order: 0 }));
+                            : projectLineupFor(me.teamAbbr, batMetaMap, injuryStatus, 0).map(p => ({ pid: String(p.pid), order: 0 }));
         for (const { pid, order } of bats) {
           if (injuryStatus[pid]) continue;
           const bd = batterDiscipline[pid], bp = prevBat[pid];
