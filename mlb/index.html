@@ -136,6 +136,9 @@
               padding: 0.18rem 0.5rem; border-radius: 999px; cursor: pointer; box-shadow: 0 0 10px rgba(242,182,50,0.35); }
   /* phones: the badge pushed the header 12px past the screen on Linux's wider fonts (CI check) */
   @media (max-width: 420px) { .ps-badge { font-size: 0.52rem; letter-spacing: 0.04em; padding: 0.14rem 0.38rem; } }
+  /* under 380px the badge pushed the theme toggle off-screen (page 373px wide at 320): the
+     trophy logo already says postseason, and the Schedule's Bracket button stays */
+  @media (max-width: 379px) { .ps-badge { display: none; } }
   .gc-round { color: var(--psg, var(--gold)); font-weight: 800; margin-right: 0.55rem; letter-spacing: 0.08em; }
   .gc-series b { color: var(--psg, var(--gold)); }
   .sched-tb-r { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
@@ -2134,6 +2137,25 @@
      Everything below the desktop breakpoint is set here, at one specificity. */
   @media (max-width: 619px) {
     .pm-back { padding: 1.1rem 2.6rem; }
+  }
+  /* Narrow phones (320-420px): the game pop-up's scoreboard, tabs and top-pick strip
+     had fixed minimums (276 / 266 / 248px) wider than the card left between the arrows,
+     so they spilled. The backdrop keeps just enough room for the slim arrows, and the
+     pieces shrink and wrap. */
+  @media (max-width: 420px) {
+    .pm-back { padding-left: 2.15rem; padding-right: 2.15rem; }
+    .pm.sgm { padding: 0.75rem 0.55rem 0.9rem; }
+    .sg-hero { padding: 1.3rem 0 0.55rem; }
+    .gc { grid-template-columns: 2.9rem minmax(0, 1fr) 5.4rem minmax(0, 1fr) 2.9rem; }
+    .sg-hero .gc-logo { width: 34px; height: 34px; }
+    .sg-hero .gc-r, .gc-r { font-size: 1.9rem; }
+    .gc-ln { font-size: 0.6rem; }
+    .gc-st { font-size: 0.82rem; }
+    .sg-tabs .sub-btn { padding-left: 0.45rem; padding-right: 0.45rem; font-size: 0.76rem; }
+    .gc-pick { flex-wrap: wrap; row-gap: 0.25rem; }
+  }
+  @media (max-width: 350px) {
+    .sg-tabs { flex-wrap: wrap; justify-content: center; }
   }
   /* ── Yards player card (wide) ─────────────────────────────────────────── */
   .pm.ydm { box-sizing: border-box; max-width: 1020px; padding: 1rem 1.4rem 0.85rem; border-radius: 18px;
