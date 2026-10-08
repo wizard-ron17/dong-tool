@@ -661,6 +661,7 @@
   .fbar-fill { position: absolute; top: 1px; bottom: 1px; border-radius: 2px; min-width: 1px; }
   .fbar-fill.pos { background: linear-gradient(90deg, rgba(53,201,110,0.32), rgba(53,201,110,0.85)); }
   .fbar-fill.neg { background: linear-gradient(270deg, rgba(229,83,75,0.32), rgba(229,83,75,0.85)); }
+  .fbar-fill.mid { background: linear-gradient(90deg, rgba(242,201,76,0.30), rgba(242,201,76,0.80)); }   /* within 3% of neutral, or the 40th-60th percentile */
   .fbar-val { font-family: var(--font-d); font-weight: 700; font-size: 0.779rem; text-align: right; }
   .fbar-note { font-size: 0.680rem; color: var(--muted); margin-top: 0.5rem; }
   /* percentile mode: wider value column ("81st 1.36×"), so the 50th baseline sits at calc(50% + (6rem - 5.6rem)/2) */
@@ -4072,6 +4073,12 @@
   const pkRank = (pool, k, d) => { const s = pool.sorted[k] || []; let lo = 0, hi = 0; for (const y of s) { if (y < d - 1e-9) lo++; if (y <= d + 1e-9) hi++; } return s.length ? (lo + hi) / 2 / s.length : 0.5; };
   const pkOrd = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' })[n % 10] || 'th');
 
+  // Factor tones: a factor within 3% of neutral (0.97-1.03x), or in the middle fifth of the
+  // board (40th-60th percentile), reads yellow, not red: a 0.99 isn't a reason to write a
+  // bat off. Green and red are for factors that actually move the price.
+  const fxTone = (mult) => mult >= 1.03 ? 'pos' : mult <= 0.97 ? 'neg' : 'mid';
+  const pcTone = (pc) => pc >= 0.6 ? 'pos' : pc <= 0.4 ? 'neg' : 'mid';
+  const TONE_VAR = { pos: 'var(--good)', neg: 'var(--bad)', mid: 'var(--gold)' };
   function openPick(pid) {
     const P = D.picks; if (!P) return;
     const r = (P.picks || []).find(x => x.pid === pid); if (!r) return;
@@ -4089,8 +4096,8 @@
     const bars = shown.map(x => {
       const pos = x.d > 0, w = Math.min(50, Math.abs(x.d) / maxAbs * 50);
       return `<div class="fbar"><span class="fbar-label" title="${esc(x.tip)} (${esc(x.det)})">${x.lab}</span>
-        <div class="fbar-track"><div class="fbar-fill ${pos ? 'pos' : 'neg'}" style="${pos ? 'left:50%' : 'right:50%'};width:${w}%"></div></div>
-        <span class="fbar-val" style="color:${pos ? 'var(--good)' : 'var(--bad)'}">${Math.exp(x.d).toFixed(2)}×</span></div>`;
+        <div class="fbar-track"><div class="fbar-fill ${fxTone(Math.exp(x.d))}" style="${pos ? 'left:50%' : 'right:50%'};width:${w}%"></div></div>
+        <span class="fbar-val" style="color:${TONE_VAR[fxTone(Math.exp(x.d))]}">${Math.exp(x.d).toFixed(2)}×</span></div>`;
     }).join('');
     const pool = pkPool(pkRole(r.pos)), pctMode = pool.n >= PK_PCT_MIN;
     const roleNames = pkRole(r.pos) === 'D' ? 'defencemen' : 'forwards';
@@ -4105,8 +4112,8 @@
       const bars = rows.map(x => {
         const pc = pkRank(pool, x.lab, x.d), t = (pc - 0.5) * 2;
         return `<div class="fbar"><span class="fbar-label" title="${esc(x.tip)} (${esc(x.det)})">${x.lab}</span>
-          <div class="fbar-track"><div class="fbar-fill ${t >= 0 ? 'pos' : 'neg'}" style="${t >= 0 ? 'left:50%' : 'right:50%'};width:${Math.abs(t) * 50}%"></div></div>
-          <span class="fbar-val" style="color:${t >= 0 ? 'var(--good)' : 'var(--bad)'}">${pkOrd(pc100(x))}<small>${Math.exp(x.d).toFixed(2)}×</small></span></div>`;
+          <div class="fbar-track"><div class="fbar-fill ${pcTone(pc)}" style="${t >= 0 ? 'left:50%' : 'right:50%'};width:${Math.abs(t) * 50}%"></div></div>
+          <span class="fbar-val" style="color:${TONE_VAR[pcTone(pc)]}">${pkOrd(pc100(x))}<small>${Math.exp(x.d).toFixed(2)}×</small></span></div>`;
       }).join('');
       return { head, chips, bars };
     };

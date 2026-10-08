@@ -716,6 +716,7 @@
   .fbar-fill { position: absolute; top: 1px; bottom: 1px; border-radius: 2px; min-width: 1px; }
   .fbar-fill.pos { background: linear-gradient(90deg, rgba(53,201,110,0.32), rgba(53,201,110,0.85)); }
   .fbar-fill.neg { background: linear-gradient(270deg, rgba(229,83,75,0.32), rgba(229,83,75,0.85)); }
+  .fbar-fill.mid { background: linear-gradient(90deg, rgba(242,201,76,0.30), rgba(242,201,76,0.80)); }   /* within 3% of neutral, or the 40th-60th percentile */
   .fbar-val { font-family: var(--font-d); font-weight: 700; font-size: 0.779rem; text-align: right; }
   .fbar-note { font-size: 0.680rem; color: var(--muted); margin-top: 0.5rem; }
   /* Pitch matchup: batter's HR pitches vs pitcher's arsenal, squared up like the fight card. */
@@ -7902,7 +7903,7 @@ function whyChips(r) {
 // Table cells for the same reads: a multiplier, coloured only when it moves the price;
 // a slate rank, as "top N%". "—" on a board built before the field existed.
 const whyCell = (v) => v == null ? '<td class="lb-num" style="color:var(--dim)">—</td>'
-  : `<td class="lb-num" style="font-family:var(--font-d);font-weight:700;color:var(${v >= 1.02 ? '--good' : v <= 0.98 ? '--bad' : '--muted'})">${v.toFixed(2)}×</td>`;
+  : `<td class="lb-num" style="font-family:var(--font-d);font-weight:700;color:var(${v >= 1.03 ? '--good' : v <= 0.97 ? '--bad' : Math.round(v * 100) === 100 ? '--muted' : '--gold'})">${v.toFixed(2)}×</td>`;
 const greenCell = (pct) => pct == null ? '<td class="lb-num" style="color:var(--dim)">—</td>'
   : `<td class="lb-num"${pct >= 0.6 ? ' style="color:var(--accent)"' : ''}>top ${Math.max(1, Math.round((1 - pct) * 100) + 1)}%</td>`;
 // Bueno's screen: where he sits on today's slate for each of the three (build: r.green, percentiles)
@@ -8145,7 +8146,7 @@ function factorBarsHtml(items) {
   const bars = rows.map(it => {
     const d = it.value - 1;
     const w = Math.min(Math.abs(d) / MAXDEV, 1) * 50; // % of full track (half = 50%)
-    const dir = d >= 0 ? 'pos' : 'neg';
+    const dir = mfCls(it.value) === 'avg' ? 'mid' : d >= 0 ? 'pos' : 'neg';   // the near-neutral band fills yellow
     const vcls = mfCls(it.value);
     const sign = mfSign(it.value);
     const fill = d >= 0 ? `left:50%;width:${w}%` : `right:50%;width:${w}%`;
@@ -10859,13 +10860,14 @@ function poissonAtLeast(mu, n) {
 }
 const kbbWinProb = (proj, need) => proj == null ? null : poissonAtLeast(proj, need);
 // Fair American odds — no vig, so a book will always price worse than this.
-/** A matchup factor's colour: over 1.00× helps the hitter (green; brighter
- *  from 1.05×), under 1.00× hurts him (red), exactly 1.00× is neutral. No
- *  in-between yellow — anything under neutral counts against him. */
+/** A matchup factor's colour: 1.03x and up helps the hitter (green; brighter from
+ *  1.05x), 0.97x and down hurts him (red), and the band between reads yellow: a 0.99
+ *  isn't a reason to write a bat off (10/7: the yellow band is back).
+ *  Exactly 1.00x stays grey: the factor didn't apply (a roof, no lineup slot yet). */
 // Judged on the value as displayed (2 decimals): a 0.998 that reads "1.00" is
 // neutral, not red.
 const mfR = (v) => Math.round(v * 100) / 100;
-const mfCls = (v) => v == null ? '' : mfR(v) >= 1.05 ? 'great' : mfR(v) > 1 ? 'good' : mfR(v) < 1 ? 'bad' : 'flat';
+const mfCls = (v) => v == null ? '' : mfR(v) === 1 ? 'flat' : mfR(v) >= 1.05 ? 'great' : mfR(v) >= 1.03 ? 'good' : mfR(v) <= 0.97 ? 'bad' : 'avg';
 // ── HR fair odds (scripts/hr-odds.js, research/mlb_hr_replay.py) ─────────
 // P(HR today) from the calibrated odds model, as fair American odds — no vig.
 // A separate layer from the Pick Score: it reads his power, contact quality,
