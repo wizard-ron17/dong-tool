@@ -25,3 +25,4 @@ for s in 192 512; do rsvg-convert -w $s -h $s "$MK" -o icons/nba-icon-maskable-$
 magick icons/nba-favicon-16.png icons/nba-favicon-32.png icons/nba-favicon-48.png icons/nba-favicon.ico
 rm -f "$MK" "$FV"
 echo "Regenerated:"; ls -la icons/nba-* | awk '{printf "  %-34s %8s\n",$9,$5}'
+echo "Share cards use these icons: now run  python3 scripts/make-og-cards.py  and bump ?v= on the og:image links."
