@@ -1442,6 +1442,7 @@
   .sched-lineup-hdr-spacer { flex: 1; min-width: 0; }
   .sched-lineup-empty { font-size: 0.723rem; color: var(--dim); font-style: italic; }
   .sched-proj-tag { font-size: 0.661rem; font-weight: 700; letter-spacing: 0.03em; color: var(--gold); background: rgba(240,192,64,0.1); border: 1px solid rgba(240,192,64,0.3); border-radius: 8px; padding: 0.05rem 0.4rem; text-transform: none; }
+  a.sched-proj-tag { text-decoration: none; cursor: pointer; }
   @media (max-width: 600px) { .sched-lineups { flex-direction: column; gap: 0.7rem; } .sched-pitchers-row { flex-wrap: wrap; } }
 
   .sched-bullpen-head { display: block; font-size: 0.692rem; font-weight: 700; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; padding: 0.55rem 0 0.1rem; text-align: center; border-top: 1px solid var(--border); margin-top: 0.6rem; }
@@ -5721,7 +5722,15 @@ function handBadge(code, kind) {
 // build's projectedLineup (15+ games, 1.5+ AB/game, active in the last 7 days),
 // minus the HR floor so it's a full projected lineup, not just the power bats.
 // Excludes IL. The books use the same pool pre-lineup.
+// RotoWire's Expected lineup (in batting order) when the build attached one: it knows
+// rest days, platoons and the order; our own guess below knows neither.
+function rwSideFor(teamAbbr) {
+  for (const g of (todaySchedule || [])) for (const sd of [g.home, g.away]) if (sd.teamAbbr === teamAbbr && sd.rwLineup?.length) return sd;
+  return null;
+}
 function projectedLineupFor(teamAbbr) {
+  const rw = rwSideFor(teamAbbr);
+  if (rw) return [...rw.rwLineup].sort((a, b) => a.order - b.order).map(p => String(p.pid));
   const eligible = Object.keys(playerTeams)
     .filter(pid => playerTeams[pid] === teamAbbr
       && (playerGames[pid] ?? 0) >= 15
@@ -5797,7 +5806,11 @@ function schedLineupHtml(side, oppSide, venue) {
         ${scoreCell(pid)}
       </div>`;
     }).join('');
-    return `<div class="sched-lineup-col"><div class="sched-lineup-head">${label} <span class="sched-proj-tag" title="Lineup not posted — likely everyday starters, the pool the books use pre-lineup">Projected</span></div>${hdr}${prows}</div>`;
+    const rw = rwSideFor(side.teamAbbr);
+    const tag = rw
+      ? `<a class="sched-proj-tag" href="https://www.rotowire.com/baseball/daily-lineups.php" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Lineup not posted yet: RotoWire's ${rw.rwStatus} lineup, in batting order">RotoWire · ${rw.rwStatus === 'confirmed' ? 'Confirmed' : 'Expected'}</a>`
+      : `<span class="sched-proj-tag" title="Lineup not posted — likely everyday starters, the pool the books use pre-lineup">Projected</span>`;
+    return `<div class="sched-lineup-col"><div class="sched-lineup-head">${label} ${tag}</div>${hdr}${prows}</div>`;
   }
   const rows = side.lineup.map(p => {
     const hrs = hrTotals[p.pid] ?? 0;
@@ -9499,7 +9512,7 @@ function renderValueBoard() {
   if (!value.length) {
     metaEl.textContent = '';
     el.innerHTML = todaySchedule.length
-      ? '<div class="empty">No Value board yet — lineups must be posted for matchup scoring to run.</div>'
+      ? `<div class="empty">No bat passes the Value screen today. It takes a longshot (under ${Math.round(0.10 * 100)}%) that sits in the top 40% of the slate on all three: batter platoon, pitching vuln and recent contact. A ${todaySchedule.length}-game slate rarely has one${todaySchedule.length <= 6 ? '; a full slate usually has several' : ''}. The closest bats are on the <a href="javascript:void(0)" onclick="setPicksMode('chalk')">Chalk</a> board.</div>`
       : '<div class="empty">No games today. The Value board resumes with the next slate; meanwhile <a href="javascript:void(0)" onclick="switchNav(\'due\')">Due</a> still tracks who\'s overdue.</div>';
     return;
   }

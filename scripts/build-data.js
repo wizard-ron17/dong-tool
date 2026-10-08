@@ -948,21 +948,19 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
   const gameZByVenue = {};
   for (const g of todaySchedule) if (g.venue && !(g.venue in gameZByVenue)) gameZByVenue[g.venue] = Math.round(oddsGameZ(g, weatherByVenue[g.venue]) * 10000) / 10000;
   try {
-    // Identify a team's likely everyday starters when the official lineup
-    // hasn't posted yet. Uses season-long data: guys who've appeared in at
+    // A side's batters: its posted lineup, else RotoWire's Expected one, else our own
+    // projection of likely everyday starters (projectLineupFor): guys who've appeared in at
     // least 15 games, average 1.5+ AB/game (filters pitchers out naturally
     // under universal DH), have some power this season, and showed up in a
     // game within the last 7 days (catches injuries/demotions without needing
     // the IL feed, which runs AFTER this function in main()).
-    const projectedLineup = (teamAbbr) => projectLineupFor(teamAbbr, batMetaMap, injuryStatus);
+    // (posted lineup, else RotoWire's Expected, else projectLineupFor: lineupForSide)
 
     const candidates = [];
     for (const g of todaySchedule) {
       for (const [me, opp] of [[g.home, g.away], [g.away, g.home]]) {
         if (!opp.probablePitcherId) continue; // need a pitcher to score the matchup
-        const batters = me.lineup.length
-          ? me.lineup.map(p => ({ ...p, projected: false }))
-          : projectedLineup(me.teamAbbr).map(p => ({ ...p, projected: true }));
+        const batters = lineupForSide(me, batMetaMap, injuryStatus);
         for (const p of batters) {
           if (p.position === 'P') continue;
           if (injuryStatus[p.pid]) continue; // on the IL — never a pick, even off a posted lineup
@@ -2408,6 +2406,63 @@ async function fetchTodaySchedule(teamIdToAbbr) {
   } catch (e) { return []; }
 }
 
+// RotoWire's daily lineups: before a club posts, its Expected lineup (in batting order,
+// with rest days and platoons from the news) beats our "most games lately" guess, which
+// can't know the order at all (an unplaced bat was priced as a 5-hole hitter). Attached
+// as side.rwLineup [{pid, name, position, order}] + side.rwStatus 'expected'|'confirmed'.
+// The page is fetched as any browser would (robots.txt allows it); credited on the page.
+const RW_ABBR = { ARI: 'AZ', WAS: 'WSH', OAK: 'ATH', CHW: 'CWS', SDP: 'SD', SFG: 'SF', TBR: 'TB', KCR: 'KC' };
+const rwNorm = (n) => String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  .replace(/[.'’]/g, '').replace(/\b(jr|sr|ii|iii|iv)\b/g, '').replace(/\s+/g, ' ').trim();
+async function attachRotowireLineups(games) {
+  const cal = calDateET(), day = todayET();
+  const url = day === cal ? 'https://www.rotowire.com/baseball/daily-lineups.php'
+    : day === shiftDateStr(cal, 1) ? 'https://www.rotowire.com/baseball/daily-lineups.php?date=tomorrow' : null;
+  if (!url || !games.length) return;
+  let html;
+  try { html = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (dong-tool)' } }).then(r => r.ok ? r.text() : ''); }
+  catch (e) { console.warn(`  RotoWire lineups skipped: ${e.message}`); return; }
+  if (!html || !html.includes(`-${day}-`)) { console.warn(`  RotoWire lineups: page isn't for ${day}, skipped`); return; }
+  // name -> pid, by club first (two players can share a name across MLB)
+  const byTeam = {}, byName = {};
+  for (const [pid, nm] of Object.entries(playerNames)) {
+    const k = rwNorm(nm), t = playerTeams[pid];
+    if (t) (byTeam[t] ??= {})[k] = pid;
+    (byName[k] ??= []).push(pid);
+  }
+  const lookup = (team, nm) => { const k = rwNorm(nm); return byTeam[team]?.[k] ?? (byName[k]?.length === 1 ? byName[k][0] : null); };
+  const blocks = html.split('<div class="lineup is-mlb').slice(1);
+  let used = 0, teams = 0;
+  for (const b of blocks) {
+    const abbrs = [...b.matchAll(/lineup__abbr">([A-Z]+)</g)].map(m => RW_ABBR[m[1]] || m[1]);
+    if (abbrs.length < 2) continue;
+    const [visit, home] = abbrs;
+    const g = games.find(x => x.home.teamAbbr === home && x.away.teamAbbr === visit && !x.started);
+    if (!g) continue;
+    for (const [cls, side, team] of [['is-visit', g.away, visit], ['is-home', g.home, home]]) {
+      const i = b.indexOf(`lineup__list ${cls}`); if (i < 0) continue;
+      const list = b.slice(i, b.indexOf('</ul>', i));
+      const status = /lineup__status is-confirmed/.test(list) ? 'confirmed' : /lineup__status is-expected/.test(list) ? 'expected' : null;
+      const players = [...list.matchAll(/<li class="lineup__player">[\s\S]*?lineup__pos">([^<]*)<[\s\S]*?title="([^"]+)"/g)]
+        .map((m, k) => ({ name: m[2], position: m[1].trim(), order: k + 1, pid: lookup(team, m[2]) }));
+      teams++;
+      const mapped = players.filter(p => p.pid);
+      if (!status || players.length < 9 || mapped.length < 7) continue;   // too few we can place: keep our own guess
+      side.rwLineup = mapped.map(p => ({ pid: String(p.pid), name: playerNames[p.pid] || p.name, position: p.position, order: p.order }));
+      side.rwStatus = status;
+      used++;
+    }
+  }
+  console.log(`  RotoWire lineups: ${used}/${teams} clubs placed (${day})`);
+}
+// The lineup a side will bat: posted, else RotoWire's, else our projection. Each bat
+// carries order and whether it's projected.
+function lineupForSide(side, batMetaMap = {}, injuryStatus = {}, minHr = PICKS_MIN_HR) {
+  if (side.lineup?.length) return side.lineup.map(p => ({ ...p, projected: false }));
+  if (side.rwLineup?.length) return side.rwLineup.map(p => ({ ...p, projected: true, src: 'rotowire' }));
+  return projectLineupFor(side.teamAbbr, batMetaMap, injuryStatus, minHr).map(p => ({ ...p, projected: true }));
+}
+
 // Batting/throwing hand for everyone in a posted lineup and every probable
 // starter, so the Schedule tab can show handedness. One batched /people call
 // (batSide.code / pitchHand.code come back without any stats hydrate).
@@ -2415,7 +2470,7 @@ async function attachHands(games) {
   const ids = new Set();
   for (const g of games) for (const side of [g.home, g.away]) {
     if (side.probablePitcherId) ids.add(side.probablePitcherId);
-    for (const p of side.lineup) ids.add(p.pid);
+    for (const p of [...side.lineup, ...(side.rwLineup || [])]) ids.add(p.pid);
   }
   if (!ids.size) return;
   const hands = {}; // pid -> { bats, throws }
@@ -2427,7 +2482,7 @@ async function attachHands(games) {
   }
   for (const g of games) for (const side of [g.home, g.away]) {
     side.probablePitcherThrows = side.probablePitcherId ? (hands[side.probablePitcherId]?.throws ?? null) : null;
-    for (const p of side.lineup) p.bats = hands[p.pid]?.bats ?? null;
+    for (const p of [...side.lineup, ...(side.rwLineup || [])]) p.bats = hands[p.pid]?.bats ?? null;
   }
 }
 // A starter nobody has named yet, projected — so a TBD game still gets its
@@ -2724,8 +2779,7 @@ async function computeBatterKBB(todaySchedule, pitcherStats, batterDiscipline, b
         const gs = ps.gamesStarted ?? 0;
         const bf = opp.openerIP ? opp.openerIP * 4.242 : ((ps.avgStartBF ?? 22) * gs + 5 * 22) / (gs + 5);
         const posted = me.lineup?.length > 0;
-        const bats = posted ? me.lineup.filter(p => p.position !== 'P').map(p => ({ pid: String(p.pid), order: p.order }))
-                            : projectLineupFor(me.teamAbbr, batMetaMap, injuryStatus, 0).map(p => ({ pid: String(p.pid), order: 0 }));
+        const bats = lineupForSide(me, batMetaMap, injuryStatus, 0).filter(p => p.position !== 'P').map(p => ({ pid: String(p.pid), order: p.order || 0 }));
         for (const { pid, order } of bats) {
           if (injuryStatus[pid]) continue;
           const bd = batterDiscipline[pid], bp = prevBat[pid];
@@ -3600,6 +3654,7 @@ async function main() {
     if (expected > 0) throw new Error(`Degraded build: schedule hydrate returned 0 games but MLB lists ${expected} for ${todayET()} — refusing to write data.json`);
   }
   await projectStarters(todaySchedule);
+  await attachRotowireLineups(todaySchedule);
   await attachHands(todaySchedule);
 
   // Sportsbook lines for the schedule — DraftKings via ESPN: run line, total
