@@ -161,26 +161,55 @@
     kBBSame: -0.152,   // one pitcher's K over and his BB over [-.199, -.111] — walks and Ks work against each other
     kHrOpp:  -0.072,   // a starter's K over and a homer off him [-.098, -.047] — the duel
     bbBBOpp: -0.065,   // the two starters' BB overs [-.133, -.003] — borderline, kept because it clears zero
+    // batter Ks / walks legs: research/sgp_mlb_batter.py, every 2026 batter-game
+    bkSpK:    0.266,   // a batter's K and the K over of the starter he faces [+.250, +.278]
+    bbbSpBB:  0.328,   // a batter's walk and the BB over of the starter he faces [+.309, +.341]
+    bkSpBB:  -0.022,   // a batter's K and that starter's BB over [-.036, -.008]
+    bbbSpK:  -0.098,   // a batter's walk and that starter's K over [-.119, -.083]
+    bkBBSame:-0.172,   // one batter's K and his own walk [-.190, -.160] — the PAs are a pie
+    bkHrSame:-0.109,   // one batter's K and his own homer [-.132, -.088]
+    bbbHrSame:-0.022,  // one batter's walk and his own homer [-.045, -.006]
+    bkTeam:   0.013,   // two teammates' Ks [+.006, +.020] — same starter
+    bbbTeam:  0.041,   // two teammates' walks [+.032, +.056]
+    bbbHrTeam:0.025,   // a batter's walk and a teammate's homer [+.018, +.034] — men on, a starter in trouble
   };
-  /** ρ between two MLB legs in one game (0 = independent). */
-  function sgpRhoMLB(a, b) {
-    if (a.sp !== 'mlb' || b.sp !== 'mlb' || !a.g || a.g !== b.g) return 0;
-    const kind = (l) => l.m === 'hr' ? 'hr' : l.m === 'pK' ? 'k' : l.m === 'pBB' ? 'bb' : null;
-    const ka = kind(a), kb = kind(b); if (!ka || !kb) return 0;
-    const sg = side(a) * side(b);
+  /** Which measured pair two MLB legs in one game are: { key into SGP_MLB, sign }, or null (independent). */
+  function sgpPairMLB(a, b) {
+    if (a.sp !== 'mlb' || b.sp !== 'mlb' || !a.g || a.g !== b.g) return null;
+    const kind = (l) => l.m === 'hr' ? 'hr' : l.m === 'pK' ? 'k' : l.m === 'pBB' ? 'bb' : l.m === 'bK' ? 'bk' : l.m === 'bBB' ? 'bbb' : null;
+    const ka = kind(a), kb = kind(b); if (!ka || !kb) return null;
+    const sg = side(a) * side(b), R = (key) => key ? { key, sg } : null;
     const is = (x, y) => (ka === x && kb === y) || (ka === y && kb === x);
-    if (is('hr', 'hr')) return a.t && a.t === b.t ? SGP_MLB.hrTeam : 0;
-    if (is('k', 'bb')) return a.i === b.i ? sg * SGP_MLB.kBBSame : 0;
-    if (is('k', 'hr')) { const k = ka === 'k' ? a : b, h = ka === 'k' ? b : a; return k.t !== h.t ? sg * SGP_MLB.kHrOpp : 0; }
-    if (is('bb', 'bb')) return a.i !== b.i ? sg * SGP_MLB.bbBBOpp : 0;
-    return 0;
+    // t is the batter's club and the pitcher's own club: in one game a different t
+    // is the starter he faces (and, for two pitchers, the other starter)
+    const same = a.i === b.i, mates = a.t === b.t && !same, opp = a.t !== b.t;
+    if (is('hr', 'hr')) return R(mates && 'hrTeam');
+    if (is('k', 'bb')) return R(same && 'kBBSame');
+    if (is('k', 'hr')) return R(opp && 'kHrOpp');
+    if (is('bb', 'bb')) return R(!same && 'bbBBOpp');
+    if (is('bk', 'k')) return R(opp && 'bkSpK');
+    if (is('bbb', 'bb')) return R(opp && 'bbbSpBB');
+    if (is('bk', 'bb')) return R(opp && 'bkSpBB');
+    if (is('bbb', 'k')) return R(opp && 'bbbSpK');
+    if (is('bk', 'bbb')) return R(same && 'bkBBSame');
+    if (is('bk', 'hr')) return R(same && 'bkHrSame');
+    if (is('bbb', 'hr')) return R(same ? 'bbbHrSame' : mates && 'bbbHrTeam');
+    if (is('bk', 'bk')) return R(mates && 'bkTeam');
+    if (is('bbb', 'bbb')) return R(mates && 'bbbTeam');
+    return null;
   }
-  const SGP_WHY = { hrTeam: 'teammates homer together', kBBSame: 'a pitcher\'s Ks and walks work against each other', kHrOpp: 'a strikeout night takes homers away', bbBBOpp: 'the two starters rarely both walk a lot' };
+  /** ρ between two MLB legs in one game (0 = independent). */
+  function sgpRhoMLB(a, b) { const q = sgpPairMLB(a, b); return q ? q.sg * SGP_MLB[q.key] : 0; }
+  const SGP_WHY = { hrTeam: 'teammates homer together', kBBSame: 'a pitcher\'s Ks and walks work against each other', kHrOpp: 'a strikeout night takes homers away', bbBBOpp: 'the two starters rarely both walk a lot',
+    bkSpK: 'a strikeout night for the starter is one for the bats he faces', bbbSpBB: 'a wild starter walks the bats he faces',
+    bkSpBB: 'a wild starter strikes out fewer', bbbSpK: 'a strikeout night means fewer walks', bkBBSame: 'his Ks and walks split the same plate appearances',
+    bkHrSame: 'a strikeout is a turn that didn\'t homer', bbbHrSame: 'a walk is a turn that didn\'t homer', bkTeam: 'teammates face the same arm',
+    bbbTeam: 'teammates face the same arm', bbbHrTeam: 'walks put men on for a homer' };
   function priceMLB(legs, naive) {
     const res = window.SGP ? SGP.price(legs, sgpRhoMLB) : { p: naive, pairs: [] };
     if (!res.pairs.length) return { p: naive, corr: null };
-    const why = [...new Set(res.pairs.map(q => { const r = sgpRhoMLB(legs[q.a], legs[q.b]);
-      const key = Object.keys(SGP_MLB).find(k => Math.abs(Math.abs(SGP_MLB[k]) - Math.abs(r)) < 1e-9); return key ? (r > 0 ? '▲ ' : '▼ ') + SGP_WHY[key] : null; }).filter(Boolean))];
+    const why = [...new Set(res.pairs.map(q => { const m = sgpPairMLB(legs[q.a], legs[q.b]);
+      return m ? (m.sg * SGP_MLB[m.key] > 0 ? '▲ ' : '▼ ') + SGP_WHY[m.key] : null; }).filter(Boolean))];
     return { p: res.p, corr: 'sgp', why, notes: [sgpNote(why, res.p, naive)] };
   }
 

@@ -11667,7 +11667,7 @@ function ppBatterBoard(isK, lg, K0, log5, lbl, word) {
         if (!bd || !bd.pa) continue;
         const bCnt = isK ? bd.k : bd.bb;
         const bRate = (bCnt + K0 * lg) / (bd.pa + K0);
-        brows.push({ pid, name: playerNames[pid] || pid, team: me.teamAbbr, hand: hnd, spid, spName: playerNames[spid] || spid,
+        brows.push({ pid, name: playerNames[pid] || pid, team: me.teamAbbr, opp: opp.teamAbbr, hand: hnd, spid, spName: playerNames[spid] || spid,
                      throws: opp.probablePitcherThrows, bRaw: bCnt / bd.pa, pRaw: pCnt / ps.bf, exp: log5(bRate, pRate, lg),
                      fair: priced?.get(pid) || null });
       }
@@ -11688,7 +11688,11 @@ function ppBatterBoard(isK, lg, K0, log5, lbl, word) {
   const cards = brows.map((r, i) => {
     const cls = pvClass(r.exp / lg);
     const hand = r.hand ? `<span class="pk-hand ${r.hand.toLowerCase()}">${r.hand}</span>` : '';
-    return `<div class="pv-card" onclick="openPitcher('${r.spid}','lineup')">
+    // the card is the parlay leg, on the line it quotes (correlations: parlay.js, research/sgp_mlb_batter.py)
+    const leg = !r.fair ? '' : (() => { const arr = r.fair[key], j = evenRung(arr), L = j + 0.5;
+      return parAttr({ k: `b${lbl}|${r.pid}|${L}|${over ? 'o' : 'u'}`, n: compactPlayerName(r.name), t: r.team,
+        g: [r.team, r.opp].sort().join(' vs '), m: `b${lbl}`, s: `${over ? 'Over' : 'Under'} ${L} ${isK ? 'strikeouts' : 'walks'}`, p: side(arr[j]), i: r.pid }); })();
+    return `<div class="pv-card" onclick="openPitcher('${r.spid}','lineup')"${leg}>
       <div class="pv-main">
         <span class="pv-brank">${i + 1}</span>
         ${muPhotoTag(r.pid, r.team)}
