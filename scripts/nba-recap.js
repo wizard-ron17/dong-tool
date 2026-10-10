@@ -54,6 +54,28 @@ export function recapDetail(s, ev, r) {
     tip: r.g.tip ? { won: r.g.tip, jump: r.g.jump || [] } : null, fb, threes, box };
 }
 
+/**
+ * nba/league-days.json: one row per regular-season final, kept for the whole season (the
+ * Stats tab's League trend chart: threes made per game, by day). Unlike the recap it is
+ * never trimmed. Keyed by game id, so a re-fetched final just rewrites its own row.
+ *   games: id -> [date, away, home, 3PM away, 3PM home, 3PA away, 3PA home]
+ * A new season starts the file over. Games tallied before this file existed are not backfilled.
+ */
+const DAYS_PATH = new URL('../nba/league-days.json', import.meta.url);
+export function leagueRow(r) {
+  const { g, players } = r;
+  if (g.type !== 2 || !players.some(p => !p.dnp)) return null;
+  const sum = (team, k) => players.filter(p => p.team === team).reduce((a, p) => a + p[k], 0);
+  return [g.id, [g.date, g.away, g.home, sum(g.away, 'tpm'), sum(g.home, 'tpm'), sum(g.away, 'tpa'), sum(g.home, 'tpa')]];
+}
+export function saveLeagueDays(rows, season) {
+  let L = { season, games: {} };
+  try { const j = JSON.parse(fs.readFileSync(DAYS_PATH, 'utf8')); if (j.season === season) L = j; } catch (e) { /* first build, or a new season */ }
+  for (const r of rows) if (r) L.games[r[0]] = r[1];
+  fs.writeFileSync(DAYS_PATH, JSON.stringify(L));
+  return Object.keys(L.games).length;
+}
+
 /** Keep the last `days` of finals: the new ones added, the old ones dropped. */
 export function saveRecap(details, today, days, shiftDate) {
   let R = { games: {} };

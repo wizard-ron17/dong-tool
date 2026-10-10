@@ -12,6 +12,7 @@
 <script src="/board.js"></script>
 <script src="/ladder.js"></script>
 <script src="/slate.js"></script>
+<script src="/trend.js"></script>
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="NHL player props, every line priced — anytime goals, points, shots on goal, saves, hits and blocked shots — plus parlays, live win probability and a goal-by-goal recap with clips. Inspired by Green Means Go.">
 <meta property="og:type" content="website">
@@ -2896,8 +2897,38 @@
                   pm: v => (v > 0 ? '+' : '') + v };
   let stDeck = [];
   function setStF(k, v) { stF[k] = v; renderStats(); }
+  // League: goals per game by day (trend.js). Regular season, finished days only (a day still in
+  // progress would end the line on a half-played slate). A shootout game's final score carries the
+  // winner's shootout goal, which is not a goal scored, so it comes off.
+  function goalSeries(team) {
+    const done = new Map();
+    for (const g of D.schedule || []) if (g.type === 2) done.set(g.date, (done.get(g.date) ?? true) && g.state === 'OFF');
+    const by = new Map();
+    for (const g of D.schedule || []) {
+      if (g.type !== 2 || g.state !== 'OFF' || !done.get(g.date)) continue;
+      const so = g.end === 'SO', h = g.homeScore - (so && g.homeScore > g.awayScore ? 1 : 0), a = g.awayScore - (so && g.awayScore > g.homeScore ? 1 : 0);
+      if (team !== 'ALL' && g.home !== team && g.away !== team) continue;
+      const p = by.get(g.date) || { date: g.date, n: 0, tot: 0 };
+      p.n++; p.tot += team === 'ALL' ? h + a : g.home === team ? h : a;
+      by.set(g.date, p);
+    }
+    return [...by.values()].sort((x, y) => x.date.localeCompare(y.date))
+      .map(p => ({ ...p, label: new Date(p.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }));
+  }
+  function renderTrend(el, tabs) {
+    el.innerHTML = tabs + '<div id="trend-box"></div>';
+    RonTrend.render(document.getElementById('trend-box'), { key: 'nhl', noun: 'Goals', unit: 'goals/game', grain: 'day', series: goalSeries, dec: 2,
+      teams: [{ v: 'ALL', name: 'All teams' }, ...Object.keys(D.teams || {}).sort((a, b) => teamName(a).localeCompare(teamName(b))).map(v => ({ v, name: teamName(v) }))],
+      note: 'Goals both teams scored, per game, regular season. With a team picked: that team\'s own goals per game. A shootout\'s deciding goal is not counted.' });
+  }
   function renderStats() {
     const el = dataGate('stats-content'); if (!el) return;
+    const tabsHtml = `<div class="sub-tabs u-tabs">
+        <button class="sub-btn${stF.tab === 'skaters' ? ' active' : ''}" onclick="setStF('tab','skaters')">Skaters</button>
+        <button class="sub-btn${stF.tab === 'goalies' ? ' active' : ''}" onclick="setStF('tab','goalies')">Goalies</button>
+        <button class="sub-btn${stF.tab === 'league' ? ' active' : ''}" onclick="setStF('tab','league')">League</button>
+      </div>`;
+    if (stF.tab === 'league') return renderTrend(el, tabsHtml);
     const goalies = stF.tab === 'goalies';
     const all = goalies ? (D.goalies || []) : (D.leaders || []);
     const teams = [...new Set(all.map(r => r.team).filter(Boolean))].sort();
@@ -2945,10 +2976,7 @@
         <div class="st-total"><b>${fmt(val(r))}</b><span>${esc(sortLbl)}</span></div></div>`;
     };
 
-    el.innerHTML = `<div class="sub-tabs u-tabs">
-        <button class="sub-btn${!goalies ? ' active' : ''}" onclick="setStF('tab','skaters')">Skaters</button>
-        <button class="sub-btn${goalies ? ' active' : ''}" onclick="setStF('tab','goalies')">Goalies</button>
-      </div>
+    el.innerHTML = `${tabsHtml}
       ${goalies ? '' : `<div class="pairs-filter-row">
         <span class="due-filter-label">Pos</span>
         ${posChip('all', 'All')}${posChip('F', 'Forwards')}${posChip('C', 'C')}${posChip('L', 'LW')}${posChip('R', 'RW')}${posChip('D', 'D')}

@@ -12,6 +12,7 @@
 <script src="/board.js"></script>
 <script src="/ladder.js"></script>
 <script src="/slate.js"></script>
+<script src="/trend.js"></script>
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="NBA player props, every line priced — threes, points, rebounds, assists, PRA, steals and blocks, double- and triple-doubles and the first basket — plus droughts, milestones, a nightly recap and the schedule with lines. Inspired by Green Means Go.">
 <meta property="og:type" content="website">
@@ -1255,15 +1256,52 @@
   // ── Stats ──────────────────────────────────────────────────────────────
   // Per-game averages. Before opening night the board is last season's, and
   // says so — a Stats page of zeroes helps nobody.
-  const stF = { pos: 'all', team: 'all', sort: 'pts' };
+  const stF = { pos: 'all', team: 'all', sort: 'pts', view: 'leaders' };
   const ST_SORT = {
     pts: ['Points', r => r.pts], reb: ['Rebounds', r => r.reb], ast: ['Assists', r => r.ast], tpm: ['Threes', r => r.tpm],
     stl: ['Steals', r => r.stl], blk: ['Blocks', r => r.blk], min: ['Minutes', r => r.min],
     fgPct: ['FG %', r => r.fgPct], tpPct: ['3P %', r => r.tpPct],
   };
   function setStF(k, v) { stF[k] = v; renderStats(); }
+  // League: threes made per game by day (trend.js), from nba/league-days.json, which the build adds a
+  // row to for every regular-season final. Finished days only. Opening night is when the line starts.
+  let leagueDays = null;           // null = not asked yet, 'error', or the file
+  function loadLeagueDays() {
+    if (leagueDays !== null) return;
+    leagueDays = 'loading';
+    dataFetch('league-days.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { leagueDays = j; }).catch(() => { leagueDays = 'error'; })
+      .finally(() => { if (activeNav === 'stats') renderStats(); });
+  }
+  function threeSeries(team) {
+    const by = new Map();
+    for (const [d, a, h, ma, mh] of Object.values(leagueDays?.games || {})) {
+      if (d >= D.today || (team !== 'ALL' && a !== team && h !== team)) continue;
+      const p = by.get(d) || { date: d, n: 0, tot: 0 };
+      p.n++; p.tot += team === 'ALL' ? ma + mh : h === team ? mh : ma;
+      by.set(d, p);
+    }
+    return [...by.values()].sort((x, y) => x.date.localeCompare(y.date))
+      .map(p => ({ ...p, label: new Date(p.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }));
+  }
+  function renderLeague(el, tabs) {
+    loadLeagueDays();
+    el.innerHTML = tabs + '<div id="trend-box"></div>';
+    const box = document.getElementById('trend-box');
+    if (leagueDays === null || leagueDays === 'loading') { box.innerHTML = '<div class="empty">Loading…</div>'; return; }
+    const open = (D.phases || []).find(p => p.key === 'reg')?.start;
+    RonTrend.render(box, { key: 'nba', noun: 'Threes', unit: '3PM/game', grain: 'day', series: threeSeries, dec: 1,
+      empty: leagueDays === 'error' ? 'Couldn\'t load the league log.' : `The chart starts with the first regular-season game${open ? ` (${new Date(open + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' })})` : ''}. Preseason games are not counted.`,
+      teams: [{ v: 'ALL', name: 'All teams' }, ...Object.keys(D.teams || {}).sort((a, b) => teamName(a).localeCompare(teamName(b))).map(v => ({ v, name: teamName(v) }))],
+      note: 'Three-pointers made by both teams, per game, regular season. With a team picked: that team\'s own threes per game.' });
+  }
   function renderStats() {
     const el = dataGate('stats-content'); if (!el) return;
+    const tabsHtml = `<div class="sub-tabs u-tabs">
+        <button class="sub-btn${stF.view === 'leaders' ? ' active' : ''}" onclick="setStF('view','leaders')">Leaders</button>
+        <button class="sub-btn${stF.view === 'league' ? ' active' : ''}" onclick="setStF('view','league')">League</button>
+      </div>`;
+    if (stF.view === 'league') return renderLeague(el, tabsHtml);
     const all = D.leaders || [];
     const teams = [...new Set(all.map(r => r.team).filter(Boolean))].sort();
     if (stF.team !== 'all' && !teams.includes(stF.team)) stF.team = 'all';
@@ -1287,7 +1325,7 @@
         <div class="st-total"><b>${fmt(val(r))}</b><span>${esc(sortLbl)}</span></div></div>`;
     };
     const lastSeason = D.leadersFrom !== D.season;
-    el.innerHTML = `<div class="pairs-filter-row">
+    el.innerHTML = `${tabsHtml}<div class="pairs-filter-row">
         <span class="due-filter-label">Pos</span>
         ${posChip('all', 'All')}${posChip('G', 'Guards')}${posChip('F', 'Forwards')}${posChip('C', 'Centers')}
       </div>

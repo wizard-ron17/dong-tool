@@ -12,6 +12,7 @@
 <script src="/board.js"></script>
 <script src="/ladder.js"></script>
 <script src="/slate.js"></script>
+<script src="/trend.js"></script>
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="NFL player props, every line priced — anytime touchdowns, yards, receptions, completions, interceptions and kickers — plus fantasy projections, parlays with same-game pricing, and a touchdown recap with replays. Inspired by Green Means Go.">
 <!-- Social embed. These are the DEFAULTS; the Netlify edge function
@@ -6103,8 +6104,29 @@
       <div class="result-meta"><b>${WK_LABEL(recapWeek)}</b> · ${tds.length} of ${all.length} touchdowns · tap one to replay it</div>
       ${body}`;
   }
-  const stFilt = { pos: 'all', team: 'all', sort: 'tds' };
+  const stFilt = { pos: 'all', team: 'all', sort: 'tds', view: 'leaders' };
   function setStFilt(k, v) { stFilt[k] = v; renderStats(); }
+  // League: touchdowns per game by week (trend.js), from the play-by-play touchdown list, so
+  // defensive and special-teams scores count. A week is charted once all its games are final.
+  function tdSeries(team) {
+    const out = [], games = Object.values(nflData.results || {});
+    for (const w of nflData.tdRecapWeeks || []) {
+      const sched = (nflData.schedule || []).filter(g => g.week === w);
+      if (!sched.length || games.filter(g => g.week === w && g.aScore != null).length < sched.length) continue;
+      const tds = nflData.tdRecap?.[w] || [];
+      if (team === 'ALL') out.push({ label: 'Wk ' + w, n: sched.length, tot: tds.length });
+      else if (sched.some(g => g.home === team || g.away === team)) out.push({ label: 'Wk ' + w, n: 1, tot: tds.filter(t => t.team === team).length });
+    }
+    return out;
+  }
+  function renderTdTrend(el, tabs) {
+    el.innerHTML = tabs + '<div id="trend-box"></div>';
+    const teams = [...new Set((nflData.schedule || []).flatMap(g => [g.home, g.away]))].sort();
+    RonTrend.render(document.getElementById('trend-box'), { key: 'nfl', noun: 'Touchdowns', unit: 'TDs/game', grain: 'week', series: tdSeries, dec: 2,
+      rolls: [{ n: 3, color: '#3bc9e0', on: true }, { n: 6, color: '#b070e8', on: false }],
+      teams: [{ v: 'ALL', name: 'All teams' }, ...teams.map(v => ({ v, name: v }))],
+      note: 'Every touchdown, rushing, receiving, defensive and special teams, per game that week. With a team picked: that team\'s own touchdowns in its game (no bye weeks).' });
+  }
   const ST_SORT = { tds: l => l.tds, rushTd: l => l.rushTd, recTd: l => l.recTd, defTd: l => l.defTd || 0, stTd: l => l.stTd || 0, firstTd: l => l.firstTd || 0, lastTd: l => l.lastTd || 0, multiTd: l => l.multiTd || 0, opp: l => l.opp };
   const ST_SORT_LBL = { tds: 'TD', rushTd: 'Rush TD', recTd: 'Rec TD', defTd: 'Def TD', stTd: 'ST TD', firstTd: '1st TD', lastTd: 'Last TD', multiTd: '2+ games', opp: 'Opp' };
   function stRows() {
@@ -6119,11 +6141,16 @@
     const L = nflData.tdLeaders || [];
     const teams = [...new Set(L.map(l => l.team).filter(Boolean))].sort();
     if (stFilt.team !== 'all' && !teams.includes(stFilt.team)) stFilt.team = 'all';
+    const tabsHtml = `<div class="sub-tabs u-tabs">
+        <button class="sub-btn${stFilt.view === 'leaders' ? ' active' : ''}" onclick="setStFilt('view','leaders')">Leaders</button>
+        <button class="sub-btn${stFilt.view === 'league' ? ' active' : ''}" onclick="setStFilt('view','league')">League</button>
+      </div>`;
+    if (stFilt.view === 'league') return renderTdTrend(el, tabsHtml);
     const rows = stRows();
     const val = ST_SORT[stFilt.sort];
     const posChip = (v, lbl) => `<button class="due-filter-chip${stFilt.pos === v ? ' active' : ''}" onclick="setStFilt('pos','${v}')">${lbl}</button>`;
     const teamOpts = ['all', ...teams].map(t => `<option value="${t}"${stFilt.team === t ? ' selected' : ''}>${t === 'all' ? 'All teams' : t}</option>`).join('');
-    el.innerHTML = `<div class="pairs-filter-row">
+    el.innerHTML = `${tabsHtml}<div class="pairs-filter-row">
         <span class="due-filter-label">Pos</span>
         ${posChip('all', 'All')}${posChip('RB', 'RB')}${posChip('WR', 'WR')}${posChip('TE', 'TE')}${posChip('QB', 'QB')}
       </div>

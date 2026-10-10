@@ -18,7 +18,7 @@ import { reduceSummary, freshState, applyGame, BOX, STATE_VERSION } from './nba-
 import { MODEL, fam, minutesInputs, projectMinutes, threesRate, oppThreesRatio, threesMu, threesLadder, pWinTip, pTeamFirst, fbWeight,
   statRate, statForm, statOpp, statMu, statLadder, doublesPrice } from './nba-models.js';
 import { buildFun } from './nba-fun.js';
-import { recapDetail, saveRecap, recapHas, savePrices } from './nba-recap.js';
+import { recapDetail, saveRecap, recapHas, savePrices, leagueRow, saveLeagueDays } from './nba-recap.js';
 
 const AHEAD = 10;        // schedule days ahead
 const BEHIND = 3;        // ...and behind (yesterday's finals stay on the schedule)
@@ -120,6 +120,7 @@ async function main() {
   }));
   for (const f of todo) { const x = got.get(f.id); if (x?.r) applyGame(state, x.r); }
   console.log(`Player state: ${todo.length} new finals applied (${state.done.length} this season)`);
+  console.log(`League days: ${saveLeagueDays(todo.map(f => { const x = got.get(f.id); return x?.r ? leagueRow(x.r) : null; }), label)} regular-season finals logged`);
   const recapKept = saveRecap(recapTodo.map(f => { const x = got.get(f.id); return x?.r ? recapDetail(x.s, f, x.r) : null; }), today, RECAP_DAYS, shiftDate);
   console.log(`Recap detail: ${recapTodo.length} new finals, ${recapKept} kept`);
 
