@@ -4226,6 +4226,21 @@
   window.setPkRes = setPkRes;
   const PK_TAG = { any: ['GOAL', 'NO GOAL'], '2': ['2+', 'MISS'], '3': ['HATTY', 'MISS'], first: ['FIRST', 'MISS'],
                    last: ['LAST', 'MISS'], p1: ['P1 GOAL', 'MISS'], pp: ['PP GOAL', 'MISS'] };
+  // Walk-forward backtest for the goal markets: every season predicted by a model that never saw it
+  // (D.picks.model, the same cuts that filter the board). Per market, so it follows the chips.
+  function pkBacktest() {
+    const Mo = D.picks?.model; if (!Mo) return '';
+    const M = pkMkt(), src = M.v === 'any' ? Mo : Mo.markets?.[M.key];
+    const cuts = (src?.cuts || []).filter(c => c.hit != null); if (!cuts.length) return '';
+    const base = M.v === 'any' ? (Mo.base || 0) * 100 : src.base;
+    const yrs = (Mo.seasons || []).map(x => String(x).slice(0, 4) + '-' + String(x).slice(6)).join(', ');
+    return `<details class="lr-bt"${window.pkBtOpen ? ' open' : ''} ontoggle="window.pkBtOpen = this.open"><summary>Backtest — ${(Mo.rows || 0).toLocaleString()} skater-games, every season predicted cold</summary>
+      <div class="result-meta" style="margin-top:0.8rem">${esc(M.lab)}: ${base.toFixed(1)}% of skater-games. Skaters priced at or shorter than each cut, and how often they actually did it</div>
+      <div class="rc-tablewrap"><table class="rc-table"><thead><tr><th>Priced</th><th class="num">Break-even</th><th class="num">Hit in backtest</th><th class="num">Edge</th></tr></thead>
+        <tbody>${cuts.map(c => `<tr><td>+${c.v} or shorter</td><td class="num">${(c.p * 100).toFixed(1)}%</td><td class="num"><b>${c.hit}%</b></td><td class="num">${c.hit - c.p * 100 >= 0 ? '+' : ''}${(c.hit - c.p * 100).toFixed(1)} pts</td></tr>`).join('')}</tbody></table></div>
+      <div class="lr-note">${yrs ? `Seasons ${yrs}, each fitted only on the seasons before it. ` : ''}Break-even is what a price at the cut needs to hit; the backtest rate is what those skaters did.${Mo.note && M.v === 'any' ? ' ' + esc(Mo.note) : ''}</div>
+    </details>`;
+  }
   function renderPicksResults() {
     const H = D.picksHistory || {};
     const R = PK_RES[pkF.mkt] || PK_RES.any, M = pkMkt();
@@ -4233,7 +4248,7 @@
       PK_MARKETS.map(m => `<button class="due-filter-chip${pkF.mkt === m.v ? ' active' : ''}" onclick="setPkMkt('${m.v}')">${m.lab}</button>`).join('')}</div>`;
     // nights that carry this market (the first nights only logged anytime goals)
     const nights = Object.keys(H).sort().filter(d => (H[d] || []).some(x => pkF.mkt === 'any' || x.length > 3));
-    if (!nights.length) return mkt + `<div class="empty">No nights graded yet. Every board is frozen game by game before puck drop and graded the next morning against the goals scored — the first will be opening night, ${D.seasonStart ? dayLabel(D.seasonStart, true) : ''}.</div>` + pkCalib(H, R);
+    if (!nights.length) return mkt + `<div class="empty">No nights graded yet. Every board is frozen game by game before puck drop and graded the next morning against the goals scored — the first will be opening night, ${D.seasonStart ? dayLabel(D.seasonStart, true) : ''}.</div>` + pkCalib(H, R) + pkBacktest();
     if (pkRes.night == null || !nights.includes(pkRes.night)) pkRes.night = nights[nights.length - 1];
     const ni = nights.indexOf(pkRes.night);
     const board = new Map((D.picks?.picks || []).map(r => [r.pid, r]));
@@ -4268,7 +4283,7 @@
       </div>
       ${head + list + more}
       <div class="lr-note">Each game is graded against the board as it stood at its own <b>puck drop</b> — the last build before it started — and against the goals in the final box score (shootout goals don't count). A skater who did not dress is a void and is left out, which is how books settle it.</div>
-      ${pkCalib(H, R)}`;
+      ${pkCalib(H, R)}${pkBacktest()}`;
   }
   /** Every graded night pooled: does a price mean what it says, and how the max-price cuts are running against the backtest. */
   function pkCalib(H, R) {
