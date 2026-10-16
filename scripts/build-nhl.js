@@ -284,6 +284,18 @@ async function main() {
     .map(g => g.date))].sort();
   let shots = { board: [], model: null, date: upcoming || null };
   let picks = { picks: [], model: null, date: upcoming || null };
+  // Bueno (the MLB Value screen's idea, for goals): the matchup alone. Form = his shots over the last ten against
+  // the average at his position (the model's own sog_l10 term), Opp = the goals the opponent allows (opp_ga_prior).
+  // Value = a longshot (fair +400 or longer) with both in the top 40% of tonight's slate. Logged with the picks
+  // history (row index 17) so it grades like the Picks board. Experimental, like MLB's.
+  function nhlBueno(list) {
+    const role = (r) => r.pos === 'D' ? 'D' : 'F', mean = {};
+    for (const g of ['F', 'D']) { const xs = list.filter(r => role(r) === g).map(r => r.c?.sog_l10 ?? 0); mean[g] = xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0; }
+    for (const r of list) { r.bf = +Math.exp((r.c?.sog_l10 ?? 0) - mean[role(r)]).toFixed(3); r.bo = +Math.exp(r.c?.opp_ga_prior ?? 0).toFixed(3); r.bueno = +(r.bf * r.bo).toFixed(3); }
+    const pc = (k) => { const a = list.map(r => r[k]).sort((x, y) => x - y); return (v) => { let lt = 0, le = 0; for (const x of a) { if (x < v) lt++; if (x <= v) le++; } return (lt + le) / 2 / a.length; }; };
+    const pf = pc('bf'), po = pc('bo');
+    for (const r of list) r.val = r.p <= 0.2 && pf(r.bf) >= 0.6 && po(r.bo) >= 0.6 ? 1 : 0;
+  }
   let points = { board: [], model: null, date: upcoming || null };
   let hits = { board: [], model: null, date: upcoming || null };
   let blocks = { board: [], model: null, date: upcoming || null };
@@ -293,6 +305,7 @@ async function main() {
     });
     shots = { board: r.board, model: r.model, date: upcoming || null };
     picks = { picks: r.picks, model: r.picksModel, date: upcoming || null };
+    nhlBueno(picks.picks);
     points = { board: r.points, model: r.pointsModel, date: upcoming || null };
     hits = { board: r.phys.hits, model: r.physModel.hits, date: upcoming || null };
     blocks = { board: r.phys.bks, model: r.physModel.bks, date: upcoming || null };
@@ -338,9 +351,9 @@ async function main() {
     const kept = (H[upcoming] || []).filter(x => puckDropped.has(x[gi]));
     H[upcoming] = [...kept, ...fresh.filter(x => !puckDropped.has(x[gi]))];
   };
-  // [pid, p, scored, gameId, p2, p3, pFirst, pLast, pP1, pPP, goals, first, last, p1Goals, ppGoals, name, team]
+  // [pid, p, scored, gameId, p2, p3, pFirst, pLast, pP1, pPP, goals, first, last, p1Goals, ppGoals, name, team, value]
   if (upcoming && picks.picks.length) refreeze(hist, picks.picks.map(r => [r.pid, r.p, null, r.gameId,
-      r.p2, r.p3, r.pFirst, r.pLast, r.pP1, r.pPP, null, null, null, null, null, r.name, r.team]), 3);
+      r.p2, r.p3, r.pFirst, r.pLast, r.pP1, r.pPP, null, null, null, null, null, r.name, r.team, r.val ?? 0]), 3);
   // One boxscore read per game, shared by both graders: who dressed, and how
   // many shots each put on net. null when the fetch fails — the next build retries.
   // Goalies ride along in goalieBox: pid -> { starter, saves, ga }.
@@ -607,7 +620,7 @@ async function main() {
     winprob: (({ late, m_lead, m_trail, ot_shrink }) => ({ late, m_lead, m_trail, ot_shrink }))(
       JSON.parse(fs.readFileSync(new URL('../research/nhl_winprob_model.json', import.meta.url), 'utf8'))),
     // graded nights only, voids dropped, as
-    //   [pid, p, scored, p2, p3, pFirst, pLast, pP1, pPP, goals, first, last, p1Goals, ppGoals, name, team, opp]
+    //   [pid, p, scored, p2, p3, pFirst, pLast, pP1, pPP, goals, first, last, p1Goals, ppGoals, name, team, opp, value]
     // (nights frozen before the extra markets carry only the first three). Name and
     // team are as frozen, else from today's rosters; the opponent is off the game.
     schedTops,
@@ -622,7 +635,7 @@ async function main() {
           const [name, team] = x[15] ? [x[15], x[16]] : (who.get(String(x[0])) || ['', '']);
           const g = recapGames[x[3]] || {};
           const opp = team && g.home === team ? g.away : team && g.away === team ? g.home : '';
-          return [x[0], x[1], x[2], ...x.slice(4, 15), name, team, opp];
+          return [x[0], x[1], x[2], ...x.slice(4, 15), name, team, opp, x[17] ?? null];   // 17: on the Value screen (null before 10/17)
         })]));
     })(),
   };

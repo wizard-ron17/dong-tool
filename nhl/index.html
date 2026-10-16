@@ -701,6 +701,11 @@
   .pbx-in input { width: 3.6rem; background: transparent; border: none; color: var(--text); font-family: var(--font-d); font-size: 0.8rem; text-align: right; outline: none; }
   .pbx-hint { font-size: 0.7rem; color: var(--dim); }
   .pbx-table td.nm { white-space: nowrap; }
+  .pk-modes { display: flex; gap: 0.4rem; margin: 0 0 0.7rem; }
+  .pk-mode { background: var(--surface1); border: 1px solid var(--border2); color: var(--muted); font-family: var(--font-d); font-weight: 700; font-size: 0.82rem; padding: 0.35rem 0.9rem; border-radius: 999px; cursor: pointer; }
+  .pk-mode.on { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: var(--accent); color: var(--accent); }
+  .pk-vnote { font-size: 0.78rem; color: var(--muted); line-height: 1.45; background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.75rem; margin-bottom: 0.7rem; }
+  .pk-vnote b { color: var(--text); }
   .pbx-seg { display: inline-flex; gap: 0.2rem; margin-right: 0.4rem; padding-right: 0.6rem; border-right: 1px solid var(--border2); }
   .pbx small { font-size: 0.66rem; font-weight: 600; opacity: 0.8; margin-left: 0.15rem; }
   .pbx-note { font-size: 0.72rem; color: var(--muted); margin-top: 0.6rem; line-height: 1.45; }
@@ -3814,7 +3819,7 @@
     { v: 'p1',    key: 'pP1',    lab: '1st period', long: 'Goal in the 1st period' },
     { v: 'pp',    key: 'pPP',    lab: 'PP goal',    long: 'Power-play goal' },
   ];
-  const PK_DEFAULTS = { mkt: 'any', cut: 0, pos: [], team: 'all', sort: 'p', dir: 'desc', view: 'cards' };
+  const PK_DEFAULTS = { mkt: 'any', cut: 0, pos: [], team: 'all', sort: 'p', dir: 'desc', view: 'cards', mode: 'chalk' };
   // Table is the factor table now (the price beside what drives it), and the
   // old Compact screenshot view is the Share card: a saved 'factors' or
   // 'compact' view reads as its replacement.
@@ -3888,6 +3893,8 @@
     const raw = pkFxBase(r), m = pkRoleMeans()[r.pos === 'D' ? 'D' : 'F'];
     const x = { ...raw, ice: raw.ice / m.ice, pp: raw.pp / m.pp, form: raw.form / m.form };
     x.lift = x.ice * x.pp * x.form * x.spot;
+    x.opp = Math.exp(r.c?.opp_ga_prior ?? 0);
+    x.bueno = x.form * x.opp;   // Bueno: the matchup alone, Form x the goals the opponent allows (like MLB's P. Vuln x Contact x Platoon)
     return (r._fxn = x);
   };
   // Colour the NUMBERS (not the cells) by where they sit on the slate, against his own position: green better than
@@ -3910,8 +3917,18 @@
   }
   function setPkFxMode(v) { pkF.fxMode = v; pkSave(); renderPicks(); }
   window.setPkFxMode = setPkFxMode;
+  // 🎯 Value (Bueno's screen for goals, like MLB's): a longshot (fair +400 or longer, anytime) with Form and the opponent's
+  // goals allowed both in the top 40% of tonight's slate. The build flags it (r.val) and logs it so Results grade it;
+  // a board from before that is screened here by the same rule.
+  function pkIsValue(r) {
+    if (r.val != null) return !!r.val;
+    const all = D.picks?.picks || [], rk = (k) => { const v = pkFx(r)[k]; let lt = 0, le = 0; for (const q of all) { const x = pkFx(q)[k]; if (x < v) lt++; if (x <= v) le++; } return (lt + le) / 2 / all.length; };
+    return r.p <= 0.2 && rk('form') >= 0.6 && rk('opp') >= 0.6;
+  }
+  function setPkMode(v) { pkF.mode = v; if (v === 'value') { pkF.sort = 'bueno'; pkF.dir = 'desc'; pkF.cut = 0; } else if (pkF.sort === 'bueno') pkF.sort = 'p'; pkSave(); renderPicks(); }
+  window.setPkMode = setPkMode;
   // the factor filters (board.js RonFx, the MLB Matchups card): every factor's + and floor, No red, Fair >= / <=, Talent <=
-  const PK_FX = { factors: [['talent', 'Talent'], ['ice', 'Ice'], ['pp', 'PP'], ['form', 'Form'], ['spot', 'Spot'], ['lift', 'Lift']],
+  const PK_FX = { factors: [['talent', 'Talent'], ['ice', 'Ice'], ['pp', 'PP'], ['form', 'Form'], ['spot', 'Spot'], ['lift', 'Lift'], ['bueno', 'Bueno']],
     singles: ['ice', 'pp', 'form', 'spot'], base: ['talent', 'Talent'], val: (r, k) => pkFx(r)[k], p: (r) => pkP(r), rerender: 'renderPicks()' };
   function setPkPreset(v) {
     pkF.view = 'table'; pkF.dir = 'desc'; pkF.fxPos = {}; pkF.fxLo = null;
@@ -3932,8 +3949,9 @@
     if (pkF.pos.length) rows = rows.filter(r => pkF.pos.includes(r.pos));
     if (pkF.team !== 'all') rows = rows.filter(r => r.team === pkF.team);
     if (pkView() === 'table') rows = rows.filter(r => RonFx.pass('nhlGoals', PK_FX, r));
+    if (pkF.mode === 'value') rows = rows.filter(pkIsValue);
     const key = { p: r => pkP(r), sog: r => r.f.sogPg, toi: r => r.f.toi, pp: r => r.f.pptoi,
-                  lift: r => pkFx(r).lift, talent: r => pkFx(r).talent, ice: r => pkFx(r).ice, ppx: r => pkFx(r).pp, form: r => pkFx(r).form, spot: r => pkFx(r).spot,
+                  lift: r => pkFx(r).lift, bueno: r => pkFx(r).bueno, talent: r => pkFx(r).talent, ice: r => pkFx(r).ice, ppx: r => pkFx(r).pp, form: r => pkFx(r).form, spot: r => pkFx(r).spot,
                   l10: r => r.f.sogL10, sh: r => r.f.shpct, oga: r => r.f.oppGa,
                   time: r => r.ts, name: r => r.name.toLowerCase() }[pkF.sort] || (r => r.p);
     const dir = pkF.dir === 'asc' ? 1 : -1;
@@ -4000,6 +4018,7 @@
         <span class="pb-f" title="Shots on goal per game, career"><b>${f.sogPg.toFixed(1)}</b> shots/g</span>
         <span class="pb-f" title="Ice time per game over his last five"><b>${(f.toi / 60).toFixed(1)}</b> TOI</span>
         <span class="pb-f" title="Power-play minutes per game over his last five"><b>${(f.pptoi / 60).toFixed(1)}</b> PP</span>
+        ${pkF.mode === 'value' ? `<span class="pb-f" title="Bueno: Form x the goals the opponent allows"><b>${pkFx(r).bueno.toFixed(2)}×</b> Bueno</span>` : ''}
       </div>
       <div class="pb-price"><span class="pb-odds${dog ? ' dog' : ''}">${sgOdds(pm)}</span><span class="pb-pct">${pkPct(pm)} · ${pkF.mkt === 'any' ? r.mu.toFixed(2) + ' xG' : esc(pkMkt().lab)}</span></div>
     </div>`;
@@ -4019,7 +4038,7 @@
         ${preset('chalk', 'Chalk', 'The shortest prices first: who the model likes most', isChalk)}${preset('value', 'Value', 'Longshots (fair +300 or longer) sorted by Lift: the ones the game, the ice and the power play are doing the most for', isValue)}
         ${pkF.cut ? `<span class="pbx-hint">Max price is +${pkF.cut} — <a href="javascript:void(0)" onclick="setPkF('cut',0)">show the full board</a> to hunt longshots</span>` : ''}
       </div>`;
-    const card = RonFx.html('nhlGoals', PK_FX, D.picks?.picks || []) + RonFx.sorts([['lift', 'Lift'], ['p', 'Fair'], ['talent', 'Talent'], ['ice', 'Ice'], ['ppx', 'PP'], ['form', 'Form'], ['spot', 'Spot']], pkF.sort, pkF.dir, 'setPkSort');
+    const card = RonFx.html('nhlGoals', PK_FX, D.picks?.picks || []) + RonFx.sorts([['bueno', 'Bueno'], ['lift', 'Lift'], ['p', 'Fair'], ['talent', 'Talent'], ['ice', 'Ice'], ['ppx', 'PP'], ['form', 'Form'], ['spot', 'Spot']], pkF.sort, pkF.dir, 'setPkSort');
     if (!rows.length) return card + bar + `<div class="empty">Nobody matches these factor filters. <a href="javascript:void(0)" onclick="RonFx.reset('nhlGoals','renderPicks()')">Clear them →</a></div>`;
     return `${card}${bar}<div class="pb-tablewrap"><table class="pb-table pbx-table">
       <thead><tr><th class="static">#</th>${th('name', 'Skater')}<th class="static">Pos</th>${th('p', 'Fair', 'num')}
@@ -4028,14 +4047,15 @@
         ${th('ppx', 'PP ×', 'num', 'Power-play minutes over his last five, against players at his position.')}
         ${th('form', 'Form ×', 'num', 'Shots on goal over his last ten, against players at his position.')}
         ${th('spot', 'Spot ×', 'num', 'This game: goals the opponent allows, his own team\'s scoring, home ice. Small in hockey — about 3% of the board\'s spread.')}
-        ${th('lift', 'Lift ×', 'num pbx-div', 'Everything except Talent: ice, power play, form and spot together. What the game and his role are doing for him beyond who he is: the Value sort.')}
+        ${th('lift', 'Lift ×', 'num', 'Everything except Talent: ice, power play, form and spot together. What the game and his role are doing for him beyond who he is.')}
+        ${th('bueno', 'Bueno ×', 'num pbx-div', "The matchup alone: Form x the goals the opponent allows (MLB's Bueno is P. Vuln x Contact x Platoon). The 🎯 Value screen's score.")}
         ${th('sog', 'Shots/g', 'num')}${th('l10', 'L10', 'num')}${th('toi', 'TOI', 'num')}${th('pp', 'PP', 'num')}${th('sh', 'Sh%', 'num')}${th('oga', 'Opp GA', 'num')}${th('time', 'Game')}</tr></thead>
       <tbody>${rows.map(r => { const x = pkFx(r), f = r.f; return `<tr onclick="openPick(${r.pid})"${parAttr(pkSideLeg(r))}>
         <td class="num">${r.rank}</td>
         ${td('name', esc(r.name), 'nm')}
         <td>${posBadge(r.pos, r.pid)}</td>
         <td class="od pbx-fair${pkShown(r) < 0.5 ? ' dog' : ''}${on('p')}">${sgOdds(pkShown(r))}<small>${pkPct(pkShown(r))}</small></td>
-        ${td('talent', pkFxCell(r, 'talent'))}${td('ice', pkFxCell(r, 'ice'))}${td('ppx', pkFxCell(r, 'pp'))}${td('form', pkFxCell(r, 'form'))}${td('spot', pkFxCell(r, 'spot'))}${td('lift', pkFxCell(r, 'lift'), 'num pbx-div')}
+        ${td('talent', pkFxCell(r, 'talent'))}${td('ice', pkFxCell(r, 'ice'))}${td('ppx', pkFxCell(r, 'pp'))}${td('form', pkFxCell(r, 'form'))}${td('spot', pkFxCell(r, 'spot'))}${td('lift', pkFxCell(r, 'lift'))}${td('bueno', pkFxCell(r, 'bueno'), 'num pbx-div')}
         ${td('sog', f.sogPg.toFixed(1), 'num', pcInk(pkPc('sog', q => q.f.sogPg, r)))}${td('l10', f.sogL10.toFixed(1), 'num', pcInk(pkPc('l10', q => q.f.sogL10, r)))}${td('toi', (f.toi / 60).toFixed(1), 'num', pcInk(pkPc('toi', q => q.f.toi, r)))}${td('pp', (f.pptoi / 60).toFixed(1), 'num', pcInk(pkPc('pp', q => q.f.pptoi, r)))}
         ${td('sh', (f.shpct * 100).toFixed(1) + '%', 'num', pcInk(pkPc('sh', q => q.f.shpct, r)))}${td('oga', f.oppGa.toFixed(2), 'num', pcInk(pkPc('oga', q => q.f.oppGa, r)))}
         ${td('time', `${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}`, '')}
@@ -4048,7 +4068,8 @@
   function renderPicks() {
     renderPicksFilters();
     const el = dataGate('picks-content'); if (!el) return;
-    if (pkSub === 'results') { el.innerHTML = renderPicksResults(); return; }
+    const modeBar = `<div class="pk-modes"><button class="pk-mode${pkF.mode !== 'value' ? ' on' : ''}" onclick="setPkMode('chalk')" title="Every skater on the slate, shortest prices first">🔒 Chalk</button><button class="pk-mode${pkF.mode === 'value' ? ' on' : ''}" onclick="setPkMode('value')" title="Bueno's screen: longshots (+400 or longer) with form and the opponent's goals allowed both in the top 40% of the slate (experimental)">🎯 Value</button></div>`;
+    if (pkSub === 'results') { el.innerHTML = modeBar + renderPicksResults(); return; }
     const P = D.picks;
     if (!P?.picks?.length) { el.innerHTML = `<div class="empty">No picks yet — the board is built once the next slate is set.</div>`; return; }
     const rows = pkRows();
@@ -4082,7 +4103,7 @@
     })()
       : pkView() === 'table' ? pkFactors(rows)
       : `<div class="pb-list">${rows.map(pkCard).join('')}</div>`;
-    el.innerHTML = `
+    el.innerHTML = modeBar + (pkF.mode === 'value' ? `<div class="pk-vnote">🎯 <b>Value</b>, Bueno's screen for goals: longshots (fair <b>+400</b> or longer) whose <b>form</b> (shots over his last ten against his position) and the <b>opponent's goals allowed</b> both sit in the top 40% of tonight's slate, sorted by <b>Bueno</b> (the two multiplied). Experimental, like MLB's: graded in Results from 10/17 until it proves itself or doesn't.</div>` : '') + `
       <div class="pb-head">
         <span class="pb-week">${P.date ? dayLabel(P.date) : ''}</span>
         <span class="pb-meta">${esc(D.seasonLabel || '')} · ${esc(pkMkt().long)}${pkF.pos.length ? ' · ' + pkF.pos.map(x => POS_NAME[x]).join('/') : ''}${pkSearch.length ? ' · “' + esc(pkSearch.join('”, “')) + '”' : ''} · ${rows.length} shown · fair odds, no vig</span>
@@ -4341,12 +4362,13 @@
     const mkt = `<div class="pairs-filter-row"><span class="due-filter-label">Market</span>${
       PK_MARKETS.map(m => `<button class="due-filter-chip${pkF.mkt === m.v ? ' active' : ''}" onclick="setPkMkt('${m.v}')">${m.lab}</button>`).join('')}</div>`;
     // nights that carry this market (the first nights only logged anytime goals)
-    const nights = Object.keys(H).sort().filter(d => (H[d] || []).some(x => pkF.mkt === 'any' || x.length > 3));
+    const nights = Object.keys(H).sort().filter(d => (H[d] || []).some(x => (pkF.mkt === 'any' || x.length > 3) && (pkF.mode !== 'value' || x[17] === 1)));
+    if (!nights.length && pkF.mode === 'value') return mkt + '<div class="empty">🎯 Value picks are logged from the next build on, frozen at puck drop like the board, and graded the next morning.</div>';
     if (!nights.length) return mkt + `<div class="empty">No nights graded yet. Every board is frozen game by game before puck drop and graded the next morning against the goals scored — the first will be opening night, ${D.seasonStart ? dayLabel(D.seasonStart, true) : ''}.</div>` + pkCalib(H, R) + pkBacktest();
     if (pkRes.night == null || !nights.includes(pkRes.night)) pkRes.night = nights[nights.length - 1];
     const ni = nights.indexOf(pkRes.night);
     const board = new Map((D.picks?.picks || []).map(r => [r.pid, r]));
-    const rows = (H[pkRes.night] || []).filter(x => pkF.mkt === 'any' || x.length > 3).map(x => {
+    const rows = (H[pkRes.night] || []).filter(x => (pkF.mkt === 'any' || x.length > 3) && (pkF.mode !== 'value' || x[17] === 1)).map(x => {
       const b = board.get(x[0]) || {};
       return { pid: x[0], p: R.p(x), y: R.y(x), goals: x.length > 9 ? x[9] : x[2],
                name: x[14] || b.name || '#' + x[0], team: x[15] || b.team || '', opp: x[16] || '' };
