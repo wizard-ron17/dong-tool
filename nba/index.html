@@ -12,6 +12,7 @@
 <script src="/board.js"></script>
 <script src="/ladder.js"></script>
 <script src="/slate.js"></script>
+<script src="/backtest.js"></script>
 <script src="/trend.js"></script>
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="NBA player props, every line priced — threes, points, rebounds, assists, PRA, steals and blocks, double- and triple-doubles and the first basket — plus droughts, milestones, a nightly recap and the schedule with lines. Inspired by Green Means Go.">
@@ -1643,7 +1644,7 @@
           </div>
         </div>`).join('')}</div>`;
     }
-    el.innerHTML = tabs + controls + meta + body + `<div class="t3-note">${cfg.note || BD_NOTE}</div>`;
+    el.innerHTML = tabs + controls + meta + body + `<div class="t3-note">${cfg.note || BD_NOTE}</div>` + RonBacktest.html(kind);
   }
   function openBoardCard(nav, pid) {
     const rows = bdRows(nav, true), r = rows.find(x => x.pid === String(pid));
@@ -1724,7 +1725,7 @@
           </div>
         </div>`).join('')}</div>`;
     }
-    el.innerHTML = controls + meta + body + `<div class="t3-note">Points, rebounds and assists each priced at 10 over his minutes — they barely move together once minutes are known — with a shared big-night factor (pace, overtime), then blended with his own last-40 rate. Tap a player for each of the three. Beat each player's own rate walk-forward; on Kalshi last season triple-doubles were overpriced (an 11.4% mid on an 8.2% outcome).</div>`;
+    el.innerHTML = controls + meta + body + `<div class="t3-note">Points, rebounds and assists each priced at 10 over his minutes — they barely move together once minutes are known — with a shared big-night factor (pace, overtime), then blended with his own last-40 rate. Tap a player for each of the three. Beat each player's own rate walk-forward; on Kalshi last season triple-doubles were overpriced (an 11.4% mid on an 8.2% outcome).</div>` + RonBacktest.html('dd') + RonBacktest.html('td');
   }
   /** A player's card on the three the double-double is built from, stepping the board as shown. */
   function openDoubleCard(pid) { openLc('pts', pid, dblRows(), 9.5); }

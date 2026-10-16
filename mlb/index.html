@@ -10,6 +10,7 @@
 <script src="/modal.js"></script>
 <script src="/share.js"></script>
 <script src="/slate.js"></script>
+<script src="/backtest.js"></script>
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="Daily MLB home run picks, value bats, due hitters, and any batter-vs-pitcher matchup breakdown. Inspired by Green Means Go.">
 <!-- Social embed. These are the DEFAULTS; the Netlify edge function
@@ -9827,7 +9828,7 @@ function renderPicksResults() {
     <div class="ph-buckets">${bucketHtml}</div>
     ${picksChangelogHtml()}
     <div class="ph-buckets-head" style="margin-top:1rem">Day-by-Day</div>
-    <div class="ph-days">${dayRows}</div>`;
+    <div class="ph-days">${dayRows}</div>` + RonBacktest.html('hr');
 }
 
 // ── LIST VIEW SWITCHER + SHARE ─────────────────────────────────────────
@@ -11564,7 +11565,7 @@ function renderPitcherProp(kind) {
     <button class="view-btn${ppLine === 'even' ? ' active' : ''}" onclick="ppSetLine('even')" title="Each arm at whichever graded rung sits nearest even money">His line</button>
     ${ppRungs(rows).map(L => `<button class="view-btn${ppLine === L ? ' active' : ''}" onclick="ppSetLine(${L})" title="Price every arm at ${L}">${L}</button>`).join('')}
   </div>` : ''}${RonChrome.freshHtml()}</div>`;
-  if (ppView === 'batter') { el.innerHTML = toggle + ppBatterBoard(isK, lg, K0, log5, lbl, word); return; }
+  if (ppView === 'batter') { el.innerHTML = toggle + ppBatterBoard(isK, lg, K0, log5, lbl, word) + RonBacktest.html(isK ? 'batter_k' : 'batter_bb'); return; }
   if (!rows.length) { el.innerHTML = toggle + '<div class="empty">No probable starters with data posted yet — check back closer to game time.</div>'; return; }
   const meta = `<div class="pt-meta">Today's starters by <b>${ppSort === 'proj' ? `~Proj ${lbl}` : `Exp ${lbl}%`}</b>${ppSort === 'proj'
       ? ` — the projected count for his start, which is what the prices are built from.`
@@ -11639,7 +11640,7 @@ function renderPitcherProp(kind) {
       </div>
     </div>`;
   }).join('');
-  el.innerHTML = toggle + meta + `<div class="pv-list">${cards}</div>`;
+  el.innerHTML = toggle + meta + `<div class="pv-list">${cards}</div>` + RonBacktest.html(isK ? 'pitcher_k' : 'pitcher_bb');
 }
 // Batter view: rank today's hitters by their expected K% / BB% vs the starter
 // they face — the flip side of the pitcher board. batter rate × pitcher rate via
