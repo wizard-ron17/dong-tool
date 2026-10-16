@@ -113,6 +113,9 @@
   .bx-c { cursor: pointer; }
   .bx-c b { display: block; font-family: var(--font-d); font-size: 0.9rem; font-weight: 700; color: var(--text-strong); line-height: 1.15; }
   .bx-c small { display: block; font-family: var(--font-m); font-size: 0.62rem; color: var(--dim); margin-top: 1px; }
+  /* live: the pregame price stays where it is, the live fair sits under it */
+  .bx-lv { display: block; margin-top: 2px; font-style: normal; font-family: var(--font-m); font-size: 0.62rem; font-weight: 700; color: var(--gold); white-space: nowrap; }
+  .bx-lv i { display: block; font-style: normal; font-weight: 500; color: var(--dim); font-size: 0.58rem; }
   .bx-c small i { font-style: normal; font-weight: 700; }
   .bx-c small i.odfav { color: var(--good); }
   .bx-c small i.oddog { color: var(--ok); }
@@ -193,6 +196,9 @@
   const sortHooks = [];
   const onSort = (f) => sortHooks.push(f);        // the page re-draws its pop-up here
   const sortBy = (k) => { sortKey = sortKey === k ? null : k; refresh(); sortHooks.forEach(f => f()); };
+  // c.live = { p, note } while the game is on: the live fair beside the pregame one ({ out: true } once he can't add to it)
+  const liveHtml = (c) => !c.live ? '' : c.live.out ? `<em class="bx-lv" title="Out of the game, or no more chances">live —${c.live.note ? ` <i>${c.live.note}</i>` : ''}</em>`
+    : `<em class="bx-lv" title="Live fair: the pregame price re-run on what's left of the game${c.live.note ? ' (' + c.live.note + ')' : ''}. A baseline, not backtested.">live ${Odds.am(c.live.p)}${c.live.note ? ` <i>${c.live.note}</i>` : ''}</em>`;
   function cellHtml(c, col, state) {
     if (!c) return '<td class="bx-c none"><b>—</b></td>';
     // an info cell: a number that isn't a price (MLB's pick score), no line, no odds
@@ -207,11 +213,11 @@
       if (!fin && c.p != null && c.p < 0.01) return `<td class="bx-c none" title="${esc(title)}"${attr}><b>—</b><small>&lt;1%</small></td>`;
       const big = fin ? (c.got >= 1 ? (c.got > 1 ? `✓ ${c.got}` : '✓') : '✗') : Odds.am(c.p);
       const small = c.small ?? (fin ? `was ${Odds.am(c.p)}` : Odds.pct(c.p));
-      return `<td class="bx-c${fin ? (hit ? ' hit' : ' miss') : ''}" title="${esc(title)}"${attr}><b>${big}</b><small>${small}</small></td>`;
+      return `<td class="bx-c${fin ? (hit ? ' hit' : ' miss') : ''}" title="${esc(title)}"${attr}><b>${big}</b><small>${small}</small>${fin ? '' : liveHtml(c)}</td>`;
     }
     const big = fin ? c.got : (+c.proj).toFixed(c.dp ?? 1);
     const small = fin ? `${(+c.proj).toFixed(c.dp ?? 1)} · o${c.line}` : `o${c.line} <i class="${tone}">${Odds.am(c.p)}</i>`;
-    return `<td class="bx-c${fin ? (hit ? ' hit' : ' miss') : ''}" title="${esc(title)}"${attr}><b>${big}</b><small>${small}</small></td>`;
+    return `<td class="bx-c${fin ? (hit ? ' hit' : ' miss') : ''}" title="${esc(title)}"${attr}><b>${big}</b><small>${small}</small>${fin ? '' : liveHtml(c)}</td>`;
   }
   const sortVal = (r, col) => { const c = r.cells[col.k]; return !c ? -1 : c.info ? (c.sort ?? parseFloat(c.big)) : col.yes ? (c.p ?? -1) : +c.proj; };
   function box(spec) {

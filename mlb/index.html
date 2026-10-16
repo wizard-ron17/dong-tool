@@ -6806,6 +6806,8 @@ function loadMlbDay(date) {
           tbd: !!g.status?.startTimeTBD, gn: g.doubleHeader && g.doubleHeader !== 'N' ? g.gameNumber : null,
           inning: ls.currentInningOrdinal || null, half: ls.inningState || ls.inningHalf || null, outs: ls.outs,
           bases: { first: !!ls.offense?.first, second: !!ls.offense?.second, third: !!ls.offense?.third },
+          // live pricing: where the game is, and whose turn it is in each order (1-9: the batter up, the fielding team's next due)
+          lv: { n: ls.currentInning ?? null, top: !!ls.isTopInning, st: ls.inningState || null, outs: ls.outs ?? 0, off: ls.offense?.battingOrder ?? null, def: ls.defense?.battingOrder ?? null },
           innings: (ls.innings || []).map(i => [i.away?.runs, i.home?.runs]),
           away: side(t.away), home: side(t.home),
           rec: Object.fromEntries(['away', 'home'].map(k => { const r = g.teams?.[k]?.leagueRecord; return [k, r?.wins != null ? `${r.wins}-${r.losses}` : null]; })),
@@ -7214,6 +7216,62 @@ function sgHtml(g, date) {
     <div class="sub-tabs sg-tabs">${TABS.map(([v, l]) => `<button class="sub-btn${tab === v ? ' active' : ''}" onclick="setSgTab('${v}')">${l}</button>`).join('')}</div>
     <div class="sg-body">${body}</div>`;
 }
+// ── Live pricing ─────────────────────────────────────────────────────────
+// The pregame price re-run on what's left of the game. A baseline, not a model: it doesn't know about pitching
+// changes, the score's effect on who bats, or a pinch-hitter coming. While the game card is open the page reads
+// MLB's box score once a minute (plate appearances, who's still in, the starters' Ks and walks).
+const MLB_LV = {};
+function mlbLiveBox(pk) {
+  const e = MLB_LV[pk] ||= { at: 0, busy: false, bs: null };
+  if (!e.busy && Date.now() - e.at > 55e3) {
+    e.busy = true;
+    fetch(`https://statsapi.mlb.com/api/v1/game/${pk}/boxscore`).then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { e.bs = j; }).catch(() => {}).finally(() => { e.at = Date.now(); e.busy = false; if (activeNav === 'schedule') renderScheduleKeepingOpen(); });
+  }
+  return e.bs;
+}
+const MLB_PA_SLOT = [4.65, 4.55, 4.45, 4.35, 4.25, 4.15, 4.05, 3.95, 3.85];   // plate appearances a game by lineup slot (league)
+const MLB_PA_OUT = 4.25 / 3;                                                 // a team's plate appearances per out
+/** Outs a team has left: the rest of nine innings, or the inning it's batting in once past it; none for a home team leading in the 9th. */
+function mlbOutsLeft(lv, home, sc) {
+  if (!lv?.n) return 27;
+  const n = lv.n, o = lv.outs || 0, st = lv.st || (lv.top ? 'Top' : 'Bottom');
+  const made = home ? 3 * (n - 1) + (st === 'Bottom' ? o : st === 'End' ? 3 : 0)
+                    : 3 * (n - 1) + (st === 'Top' ? o : 3);
+  const batting = home ? st === 'Bottom' : st === 'Top';
+  if (home && n >= 9 && sc && sc.home > sc.away && st !== 'Bottom') return 0;
+  return Math.max(27 - made, batting ? 3 - o : 0);
+}
+/** Live HR price: his per-PA chance (from the pregame price over his slot's usual PAs) over the PAs he has left. */
+function mlbLiveHR(pk, pid, home, pPre) {
+  const bs = mlbLiveBox(pk), box = MLB_BOX.games[pk], lv = box?.lv; if (!bs || !lv || !(pPre > 0)) return null;
+  const T = bs.teams?.[home ? 'home' : 'away']; if (!T) return null;
+  const order = T.battingOrder || [], slot = order.findIndex(x => String(x) === String(pid)) + 1;
+  const pl = T.players?.['ID' + pid], pa = pl?.stats?.batting?.plateAppearances ?? 0;
+  if (!slot) return pl ? { out: true, note: 'out of the game' } : null;
+  const outs = mlbOutsLeft(lv, home, { home: box.home?.r ?? 0, away: box.away?.r ?? 0 });
+  const teamPA = outs * MLB_PA_OUT, up = (home ? lv.st === 'Bottom' : lv.st === 'Top') ? lv.off : lv.def;
+  const d = up ? (slot - up + 9) % 9 : 0, atBat = d === 0 && (home ? lv.st === 'Bottom' : lv.st === 'Top');
+  // his turns in the team's remaining PAs, starting d spots away: (N - d) / 9 plus a half for where the last one falls
+  // (at first pitch that gives the leadoff man 4.75 and the 9th 3.86, the league's 4.65 / 3.85); the man at the plate has at least this one
+  const left = Math.max(atBat ? 1 : 0, Math.min(teamPA, (teamPA - d) / 9 + 0.5));
+  if (left <= 0.05) return { out: true, note: `${pa} PA, none left` };
+  const q = 1 - Math.pow(1 - pPre, 1 / MLB_PA_SLOT[slot - 1]);
+  return { p: 1 - Math.pow(1 - q, left), note: `~${left.toFixed(1)} PA left` };
+}
+/** Live strikeout / walk price for a starter: his pregame rate per batter faced over the batters he has left. */
+function mlbLiveSP(pk, pid, home, proj, line, key) {
+  const bs = mlbLiveBox(pk); if (!bs) return null;
+  const T = bs.teams?.[home ? 'home' : 'away'], pl = T?.players?.['ID' + pid], st = pl?.stats?.pitching; if (!st) return null;
+  const got = key === 'k' ? st.strikeOuts ?? 0 : st.baseOnBalls ?? 0, bf = st.battersFaced ?? 0, unit = key === 'k' ? 'K' : 'BB';
+  if (got > line) return { got, p: 1, note: `${got} ${unit}` };
+  const inNow = pl.gameStatus?.isCurrentPitcher || (T.pitchers || []).slice(-1)[0] === +pid;
+  if (!inNow && bf > 0) return { got, out: true, note: `pulled at ${got} ${unit}` };
+  const ps = pitcherStats[pid] || {}, bfExp = ps.avgStartBF || (ps.avgStartIP ? ps.avgStartIP * 4.242 : 22);
+  const rate = proj / bfExp, left = Math.max(bfExp - bf, inNow ? 2 : 0);
+  return { got, p: poissonAtLeast(rate * left, Math.floor(line) + 1 - got), note: `${got} ${unit} · ~${Math.round(left)} BF left` };
+}
+
 /** The game's box score (/slate.js): every priced bat (the boards' and, once
  *  the matchup cards load, the rest of each lineup) and both starters' K and
  *  walk lines, with the top pick above. Graded as homers land. */
@@ -7260,6 +7318,19 @@ function sgPicks(g, date, S, away, home) {
           leg: { k: `p${lbl}|${pid}|${L}|o`, n: compactPlayerName(side.probablePitcher), t: side.teamAbbr, g: [away, home].sort().join(' vs '), m: `p${lbl}`, s: `Over ${L} ${unit}`, p, i: pid } };
       }
       sp[side.teamAbbr]?.push({ name: compactPlayerName(side.probablePitcher), sub: side.probableProjected ? 'projected' : 'SP', open: `openPitcher('${pid}')`, cells });
+    }
+  }
+  // live: the pregame price stays, the live fair rides beside it (and the starters' lines grade at the final)
+  if (date === todayDate && S.started) {
+    const homeAbbr = home;
+    if (!S.final) for (const [team, m] of Object.entries(rows)) for (const [pid, e] of m) {
+      if (e.cells.hr && e.cells.hr.got == null && e.cells.hr.p > 0) e.cells.hr.live = mlbLiveHR(g.gamePk, pid, team === homeAbbr, e.cells.hr.p);
+    }
+    for (const side of [g.away, g.home]) {
+      const pid = side.probablePitcherId ? String(side.probablePitcherId) : null, r = sp[side.teamAbbr]?.[0]; if (!pid || !r) continue;
+      for (const k of ['k', 'bb']) { const c = r.cells[k]; if (!c) continue;
+        const lv = mlbLiveSP(g.gamePk, pid, side === g.home, c.proj, c.line, k); if (!lv) continue;
+        if (S.final || lv.p === 1) c.got = lv.got; else c.live = lv.out ? { out: true, note: lv.note } : { p: lv.p, note: lv.note }; }   // over already: graded now
     }
   }
   const order = (e) => e.cells.hr?.p ?? (e.cells.pick?.sort ?? 0) / 100;
