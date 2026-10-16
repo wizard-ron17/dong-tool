@@ -410,7 +410,21 @@
     }
     return null;
   }
-  const sgpRhoNHL = (a, b) => { const k = sgpRuleNHL(a, b); return k ? side(a) * side(b) * SGP_NHL[k] : 0; };
+  // Teammates' goals, assists and points split by how they share the ice: research/sgp_nhl_lines.py, the
+  // same copula fits on 2025-26 with each team's PREVIOUS game's lines (what is known before puck drop).
+  // Point + point is 0.50 for linemates on the same PP unit, 0.38 linemates, 0.22 PP unit only and 0.09
+  // apart, against 0.14 pooled. The lines and the rhos ride in the NHL data (parlay.lines / parlay.lineRho);
+  // without them a pair prices at the pooled rho.
+  function nhlLineRel(a, b) {
+    const L = ctx('nhl')?.lines; if (!L) return null;
+    const x = L[a.i], y = L[b.i]; if (!x || !y || x[0] !== y[0]) return null;
+    const sl = !!x[1] && x[1] === y[1], sp = !!x[2] && x[2] === y[2];
+    return sl && sp ? 'both' : sl ? 'line' : sp ? 'pp' : 'apart';
+  }
+  const nhlLineRho = (k, a, b) => { const R = ctx('nhl')?.lineRho?.[k]; if (!R) return null; const rel = nhlLineRel(a, b); return rel && R[rel] != null ? R[rel] : null; };
+  const NHL_REL_WORD = { both: 'linemates on the same power play', line: 'linemates', pp: 'the same power-play unit', apart: 'different lines' };
+  const nhlWhy = (k, a, b) => { const rel = nhlLineRho(k, a, b) != null ? nhlLineRel(a, b) : null; return SGP_NHL_WHY[k] + (rel ? ` (${NHL_REL_WORD[rel]})` : ''); };
+  const sgpRhoNHL = (a, b) => { const k = sgpRuleNHL(a, b); if (!k) return 0; const r = nhlLineRho(k, a, b); return side(a) * side(b) * (r ?? SGP_NHL[k]); };
   /** A player's goal or assist (1+) already IS a point: over 0.5 points on the same player adds nothing. */
   const impliedNHL = (legs) => legs.filter(l => !(side(l) > 0 && l.m === 'pts' && l.L === 0.5 &&
     legs.some(o => o !== l && side(o) > 0 && o.i === l.i && ['g1', 'ast'].includes(o.m))));
@@ -423,7 +437,8 @@
       }
     } else if (legs.length === 2) {
       const A = legs.find(l => l.m === 'g1' && side(l) > 0), B = legs.find(l => l.m === 'ast' && l.L === 0.5 && side(l) > 0);
-      if (A && B && A.t === B.t && A.i !== B.i && A.g === B.g) {
+      // the stack's link count is a stand-in for playing together; with tonight's lines known the copula below prices it directly
+      if (A && B && A.t === B.t && A.i !== B.i && A.g === B.g && !nhlLineRel(A, B)) {
         const st = stackMult(A.i, B.i);
         if (st) {
           const p = naive * st.mult, gap = Math.round((p / naive - 1) * 100);
@@ -437,7 +452,7 @@
       const core = impliedNHL(legs);
       const res = SGP.price(core, sgpRhoNHL);
       if (res.pairs.length || core.length < legs.length) {
-        const why = [...new Set(res.pairs.map(q => { const k = sgpRuleNHL(core[q.a], core[q.b]); return k ? (q.rho > 0 ? '▲ ' : '▼ ') + SGP_NHL_WHY[k] : null; }).filter(Boolean))];
+        const why = [...new Set(res.pairs.map(q => { const k = sgpRuleNHL(core[q.a], core[q.b]); return k ? (q.rho > 0 ? '▲ ' : '▼ ') + nhlWhy(k, core[q.a], core[q.b]) : null; }).filter(Boolean))];
         if (core.length < legs.length) why.push('a goal or assist already counts as his point');
         return { p: res.p, corr: 'sgp', why, notes: [sgpNote(why, res.p, naive)] };
       }
@@ -455,8 +470,8 @@
    * were measured independent, else null), the notes to print, and the
    * same-game groups / same-player markets that were multiplied blind.
    */
-  function parPrice() {
-    const legs = PARLAY.legs;
+  function parPrice(given) {
+    const legs = given ? given.map(parLeg) : PARLAY.legs;
     const naive = legs.reduce((a, l) => a * l.p, 1);
     const bySport = {};
     for (const l of legs) (bySport[l.sp] ??= []).push(l);
@@ -752,7 +767,7 @@
     parRender(); parPaint();
   }
 
-  window.RonParlay = { provide, price: parPrice, rho: { mlb: sgpRhoMLB, nfl: sgpRhoNFL, nhl: sgpRhoNHL }, goalGroupMult, stackMult };
+  window.RonParlay = { provide, price: parPrice, priceLegs: (legs) => parPrice(legs), rho: { mlb: sgpRhoMLB, nfl: sgpRhoNFL, nhl: sgpRhoNHL }, goalGroupMult, stackMult };
   Object.assign(window, {
     PARLAY, PAR_SPORT, parLeg, parAttr, parGame, parSideGet, parSideSet, parSideLeg, parSideTag, parSideRow, parSideLine, parSidePrice, parSideToggleHtml, setParSide, parEsc, parDecAm, parAmDec, parSave, parPrice,
     parMode, parToggleOpen, parToggleLeg, parRemove, parClear, parSetBoost, parCustomBoost, parBook,

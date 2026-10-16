@@ -5135,7 +5135,7 @@
   // Until this season has a quarter of its nights the page rolls: last season's goals plus this season's, so a pair
   // has a real sample to show from the first week. Then it is this season alone (or pick any of the three).
   const PR_MIN_NIGHTS = 40;
-  const prF = { size: 2, win: 'night', basis: 'all', sgp: false, stacks: false, src: null, terms: [] };
+  const prF = { size: 2, win: 'night', basis: 'all', sgp: false, stacks: false, lines: false, src: null, terms: [] };
   let PRL = null, prlState = 'idle';          // last season's file
   function loadPairsLast() {
     if (prlState !== 'idle') return;
@@ -5298,9 +5298,11 @@
   function prStackPrice(S, a, b) {
     const A = (D.picks?.picks || []).find(x => x.pid === a), B = (D.points?.board || []).find(x => x.pid === b);
     if (!A || !B || A.team !== B.team) return null;
-    const q = 1 - Math.exp(-B.mu.a), naive = A.p * q;
+    const q = 1 - Math.exp(-B.mu.a), naive = A.p * q, legs = [pkLeg(A, PK_MARKETS[0]), lcLegOf('ast', B, 0.5, q)];
+    // the slip's own price: with tonight's lines in the data it is the linemate copula, else the link-count stack
+    if (D.parlay?.lines) { const fair = Math.min(0.999, RonParlay.priceLegs(legs).p); return { naive, fair, mult: fair / naive, legs }; }
     const st = stackMult(a, b), mult = S.useThis ? st.mult : (D.parlay?.stack?.[0]?.mult ?? 1);
-    return { naive, fair: Math.min(0.999, naive * mult), mult, legs: [pkLeg(A, PK_MARKETS[0]), lcLegOf('ast', B, 0.5, q)] };
+    return { naive, fair: Math.min(0.999, naive * mult), mult, legs };
   }
   window.prAddAll = (i) => {
     const legs = window._prLegs?.[i]; if (!legs) return;
@@ -5320,7 +5322,9 @@
   })();
 
   function setPr(k, v) {
-    prF[k] = k === 'sgp' || k === 'stacks' ? !prF[k] : v;
+    prF[k] = k === 'sgp' || k === 'stacks' || k === 'lines' ? !prF[k] : v;
+    if (k === 'stacks' && prF.stacks) prF.lines = false;
+    if (k === 'lines' && prF.lines) prF.stacks = false;
     renderPairs();
   }
   window.setPr = setPr;
@@ -5347,11 +5351,12 @@
         <input type="text" id="pr-search" placeholder="Search skaters… commas for multiple (McDavid, Draisaitl)" value="${esc(prF.terms.join(', '))}" oninput="onPrSearch()" autocomplete="off" spellcheck="false">
       </div>
       <div class="pairs-filter-row">
-        ${prF.stacks ? '' : `<span class="due-filter-label">Window</span>${chip('win', 'night', 'Same night', prF.win === 'night')}${chip('win', 'game', 'Same game', prF.win === 'game')}
+        ${prF.stacks || prF.lines ? '' : `<span class="due-filter-label">Window</span>${chip('win', 'night', 'Same night', prF.win === 'night')}${chip('win', 'game', 'Same game', prF.win === 'game')}
         <span class="due-filter-label" style="margin-left:0.3rem">Basis</span>
         ${[['all', 'All goals'], ['first', 'First goal'], ['pp', 'PP goal'], ['multi', '2+ goals']].map(([v, l]) => chip('basis', v, l, prF.basis === v)).join('')}
         ${tog('sgp', `${RonChrome.logo('nhl')} SGP only`, prF.sgp, 'Only groups with a same-club stack — they share a game')}`}
         ${tog('stacks', '🎯 Goal → Assist', prF.stacks, 'Who sets up whom: a scorer and the teammates who assisted his goals in the same game')}
+        ${tog('lines', '🧩 Lines', prF.lines, "Tonight's lines and power-play units as same-game parlays: every member gets a point, priced with how linemates' points move together")}
         ${srcRow}
       </div>
       <div class="result-meta" id="pairs-meta"></div>
@@ -5359,6 +5364,40 @@
     renderPairsBody();
   }
 
+  /** 🧩 Lines: tonight's lines and first power-play units, every member to get a point, priced by the slip
+   *  (research/sgp_nhl_lines.py: point + point for linemates runs 0.38, the same PP unit 0.22, both 0.50). */
+  function prLinesBody(cards, meta, legsOut, T) {
+    const L = D.lines?.teams, board = new Map((D.points?.board || []).map(r => [r.pid, r]));
+    if (!L || !board.size) { meta.textContent = ''; cards.innerHTML = `<div class="empty">${!L ? 'Lines come in with the next build.' : 'No points board tonight yet.'}</div>`; return; }
+    const tonight = [...new Set((D.points.board || []).map(r => r.team))];
+    const out = [];
+    for (const team of tonight) {
+      const t = L[team]; if (!t) continue;
+      for (const [lab, grp] of [['Line 1', t.F[0]], ['Line 2', t.F[1]], ['Line 3', t.F[2]], ['PP1', t.pp[0]]]) {
+        if (!grp || grp.length < 2) continue;
+        const rows = grp.map(p => board.get(p)); if (rows.some(r => !r)) continue;
+        const legs = rows.map(r => lcLegOf('pts', r, 0.5, 1 - Math.exp(-r.mu.pts)));
+        const naive = legs.reduce((a, l) => a * l.p, 1), fair = Math.min(0.999, RonParlay.priceLegs(legs).p);
+        out.push({ team, lab, rows, legs, naive, fair, mult: fair / naive, linked: !!D.parlay?.lines });
+      }
+    }
+    let list = out.sort((a, b) => b.fair - a.fair);
+    if (T.length) list = list.filter(x => T.every(t => x.rows.some(r => r.name.toLowerCase().includes(t)) || x.team.toLowerCase() === t));
+    meta.textContent = `${list.length} lines and power-play units tonight · every member gets a point · ${D.lines?.teams ? 'as they skated last game' : ''}`;
+    if (!list.length) { cards.innerHTML = '<div class="empty">No lines match.</div>'; return; }
+    cards.innerHTML = list.map((x, i) => {
+      legsOut[i] = x.legs;
+      const tip = x.linked ? "Priced with how linemates' points move together (research/sgp_nhl_lines.py), from the lines as they skated last game."
+        : "Priced with the pooled teammate correlation: the linemate correlation comes in with the next build.";
+      return `<div class="card${i < 4 ? ' high' : ''}">
+        <div class="card-top-row"><div class="card-left">
+          <div class="rank-badge">${i + 1}</div>
+          <span class="sgp-badge">${logoImg(x.team, 'pb-logo')} ${esc(x.team)} · ${x.lab}</span>
+        </div><div class="fresh-badge">${x.rows.length} × point</div></div>
+        <div class="players">${x.rows.map(r => `<div class="player-chip">${faceHtml(mugOf(r.pid, r.team, D.season), r.name, 'player-photo')}<span class="player-name">${esc(r.name)}</span><span class="player-hr">${sgOdds(1 - Math.exp(-r.mu.pts))}</span><span class="player-hr-lbl">PT</span></div>`).join('')}</div>
+        ${prPriceRow(x, i, tip)}</div>`;
+    }).join('');
+  }
   function renderPairsBody() {
     const cards = document.getElementById('pairs-cards'), meta = document.getElementById('pairs-meta');
     if (!cards) return;
@@ -5369,6 +5408,7 @@
     const pills = (keys) => keys.map((k, i) => `<span class="date-pill${i === keys.length - 1 ? ' latest' : ''}">${prPill(k)}</span>`).join('');
     const LIMIT = 200;
 
+    if (prF.lines) return prLinesBody(cards, meta, legsOut, T);
     if (prF.stacks) {
       if (prF.size > 3) { meta.textContent = ''; cards.innerHTML = '<div class="empty">A goal carries at most two assists, so stacks run two or three deep — a scorer and one or both of his setup men.</div>'; return; }
       let list = prStacks(S, prF.size);

@@ -590,7 +590,18 @@ async function main() {
     parlay: (() => {
       const rd = (f) => JSON.parse(fs.readFileSync(new URL(`../research/${f}`, import.meta.url), 'utf8'));
       const g = rd('nhl_pairs_model.json'), st = rd('nhl_stacks_model.json');
-      return { rho_same: g.rho_same, rho_cross: g.rho_cross, same_by_size: g.same_by_size, stack: st.bins };
+      // teammates' goal / assist / point rhos by line relation (research/sgp_nhl_lines.py), and tonight's
+      // relations: pid -> [team, 5v5 line or pair, PP unit] from the shift charts (scripts/nhl-combos.js)
+      let lineRho = null;
+      try { lineRho = Object.fromEntries(Object.entries(rd('sgp_nhl_lines.json').rho).map(([k, v]) => [k, Object.fromEntries(Object.entries(v).map(([r, x]) => [r, x.rho]))])); } catch (e) { /* pooled rhos */ }
+      const rel = {};
+      for (const [team, t] of Object.entries(lines?.teams || {})) {
+        t.F.forEach((grp, i) => grp.forEach(p => { rel[p] = [team, 'F' + i, 0]; }));
+        t.D.forEach((grp, i) => grp.forEach(p => { rel[p] = [team, 'D' + i, 0]; }));
+        t.pp.forEach((grp, i) => grp.forEach(p => { (rel[p] ||= [team, null, 0])[2] = i + 1; }));
+      }
+      return { rho_same: g.rho_same, rho_cross: g.rho_cross, same_by_size: g.same_by_size, stack: st.bins,
+               lineRho, lines: Object.keys(rel).length ? rel : null };
     })(),
     // in-game win probability (research/nhl_winprob.py) — the schedule's game flow
     winprob: (({ late, m_lead, m_trail, ot_shrink }) => ({ late, m_lead, m_trail, ot_shrink }))(
