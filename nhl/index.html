@@ -3922,7 +3922,9 @@
   // a board from before that is screened here by the same rule.
   function pkIsValue(r) {
     if (r.val != null) return !!r.val;
-    const all = D.picks?.picks || [], rk = (k) => { const v = pkFx(r)[k]; let lt = 0, le = 0; for (const q of all) { const x = pkFx(q)[k]; if (x < v) lt++; if (x <= v) le++; } return (lt + le) / 2 / all.length; };
+    const all = D.picks?.picks || [], rk = (k) => { const v = pkFx(r)[k], xs = all.map(q => pkFx(q)[k]);
+      if (Math.max(...xs) - Math.min(...xs) < 1e-6) return 1;            // no spread tonight: it can't screen
+      let lt = 0, le = 0; for (const x of xs) { if (x < v) lt++; if (x <= v) le++; } return (lt + le) / 2 / xs.length; };
     return r.p <= 0.2 && rk('form') >= 0.6 && rk('opp') >= 0.6;
   }
   function setPkMode(v) { pkF.mode = v; if (v === 'value') { pkF.sort = 'bueno'; pkF.dir = 'desc'; pkF.cut = 0; } else if (pkF.sort === 'bueno') pkF.sort = 'p'; pkSave(); renderPicks(); }

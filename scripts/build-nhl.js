@@ -292,7 +292,7 @@ async function main() {
     const role = (r) => r.pos === 'D' ? 'D' : 'F', mean = {};
     for (const g of ['F', 'D']) { const xs = list.filter(r => role(r) === g).map(r => r.c?.sog_l10 ?? 0); mean[g] = xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0; }
     for (const r of list) { r.bf = +Math.exp((r.c?.sog_l10 ?? 0) - mean[role(r)]).toFixed(3); r.bo = +Math.exp(r.c?.opp_ga_prior ?? 0).toFixed(3); r.bueno = +(r.bf * r.bo).toFixed(3); }
-    const pc = (k) => { const a = list.map(r => r[k]).sort((x, y) => x - y); return (v) => { let lt = 0, le = 0; for (const x of a) { if (x < v) lt++; if (x <= v) le++; } return (lt + le) / 2 / a.length; }; };
+    const pc = (k) => { const a = list.map(r => r[k]); if (!a.length || Math.max(...a) - Math.min(...a) < 1e-6) return () => 1; return (v) => { let lt = 0, le = 0; for (const x of a) { if (x < v) lt++; if (x <= v) le++; } return (lt + le) / 2 / a.length; }; };
     const pf = pc('bf'), po = pc('bo');
     for (const r of list) r.val = r.p <= 0.2 && pf(r.bf) >= 0.6 && po(r.bo) >= 0.6 ? 1 : 0;
   }

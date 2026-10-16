@@ -100,6 +100,7 @@ export function savePrices(date, { threes, doubles, first }, today, shiftDate) {
   try { H = JSON.parse(fs.readFileSync(HIST_PATH, 'utf8')); } catch (e) { /* first build */ }
   H.days[date] = {
     t3: Object.fromEntries((threes || []).map(r => [r.pid, [r.mu, ...r.p]])),
+    v3: (threes || []).filter(r => r.val).map(r => r.pid),          // the 🎯 Value screen's picks (2+ threes), graded on their own
     dbl: Object.fromEntries((doubles || []).map(r => [r.pid, [r.dd, r.td]])),
     fb: Object.fromEntries((first || []).map(g => [g.gid, Object.fromEntries(g.players.map(x => [x.pid, x.p]))])),
   };

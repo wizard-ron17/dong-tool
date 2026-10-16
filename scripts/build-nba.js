@@ -266,6 +266,17 @@ async function main() {
     }
   }
   rows.sort((a, b) => b.p[0] - a.p[0]);
+  // 🎯 Value (Bueno's screen for threes, like MLB's): the matchup alone, Form (his last ten against his longer rate,
+  // the model's own term) x the opponent's threes allowed (its lopp term). Value = 2+ threes at +200 or longer with
+  // both in the top 40% of the slate. Logged with the pre-tip prices (prices-history v3) so it grades on its own.
+  {
+    const c = MODEL.threes.coef, clipO = MODEL.threes.clip.opp;
+    for (const r of rows) { r.bf = +Math.exp(c.form * (r.f?.form || 0)).toFixed(3); r.bo = +Math.exp(c.lopp * Math.log(Math.min(clipO[1], Math.max(clipO[0], r.f?.opp ?? 1)))).toFixed(3); r.bueno = +(r.bf * r.bo).toFixed(3); }
+    // a component with no spread tonight (opening night: every opponent at the league rate) can't screen anyone: it passes
+    const pc = (k) => { const a = rows.map(r => r[k]); if (!a.length || Math.max(...a) - Math.min(...a) < 1e-6) return () => 1; return (v) => { let lt = 0, le = 0; for (const x of a) { if (x < v) lt++; if (x <= v) le++; } return (lt + le) / 2 / a.length; }; };
+    const pf = pc('bf'), po = pc('bo');
+    for (const r of rows) r.val = r.p[1] <= 1 / 3 && pf(r.bf) >= 0.6 && po(r.bo) >= 0.6 ? 1 : 0;
+  }
 
   // ── 9) First basket, the same slate ──────────────────────────────────────
   // Lineups post ~30 min before tip, so the five are PROJECTED until then: the

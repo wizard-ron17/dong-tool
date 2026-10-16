@@ -332,6 +332,11 @@
   .pb-price { text-align: right; flex-shrink: 0; min-width: 4.1rem; }
   .rc-tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface0); }
   .rc-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 520px; }
+  .t3-modes { display: flex; gap: 0.4rem; margin: 0 0 0.7rem; }
+  .t3-mode { background: var(--surface1); border: 1px solid var(--border2); color: var(--muted); font-family: var(--font-d); font-weight: 700; font-size: 0.82rem; padding: 0.35rem 0.9rem; border-radius: 999px; cursor: pointer; }
+  .t3-mode.on { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: var(--accent); color: var(--accent); }
+  .t3-vnote { font-size: 0.78rem; color: var(--muted); line-height: 1.45; background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.75rem; margin-bottom: 0.7rem; }
+  .t3-vnote b { color: var(--text); }
   .t3x-bar { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin: 0 0 0.6rem; }
   .t3x-sep { width: 1px; height: 1.2rem; background: var(--border2); margin: 0 0.3rem; }
   .t3x .t3x-c { font-family: var(--font-d); font-weight: 700; white-space: nowrap; } .t3x .t3x-c small { font-size: 0.66rem; opacity: 0.8; margin-left: 0.15rem; }
@@ -858,7 +863,7 @@
                  dataFetch('prices-history.json', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ days: {} }))])
       .then(([r, h]) => { RC = r; PH = h; rcState = 'ready'; })
       .catch(() => { rcState = 'error'; })
-      .finally(() => { if (activeNav === 'recap') renderRecap(); });
+      .finally(() => { if (activeNav === 'recap') renderRecap(); if (activeNav === 'threes' && t3x.v) renderBoard('threes'); });   // Value's record reads the same files
   }
   const rcGames = () => Object.values(RC?.games || {});
   const recapDates = () => [...new Set((RC ? rcGames() : D.recap || []).map(g => g.date))].sort();
@@ -1664,6 +1669,8 @@
       spot: Math.exp(c.lopp * Math.log(clip(f.opp ?? 1, M.clip.opp)) + c.limp * Math.log(clip((f.imp ?? M.league.implied) / M.league.implied, M.clip.imp)) + c.home * (r.home ? 1 : 0)),
     };
     x.lift = x.minutes * x.form * x.drought * x.spot;
+    x.opp = Math.exp(c.lopp * Math.log(clip(f.opp ?? 1, M.clip.opp)));
+    x.bueno = x.form * x.opp;   // Bueno: the matchup alone, Form x the opponent's threes allowed (like MLB's P. Vuln x Contact x Platoon)
     return (r._fx = x);
   }
   function t3Pc(key, get, r) {
@@ -1682,7 +1689,35 @@
     t3Save(); renderBoard('threes');
   };
   // the factor filters (board.js RonFx, the MLB Matchups card): every factor's + and floor, No red, Fair >= / <=, Shooter <=
-  const T3_FX = { factors: [['shooter', 'Shooter'], ['minutes', 'Min'], ['form', 'Form'], ['drought', 'Drought'], ['spot', 'Spot'], ['lift', 'Lift']],
+  // 🎯 Value (Bueno's screen for threes, like MLB's): 2+ threes at +200 or longer, with Form and the opponent's threes
+  // allowed both in the top 40% of the slate. The build flags it (r.val) and logs it (prices-history v3); a board from
+  // before that is screened here by the same rule.
+  function t3IsValue(r) {
+    if (r.val != null) return !!r.val;
+    const all = D.threes?.rows || [], rk = (k) => { const v = t3Fx(r)[k], xs = all.map(q => t3Fx(q)[k]);
+      if (Math.max(...xs) - Math.min(...xs) < 1e-6) return 1;            // no spread tonight (opening night: every opponent at the league rate): it can't screen
+      let lt = 0, le = 0; for (const x of xs) { if (x < v) lt++; if (x <= v) le++; } return (lt + le) / 2 / xs.length; };
+    return r.p[1] <= 1 / 3 && rk('form') >= 0.6 && rk('opp') >= 0.6;
+  }
+  const t3ModeBar = (nav, on) => nav !== 'threes' ? '' : `<div class="t3-modes"><button class="t3-mode${on ? '' : ' on'}" onclick="setT3Mode('chalk')" title="Every rotation player, the best line nearest even money">🔒 Chalk</button><button class="t3-mode${on ? ' on' : ''}" onclick="setT3Mode('value')" title="Bueno's screen: 2+ threes at +200 or longer with form and the opponent's threes allowed both in the top 40% of the slate (experimental)">🎯 Value</button></div>`;
+  window.setT3Mode = (v) => {
+    t3x.v = v === 'value'; const F = bdState('threes');
+    if (t3x.v) { F.line = 1.5; t3x.s = 'bueno'; t3x.dir = 'desc'; } else { F.line = 'auto'; if (t3x.s === 'bueno') t3x.s = 'mu'; }
+    t3Save(); renderBoard('threes');
+  };
+  /** Value's record so far: every logged pick (prices-history v3) against the box score (recap.json). */
+  function t3ValueRecord() {
+    if (rcState === 'idle') loadRecap();
+    if (rcState !== 'ready') return '';
+    const box = {}; for (const g of rcGames()) for (const [pid, b] of Object.entries(g.box || {})) box[g.date + '|' + pid] = b;
+    let n = 0, hit = 0, exp = 0;
+    for (const [d, day] of Object.entries(PH?.days || {})) for (const pid of day.v3 || []) {
+      const b = box[d + '|' + pid], pr = day.t3?.[pid]; if (!b || !pr) continue;
+      n++; hit += b[BX.tpm] >= 2 ? 1 : 0; exp += pr[2] ?? 0;   // t3: [mu, P(1+), P(2+), ...]
+    }
+    return n ? `<b>${hit} of ${n}</b> hit 2+ so far (we expected ${exp.toFixed(1)}).` : 'Graded from the first regular-season night on.';
+  }
+  const T3_FX = { factors: [['shooter', 'Shooter'], ['minutes', 'Min'], ['form', 'Form'], ['drought', 'Drought'], ['spot', 'Spot'], ['lift', 'Lift'], ['bueno', 'Bueno']],
     singles: ['minutes', 'form', 'drought', 'spot'], base: ['shooter', 'Shooter'], val: (r, k) => t3Fx(r)[k], p: (r) => r.pAt, rerender: "renderBoard('threes')" };
   function t3Table(rows0, open) {
     const rows = rows0.filter(r => RonFx.pass('nbaT3', T3_FX, r));
@@ -1696,25 +1731,25 @@
     };
     const raw = (r, key, get, txt) => `<td class="num" style="${ink(t3Pc(key, get, r))}">${txt}</td>`;
     const key = { mu: r => r.mu, p: r => r.pAt, name: r => r.name.toLowerCase(), shooter: r => t3Fx(r).shooter, minutes: r => t3Fx(r).minutes, form: r => t3Fx(r).form,
-                  drought: r => t3Fx(r).drought, spot: r => t3Fx(r).spot, lift: r => t3Fx(r).lift, tpa: r => r.f?.tpa ?? 0, l10: r => r.f?.l10 ?? 0, min: r => r.min }[t3x.s];
+                  drought: r => t3Fx(r).drought, spot: r => t3Fx(r).spot, lift: r => t3Fx(r).lift, bueno: r => t3Fx(r).bueno, tpa: r => r.f?.tpa ?? 0, l10: r => r.f?.l10 ?? 0, min: r => r.min }[t3x.s];
     const list = key ? rows.slice().sort((a, b) => { const x = key(a), y = key(b); return (x < y ? -1 : x > y ? 1 : 0) * (t3x.dir === 'asc' ? 1 : -1) || b.pAt - a.pAt; }) : rows;
     const th = (v, lab, tip = '') => `<th class="num${t3x.s === v ? ' on' : ''}" onclick="setT3x('sort','${v}')" style="cursor:pointer"${tip ? ` title="${tip}"` : ''}>${lab}${t3x.s === v ? (t3x.dir === 'desc' ? ' ▼' : ' ▲') : ''}</th>`;
     const chip = (on, lab, fn, tip) => `<button class="due-filter-chip${on ? ' active' : ''}" onclick="${fn}" title="${tip}">${lab}</button>`;
     const bar = `<div class="t3x-bar">${[['x', '×'], ['pc', 'Pctl'], ['both', 'Both']].map(([v, l]) => chip(t3x.mode === v, l, `setT3x('mode','${v}')`, 'How the factor columns read: the multiplier on his expected threes, his percentile among tonight\'s players at his position, or both')).join('')}
       <span class="t3x-sep"></span>${chip(t3x.s === 'mu', 'Chalk', "setT3x('preset','chalk')", 'The most expected threes first: who the model likes most')}${chip(t3x.s === 'lift', 'Value', "setT3x('preset','value')", 'Sorted by Lift: what minutes, form, drought and the matchup are doing for him beyond who he is')}</div>`;
     window.setT3Sort = (v) => setT3x('sort', v);
-    const card = RonFx.html('nbaT3', T3_FX, rows0) + RonFx.sorts([['lift', 'Lift'], ['mu', 'Proj'], ['p', 'Price'], ['shooter', 'Shooter'], ['minutes', 'Min'], ['form', 'Form'], ['drought', 'Drought'], ['spot', 'Spot']], t3x.s, t3x.dir, 'setT3Sort');
+    const card = RonFx.html('nbaT3', T3_FX, rows0) + RonFx.sorts([['bueno', 'Bueno'], ['lift', 'Lift'], ['mu', 'Proj'], ['p', 'Price'], ['shooter', 'Shooter'], ['minutes', 'Min'], ['form', 'Form'], ['drought', 'Drought'], ['spot', 'Spot']], t3x.s, t3x.dir, 'setT3Sort');
     if (!rows.length) return card + bar + `<div class="empty">Nobody matches these factor filters. <a href="javascript:void(0)" onclick="RonFx.reset('nbaT3',&quot;renderBoard('threes')&quot;)">Clear them →</a></div>`;
     return `${card}${bar}<div class="rc-tablewrap"><table class="rc-table t3x">
       <thead><tr><th></th>${th('name', 'Player')}${th('mu', 'Proj')}${th('p', 'Price')}
         ${th('shooter', 'Shooter ×', "His makes per minute against his position's: who he is, the NBA version of MLB Power")}${th('minutes', 'Min ×', 'Projected minutes tonight against his last ten games: a role that just grew (a teammate out) or shrank')}
         ${th('form', 'Form ×', 'His last ten games against his longer rate')}${th('drought', 'Drought ×', 'Games since his last made three: a long drought pulls the price down')}
-        ${th('spot', 'Spot ×', "The opponent's threes allowed, his team's implied points, home")}${th('lift', 'Lift ×', 'Everything except Shooter: minutes x form x drought x spot. The Value sort')}
+        ${th('spot', 'Spot ×', "The opponent's threes allowed, his team's implied points, home")}${th('lift', 'Lift ×', 'Everything except Shooter: minutes x form x drought x spot')}${th('bueno', 'Bueno ×', "The matchup alone: Form x the opponent's threes allowed (MLB's Bueno is P. Vuln x Contact x Platoon). The 🎯 Value screen's score")}
         ${th('tpa', '3PA/g')}${th('l10', 'L10')}${th('min', 'Min')}<th>Game</th></tr></thead>
       <tbody>${list.map((r, i) => `<tr onclick="${open(r)}"${parAttr(bdLeg('3pm', r, r.L, r.pAt))}>
         <td class="num dim">${i + 1}</td><td><b>${esc(r.name)}</b> <span class="dim">${esc(r.pos || '')}</span></td>
         <td class="num"><b>${r.mu.toFixed(2)}</b></td><td class="num"><b>${fairOdds(r.pAt)}</b><br><small class="dim">${parSideLine(r)} · ${Math.round(r.pAt * 100)}%</small></td>
-        ${cell(r, 'shooter')}${cell(r, 'minutes')}${cell(r, 'form')}${cell(r, 'drought')}${cell(r, 'spot')}${cell(r, 'lift')}
+        ${cell(r, 'shooter')}${cell(r, 'minutes')}${cell(r, 'form')}${cell(r, 'drought')}${cell(r, 'spot')}${cell(r, 'lift')}${cell(r, 'bueno')}
         ${raw(r, 'tpa', q => q.f?.tpa ?? 0, r.f?.tpa ?? '—')}${raw(r, 'l10', q => q.f?.l10 ?? 0, r.f?.l10 ?? '—')}${raw(r, 'min', q => q.min, r.min.toFixed(1))}
         <td class="dim">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}</td></tr>`).join('')}</tbody></table></div>
       <div class="t3-note">Expected threes = his minutes × his rate × <b>Form</b> × <b>Drought</b> × <b>Spot</b>. <b>Shooter</b> is his rate against his position's; <b>Min</b> is tonight's minutes against his last ten. <b>Lift</b> is everything but <b>Shooter</b>, and <b>Value</b> sorts by it. Numbers are coloured by where they sit among tonight's players at his position: green better, red worse, gold the middle.</div>`;
@@ -1728,7 +1763,9 @@
     const lines = []; for (let x = lo; x <= hi; x++) lines.push(x);
     const games = [...new Map(lcRows(kind).map(r => [r.gid, r])).values()].sort((a, b) => a.start.localeCompare(b.start));
     if (F.game !== 'all' && !games.some(g => g.gid === F.game)) F.game = 'all';
-    const rows = bdRows(nav, true);
+    let rows = bdRows(nav, true);
+    const t3val = nav === 'threes' && t3x.v;
+    if (t3val) rows = rows.filter(t3IsValue).sort((a, b) => t3Fx(b).bueno - t3Fx(a).bueno).map((r, i) => ({ ...r, rank: i + 1 }));
     RonShare.set(set, () => ({ title: C.unit.replace(/^./, c => c.toUpperCase()), sub: dayLabel(src.date, true),
       rows: rows.map(r => shareRow(r, r.pAt, parSideLine(r), `${r.mu.toFixed(1)} proj`)) }));
     const changed = (F.line !== 'auto') + (F.pos !== 'ALL') + (F.game !== 'all') + (F.sort !== 'proj');
@@ -1740,7 +1777,7 @@
       ['Sort', [['proj', 'Projection'], ['odds', 'Shortest price']].map(([v, l]) => uiChip(set, 'sort', v, l, F.sort)).join('')],
     ], changed) + uiSearch(nav + '-search', set, F.q, 'Search a player, team or position…');
     const meta = `<div class="result-meta"><b>${dayLabel(src.date, true)}</b> · ${rows.length} of ${lcRows(kind).length} players · ${esc(C.unit)} · fair odds, no vig</div>` + uiView(set, F.view, parSideToggleHtml(nav, false, `renderBoard('${nav}')`));
-    if (!rows.length) { el.innerHTML = tabs + controls + meta + '<div class="empty">Nothing matches that filter.</div>'; return; }
+    if (!rows.length) { el.innerHTML = t3ModeBar(nav, t3val) + tabs + controls + meta + `<div class="empty">${t3val ? 'Nobody on tonight\'s slate passes the 🎯 Value screen.' : 'Nothing matches that filter.'}</div>`; return; }
     const open = (r) => `openBoardCard('${nav}','${r.pid}')`;
     const started = (r) => new Date(r.start) <= new Date();
     const f = (r) => r.f || {};
@@ -1791,7 +1828,9 @@
           </div>
         </div>`).join('')}</div>`;
     }
-    el.innerHTML = tabs + controls + meta + body + `<div class="t3-note">${cfg.note || BD_NOTE}</div>` + RonBacktest.html(kind);
+    const modeBar = t3ModeBar(nav, t3val);
+    const vNote = t3val ? `<div class="t3-vnote">🎯 <b>Value</b>, Bueno's screen for threes: <b>2+ threes</b> at <b>+200</b> or longer whose <b>form</b> (his last ten against his longer rate) and the <b>opponent's threes allowed</b> both sit in the top 40% of the slate, sorted by <b>Bueno</b> (the two multiplied). Experimental, like MLB's. ${t3ValueRecord()}</div>` : '';
+    el.innerHTML = modeBar + tabs + vNote + controls + meta + body + `<div class="t3-note">${cfg.note || BD_NOTE}</div>` + RonBacktest.html(kind);
   }
   function openBoardCard(nav, pid) {
     const rows = bdRows(nav, true), r = rows.find(x => x.pid === String(pid));
