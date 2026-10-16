@@ -3466,6 +3466,7 @@
     }
     catch (e) { nflData = 'error'; setStatus('error'); }
     renderPanel(activeNav);
+    if (nflData && nflData !== 'error') nflLiveStart();
     tdOpenPending(); plOpenPending(); gmOpenPending();
   }
   // Coverage · volume · freshness, mirroring the MLB badge's "147d · 4481 HR".
@@ -4947,7 +4948,8 @@
           const L = Math.floor(med) + 0.5;
           const got = !graded ? null : mk === 'pass' ? (res.pyds?.[pid] ?? 0) : mk === 'rush' ? (res.rush?.[pid] ?? 0)
             : mk === 'rec' ? (res.ryds?.[pid] ?? 0) : (res.rush?.[pid] ?? 0) + (res.ryds?.[pid] ?? 0);
-          st(row(pid, name, team, pos), mk === 'rec' ? 'recy' : mk, lab, med, L, ydPOver(m, L, mu), got, `openYds('${pid}','${m}')`);
+          const e = row(pid, name, team, pos); st(e, mk === 'rec' ? 'recy' : mk, lab, med, L, ydPOver(m, L, mu), got, `openYds('${pid}','${m}')`);
+          e.stats[e.stats.length - 1].ym = { m, mu };   // live pricing re-runs the yards table on what's left
         }
       }
       for (const [team, pid, name, mf, , mt] of ge.kicks ?? []) {
@@ -4972,13 +4974,81 @@
                  { k: 'rush', lab: 'Rush', title: 'Rushing yards' }, { k: 'rr', lab: 'R+R', title: 'Rush + receiving yards' }];
   const BX_K = [{ k: 'kpts', lab: 'Pts', title: 'Kicking points' }, { k: 'kfg', lab: 'FG', title: 'Field goals made' }];
   const BX_DP = { cmp: 1, int: 1, rec: 1, kpts: 1, kfg: 1, pass: 0, rush: 0, recy: 0, rr: 0 };
+  // ── Live: ESPN's scoreboard once a minute while a game is on, and the open game's box score ──
+  // The build runs every half hour; this keeps the game card's score and clock current and puts a live fair under
+  // each pregame price: the pregame mean over the clock that's left, on top of what he has (ESPN's box score,
+  // matched by name within the club). A baseline: game script, injuries and garbage time are not in it.
+  const NFL_SB = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=';
+  const NFL_SUM = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=';
+  const NFL_ESPN_AB = { LAR: 'LA', WSH: 'WAS' };
+  const NFLLIVE = {}, NFLLIVE_BX = {};
+  let nflLiveTimer = null, nflLiveBusy = false;
+  const nflKey = (n) => { const w = String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\./g, ' ').replace(/['’]/g, '').split(/\s+/).filter(x => x && !/^(jr|sr|ii|iii|iv|v)$/.test(x)); return w.length ? w[0][0] + ' ' + w[w.length - 1] : ''; };
+  const nflOnNow = (g) => { const k = kickoffAt(g); return g.homeScore == null && k && k - 15 * 60e3 <= Date.now() && Date.now() - k < 5 * 3600e3; };
+  async function nflLiveTick() {
+    const games = (nflData?.schedule || []).filter(nflOnNow);
+    if (nflLiveBusy || document.hidden || !games.length) return;
+    nflLiveBusy = true;
+    try {
+      for (const day of [...new Set(games.map(g => g.gameday))]) {
+        const j = await (await fetch(NFL_SB + day.replace(/-/g, ''))).json();
+        for (const ev of j.events || []) {
+          const c = ev.competitions?.[0], st = ev.status || c?.status || {}, side = Object.fromEntries((c?.competitors || []).map(x => [x.homeAway, x]));
+          const ab = (x) => NFL_ESPN_AB[x?.team?.abbreviation] || x?.team?.abbreviation;
+          const g = games.find(x => x.away === ab(side.away) && x.home === ab(side.home)); if (!g) continue;
+          NFLLIVE[g.gameId] = { id: ev.id, state: st.type?.state || 'pre', detail: st.type?.shortDetail || '', per: st.period || 0, left: st.clock ?? null, as: +side.away?.score || 0, hs: +side.home?.score || 0 };
+        }
+      }
+      const L = gm.gid && NFLLIVE[gm.gid];
+      if (L?.state === 'in') {
+        const j = await (await fetch(NFL_SUM + L.id)).json(), bx = {};
+        const n = (x) => +(String(x ?? '0').split('/')[0]) || 0;      // "21/30" -> 21, "1/2" FGs -> 1
+        for (const t of j.boxscore?.players || []) {
+          const m = bx[NFL_ESPN_AB[t.team?.abbreviation] || t.team?.abbreviation] ||= {};
+          for (const grp of t.statistics || []) for (const a of grp.athletes || []) {
+            const v = Object.fromEntries((grp.labels || []).map((l, i) => [l, a.stats?.[i]])), e = m[nflKey(a.athlete?.displayName)] ||= { td: 0, cmp: 0, int: 0, rec: 0, pass: 0, rush: 0, recy: 0, kpts: 0, kfg: 0 };
+            if (grp.name === 'passing') { e.cmp = n(v['C/ATT']); e.pass = n(v.YDS); e.int = n(v.INT); }
+            if (grp.name === 'rushing') { e.rush = n(v.YDS); e.td += n(v.TD); }
+            if (grp.name === 'receiving') { e.rec = n(v.REC); e.recy = n(v.YDS); e.td += n(v.TD); }
+            if (grp.name === 'kicking') { e.kfg = n(v.FG); e.kpts = n(v.PTS); }
+          }
+        }
+        NFLLIVE_BX[gm.gid] = bx;
+      }
+    } catch (e) { /* the next tick tries again */ }
+    finally { nflLiveBusy = false; if (activeNav === 'schedule') renderPanel('schedule'); if (gm.gid && document.getElementById('gm-back')) gmRender(); }
+  }
+  function nflLiveStart() {
+    if (nflLiveTimer) return;
+    nflLiveTick(); nflLiveTimer = setInterval(nflLiveTick, 60e3);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) nflLiveTick(); });
+  }
+  function nflLiveCell(g, r, k, cell) {
+    const L = NFLLIVE[g.gameId]; if (L?.state !== 'in') return;
+    const me = NFLLIVE_BX[g.gameId]?.[r.team]?.[nflKey(r.name)]; if (!me) return;
+    const left = L.per >= 1 && L.per <= 4 ? ((4 - L.per) * 900 + (L.left ?? 0)) / 3600 : (L.left ?? 0) / 3600;
+    const have = k === 'rr' ? me.rush + me.recy : me[k];
+    if (have == null) return;
+    if (k === 'td') {
+      if (have >= 1) { cell.got = have; return; }
+      cell.live = left <= 0 ? { out: true, note: 'no TD' } : { p: 1 - Math.pow(1 - cell.p, left), note: `${Math.round(left * 60)} min left` };
+      return;
+    }
+    if (have > cell.line) { cell.got = have; return; }
+    if (left <= 0) { cell.live = { out: true, note: `${have} so far` }; return; }
+    let p;
+    if (cell.ym) p = ydPOver(cell.ym.m, cell.line - have, Math.max(1, cell.ym.mu * left));   // yards: the table on what's left
+    else { const need = Math.floor(cell.line) + 1 - have, mu = (cell.proj || 0) * left; let below = 0, t = Math.exp(-mu); for (let x = 0; x < need; x++) { below += t; t *= mu / (x + 1); } p = 1 - below; }
+    cell.live = { p: Math.max(0, Math.min(1, p)), note: `${have} so far` };
+  }
   function gmProjections(g, ge, state) {
     const all = gmPlayers(g, ge, state);
     if (state !== 'pre' && !all.length && (liveLogState === 'loading' || liveLogState === 'idle')) return '<div class="empty" style="padding:2rem 0">Loading what we had at kickoff…</div>';
     const row = (r) => {
       const cells = {};
       if (r.td != null) cells.td = { p: r.td, got: state === 'post' ? r.tdGot : null, leg: r.leg, open: r.open };
-      for (const x of r.stats) cells[x.k] = { proj: x.proj, dp: BX_DP[x.k] ?? 1, line: x.line, p: x.p, got: x.got, leg: x.leg, open: x.open };
+      for (const x of r.stats) cells[x.k] = { proj: x.proj, dp: BX_DP[x.k] ?? 1, line: x.line, p: x.p, got: x.got, leg: x.leg, open: x.open, ym: x.ym };
+      if (state === 'live') for (const [k, c] of Object.entries(cells)) if (c.p != null) nflLiveCell(g, r, k, c);
       return { name: r.name, pos: r.pos, face: faceHtml(r.pid, r.name), open: r.open || null, void: r.dnp, cells };
     };
     const teams = [g.away, g.home].map(t => {
@@ -4989,7 +5059,7 @@
         { name: 'Kicker', cols: BX_K, rows: mine.filter(r => r.pos === 'K').map(row) }] };
     });
     const note = state === 'pre' ? 'Our projection for every priced player, with the even-money line and our fair odds under it. Tap a number for its full card, a header to sort. In parlay mode a tap adds it to the slip.'
-      : state === 'live' ? 'The board as it was locked at kickoff. Results fill in when the game goes final.'
+      : state === 'live' ? 'The board as it was locked at kickoff, with a live fair under each price: the pregame number re-run on the clock that\'s left and what he already has. A baseline (no game script). Lines already cleared are marked now; the rest grade at the final.'
       : 'What we had at kickoff, and what each player did: green cleared our line.';
     return RonSlate.box({ state, teams, note, extra: state === 'post' ? `<span>final <b>${g.awayScore}–${g.homeScore}</b></span>` : '',
       empty: state === 'pre' ? 'Prices post once this week has lines — usually a week out.' : 'No board was logged for this game.' });
@@ -5035,7 +5105,7 @@
         <div class="gm-mid">
           ${played ? `<div class="gm-score"><span${g.awayScore > g.homeScore ? ' class="win"' : ''}>${g.awayScore}</span><i>–</i><span${g.homeScore > g.awayScore ? ' class="win"' : ''}>${g.homeScore}</span></div><div class="gm-when">Final</div>`
             : `${g.lines?.cur ? lnOU(g.lines) : `<div class="gm-lines">${g.spread != null ? `<span>${spreadLabel(g)}</span>` : ''}${g.total != null ? `<span>O/U ${g.total}</span>` : ''}</div>`}
-               <div class="gm-when">${live ? '<b class="gm-live">In progress</b>' : `${g.weekday || ''} ${g.gameday ? g.gameday.slice(5) : ''}${g.gametime ? ' · ' + kickLocal(g) : ''}`}</div>`}
+               <div class="gm-when">${live ? (NFLLIVE[g.gameId]?.state === 'in' ? `<b class="gm-live">${NFLLIVE[g.gameId].as}–${NFLLIVE[g.gameId].hs} · ${String(NFLLIVE[g.gameId].detail).replace(/[<>&"]/g, '')}</b>` : '<b class="gm-live">In progress</b>') : `${g.weekday || ''} ${g.gameday ? g.gameday.slice(5) : ''}${g.gametime ? ' · ' + kickLocal(g) : ''}`}</div>`}
           <div class="gm-wx">${WK_LABEL(g.week)} · ${wx}${at >= 0 ? ` · ${at + 1} / ${deck.length}` : ''}</div>
         </div>
         <div class="gm-team end">${played ? '' : lnSide(g.lines, true)}<b>${g.home}</b><img src="${teamLogo(g.home)}" alt="" loading="lazy"></div>
