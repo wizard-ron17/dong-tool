@@ -122,7 +122,6 @@
   .rfx-tog.on { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: var(--accent); color: var(--accent); }
   .rfx-clear { background: transparent; border: none; color: var(--muted); font-family: var(--font-b); font-size: 0.704rem; font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0.2rem 0.3rem; }
   .rfx-hint { font-size: 0.68rem; color: var(--dim); flex-basis: 100%; }
-  .rfx-sorts { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin: 0 0 0.55rem; }
   `;
   if (!document.getElementById('rfx-css')) document.head.insertAdjacentHTML('beforeend', `<style id="rfx-css">${CSS}</style>`);
   const S = {};
@@ -187,8 +186,5 @@
       </div>` : ''}
     </div>`;
   }
-  /** The Sort chip row under the card (what's first); headers still sort too. fn is the page's setter, called with the key. */
-  const sorts = (list, cur, dir, fn) => `<div class="rfx-sorts"><span class="due-filter-label">Sort</span>${list.map(([k, l]) =>
-    `<button class="due-filter-chip${cur === k ? ' active' : ''}" onclick="${fn}('${k}')">${l}${cur === k ? (dir === 'asc' ? ' ▲' : ' ▼') : ''}</button>`).join('')}</div>`;
-  window.RonFx = { state, set, reset, apply, pass, html, count, sorts };
+  window.RonFx = { state, set, reset, apply, pass, html, count };
 })();

@@ -3838,7 +3838,7 @@
           <option value="all">All teams</option>
           ${teams.map(t => `<option value="${t}"${pbF.team === t ? ' selected' : ''}>${t}</option>`).join('')}
         </select></div></div>
-      <div class="pbf-row"><span class="pbf-lbl">Sort</span><div class="pbf-chips">${sortChips}</div></div>
+      ${pbView() === 'table' ? '' : `<div class="pbf-row"><span class="pbf-lbl">Sort</span><div class="pbf-chips">${sortChips}</div></div>`}
       ${dirty ? `<div class="pbf-foot"><button class="pbf-reset" onclick="clearPbF()">Reset filters</button></div>` : ''}`;
     row.style.display = pbFiltersOpen ? '' : 'none';
     document.getElementById('picks-filters-chevron').classList.toggle('open', pbFiltersOpen);
@@ -3896,9 +3896,9 @@
 
   /** Passing TDs are their own Poisson model (no Role/Trend/Spot): the table shows what it's built from. */
   function pbPassTable(rows) {
-    const th = (v, lab, cls = '') => `<th class="${cls}${pbF.sort === v ? ' on' : ''}" onclick="setPbSort('${v}')">${lab}${pbF.sort === v ? `<span class="ar">${pbF.dir === 'desc' ? '▼' : '▲'}</span>` : ''}</th>`;
+    const th = (v, lab, cls = '', tip = '') => `<th class="${cls}${pbF.sort === v ? ' on' : ''}" onclick="setPbSort('${v}')"${tip ? ` title="${tip}"` : ''}>${lab}${pbF.sort === v ? `<span class="ar">${pbF.dir === 'desc' ? '▼' : '▲'}</span>` : ''}</th>`;
     return `<div class="pb-tablewrap"><table class="pb-table">
-      <thead><tr><th class="static">#</th>${th('name', 'Quarterback')}${th('p', 'Fair', 'num')}${th('proj', 'Proj TD', 'num')}<th class="static num">Att/g</th>${th('imp', 'Total', 'num')}<th class="static num">O0.5</th><th class="static num">O2.5</th>${th('time', 'Game')}</tr></thead>
+      <thead><tr><th class="static" title="Rank in the current sort">#</th>${th('name', 'Quarterback', '', 'Click any column to sort by it; click again to reverse')}${th('p', 'Fair', 'num', 'Our fair price at this line, no vig, with the chance beside it')}${th('proj', 'Proj TD', 'num', 'Projected passing touchdowns')}<th class="static num" title="Pass attempts per game">Att/g</th>${th('imp', 'Total', 'num', 'Points his team is implied to score, from the game total and spread')}<th class="static num" title="Fair price for 1+ passing touchdowns">O0.5</th><th class="static num" title="Fair price for 3+ passing touchdowns">O2.5</th>${th('time', 'Game', '', 'The game, sorted by kickoff')}</tr></thead>
       <tbody>${rows.map((r, i) => `<tr onclick="openPick('${r.pid}')"${parAttr(pbLeg(r))}>
         <td class="num">${r.rank ?? i + 1}</td>
         <td class="nm">${r.name}</td>
@@ -3918,23 +3918,20 @@
     const mx = (v) => { const r = Math.round(v * 100) / 100; return `<span class="pbx ${r > 1 ? 'g' : r < 1 ? 'r' : 'n'}">${v.toFixed(2)}×</span>`; };
     const td = (v, html, cls = 'num', st = '') => `<td class="${cls}${on(v)}"${st ? ` style="${st}"` : ''}>${html}</td>`;
     const lo = pbF.fxLo ?? '';
-    const preset = (v, lab, tip, isOn) => `<button class="pbf-chip${isOn ? ' on' : ''}" onclick="setPbPreset('${v}')" title="${tip}">${lab}</button>`;
-    const fs = RonFx.state('nflTd'), nF = RonFx.count('nflTd'), isValue = pbF.sort === 'lift' && fs.lo === '+300' && nF === 1, isChalk = pbF.sort === 'p' && nF === 0;
     const bar = `<div class="pbx-bar">
         <span class="pbx-seg" title="How the factor columns read: the odds multiplier, his percentile among this week's players at his position, or both">${[['x', '×'], ['pc', 'Pctl'], ['both', 'Both']].map(([v, l]) => `<button class="pbf-chip${(pbF.fxMode || 'x') === v ? ' on' : ''}" onclick="setPbFxMode('${v}')">${l}</button>`).join('')}</span>
-        ${preset('chalk', 'Chalk', 'The shortest prices first: who the model likes most', isChalk)}${preset('value', 'Value', 'Longshots (fair +300 or longer) sorted by Lift: the ones this week (trend and spot) is doing the most for', isValue)}
         ${pbF.cut ? `<span class="pbx-hint">Max price is ${pbMkt().cuts.find(c => c.v === pbF.cut)?.lab || ''} — <a href="javascript:void(0)" onclick="setPbF('cut',0)">show the full board</a> to hunt longshots</span>` : ''}
       </div>`;
-    const card = pbMkt().qbOnly ? '' : RonFx.html('nflTd', PB_FX, nflData.picks?.picks || []) + RonFx.sorts([['lift', 'Lift'], ['p', 'Fair'], ['role', 'Role'], ['trend', 'Trend'], ['spot', 'Spot']], pbF.sort, pbF.dir, 'setPbSort');
+    const card = pbMkt().qbOnly ? '' : RonFx.html('nflTd', PB_FX, nflData.picks?.picks || []);
     if (!rows.length) return card + bar + `<div class="empty">Nobody matches these factor filters. <a href="javascript:void(0)" onclick="RonFx.reset('nflTd','renderPicks()')">Clear them →</a></div>`;
     if (pbMkt().qbOnly) return bar + '<div class="empty">The passing-TD market is its own Poisson model — pick an anytime market to see factors.</div>';
     return `${card}${bar}<div class="pb-tablewrap"><table class="pb-table pbx-table">
-      <thead><tr><th class="static">#</th>${th('name', 'Player')}${th('pos', 'Pos')}${th('p', 'Fair', 'num')}
+      <thead><tr><th class="static" title="Rank in the current sort">#</th>${th('name', 'Player', '', 'Click any column to sort by it; click again to reverse')}${th('pos', 'Pos', '', 'Position')}${th('p', 'Fair', 'num', 'Our fair price to score, no vig, with the chance beside it')}
         ${th('role', 'Role ×', 'num', 'Who he is: touches, snaps, TD share, red zone (and goal-line carries for a QB). The NFL version of MLB Power.')}
         ${th('trend', 'Trend ×', 'num', 'His last three games vs his usual touches — a role growing (green) or shrinking (red).')}
         ${th('spot', 'Spot ×', 'num', 'This game: his team\'s implied total and teammates ruled out. Mostly the team total — opposing defense tested as a null.')}
         ${th('lift', 'Lift ×', 'num pbx-div', 'Everything except Role: Trend × Spot. What this week is doing for him beyond who he is: the Value sort.')}
-        ${th('touch', 'Touch/g', 'num')}${th('touch3', 'L3/g', 'num')}${th('snap3', 'Snap%', 'num')}${th('tds', 'TD share', 'num')}${th('rz', 'RZ/g', 'num')}${th('imp', 'Total', 'num')}${th('time', 'Game')}</tr></thead>
+        ${th('touch', 'Touch/g', 'num', 'Carries plus targets per game, his usual rate')}${th('touch3', 'L3/g', 'num', 'Carries plus targets per game over his last three')}${th('snap3', 'Snap%', 'num', "Share of his offense's snaps over the last three games")}${th('tds', 'TD share', 'num', "His share of his team's touchdowns")}${th('rz', 'RZ/g', 'num', 'Red-zone touches per game: rushes plus targets inside the 20')}${th('imp', 'Total', 'num', 'Points his team is implied to score, from the game total and spread')}${th('time', 'Game', '', 'The game, sorted by kickoff')}</tr></thead>
       <tbody>${rows.map((r, i) => { const x = pbFx(r), f = r.f || {}; return `<tr onclick="openPick('${r.pid}')"${parAttr(pbLeg(r))}>
         <td class="num">${r.rank ?? i + 1}</td>
         ${td('name', `${r.name}${f.newAbsence ? ' <span class="pb-flag">ROLE OPEN</span>' : ''}`, 'nm')}
@@ -3945,7 +3942,7 @@
         ${td('tds', Math.round((f.tdShare ?? 0) * 100) + '%', 'num', pbInk(pbPc('tds', q => q.f?.tdShare ?? 0, r)))}${td('rz', (f.rz ?? 0).toFixed(1), 'num', pbInk(pbPc('rz', q => q.f?.rz ?? 0, r)))}${td('imp', (f.implied ?? 0).toFixed(1), 'num', pbInk(pbPc('imp', q => q.f?.implied ?? 0, r)))}
         ${td('time', `<img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}`, '')}
       </tr>`; }).join('')}</tbody></table></div>
-      <div class="pbx-note">Anytime price = position base × <b>Role</b> × <b>Trend</b> × <b>Spot</b>, each an odds multiplier against an average player. <b>Lift</b> is Trend × Spot, everything but Role, and <b>Value</b> sorts longshots by it. Numbers are coloured by where they sit among this week's players at his position: green better, red worse, gold the middle; <b>× / Pctl / Both</b> switches the factor columns. <b>Role</b> is NFL's base power — who he is. <b>Spot</b> is this game, and it's mostly the team total: football moves on role, not matchup. The NFL longshot is a role that just grew — <b>Trend +</b> or ROLE OPEN — on a high total. Questionable and return-TD adjustments sit on top of the factors.</div>`;
+      <div class="pbx-note">Anytime price = position base × <b>Role</b> × <b>Trend</b> × <b>Spot</b>, each an odds multiplier against an average player. <b>Lift</b> is Trend × Spot, everything but Role, so sort by its column to find the longshots this week is doing the most for. Numbers are coloured by where they sit among this week's players at his position: green better, red worse, gold the middle; <b>× / Pctl / Both</b> switches the factor columns. <b>Role</b> is NFL's base power — who he is. <b>Spot</b> is this game, and it's mostly the team total: football moves on role, not matchup. The NFL longshot is a role that just grew — <b>Trend +</b> or ROLE OPEN — on a high total. Questionable and return-TD adjustments sit on top of the factors.</div>`;
   }
 
   const PM_LABELS = {
@@ -4089,11 +4086,6 @@
   // the factor filters (board.js RonFx, the MLB Matchups card): every factor's + and floor, No red, Fair >= / <=, Role <=
   const PB_FX = { factors: [['role', 'Role'], ['trend', 'Trend'], ['spot', 'Spot'], ['lift', 'Lift']], singles: ['trend', 'spot'], base: ['role', 'Role'],
     val: (r, k) => pbFx(r)[k], p: (r) => pbP(r), rerender: 'renderPicks()' };
-  window.setPbPreset = (v) => {
-    pbF.view = 'table'; pbF.dir = 'desc'; pbF.fxTrend = false; pbF.fxSpot = false; pbF.fxLo = null;
-    if (v === 'value') { pbF.sort = 'lift'; pbF.cut = 0; RonFx.apply('nflTd', { lo: '+300' }); } else { pbF.sort = 'p'; RonFx.apply('nflTd', {}); }
-    pbSave(); renderPicks();
-  };
   function pmStep(delta) {
     const list = pbRows();
     const i = list.findIndex(x => x.pid === pmOpen);

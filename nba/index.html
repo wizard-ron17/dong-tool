@@ -344,7 +344,6 @@
   #picks-mode-chalk.active { background: #e2883a; border-color: #e2883a; box-shadow: 0 2px 14px rgba(226,136,58,0.3); }
   #picks-mode-value.active { background: var(--accent); border-color: var(--accent); box-shadow: 0 2px 14px rgba(53,201,110,0.28); }
   .t3x-bar { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin: 0 0 0.6rem; }
-  .t3x-sep { width: 1px; height: 1.2rem; background: var(--border2); margin: 0 0.3rem; }
   .t3x .t3x-c { font-family: var(--font-d); font-weight: 700; white-space: nowrap; } .t3x .t3x-c small { font-size: 0.66rem; opacity: 0.8; margin-left: 0.15rem; }
   .t3x th.on { color: var(--accent); } .t3x td:nth-child(2) { white-space: nowrap; }
   .rc-table th { position: sticky; top: 0px; background: var(--surface1); color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; text-align: left; padding: 0.5rem 0.6rem; white-space: nowrap; }
@@ -1690,7 +1689,6 @@
   const t3Save = () => { try { localStorage.setItem('nbaT3Fx', JSON.stringify(t3x)); } catch (e) {} };
   window.setT3x = (k, v) => {
     if (k === 'sort') { if (t3x.s === v) t3x.dir = t3x.dir === 'desc' ? 'asc' : 'desc'; else { t3x.s = v; t3x.dir = v === 'name' ? 'asc' : 'desc'; } }
-    else if (k === 'preset') { t3x.s = v === 'value' ? 'lift' : 'mu'; t3x.dir = 'desc'; RonFx.apply('nbaT3', {}); }
     else t3x[k] = v;
     t3Save(); renderBoard('threes');
   };
@@ -1741,24 +1739,22 @@
     const list = key ? rows.slice().sort((a, b) => { const x = key(a), y = key(b); return (x < y ? -1 : x > y ? 1 : 0) * (t3x.dir === 'asc' ? 1 : -1) || b.pAt - a.pAt; }) : rows;
     const th = (v, lab, tip = '') => `<th class="num${t3x.s === v ? ' on' : ''}" onclick="setT3x('sort','${v}')" style="cursor:pointer"${tip ? ` title="${tip}"` : ''}>${lab}${t3x.s === v ? (t3x.dir === 'desc' ? ' ▼' : ' ▲') : ''}</th>`;
     const chip = (on, lab, fn, tip) => `<button class="due-filter-chip${on ? ' active' : ''}" onclick="${fn}" title="${tip}">${lab}</button>`;
-    const bar = `<div class="t3x-bar">${[['x', '×'], ['pc', 'Pctl'], ['both', 'Both']].map(([v, l]) => chip(t3x.mode === v, l, `setT3x('mode','${v}')`, 'How the factor columns read: the multiplier on his expected threes, his percentile among tonight\'s players at his position, or both')).join('')}
-      <span class="t3x-sep"></span>${chip(t3x.s === 'mu', 'Chalk', "setT3x('preset','chalk')", 'The most expected threes first: who the model likes most')}${chip(t3x.s === 'lift', 'Value', "setT3x('preset','value')", 'Sorted by Lift: what minutes, form, drought and the matchup are doing for him beyond who he is')}</div>`;
-    window.setT3Sort = (v) => setT3x('sort', v);
-    const card = RonFx.html('nbaT3', T3_FX, rows0) + RonFx.sorts([['bueno', 'Bueno'], ['lift', 'Lift'], ['mu', 'Proj'], ['p', 'Price'], ['shooter', 'Shooter'], ['minutes', 'Min'], ['form', 'Form'], ['drought', 'Drought'], ['spot', 'Spot']], t3x.s, t3x.dir, 'setT3Sort');
+    const bar = `<div class="t3x-bar">${[['x', '×'], ['pc', 'Pctl'], ['both', 'Both']].map(([v, l]) => chip(t3x.mode === v, l, `setT3x('mode','${v}')`, 'How the factor columns read: the multiplier on his expected threes, his percentile among tonight\'s players at his position, or both')).join('')}</div>`;
+    const card = RonFx.html('nbaT3', T3_FX, rows0);
     if (!rows.length) return card + bar + `<div class="empty">Nobody matches these factor filters. <a href="javascript:void(0)" onclick="RonFx.reset('nbaT3',&quot;renderBoard('threes')&quot;)">Clear them →</a></div>`;
     return `${card}${bar}<div class="rc-tablewrap"><table class="rc-table t3x">
-      <thead><tr><th></th>${th('name', 'Player')}${th('mu', 'Proj')}${th('p', 'Price')}
+      <thead><tr><th title="Rank in the current sort"></th>${th('name', 'Player', 'Click any column to sort by it; click again to reverse')}${th('mu', 'Proj', 'Projected made threes')}${th('p', 'Price', 'Our fair price at his line, no vig, with the line and chance below it')}
         ${th('shooter', 'Shooter ×', "His makes per minute against his position's: who he is, the NBA version of MLB Power")}${th('minutes', 'Min ×', 'Projected minutes tonight against his last ten games: a role that just grew (a teammate out) or shrank')}
         ${th('form', 'Form ×', 'His last ten games against his longer rate')}${th('drought', 'Drought ×', 'Games since his last made three: a long drought pulls the price down')}
         ${th('spot', 'Spot ×', "The opponent's threes allowed, his team's implied points, home")}${th('lift', 'Lift ×', 'Everything except Shooter: minutes x form x drought x spot')}${th('bueno', 'Bueno ×', "The matchup alone: Form x the opponent's threes allowed (MLB's Bueno is P. Vuln x Contact x Platoon). The 🎯 Value screen's score")}
-        ${th('tpa', '3PA/g')}${th('l10', 'L10')}${th('min', 'Min')}<th>Game</th></tr></thead>
+        ${th('tpa', '3PA/g', 'Three-point attempts per game')}${th('l10', 'L10', 'Made threes per game over his last ten')}${th('min', 'Min', 'Projected minutes tonight')}<th title="The game">Game</th></tr></thead>
       <tbody>${list.map((r, i) => `<tr onclick="${open(r)}"${parAttr(bdLeg('3pm', r, r.L, r.pAt))}>
         <td class="num dim">${i + 1}</td><td><b>${esc(r.name)}</b> <span class="dim">${esc(r.pos || '')}</span></td>
         <td class="num"><b>${r.mu.toFixed(2)}</b></td><td class="num"><b>${fairOdds(r.pAt)}</b><br><small class="dim">${parSideLine(r)} · ${Math.round(r.pAt * 100)}%</small></td>
         ${cell(r, 'shooter')}${cell(r, 'minutes')}${cell(r, 'form')}${cell(r, 'drought')}${cell(r, 'spot')}${cell(r, 'lift')}${cell(r, 'bueno')}
         ${raw(r, 'tpa', q => q.f?.tpa ?? 0, r.f?.tpa ?? '—')}${raw(r, 'l10', q => q.f?.l10 ?? 0, r.f?.l10 ?? '—')}${raw(r, 'min', q => q.min, r.min.toFixed(1))}
         <td class="dim">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}</td></tr>`).join('')}</tbody></table></div>
-      <div class="t3-note">Expected threes = his minutes × his rate × <b>Form</b> × <b>Drought</b> × <b>Spot</b>. <b>Shooter</b> is his rate against his position's; <b>Min</b> is tonight's minutes against his last ten. <b>Lift</b> is everything but <b>Shooter</b>, and <b>Value</b> sorts by it. Numbers are coloured by where they sit among tonight's players at his position: green better, red worse, gold the middle.</div>`;
+      <div class="t3-note">Expected threes = his minutes × his rate × <b>Form</b> × <b>Drought</b> × <b>Spot</b>. <b>Shooter</b> is his rate against his position's; <b>Min</b> is tonight's minutes against his last ten. <b>Lift</b> is everything but <b>Shooter</b>, so sort by its column to see what tonight is doing for him. Numbers are coloured by where they sit among tonight's players at his position: green better, red worse, gold the middle.</div>`;
   }
   function renderBoard(nav) {
     const el = dataGate(nav + '-content'); if (!el) return;
