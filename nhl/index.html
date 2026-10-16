@@ -701,11 +701,13 @@
   .pbx-in input { width: 3.6rem; background: transparent; border: none; color: var(--text); font-family: var(--font-d); font-size: 0.8rem; text-align: right; outline: none; }
   .pbx-hint { font-size: 0.7rem; color: var(--dim); }
   .pbx-table td.nm { white-space: nowrap; }
-  .pk-modes { display: flex; gap: 0.4rem; margin: 0 0 0.7rem; }
-  .pk-mode { background: var(--surface1); border: 1px solid var(--border2); color: var(--muted); font-family: var(--font-d); font-weight: 700; font-size: 0.82rem; padding: 0.35rem 0.9rem; border-radius: 999px; cursor: pointer; }
-  .pk-mode.on { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: var(--accent); color: var(--accent); }
-  .pk-vnote { font-size: 0.78rem; color: var(--muted); line-height: 1.45; background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.75rem; margin-bottom: 0.7rem; }
-  .pk-vnote b { color: var(--text); }
+  /* Chalk / Value: copied verbatim from /mlb's HR page */
+  .picks-mode { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; }
+  .picks-mode-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.4rem; background: var(--surface0); border: 1px solid var(--border); color: var(--muted); font-family: var(--font-d); font-size: 1.08rem; font-weight: 700; letter-spacing: 0.02em; padding: 0.62rem; border-radius: 11px; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s; }
+  .picks-mode-btn:hover:not(.active) { color: var(--text); border-color: var(--border2); }
+  .picks-mode-btn.active { color: #fff; }
+  #picks-mode-chalk.active { background: #e2883a; border-color: #e2883a; box-shadow: 0 2px 14px rgba(226,136,58,0.3); }
+  #picks-mode-value.active { background: var(--accent); border-color: var(--accent); box-shadow: 0 2px 14px rgba(53,201,110,0.28); }
   .pbx-seg { display: inline-flex; gap: 0.2rem; margin-right: 0.4rem; padding-right: 0.6rem; border-right: 1px solid var(--border2); }
   .pbx small { font-size: 0.66rem; font-weight: 600; opacity: 0.8; margin-left: 0.15rem; }
   .pbx-note { font-size: 0.72rem; color: var(--muted); margin-top: 0.6rem; line-height: 1.45; }
@@ -1241,7 +1243,7 @@
         <span class="due-explainer-cta"></span>
         <span class="due-explainer-chevron" id="picks-explainer-chevron">&#9654;</span>
       </div>
-      <div class="due-explainer-teaser">Every skater on the slate, priced to score at least one goal.</div>
+      <div class="due-explainer-teaser">Every skater on the slate, priced to score at least one goal, fair odds with no vig. Chalk is the shortest prices; Value is Bueno's longshot screen.</div>
       <div class="due-explainer-body" id="picks-explainer-body" style="display:none">
         <ul>
           <li><b>What the price is.</b> The modelled chance he scores at least one goal, shown as American odds with the raw probability beneath. These are <em>fair</em> odds with no vig &mdash; a real sportsbook will always price worse. A price assumes he dresses, which is how books settle it: a scratch is void.</li>
@@ -1252,12 +1254,18 @@
           <li><b>It is recalibrated.</b> A monotone (isotonic) map fitted on out-of-sample results trims the top end, where the raw model runs a little hot. It halves the calibration error without changing the order of the board.</li>
           <li><b>Only the current roster is priced.</b> A skater's stats are filed under the club he finished last season with, so the board reads each team's roster directly &mdash; otherwise anyone who moved this summer would be priced for his old team.</li>
           <li><b>Seven markets off one model.</b> Pick a market in the filters. <b>2+ goals</b>, the <b>hat trick</b> and a <b>1st-period goal</b> come straight from his expected goals &mdash; goals are Poisson, so the tails follow (29% of goals are scored in the 1st). <b>First and last goal</b> are a race: exactly one skater scores each, so his price is his share of the expected goals of everyone who dresses in his game &mdash; the same anytime number is a better first-goal bet against a weak lineup. The healthy scratches are left out of that race, or every price would run about a fifth long. <b>Power-play goal</b> has its own model: his power-play minutes and power-play scoring, on a log scale, against the opponent's penalty kill. Out of sample every market lands within a third of a point of what happened.</li>
+          <li><b>🔒 Chalk = every skater, shortest price first.</b> Narrow it with the cut lines in Filters.</li>
+          <li><b>🎯 Value = Bueno's screen, experimental.</b> Longshots (+400 or longer, anytime) whose <b>form</b> (shots over his last ten, against his position) and the <b>opponent's goals allowed</b> both sit in the <b>top 40% of tonight's slate</b>, sorted by <b>Bueno</b>, the two multiplied: MLB's P. Vuln × Contact × Platoon for hockey (there's no platoon here). Graded in Results on its own until it proves itself, or doesn't.</li>
           <li><b>Cut lines.</b> Each maximum-price filter shows the hit rate that cut actually produced out of sample &mdash; so tightening the board is a measured trade, not a guess.</li>
           <li><b>Honest limits.</b> Built on 182,608 skater-games across four seasons, never yet graded against a live night, and not measured against sportsbook prices &mdash; a fair number is not the same thing as an edge. No starting-goalie or line-combination data yet: those need a lineup feed the free NHL API does not have.</li>
         </ul>
       </div>
     </div>
 
+    <div class="picks-mode" id="picks-mode-bar">
+      <button class="picks-mode-btn active" id="picks-mode-chalk" onclick="setPkMode('chalk')" title="Every skater on the slate, shortest prices first">🔒 Chalk</button>
+      <button class="picks-mode-btn" id="picks-mode-value" onclick="setPkMode('value')" title="Bueno's screen: longshots with form and the opponent's goals allowed both in the top 40% of the slate (experimental)">🎯 Value</button>
+    </div>
     <div class="sub-tabs u-tabs" id="picks-sub-tabs">
       <button class="sub-btn active" id="picks-sub-board" onclick="switchPicksSub('board')">Board</button>
       <button class="sub-btn" id="picks-sub-results" onclick="switchPicksSub('results')">Results</button>
@@ -4070,7 +4078,9 @@
   function renderPicks() {
     renderPicksFilters();
     const el = dataGate('picks-content'); if (!el) return;
-    const modeBar = `<div class="pk-modes"><button class="pk-mode${pkF.mode !== 'value' ? ' on' : ''}" onclick="setPkMode('chalk')" title="Every skater on the slate, shortest prices first">🔒 Chalk</button><button class="pk-mode${pkF.mode === 'value' ? ' on' : ''}" onclick="setPkMode('value')" title="Bueno's screen: longshots (+400 or longer) with form and the opponent's goals allowed both in the top 40% of the slate (experimental)">🎯 Value</button></div>`;
+    document.getElementById('picks-mode-chalk')?.classList.toggle('active', pkF.mode !== 'value');
+    document.getElementById('picks-mode-value')?.classList.toggle('active', pkF.mode === 'value');
+    const modeBar = '';
     if (pkSub === 'results') { el.innerHTML = modeBar + renderPicksResults(); return; }
     const P = D.picks;
     if (!P?.picks?.length) { el.innerHTML = `<div class="empty">No picks yet — the board is built once the next slate is set.</div>`; return; }
@@ -4094,7 +4104,8 @@
     const cut = pkCuts().find(c => c.v === pkF.cut);
     const base = ((P.model?.base || 0) * 100).toFixed(1);
     const fxOn = pkView() === 'table' && RonFx.count('nhlGoals') > 0;
-    const body = !rows.length && !fxOn ? (() => {
+    const body = !rows.length && pkF.mode === 'value' ? `<div class="empty">No skater passes the Value screen tonight. It takes a longshot (+400 or longer) in the top 40% of the slate on both form and the opponent's goals allowed. A small slate rarely has one; a full one usually has several. The closest are on the <a href="javascript:void(0)" onclick="setPkMode('chalk')">Chalk</a> board.</div>`
+      : !rows.length && !fxOn ? (() => {
       if (pkSearch.length) {
         const hits = P.picks.filter(x => pkSearch.some(t => pkMatch(x, t)));
         if (!hits.length) return `<div class="empty">No skater or team matches <b>${esc(pkSearch.join(', '))}</b>. <a href="javascript:void(0)" onclick="clearPicksSearch()">Clear search →</a></div>`;
@@ -4105,10 +4116,10 @@
     })()
       : pkView() === 'table' ? pkFactors(rows)
       : `<div class="pb-list">${rows.map(pkCard).join('')}</div>`;
-    el.innerHTML = modeBar + (pkF.mode === 'value' ? `<div class="pk-vnote">🎯 <b>Value</b>, Bueno's screen for goals: longshots (fair <b>+400</b> or longer) whose <b>form</b> (shots over his last ten against his position) and the <b>opponent's goals allowed</b> both sit in the top 40% of tonight's slate, sorted by <b>Bueno</b> (the two multiplied). Experimental, like MLB's: graded in Results from 10/17 until it proves itself or doesn't.</div>` : '') + `
+    el.innerHTML = modeBar + `
       <div class="pb-head">
         <span class="pb-week">${P.date ? dayLabel(P.date) : ''}</span>
-        <span class="pb-meta">${esc(D.seasonLabel || '')} · ${esc(pkMkt().long)}${pkF.pos.length ? ' · ' + pkF.pos.map(x => POS_NAME[x]).join('/') : ''}${pkSearch.length ? ' · “' + esc(pkSearch.join('”, “')) + '”' : ''} · ${rows.length} shown · fair odds, no vig</span>
+        <span class="pb-meta">${pkF.mode === 'value' ? `🎯 ${rows.length} longshot${rows.length === 1 ? '' : 's'} · sorted by Bueno · form and the opponent's goals allowed both in the top 40% of the slate (experimental) · ` : ''}${esc(D.seasonLabel || '')} · ${esc(pkMkt().long)}${pkF.pos.length ? ' · ' + pkF.pos.map(x => POS_NAME[x]).join('/') : ''}${pkSearch.length ? ' · “' + esc(pkSearch.join('”, “')) + '”' : ''} · ${rows.length} shown · fair odds, no vig</span>
       </div>
       <div class="lb-toolbar">
         <div class="view-switch">${[['table', 'Table'], ['cards', 'Cards']]

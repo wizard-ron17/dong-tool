@@ -332,11 +332,13 @@
   .pb-price { text-align: right; flex-shrink: 0; min-width: 4.1rem; }
   .rc-tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface0); }
   .rc-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 520px; }
-  .t3-modes { display: flex; gap: 0.4rem; margin: 0 0 0.7rem; }
-  .t3-mode { background: var(--surface1); border: 1px solid var(--border2); color: var(--muted); font-family: var(--font-d); font-weight: 700; font-size: 0.82rem; padding: 0.35rem 0.9rem; border-radius: 999px; cursor: pointer; }
-  .t3-mode.on { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: var(--accent); color: var(--accent); }
-  .t3-vnote { font-size: 0.78rem; color: var(--muted); line-height: 1.45; background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.75rem; margin-bottom: 0.7rem; }
-  .t3-vnote b { color: var(--text); }
+  /* Chalk / Value: copied verbatim from /mlb's HR page */
+  .picks-mode { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; }
+  .picks-mode-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.4rem; background: var(--surface0); border: 1px solid var(--border); color: var(--muted); font-family: var(--font-d); font-size: 1.08rem; font-weight: 700; letter-spacing: 0.02em; padding: 0.62rem; border-radius: 11px; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s; }
+  .picks-mode-btn:hover:not(.active) { color: var(--text); border-color: var(--border2); }
+  .picks-mode-btn.active { color: #fff; }
+  #picks-mode-chalk.active { background: #e2883a; border-color: #e2883a; box-shadow: 0 2px 14px rgba(226,136,58,0.3); }
+  #picks-mode-value.active { background: var(--accent); border-color: var(--accent); box-shadow: 0 2px 14px rgba(53,201,110,0.28); }
   .t3x-bar { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin: 0 0 0.6rem; }
   .t3x-sep { width: 1px; height: 1.2rem; background: var(--border2); margin: 0 0.3rem; }
   .t3x .t3x-c { font-family: var(--font-d); font-weight: 700; white-space: nowrap; } .t3x .t3x-c small { font-size: 0.66rem; opacity: 0.8; margin-left: 0.15rem; }
@@ -1699,7 +1701,7 @@
       let lt = 0, le = 0; for (const x of xs) { if (x < v) lt++; if (x <= v) le++; } return (lt + le) / 2 / xs.length; };
     return r.p[1] <= 1 / 3 && rk('form') >= 0.6 && rk('opp') >= 0.6;
   }
-  const t3ModeBar = (nav, on) => nav !== 'threes' ? '' : `<div class="t3-modes"><button class="t3-mode${on ? '' : ' on'}" onclick="setT3Mode('chalk')" title="Every rotation player, the best line nearest even money">🔒 Chalk</button><button class="t3-mode${on ? ' on' : ''}" onclick="setT3Mode('value')" title="Bueno's screen: 2+ threes at +200 or longer with form and the opponent's threes allowed both in the top 40% of the slate (experimental)">🎯 Value</button></div>`;
+  const t3ModeBar = (nav, on) => nav !== 'threes' ? '' : `<div class="picks-mode"><button class="picks-mode-btn${on ? '' : ' active'}" id="picks-mode-chalk" onclick="setT3Mode('chalk')" title="Every rotation player, the best line nearest even money">🔒 Chalk</button><button class="picks-mode-btn${on ? ' active' : ''}" id="picks-mode-value" onclick="setT3Mode('value')" title="Bueno's screen: 2+ threes at +200 or longer with form and the opponent's threes allowed both in the top 40% of the slate (experimental)">🎯 Value</button></div>`;
   window.setT3Mode = (v) => {
     t3x.v = v === 'value'; const F = bdState('threes');
     if (t3x.v) { F.line = 1.5; t3x.s = 'bueno'; t3x.dir = 'desc'; } else { F.line = 'auto'; if (t3x.s === 'bueno') t3x.s = 'mu'; }
@@ -1776,8 +1778,8 @@
       ['Game', [['all', 'All games'], ...games.map(g => [g.gid, `${g.home ? g.opp : g.team} @ ${g.home ? g.team : g.opp}`])].map(([v, l]) => uiChip(set, 'game', v, l, F.game)).join('')],
       ['Sort', [['proj', 'Projection'], ['odds', 'Shortest price']].map(([v, l]) => uiChip(set, 'sort', v, l, F.sort)).join('')],
     ], changed) + uiSearch(nav + '-search', set, F.q, 'Search a player, team or position…');
-    const meta = `<div class="result-meta"><b>${dayLabel(src.date, true)}</b> · ${rows.length} of ${lcRows(kind).length} players · ${esc(C.unit)} · fair odds, no vig</div>` + uiView(set, F.view, parSideToggleHtml(nav, false, `renderBoard('${nav}')`));
-    if (!rows.length) { el.innerHTML = t3ModeBar(nav, t3val) + tabs + controls + meta + `<div class="empty">${t3val ? 'Nobody on tonight\'s slate passes the 🎯 Value screen.' : 'Nothing matches that filter.'}</div>`; return; }
+    const meta = `<div class="result-meta">${t3val ? `🎯 <b>${rows.length} longshot${rows.length === 1 ? '' : 's'}</b> · 2+ threes at +200 or longer · sorted by Bueno · form and the opponent's threes allowed both in the top 40% of the slate (experimental) · ${t3ValueRecord()}<br>` : ''}<b>${dayLabel(src.date, true)}</b> · ${rows.length} of ${lcRows(kind).length} players · ${esc(C.unit)} · fair odds, no vig</div>` + uiView(set, F.view, parSideToggleHtml(nav, false, `renderBoard('${nav}')`));
+    if (!rows.length) { el.innerHTML = t3ModeBar(nav, t3val) + tabs + controls + meta + `<div class="empty">${t3val ? `No player passes the Value screen tonight. It takes 2+ threes at +200 or longer, in the top 40% of the slate on both form and the opponent's threes allowed. The closest are on the <a href="javascript:void(0)" onclick="setT3Mode('chalk')">Chalk</a> board.` : 'Nothing matches that filter.'}</div>`; return; }
     const open = (r) => `openBoardCard('${nav}','${r.pid}')`;
     const started = (r) => new Date(r.start) <= new Date();
     const f = (r) => r.f || {};
@@ -1829,7 +1831,7 @@
         </div>`).join('')}</div>`;
     }
     const modeBar = t3ModeBar(nav, t3val);
-    const vNote = t3val ? `<div class="t3-vnote">🎯 <b>Value</b>, Bueno's screen for threes: <b>2+ threes</b> at <b>+200</b> or longer whose <b>form</b> (his last ten against his longer rate) and the <b>opponent's threes allowed</b> both sit in the top 40% of the slate, sorted by <b>Bueno</b> (the two multiplied). Experimental, like MLB's. ${t3ValueRecord()}</div>` : '';
+    const vNote = '';
     el.innerHTML = modeBar + tabs + vNote + controls + meta + body + `<div class="t3-note">${cfg.note || BD_NOTE}</div>` + RonBacktest.html(kind);
   }
   function openBoardCard(nav, pid) {
