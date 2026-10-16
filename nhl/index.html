@@ -5524,6 +5524,26 @@
   const espnAb = (x) => ESPN2NHL[x] || x;
   const LIVE = {};                 // "away|home" -> { as, hs, per, left, state, id, detail }
   const LIVE_EV = {};              // espn id -> [{ t, team, name }]
+  const LIVE_BX = {};              // espn id -> team -> name key -> { g, a, sog, sv, ga } so far
+  const nhlNameKey = (n) => { const w = String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[.'’]/g, '').trim().split(/\s+/); return w.length ? (w[0][0] || '') + ' ' + w[w.length - 1] : ''; };
+  /** Live fair for one box cell: the pregame mean over the part of the game that's left, on top of what he has.
+   *  Time-based (regulation, then the overtime clock); score effects, empty nets and line juggling are not in it. */
+  function nhlLiveCell(g, r, k, cell) {
+    const L = liveOf(g); if (!L || L.state !== 'in' || !L.id) return;
+    const me = LIVE_BX[L.id]?.[r.team]?.[nhlNameKey(r.name)]; if (!me) return;
+    const left = L.per >= 1 && L.per <= 3 && L.left != null ? ((3 - L.per) * 1200 + L.left) / 3600 : L.per > 3 && L.left != null ? L.left / 3600 : 0;
+    const have = k === 'goal' ? me.g : k === 'pts' ? me.g + me.a : k === 'ast' ? me.a : me[k];
+    if (have == null) return;
+    if (k === 'goal') {
+      if (have >= 1) { cell.got = have; return; }
+      cell.live = left <= 0 ? { out: true, note: 'no goal' } : { p: 1 - Math.pow(1 - cell.p, left), note: `${Math.round(left * 60)} min left` };
+      return;
+    }
+    if (have > cell.line) { cell.got = have; return; }
+    const need = Math.floor(cell.line) + 1 - have, mu = (cell.proj || 0) * left;
+    let below = 0, t = Math.exp(-mu); for (let x = 0; x < need; x++) { below += t; t *= mu / (x + 1); }
+    cell.live = left <= 0 ? { out: true, note: `${have} so far` } : { p: Math.max(0, 1 - below), note: `${have} so far` };
+  }
   let liveTimer = null, liveBusy = false;
   const liveOf = (g) => LIVE[`${g.away}|${g.home}`];
   const gameLiveNow = (g) => {
@@ -5565,6 +5585,16 @@
     const r = await fetch(ESPN_SUM + L.id); if (!r.ok) return;
     const j = await r.json();
     const ids = Object.fromEntries((j.header?.competitions?.[0]?.competitors || []).map(c => [c.team.id, espnAb(c.team.abbreviation)]));
+    // each skater's and goalie's line so far, for live prices (ESPN ids differ from the NHL's: matched by name within the club)
+    const bx = {};
+    for (const t of j.boxscore?.players || []) {
+      const m = bx[espnAb(t.team?.abbreviation)] ||= {};
+      for (const grp of t.statistics || []) for (const a of grp.athletes || []) {
+        const v = Object.fromEntries((grp.labels || []).map((l, i) => [l, a.stats?.[i]]));
+        m[nhlNameKey(a.athlete?.displayName)] = { g: +v.G || 0, a: +v.A || 0, sog: +v.S || 0, sv: v.SV != null ? +v.SV : null, ga: v.GA != null ? +v.GA : null };
+      }
+    }
+    LIVE_BX[L.id] = bx;
     LIVE_EV[L.id] = (j.plays || []).filter(p => p.scoringPlay && p.period?.number <= 3).map(p => {
       const [m, s] = String(p.clock?.displayValue || '0:00').split(':');
       return { t: (p.period.number - 1) * 1200 + (+m) * 60 + (+s), team: ids[p.team?.id], name: p.participants?.[0]?.athlete?.displayName || '' };
@@ -5839,13 +5869,15 @@
       const cells = {};
       if (r.goal != null) cells.goal = { p: r.goal, got: state === 'post' ? r.got : null, leg: r.leg, open: r.open };
       for (const x of r.stats) cells[x.k] = { proj: x.proj, dp: BX_DP[x.k], line: x.line, p: x.p, got: x.got, leg: x.leg, open: x.open };
+      // live: the pregame price stays, the live fair rides under it; a line already cleared is graded now
+      if (state === 'live') for (const [k, c] of Object.entries(cells)) if (c.p != null) nhlLiveCell(g, r, k, c);
       return { name: r.name, pos: r.pos, face: faceHtml(r.mug || mugOf(r.pid, r.team, D.season), r.name), open: `openPlayer(${r.pid})`, void: r.dnp, cells };
     };
     const teams = [g.away, g.home].map(t => ({ abbr: t, logo: logoImg(t, ''), sub: esc(teamName(t)), groups: [
       { name: 'Skaters', cols: BX_SK, rows: all.filter(r => r.team === t && r.pos !== 'G').map(row) },
       { name: 'Goalie', cols: BX_GL, rows: all.filter(r => r.team === t && r.pos === 'G').map(row) }] }));
     const note = state === 'pre' ? 'Our projection for every priced player, with the even-money line and our fair odds under it. Tap a number for its full ladder, a name for his card, a header to sort. In parlay mode a tap adds it to the slip.'
-      : state === 'live' ? 'The board as it was frozen at puck drop. Results fill in when the game goes final.'
+      : state === 'live' ? 'The board as it was frozen at puck drop, with a live fair under each price: the pregame number re-run on the minutes left and what he already has. A baseline (no score effects or empty nets). Lines already cleared are marked now; the rest grade at the final.'
       : 'What we had at puck drop, and what each player did: green cleared our line, red didn\'t.';
     return RonSlate.box({ state, teams, note, extra: state === 'post' ? `<span>final <b>${g.awayScore}–${g.homeScore}</b></span>` : '',
       empty: state === 'pre' ? 'Prices post once the slate is set — usually the night before.' : 'No board was frozen for this game.' });
