@@ -838,12 +838,16 @@
   @media (max-width: 760px) { .lu { grid-template-columns: 1fr; } }
   .lu-h { display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.4rem; font-family: var(--font-d); }
   .lu-h img { width: 22px; height: 22px; } .lu-h span { margin-left: auto; font-size: 0.68rem; color: var(--dim); font-family: var(--font-b); }
-  .lu-row { display: grid; grid-template-columns: 2.4rem 1fr auto; align-items: center; gap: 0.4rem; padding: 0.38rem 0; border-top: 1px solid var(--border); font-size: 0.82rem; }
-  .lu-t { font-family: var(--font-d); font-weight: 700; color: var(--muted); font-size: 0.74rem; }
-  .lu-ps { display: flex; flex-wrap: wrap; gap: 0.15rem 0.8rem; min-width: 0; }
-  .lu-p { display: inline-flex; align-items: baseline; gap: 0.3rem; white-space: nowrap; }
-  .lu-p b { color: var(--text); font-weight: 600; } .lu-p em { font-style: normal; font-size: 0.62rem; color: var(--dim); } .lu-p small { font-size: 0.68rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-  .lu-mv { font-style: normal; font-size: 0.62rem; font-weight: 700; color: var(--text); }
+  .lu-row { display: grid; grid-template-columns: 2.4rem 1fr auto; align-items: center; gap: 0.4rem; padding: 0.5rem 0; border-top: 1px solid var(--border); font-size: 0.82rem; }
+  .lu-t { font-family: var(--font-d); font-weight: 700; color: var(--muted); font-size: 0.78rem; }
+  .lu-ps { display: flex; flex-wrap: wrap; gap: 0.5rem; min-width: 0; }
+  .lu-p { position: relative; width: 74px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.12rem; }
+  .lu-p .rc-photo { width: 50px; height: 50px; margin: 0 0 0.15rem; border-radius: 50%; object-fit: cover; background: var(--surface1); border: 1px solid var(--border2); font-size: 0.8rem; }
+  .lu-p b { color: var(--text); font-weight: 600; font-size: 0.74rem; line-height: 1.15; max-width: 74px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lu-p em { font-style: normal; font-size: 0.62rem; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .lu-p .inj-chip, .lu-p [class*="inj"] { font-size: 0.55rem; }
+  .lu-mv { position: absolute; top: -2px; right: 6px; font-style: normal; font-size: 0.58rem; font-weight: 700; color: var(--text); background: var(--surface0); border: 1px solid var(--border2); border-radius: 8px; padding: 0 0.22rem; line-height: 1.4; }
+  @media (max-width: 760px) { .lu-ps { gap: 0.3rem; } .lu-p { width: 58px; } .lu-p .rc-photo { width: 42px; height: 42px; } .lu-p b { max-width: 58px; font-size: 0.68rem; } .lu-row { grid-template-columns: 1.9rem 1fr; } .lu-new { grid-column: 2; justify-self: start; } }
   .lu-new { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border2); border-radius: 4px; padding: 0 0.3rem; }
   .lu-sp { height: 0.5rem; }
   .lu-out { margin-top: 0.6rem; font-size: 0.74rem; color: var(--muted); } .lu-out b { color: var(--text); } .lu-out em { font-style: normal; font-size: 0.62rem; color: var(--dim); margin: 0 0.15rem 0 0.25rem; }
@@ -5894,7 +5898,9 @@
       const mark = (p) => chg[p]?.[1] === 'up' ? '<i class="lu-mv" title="Moving up: skating with the top six after games outside it">▲</i>'
         : chg[p]?.[1] === 'down' ? '<i class="lu-mv" title="Moving down: no longer skating with the top six">▼</i>'
         : chg[p]?.[1] === 'pp' ? `<i class="lu-mv" title="${chg[p][3] === 1 ? 'Joined' : 'Left'} the first power-play unit">PP ${chg[p][3] === 1 ? '▲' : '▼'}</i>` : '';
-      const plr = (p, k = 0) => `<span class="lu-p"><b>${nm(p)}</b><em>${POS_NAME[L.pos?.[p]] || ''}</em><small>${(t.toi[p]?.[k] ?? 0).toFixed(1)}</small>${mark(p)}${injChip(p)}</span>`;
+      // a player is his headshot, his name under it, then position and minutes; a role change sits on the photo
+      const plr = (p, k = 0) => `<div class="lu-p">${faceHtml(mugOf(p, ab, D.season), L.names?.[p] || '', '')}${mark(p)}
+        <b title="${nm(p)}">${esc(String(L.names?.[p] || p).replace(/^[A-Z]\.\s*/, ''))}</b><em>${POS_NAME[L.pos?.[p]] || ''} · ${(t.toi[p]?.[k] ?? 0).toFixed(1)}</em>${injChip(p)}</div>`;
       const row = (lab, ps, k, fresh) => `<div class="lu-row"><span class="lu-t">${lab}</span><span class="lu-ps">${ps.map(p => plr(p, k)).join('')}</span>${fresh ? '<span class="lu-new" title="A combination that has not skated together in the previous games">new</span>' : ''}</div>`;
       return `<div class="lu-col"><div class="lu-h">${logoImg(ab, '')}<b>${ab}</b><span>last game ${dayLabel(t.date)} · minutes at 5v5</span></div>
         ${t.F.map((g2, i) => row('L' + (i + 1), ord(g2), 0, t.fresh?.[i])).join('')}
