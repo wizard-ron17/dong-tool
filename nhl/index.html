@@ -833,7 +833,7 @@
   }
   /* line combinations: the tag beside a position, and the schedule's Lineup tab */
   .lnt { font-family: var(--font-d); font-weight: 700; font-size: 0.6rem; letter-spacing: 0.04em; margin-left: 0.25rem; padding: 0.1rem 0.3rem; border-radius: 4px; white-space: nowrap; color: var(--muted); border: 1px solid var(--border2); }
-  .lnt.chg { color: var(--text); border-color: var(--accent); }
+  .lnt.chg { color: var(--text); border-color: var(--text); }
   .lu { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 0.4rem; }
   @media (max-width: 760px) { .lu { grid-template-columns: 1fr; } }
   .lu-h { display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.4rem; font-family: var(--font-d); }
@@ -1773,15 +1773,17 @@
       t.F.forEach((g, i) => g.forEach(p => { LN[p] = { team, tier: 'L' + (i + 1), pp: 0, date: t.date }; }));
       t.D.forEach((g, i) => g.forEach(p => { LN[p] = { team, tier: 'D' + (i + 1), pp: 0, date: t.date }; }));
       t.pp.forEach((g, i) => g.forEach(p => { (LN[p] ||= { team, tier: null, pp: 0, date: t.date }).pp = i + 1; }));
-      for (const c of t.chg) if (LN[c[0]]) LN[c[0]].chg = c[1];
+      for (const c of t.chg) if (LN[c[0]]) { LN[c[0]].chg = c[1]; if (c[1] === 'pp') LN[c[0]].ppDir = c[3] === 1 ? 'up' : 'down'; }   // pp: [pid, 'pp', was, now]
     }
     return LN;
   }
   function lineTag(pid) {
     const m = lineMap()[pid]; if (!m) return '';
     const label = [m.tier, m.pp ? 'PP' + m.pp : ''].filter(Boolean).join(' · '); if (!label) return '';
-    const what = { up: ' Moving up: skating with the top six after games outside it.', down: ' Moving down: no longer skating with the top six.', pp: ' Moved on or off the first power-play unit.' }[m.chg] || '';
-    return `<span class="lnt${m.chg ? ' chg' : ''}" title="${m.team}'s line-up in its last game (${m.date}): ${label}.${what} Not in the price yet.">${label}${m.chg === 'up' ? ' ▲' : m.chg === 'down' ? ' ▼' : ''}</span>`;
+    const dir = m.chg === 'pp' ? m.ppDir : m.chg;
+    const what = { up: ' Moving up: skating with the top six after games outside it.', down: ' Moving down: no longer skating with the top six.' }[m.chg]
+      || (m.chg === 'pp' ? (m.ppDir === 'up' ? ' Joined the first power-play unit (was not on it before).' : ' Left the first power-play unit (was on it before).') : '');
+    return `<span class="lnt${m.chg ? ' chg' : ''}" title="${m.team}'s line-up in its last game (${m.date}): ${label}.${what} An outline means the role changed, not that it is good or bad. Not in the price yet.">${label}${dir === 'up' ? ' ▲' : dir === 'down' ? ' ▼' : ''}</span>`;
   }
   const posBadge = (p, pid) => `<span class="posb p-${p || 'C'}">${POS_NAME[p] || p || ''}</span>${pid ? lineTag(pid) : ''}`;
   // Time on ice comes out of the warehouse in seconds per game.
@@ -5838,7 +5840,7 @@
       const nm = (p) => esc(L.names?.[p] || p), chg = Object.fromEntries(t.chg.map(c => [c[0], c]));
       const mark = (p) => chg[p]?.[1] === 'up' ? '<i class="lu-mv" title="Moving up: skating with the top six after games outside it">▲</i>'
         : chg[p]?.[1] === 'down' ? '<i class="lu-mv" title="Moving down: no longer skating with the top six">▼</i>'
-        : chg[p]?.[1] === 'pp' ? '<i class="lu-mv" title="Moved on or off the first power-play unit">PP</i>' : '';
+        : chg[p]?.[1] === 'pp' ? `<i class="lu-mv" title="${chg[p][3] === 1 ? 'Joined' : 'Left'} the first power-play unit">PP ${chg[p][3] === 1 ? '▲' : '▼'}</i>` : '';
       const plr = (p, k = 0) => `<span class="lu-p"><b>${nm(p)}</b><em>${POS_NAME[L.pos?.[p]] || ''}</em><small>${(t.toi[p]?.[k] ?? 0).toFixed(1)}</small>${mark(p)}${injChip(p)}</span>`;
       const row = (lab, ps, k, fresh) => `<div class="lu-row"><span class="lu-t">${lab}</span><span class="lu-ps">${ps.map(p => plr(p, k)).join('')}</span>${fresh ? '<span class="lu-new" title="A combination that has not skated together in the previous games">new</span>' : ''}</div>`;
       return `<div class="lu-col"><div class="lu-h">${logoImg(ab, '')}<b>${ab}</b><span>last game ${dayLabel(t.date)} · minutes at 5v5</span></div>
