@@ -4080,14 +4080,15 @@
   // percentile, or both (setPbFxMode).
   function pbPc(key, get, r) {
     const P = nflData.picks, c = (P._pc ||= {}), arr = (c[r.pos + key] ||= (P.picks || []).filter(q => q.pos === r.pos).map(get).filter(x => typeof x === 'number' && isFinite(x)).sort((a, b) => a - b)), v = get(r);
-    let lo = 0, hi = arr.length; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m] <= v) lo = m + 1; else hi = m; }
+    const cnt = (le) => { let lo = 0, hi = arr.length; while (lo < hi) { const m = (lo + hi) >> 1; if (le ? arr[m] <= v : arr[m] < v) lo = m + 1; else hi = m; } return lo; };
+    const lo = (cnt(false) + cnt(true)) / 2;   // mid-rank: a value most of the slate shares (1.00x) sits in the middle, not at the top
     return arr.length ? lo / arr.length : 0.5;
   }
   const pbInk = (pc) => `color:${TONE_VAR[pcTone(pc)]}`;
   const pb99 = (pc) => Math.max(1, Math.min(99, Math.round(pc * 100)));
   function pbFxCell(r, k) {
     const m = pbFx(r)[k], pc = pbPc('fx' + k, q => pbFx(q)[k], r), mode = pbF.fxMode || 'x';
-    const tone = mode === 'x' ? fxTone(m) : pcTone(pc), txt = mode === 'x' ? `${m.toFixed(2)}×` : mode === 'pc' ? `${pb99(pc)}` : `${m.toFixed(2)}× <small>${pb99(pc)}</small>`;
+    const tone = mode === 'pc' ? pcTone(pc) : fxTone(m)   // Both: coloured by the multiplier (a 1.00x everyone shares stays gold), the percentile beside it, txt = mode === 'x' ? `${m.toFixed(2)}×` : mode === 'pc' ? `${pb99(pc)}` : `${m.toFixed(2)}× <small>${pb99(pc)}</small>`;
     return `<span class="pbx" style="color:${TONE_VAR[tone]}" title="${m.toFixed(2)}× · ${pb99(pc)}th percentile of this week's ${r.pos}s">${txt}</span>`;
   }
   window.setPbFxMode = (v) => { pbF.fxMode = v; pbSave(); renderPicks(); };

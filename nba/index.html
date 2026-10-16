@@ -332,6 +332,10 @@
   .pb-price { text-align: right; flex-shrink: 0; min-width: 4.1rem; }
   .rc-tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface0); }
   .rc-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 520px; }
+  .t3x-bar { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin: 0 0 0.6rem; }
+  .t3x-sep { width: 1px; height: 1.2rem; background: var(--border2); margin: 0 0.3rem; }
+  .t3x .t3x-c { font-family: var(--font-d); font-weight: 700; white-space: nowrap; } .t3x .t3x-c small { font-size: 0.66rem; opacity: 0.8; margin-left: 0.15rem; }
+  .t3x th.on { color: var(--accent); } .t3x td:nth-child(2) { white-space: nowrap; }
   .rc-table th { position: sticky; top: 0px; background: var(--surface1); color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; text-align: left; padding: 0.5rem 0.6rem; white-space: nowrap; }
   .rc-table td { padding: 0.5rem 0.6rem; border-top: 1px solid var(--border); white-space: nowrap; }
   .rc-table tbody tr { cursor: pointer; }
@@ -1637,6 +1641,76 @@
   const BD_TOOL = (kind) => Object.keys(BD).find(nav => BD[nav].tabs.some(([k]) => k === kind)) || kind;
   const dblLeg = (r, m, side = 'over') => parSideLeg({ k: `${m}|${r.pid}`, n: r.name, t: r.team, g: parGame(r), m, s: m === 'td' ? 'Triple-double' : 'Double-double', p: r[m], i: r.pid }, side, true);
   const fbLeg = (r, g) => ({ k: `fb|${r.pid}`, n: r.name, t: r.team, g: `${g.away}@${g.home}`, m: 'fb', s: 'First basket', p: r.p, i: r.pid });
+  // ── Threes factor table: the made-threes model's terms as multipliers on his expected threes ─────
+  // Shooter = his makes per minute against his position's (NBA's base power); Minutes = tonight's projected minutes
+  // against his last ten (a role change); Form = his last ten against his longer rate; Drought = games since his last
+  // make (a long one pulls the price down); Spot = the opponent's threes allowed, his team's implied points, home.
+  // Lift = Minutes x Form x Drought x Spot: everything but who he is, the Value sort. The terms are the build's own
+  // (D.threes.factors); the fallback mirrors research/nba_model.json for a build from before they shipped.
+  const T3F_FALLBACK = {"coef": {"const": 0.17785473982264333, "lrate": 1.0599436098339632, "form": 0.40196136052634535, "limp": -0.12243364819939867, "lopp": 0.7232971381615508, "home": 0.028790438974564375, "early": -0.03373207833972826, "form_x_early": -0.004418511397529202, "ldr": -0.02215628813048044, "ldr2": -0.042475049625194834}, "league": {"fam_rate": {"C": 0.02658823808450838, "F": 0.05303480584637129, "G": 0.06489897194774773}, "implied": 115.42490724615735}, "clip": {"imp": [0.6, 1.4], "opp": [0.7, 1.3]}, "drought_cap": 82};
+  const fxTone = (m) => m >= 1.03 ? 'pos' : m <= 0.97 ? 'neg' : 'mid';
+  const pcTone = (pc) => pc >= 0.6 ? 'pos' : pc <= 0.4 ? 'neg' : 'mid';
+  const TONE_VAR = { pos: 'var(--good)', neg: 'var(--bad)', mid: 'var(--gold)' };
+  function t3Fx(r) {
+    if (r._fx) return r._fx;
+    const M = D.threes?.factors || T3F_FALLBACK, c = M.coef, f = r.f || {}, fam = POS_FAM[r.pos] || 'F';
+    const clip = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v));
+    const l = Math.log1p(Math.min(f.dr ?? M.drought_cap, M.drought_cap));
+    const x = {
+      shooter: Math.pow(Math.max((f.rate || 0) / 36, 1e-4) / (M.league.fam_rate[fam] || 0.05), c.lrate),
+      minutes: Math.max(r.min, 1) / Math.max(f.m10 || r.min, 1),   // tonight's projected minutes against his last ten: a role that just grew (a teammate out) or shrank
+      form: Math.exp(c.form * (f.form || 0)),
+      drought: Math.exp(c.ldr * l + c.ldr2 * l * l),
+      spot: Math.exp(c.lopp * Math.log(clip(f.opp ?? 1, M.clip.opp)) + c.limp * Math.log(clip((f.imp ?? M.league.implied) / M.league.implied, M.clip.imp)) + c.home * (r.home ? 1 : 0)),
+    };
+    x.lift = x.minutes * x.form * x.drought * x.spot;
+    return (r._fx = x);
+  }
+  function t3Pc(key, get, r) {
+    const fam = POS_FAM[r.pos] || 'F', c = (D.threes._pc ||= {}), arr = (c[fam + key] ||= (D.threes.rows || []).filter(q => (POS_FAM[q.pos] || 'F') === fam).map(get).filter(v => typeof v === 'number' && isFinite(v)).sort((a, b) => a - b)), v = get(r);
+    const cnt = (le) => { let lo = 0, hi = arr.length; while (lo < hi) { const m = (lo + hi) >> 1; if (le ? arr[m] <= v : arr[m] < v) lo = m + 1; else hi = m; } return lo; };
+    const lo = (cnt(false) + cnt(true)) / 2;   // mid-rank: a value most of the slate shares (1.00x) sits in the middle, not at the top
+    return arr.length ? lo / arr.length : 0.5;
+  }
+  const t3x = { s: null, dir: 'desc', mode: 'x' };
+  try { Object.assign(t3x, JSON.parse(localStorage.getItem('nbaT3Fx') || '{}')); } catch (e) {}
+  const t3Save = () => { try { localStorage.setItem('nbaT3Fx', JSON.stringify(t3x)); } catch (e) {} };
+  window.setT3x = (k, v) => {
+    if (k === 'sort') { if (t3x.s === v) t3x.dir = t3x.dir === 'desc' ? 'asc' : 'desc'; else { t3x.s = v; t3x.dir = v === 'name' ? 'asc' : 'desc'; } }
+    else if (k === 'preset') { t3x.s = v === 'value' ? 'lift' : 'mu'; t3x.dir = 'desc'; }
+    else t3x[k] = v;
+    t3Save(); renderBoard('threes');
+  };
+  function t3Table(rows, open) {
+    const pc99 = (pc) => Math.max(1, Math.min(99, Math.round(pc * 100)));
+    const ink = (pc) => `color:${TONE_VAR[pcTone(pc)]}`;
+    const cell = (r, k) => {
+      const m = t3Fx(r)[k], pc = t3Pc('fx' + k, q => t3Fx(q)[k], r);
+      const tone = t3x.mode === 'pc' ? pcTone(pc) : fxTone(m)   // Both: coloured by the multiplier (a 1.00x everyone shares stays gold), the percentile beside it, txt = t3x.mode === 'x' ? `${m.toFixed(2)}×` : t3x.mode === 'pc' ? `${pc99(pc)}` : `${m.toFixed(2)}× <small>${pc99(pc)}</small>`;
+      return `<td class="num t3x-c" style="color:${TONE_VAR[tone]}" title="${m.toFixed(2)}× · ${pc99(pc)}th percentile of tonight's ${{ G: 'guards', F: 'forwards', C: 'centers' }[POS_FAM[r.pos] || 'F']}">${txt}</td>`;
+    };
+    const raw = (r, key, get, txt) => `<td class="num" style="${ink(t3Pc(key, get, r))}">${txt}</td>`;
+    const key = { mu: r => r.mu, p: r => r.pAt, name: r => r.name.toLowerCase(), shooter: r => t3Fx(r).shooter, minutes: r => t3Fx(r).minutes, form: r => t3Fx(r).form,
+                  drought: r => t3Fx(r).drought, spot: r => t3Fx(r).spot, lift: r => t3Fx(r).lift, tpa: r => r.f?.tpa ?? 0, l10: r => r.f?.l10 ?? 0, min: r => r.min }[t3x.s];
+    const list = key ? rows.slice().sort((a, b) => { const x = key(a), y = key(b); return (x < y ? -1 : x > y ? 1 : 0) * (t3x.dir === 'asc' ? 1 : -1) || b.pAt - a.pAt; }) : rows;
+    const th = (v, lab, tip = '') => `<th class="num${t3x.s === v ? ' on' : ''}" onclick="setT3x('sort','${v}')" style="cursor:pointer"${tip ? ` title="${tip}"` : ''}>${lab}${t3x.s === v ? (t3x.dir === 'desc' ? ' ▼' : ' ▲') : ''}</th>`;
+    const chip = (on, lab, fn, tip) => `<button class="due-filter-chip${on ? ' active' : ''}" onclick="${fn}" title="${tip}">${lab}</button>`;
+    const bar = `<div class="t3x-bar">${[['x', '×'], ['pc', 'Pctl'], ['both', 'Both']].map(([v, l]) => chip(t3x.mode === v, l, `setT3x('mode','${v}')`, 'How the factor columns read: the multiplier on his expected threes, his percentile among tonight\'s players at his position, or both')).join('')}
+      <span class="t3x-sep"></span>${chip(t3x.s === 'mu', 'Chalk', "setT3x('preset','chalk')", 'The most expected threes first: who the model likes most')}${chip(t3x.s === 'lift', 'Value', "setT3x('preset','value')", 'Sorted by Lift: what minutes, form, drought and the matchup are doing for him beyond who he is')}</div>`;
+    return `${bar}<div class="rc-tablewrap"><table class="rc-table t3x">
+      <thead><tr><th></th>${th('name', 'Player')}${th('mu', 'Proj')}${th('p', 'Price')}
+        ${th('shooter', 'Shooter ×', "His makes per minute against his position's: who he is, the NBA version of MLB Power")}${th('minutes', 'Min ×', 'Projected minutes tonight against his last ten games: a role that just grew (a teammate out) or shrank')}
+        ${th('form', 'Form ×', 'His last ten games against his longer rate')}${th('drought', 'Drought ×', 'Games since his last made three: a long drought pulls the price down')}
+        ${th('spot', 'Spot ×', "The opponent's threes allowed, his team's implied points, home")}${th('lift', 'Lift ×', 'Everything except Shooter: minutes x form x drought x spot. The Value sort')}
+        ${th('tpa', '3PA/g')}${th('l10', 'L10')}${th('min', 'Min')}<th>Game</th></tr></thead>
+      <tbody>${list.map((r, i) => `<tr onclick="${open(r)}"${parAttr(bdLeg('3pm', r, r.L, r.pAt))}>
+        <td class="num dim">${i + 1}</td><td><b>${esc(r.name)}</b> <span class="dim">${esc(r.pos || '')}</span></td>
+        <td class="num"><b>${r.mu.toFixed(2)}</b></td><td class="num"><b>${fairOdds(r.pAt)}</b><br><small class="dim">${parSideLine(r)} · ${Math.round(r.pAt * 100)}%</small></td>
+        ${cell(r, 'shooter')}${cell(r, 'minutes')}${cell(r, 'form')}${cell(r, 'drought')}${cell(r, 'spot')}${cell(r, 'lift')}
+        ${raw(r, 'tpa', q => q.f?.tpa ?? 0, r.f?.tpa ?? '—')}${raw(r, 'l10', q => q.f?.l10 ?? 0, r.f?.l10 ?? '—')}${raw(r, 'min', q => q.min, r.min.toFixed(1))}
+        <td class="dim">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}</td></tr>`).join('')}</tbody></table></div>
+      <div class="t3-note">Expected threes = his minutes × his rate × <b>Form</b> × <b>Drought</b> × <b>Spot</b>. <b>Shooter</b> is his rate against his position's; <b>Min</b> is tonight's minutes against his last ten. <b>Lift</b> is everything but <b>Shooter</b>, and <b>Value</b> sorts by it. Numbers are coloured by where they sit among tonight's players at his position: green better, red worse, gold the middle.</div>`;
+  }
   function renderBoard(nav) {
     const el = dataGate(nav + '-content'); if (!el) return;
     const cfg = BD[nav], F = bdState(nav), set = BD_SET[nav], kind = F.tab;
@@ -1663,7 +1737,8 @@
     const started = (r) => new Date(r.start) <= new Date();
     const f = (r) => r.f || {};
     let body;
-    if (F.view === 'table') {
+    if (F.view === 'table' && kind === '3pm') body = t3Table(rows, open);
+    else if (F.view === 'table') {
       body = `<div class="rc-tablewrap"><table class="rc-table">
         <thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Proj</th><th class="num">Min</th><th class="num">${kind === '3pm' ? '3PA/g' : 'L10'}</th><th class="num">Opp</th><th class="num">Line</th><th class="num">Price</th></tr></thead>
         <tbody>${rows.map(r => `

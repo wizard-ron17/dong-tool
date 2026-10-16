@@ -3895,7 +3895,8 @@
   const pkRole2 = (r) => r.pos === 'D' ? 'D' : 'F';
   function pkPc(key, get, r) {       // share of his position group at or below his value
     const role = pkRole2(r), c = (D.picks._pc ||= {}), arr = (c[role + key] ||= (D.picks.picks || []).filter(q => pkRole2(q) === role).map(get).filter(x => typeof x === 'number').sort((x, y) => x - y)), v = get(r);
-    let lo = 0, hi = arr.length; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m] <= v) lo = m + 1; else hi = m; }
+    const cnt = (le) => { let lo = 0, hi = arr.length; while (lo < hi) { const m = (lo + hi) >> 1; if (le ? arr[m] <= v : arr[m] < v) lo = m + 1; else hi = m; } return lo; };
+    const lo = (cnt(false) + cnt(true)) / 2;   // mid-rank: a value most of the slate shares (1.00x) sits in the middle, not at the top
     return arr.length ? lo / arr.length : 0.5;
   }
   const pcInk = (pc) => `color:${TONE_VAR[pcTone(pc)]}`;
@@ -3903,7 +3904,7 @@
   /** One factor cell: the multiplier, its percentile among his position, or both (setPkFxMode). */
   function pkFxCell(r, k) {
     const m = pkFx(r)[k], pc = pkPc('fx' + k, q => pkFx(q)[k], r), mode = pkF.fxMode || 'x';
-    const tone = mode === 'x' ? fxTone(m) : pcTone(pc), txt = mode === 'x' ? `${m.toFixed(2)}×` : mode === 'pc' ? `${pc99(pc)}` : `${m.toFixed(2)}× <small>${pc99(pc)}</small>`;
+    const tone = mode === 'pc' ? pcTone(pc) : fxTone(m)   // Both: coloured by the multiplier (a 1.00x everyone shares stays gold), the percentile beside it, txt = mode === 'x' ? `${m.toFixed(2)}×` : mode === 'pc' ? `${pc99(pc)}` : `${m.toFixed(2)}× <small>${pc99(pc)}</small>`;
     return `<span class="pbx" style="color:${TONE_VAR[tone]}" title="${m.toFixed(2)}× · ${pc99(pc)}th percentile of ${r.pos === 'D' ? 'defencemen' : 'forwards'}">${txt}</span>`;
   }
   function setPkFxMode(v) { pkF.fxMode = v; pkSave(); renderPicks(); }

@@ -309,7 +309,9 @@ async function main() {
     spread: Object.fromEntries(STATS.map(st => [st, { a: MODEL.stats.models[st].a, p: MODEL.stats.models[st].p }])),
     boards: Object.fromEntries(STATS.map(st => [st, { rungs: MODEL.stats.models[st].rungs, rows: statRows[st] }])), doubles: ddRows } : null;
   console.log(`Stats boards: ${STATS.map(st => `${st} ${statRows[st].length}`).join(', ')} · doubles ${ddRows.length}`);
-  const threes = boardDate ? { date: boardDate, generated: new Date().toISOString(), rungs: MODEL.threes.rungs, alpha: MODEL.threes.alpha, rows } : null;
+  // the model's terms, so the page's factor table splits each price exactly the way the build made it
+  const T3 = MODEL.threes, factors = { coef: T3.coef, league: { fam_rate: T3.league.fam_rate, implied: T3.league.implied }, clip: T3.clip, drought_cap: T3.drought_cap };
+  const threes = boardDate ? { date: boardDate, generated: new Date().toISOString(), rungs: MODEL.threes.rungs, alpha: MODEL.threes.alpha, factors, rows } : null;
   console.log(`Threes board: ${rows.length} players, ${boardDate || 'no slate'}${frozen.length ? ` (${rows.filter(r => frozen.includes(r)).length} frozen)` : ''}`);
 
   savePrices(boardDate, { threes: rows, doubles: ddRows, first: fbGames }, today, shiftDate);
