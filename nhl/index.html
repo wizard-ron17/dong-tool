@@ -828,6 +828,22 @@
   :root[data-theme="light"] {
     --pos-c: #0d7fa3; --pos-l: #2a5fd0; --pos-r: #b03a7c; --pos-d: #6a45c4; --pos-g: #4d637d;
   }
+  /* line combinations: the tag beside a position, and the schedule's Lineup tab */
+  .lnt { font-family: var(--font-d); font-weight: 700; font-size: 0.6rem; letter-spacing: 0.04em; margin-left: 0.25rem; padding: 0.1rem 0.3rem; border-radius: 4px; white-space: nowrap; color: var(--muted); border: 1px solid var(--border2); }
+  .lnt.chg { color: var(--text); border-color: var(--accent); }
+  .lu { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 0.4rem; }
+  @media (max-width: 760px) { .lu { grid-template-columns: 1fr; } }
+  .lu-h { display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.4rem; font-family: var(--font-d); }
+  .lu-h img { width: 22px; height: 22px; } .lu-h span { margin-left: auto; font-size: 0.68rem; color: var(--dim); font-family: var(--font-b); }
+  .lu-row { display: grid; grid-template-columns: 2.4rem 1fr auto; align-items: center; gap: 0.4rem; padding: 0.38rem 0; border-top: 1px solid var(--border); font-size: 0.82rem; }
+  .lu-t { font-family: var(--font-d); font-weight: 700; color: var(--muted); font-size: 0.74rem; }
+  .lu-ps { display: flex; flex-wrap: wrap; gap: 0.15rem 0.8rem; min-width: 0; }
+  .lu-p { display: inline-flex; align-items: baseline; gap: 0.3rem; white-space: nowrap; }
+  .lu-p b { color: var(--text); font-weight: 600; } .lu-p em { font-style: normal; font-size: 0.62rem; color: var(--dim); } .lu-p small { font-size: 0.68rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .lu-mv { font-style: normal; font-size: 0.62rem; font-weight: 700; color: var(--text); }
+  .lu-new { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border2); border-radius: 4px; padding: 0 0.3rem; }
+  .lu-sp { height: 0.5rem; }
+  .lu-out { margin-top: 0.6rem; font-size: 0.74rem; color: var(--muted); } .lu-out b { color: var(--text); } .lu-out em { font-style: normal; font-size: 0.62rem; color: var(--dim); margin: 0 0.15rem 0 0.25rem; }
   .posb { font-family: var(--font-d); font-weight: 700; font-size: 0.63rem; letter-spacing: 0.05em; padding: 0.12rem 0.34rem;
           border-radius: 4px; white-space: nowrap; color: var(--pos-c); background: color-mix(in srgb, var(--pos-c) 16%, transparent); }
   .posb.p-C { color: var(--pos-c); background: color-mix(in srgb, var(--pos-c) 16%, transparent); }
@@ -1721,7 +1737,7 @@
     try {
       const r = await dataFetch('data.json', { cache: 'no-store' });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      D = await r.json();
+      D = await r.json(); LN = null;
       const el = document.getElementById('eyebrow-season');
       if (el && D.seasonLabel) el.textContent = D.seasonLabel;
       setStatus('ready', statusSummary(D));
@@ -1746,7 +1762,25 @@
   const teamName = (ab) => D.teams?.[ab]?.name || ab;
   const record = (ab) => { const t = D.teams?.[ab]; return t ? `${t.w}-${t.l}-${t.otl}` : ''; };
   const POS_NAME = { C: 'C', L: 'LW', R: 'RW', D: 'D', G: 'G' };
-  const posBadge = (p) => `<span class="posb p-${p || 'C'}">${POS_NAME[p] || p || ''}</span>`;
+  // Line combinations (scripts/nhl-combos.js, read off the last games' shift charts): where each skater lines up, beside his position
+  let LN = null;
+  function lineMap() {
+    if (LN) return LN; LN = {};
+    for (const [team, t] of Object.entries(D?.lines?.teams || {})) {
+      t.F.forEach((g, i) => g.forEach(p => { LN[p] = { team, tier: 'L' + (i + 1), pp: 0, date: t.date }; }));
+      t.D.forEach((g, i) => g.forEach(p => { LN[p] = { team, tier: 'D' + (i + 1), pp: 0, date: t.date }; }));
+      t.pp.forEach((g, i) => g.forEach(p => { (LN[p] ||= { team, tier: null, pp: 0, date: t.date }).pp = i + 1; }));
+      for (const c of t.chg) if (LN[c[0]]) LN[c[0]].chg = c[1];
+    }
+    return LN;
+  }
+  function lineTag(pid) {
+    const m = lineMap()[pid]; if (!m) return '';
+    const label = [m.tier, m.pp ? 'PP' + m.pp : ''].filter(Boolean).join(' · '); if (!label) return '';
+    const what = { up: ' Moving up: skating with the top six after games outside it.', down: ' Moving down: no longer skating with the top six.', pp: ' Moved on or off the first power-play unit.' }[m.chg] || '';
+    return `<span class="lnt${m.chg ? ' chg' : ''}" title="${m.team}'s line-up in its last game (${m.date}): ${label}.${what} Not in the price yet.">${label}${m.chg === 'up' ? ' ▲' : m.chg === 'down' ? ' ▼' : ''}</span>`;
+  }
+  const posBadge = (p, pid) => `<span class="posb p-${p || 'C'}">${POS_NAME[p] || p || ''}</span>${pid ? lineTag(pid) : ''}`;
   // Time on ice comes out of the warehouse in seconds per game.
   const mmss = (sec) => sec == null ? '—' : `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
   const pct3 = (v) => v == null ? '—' : v.toFixed(3).replace(/^0/, '');
@@ -2787,7 +2821,7 @@
         : T.res < 0 ? { cls: 'miss', txt: 'DNP' } : T.res ? { cls: 'hit', txt: (T.goals ?? 1) > 1 ? `✓ ${T.goals} G` : '✓ Goal' } : { cls: 'miss', txt: '✗ no goal' };
       extra += `<div class="sc-pick${res && res.cls !== 'pend' ? ' ' + res.cls : ''}" onclick="event.stopPropagation();${T ? `openPlayer(${best.pid})` : `openPick(${best.pid})`}">
           <span class="sc-pick-star">★</span><span class="sc-pick-lbl">top pick</span>
-          ${posBadge(best.pos)}<span class="sc-pick-nm">${esc(best.name)}</span>${injChip(best.pid)}
+          ${posBadge(best.pos, best.pid)}<span class="sc-pick-nm">${esc(best.name)}</span>${injChip(best.pid)}
           <span class="sc-pick-od${best.p < 0.5 ? ' dog' : ''}">${Odds.inline(best.p)}</span>
           ${res ? `<span class="sc-pick-res${res.cls === 'pend' ? ' pend' : ''}">${res.txt}</span>` : ''}</div>`;
     }
@@ -2955,7 +2989,7 @@
       return `<div class="rc-card st-card" onclick="openPlayer(${r.pid}, stDeck)" style="cursor:pointer"><span class="st-rank">${i + 1}</span>
         ${faceHtml(mugOf(r.pid, r.team, D.leaderSeason), r.name)}
         <div class="rc-info">
-          <div class="rc-name">${esc(r.name)} ${posBadge(r.pos)}</div>
+          <div class="rc-name">${esc(r.name)} ${posBadge(r.pos, r.pid)}</div>
           <div class="rc-sub">${esc(teamName(r.team))} · shoots ${esc(r.shoots || '—')}</div>
           <div class="st-line">${line}</div>
         </div>
@@ -3421,7 +3455,7 @@
         <div class="pb-card" onclick="${open(r)}"${leg(r)}>
           <div class="pb-rank">${r.rank}</div>${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name)}
           <div class="pb-info">
-            <div class="pb-nm">${esc(r.name)}${injChip(r.pid)}${posBadge(r.pos)}</div>
+            <div class="pb-nm">${esc(r.name)}${injChip(r.pid)}${posBadge(r.pos, r.pid)}</div>
             <div class="pb-line">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}
               <span class="sg-proj"><b>${r.mu.toFixed(1)}</b> proj</span>${spark(r)}</div>
           </div>
@@ -3670,7 +3704,7 @@
         <div class="pb-card" onclick="${open(r)}"${parAttr(lcLegOf(ptF.tab, r, r.L, r.pAt))}>
           <div class="pb-rank">${r.rank}</div>${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name)}
           <div class="pb-info">
-            <div class="pb-nm">${esc(r.name)}${injChip(r.pid)}${posBadge(r.pos)}</div>
+            <div class="pb-nm">${esc(r.name)}${injChip(r.pid)}${posBadge(r.pos, r.pid)}</div>
             <div class="pb-line">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}
               <span class="sg-proj"><b>${r.m.toFixed(2)}</b> proj</span>${spark(r)}</div>
           </div>
@@ -3903,7 +3937,7 @@
     return `<div class="pb-card p-${r.pos}" onclick="openPick(${r.pid})"${parAttr(pkSideLeg(r))}>
       <div class="pb-rank">${r.rank}</div>${faceHtml(pkMug(r), r.name)}
       <div class="pb-info">
-        <div class="pb-nm">${esc(r.name)}${injChip(r.pid)}${posBadge(r.pos)}</div>
+        <div class="pb-nm">${esc(r.name)}${injChip(r.pid)}${posBadge(r.pos, r.pid)}</div>
         <div class="pb-line">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} ${logoImg(r.opp, 'pb-logo')}${pkTime(r) ? ' · ' + pkTime(r) : ''}</div>
       </div>
       <div class="pb-facts">
@@ -3939,7 +3973,7 @@
       <tbody>${rows.map(r => { const x = pkFx(r), f = r.f; return `<tr onclick="openPick(${r.pid})"${parAttr(pkSideLeg(r))}>
         <td class="num">${r.rank}</td>
         ${td('name', esc(r.name), 'nm')}
-        <td>${posBadge(r.pos)}</td>
+        <td>${posBadge(r.pos, r.pid)}</td>
         <td class="od pbx-fair${pkShown(r) < 0.5 ? ' dog' : ''}${on('p')}">${sgOdds(pkShown(r))}<small>${pkPct(pkShown(r))}</small></td>
         ${td('talent', mx(x.talent))}${td('ice', mx(x.ice))}${td('ppx', mx(x.pp))}${td('form', mx(x.form))}${td('spot', mx(x.spot), 'num pbx-div')}
         ${td('sog', f.sogPg.toFixed(1))}${td('l10', f.sogL10.toFixed(1))}${td('toi', (f.toi / 60).toFixed(1))}${td('pp', (f.pptoi / 60).toFixed(1))}
@@ -4766,7 +4800,7 @@
       return `<div class="pb-card" onclick="openPick(${r.pid})"${parAttr(pkLeg(r, PK_MARKETS[0]))}>
         <div class="pb-rank">${i + 1}</div>${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name)}
         <div class="pb-info">
-          <div class="pb-nm">${esc(r.name)}${injChip(r.pid)}${posBadge(r.pos)}</div>
+          <div class="pb-nm">${esc(r.name)}${injChip(r.pid)}${posBadge(r.pos, r.pid)}</div>
           <div class="pb-line">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}
             · <b>${d.shots}</b> shots, <b>${d.toi}</b> min since · <b class="due-od">${Odds.inline(r.p)}</b></div>
           <div class="pb-line">${since}</div>
@@ -4812,7 +4846,7 @@
       return `<div class="pb-card" onclick="openPlayer(${m.pid})">
         <div class="pb-rank">${i + 1}</div>${faceHtml(m.mug || mugOf(m.pid, m.team, D.leaderSeason), m.name)}
         <div class="pb-info">
-          <div class="pb-nm">${esc(m.name)}${injChip(m.pid)}${posBadge(m.pos)}</div>
+          <div class="pb-nm">${esc(m.name)}${injChip(m.pid)}${posBadge(m.pos, m.pid)}</div>
           <div class="pb-line">${logoImg(m.team, 'pb-logo')} ${esc(m.team)} · <b>${m.career.toLocaleString()}</b> career ${MS_UNIT[m.stat]}${t ? ` · ${t}` : ''}</div>
         </div>
         <div class="pb-price">
@@ -4861,7 +4895,7 @@
       return `<div class="pb-card" onclick="openPlayer(${e.pid})">
         ${faceHtml(mug, e.name)}
         <div class="pb-info">
-          <div class="pb-nm">${esc(e.name)}${injChip(e.pid)}${e.pos ? posBadge(e.pos) : ''}</div>
+          <div class="pb-nm">${esc(e.name)}${injChip(e.pid)}${e.pos ? posBadge(e.pos, e.pid) : ''}</div>
           <div class="pb-line">${logoImg(e.team, 'pb-logo')} ${esc(e.team)}${e.opp ? ` vs ${esc(e.opp)}` : ''} · ${dayLabel(e.date)}${took}</div>
         </div>
         ${live && e.vid ? `<button class="vid-btn" style="flex-shrink:0" onclick="event.stopPropagation(); msWatch(${i})" title="Watch the goal">▶ Watch</button>` : ''}
@@ -4909,7 +4943,7 @@
         <span class="bd-cake">${o === 0 ? '🎂' : '🎈'}</span>
         ${faceHtml(b.mug || mugOf(b.pid, b.team, D.leaderSeason), b.name)}
         <div class="bd-info">
-          <div class="bd-nm">${esc(b.name)}${posBadge(b.pos)}</div>
+          <div class="bd-nm">${esc(b.name)}${posBadge(b.pos, b.pid)}</div>
           <div class="bd-sub">${logoImg(b.team, 'bd-logo')}${esc(b.team)} · ${dayLabel(b.day)} (${offLbl(o)}) · ${gm}</div>
         </div>
         ${rec(b.rec)}
@@ -5744,10 +5778,33 @@
     back.querySelector('.pk-side-prev').disabled = at <= 0;
     back.querySelector('.pk-side-next').disabled = at < 0 || at >= deck.length - 1;
   }
+  /** The Lineup tab: each side's lines, pairs and power-play units as they last skated, and what changed. */
+  function gmLineup(g) {
+    const L = D.lines || {}, ord = (a) => [...a].sort((x, y) => 'LCR'.indexOf(L.pos?.[x]) - 'LCR'.indexOf(L.pos?.[y]));
+    const side = (ab) => {
+      const t = L.teams?.[ab];
+      if (!t) return `<div class="lu-col"><div class="lu-h">${ab}</div><div class="empty">No shift data for ${ab} yet.</div></div>`;
+      const nm = (p) => esc(L.names?.[p] || p), chg = Object.fromEntries(t.chg.map(c => [c[0], c]));
+      const mark = (p) => chg[p]?.[1] === 'up' ? '<i class="lu-mv" title="Moving up: skating with the top six after games outside it">▲</i>'
+        : chg[p]?.[1] === 'down' ? '<i class="lu-mv" title="Moving down: no longer skating with the top six">▼</i>'
+        : chg[p]?.[1] === 'pp' ? '<i class="lu-mv" title="Moved on or off the first power-play unit">PP</i>' : '';
+      const plr = (p, k = 0) => `<span class="lu-p"><b>${nm(p)}</b><em>${POS_NAME[L.pos?.[p]] || ''}</em><small>${(t.toi[p]?.[k] ?? 0).toFixed(1)}</small>${mark(p)}${injChip(p)}</span>`;
+      const row = (lab, ps, k, fresh) => `<div class="lu-row"><span class="lu-t">${lab}</span><span class="lu-ps">${ps.map(p => plr(p, k)).join('')}</span>${fresh ? '<span class="lu-new" title="A combination that has not skated together in the previous games">new</span>' : ''}</div>`;
+      return `<div class="lu-col"><div class="lu-h">${logoImg(ab, '')}<b>${ab}</b><span>last game ${dayLabel(t.date)} · minutes at 5v5</span></div>
+        ${t.F.map((g2, i) => row('L' + (i + 1), ord(g2), 0, t.fresh?.[i])).join('')}
+        <div class="lu-sp"></div>
+        ${t.D.map((g2, i) => row('D' + (i + 1), g2, 0, t.freshD?.[i])).join('')}
+        <div class="lu-sp"></div>
+        ${t.pp.map((g2, i) => row('PP' + (i + 1), g2, 1)).join('')}
+        ${t.out?.length ? `<div class="lu-out"><b>Out last game</b> (in the lineup before) ${t.out.map(p => `${nm(p)}<em>${POS_NAME[L.pos?.[p]] || ''}</em>`).join(' · ')}</div>` : ''}</div>`;
+    };
+    return `<div class="lu">${side(g.away)}${side(g.home)}</div>
+      <div class="lr-note">Read off each team's last game's shift charts: the forwards who skated together at 5v5 are a line, the defencemen a pair, and a power-play unit is who was on with the man advantage. Lines are ranked by ice time over the last three games, so one blowout doesn't reorder them. <b>▲ ▼</b> mark a skater who is now with the top six, or no longer with it, compared with the previous three games. Tonight's lines are these unless a player is out. These do not move our prices yet.</div>`;
+  }
   function gmHtml(g) {
     const state = gmState(g), L = liveOf(g);
     // the standard game card: Box score, Matchup, Lines, Game
-    const tabs = [['proj', 'Box score'], ['matchup', 'Matchup']].concat(g.lines ? [['lines', 'Lines']] : []).concat(state === 'pre' ? [] : [['flow', state === 'live' ? 'Live' : 'Game']]);
+    const tabs = [['proj', 'Box score'], ['matchup', 'Matchup']].concat(g.lines ? [['lines', 'Lines']] : []).concat(D.lines?.teams?.[g.away] || D.lines?.teams?.[g.home] ? [['lineup', 'Lineup']] : []).concat(state === 'pre' ? [] : [['flow', state === 'live' ? 'Live' : 'Game']]);
     if (!gm.tab || !tabs.some(([v]) => v === gm.tab)) gm.tab = 'proj';   // the box score leads, before and after
     const deck = gmDeck(), at = deck.findIndex(x => x.gameId === g.gameId);
     const as = state === 'live' ? L?.as ?? g.awayScore : g.awayScore, hs = state === 'live' ? L?.hs ?? g.homeScore : g.homeScore;
@@ -5757,6 +5814,7 @@
         ${x.vid ? `<button class="vid-btn" style="margin-left:auto" onclick="${x.src === 'recap' ? `openGoalVideo('${g.date}',${x.at})` : `gfWatch(${g.gameId},${x.g.k})`}">▶</button>` : ''}</div>`).join('')}</div>`;
     const body = gm.tab === 'matchup' ? gmMatchup(g)
       : gm.tab === 'lines' ? scLinesDetail(g)
+      : gm.tab === 'lineup' ? gmLineup(g)
       : gm.tab === 'flow' ? gameFlow(g, state).replace('<div class="gf"', '<div class="gf flat"') + goalList + (state === 'post' ? gameVidButtons({ ...g, ...(D.recapGames?.[g.gameId] || {}) }, 'sc-vids') : '')
       : gmProjections(g, state);
     return `

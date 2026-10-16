@@ -27,7 +27,8 @@ function group(players, co, toi, size, max) {
     out.push([anchor, ...mates]);
   }
   // order the groups by the time they played together, most first
-  const t = (g) => g.reduce((a, p) => a + (toi[p] || 0), 0) / g.length;
+  // rank by the middle member (the best of a pair), so one player knocked out of the game early doesn't sink his line
+  const t = (g) => { const v = g.map(p => toi[p] || 0).sort((a, b) => b - a); return size >= 3 ? v[Math.floor(v.length / 2)] : v[0]; };
   return out.sort((a, b) => t(b) - t(a));
 }
 
@@ -35,10 +36,10 @@ export async function derive(gameId) {
   const [sc, box] = await Promise.all([rest(`/shiftcharts?cayenneExp=gameId=${gameId}`), web(`/gamecenter/${gameId}/boxscore`)]);
   const rows = sc?.data || [];
   if (!rows.length) return null;
-  const pos = {}, goalies = new Set(), abbrOf = { [box.awayTeam.id]: box.awayTeam.abbrev, [box.homeTeam.id]: box.homeTeam.abbrev };
+  const pos = {}, names = {}, goalies = new Set(), abbrOf = { [box.awayTeam.id]: box.awayTeam.abbrev, [box.homeTeam.id]: box.homeTeam.abbrev };
   for (const side of ['awayTeam', 'homeTeam']) {
     const pg = box.playerByGameStats?.[side] || {};
-    for (const p of [...(pg.forwards || []), ...(pg.defense || [])]) pos[p.playerId] = p.position;
+    for (const p of [...(pg.forwards || []), ...(pg.defense || [])]) { pos[p.playerId] = p.position; names[p.playerId] = p.name?.default; }
     for (const p of pg.goalies || []) goalies.add(p.playerId);
   }
   // who is on the ice each second, per team (period 4+ is overtime: 5 minutes, 3v3)
@@ -83,7 +84,111 @@ export async function derive(gameId) {
     const pp = group(ppPlayers.slice(0, 10), T.ppCo, T.ppToi, 5, 2);
     out[a] = { F: fl, D: dp, pp, toi };
   }
-  return { gameId, date: box.gameDate, teams: out, pos };
+  return { gameId, date: box.gameDate, teams: out, pos, names };
+}
+
+
+// ── The slate's lines: every team's latest lines, and what changed from its previous games ─────────────
+// History is kept so a build only reads the finished games it hasn't seen (nhl/combos-history.json).
+import fs from 'node:fs';
+const HIST_PATH = process.env.NHL_COMBOS_PATH ? new URL('file://' + process.env.NHL_COMBOS_PATH) : new URL('../nhl/combos-history.json', import.meta.url);
+const KEEP = 5;            // each team's last 5 games are kept: the newest is the line-up, up to 3 before it the baseline
+const readJSON = (u, d) => { try { return JSON.parse(fs.readFileSync(u, 'utf8')); } catch (e) { return d; } };
+async function pool(items, n, fn) { const out = []; let i = 0; await Promise.all(Array.from({ length: n }, async () => { while (i < items.length) { const k = i++; out[k] = await fn(items[k]); } })); return out; }
+
+/** pid -> [tier, pp]: tier 'L1'..'L4' (forwards) or 'D1'..'D3'; pp 0 (no unit), 1 or 2 */
+function tiers(t) {
+  const m = {};
+  t.F.forEach((g, i) => g.forEach(p => { m[p] = ['L' + (i + 1), 0]; }));
+  t.D.forEach((g, i) => g.forEach(p => { m[p] = ['D' + (i + 1), 0]; }));
+  t.pp.forEach((g, i) => g.forEach(p => { (m[p] ||= [null, 0])[1] = i + 1; }));
+  return m;
+}
+const mode = (a) => { const c = {}; a.forEach(x => { c[x] = (c[x] || 0) + 1; }); return Object.entries(c).sort((x, y) => y[1] - x[1])[0]?.[0]; };
+
+export async function buildLines({ schedule, maxNew = 60, log = console.log }) {
+  const H = readJSON(HIST_PATH, { games: {}, none: {} });
+  H.games ||= {}; H.none ||= {};
+  const fin = schedule.filter(g => g.type === 2 && g.state === 'OFF').sort((a, b) => b.date.localeCompare(a.date) || b.gameId - a.gameId);
+  const byTeam = {};
+  for (const g of fin) for (const a of [g.home, g.away]) { const L = (byTeam[a] ||= []); if (L.length < KEEP + 3) L.push(g); }
+  const want = new Map();
+  for (const L of Object.values(byTeam)) for (const g of L.slice(0, KEEP + 3)) {
+    const nth = L.indexOf(g); if (nth >= KEEP + 3) continue;
+    // a game with no shifts is asked again for a few days (the feed fills in late), then given up on
+    const age = (Date.now() - Date.parse(g.date)) / 864e5;
+    if (!H.games[g.gameId] && !(H.none[g.gameId] && age > 4)) want.set(g.gameId, g);
+  }
+  const todo = [...want.values()].sort((a, b) => b.date.localeCompare(a.date)).slice(0, maxNew);
+  let got = 0;
+  await pool(todo, 4, async (g) => {
+    try {
+      const d = await derive(g.gameId);
+      if (!d) { H.none[g.gameId] = g.date; return; }
+      delete H.none[g.gameId];
+      H.games[g.gameId] = { date: d.date, teams: d.teams, pos: d.pos, names: d.names }; got++;
+    } catch (e) { log(`  lines: ${g.gameId} skipped (${e.message})`); }
+  });
+  // compose: per team, its newest game with shifts is the line-up, the ones before it the baseline
+  const teams = {}, pos = {}, names = {};
+  for (const [a, L] of Object.entries(byTeam)) {
+    const have = L.map(g => H.games[g.gameId]).filter(x => x?.teams?.[a]);
+    if (!have.length) continue;
+    const latest = have[0], base = have.slice(1, 4), T = { ...latest.teams[a] };
+    // ice time over the last few games (not one game's flow) orders the lines: a line that happened to play
+    // 9 minutes in a blowout is still the first line. Ranked by the middle member (the best of a pair).
+    const avgEv = (games) => { const m = {}; for (const g of games) for (const [p, v] of Object.entries(g.teams[a].toi)) (m[p] ||= []).push(v[0] / 60); return Object.fromEntries(Object.entries(m).map(([p, v]) => [p, v.reduce((x, y) => x + y, 0) / v.length])); };
+    const recent = avgEv(have.slice(0, 3)), prior = avgEv(base);
+    const mid = (g, size) => { const v = g.map(p => recent[p] || 0).sort((x, y) => y - x); return size >= 3 ? v[Math.floor(v.length / 2)] : v[0]; };
+    T.F = [...T.F].sort((x, y) => mid(y, 3) - mid(x, 3)); T.D = [...T.D].sort((x, y) => mid(y, 2) - mid(x, 2));
+    const now = tiers(T), before = base.map(g => tiers(g.teams[a]));
+    const chg = [];
+    // Role changes are about who he skates with, not where the coach's minutes fell in one game:
+    //   up    he was well outside the top six forwards (7th-8th D) over the previous games and now skates with two of them
+    //   down  he was in the top five (top two D) and now skates with none of the top six (a bottom-pair partner)
+    //   pp    he moved on or off the first power-play unit
+    const rank = (pids) => pids.filter(p => prior[p] != null).sort((x, y) => prior[y] - prior[x]);
+    const posOf = (p) => (base.find(g => g.pos[p]) || latest).pos[p];
+    const fOrder = rank(Object.keys(prior).filter(p => posOf(p) !== 'D')).map(Number), dOrder = rank(Object.keys(prior).filter(p => posOf(p) === 'D')).map(Number);
+    const topF = new Set(fOrder.slice(0, 6)), topD = new Set(dOrder.slice(0, 4));
+    const rF = (p) => fOrder.indexOf(p), rD = (p) => dOrder.indexOf(p);   // 0 = most ice time
+    const seenIn = (p) => base.filter(g => g.teams[a].toi[p]).length;
+    if (base.length >= 2) {
+      for (const g of T.F) for (const p of g) { if (seenIn(p) < 2) continue;
+        const mates = g.filter(x => x !== p), tops = mates.filter(x => topF.has(x)).length;
+        if (rF(p) >= 8 && tops >= 2) chg.push([p, 'up']); else if (rF(p) >= 0 && rF(p) <= 4 && tops === 0) chg.push([p, 'down']); }
+      for (const g of T.D) for (const p of g) { if (seenIn(p) < 2) continue;
+        const mate = g.find(x => x !== p);
+        if (rD(p) >= 5 && topD.has(mate)) chg.push([p, 'up']); else if (rD(p) >= 0 && rD(p) <= 1 && mate != null && rD(mate) >= 4) chg.push([p, 'down']); }
+    }
+    for (const [p, [, pp]] of Object.entries(now)) {
+      const hist = before.map(b => b[p]).filter(Boolean);
+      if (hist.length < 2) continue;
+      const bp = +mode(hist.map(h => h[1]));
+      if ((pp === 1 || bp === 1) && pp !== bp) chg.push([+p, 'pp', bp, pp]);
+    }
+    // played in the previous games (at least twice, 6+ minutes), not in the last one: out, or scratched
+    const out = [];
+    for (const p of new Set(before.flatMap(b => Object.keys(b)))) {
+      if (now[p]) continue; const n = before.filter(b => b[p]).length;
+      if (n >= 2 && (prior[p] || 0) >= 6) out.push(+p);
+    }
+    // a line is new when two of its players hadn't shared a line in the previous games
+    const withLines = base.map(g => [...g.teams[a].F, ...g.teams[a].D]);
+    const tg = (x, y) => withLines.some(ls => ls.some(g => g.includes(x) && g.includes(y)));
+    const fresh = base.length >= 2 ? T.F.map(g => g.length >= 3 && !(tg(g[0], g[1]) && tg(g[0], g[2]) && tg(g[1], g[2]))) : T.F.map(() => false);
+    const freshD = base.length >= 2 ? T.D.map(g => g.length >= 2 && !tg(g[0], g[1])) : T.D.map(() => false);
+    const toi = {}; for (const [p, v] of Object.entries(T.toi)) toi[p] = [Math.round(v[0] / 6) / 10, Math.round(v[1] / 6) / 10];
+    teams[a] = { gameId: +Object.keys(H.games).find(id => H.games[id] === latest), date: latest.date, n: have.length - 1, F: T.F, D: T.D, pp: T.pp, toi, chg, out, fresh, freshD };
+    for (const p of Object.keys(toi)) { pos[p] = latest.pos[p]; names[p] = latest.names[p]; }
+    for (const p of [...chg.map(c => c[0]), ...out]) { for (const g of have) if (g.pos[p]) { pos[p] ||= g.pos[p]; names[p] ||= g.names[p]; } }
+  }
+  // keep only what a team's current window needs
+  const keepIds = new Set(Object.values(byTeam).flatMap(L => L.slice(0, KEEP).map(g => String(g.gameId))));
+  for (const id of Object.keys(H.games)) if (!keepIds.has(id)) delete H.games[id];
+  fs.writeFileSync(HIST_PATH, JSON.stringify(H));
+  log(`  lines: ${got} new games read, ${Object.keys(teams).length} teams, ${Object.values(teams).reduce((n, t) => n + t.chg.length, 0)} role changes`);
+  return { teams, pos, names };
 }
 
 // node scripts/nhl-combos.js <gameId>   prints each team's lines for that game (needs names: from the boxscore)

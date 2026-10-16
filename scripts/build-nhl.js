@@ -16,6 +16,7 @@ import { gameGoalDetail } from './nhl-goal-detail.js';
 import { buildPlayersLog } from './nhl-players.js';
 import { buildSavesBoard } from './nhl-saves.js';
 import { fetchLines, impliedRates } from './nhl-lines.js';
+import { buildLines } from './nhl-combos.js';
 import { fetchEspnLines, trackLine } from './espn-lines.js';
 import { buildFun } from './nhl-fun.js';
 
@@ -566,6 +567,12 @@ async function main() {
     console.log(`  ${fun.birthdays.length} birthdays this week, ${fun.milestones.length} milestone chases, ${fun.due.length} droughts`);
   } catch (e) { console.warn(`  fun pages not built: ${e.message}`); }
 
+  // ── 7f) Line combinations, read off the finished games' shift charts (scripts/nhl-combos.js) ──
+  console.log('Line combinations…');
+  let lines = null;
+  try { lines = await buildLines({ schedule }); }
+  catch (e) { console.warn(`  lines not built: ${e.message}`); }   // the schedule and tools degrade; the build doesn't
+
   // ── 8) Write ───────────────────────────────────────────────────────────
   const output = {
     generated: new Date().toISOString(),
@@ -576,7 +583,7 @@ async function main() {
     teams, schedule, dates,
     recap, recapDates, recapGames,
     leaders: L.skaters, goalies: L.goalies,
-    shots, picks, saves, points, hits, blocks, fun,
+    shots, picks, saves, points, hits, blocks, fun, lines,
     // measured parlay multipliers (research/nhl_pairs.py, research/nhl_stacks.py):
     // goal-scorer groups vs the naive product, and scorer + assister stacks by
     // how many games this season the assister has set the scorer up
