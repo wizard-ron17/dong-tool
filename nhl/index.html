@@ -5132,7 +5132,9 @@
   // board gets the measured goal-scorer correlation, and the scorer -> assister
   // stacks get the measured stack multiplier (research/nhl_pairs.py,
   // research/nhl_stacks.py).
-  const PR_MIN_NIGHTS = 14;
+  // Until this season has a quarter of its nights the page rolls: last season's goals plus this season's, so a pair
+  // has a real sample to show from the first week. Then it is this season alone (or pick any of the three).
+  const PR_MIN_NIGHTS = 40;
   const prF = { size: 2, win: 'night', basis: 'all', sgp: false, stacks: false, src: null, terms: [] };
   let PRL = null, prlState = 'idle';          // last season's file
   function loadPairsLast() {
@@ -5152,25 +5154,33 @@
   }
   const prCache = {};
   /** The chosen season as one normalised list: {d, g, t, s, a, pp, first, multi}, plus who's who. */
+  function prKey() {
+    if (prF.src) return prF.src;
+    const cur = prThis();
+    return cur && cur.nights >= PR_MIN_NIGHTS ? 'this' : cur?.nights ? 'roll' : 'last';
+  }
   function prSource() {
     const cur = prThis();
-    const useThis = prF.src ? prF.src === 'this' : (cur && cur.nights >= PR_MIN_NIGHTS);
-    const key = useThis ? 'this' : 'last';
-    if (prCache[key]) return prCache[key];
+    const key = prKey(), useThis = key === 'this';
+    if (key === 'roll' && (!cur || !PRL)) return null;
+    if (key === 'this' && !cur) return null;
+    if (key === 'last' && !PRL) return null;
+    const ck = key + (key !== 'last' && cur ? ':' + cur.goals.length : '');
+    if (prCache[ck]) return prCache[ck];
     let rows = [], who = {}, label;
-    if (useThis) {
-      if (!cur) return null;
-      rows = [...cur.goals].sort((a, b) => a.gameId - b.gameId || a.k - b.k).map(g => ({ d: g.date, g: g.gameId, t: g.team, s: g.pid, a: g.ast || [], pp: g.strength === 'pp' }));
+    const addLast = () => {
+      rows.push(...PRL.goals.map(([d, g, t, s, a, str]) => ({ d, g, t, s, a, pp: str === 'pp' })));
+      for (const [pid, [name, pos, team]] of Object.entries(PRL.p)) who[pid] = { name, pos, team };
+    };
+    const addThis = () => {
+      rows.push(...[...cur.goals].sort((a, b) => a.gameId - b.gameId || a.k - b.k).map(g => ({ d: g.date, g: g.gameId, t: g.team, s: g.pid, a: g.ast || [], pp: g.strength === 'pp' })));
       for (const g of cur.goals) who[g.pid] = { name: g.name, team: g.team };
       for (const [pid, e] of Object.entries(PL.p || {})) who[pid] ??= { name: e.n, team: e.tm, pos: e.pos };
       for (const [pid, e] of Object.entries(PL.p || {})) who[pid] = { ...who[pid], pos: e.pos, team: e.tm || who[pid].team };
-      label = D.seasonLabel;
-    } else {
-      if (!PRL) return null;
-      rows = PRL.goals.map(([d, g, t, s, a, str]) => ({ d, g, t, s, a, pp: str === 'pp' }));
-      for (const [pid, [name, pos, team]] of Object.entries(PRL.p)) who[pid] = { name, pos, team };
-      label = D.leaderSeasonLabel || '2025-26';
-    }
+    };
+    if (key === 'this') { addThis(); label = D.seasonLabel; }
+    else if (key === 'roll') { addLast(); addThis(); label = `${'2025-26'} + ${D.seasonLabel}`; }
+    else { addLast(); label = '2025-26'; }
     // first goal of each game, and 2+ goal games
     const seenG = new Set(), cnt = {};
     for (const r of rows) {
@@ -5180,8 +5190,8 @@
     for (const r of rows) r.multi = cnt[r.g + '|' + r.s] >= 2;
     const goals = {}; for (const r of rows) goals[r.s] = (goals[r.s] || 0) + 1;
     const ast = {}; for (const r of rows) for (const b of r.a) ast[b] = (ast[b] || 0) + 1;
-    const src = { key, label, rows, who, goals, ast, nights: new Set(rows.map(r => r.d)).size, useThis, groups: {} };
-    return (prCache[key] = src);
+    const src = { key: ck, label, rows, who, goals, ast, nights: new Set(rows.map(r => r.d)).size, useThis, groups: {} };
+    return (prCache[ck] = src);
   }
   // Co-occurrence floor by group size. A quint that scored together twice is
   // rarer than a pair that did it six times, so the floor steps down as the
@@ -5189,7 +5199,10 @@
   const PR_MINS = { night: { 2: 6, 3: 4, 4: 3, 5: 2 }, game: { 2: 3, 3: 2, 4: 2, 5: 2 } };
   function prMin(S, size = prF.size) {
     const normal = prF.basis === 'all' ? PR_MINS[prF.win][size] : 2;
-    return Math.max(1, Math.min(normal, S.nights));
+    // a short sample can't ask for a full season's floor: it scales with the nights in the pool (never under 2,
+    // since one night together is every pair on the ice), and a pool of a season or more is unchanged
+    const scaled = Math.max(2, Math.round(normal * Math.min(1, S.nights / 60)));
+    return Math.max(1, Math.min(normal, scaled, S.nights));
   }
   /**
    * Groups of one size, by apriori with a proper join: two (k-1)-groups extend
@@ -5320,12 +5333,12 @@
     loadPlayersLog();
     const cur = prThis();
     if (!prF.src && plState === 'loading') { el.innerHTML = '<div class="empty">Loading this season\'s goals…</div>'; return; }
-    const useThis = prF.src ? prF.src === 'this' : (cur && cur.nights >= PR_MIN_NIGHTS);
-    if (!useThis) { loadPairsLast(); if (!PRL) { el.innerHTML = `<div class="empty">${prlState === 'error' ? 'Couldn\'t load last season\'s goals.' : 'Loading last season\'s goals…'}</div>`; return; } }
+    const useKey = prKey();
+    if (useKey !== 'this') { loadPairsLast(); if (!PRL) { el.innerHTML = `<div class="empty">${prlState === 'error' ? 'Couldn\'t load last season\'s goals.' : 'Loading last season\'s goals…'}</div>`; return; } }
     const chip = (k, v, lab, on) => `<button class="due-filter-chip mode-chip${on ? ' active' : ''}" onclick="setPr('${k}','${v}')">${lab}</button>`;
     const tog = (k, lab, on, tip) => `<button class="due-filter-chip${on ? ' active' : ''}" onclick="setPr('${k}')" title="${tip}">${lab}</button>`;
     const srcRow = cur?.nights ? `<span class="due-filter-label" style="margin-left:0.3rem">Season</span>
-      ${chip('src', 'this', D.seasonLabel, useThis)}${chip('src', 'last', D.leaderSeasonLabel, !useThis)}` : '';
+      ${chip('src', 'this', D.seasonLabel, useKey === 'this')}${chip('src', 'roll', 'Rolling', useKey === 'roll')}${chip('src', 'last', '2025-26', useKey === 'last')}` : '';
     el.innerHTML = `
       <div class="sub-tabs">${[[2, 'Pairs'], [3, 'Trios'], [4, 'Quads'], [5, 'Quints']].map(([n, l]) =>
         `<button class="sub-btn${prF.size === n ? ' active' : ''}" onclick="setPr('size',${n})"><span class="num">${n}</span>${l}</button>`).join('')}</div>
