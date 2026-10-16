@@ -700,6 +700,9 @@
   .pbx-in.on { border-color: var(--accent); color: var(--text); }
   .pbx-in input { width: 3.6rem; background: transparent; border: none; color: var(--text); font-family: var(--font-d); font-size: 0.8rem; text-align: right; outline: none; }
   .pbx-hint { font-size: 0.7rem; color: var(--dim); }
+  .pbx-table td.nm { white-space: nowrap; }
+  .pbx-seg { display: inline-flex; gap: 0.2rem; margin-right: 0.4rem; padding-right: 0.6rem; border-right: 1px solid var(--border2); }
+  .pbx small { font-size: 0.66rem; font-weight: 600; opacity: 0.8; margin-left: 0.15rem; }
   .pbx-note { font-size: 0.72rem; color: var(--muted); margin-top: 0.6rem; line-height: 1.45; }
   .pb-table th .ar { font-size: 0.692rem; margin-left: 0.15rem; }
   .pb-table th.num { text-align: right; }
@@ -3878,15 +3881,24 @@
     x.lift = x.ice * x.pp * x.form * x.spot;
     return (r._fxn = x);
   };
-  // Colour every cell by where it sits on the slate (a share of the whole board, not the filtered rows), so a number
-  // is never just grey: green is better than the slate, red worse, and the middle fifth a quiet gold.
-  function pkPc(key, get, v) {
-    const c = (D.picks._pc ||= {}), arr = (c[key] ||= (D.picks.picks || []).map(get).filter(x => typeof x === 'number').sort((a, b) => a - b));
+  // Colour the NUMBERS (not the cells) by where they sit on the slate, against his own position: green better than
+  // most, red worse, gold the middle fifth. Same family as the MLB Matchups table.
+  const pkRole2 = (r) => r.pos === 'D' ? 'D' : 'F';
+  function pkPc(key, get, r) {       // share of his position group at or below his value
+    const role = pkRole2(r), c = (D.picks._pc ||= {}), arr = (c[role + key] ||= (D.picks.picks || []).filter(q => pkRole2(q) === role).map(get).filter(x => typeof x === 'number').sort((x, y) => x - y)), v = get(r);
     let lo = 0, hi = arr.length; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m] <= v) lo = m + 1; else hi = m; }
     return arr.length ? lo / arr.length : 0.5;
   }
-  const pcTint = (pc) => `background:color-mix(in srgb, ${TONE_VAR[pcTone(pc)]} ${Math.round(6 + Math.abs(pc - 0.5) * 2 * 36)}%, transparent)`;
-  const fxTint = (m) => `background:color-mix(in srgb, ${TONE_VAR[fxTone(m)]} ${Math.round(Math.min(40, 6 + Math.abs(Math.log(m)) * 280))}%, transparent)`;
+  const pcInk = (pc) => `color:${TONE_VAR[pcTone(pc)]}`;
+  const pc99 = (pc) => Math.max(1, Math.min(99, Math.round(pc * 100)));
+  /** One factor cell: the multiplier, its percentile among his position, or both (setPkFxMode). */
+  function pkFxCell(r, k) {
+    const m = pkFx(r)[k], pc = pkPc('fx' + k, q => pkFx(q)[k], r), mode = pkF.fxMode || 'x';
+    const tone = mode === 'x' ? fxTone(m) : pcTone(pc), txt = mode === 'x' ? `${m.toFixed(2)}×` : mode === 'pc' ? `${pc99(pc)}` : `${m.toFixed(2)}× <small>${pc99(pc)}</small>`;
+    return `<span class="pbx" style="color:${TONE_VAR[tone]}" title="${m.toFixed(2)}× · ${pc99(pc)}th percentile of ${r.pos === 'D' ? 'defencemen' : 'forwards'}">${txt}</span>`;
+  }
+  function setPkFxMode(v) { pkF.fxMode = v; pkSave(); renderPicks(); }
+  window.setPkFxMode = setPkFxMode;
   function setPkPreset(v) {
     pkF.view = 'table'; pkF.dir = 'desc'; pkF.fxPos = {};
     if (v === 'value') { pkF.sort = 'lift'; pkF.fxLo = '+300'; pkF.cut = 0; } else { pkF.sort = 'p'; pkF.fxLo = null; }
@@ -3993,6 +4005,7 @@
     const preset = (v, lab, tip, on) => `<button class="pbf-chip${on ? ' on' : ''}" onclick="setPkPreset('${v}')" title="${tip}">${lab}</button>`;
     const isValue = pkF.sort === 'lift' && pkF.fxLo === '+300' && !Object.values(pos).some(Boolean), isChalk = pkF.sort === 'p' && !pkF.fxLo && !Object.values(pos).some(Boolean);
     const bar = `<div class="pbx-bar">
+        <span class="pbx-seg" title="How the factor columns read: the multiplier on his expected goals, his percentile among players at his position, or both">${[['x', '×'], ['pc', 'Pctl'], ['both', 'Both']].map(([v, l]) => `<button class="pbf-chip${(pkF.fxMode || 'x') === v ? ' on' : ''}" onclick="setPkFxMode('${v}')">${l}</button>`).join('')}</span>
         ${preset('chalk', 'Chalk', 'The shortest prices first: who the model likes most', isChalk)}${preset('value', 'Value', 'Longshots (fair +300 or longer) sorted by Lift: the ones the game, the ice and the power play are doing the most for', isValue)}
         <label class="pbx-in${pkF.fxLo ? ' on' : ''}" title="Only prices at least this long — +300 for the longshot hunt">Fair ≥ <input type="text" inputmode="numeric" placeholder="+300" value="${pkF.fxLo ?? ''}" onchange="setPkFx('fxLo', this.value)"></label>
         ${tog('ice', 'Ice', 'More ice time than an average skater')}${tog('pp', 'PP', 'Power-play minutes above average')}${tog('form', 'Form', 'Shooting more than usual over his last ten')}${tog('spot', 'Spot', 'A better than average game: opponent, own team, home')}
@@ -4013,12 +4026,12 @@
         ${td('name', esc(r.name), 'nm')}
         <td>${posBadge(r.pos, r.pid)}</td>
         <td class="od pbx-fair${pkShown(r) < 0.5 ? ' dog' : ''}${on('p')}">${sgOdds(pkShown(r))}<small>${pkPct(pkShown(r))}</small></td>
-        ${td('talent', mx(x.talent), 'num', fxTint(x.talent))}${td('ice', mx(x.ice), 'num', fxTint(x.ice))}${td('ppx', mx(x.pp), 'num', fxTint(x.pp))}${td('form', mx(x.form), 'num', fxTint(x.form))}${td('spot', mx(x.spot), 'num', fxTint(x.spot))}${td('lift', mx(x.lift), 'num pbx-div', fxTint(x.lift))}
-        ${td('sog', f.sogPg.toFixed(1), 'num', pcTint(pkPc('sog', q => q.f.sogPg, f.sogPg)))}${td('l10', f.sogL10.toFixed(1), 'num', pcTint(pkPc('l10', q => q.f.sogL10, f.sogL10)))}${td('toi', (f.toi / 60).toFixed(1), 'num', pcTint(pkPc('toi', q => q.f.toi, f.toi)))}${td('pp', (f.pptoi / 60).toFixed(1), 'num', pcTint(pkPc('pp', q => q.f.pptoi, f.pptoi)))}
-        ${td('sh', (f.shpct * 100).toFixed(1) + '%', 'num', pcTint(pkPc('sh', q => q.f.shpct, f.shpct)))}${td('oga', f.oppGa.toFixed(2), 'num', pcTint(pkPc('oga', q => q.f.oppGa, f.oppGa)))}
+        ${td('talent', pkFxCell(r, 'talent'))}${td('ice', pkFxCell(r, 'ice'))}${td('ppx', pkFxCell(r, 'pp'))}${td('form', pkFxCell(r, 'form'))}${td('spot', pkFxCell(r, 'spot'))}${td('lift', pkFxCell(r, 'lift'), 'num pbx-div')}
+        ${td('sog', f.sogPg.toFixed(1), 'num', pcInk(pkPc('sog', q => q.f.sogPg, r)))}${td('l10', f.sogL10.toFixed(1), 'num', pcInk(pkPc('l10', q => q.f.sogL10, r)))}${td('toi', (f.toi / 60).toFixed(1), 'num', pcInk(pkPc('toi', q => q.f.toi, r)))}${td('pp', (f.pptoi / 60).toFixed(1), 'num', pcInk(pkPc('pp', q => q.f.pptoi, r)))}
+        ${td('sh', (f.shpct * 100).toFixed(1) + '%', 'num', pcInk(pkPc('sh', q => q.f.shpct, r)))}${td('oga', f.oppGa.toFixed(2), 'num', pcInk(pkPc('oga', q => q.f.oppGa, r)))}
         ${td('time', `${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}`, '')}
       </tr>`; }).join('')}</tbody></table></div>
-      <div class="pbx-note">Expected goals = base × <b>Talent</b> × <b>Ice</b> × <b>PP</b> × <b>Form</b> × <b>Spot</b>, each a multiplier against an average skater; the anytime price is calibrated off that. <b>Lift</b> is Ice × PP × Form × Spot, everything but Talent, and the <b>Value</b> button sorts longshots by it. Ice, PP and Form are against his own position, so a defenceman is compared with defencemen. Cells are tinted by where they sit on tonight's slate: green better, red worse, gold the middle. <b>Talent</b> is hockey's base power. <b>Spot</b> is the game, and it's small: hockey moves on who's on the ice, not who they play — penalties drawn, backup goalies and back-to-backs all tested as nulls. The NHL longshot is a role change: <b>Ice +</b> or <b>PP +</b> on a low-talent price.</div>`;
+      <div class="pbx-note">Expected goals = base × <b>Talent</b> × <b>Ice</b> × <b>PP</b> × <b>Form</b> × <b>Spot</b>, each a multiplier against an average skater; the anytime price is calibrated off that. <b>Lift</b> is Ice × PP × Form × Spot, everything but Talent, and the <b>Value</b> button sorts longshots by it. Ice, PP and Form are against his own position, so a defenceman is compared with defencemen. Numbers are coloured by where they sit among players at his position tonight: green better, red worse, gold the middle. The <b>× / Pctl / Both</b> switch changes what the factor columns show. <b>Talent</b> is hockey's base power. <b>Spot</b> is the game, and it's small: hockey moves on who's on the ice, not who they play — penalties drawn, backup goalies and back-to-backs all tested as nulls. The NHL longshot is a role change: <b>Ice +</b> or <b>PP +</b> on a low-talent price.</div>`;
   }
 
   // Compact is the share/screenshot view, so it carries its own header and
