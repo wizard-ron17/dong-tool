@@ -4399,7 +4399,18 @@
   function renderPicksResults() {
     const el = document.getElementById('picks-results-wrap');
     if (!el) return;
-    el.innerHTML = liveResults('td', 'setLr');
+    el.innerHTML = liveResults('td', 'setLr') + pbBacktest();
+  }
+  // The touchdown board's backtest: the walk-forward cuts behind PB_MARKETS (pooled out-of-sample
+  // 2017-2025), one table per market. Break-even is the chance the cut's price needs.
+  function pbBacktest() {
+    const pc = (v) => v.toFixed(1) + '%';
+    const tables = Object.values(PB_MARKETS).map(M => `<div class="result-meta" style="margin-top:0.8rem">${M.lab}${M.line ? ' · ' + M.line : ''} — ${M.base}% of ${M.qbOnly ? 'quarterback games' : 'player games'}</div>
+      <div class="rc-tablewrap"><table class="rc-table"><thead><tr><th>Priced</th><th class="num">Break-even</th><th class="num">Hit in backtest</th><th class="num">Edge</th><th class="num">Per week</th></tr></thead><tbody>${
+        M.cuts.map(c => { const be = c.v ? c.v * 100 : M.base, e = c.hit - be;
+          return `<tr><td>${c.v ? c.lab + ' or shorter' : 'Every player priced'}</td><td class="num">${pc(be)}</td><td class="num"><b>${pc(c.hit)}</b></td><td class="num">${c.v ? (e >= 0 ? '+' : '') + e.toFixed(1) + ' pts' : '—'}</td><td class="num">${c.per}</td></tr>`; }).join('')}</tbody></table></div>`).join('');
+    return `<details class="lr-bt"${window.pbBtOpen ? ' open' : ''} ontoggle="window.pbBtOpen = this.open"><summary>Backtest — every week 2017-2025 predicted by a model that never saw it</summary>${tables}
+      <div class="lr-note">Pooled out-of-sample, each season predicted cold. A cut keeps every player priced at or shorter than it: break-even is what that price needs to hit, the backtest rate is what those players did. "Per week" is how many a typical slate has.</div></details>`;
   }
 
   // ── Live results ────────────────────────────────────────────────────────
