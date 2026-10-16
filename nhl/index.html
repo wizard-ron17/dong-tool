@@ -701,6 +701,10 @@
   .pbx-in input { width: 3.6rem; background: transparent; border: none; color: var(--text); font-family: var(--font-d); font-size: 0.8rem; text-align: right; outline: none; }
   .pbx-hint { font-size: 0.7rem; color: var(--dim); }
   .pbx-table td.nm { white-space: nowrap; }
+  /* the home card's Chalk / Value sections: copied verbatim from /mlb */
+  .hm-subhead { font-size: 0.680rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin: 0.5rem 0 0.12rem; display: inline-block; }
+  .hm-subhead.link { cursor: pointer; }
+  .hm-subhead.link:hover { color: var(--accent); }
   /* Chalk / Value: copied verbatim from /mlb's HR page */
   .picks-mode { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; }
   .picks-mode-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.4rem; background: var(--surface0); border: 1px solid var(--border); color: var(--muted); font-family: var(--font-d); font-size: 1.08rem; font-weight: 700; letter-spacing: 0.02em; padding: 0.62rem; border-radius: 11px; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s; }
@@ -4758,11 +4762,18 @@
 
     // ── Picks: the top of tonight's anytime-goal board ───────────────────
     const PKB = D.picks || {};
-    const pkHome = (PKB.picks || []).slice(0, 4).map(r => `
+    const pkRow = (r) => `
       <div class="hm-row">
         ${faceHtml(r.mug || mugOf(r.pid, r.team, D.leaderSeason), r.name, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${POS_NAME[r.pos] || r.pos} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${r.mu.toFixed(2)} xG</span></span>
-        <span class="hm-score hm-bet"><small>goal</small><b class="${r.p >= 0.5 ? 'odfav' : 'oddog'}">${Odds.inline(r.p)}</b></span></div>`).join('');
+        <span class="hm-score hm-bet"><small>goal</small><b class="${r.p >= 0.5 ? 'odfav' : 'oddog'}">${Odds.inline(r.p)}</b></span></div>`;
+    // like /mlb's Picks card: Chalk's top three, then Value's (Bueno's screen, by Bueno)
+    const pkVal = (PKB.picks || []).filter(pkIsValue).sort((a, b) => pkFx(b).bueno - pkFx(a).bueno).slice(0, 3);
+    const pkHome = !(PKB.picks || []).length ? '' : `
+      <div class="hm-subhead link" onclick="event.stopPropagation(); switchNav('picks'); setPkMode('chalk')">🔒 Chalk</div>
+      ${(PKB.picks || []).slice(0, 3).map(pkRow).join('')}
+      <div class="hm-subhead link" onclick="event.stopPropagation(); switchNav('picks'); setPkMode('value')">🎯 Value</div>
+      ${pkVal.map(pkRow).join('') || '<div class="hm-subtle">Nobody passes the Value screen tonight.</div>'}`;
 
     // ── Shots: the top of tonight's board ────────────────────────────────
     const SB = D.shots || {}, sbLines = SB.model?.lines || [1.5, 2.5, 3.5];

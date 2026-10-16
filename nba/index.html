@@ -332,6 +332,10 @@
   .pb-price { text-align: right; flex-shrink: 0; min-width: 4.1rem; }
   .rc-tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface0); }
   .rc-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 520px; }
+  /* the home card's Chalk / Value sections: copied verbatim from /mlb */
+  .hm-subhead { font-size: 0.680rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin: 0.5rem 0 0.12rem; display: inline-block; }
+  .hm-subhead.link { cursor: pointer; }
+  .hm-subhead.link:hover { color: var(--accent); }
   /* Chalk / Value: copied verbatim from /mlb's HR page */
   .picks-mode { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; }
   .picks-mode-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.4rem; background: var(--surface0); border: 1px solid var(--border); color: var(--muted); font-family: var(--font-d); font-size: 1.08rem; font-weight: 700; letter-spacing: 0.02em; padding: 0.62rem; border-radius: 11px; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s; }
@@ -2260,7 +2264,16 @@
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · proj ${r.mu.toFixed(1)} ${word}</span></span>
         ${bet('o' + L, p)}</div>`;
     }).join('');
-    const t3Home = boardHome('3pm', 'threes', '3PM'), ptHome = boardHome('pts', 'points', 'pts'), stkHome = boardHome('stk', 'stocks', 'stl+blk');
+    // Threes, like /mlb's Picks card: Chalk's top three, then Value's (Bueno's screen at 2+, by Bueno)
+    const t3ValHome = (D.threes?.rows || []).filter(t3IsValue).sort((a, b) => t3Fx(b).bueno - t3Fx(a).bueno).slice(0, 3).map(r => `<div class="hm-row">
+        ${faceHtml(r.pid, r.name, 'hm-photo')}
+        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · Bueno ${t3Fx(r).bueno.toFixed(2)}×</span></span>
+        ${bet('2+', r.p[1])}</div>`).join('');
+    const t3Chalk = boardHome('3pm', 'threes', '3PM');
+    const t3Home = !t3Chalk ? '' : `
+      <div class="hm-subhead link" onclick="event.stopPropagation(); switchNav('threes'); setT3Mode('chalk')">🔒 Chalk</div>${t3Chalk}
+      <div class="hm-subhead link" onclick="event.stopPropagation(); switchNav('threes'); setT3Mode('value')">🎯 Value</div>${t3ValHome || '<div class="hm-subtle">Nobody passes the Value screen tonight.</div>'}`;
+    const ptHome = boardHome('pts', 'points', 'pts'), stkHome = boardHome('stk', 'stocks', 'stl+blk');
     const fbHome = (D.first?.games || []).flatMap(g => g.players.map(x => ({ ...x, g }))).sort((a, b) => b.p - a.p).slice(0, 3).map(x => `
       <div class="hm-row" onclick="event.stopPropagation(); fbF.game = '${x.g.gid}'; switchNav('first')">
         ${faceHtml(x.pid, x.name, 'hm-photo')}
