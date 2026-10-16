@@ -3767,12 +3767,7 @@
     // Comma-separated terms are OR here, unlike Pairs where they're AND — a
     // group has to contain every name, but a board should show any of them.
     if (pbF.team !== 'all') rows = rows.filter(r => r.team === pbF.team);
-    if (pbView() === 'table' && !pbMkt().qbOnly) {
-      const lo = pbAmToP(pbF.fxLo);
-      if (lo != null) rows = rows.filter(r => pbP(r) <= lo + 1e-9);
-      if (pbF.fxTrend) rows = rows.filter(r => pbFx(r).trend >= 1.005);
-      if (pbF.fxSpot) rows = rows.filter(r => pbFx(r).spot >= 1.005);
-    }
+    if (pbView() === 'table' && !pbMkt().qbOnly) rows = rows.filter(r => RonFx.pass('nflTd', PB_FX, r));
     const key = {
       p: r => pbP(r),
       // Chance is the same quantity as Price, just as a percentage rather than
@@ -3924,18 +3919,16 @@
     const td = (v, html, cls = 'num', st = '') => `<td class="${cls}${on(v)}"${st ? ` style="${st}"` : ''}>${html}</td>`;
     const lo = pbF.fxLo ?? '';
     const preset = (v, lab, tip, isOn) => `<button class="pbf-chip${isOn ? ' on' : ''}" onclick="setPbPreset('${v}')" title="${tip}">${lab}</button>`;
-    const isValue = pbF.sort === 'lift' && pbF.fxLo === '+300' && !pbF.fxTrend && !pbF.fxSpot, isChalk = pbF.sort === 'p' && !pbF.fxLo && !pbF.fxTrend && !pbF.fxSpot;
+    const fs = RonFx.state('nflTd'), nF = RonFx.count('nflTd'), isValue = pbF.sort === 'lift' && fs.lo === '+300' && nF === 1, isChalk = pbF.sort === 'p' && nF === 0;
     const bar = `<div class="pbx-bar">
         <span class="pbx-seg" title="How the factor columns read: the odds multiplier, his percentile among this week's players at his position, or both">${[['x', '×'], ['pc', 'Pctl'], ['both', 'Both']].map(([v, l]) => `<button class="pbf-chip${(pbF.fxMode || 'x') === v ? ' on' : ''}" onclick="setPbFxMode('${v}')">${l}</button>`).join('')}</span>
         ${preset('chalk', 'Chalk', 'The shortest prices first: who the model likes most', isChalk)}${preset('value', 'Value', 'Longshots (fair +300 or longer) sorted by Lift: the ones this week (trend and spot) is doing the most for', isValue)}
-        <label class="pbx-in${pbF.fxLo ? ' on' : ''}" title="Only prices at least this long — +300 for the longshot hunt">Fair ≥ <input type="text" inputmode="numeric" placeholder="+300" value="${lo}" onchange="setPbFx('fxLo', this.value)"></label>
-        <button class="pbf-chip${pbF.fxTrend ? ' on' : ''}" onclick="setPbFx('fxTrend')" title="Only players whose last three games beat their usual touches">Trend +</button>
-        <button class="pbf-chip${pbF.fxSpot ? ' on' : ''}" onclick="setPbFx('fxSpot')" title="Only players in a better than average spot: team total and teammates out">Spot +</button>
         ${pbF.cut ? `<span class="pbx-hint">Max price is ${pbMkt().cuts.find(c => c.v === pbF.cut)?.lab || ''} — <a href="javascript:void(0)" onclick="setPbF('cut',0)">show the full board</a> to hunt longshots</span>` : ''}
       </div>`;
-    if (!rows.length) return bar + `<div class="empty">Nobody matches these factor filters. <a href="javascript:void(0)" onclick="pbF.fxLo=null;pbF.fxTrend=false;pbF.fxSpot=false;pbSave();renderPicks()">Clear them →</a></div>`;
+    const card = pbMkt().qbOnly ? '' : RonFx.html('nflTd', PB_FX, nflData.picks?.picks || []) + RonFx.sorts([['lift', 'Lift'], ['p', 'Fair'], ['role', 'Role'], ['trend', 'Trend'], ['spot', 'Spot']], pbF.sort, pbF.dir, 'setPbSort');
+    if (!rows.length) return card + bar + `<div class="empty">Nobody matches these factor filters. <a href="javascript:void(0)" onclick="RonFx.reset('nflTd','renderPicks()')">Clear them →</a></div>`;
     if (pbMkt().qbOnly) return bar + '<div class="empty">The passing-TD market is its own Poisson model — pick an anytime market to see factors.</div>';
-    return `${bar}<div class="pb-tablewrap"><table class="pb-table pbx-table">
+    return `${card}${bar}<div class="pb-tablewrap"><table class="pb-table pbx-table">
       <thead><tr><th class="static">#</th>${th('name', 'Player')}${th('pos', 'Pos')}${th('p', 'Fair', 'num')}
         ${th('role', 'Role ×', 'num', 'Who he is: touches, snaps, TD share, red zone (and goal-line carries for a QB). The NFL version of MLB Power.')}
         ${th('trend', 'Trend ×', 'num', 'His last three games vs his usual touches — a role growing (green) or shrinking (red).')}
@@ -4088,13 +4081,17 @@
   const pb99 = (pc) => Math.max(1, Math.min(99, Math.round(pc * 100)));
   function pbFxCell(r, k) {
     const m = pbFx(r)[k], pc = pbPc('fx' + k, q => pbFx(q)[k], r), mode = pbF.fxMode || 'x';
-    const tone = mode === 'pc' ? pcTone(pc) : fxTone(m)   // Both: coloured by the multiplier (a 1.00x everyone shares stays gold), the percentile beside it, txt = mode === 'x' ? `${m.toFixed(2)}×` : mode === 'pc' ? `${pb99(pc)}` : `${m.toFixed(2)}× <small>${pb99(pc)}</small>`;
+    // Both: coloured by the multiplier (a 1.00x everyone shares stays gold), the percentile beside it
+    const tone = mode === 'pc' ? pcTone(pc) : fxTone(m), txt = mode === 'x' ? `${m.toFixed(2)}×` : mode === 'pc' ? `${pb99(pc)}` : `${m.toFixed(2)}× <small>${pb99(pc)}</small>`;
     return `<span class="pbx" style="color:${TONE_VAR[tone]}" title="${m.toFixed(2)}× · ${pb99(pc)}th percentile of this week's ${r.pos}s">${txt}</span>`;
   }
   window.setPbFxMode = (v) => { pbF.fxMode = v; pbSave(); renderPicks(); };
+  // the factor filters (board.js RonFx, the MLB Matchups card): every factor's + and floor, No red, Fair >= / <=, Role <=
+  const PB_FX = { factors: [['role', 'Role'], ['trend', 'Trend'], ['spot', 'Spot'], ['lift', 'Lift']], singles: ['trend', 'spot'], base: ['role', 'Role'],
+    val: (r, k) => pbFx(r)[k], p: (r) => pbP(r), rerender: 'renderPicks()' };
   window.setPbPreset = (v) => {
-    pbF.view = 'table'; pbF.dir = 'desc'; pbF.fxTrend = false; pbF.fxSpot = false;
-    if (v === 'value') { pbF.sort = 'lift'; pbF.fxLo = '+300'; pbF.cut = 0; } else { pbF.sort = 'p'; pbF.fxLo = null; }
+    pbF.view = 'table'; pbF.dir = 'desc'; pbF.fxTrend = false; pbF.fxSpot = false; pbF.fxLo = null;
+    if (v === 'value') { pbF.sort = 'lift'; pbF.cut = 0; RonFx.apply('nflTd', { lo: '+300' }); } else { pbF.sort = 'p'; RonFx.apply('nflTd', {}); }
     pbSave(); renderPicks();
   };
   function pmStep(delta) {
@@ -4386,7 +4383,7 @@
     // An empty board is usually the price cut, not an empty pool — quarterbacks
     // in particular are all longer than the default +300. Say what would bring
     // them back instead of leaving a dead end.
-    const fxOn = pbView() === 'table' && (pbF.fxLo || pbF.fxTrend || pbF.fxSpot);
+    const fxOn = pbView() === 'table' && RonFx.count('nflTd') > 0;
     const body = !rows.length && !fxOn ? (() => {
       const gm = pbGameMap();
       let pool = P.picks.map(x => pbEnrich(x, gm));

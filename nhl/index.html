@@ -3904,14 +3904,18 @@
   /** One factor cell: the multiplier, its percentile among his position, or both (setPkFxMode). */
   function pkFxCell(r, k) {
     const m = pkFx(r)[k], pc = pkPc('fx' + k, q => pkFx(q)[k], r), mode = pkF.fxMode || 'x';
-    const tone = mode === 'pc' ? pcTone(pc) : fxTone(m)   // Both: coloured by the multiplier (a 1.00x everyone shares stays gold), the percentile beside it, txt = mode === 'x' ? `${m.toFixed(2)}×` : mode === 'pc' ? `${pc99(pc)}` : `${m.toFixed(2)}× <small>${pc99(pc)}</small>`;
+    // Both: coloured by the multiplier (a 1.00x everyone shares stays gold), the percentile beside it
+    const tone = mode === 'pc' ? pcTone(pc) : fxTone(m), txt = mode === 'x' ? `${m.toFixed(2)}×` : mode === 'pc' ? `${pc99(pc)}` : `${m.toFixed(2)}× <small>${pc99(pc)}</small>`;
     return `<span class="pbx" style="color:${TONE_VAR[tone]}" title="${m.toFixed(2)}× · ${pc99(pc)}th percentile of ${r.pos === 'D' ? 'defencemen' : 'forwards'}">${txt}</span>`;
   }
   function setPkFxMode(v) { pkF.fxMode = v; pkSave(); renderPicks(); }
   window.setPkFxMode = setPkFxMode;
+  // the factor filters (board.js RonFx, the MLB Matchups card): every factor's + and floor, No red, Fair >= / <=, Talent <=
+  const PK_FX = { factors: [['talent', 'Talent'], ['ice', 'Ice'], ['pp', 'PP'], ['form', 'Form'], ['spot', 'Spot'], ['lift', 'Lift']],
+    singles: ['ice', 'pp', 'form', 'spot'], base: ['talent', 'Talent'], val: (r, k) => pkFx(r)[k], p: (r) => pkP(r), rerender: 'renderPicks()' };
   function setPkPreset(v) {
-    pkF.view = 'table'; pkF.dir = 'desc'; pkF.fxPos = {};
-    if (v === 'value') { pkF.sort = 'lift'; pkF.fxLo = '+300'; pkF.cut = 0; } else { pkF.sort = 'p'; pkF.fxLo = null; }
+    pkF.view = 'table'; pkF.dir = 'desc'; pkF.fxPos = {}; pkF.fxLo = null;
+    if (v === 'value') { pkF.sort = 'lift'; pkF.cut = 0; RonFx.apply('nhlGoals', { lo: '+300' }); } else { pkF.sort = 'p'; RonFx.apply('nhlGoals', {}); }
     pkSave(); renderPicks();
   }
   window.setPkPreset = setPkPreset;
@@ -3927,11 +3931,7 @@
     rows = rows.filter(r => pkP(r) >= pkCutP(pkF.cut));
     if (pkF.pos.length) rows = rows.filter(r => pkF.pos.includes(r.pos));
     if (pkF.team !== 'all') rows = rows.filter(r => r.team === pkF.team);
-    if (pkView() === 'table') {
-      const lo = pkAmToP(pkF.fxLo);
-      if (lo != null) rows = rows.filter(r => pkP(r) <= lo + 1e-9);
-      for (const [k, on] of Object.entries(pkF.fxPos || {})) if (on) rows = rows.filter(r => pkFx(r)[k] >= 1.005);
-    }
+    if (pkView() === 'table') rows = rows.filter(r => RonFx.pass('nhlGoals', PK_FX, r));
     const key = { p: r => pkP(r), sog: r => r.f.sogPg, toi: r => r.f.toi, pp: r => r.f.pptoi,
                   lift: r => pkFx(r).lift, talent: r => pkFx(r).talent, ice: r => pkFx(r).ice, ppx: r => pkFx(r).pp, form: r => pkFx(r).form, spot: r => pkFx(r).spot,
                   l10: r => r.f.sogL10, sh: r => r.f.shpct, oga: r => r.f.oppGa,
@@ -4013,16 +4013,15 @@
     const pos = pkF.fxPos || {};
     const tog = (k, lab, tip) => `<button class="pbf-chip${pos[k] ? ' on' : ''}" onclick="setPkFx('${k}')" title="${tip}">${lab} +</button>`;
     const preset = (v, lab, tip, on) => `<button class="pbf-chip${on ? ' on' : ''}" onclick="setPkPreset('${v}')" title="${tip}">${lab}</button>`;
-    const isValue = pkF.sort === 'lift' && pkF.fxLo === '+300' && !Object.values(pos).some(Boolean), isChalk = pkF.sort === 'p' && !pkF.fxLo && !Object.values(pos).some(Boolean);
+    const fs = RonFx.state('nhlGoals'), nF = RonFx.count('nhlGoals'), isValue = pkF.sort === 'lift' && fs.lo === '+300' && nF === 1, isChalk = pkF.sort === 'p' && nF === 0;
     const bar = `<div class="pbx-bar">
         <span class="pbx-seg" title="How the factor columns read: the multiplier on his expected goals, his percentile among players at his position, or both">${[['x', '×'], ['pc', 'Pctl'], ['both', 'Both']].map(([v, l]) => `<button class="pbf-chip${(pkF.fxMode || 'x') === v ? ' on' : ''}" onclick="setPkFxMode('${v}')">${l}</button>`).join('')}</span>
         ${preset('chalk', 'Chalk', 'The shortest prices first: who the model likes most', isChalk)}${preset('value', 'Value', 'Longshots (fair +300 or longer) sorted by Lift: the ones the game, the ice and the power play are doing the most for', isValue)}
-        <label class="pbx-in${pkF.fxLo ? ' on' : ''}" title="Only prices at least this long — +300 for the longshot hunt">Fair ≥ <input type="text" inputmode="numeric" placeholder="+300" value="${pkF.fxLo ?? ''}" onchange="setPkFx('fxLo', this.value)"></label>
-        ${tog('ice', 'Ice', 'More ice time than an average skater')}${tog('pp', 'PP', 'Power-play minutes above average')}${tog('form', 'Form', 'Shooting more than usual over his last ten')}${tog('spot', 'Spot', 'A better than average game: opponent, own team, home')}
         ${pkF.cut ? `<span class="pbx-hint">Max price is +${pkF.cut} — <a href="javascript:void(0)" onclick="setPkF('cut',0)">show the full board</a> to hunt longshots</span>` : ''}
       </div>`;
-    if (!rows.length) return bar + `<div class="empty">Nobody matches these factor filters. <a href="javascript:void(0)" onclick="pkF.fxLo=null;pkF.fxPos={};pkSave();renderPicks()">Clear them →</a></div>`;
-    return `${bar}<div class="pb-tablewrap"><table class="pb-table pbx-table">
+    const card = RonFx.html('nhlGoals', PK_FX, D.picks?.picks || []) + RonFx.sorts([['lift', 'Lift'], ['p', 'Fair'], ['talent', 'Talent'], ['ice', 'Ice'], ['ppx', 'PP'], ['form', 'Form'], ['spot', 'Spot']], pkF.sort, pkF.dir, 'setPkSort');
+    if (!rows.length) return card + bar + `<div class="empty">Nobody matches these factor filters. <a href="javascript:void(0)" onclick="RonFx.reset('nhlGoals','renderPicks()')">Clear them →</a></div>`;
+    return `${card}${bar}<div class="pb-tablewrap"><table class="pb-table pbx-table">
       <thead><tr><th class="static">#</th>${th('name', 'Skater')}<th class="static">Pos</th>${th('p', 'Fair', 'num')}
         ${th('talent', 'Talent ×', 'num', 'Career scoring: goals, shot volume and shooting % together, and whether he plays defence — the NHL version of MLB Power.')}
         ${th('ice', 'Ice ×', 'num', 'Minutes a night, weighted to his last five — how much the coach uses him now, against players at his position.')}
@@ -4071,7 +4070,7 @@
     }
     const cut = pkCuts().find(c => c.v === pkF.cut);
     const base = ((P.model?.base || 0) * 100).toFixed(1);
-    const fxOn = pkView() === 'table' && (pkF.fxLo || Object.values(pkF.fxPos || {}).some(Boolean));
+    const fxOn = pkView() === 'table' && RonFx.count('nhlGoals') > 0;
     const body = !rows.length && !fxOn ? (() => {
       if (pkSearch.length) {
         const hits = P.picks.filter(x => pkSearch.some(t => pkMatch(x, t)));

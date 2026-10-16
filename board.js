@@ -101,3 +101,94 @@
 
   Object.assign(window, { uiArg, uiChip, uiFilters, uiTabs, uiView, uiSearch, matchQ });
 })();
+
+// ── Factor filters: the MLB Matchups table's card, for every factor table (NHL goals, NFL TDs, NBA threes) ──
+// A collapsible Filters card: "No red" (no factor under 1.00x), and per factor a "+" (green only: over 1.00x) and a
+// typed floor, with where tonight's top 10% starts as the placeholder; Fair >= / <= in American odds; and a ceiling
+// on the base factor (Talent / Role / Shooter <=) for the longshot hunt. State is remembered per table.
+//   RonFx.html(key, cfg, allRows)   the card       cfg: { factors: [[k, label]], singles: [k...], base: [k, label],
+//   RonFx.pass(key, cfg, row)        filter a row        val: (row, k) => multiplier, p: row => chance, rerender: 'js();' }
+//   RonFx.count(key) / RonFx.set(key, what, v, rerender) / RonFx.reset(key, rerender) / RonFx.state(key)
+(function () {
+  const CSS = `
+  .rfx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.4rem; flex-basis: 100%; }
+  .rfx-in { display: flex; align-items: center; justify-content: space-between; gap: 0.3rem; background: var(--surface0); border: 1px solid var(--border); border-radius: 7px; padding: 0.25rem 0.4rem; font-size: 0.72rem; color: var(--muted); }
+  .rfx-in.on { border-color: var(--accent); color: var(--text); }
+  .rfx-in > span { margin-right: auto; white-space: nowrap; }
+  .rfx-in input { width: 3.4rem; background: transparent; border: none; color: var(--text); font-family: var(--font-d); font-size: 0.8rem; text-align: right; outline: none; }
+  .rfx-pos { flex: none; width: 1.3rem; height: 1.3rem; border-radius: 5px; border: 1px solid var(--border2); background: transparent; color: var(--muted); font: 700 0.8rem/1 var(--font-d); cursor: pointer; padding: 0; }
+  .rfx-pos.on { background: var(--good); border-color: var(--good); color: var(--bg); }
+  .rfx-tog { background: var(--surface1); border: 1px solid var(--border2); color: var(--dim); font-family: var(--font-b); font-size: 0.704rem; font-weight: 700; padding: 0.22rem 0.65rem; border-radius: 20px; cursor: pointer; }
+  .rfx-tog.on { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: var(--accent); color: var(--accent); }
+  .rfx-clear { background: transparent; border: none; color: var(--muted); font-family: var(--font-b); font-size: 0.704rem; font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0.2rem 0.3rem; }
+  .rfx-hint { font-size: 0.68rem; color: var(--dim); flex-basis: 100%; }
+  .rfx-sorts { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin: 0 0 0.55rem; }
+  `;
+  if (!document.getElementById('rfx-css')) document.head.insertAdjacentHTML('beforeend', `<style id="rfx-css">${CSS}</style>`);
+  const S = {};
+  const blank = () => ({ open: false, noRed: false, pos: {}, min: {}, lo: null, hi: null, baseMax: null });
+  function state(key) {
+    if (!S[key]) { let s = null; try { s = JSON.parse(localStorage.getItem('rfx_' + key)); } catch (e) {} S[key] = { ...blank(), ...(s || {}) }; S[key].pos ||= {}; S[key].min ||= {}; }
+    return S[key];
+  }
+  const save = (key) => { try { localStorage.setItem('rfx_' + key, JSON.stringify(S[key])); } catch (e) {} };
+  const run = (re) => { try { (typeof re === 'function' ? re : new Function(re))(); } catch (e) { console.warn('RonFx rerender', e); } };
+  const amP = (v) => { const a = +String(v ?? '').replace(/[+\s]/g, ''); return !a || isNaN(a) || Math.abs(a) < 100 ? null : a > 0 ? 100 / (a + 100) : -a / (-a + 100); };
+  const r2 = (v) => Math.round(v * 100) / 100;
+  function count(key) {
+    const s = state(key);
+    return (s.noRed ? 1 : 0) + (s.lo != null ? 1 : 0) + (s.hi != null ? 1 : 0) + (s.baseMax != null ? 1 : 0)
+      + Object.values(s.min).filter(v => v != null).length + Object.values(s.pos).filter(Boolean).length;
+  }
+  function set(key, what, v, re) {
+    const s = state(key);
+    if (what === 'open' || what === 'noRed') s[what] = !s[what];
+    else if (what === 'pos') s.pos[v] = !s.pos[v];
+    else if (what === 'lo' || what === 'hi') s[what] = amP(v) == null ? null : String(v).trim().replace(/^(\d)/, '+$1');
+    else if (what === 'baseMax') s.baseMax = v === '' || isNaN(+v) ? null : +v;
+    else if (what === 'min') { const [k, x] = v; s.min[k] = x === '' || isNaN(+x) ? null : +x; }
+    save(key); run(re);
+  }
+  function reset(key, re) { const open = state(key).open; S[key] = { ...blank(), open }; save(key); run(re); }
+  /** Presets: replace the filters wholesale (e.g. Value = fair +300 or longer, nothing else). */
+  function apply(key, patch) { const open = state(key).open; S[key] = { ...blank(), open, ...patch }; save(key); }
+  function pass(key, cfg, r) {
+    const s = state(key);
+    for (const [k, lo] of Object.entries(s.min)) if (lo != null) { const v = cfg.val(r, k); if (!(v != null && v >= lo)) return false; }
+    for (const [k, on] of Object.entries(s.pos)) if (on) { const v = cfg.val(r, k); if (!(v != null && r2(v) > 1)) return false; }
+    const lo = amP(s.lo), hi = amP(s.hi), p = cfg.p(r);
+    if (lo != null && !(p != null && p <= lo + 1e-9)) return false;          // "Fair >= +300": at least that long a price
+    if (hi != null && !(p != null && p >= hi - 1e-9)) return false;
+    if (s.baseMax != null && cfg.base) { const v = cfg.val(r, cfg.base[0]); if (!(v != null && v <= s.baseMax)) return false; }
+    if (s.noRed && (cfg.singles || cfg.factors.map(f => f[0])).some(k => { const v = cfg.val(r, k); return v != null && r2(v) < 1; })) return false;
+    return true;
+  }
+  function html(key, cfg, all) {
+    const s = state(key), n = count(key), K = JSON.stringify(key).replace(/"/g, "'"), RE = JSON.stringify(cfg.rerender || '').replace(/"/g, '&quot;');
+    const q = (k, t) => { const a = all.map(r => cfg.val(r, k)).filter(v => v != null && isFinite(v)).sort((x, y) => x - y); return a.length ? a[Math.floor(t * (a.length - 1))] : null; };
+    const fin = ([k, lbl]) => { const p90 = q(k, 0.9), lo = q(k, 0), hi = q(k, 1), pos = !!s.pos[k];
+      return `<label class="rfx-in${s.min[k] != null || pos ? ' on' : ''}" title="${lbl} tonight: ${lo?.toFixed(2)}–${hi?.toFixed(2)}× · top 10% from ${p90?.toFixed(2)}×"><button type="button" class="rfx-pos${pos ? ' on' : ''}" onclick="event.preventDefault();RonFx.set(${K},'pos','${k}',${RE})" title="${pos ? 'Clear' : 'Only'} ${lbl} over 1.00× (green)" aria-pressed="${pos}">+</button><span>${lbl} ≥</span><input type="number" step="0.01" min="0" placeholder="${p90 != null ? p90.toFixed(2) : '—'}" value="${s.min[k] ?? ''}" onchange="RonFx.set(${K},'min',['${k}',this.value],${RE})"></label>`; };
+    const odds = (w, lab, ph, tip) => `<label class="rfx-in${s[w] != null ? ' on' : ''}" title="${tip}"><span>${lab}</span><input type="text" inputmode="numeric" placeholder="${ph}" value="${s[w] ?? ''}" onchange="RonFx.set(${K},'${w}',this.value,${RE})"></label>`;
+    return `<div class="due-filters-card">
+      <button class="due-filters-toggle" onclick="RonFx.set(${K},'open',null,${RE})" aria-expanded="${s.open}">
+        <span class="due-explainer-title">Factor filters${n ? `<span class="due-filters-badge">${n}</span>` : ''}</span>
+        <span class="due-explainer-chevron${s.open ? ' open' : ''}">▶</span>
+      </button>
+      ${s.open ? `<div class="due-filter-row">
+        <button class="rfx-tog${s.noRed ? ' on' : ''}" onclick="RonFx.set(${K},'noRed',null,${RE})" title="Nothing working against him: every factor 1.00× or better">🟢 No red</button>
+        ${n ? `<button class="rfx-clear" onclick="RonFx.reset(${K},${RE})">Reset ×</button>` : ''}
+        <div class="rfx-grid">
+          ${cfg.factors.map(fin).join('')}
+          ${odds('lo', 'Fair ≥', '+300', 'Fair odds at least this long, e.g. +300 for longshots only')}
+          ${odds('hi', 'Fair ≤', '+150', 'Fair odds no longer than this, e.g. +150 for the likeliest')}
+          ${cfg.base ? `<label class="rfx-in${s.baseMax != null ? ' on' : ''}" title="${cfg.base[1]} ceiling: hunt players who aren't stars in great spots"><span>${cfg.base[1]} ≤</span><input type="number" step="0.05" min="0" placeholder="1.00" value="${s.baseMax ?? ''}" onchange="RonFx.set(${K},'baseMax',this.value,${RE})"></label>` : ''}
+        </div>
+        <div class="rfx-hint">Tap <b>+</b> for only green (over 1.00×), or type a floor (1.20× = 20% better than neutral). The grey number is where tonight's top 10% starts: factors run on different scales.</div>
+      </div>` : ''}
+    </div>`;
+  }
+  /** The Sort chip row under the card (what's first); headers still sort too. fn is the page's setter, called with the key. */
+  const sorts = (list, cur, dir, fn) => `<div class="rfx-sorts"><span class="due-filter-label">Sort</span>${list.map(([k, l]) =>
+    `<button class="due-filter-chip${cur === k ? ' active' : ''}" onclick="${fn}('${k}')">${l}${cur === k ? (dir === 'asc' ? ' ▲' : ' ▼') : ''}</button>`).join('')}</div>`;
+  window.RonFx = { state, set, reset, apply, pass, html, count, sorts };
+})();
