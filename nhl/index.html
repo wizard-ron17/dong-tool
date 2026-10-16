@@ -3857,8 +3857,42 @@
   // A defenceman's discount lives in his base (is_D); it's who he is, so it
   // goes in Talent — otherwise every big-minutes D-man reads as a great spot.
   const pkBaseF = () => Math.max(...(D.picks?.picks || []).map(x => x.base));
-  const pkFx = (r) => r._fx || (r._fx = Object.fromEntries(Object.entries(PKX).map(([k, ks]) =>
+  const pkFxBase = (r) => r._fx || (r._fx = Object.fromEntries(Object.entries(PKX).map(([k, ks]) =>
     [k, Math.exp(ks.reduce((a, f) => a + (r.c?.[f] || 0), 0) + (k === 'talent' ? r.base - pkBaseF() : 0))])));
+  // Lift: everything but Talent (ice, power play, form, spot) as one multiplier on his expected goals. The model is
+  // log-linear, so these multiply exactly. Value is "what is the game doing for him beyond who he is".
+  // Ice, PP and Form are measured against his own position (a forward against forwards, a defenceman against
+  // defencemen): the model centres them on every skater, which would read every big-minutes defenceman as a
+  // role change. Talent keeps the raw multiplier (its defenceman discount is part of who he is); Spot is the game.
+  function pkRoleMeans() {
+    const c = D.picks._rm; if (c) return c;
+    const sum = { D: { n: 0, ice: 0, pp: 0, form: 0 }, F: { n: 0, ice: 0, pp: 0, form: 0 } };
+    for (const r of D.picks.picks || []) { const g = sum[r.pos === 'D' ? 'D' : 'F'], x = pkFxBase(r); g.n++; for (const k of ['ice', 'pp', 'form']) g[k] += Math.log(x[k]); }
+    for (const g of Object.values(sum)) for (const k of ['ice', 'pp', 'form']) g[k] = Math.exp(g[k] / Math.max(1, g.n));
+    return (D.picks._rm = sum);
+  }
+  const pkFx = (r) => {
+    if (r._fxn) return r._fxn;
+    const raw = pkFxBase(r), m = pkRoleMeans()[r.pos === 'D' ? 'D' : 'F'];
+    const x = { ...raw, ice: raw.ice / m.ice, pp: raw.pp / m.pp, form: raw.form / m.form };
+    x.lift = x.ice * x.pp * x.form * x.spot;
+    return (r._fxn = x);
+  };
+  // Colour every cell by where it sits on the slate (a share of the whole board, not the filtered rows), so a number
+  // is never just grey: green is better than the slate, red worse, and the middle fifth a quiet gold.
+  function pkPc(key, get, v) {
+    const c = (D.picks._pc ||= {}), arr = (c[key] ||= (D.picks.picks || []).map(get).filter(x => typeof x === 'number').sort((a, b) => a - b));
+    let lo = 0, hi = arr.length; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m] <= v) lo = m + 1; else hi = m; }
+    return arr.length ? lo / arr.length : 0.5;
+  }
+  const pcTint = (pc) => `background:color-mix(in srgb, ${TONE_VAR[pcTone(pc)]} ${Math.round(6 + Math.abs(pc - 0.5) * 2 * 36)}%, transparent)`;
+  const fxTint = (m) => `background:color-mix(in srgb, ${TONE_VAR[fxTone(m)]} ${Math.round(Math.min(40, 6 + Math.abs(Math.log(m)) * 280))}%, transparent)`;
+  function setPkPreset(v) {
+    pkF.view = 'table'; pkF.dir = 'desc'; pkF.fxPos = {};
+    if (v === 'value') { pkF.sort = 'lift'; pkF.fxLo = '+300'; pkF.cut = 0; } else { pkF.sort = 'p'; pkF.fxLo = null; }
+    pkSave(); renderPicks();
+  }
+  window.setPkPreset = setPkPreset;
   const pkAmToP = (v) => { const a = +String(v ?? '').replace(/[+\s]/g, ''); return !a || isNaN(a) || Math.abs(a) < 100 ? null : a > 0 ? 100 / (a + 100) : -a / (-a + 100); };
   function setPkFx(k, v) {
     if (k === 'fxLo') pkF.fxLo = pkAmToP(v) == null ? null : String(v).trim().replace(/^(\d)/, '+$1');
@@ -3877,7 +3911,7 @@
       for (const [k, on] of Object.entries(pkF.fxPos || {})) if (on) rows = rows.filter(r => pkFx(r)[k] >= 1.005);
     }
     const key = { p: r => pkP(r), sog: r => r.f.sogPg, toi: r => r.f.toi, pp: r => r.f.pptoi,
-                  talent: r => pkFx(r).talent, ice: r => pkFx(r).ice, ppx: r => pkFx(r).pp, form: r => pkFx(r).form, spot: r => pkFx(r).spot,
+                  lift: r => pkFx(r).lift, talent: r => pkFx(r).talent, ice: r => pkFx(r).ice, ppx: r => pkFx(r).pp, form: r => pkFx(r).form, spot: r => pkFx(r).spot,
                   l10: r => r.f.sogL10, sh: r => r.f.shpct, oga: r => r.f.oppGa,
                   time: r => r.ts, name: r => r.name.toLowerCase() }[pkF.sort] || (r => r.p);
     const dir = pkF.dir === 'asc' ? 1 : -1;
@@ -3953,10 +3987,13 @@
     const on = (v) => pkF.sort === v ? ' on' : '';
     const th = (v, lab, cls = '', tip = '') => `<th class="${cls}${on(v)}" onclick="setPkSort('${v}')"${tip ? ` title="${tip}"` : ''}>${lab}${pkF.sort === v ? `<span class="ar">${pkF.dir === 'desc' ? '▼' : '▲'}</span>` : ''}</th>`;
     const mx = (v) => { const r = Math.round(v * 100) / 100; return `<span class="pbx ${r > 1 ? 'g' : r < 1 ? 'r' : 'n'}">${v.toFixed(2)}×</span>`; };
-    const td = (v, html, cls = 'num') => `<td class="${cls}${on(v)}">${html}</td>`;
+    const td = (v, html, cls = 'num', st = '') => `<td class="${cls}${on(v)}"${st ? ` style="${st}"` : ''}>${html}</td>`;
     const pos = pkF.fxPos || {};
     const tog = (k, lab, tip) => `<button class="pbf-chip${pos[k] ? ' on' : ''}" onclick="setPkFx('${k}')" title="${tip}">${lab} +</button>`;
+    const preset = (v, lab, tip, on) => `<button class="pbf-chip${on ? ' on' : ''}" onclick="setPkPreset('${v}')" title="${tip}">${lab}</button>`;
+    const isValue = pkF.sort === 'lift' && pkF.fxLo === '+300' && !Object.values(pos).some(Boolean), isChalk = pkF.sort === 'p' && !pkF.fxLo && !Object.values(pos).some(Boolean);
     const bar = `<div class="pbx-bar">
+        ${preset('chalk', 'Chalk', 'The shortest prices first: who the model likes most', isChalk)}${preset('value', 'Value', 'Longshots (fair +300 or longer) sorted by Lift: the ones the game, the ice and the power play are doing the most for', isValue)}
         <label class="pbx-in${pkF.fxLo ? ' on' : ''}" title="Only prices at least this long — +300 for the longshot hunt">Fair ≥ <input type="text" inputmode="numeric" placeholder="+300" value="${pkF.fxLo ?? ''}" onchange="setPkFx('fxLo', this.value)"></label>
         ${tog('ice', 'Ice', 'More ice time than an average skater')}${tog('pp', 'PP', 'Power-play minutes above average')}${tog('form', 'Form', 'Shooting more than usual over his last ten')}${tog('spot', 'Spot', 'A better than average game: opponent, own team, home')}
         ${pkF.cut ? `<span class="pbx-hint">Max price is +${pkF.cut} — <a href="javascript:void(0)" onclick="setPkF('cut',0)">show the full board</a> to hunt longshots</span>` : ''}
@@ -3965,22 +4002,23 @@
     return `${bar}<div class="pb-tablewrap"><table class="pb-table pbx-table">
       <thead><tr><th class="static">#</th>${th('name', 'Skater')}<th class="static">Pos</th>${th('p', 'Fair', 'num')}
         ${th('talent', 'Talent ×', 'num', 'Career scoring: goals, shot volume and shooting % together, and whether he plays defence — the NHL version of MLB Power.')}
-        ${th('ice', 'Ice ×', 'num', 'Minutes a night, weighted to his last five — how much the coach uses him now.')}
-        ${th('ppx', 'PP ×', 'num', 'Power-play minutes over his last five.')}
-        ${th('form', 'Form ×', 'num', 'Shots on goal over his last ten.')}
-        ${th('spot', 'Spot ×', 'num pbx-div', 'This game: goals the opponent allows, his own team\'s scoring, home ice. Small in hockey — about 3% of the board\'s spread.')}
+        ${th('ice', 'Ice ×', 'num', 'Minutes a night, weighted to his last five — how much the coach uses him now, against players at his position.')}
+        ${th('ppx', 'PP ×', 'num', 'Power-play minutes over his last five, against players at his position.')}
+        ${th('form', 'Form ×', 'num', 'Shots on goal over his last ten, against players at his position.')}
+        ${th('spot', 'Spot ×', 'num', 'This game: goals the opponent allows, his own team\'s scoring, home ice. Small in hockey — about 3% of the board\'s spread.')}
+        ${th('lift', 'Lift ×', 'num pbx-div', 'Everything except Talent: ice, power play, form and spot together. What the game and his role are doing for him beyond who he is: the Value sort.')}
         ${th('sog', 'Shots/g', 'num')}${th('l10', 'L10', 'num')}${th('toi', 'TOI', 'num')}${th('pp', 'PP', 'num')}${th('sh', 'Sh%', 'num')}${th('oga', 'Opp GA', 'num')}${th('time', 'Game')}</tr></thead>
       <tbody>${rows.map(r => { const x = pkFx(r), f = r.f; return `<tr onclick="openPick(${r.pid})"${parAttr(pkSideLeg(r))}>
         <td class="num">${r.rank}</td>
         ${td('name', esc(r.name), 'nm')}
         <td>${posBadge(r.pos, r.pid)}</td>
         <td class="od pbx-fair${pkShown(r) < 0.5 ? ' dog' : ''}${on('p')}">${sgOdds(pkShown(r))}<small>${pkPct(pkShown(r))}</small></td>
-        ${td('talent', mx(x.talent))}${td('ice', mx(x.ice))}${td('ppx', mx(x.pp))}${td('form', mx(x.form))}${td('spot', mx(x.spot), 'num pbx-div')}
-        ${td('sog', f.sogPg.toFixed(1))}${td('l10', f.sogL10.toFixed(1))}${td('toi', (f.toi / 60).toFixed(1))}${td('pp', (f.pptoi / 60).toFixed(1))}
-        ${td('sh', (f.shpct * 100).toFixed(1) + '%')}${td('oga', f.oppGa.toFixed(2))}
+        ${td('talent', mx(x.talent), 'num', fxTint(x.talent))}${td('ice', mx(x.ice), 'num', fxTint(x.ice))}${td('ppx', mx(x.pp), 'num', fxTint(x.pp))}${td('form', mx(x.form), 'num', fxTint(x.form))}${td('spot', mx(x.spot), 'num', fxTint(x.spot))}${td('lift', mx(x.lift), 'num pbx-div', fxTint(x.lift))}
+        ${td('sog', f.sogPg.toFixed(1), 'num', pcTint(pkPc('sog', q => q.f.sogPg, f.sogPg)))}${td('l10', f.sogL10.toFixed(1), 'num', pcTint(pkPc('l10', q => q.f.sogL10, f.sogL10)))}${td('toi', (f.toi / 60).toFixed(1), 'num', pcTint(pkPc('toi', q => q.f.toi, f.toi)))}${td('pp', (f.pptoi / 60).toFixed(1), 'num', pcTint(pkPc('pp', q => q.f.pptoi, f.pptoi)))}
+        ${td('sh', (f.shpct * 100).toFixed(1) + '%', 'num', pcTint(pkPc('sh', q => q.f.shpct, f.shpct)))}${td('oga', f.oppGa.toFixed(2), 'num', pcTint(pkPc('oga', q => q.f.oppGa, f.oppGa)))}
         ${td('time', `${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}`, '')}
       </tr>`; }).join('')}</tbody></table></div>
-      <div class="pbx-note">Expected goals = base × <b>Talent</b> × <b>Ice</b> × <b>PP</b> × <b>Form</b> × <b>Spot</b>, each a multiplier against an average skater; the anytime price is calibrated off that. <b>Talent</b> is hockey's base power. <b>Spot</b> is the game, and it's small: hockey moves on who's on the ice, not who they play — penalties drawn, backup goalies and back-to-backs all tested as nulls. The NHL longshot is a role change: <b>Ice +</b> or <b>PP +</b> on a low-talent price.</div>`;
+      <div class="pbx-note">Expected goals = base × <b>Talent</b> × <b>Ice</b> × <b>PP</b> × <b>Form</b> × <b>Spot</b>, each a multiplier against an average skater; the anytime price is calibrated off that. <b>Lift</b> is Ice × PP × Form × Spot, everything but Talent, and the <b>Value</b> button sorts longshots by it. Ice, PP and Form are against his own position, so a defenceman is compared with defencemen. Cells are tinted by where they sit on tonight's slate: green better, red worse, gold the middle. <b>Talent</b> is hockey's base power. <b>Spot</b> is the game, and it's small: hockey moves on who's on the ice, not who they play — penalties drawn, backup goalies and back-to-backs all tested as nulls. The NHL longshot is a role change: <b>Ice +</b> or <b>PP +</b> on a low-talent price.</div>`;
   }
 
   // Compact is the share/screenshot view, so it carries its own header and
