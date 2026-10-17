@@ -20,6 +20,48 @@ import pandas as pd
 HERE = os.path.dirname(os.path.abspath(__file__))
 D = pd.read_parquet(os.path.join(HERE, "nhl_sog.parquet"))
 
+
+def with_build_team_rates(df, w_prev=0.35):
+    """Own shots-for and opponent shots-against AS THE BUILD COMPUTES THEM (scripts/nhl-shots.js):
+    this season to date + 0.35 x last season, per team, off the skater rows; the league's rate under
+    the same definition stands in before a team has a game. The crawl's own team means ran career-long
+    and never reset, so in 2025-26 they read 29.6 while teams took 27.6: a model trained on them and fed
+    the build's numbers ran 5% cold live (research/nhl_sog_teamrate.py). The career columns are kept as
+    opp_sa_career / team_sf_career."""
+    df = df.copy()
+    df["opp_sa_career"], df["team_sf_career"] = df.opp_sa_prior, df.team_sf_prior
+    tg = df.groupby(["season", "date", "team"]).sog.sum().rename("sf").reset_index()
+    tg = tg.merge(df.drop_duplicates(["season", "date", "team"])[["season", "date", "team", "opp"]], on=["season", "date", "team"])
+    tg = tg.merge(tg[["season", "date", "team", "sf"]].rename(columns={"team": "opp", "sf": "sa"}), on=["season", "date", "opp"], how="left")
+    tg["sa"] = tg.sa.fillna(tg.groupby("season").sf.transform("mean"))   # an opponent missing from the crawl
+    tg = tg.sort_values(["team", "season", "date"]).reset_index(drop=True)
+
+    def asof(t, col, by):
+        out = np.full(len(t), np.nan); prev = {}
+        for s in sorted(t.season.unique()):
+            cur = t[t.season == s]
+            groups = list(cur.groupby(by)) if by else [(None, cur)]
+            for k, g in groups:
+                cs = g[col].cumsum().shift(1).fillna(0).to_numpy(); cn = np.arange(len(g), dtype=float)
+                ps, pn = prev.get(k, (0.0, 0.0)); den = cn + w_prev * pn
+                out[g.index] = np.where(den > 0, (cs + w_prev * ps) / np.where(den > 0, den, 1), np.nan)
+            for k, g in groups: prev[k] = (g[col].sum(), float(len(g)))
+        return out
+
+    tg["sf_b"], tg["sa_b"] = asof(tg, "sf", "team"), asof(tg, "sa", "team")
+    lg = tg.sort_values(["season", "date"]).reset_index(drop=True)
+    lg["lg_b"] = asof(lg, "sf", None)
+    lgd = lg.groupby(["season", "date"]).lg_b.first().rename("lg_b").reset_index()
+    lgd["lg_b"] = lgd.lg_b.where(lgd.lg_b > 0).bfill()            # opening night of the first season
+    tg = tg.merge(lgd, on=["season", "date"])
+    df = df.merge(tg[["season", "date", "team", "sf_b", "lg_b"]], on=["season", "date", "team"], how="left")
+    df = df.merge(tg[["season", "date", "team", "sa_b"]].rename(columns={"team": "opp"}), on=["season", "date", "opp"], how="left")
+    df["opp_sa_prior"] = df.sa_b.fillna(df.lg_b); df["team_sf_prior"] = df.sf_b.fillna(df.lg_b)
+    return df.drop(columns=["sa_b", "sf_b"])
+
+
+D = with_build_team_rates(D)
+
 # Rate features enter on a LOG scale. With a log link and raw-scale inputs, the
 # projection grows EXPONENTIALLY in a skater's shot rate, so the ends of the
 # board ran hot: out of sample, projected 4+ shots averaged 4.77 vs 3.75 actual
