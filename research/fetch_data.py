@@ -19,8 +19,7 @@ except ImportError:
 
 CACHE = os.environ.get(
     "PICKS_CACHE",
-    "/private/tmp/claude-501/-Users-ron-Desktop-dong-tool/"
-    "5857f821-b559-469c-a8ee-a9ffc542c6c6/scratchpad/nflcache",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cache", "nfl"),
 )
 SEASONS = list(range(2016, 2026))          # participation + snap_counts start 2016
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "

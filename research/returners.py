@@ -28,8 +28,7 @@ HERE = os.path.dirname(__file__)
 OUT = os.path.join(HERE, "returners_model.json")
 CACHE = os.environ.get(
     "PICKS_CACHE",
-    "/private/tmp/claude-501/-Users-ron-Desktop-dong-tool/"
-    "5857f821-b559-469c-a8ee-a9ffc542c6c6/scratchpad/nflcache",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cache", "nfl"),
 )
 KICK_SEASONS = [2025]                       # post dynamic-kickoff only
 PUNT_SEASONS = [2021, 2022, 2023, 2024, 2025]

@@ -19,8 +19,7 @@ import pandas as pd
 HERE = os.path.dirname(__file__)
 CACHE = os.environ.get(
     "PICKS_CACHE",
-    "/private/tmp/claude-501/-Users-ron-Desktop-dong-tool/"
-    "5857f821-b559-469c-a8ee-a9ffc542c6c6/scratchpad/nflcache",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cache", "nfl"),
 )
 SEASONS = list(range(2016, 2026))
 MIN_ATT = 10          # a QB-game only counts as a start-like sample above this
