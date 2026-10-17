@@ -3946,6 +3946,7 @@
   }
 
   const PM_LABELS = {
+    __starter:        ['Starter',       r => 'depth chart #1',                                     'He starts at his position on the published depth chart. Starters have scored more than their usage implies every season tested, so the price gets a small lift (QB, RB, TE, WR each measured on their own).'],
     snap_last3:       ['Recent snaps',  r => Math.round((r.f?.snap3 ?? 0) * 100) + '% of plays', 'Share of his offense\'s snaps over the last three games. About 87% of the model\'s signal lives here.'],
     snap_share_prior: ['Career snaps',  r => Math.round((r.f?.snapPrior ?? 0) * 100) + '%',      'His longer-run snap share, shrunk toward his position when the sample is thin. A correction on the recent window.'],
     rz_touches_log:   ['Red zone',      r => (r.f?.rz ?? 0).toFixed(2) + ' touches/g',           'Rushes plus targets inside the 20, per game. For a quarterback this is the whole story — it is what separates a runner from a pocket passer.'],
@@ -4146,7 +4147,7 @@
   // that board), the same order for everyone at the position. Touches, the base of every
   // price, is the headline, not a bar; yes/no factors are chips. Below PM_PCT_MIN players
   // at the position the card falls back to the multiplier bars.
-  const PM_BASE = 'touches_log2', PM_FLAGS = new Set(['mates_out', 'new_absence']), PM_PCT_MIN = 20;
+  const PM_BASE = 'touches_log2', PM_FLAGS = new Set(['mates_out', 'new_absence', '__starter']), PM_PCT_MIN = 20;
   let pmPoolCache = null;
   function pmPool(pos) {
     const P = nflData?.picks;
@@ -4190,8 +4191,10 @@
     const { base, parts } = pmContribs(r, M);
     const sig = (x) => 1 / (1 + Math.exp(-x));
 
-    if (r.pRaw != null && Math.abs(r.p - r.pRaw) >= 0.005)
-      parts.push({ f: '__calib', d: pmLogit(r.p) - pmLogit(r.pRaw) });
+    const lift = r.f?.starter || 0;
+    if (lift) parts.push({ f: '__starter', d: lift });
+    if (r.pRaw != null && Math.abs(pmLogit(r.p) - pmLogit(r.pRaw) - lift) >= 0.02)
+      parts.push({ f: '__calib', d: pmLogit(r.p) - pmLogit(r.pRaw) - lift });
 
     // A log-odds contribution is exactly an odds multiplier, so show it as one.
     const shown = parts.filter(p => Math.abs(p.d) >= 0.015)

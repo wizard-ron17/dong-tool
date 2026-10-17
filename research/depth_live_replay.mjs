@@ -8,7 +8,7 @@ import { parseCsv, num } from '../scripts/nflverse.js';
 import { buildPicks } from '../scripts/picks.js';
 const { idx: gi, rows } = parseCsv(fs.readFileSync('research/.cache/nfl/games.csv', 'utf8'));
 const G = (r, k) => r[gi[k]];
-const out = ['season,week,board,pid,pos,mu,depth,roleX'];
+const out = ['season,week,board,pid,pos,mu,depth,roleX'];   // board 'td': mu = the anytime-TD probability
 const jobs = [...Array.from({ length: 17 }, (_, i) => [2025, i + 2]), ...[2, 3, 4, 5, 6].map(w => [2026, w])];
 for (const [S, wk] of jobs) {
   const schedule = rows.filter(r => +G(r, 'season') === S).map(r => ({ gameId: G(r, 'game_id'), week: +G(r, 'week'), type: G(r, 'game_type'),
@@ -21,6 +21,7 @@ for (const [S, wk] of jobs) {
   if (!P) continue;
   for (const [m, list] of Object.entries(P.yards || {})) for (const r of list) if (!r.f?.thinRole) out.push([S, wk, m, r.pid, r.pos, r.mu, r.f?.depth ?? '', r.f?.roleX ?? 1].join(','));
   for (const r of P.receptions || []) if (!r.f?.thinRole) out.push([S, wk, 'recn', r.pid, r.pos, r.mu, r.f?.depth ?? '', r.f?.roleX ?? 1].join(','));
+  for (const r of P.picks || []) out.push([S, wk, 'td', r.pid, r.pos, r.p, r.f?.depthRank ?? '', 1].join(','));
   console.log('done', S, wk, out.length - 1);
   fs.writeFileSync('research/.cache/depth_replay.csv', out.join('\n'));
 }

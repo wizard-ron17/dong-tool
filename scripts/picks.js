@@ -1631,6 +1631,12 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     }
 
     const q = questionable.has(pid);
+    // A starter (depth rank 1 on the published chart) is lifted on the log-odds scale: every season's starters
+    // scored more than priced, the live board's included (research/td_depth_live.py: fitted on the live pipeline
+    // over 2025, checked on 2026 weeks 2-6; RB1 / TE1 / WR1 each better, backups left alone - their cells flip).
+    const pCal = calibrate(score(row));
+    const lift = depthRank === 1 ? (DEPTH_MODEL.td_starter?.[pos] ?? 0) : 0;
+    const pBase = lift ? 1 / (1 + Math.exp(-(Math.log(pCal / (1 - pCal)) + lift))) : pCal;
     picks.push({
       pid, name: info.name, team: info.team, opp: ctx.opp, pos,
       gameId: ctx.gameId, home: ctx.home,
@@ -1640,10 +1646,10 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
       // matters: the first/last-TD markets are shares of each game's scoring
       // threat and read p.p, so doing it later would leave those markets
       // pricing a healthy version of him.
-      p: +(calibrate(score(row)) * (q ? QUESTIONABLE_MULT : 1)).toFixed(6),
+      p: +(pBase * (q ? QUESTIONABLE_MULT : 1)).toFixed(6),
       pRaw: +score(row).toFixed(6),
       // the 2+ market, coherent with the 1+ price by construction
-      p2: +(calibrate2(calibrate(score(row)) * scoreCond2(row)) * (q ? QUESTIONABLE_MULT : 1)).toFixed(6),
+      p2: +(calibrate2(pBase * scoreCond2(row)) * (q ? QUESTIONABLE_MULT : 1)).toFixed(6),
       pCond2: +scoreCond2(row).toFixed(6),
       ...(q ? { q: 1 } : {}),
       // Factors, for the UI. Kept at enough precision that the modal's
@@ -1653,6 +1659,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
         snap3: +row.snap_last3.toFixed(6),
         snap3Raw: +(row.snap_last3_raw ?? row.snap_last3).toFixed(6),
         ...(depthRank ? { depthRank } : {}),
+        ...(lift ? { starter: +lift.toFixed(3) } : {}),   // the starter lift, log-odds (the card shows it as its own step)
         snapPrior: +row.snap_share_prior.toFixed(6),
         tdShare: +row.td_share_prior.toFixed(6),
         rz: +row.rz_touches_prior.toFixed(6),
