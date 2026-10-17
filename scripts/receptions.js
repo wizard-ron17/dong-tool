@@ -96,15 +96,26 @@ export function receptionFeatures({ pid, position, season, week, snapLog, recLog
   };
 }
 
+/** Monotone map {x, y}; past the last knot extended along its last slope (research/receptions_disp.py). */
+function applyMap(cal, raw, extend) {
+  const { x, y } = cal, n = x.length;
+  if (raw <= x[0]) return y[0] * (raw / x[0]);
+  if (raw >= x[n - 1]) return extend ? y[n - 1] + (y[n - 1] - y[n - 3]) / (x[n - 1] - x[n - 3]) * (raw - x[n - 1]) : y[n - 1];
+  let i = 1;
+  while (i < n && x[i] < raw) i++;
+  const t = (raw - x[i - 1]) / (x[i] - x[i - 1]);
+  return y[i - 1] + t * (y[i] - y[i - 1]);
+}
+
 /**
- * Expected receptions. Log link, then a monotone recalibration — the same cure
+ * The base projection: log link, then a monotone recalibration — the same cure
  * the TD model applies to its logistic. A log link extrapolates exponentially
  * where the empirical relationship flattens, so raw projections over-shot the
  * top of the board (a 9.4-catch quote no receiver has ever averaged; rows
  * projected 5.95 caught 5.25). Knots fitted on out-of-sample walk-forward
- * pairs in research/receptions.py; interp clamps flat past the last knot.
+ * pairs in research/receptions.py. No track record, no wind.
  */
-export function scoreMu(row) {
+export function baseMu(row) {
   const c = MODEL.coef;
   let z = c.intercept;
   if (row.position !== MODEL.reference_position) z += c[`pos_${row.position}`] ?? 0;
@@ -113,28 +124,55 @@ export function scoreMu(row) {
     z += c[f] * ((row[f] - s.mean) / s.sd);
   }
   const raw = Math.exp(Math.max(-8, Math.min(4, z)));
+  // flat past the last knot, it capped every elite receiver's mean (projected 9.4 → priced 6.3, caught 6.9)
+  return MODEL.mu_cal ? applyMap(MODEL.mu_cal, raw, MODEL.mu_cal_extend) : raw;
+}
 
-  // Monotone recalibration of the usage-driven projection.
-  const cal = MODEL.mu_cal;
-  let base = raw;
-  if (cal) {
-    const { x, y } = cal;
-    const n = x.length;
-    if (raw <= x[0]) base = y[0] * (raw / x[0]);
-    // past the last knot: extended along its last slope (research/receptions_disp.py) —
-    // flat, it capped every elite receiver's mean (projected 9.4 → priced 6.3, caught 6.9)
-    else if (raw >= x[n - 1]) base = MODEL.mu_cal_extend ? y[n - 1] + (y[n - 1] - y[n - 3]) / (x[n - 1] - x[n - 3]) * (raw - x[n - 1]) : y[n - 1];
-    else {
-      let i = 1;
-      while (i < x.length && x[i] < raw) i++;
-      const t = (raw - x[i - 1]) / (x[i] - x[i - 1]);
-      base = y[i - 1] + t * (y[i] - y[i - 1]);
+/**
+ * Expected receptions. The base projection pulls every high number down by the same amount, which is right
+ * on average and wrong for a receiver who has out-caught his projection all along: the market prices that
+ * persistence and we didn't (two weeks of closes put listed stars ~20% above us, and they caught it). So the
+ * base is scaled by his track record, m = (his catches + k) / (his base projections + k) over last season
+ * and this one, to the power b, then re-mapped (research/receptions_persist.py: walk-forward log loss
+ * 0.29687 -> 0.29525, 6 of 7 seasons; the top of the board stays calibrated).
+ *
+ * Wind multiplies last, AFTER both maps on purpose: a map fit on calm games would otherwise bend wind
+ * along with usage.
+ */
+export function scoreMu(row, m = 1) {
+  let mu = baseMu(row);
+  const P = MODEL.persist;
+  if (P) mu = applyMap(P.cal, mu * Math.pow(m, P.b), true);
+  return mu * windFactor(row.wind_mph);
+}
+
+/**
+ * A receiver's track record against the base projection, over last season and this one to date (the window
+ * the build's play-by-play covers): (sum of catches + k) / (sum of base projections + k). Each past game is
+ * scored as it would have been that week. `impliedOf(team, season, week)` gives the team total then;
+ * `cache` (a Map) memoises the base projection per player-week across calls.
+ */
+export function trackRecord({ pid, position, season, week, snapLog, recLog, teamPassLog, impliedOf, windowFloor, cache }) {
+  const P = MODEL.persist;
+  if (!P) return 1;
+  const floor = Math.max(season - 1, windowFloor ?? season - 1);
+  const games = (snapLog.get(pid) ?? []).filter(s => s.season >= floor && (s.season < season || (s.season === season && s.week < week)));
+  if (!games.length) return 1;
+  const recBy = new Map((recLog.get(pid) ?? []).map(r => [`${r.season}|${r.week}`, r.rec]));
+  let rec = 0, mu = 0;
+  for (const g of games) {
+    const key = `${pid}|${g.season}|${g.week}`;
+    let b = cache?.get(key);
+    if (b === undefined) {
+      const row = receptionFeatures({ pid, position: g.position ?? position, season: g.season, week: g.week, snapLog, recLog, teamPassLog,
+        team: g.team, impliedTotal: impliedOf(g.team, g.season, g.week) ?? MODEL.scale.implied_total.mean, windowFloor, windMph: 0 });
+      b = row && row._games >= 3 ? baseMu(row) : null;    // the research rows start at three games played
+      cache?.set(key, b);
     }
+    if (b == null) continue;
+    mu += b; rec += recBy.get(`${g.season}|${g.week}`) ?? 0;
   }
-  // Wind multiplies the calibrated mean rather than entering the fit. Applied
-  // AFTER the recalibration on purpose: a map fit on calm games would otherwise
-  // bend wind along with usage.
-  return base * windFactor(row.wind_mph);
+  return (rec + P.k) / (mu + P.k);
 }
 
 /** Measured multiplier on expected catches, interpolated from research bins. */

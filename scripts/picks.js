@@ -32,7 +32,7 @@ import { interceptionFeatures, scoreMu as intMu, pOver as intOver, thinFactor as
 import { completionFeatures, scoreMu as cmpMu, pOver as cmpOver, CMP_LINES,
          COMPLETIONS_MODEL, windFactor as cmpWind, defFactor as cmpDef,
          thinFactor as cmpThin } from './completions.js';
-import { receptionFeatures, scoreMu, pOver, LINES as REC_LINES,
+import { receptionFeatures, scoreMu, trackRecord, pOver, LINES as REC_LINES,
          RECEPTION_POS, RECEPTION_MODEL } from './receptions.js';
 
 const POS = ['RB', 'WR', 'TE', 'QB', 'FB'];
@@ -1190,17 +1190,23 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   // Starts at week 4 of the PREVIOUS season because recLog spans two seasons:
   // earlier weeks would be scored off materially colder priors than the live
   // board ever runs on, and would grade a pipeline that doesn't exist.
+  // Each team's implied total by week, for any season the schedule covers: the replay's context, and the
+  // receptions track record scores every past game as it was priced then.
+  const ctxBy = new Map();              // `${y}|${wk}` -> Map(team -> implied)
+  for (const g of scheduleAll) {
+    if (g.total == null) continue;
+    const half = g.total / 2, edge = (g.spread ?? 0) / 2;
+    const k = `${g.season}|${g.week}`;
+    const m = ctxBy.get(k) ?? ctxBy.set(k, new Map()).get(k);
+    m.set(g.home, half + edge);
+    m.set(g.away, half - edge);
+  }
+  const impliedOf = (team, y, wk) => ctxBy.get(`${y}|${wk}`)?.get(team);
+  const recBase = new Map();            // the track record's memo: base projection per player-week
+  const recTrack = (pid, position, y, wk) => trackRecord({ pid, position, season: y, week: wk, snapLog, recLog, teamPassLog,
+    impliedOf, windowFloor: rzSeasons[0], cache: recBase });
   const receptionsHistory = [];
   {
-    const ctxBy = new Map();            // `${y}|${wk}` -> Map(team -> implied)
-    for (const g of scheduleAll) {
-      if (g.total == null) continue;
-      const half = g.total / 2, edge = (g.spread ?? 0) / 2;
-      const k = `${g.season}|${g.week}`;
-      const m = ctxBy.get(k) ?? ctxBy.set(k, new Map()).get(k);
-      m.set(g.home, half + edge);
-      m.set(g.away, half - edge);
-    }
     const poolBy = new Map();           // `${y}|${wk}` -> [{pid, team, position}]
     for (const [pid, arr] of snapLog) for (const e of arr) {
       if (e.season < rzSeasons[0] || !RECEPTION_POS.includes(e.position)) continue;
@@ -1230,7 +1236,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
           windMph: windLog.get(`${pl.team}|${y}|${wk}`) ?? 0,
         });
         if (!row || row._games < 3) continue;                 // live-board filters
-        const mu = scoreMu(row);
+        const mu = scoreMu(row, recTrack(pl.pid, pl.position, y, wk));
         if (mu < 0.35) continue;
         const L = REC_LINES.reduce((b, x) =>
           Math.abs(x - mu) < Math.abs(b - mu) ? x : b, REC_LINES[0]);
@@ -1557,7 +1563,8 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     }
     const rs = roleS(pid);                      // depth chart + injuries, see "Role, sitewide"
     row.snap_l3 *= rs; row.share_l3 *= rs; row.rec_l3 *= rs;
-    const mu = scoreMu(row);
+    const track = recTrack(pid, info.position, season, week);
+    const mu = scoreMu(row, track);
     if (mu < 0.35) continue;                    // nothing to quote
     receptions.push({
       pid, name: info.name, team: info.team, opp: ctx.opp, pos: info.position,
@@ -1572,7 +1579,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
         catch: +row.catch_prior.toFixed(3),
         teamPass: +row.team_pass_prior.toFixed(2),
         implied: +row.implied_total.toFixed(2),
-        games: row._games,
+        games: row._games, track: +track.toFixed(3),
         roleX: +(role.get(pid)?.x ?? 1).toFixed(2), depth: role.get(pid)?.rank ?? null, q: questionable.has(pid),
       },
     });
