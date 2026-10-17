@@ -34,6 +34,7 @@ import { completionFeatures, scoreMu as cmpMu, pOver as cmpOver, CMP_LINES,
          thinFactor as cmpThin } from './completions.js';
 import { receptionFeatures, scoreMu, trackRecord, pOver, LINES as REC_LINES,
          RECEPTION_POS, RECEPTION_MODEL } from './receptions.js';
+const DEPTH_MODEL = JSON.parse(fs.readFileSync(new URL('../research/depth_model.json', import.meta.url), 'utf8'));
 
 const POS = ['RB', 'WR', 'TE', 'QB', 'FB'];
 // PFR labels some running backs "HB" in some seasons (39 rows in 2025, 41 in
@@ -838,13 +839,15 @@ export async function loadRzLog(seasons) {
 }
 
 /** Current team + position for every rostered skill player. */
-async function loadRoster(season) {
+/** The latest published weekly roster, or week `week`'s (a replay of a past week reads that week's actives). */
+async function loadRoster(season, week) {
   const txt = await fetchOptional(`${REL}/weekly_rosters/roster_weekly_${season}.csv`);
   if (!txt) return new Map();
   const { idx, rows } = parseCsv(txt);
   const m = new Map();
   let maxWeek = 0;
   for (const r of rows) maxWeek = Math.max(maxWeek, +r[idx.week] || 0);
+  if (week != null && rows.some(r => +r[idx.week] === week)) maxWeek = week;
   // ACT only. The feed carries the whole transaction record for the week, and
   // taking every row put 180 of 480 players on the board who could not play:
   // 66 outright CUT, 31 on RES (Charbonnet was the top Seattle pick while on
@@ -894,14 +897,16 @@ async function loadRoster(season) {
  *
  * pos_rank is already per-position depth within a team, so it is used directly.
  */
-async function loadDepthChart(season) {
+/** The published depth chart: the newest snapshot, or the newest on or before `asOf` (a replay of a past week
+ *  must not see a chart published after it). */
+async function loadDepthChart(season, asOf) {
   const byId = new Map();
   const txt = await fetchOptional(`${REL}/depth_charts/depth_charts_${season}.csv`);
   if (!txt) { console.log('  depth chart: not published'); byId.kickers = new Map(); return byId; }
   const { idx, rows } = parseCsv(txt);
   if (idx.pos_rank == null || idx.dt == null) return byId;
   let latest = '';
-  for (const r of rows) if (r[idx.dt] > latest) latest = r[idx.dt];
+  for (const r of rows) if (r[idx.dt] > latest && (!asOf || r[idx.dt].slice(0, 10) <= asOf)) latest = r[idx.dt];
   byId.kickers = new Map();     // team -> [{pid, name, rank}], for the Kickers board
   for (const r of rows) {
     if (r[idx.dt] !== latest) continue;
@@ -1033,7 +1038,7 @@ export function absenceFeatures({ byWeek, snapLog, pid, team, position, season, 
  * @param schedule  the parsed upcoming-season schedule (needs week/total/spread)
  * @param target    {season, week} to score; defaults to the next unplayed week
  */
-export async function buildPicks({ schedule, historySeason, upcomingSeason, target, scheduleAll = [] }) {
+export async function buildPicks({ schedule, historySeason, upcomingSeason, target, scheduleAll = [], roleUp = 0.5 }) {
   const snapSeasons = [];
   for (let y = SNAP_FROM; y <= upcomingSeason; y++) snapSeasons.push(y);
   const rzSeasons = [];
@@ -1057,8 +1062,11 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   const { xwalk, birth, shot, espn } = await loadPlayers();
   const snapLog = await loadSnapLog(snapSeasons, xwalk);
   const { rzLog, passLog, tdLog, recLog, teamPassLog, retAgg, windLog, defLog, rushLog, kickLog, touchLog, glLog } = await loadPbpLogs(rzSeasons);
-  const roster = await loadRoster(upcomingSeason);
-  const depth = await loadDepthChart(upcomingSeason);
+  const roster = await loadRoster(upcomingSeason, target ? week : undefined);
+  // a past week (target) sees the chart as it stood the day before its first game
+  const depthAsOf = target ? (() => { const d0 = games.map(g => g.gameday).filter(Boolean).sort()[0];
+    return d0 ? new Date(Date.parse(d0) - 864e5).toISOString().slice(0, 10) : undefined; })() : undefined;
+  const depth = await loadDepthChart(upcomingSeason, depthAsOf);
   const { byWeek, outIds, questionable = new Set() } = await loadInjuries(season, week);
   {
     const gameDay = new Map();
@@ -1141,9 +1149,13 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     const raw = r.row.snap_last3_raw, adj = r.row.snap_last3;
     if (raw == null || adj == null) continue;
     const x = Math.min(2.5, Math.max(0.5, adj / Math.max(raw, 0.05)));
-    role.set(r.pid, { x, s: Math.sqrt(x), rank: r.depthRank ?? null, snap: adj });
+    role.set(r.pid, { x, s: Math.pow(x, x > 1 ? roleUp : 0.5), rank: r.depthRank ?? null, snap: adj });
   }
   const roleS = (pid) => role.get(pid)?.s ?? 1;
+  // A starter's projection lifted where the depth chart beat the model in every slice tested: RB1 rushing and
+  // rush + receiving, TE1 receptions (research/depth_live.py: the live pipeline replayed over 2025, checked on
+  // 2026 weeks 2-6, RB1 rushing ladder log loss 0.6231 -> 0.6125). Rank as the role step reads it.
+  const starterX = (board, pid, pos) => role.get(pid)?.rank === 1 ? (DEPTH_MODEL.starter[board]?.[pos] ?? 1) : 1;
   // ── Returners ───────────────────────────────────────────────────────────
   // Built from TWO seasons rather than one. The old build read a single
   // season's play-by-play, and that season flips to the new one the moment
@@ -1502,7 +1514,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
       const common = { snapL3: +f.snap_l3.toFixed(3), implied: r1(ctx.implied), fav: r1(ctx.fav), games: f._games,
                        roleX: +(role.get(pid)?.x ?? 1).toFixed(2), depth: role.get(pid)?.rank ?? null, q: questionable.has(pid) };
       if (info.position === 'RB' && f.car_prior >= 4) {
-        const mu = ydsMu('rush', f);
+        const mu = ydsMu('rush', f) * starterX('rush', pid, 'RB');
         yards.rush.push({ ...base, m: 'rush', mu: r1(mu), med: r1(ydsQ('rush', mu)),
           f: { ...common, avg: r1(f.rush_prior), car: r1(f.car_prior), l3: r1(f.rush_l3), carL3: r1(f.car_l3), ypc: +f.ypc.toFixed(2) } });
       }
@@ -1517,7 +1529,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
         if (lo && qMedian(lo.tq) >= 3) yards.rec.push({ ...base, m: 'rec', mu: r1(lo.mu), med: r1(qMedian(lo.tq)), tq: lo.tq, f: { ...recF, recent: true, tgtL3: r1(f.tgt_l3) } });
       }
       if (f.tgt_prior + f.car_prior >= 5) {
-        const mu = ydsMu('rr', f);
+        const mu = ydsMu('rr', f) * starterX('rr', pid, info.position);
         yards.rr.push({ ...base, m: 'rr', mu: r1(mu), med: r1(ydsQ('rr', mu)),
           f: { ...common, avg: r1(f.rr_prior), l3: r1(f.rr_l3), tgt: r1(f.tgt_prior), car: r1(f.car_prior), rec: r1(f.ryds_prior), rushAvg: r1(f.rush_prior) } });
       }
@@ -1564,7 +1576,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     const rs = roleS(pid);                      // depth chart + injuries, see "Role, sitewide"
     row.snap_l3 *= rs; row.share_l3 *= rs; row.rec_l3 *= rs;
     const track = recTrack(pid, info.position, season, week);
-    const mu = scoreMu(row, track);
+    const mu = scoreMu(row, track) * starterX('recn', pid, info.position);
     if (mu < 0.35) continue;                    // nothing to quote
     receptions.push({
       pid, name: info.name, team: info.team, opp: ctx.opp, pos: info.position,
