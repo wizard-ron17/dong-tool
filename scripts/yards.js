@@ -92,6 +92,39 @@ export function qbYardsFeatures({ pid, season, week, passLog, rushLog, implied, 
   };
 }
 
+/**
+ * A starting QB's rushing track record against the base projection, over last season and this one to date (the
+ * window the build's play-by-play covers): sums of his rushing yards and of what the model projected, each past
+ * start scored as it was that week. ctxOf(team, season, week) -> { implied, fav }; `cache` memoises the base
+ * projection per start. The QB-rush mean is then scaled by ((rush + k) / (base + k)) ^ b (qbRushScale): the
+ * market prices a scrambler's legs and the features (his rushing averages, shrunk to the QB mean) under-read them
+ * (research/qbrush_track.py).
+ */
+export function qbRushSums({ pid, season, week, passLog, rushLog, ctxOf, floor, topPasser, cache }) {
+  const lo = Math.max(season - 1, floor ?? season - 1);
+  const starts = (passLog.get(pid) ?? []).filter(g => g.season >= lo && (g.season < season || (g.season === season && g.week < week))
+    && g.att >= 10 && (!topPasser || topPasser.has(`${pid}|${g.season}|${g.week}`)));
+  const rushBy = new Map((rushLog.get(pid) ?? []).map(r => [`${r.season}|${r.week}`, r.yds ?? 0]));
+  let rush = 0, base = 0;
+  for (const g of starts) {
+    const key = `${pid}|${g.season}|${g.week}`;
+    let b = cache?.get(key);
+    if (b === undefined) {
+      const c = ctxOf(g.team, g.season, g.week);
+      const f = c && qbYardsFeatures({ pid, season: g.season, week: g.week, passLog, rushLog, implied: c.implied, spread: c.fav, floor, topPasser });
+      b = f && f._games >= 3 ? scoreMu('qbrush', f) : null;      // the research rows start at three prior starts
+      cache?.set(key, b);
+    }
+    if (b == null) continue;
+    rush += rushBy.get(`${g.season}|${g.week}`) ?? 0; base += b;
+  }
+  return { rush, base };
+}
+export function qbRushScale(sums) {
+  const T = M.markets.qbrush.track;
+  return T ? Math.pow((sums.rush + T.k) / (sums.base + T.k), T.b) : 1;
+}
+
 /** Each team-week's leading passer, the definition of a start. */
 export function startKeys(passLog) {
   const top = new Map();

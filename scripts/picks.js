@@ -23,7 +23,7 @@
 import fs from 'node:fs';
 import { REL, fetchText, fetchOptional, parseCsv, num } from './nflverse.js';
 import { loadWind } from './wind.js';
-import { skillYardsFeatures, qbYardsFeatures, startKeys, scoreMu as ydsMu, quantile as ydsQ,
+import { skillYardsFeatures, qbYardsFeatures, startKeys, scoreMu as ydsMu, quantile as ydsQ, qbRushSums, qbRushScale,
          YARDS_MODEL, thinQuantiles, thinTier, thinOver, qMean, qMedian, THIN_MIN_SNAP, recLow } from './yards.js';
 import { kickerFeatures, muFgm, muPat, pOverFgm, pOverPat, pOverPts, contributions as kickParts,
          KICK_LINES, KICKERS_MODEL } from './kickers.js';
@@ -1214,6 +1214,10 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     m.set(g.away, half - edge);
   }
   const impliedOf = (team, y, wk) => ctxBy.get(`${y}|${wk}`)?.get(team);
+  const favBy = new Map();              // `${team}|${y}|${wk}` -> points favoured by (home minus away from the home side)
+  for (const g of scheduleAll) if (g.spread != null) { favBy.set(`${g.home}|${g.season}|${g.week}`, g.spread); favBy.set(`${g.away}|${g.season}|${g.week}`, -g.spread); }
+  const ctxOf = (team, y, wk) => { const i = impliedOf(team, y, wk); return i == null ? null : { implied: i, fav: favBy.get(`${team}|${y}|${wk}`) ?? 0 }; };
+  const qbRushBase = new Map();         // the QB-rush track record's memo
   const recBase = new Map();            // the track record's memo: base projection per player-week
   const recTrack = (pid, position, y, wk) => trackRecord({ pid, position, season: y, week: wk, snapLog, recLog, teamPassLog,
     impliedOf, windowFloor: rzSeasons[0], cache: recBase });
@@ -1478,7 +1482,8 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
       const f = qbYardsFeatures({ pid, season, week, passLog, rushLog, implied: ctx.implied, spread: ctx.fav, floor: rzSeasons[0], topPasser });
       const name = roster.get(pid)?.name ?? pid;
       const thin = f._games < 3;
-      const mp = ydsMu('pass', f), mr = ydsMu('qbrush', f);
+      const mp = ydsMu('pass', f);
+      const mr = ydsMu('qbrush', f) * qbRushScale(qbRushSums({ pid, season, week, passLog, rushLog, ctxOf, floor: rzSeasons[0], topPasser, cache: qbRushBase }));
       yards.pass.push({ ...row0(pid, name, team, 'QB', ctx), m: 'pass', mu: r1(mp), med: r1(ydsQ('pass', mp)),
         f: { avg: r1(f.pyds_prior), att: r1(f.att_prior), l3: r1(f.pyds_l3), implied: r1(ctx.implied), fav: r1(ctx.fav), games: f._games, thin } });
       yards.rush.push({ ...row0(pid, name, team, 'QB', ctx), m: 'qbrush', mu: r1(mr), med: r1(ydsQ('qbrush', mr)),
