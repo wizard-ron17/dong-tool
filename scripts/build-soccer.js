@@ -74,6 +74,7 @@ function linesOf(o) {
 }
 
 async function main() {
+  fs.mkdirSync(new URL('../soccer/', import.meta.url), { recursive: true });   // the first build makes the folder
   const today = etDate();
   // ── 1) The season and its calendar of match days ────────────────────────
   const sb0 = await get(`${SITE}/scoreboard?dates=${compact(today)}`);
