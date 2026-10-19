@@ -120,37 +120,38 @@ def walk(kind):
 
 def over(P, L, pre='p'): return 1 - sum(P[f'{pre}{i}'] for i in range(int(L) + 1))
 
-models = {}
-for kind in ['sh', 'sot']:
-    y_ = MK[kind]['y']
-    print(f"\n════ {'SHOTS' if kind == 'sh' else 'SHOTS ON TARGET'} ════")
-    P = walk(kind); ev = P[P.season > TEST[0]]; y = np.minimum(ev[y_].values, 10)
-    ll = -np.mean(np.log(np.clip(np.choose(y, [ev[f'p{i}'].values for i in range(11)]), 1e-12, 1)))
-    print(f"walk-forward {TEST[1]}-{TEST[-1]}: {len(ev):,} player-games, mean {ev[y_].mean():.3f} vs projected {ev.mu.mean():.3f}, count log lik/row {ll:.4f}")
-    print(f"{'line':>6} {'rate':>6} | {'pre-lineup LL':>13} {'AUC':>6} {'top 10%':>14} | {'lineups-out LL':>14} {'AUC':>6}")
-    for L in MK[kind]['lines']:
-        h = (ev[y_].values > L).astype(int); p = np.clip(over(ev, L).values, 1e-6, 1 - 1e-6); pk = np.clip(over(ev, L, 'k').values, 1e-6, 1 - 1e-6)
-        top = p >= np.quantile(p, .9)
-        print(f"  o{L:<4} {h.mean():6.3f} | {log_loss(h, p):13.5f} {roc_auc_score(h, p):6.3f} {p[top].mean():6.3f}→{h[top].mean():.3f} | {log_loss(h, pk):14.5f} {roc_auc_score(h, pk):6.3f}")
-    L = 1.5 if kind == 'sh' else 0.5
-    p = over(ev, L).values; h = ev[y_].values > L; q = pd.qcut(p, 10, labels=False, duplicates='drop')
-    print(f'calibration o{L} (pre-lineup):', '  '.join(f"{p[q == i].mean():.2f}→{h[q == i].mean():.2f}" for i in range(int(q.max()) + 1)))
-    pk = over(ev, L, 'k').values; q = pd.qcut(pk, 10, labels=False, duplicates='drop')
-    print(f'calibration o{L} (lineups out):', '  '.join(f"{pk[q == i].mean():.2f}→{h[q == i].mean():.2f}" for i in range(int(q.max()) + 1)))
-    for s, g in P.groupby('season'): print(f"  {s}: projected {g.mu.mean():.3f} vs {g[y_].mean():.3f}")
-    M = fit(d, kind); M['lines'] = MK[kind]['lines']
-    M['meta'] = {'walkForward': {'seasons': [int(s) for s in TEST[1:]], 'countLogLik': round(float(ll), 5),
-                 'auc': {str(L): round(roc_auc_score((ev[y_].values > L).astype(int), over(ev, L).values), 4) for L in MK[kind]['lines']}}}
-    models[kind] = M
-    print('export', M['coef'], M['disp'], M['role'])
-
-if '--no-write' not in sys.argv:
-    models['meta'] = {'fitted': pd.Timestamp.now().strftime('%Y-%m-%d'), 'rows': int(len(d)), 'stMin': ST_MIN, 'subMin': SUB_MIN}
-    json.dump(models, open(os.path.join(ROOT, 'soccer/shots-model.json'), 'w'), indent=1)
-    print('\nwrote soccer/shots-model.json')
-    # every row's pre-lineup ladder by the exported models, for the build-side parity check
-    out = d[['gid', 'pid', 'team']].copy()
+if __name__ == '__main__':
+    models = {}
     for kind in ['sh', 'sot']:
-        P, mu = pmf(d, models[kind], kind); out[f'mu_{kind}'] = mu
-        for L in models[kind]['lines']: out[f'{kind}_{L}'] = 1 - P[:int(L) + 1].sum(axis=0)
-    out.to_csv(os.path.join(ROOT, 'research/.cache/soccer/shot_preds.csv'), index=False)
+        y_ = MK[kind]['y']
+        print(f"\n════ {'SHOTS' if kind == 'sh' else 'SHOTS ON TARGET'} ════")
+        P = walk(kind); ev = P[P.season > TEST[0]]; y = np.minimum(ev[y_].values, 10)
+        ll = -np.mean(np.log(np.clip(np.choose(y, [ev[f'p{i}'].values for i in range(11)]), 1e-12, 1)))
+        print(f"walk-forward {TEST[1]}-{TEST[-1]}: {len(ev):,} player-games, mean {ev[y_].mean():.3f} vs projected {ev.mu.mean():.3f}, count log lik/row {ll:.4f}")
+        print(f"{'line':>6} {'rate':>6} | {'pre-lineup LL':>13} {'AUC':>6} {'top 10%':>14} | {'lineups-out LL':>14} {'AUC':>6}")
+        for L in MK[kind]['lines']:
+            h = (ev[y_].values > L).astype(int); p = np.clip(over(ev, L).values, 1e-6, 1 - 1e-6); pk = np.clip(over(ev, L, 'k').values, 1e-6, 1 - 1e-6)
+            top = p >= np.quantile(p, .9)
+            print(f"  o{L:<4} {h.mean():6.3f} | {log_loss(h, p):13.5f} {roc_auc_score(h, p):6.3f} {p[top].mean():6.3f}→{h[top].mean():.3f} | {log_loss(h, pk):14.5f} {roc_auc_score(h, pk):6.3f}")
+        L = 1.5 if kind == 'sh' else 0.5
+        p = over(ev, L).values; h = ev[y_].values > L; q = pd.qcut(p, 10, labels=False, duplicates='drop')
+        print(f'calibration o{L} (pre-lineup):', '  '.join(f"{p[q == i].mean():.2f}→{h[q == i].mean():.2f}" for i in range(int(q.max()) + 1)))
+        pk = over(ev, L, 'k').values; q = pd.qcut(pk, 10, labels=False, duplicates='drop')
+        print(f'calibration o{L} (lineups out):', '  '.join(f"{pk[q == i].mean():.2f}→{h[q == i].mean():.2f}" for i in range(int(q.max()) + 1)))
+        for s, g in P.groupby('season'): print(f"  {s}: projected {g.mu.mean():.3f} vs {g[y_].mean():.3f}")
+        M = fit(d, kind); M['lines'] = MK[kind]['lines']
+        M['meta'] = {'walkForward': {'seasons': [int(s) for s in TEST[1:]], 'countLogLik': round(float(ll), 5),
+                     'auc': {str(L): round(roc_auc_score((ev[y_].values > L).astype(int), over(ev, L).values), 4) for L in MK[kind]['lines']}}}
+        models[kind] = M
+        print('export', M['coef'], M['disp'], M['role'])
+
+    if '--no-write' not in sys.argv:
+        models['meta'] = {'fitted': pd.Timestamp.now().strftime('%Y-%m-%d'), 'rows': int(len(d)), 'stMin': ST_MIN, 'subMin': SUB_MIN}
+        json.dump(models, open(os.path.join(ROOT, 'soccer/shots-model.json'), 'w'), indent=1)
+        print('\nwrote soccer/shots-model.json')
+        # every row's pre-lineup ladder by the exported models, for the build-side parity check
+        out = d[['gid', 'pid', 'team']].copy()
+        for kind in ['sh', 'sot']:
+            P, mu = pmf(d, models[kind], kind); out[f'mu_{kind}'] = mu
+            for L in models[kind]['lines']: out[f'{kind}_{L}'] = 1 - P[:int(L) + 1].sum(axis=0)
+        out.to_csv(os.path.join(ROOT, 'research/.cache/soccer/shot_preds.csv'), index=False)

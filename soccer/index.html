@@ -877,7 +877,7 @@
           open: `openGoalCard('${r.pid}','${g.id}')`, cells: { goal: { p: r.p, open: `openGoalCard('${r.pid}','${g.id}')` },
             ...(r.sh ? { sh: shotCell(r, 'sh'), sot: shotCell(r, 'sot') } : {}), em: { info: true, big: `${r.em.toFixed(0)}'`, sort: r.em } } })) }] }));
       return RonSlate.box({ state: g.state === 'in' ? 'live' : 'pre', teams,
-        note: 'Our price for every player in the rotation to score, and his projected shots and shots on target with the line closest to even and its fair price. Tap a number for the full ladder, a player for his goal price.',
+        note: 'Our price for every player in the rotation, if he plays (books void a player who doesn\'t): to score, and his projected shots and shots on target with the line closest to even and its fair price. Tap a number for the full ladder, a player for his goal price.',
         empty: g.state === 'in' ? 'Live: the box fills in at full time.' : 'Prices post once the game is inside the build\'s window, about four days out.' });
     }
     if (rxState !== 'ready') { loadRecapBox(); return `<div class="empty" style="padding:2rem 0">${rxState === 'error' ? 'Couldn\'t load the player box.' : 'Loading…'}</div>`; }
@@ -1183,7 +1183,7 @@
       ['Sort', [['p', 'Shortest price'], ['em', 'Expected minutes'], ['sh90', 'Shots / 90'], ['imp', 'Team goals']].map(([v, l]) => uiChip('setGoalsF', 'sort', v, l, gF.sort)).join('')],
     ], changed) + uiSearch('goals-search', 'setGoalsF', gF.q, 'Search a player, team or position…');
     const ad = activeDay();
-    const meta = `<div class="result-meta"><b>${ad ? dayLabel(ad.day, true) : "Each team's next game"}</b> · ${rows.length} players${gF.q ? '' : ` at ${Math.round(GOAL_MIN * 100)}%+`} · ${games.length} game${games.length === 1 ? '' : 's'} · anytime goal, fair odds, no vig</div>` + uiView('setGoalsF', gF.view);
+    const meta = `<div class="result-meta"><b>${ad ? dayLabel(ad.day, true) : "Each team's next game"}</b> · ${rows.length} players${gF.q ? '' : ` at ${Math.round(GOAL_MIN * 100)}%+`} · ${games.length} game${games.length === 1 ? '' : 's'} · anytime goal if he plays, fair odds, no vig</div>` + uiView('setGoalsF', gF.view);
     if (!rows.length) { el.innerHTML = dayBar() + controls + meta + '<div class="empty">Nothing matches that filter.</div>'; return; }
     const open = (r) => `openGoalCard('${r.pid}','${r.gid}')`;
     const started = (r) => new Date(r.start) <= new Date();
@@ -1223,7 +1223,7 @@
         </div>`).join('')}</div>`;
     }
     const M = G.model;
-    el.innerHTML = dayBar() + controls + meta + body + `<div class="t3-note">Priced off his expected minutes (his last five games for this team), his shots, shots on target and goals per 90 (shrunk toward his position's, so a hot month counts for a little), the goals the line expects from his team, and his share of its penalties. A price is a mix of his roles: he starts, comes off the bench, or sits. When lineups post, about an hour before kickoff, the role is known: a player outside the matchday squad drops off, the rest are tagged XI or bench, and every price sharpens.${M ? ` Walk-forward over ${M.seasons[0]}–${M.seasons[M.seasons.length - 1]} (each season priced by a model fitted only on the seasons before it): AUC ${M.auc.toFixed(3)} before the lineups${M.aucKnown ? `, ${M.aucKnown.toFixed(3)} once they post` : ''}, calibrated within a point or two from 1% to 50%.` : ''}</div>`;
+    el.innerHTML = dayBar() + controls + meta + body + `<div class="t3-note">Priced off his expected minutes (his last five games for this team), his shots, shots on target and goals per 90 (shrunk toward his position's, so a hot month counts for a little), the goals the line expects from his team, and his share of its penalties. Every price is <b>if he plays</b>: books void a player prop when he doesn't take part, so his chance of sitting is taken out. It's a mix of the two ways he plays: he starts, or comes off the bench. When lineups post, about an hour before kickoff, the role is known: a player outside the matchday squad drops off, the rest are tagged XI or bench, and every price sharpens.${M ? ` Walk-forward over ${M.seasons[0]}–${M.seasons[M.seasons.length - 1]} (each season priced by a model fitted only on the seasons before it): AUC ${M.auc.toFixed(3)} before the lineups${M.aucKnown ? `, ${M.aucKnown.toFixed(3)} once they post` : ''}, calibrated within a point or two from 1% to 50%.` : ''}</div>`;
   }
   // ── What moves a goal price: the tornado (as /nhl's goal card) ─────────
   // Each factor is a multiplier on his expected goals against a reference
@@ -1237,7 +1237,7 @@
     ['finish', 'Finishing', (r) => `${r.g90.toFixed(2)} non-penalty goals / 90`, "His non-penalty goals per 90 (shrunk hard toward his position's: finishing is mostly noise), against the league"],
     ['team', 'Team goals', (r) => r.imp != null ? `${r.imp.toFixed(2)} off the line` : 'no line yet', 'The goals the line (1X2 + total, devigged) expects his team to score, against the league average'],
     ['pens', 'Penalties', (r) => r.pk ? `${Math.round(r.pk * 100)}% of his team's last ${r.pkN}` : 'not his', "His share of his team's recent penalties"],
-    ['role', 'Role', (r) => r.ps != null ? `${Math.round(r.ps * 100)}% to start · ${Math.round((r.pb || 0) * 100)}% off the bench` : 'start and bench chances', 'His chances of starting or coming on (known once the lineups post), and the calibration: everything above is his goals if he starts'],
+    ['role', 'Role', (r) => r.ps != null ? `${Math.round(r.ps / (r.ps + (r.pb || 0)) * 100)}% of the time he plays, he starts` : 'start or bench', 'If he plays, how often it is as a starter rather than off the bench (known once the lineups post), and the calibration: everything above is his goals if he starts'],
     ['home', 'Home', (r) => r.home ? 'at home' : 'away', 'Home teams score a touch more'],
   ];
   const fxTone = (m) => m >= 1.03 ? 'pos' : m <= 0.97 ? 'neg' : 'mid';
@@ -1300,7 +1300,7 @@
       <div class="pm-hero">${faceHtml(r.pid, r.name, r.hs)}
         <div class="pm-id"><div class="pm-nm">${esc(r.name)}</div>
           <div class="pm-meta">${posBadge(r.pos)} ${xiTag(r)} <b>${esc(r.team)}</b> ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${dayLabel(etDay(r.start))} ${gameTime(r.start)}</div></div>
-        <div class="pm-hero-price"><div class="pm-hero-od${r.p < 0.5 ? ' dog' : ''}">${Odds.am(r.p)}</div><div class="pm-hero-lbl">to score · ${Odds.pct(r.p)}</div></div>
+        <div class="pm-hero-price"><div class="pm-hero-od${r.p < 0.5 ? ' dog' : ''}">${Odds.am(r.p)}</div><div class="pm-hero-lbl">to score if he plays · ${Odds.pct(r.p)}</div></div>
       </div>
       <div class="pm-body">
         ${r.fx ? `<div class="pm-sec">What moves the price</div>${goalTornado(r)}` : ''}
@@ -1316,7 +1316,7 @@
           ${stat(r.mu.toFixed(2), 'Exp. goals', 'The model\'s goal count for him in this game')}
         </div>
         <p class="pm-foot">Over his last ${r.apps} appearances: <b>${r.np}</b> non-penalty goal${r.np === 1 ? '' : 's'} and <b>${r.shots ?? '—'}</b> shots in ${r.min.toLocaleString()} minutes.
-          ${sharePk >= 0.05 ? ` About ${Math.round(sharePk * 100)}% of his price is penalties.` : ''}${r.noLine ? ' No line on this game yet: his team is priced at the league\'s average goals.' : ''}
+          ${r.play != null ? ` He plays in <b>${Math.round(r.play * 100)}%</b> of games like this; the price is if he does (a book voids the bet if he doesn't).` : ''}${sharePk >= 0.05 ? ` About ${Math.round(sharePk * 100)}% of his price is penalties.` : ''}${r.noLine ? ' No line on this game yet: his team is priced at the league\'s average goals.' : ''}
           ${r.xi ? ` Lineups are out: he's ${r.xi === 'XI' ? 'in the starting XI' : 'on the bench'}, and the price knows it.` : ''}</p>
       </div>`;
     RonModal.navState('gc-back', gcAt, gcDeck.length);
@@ -1369,7 +1369,7 @@
       ['Sort', [['mu', 'Projection'], ['odds', 'Shortest price'], ['ps', 'Most likely to start'], ['opp', 'Softest opponent']].map(([v, l]) => uiChip('setShotsF', 'sort', v, l, sF.sort)).join('')],
     ], changed) + uiSearch('shots-search', 'setShotsF', sF.q, 'Search a player, team or position…');
     const ad = activeDay();
-    const meta = `<div class="result-meta"><b>${ad ? dayLabel(ad.day, true) : "Each team's next game"}</b> · ${rows.length} players · ${C.unit}, ${sF.line === 'auto' ? 'his line closest to even' : 'o' + sF.line} · ${sF.side} · fair odds, no vig</div>` + uiView('setShotsF', sF.view);
+    const meta = `<div class="result-meta"><b>${ad ? dayLabel(ad.day, true) : "Each team's next game"}</b> · ${rows.length} players · ${C.unit}, ${sF.line === 'auto' ? 'his line closest to even' : 'o' + sF.line} · ${sF.side} · if he plays, fair odds, no vig</div>` + uiView('setShotsF', sF.view);
     if (!rows.length) { el.innerHTML = tabs + dayBar() + controls + meta + '<div class="empty">Nothing matches that filter.</div>'; return; }
     const open = (r) => `openShotCard('${k}','${r.pid}')`;
     const started = (r) => new Date(r.start) <= new Date();
@@ -1411,7 +1411,7 @@
         </div>`).join('')}</div>`;
     }
     const W = G.shotsModel?.[k];
-    el.innerHTML = tabs + dayBar() + controls + meta + body + `<div class="t3-note">Each player for his team's next game. A shot count is a mix of three games: he starts, he comes off the bench, or he sits (0). Given the role, it's his ${k === 'sh' ? 'shots' : 'shots on target'} per 90 (shrunk toward his position's) over the minutes that role gets him, against the shots the opponent allows, home or away. Once lineups post, about an hour before kickoff, the role is known and the prices move.${W ? ` Walk-forward ${W.seasons[0]}–${W.seasons[W.seasons.length - 1]}: AUC ${(W.auc?.[k === 'sh' ? '1.5' : '0.5'] ?? 0).toFixed(3)} at o${k === 'sh' ? '1.5' : '0.5'}; calibrated within a point or two except the very top (stars start, and shoot, a little more than it says before the lineups post).` : ''}</div>`;
+    el.innerHTML = tabs + dayBar() + controls + meta + body + `<div class="t3-note">Each player for his team's next game. Every price is <b>if he plays</b> (books void a player who doesn't take part): a mix of him starting and him coming off the bench. Given the role, it's his ${k === 'sh' ? 'shots' : 'shots on target'} per 90 (shrunk toward his position's) over the minutes that role gets him, against the shots the opponent allows, home or away. Once lineups post, about an hour before kickoff, the role is known and the prices move.${W ? ` Walk-forward ${W.seasons[0]}–${W.seasons[W.seasons.length - 1]}: AUC ${(W.auc?.[k === 'sh' ? '1.5' : '0.5'] ?? 0).toFixed(3)} at o${k === 'sh' ? '1.5' : '0.5'}; calibrated within a point or two except the very top (stars start, and shoot, a little more than it says before the lineups post).` : ''}</div>`;
   }
 
   // ── The ladder card (/ladder.js): the distribution, over/under, every line ──
@@ -1476,7 +1476,7 @@
           <div class="ydl">${side.ladder}</div>
         </div></aside>
       </div>
-      <footer class="ydm-tip">${ico(I.bulb)}<span>${p10 != null && p90 != null ? p10 === p90 ? `Most games land at <b>${p10}</b> ${C.unit}. ` : `Most games land between <b>${p10}</b> and <b>${p90}</b> ${C.unit}. ` : ''}${Math.round(S.ps * 100)}% to start, ${Math.round(S.pb * 100)}% to come off the bench, ${Math.max(0, Math.round((1 - S.ps - S.pb) * 100))}% to sit: if he starts, ${S.muSt.toFixed(1)} projected; off the bench, ${S.muSub.toFixed(1)}. Fair odds, no vig.</span></footer>`;
+      <footer class="ydm-tip">${ico(I.bulb)}<span>${p10 != null && p90 != null ? p10 === p90 ? `Most games land at <b>${p10}</b> ${C.unit}. ` : `Most games land between <b>${p10}</b> and <b>${p90}</b> ${C.unit}. ` : ''}Priced if he plays (a book voids the bet if he doesn't): ${Math.round(S.ps / Math.max(S.ps + S.pb, 1e-9) * 100)}% of the time he plays, he starts. If he starts, ${S.muSt.toFixed(1)} projected; off the bench, ${S.muSub.toFixed(1)}. Fair odds, no vig.</span></footer>`;
     RonModal.navState('lc-back', at, deck.length);
     RonLadder.center();
   }
