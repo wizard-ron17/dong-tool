@@ -48,7 +48,12 @@ export function reduceSummary(s, f) {
 
   // goals in order: the benefiting team (an own goal is credited to the other side), scorer, the assist
   const goals = []; let h = 0, a = 0;
-  const pens = {};
+  const pens = {}, pka = {};
+  // every penalty taken in play (scored, saved, missed): who takes them is the penalty term's input
+  for (const k of KE) {
+    if (isShootout(k) || !/penalty/i.test(String(k.type?.text || '')) || /awarded|conceded|won/i.test(String(k.type?.text || ''))) continue;
+    const pid = k.participants?.[0]?.athlete?.id; if (pid) pka[pid] = (pka[pid] || 0) + 1;
+  }
   for (const k of KE) {
     if (!k.scoringPlay || isShootout(k)) continue;
     const team = abOf[k.team?.id]; if (!team) continue;
@@ -63,18 +68,18 @@ export function reduceSummary(s, f) {
       kind: og ? 'Own goal' : pen ? 'Penalty' : txt.replace(/^Goal\s*-?\s*/i, '').trim(), h, a });
   }
 
-  const players = [];
+  const players = [], bench = {};
   for (const r of s.rosters || []) {
     const ab = r.team?.abbreviation;
     for (const x of r.roster || []) {
       const pid = x.athlete?.id; if (!pid) continue;
-      if (!x.starter && !x.subbedIn) continue;   // an unused sub
+      if (!x.starter && !x.subbedIn) { (bench[ab] ||= []).push(pid); continue; }   // an unused sub: in the squad, didn't play
       const st = Object.fromEntries((x.stats || []).map(v => [v.name, v.value]));
       const on = x.starter ? 0 : (subIn[pid] ?? len);
       const off = Math.min(subOut[pid] ?? len, sentOff[pid] ?? len);
       players.push({ pid, name: x.athlete.displayName, hs: x.athlete.headshot ? 1 : 0, team: ab, gpos: x.position?.abbreviation || '', starter: !!x.starter,
         min: Math.max(1, off - on), g: num(st.totalGoals), a: num(st.goalAssists), sh: num(st.totalShots), sot: num(st.shotsOnTarget),
-        yc: num(st.yellowCards), rc: num(st.redCards), og: num(st.ownGoals), pk: pens[pid] || 0 });
+        yc: num(st.yellowCards), rc: num(st.redCards), og: num(st.ownGoals), pk: pens[pid] || 0, pka: pka[pid] || 0 });
     }
   }
 
@@ -87,7 +92,7 @@ export function reduceSummary(s, f) {
   return { id: f.id, date: f.date, slug: f.slug, len,
     home: { ab: side.home?.team?.abbreviation, score: num(side.home?.score) },
     away: { ab: side.away?.team?.abbreviation, score: num(side.away?.score) },
-    players, goals, box };
+    players, bench, goals, box };
 }
 
 export function freshState(season, prev) {

@@ -14,6 +14,8 @@
 import fs from 'node:fs';
 import { get, pool, SITE, SITE2, etDate, shiftDate, compact } from './soccer-api.js';
 import { reduceSummary, freshState, applyGame, posFam, STATE_VERSION } from './soccer-state.js';
+import { am2p, devig, impliedGoals } from './soccer-lines.js';
+import { freshGoalState, applyGoalGame, goalFeatures, goalPrice, GOALS_VERSION } from './soccer-goals.js';
 
 const AHEAD = 14;        // schedule days ahead (a week has a weekend and maybe a midweek round)
 const BEHIND = 4;        // ...and behind (last weekend's finals stay on the schedule)
@@ -23,37 +25,16 @@ const STATE_PATH = new URL('../soccer/players.json', import.meta.url);
 const RECAP_PATH = new URL('../soccer/recap.json', import.meta.url);
 const DAYS_PATH = new URL('../soccer/league-days.json', import.meta.url);
 const OUT = new URL('../soccer/data.json', import.meta.url);
+const GOAL_STATE = new URL('../soccer/goal-state.json', import.meta.url);   // the goal model's history (soccer-goals.js)
+const GOAL_MODEL = new URL('../soccer/goals-model.json', import.meta.url);  // research/soccer_goals.py
+const GOAL_HIST = new URL('../soccer/goals-history.json', import.meta.url); // each game's last pre-kickoff prices, for grading
+const SEED_SEASONS = 2;    // the goal history starts this many seasons back (a player's last 40 appearances)
+const HIST_DAYS = 35;      // graded prices kept
 
 const readJSON = (u, d) => { try { return JSON.parse(fs.readFileSync(u, 'utf8')); } catch (e) { return d; } };
 const num = (v) => { const x = parseFloat(v); return Number.isFinite(x) ? x : null; };
 
-// ── Lines: DraftKings' three-way moneyline and total, devigged, and the goals they imply ──
-const am2p = (o) => { const x = num(o); return x == null ? null : x > 0 ? 100 / (x + 100) : -x / (-x + 100); };
-/** Power devig: the k that makes the prices' p^k sum to one (research/devig_study.py: power is best or tied). */
-function devig(ps) {
-  if (ps.some(p => p == null)) return null;
-  let lo = 0.5, hi = 2;
-  for (let i = 0; i < 60; i++) { const k = (lo + hi) / 2, s = ps.reduce((a, p) => a + p ** k, 0); if (s > 1) lo = k; else hi = k; }
-  const k = (lo + hi) / 2; return ps.map(p => p ** k);
-}
-const pois = (l, K = 12) => { const o = [Math.exp(-l)]; for (let i = 1; i <= K; i++) o.push(o[i - 1] * l / i); return o; };
-/** The goal model's outcome probabilities for (home, away) means: win/draw/win and the over at line L (pushes dropped, quarter lines split). */
-function outcome(lh, la, L) {
-  const H = pois(lh), A = pois(la); let ph = 0, pd = 0, pa = 0; const tot = new Array(26).fill(0);
-  for (let i = 0; i < H.length; i++) for (let j = 0; j < A.length; j++) { const p = H[i] * A[j]; if (i > j) ph += p; else if (i === j) pd += p; else pa += p; tot[i + j] += p; }
-  const over = (x) => { let o = 0, u = 0; for (let t = 0; t < tot.length; t++) { if (t > x) o += tot[t]; else if (t < x) u += tot[t]; } return o / (o + u); };
-  const q = L * 4 % 2 === 1 ? (over(L - 0.25) + over(L + 0.25)) / 2 : over(L);
-  return { ph, pd, pa, over: q };
-}
-/** The (home, away) goal means that best reproduce the devigged 1X2 and total: a coarse grid, then a fine one. */
-function impliedGoals(P, L, pOver) {
-  const err = (lh, la) => { const o = outcome(lh, la, L); return (o.ph - P[0]) ** 2 + (o.pd - P[1]) ** 2 + (o.pa - P[2]) ** 2 + (pOver == null ? 0 : (o.over - pOver) ** 2); };
-  let best = [1.4, 1.1], be = Infinity;
-  for (let lh = 0.2; lh <= 4; lh += 0.05) for (let la = 0.2; la <= 4; la += 0.05) { const e = err(lh, la); if (e < be) { be = e; best = [lh, la]; } }
-  const [h0, a0] = best;
-  for (let lh = h0 - 0.05; lh <= h0 + 0.05; lh += 0.005) for (let la = a0 - 0.05; la <= a0 + 0.05; la += 0.005) { const e = err(lh, la); if (e < be) { be = e; best = [lh, la]; } }
-  return best.map(x => +x.toFixed(2));
-}
+// DraftKings' three-way moneyline and total off the scoreboard, devigged, and the goals they imply
 function linesOf(o) {
   if (!o) return null;
   const close = (x) => x?.close?.odds ?? x?.open?.odds;
@@ -154,6 +135,28 @@ async function main() {
   }));
   let applied = 0;
   for (const f of todo) { const r = got.get(f.id); if (r) { applyGame(state, r); applied++; } }
+
+  // ── 4b) The goal model's history: two seasons back on the first run, then new finals ──
+  let GS = readJSON(GOAL_STATE, null);
+  if (!GS || GS.version !== GOALS_VERSION) {
+    GS = freshGoalState();
+    const yr = +season.slice(0, 4) || +today.slice(0, 4), seed = [];
+    for (let y = yr - SEED_SEASONS; y <= yr; y++) {
+      const cal = y === yr ? calendar : [...new Set(((await get(`${SITE}/scoreboard?dates=${y}0510`)).leagues?.[0]?.calendar || [])
+        .map(d => (typeof d === 'string' ? d : d.startDate || '').slice(0, 10)))].filter(d => d.startsWith(String(y)));
+      const evs = (await pool(cal.filter(d => d <= today), 6, async (d) => { try { return (await get(`${SITE}/scoreboard?dates=${compact(d)}`)).events || []; } catch (e) { return []; } })).flat();
+      seed.push(...evs.filter(e => e.competitions?.[0]?.status?.type?.state === 'post').map(e => ({ id: e.id, date: etDate(new Date(e.date)), start: e.date, slug: e.season?.slug || null })));
+    }
+    const uniq = [...new Map(seed.map(f => [f.id, f])).values()].sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id));
+    const red = await pool(uniq, 6, async (f) => got.get(f.id) || (await get(`${SITE}/summary?event=${f.id}`).then(s => reduceSummary(s, f)).catch(() => null)));
+    for (const r of red) if (r) applyGoalGame(GS, r);
+    console.log(`Goal history seeded: ${red.filter(Boolean).length} finals since ${SEED_SEASONS} seasons back`);
+  } else {
+    for (const f of finals) { const r = got.get(f.id); if (r) applyGoalGame(GS, r); }   // applyGoalGame skips a game it has
+  }
+  // a player not seen in 400 days has left the league's rotations
+  const cut = shiftDate(today, -400);
+  for (const [pid, P] of Object.entries(GS.players)) if (!(P.apps.at(-1)?.[1] >= cut)) delete GS.players[pid];
   console.log(`Player state: ${applied}/${todo.length} new finals applied (${state.done.length} this season)`);
 
   // ── 5) Recap: the last four weeks of finals ─────────────────────────────
@@ -183,6 +186,59 @@ async function main() {
   fs.writeFileSync(DAYS_PATH, JSON.stringify(days));
   console.log(`League days: ${Object.keys(days.games).length} regular-season finals logged`);
 
+  // ── 6b) Goals: every player in a rotation on the next round, priced to score ──
+  // The window: the first day with a game still to play and the four after it
+  // (a midweek game and the weekend after it, or a weekend and the Wednesday). Priced off current squads and each side's
+  // goals off the line; a started game's rows are frozen as they stood before
+  // kickoff. Lineups post about an hour out: once they do, a player outside the
+  // matchday squad drops off and the rest are tagged XI / bench (the price is
+  // still the pre-lineup model's).
+  const GM = readJSON(GOAL_MODEL, null);
+  let goals = null;
+  if (GM) {
+    const first = schedule.find(g => g.state === 'pre' && g.date >= today)?.date;
+    const round = first ? schedule.filter(g => g.date >= first && g.date <= shiftDate(first, 4)) : [];
+    const prevData = readJSON(OUT, {});
+    const frozen = prevData.goals?.rows || [];
+    const rows = [];
+    for (const g of round) {
+      if (g.state !== 'pre') { rows.push(...frozen.filter(r => r.gid === g.id)); continue; }
+      let squads = null;                                     // the matchday squads, once posted
+      if (Date.parse(g.start) - Date.now() < 3 * 3600e3) {
+        try {
+          const s = await get(`${SITE}/summary?event=${g.id}`);
+          const R = (s.rosters || []).filter(r => r.roster?.length);
+          if (R.length === 2) squads = Object.fromEntries(R.map(r => [r.team?.abbreviation, new Map(r.roster.map(x => [x.athlete?.id, x.starter ? 'XI' : 'bench']))]));
+        } catch (e) { /* no lineups yet */ }
+      }
+      for (const [ab, opp, home] of [[g.home.ab, g.away.ab, true], [g.away.ab, g.home.ab, false]]) {
+        const imp = g.lines?.impHome != null ? (home ? g.lines.impHome : g.lines.impAway) : null;
+        for (const a of rosters.get(ab) || []) {
+          const f = goalFeatures(GS, a.id, ab); if (!f) continue;
+          const xi = squads?.[ab] ? squads[ab].get(a.id) || 'out' : null;
+          if (xi === 'out') continue;
+          const P = goalPrice(f, { imp, home }, GM);
+          rows.push({ gid: g.id, start: g.start, pid: a.id, name: a.displayName, team: ab, opp, home, pos: squad[a.id]?.pos || f.pos, hs: squad[a.id]?.hs || 0,
+            p: +P.p.toFixed(4), mu: +P.mu.toFixed(3), muPk: +P.muPk.toFixed(3), em: +P.x.em.toFixed(1), st5: f.st5, imp, noLine: imp == null ? 1 : 0, xi,
+            g90: +P.x.g90.toFixed(3), sh90: +P.x.sh90.toFixed(2), sot90: +P.x.sot90.toFixed(2), pk: +(f.pkShare || 0).toFixed(2), pkN: f.pkN,
+            apps: f.apps, np: f.np, sh: f.sh, sot: f.sot, min: f.min });
+        }
+      }
+    }
+    rows.sort((a, b) => b.p - a.p);
+    goals = { from: first || null, to: round.at(-1)?.date || null, generated: new Date().toISOString(),
+      model: GM.meta?.walkForward || null, rows };
+    // the last pre-kickoff price of every priced player, by date and game: Recap and Schedule grade off it
+    const H = readJSON(GOAL_HIST, { days: {} });
+    for (const r of rows) if (new Date(r.start) > new Date()) {
+      const d = etDate(new Date(r.start));
+      ((H.days[d] ||= {})[r.gid] ||= {})[r.pid] = r.p;
+    }
+    for (const d of Object.keys(H.days)) if (d < shiftDate(today, -HIST_DAYS)) delete H.days[d];
+    fs.writeFileSync(GOAL_HIST, JSON.stringify(H));
+    console.log(`Goals: ${rows.length} players priced across ${round.length} games (${first || 'no round'}), top ${rows[0] ? `${rows[0].name} ${(rows[0].p * 100).toFixed(1)}%` : '—'}`);
+  } else console.log('Goals: no soccer/goals-model.json, board skipped');
+
   // ── 7) Leaders: season totals; last season's until 30 players have played ─
   const played = Object.entries(state.players).filter(([, p]) => p.gp > 0);
   const fromPrev = played.length < 30 && state.prev;
@@ -198,9 +254,10 @@ async function main() {
   leaders.push(...src.filter(([pid, p]) => p.min > 0 && !inTop.has(pid) && (p.sh >= 10 || p.a >= 2 || p.min >= 900)).map(row));
 
   const data = { generated: new Date().toISOString(), today, league: 'MLS', season, seasonStart, calendar, nextDay,
-    leadersFrom: fromPrev ? state.prev.season : season, teams, schedule, recap, leaders };
+    leadersFrom: fromPrev ? state.prev.season : season, teams, schedule, recap, leaders, goals };
   fs.writeFileSync(OUT, JSON.stringify(data));
   fs.writeFileSync(STATE_PATH, JSON.stringify(state));
+  fs.writeFileSync(GOAL_STATE, JSON.stringify(GS));
   console.log(`Wrote soccer/data.json — ${Object.keys(teams).length} teams, ${schedule.length} scheduled, ${recap.length} recapped, ${leaders.length} players (${fromPrev ? 'last season' : 'this season'})`);
 }
 
