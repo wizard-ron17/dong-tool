@@ -1,4 +1,4 @@
-// Ron's Goal Tool — NHL data build. Mirrors build-nfl.js: fetch the open NHL
+// Ron's Puck Tool — NHL data build. Mirrors build-nfl.js: fetch the open NHL
 // endpoints (no key), shape them, write nhl/data.json. Sources:
 //   /stats/rest/en/season            -> which season we're in, and its dates
 //   api-web /standings/now           -> every team's record, for schedule rows

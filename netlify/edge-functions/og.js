@@ -13,8 +13,9 @@ const DATA_RAW = 'https://raw.githubusercontent.com/wizard-ron17/dong-tool/main'
 const APP = {
   mlb: { name: ['Ron\'s', 'Dong', 'Tool'], logo: '/icons/icon-512.png', card: '/icons/og-mlb.png' },
   nfl: { name: ['Ron\'s', 'Tud', 'Tool'], logo: '/icons/nfl-icon-512.png', card: '/icons/og-nfl.png' },
-  nhl: { name: ['Ron\'s', 'Goal', 'Tool'], logo: '/icons/nhl-icon-512.png', card: '/icons/og-nhl.png' },
+  nhl: { name: ['Ron\'s', 'Puck', 'Tool'], logo: '/icons/nhl-icon-512.png', card: '/icons/og-nhl.png' },
   nba: { name: ['Ron\'s', 'Hoop', 'Tool'], logo: '/icons/nba-icon-512.png', card: '/icons/og-nba.png' },
+  soccer: { name: ['Ron\'s', 'Goal', 'Tool'], logo: '/icons/soccer-icon-512.png', card: '/icons/og-soccer.png' },
 };
 const G = '#33d07c', BG = '#05080f', INK = '#e8edf5', MUTED = '#8a94a6';
 
@@ -190,7 +191,7 @@ function card(app, B, path, logo, faces) {
 
 export default async (request) => {
   const url = new URL(request.url);
-  const m = url.pathname.match(/^\/og\/(mlb|nfl|nhl|nba)\/([a-z-]*)\.png$/);
+  const m = url.pathname.match(/^\/og\/(mlb|nfl|nhl|nba|soccer)\/([a-z-]*)\.png$/);
   const app = m && APP[m[1]];
   if (!app) return new Response('not found', { status: 404 });
   const [, sport, tool] = m;

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Regenerate the Goal Tool icon set from Ron's puck drawing.
+# Regenerate the Puck Tool icon set from Ron's puck drawing.
 #
 # icons/nhl-logo.svg is the only vector kept in the repo; every PNG below is
 # derived from it. Needs rsvg-convert and ImageMagick (brew install librsvg imagemagick).

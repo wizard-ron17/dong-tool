@@ -33,8 +33,8 @@ const ROUTES = {
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-// The multi-sport landing + the Tud, Goal and Hoop Tools live outside the MLB (/mlb) route tree.
-const LANDING = { title: "Ron's Tools", desc: "Pick your sport — MLB home runs, strikeouts and walks; NFL touchdowns and yards; NHL goals, shots, saves and hits; NBA threes, points, rebounds and assists. Every prop priced, with parlays and line movement. Inspired by Green Means Go." };
+// The multi-sport landing + the Tud, Puck, Hoop and Goal Tools live outside the MLB (/mlb) route tree.
+const LANDING = { title: "Ron's Tools", desc: "Pick your sport — MLB home runs, strikeouts and walks; NFL touchdowns and yards; NHL goals, shots, saves and hits; NBA threes, points, rebounds and assists; MLS lines and goals. Every prop priced, with parlays and line movement. Inspired by Green Means Go." };
 const NFL_ROUTES = {
   '':      { title: "Ron's Tud Tool", desc: "NFL player props, every line priced — anytime touchdowns, yards, receptions, completions, interceptions and kickers — plus fantasy projections, same-game parlays and a touchdown recap with replays." },
   fantasy: { title: "Fantasy · Ron's Tud Tool", desc: "Half-PPR fantasy points for every player on the slate, added up from our own stat projections — receptions, yards, touchdowns, passing and picks." },
@@ -60,21 +60,21 @@ const NFL_ROUTES = {
 };
 
 const NHL_ROUTES = {
-  '':         { title: "Ron's Goal Tool", desc: "NHL player props, every line priced — anytime goals, points, shots on goal, saves, hits and blocked shots — plus parlays, live win probability and a goal-by-goal recap with clips." },
-  picks:      { title: "Goal Picks · Ron's Goal Tool", desc: "Every skater on the slate priced to score — anytime, 2+, first goal, last goal, first period and power-play goal." },
-  points:     { title: "Points · Ron's Goal Tool", desc: "Projected points, assists and power-play points for every skater, priced at every line." },
-  shots:      { title: "Shots on Goal · Ron's Goal Tool", desc: "Projected shots on goal for every skater, priced at every line — with a nightly Results tab." },
-  hits:       { title: "Hits · Ron's Goal Tool", desc: "Projected hits for every skater, priced at every line — with each rink's scorekeeper built in." },
-  blocks:     { title: "Blocked Shots · Ron's Goal Tool", desc: "Projected blocked shots for every skater, priced at every line — defencemen and penalty-killers first." },
-  saves:      { title: "Saves · Ron's Goal Tool", desc: "Projected saves for every projected starting goalie, priced at every line." },
-  allowed:    { title: "Goals Allowed · Ron's Goal Tool", desc: "Projected goals against for every projected starting goalie, priced at every line." },
-  pairs:      { title: "Pairs · Ron's Goal Tool", desc: "Which skaters score together and who sets up whom — priced with the correlation straight multiplication misses." },
-  due:        { title: "Due · Ron's Goal Tool", desc: "Goal droughts on tonight's board — games, shots and ice time since his last goal (and why nobody is owed one)." },
-  milestones: { title: "Milestones · Ron's Goal Tool", desc: "Who's closing on a round number — career goals, assists, points, games and goalie wins — and who just got there 🏆." },
-  birthdays:  { title: "Birthdays · Ron's Goal Tool", desc: "Who's celebrating this week, who plays on the day, and whether birthday boys actually score 🎂." },
-  stats:      { title: "Leaders · Ron's Goal Tool", desc: "Season skater and goalie leaders — goals, points, shots, ice time, save percentage and GAA." },
-  recap:      { title: "Goal Recap · Ron's Goal Tool", desc: "Every goal of the night, game by game — scorer, assists, distance, shot speed and the clip." },
-  schedule:   { title: "Schedule · Ron's Goal Tool", desc: "Every game with its DraftKings lines and line movement, our favourite to score, projections, the matchup, and live win probability." },
+  '':         { title: "Ron's Puck Tool", desc: "NHL player props, every line priced — anytime goals, points, shots on goal, saves, hits and blocked shots — plus parlays, live win probability and a goal-by-goal recap with clips." },
+  picks:      { title: "Goal Picks · Ron's Puck Tool", desc: "Every skater on the slate priced to score — anytime, 2+, first goal, last goal, first period and power-play goal." },
+  points:     { title: "Points · Ron's Puck Tool", desc: "Projected points, assists and power-play points for every skater, priced at every line." },
+  shots:      { title: "Shots on Goal · Ron's Puck Tool", desc: "Projected shots on goal for every skater, priced at every line — with a nightly Results tab." },
+  hits:       { title: "Hits · Ron's Puck Tool", desc: "Projected hits for every skater, priced at every line — with each rink's scorekeeper built in." },
+  blocks:     { title: "Blocked Shots · Ron's Puck Tool", desc: "Projected blocked shots for every skater, priced at every line — defencemen and penalty-killers first." },
+  saves:      { title: "Saves · Ron's Puck Tool", desc: "Projected saves for every projected starting goalie, priced at every line." },
+  allowed:    { title: "Goals Allowed · Ron's Puck Tool", desc: "Projected goals against for every projected starting goalie, priced at every line." },
+  pairs:      { title: "Pairs · Ron's Puck Tool", desc: "Which skaters score together and who sets up whom — priced with the correlation straight multiplication misses." },
+  due:        { title: "Due · Ron's Puck Tool", desc: "Goal droughts on tonight's board — games, shots and ice time since his last goal (and why nobody is owed one)." },
+  milestones: { title: "Milestones · Ron's Puck Tool", desc: "Who's closing on a round number — career goals, assists, points, games and goalie wins — and who just got there 🏆." },
+  birthdays:  { title: "Birthdays · Ron's Puck Tool", desc: "Who's celebrating this week, who plays on the day, and whether birthday boys actually score 🎂." },
+  stats:      { title: "Leaders · Ron's Puck Tool", desc: "Season skater and goalie leaders — goals, points, shots, ice time, save percentage and GAA." },
+  recap:      { title: "Goal Recap · Ron's Puck Tool", desc: "Every goal of the night, game by game — scorer, assists, distance, shot speed and the clip." },
+  schedule:   { title: "Schedule · Ron's Puck Tool", desc: "Every game with its DraftKings lines and line movement, our favourite to score, projections, the matchup, and live win probability." },
 };
 
 const NBA_ROUTES = {
@@ -93,6 +93,13 @@ const NBA_ROUTES = {
   schedule:   { title: "Schedule · Ron's Hoop Tool", desc: "Every game with its spread and total, each game's top threes pick, and the matchup." },
 };
 
+const SOCCER_ROUTES = {
+  '':         { title: "Ron's Goal Tool", desc: "MLS, game by game: the schedule with DraftKings' lines and the goals they imply, every goal of the weekend, and the season's scorers and shooters. Goals and shots props are next." },
+  stats:      { title: "Leaders · Ron's Goal Tool", desc: "MLS season leaders — goals, assists, shots, shots on target and per-90 rates — plus the league's goals-per-game trend." },
+  recap:      { title: "Recap · Ron's Goal Tool", desc: "Every MLS goal of the day, game by game — scorer, assist, the running score — with the team box and who shot." },
+  schedule:   { title: "Schedule · Ron's Goal Tool", desc: "Every MLS game with its three-way moneyline, total and the goals each side is expected to score, plus form and the box score." },
+};
+
 const MODELS = { title: "The Models · Ron's Tools",
   desc: "Every model on the site, scored walk-forward over millions of player-games: how well it ranks, how honest its prices are, where the market still knows more, and what didn't work." };
 function metaFor(pathname) {
@@ -101,6 +108,7 @@ function metaFor(pathname) {
   if (segs[0] === 'nfl') return NFL_ROUTES[segs.slice(1, 3).join('/')] || NFL_ROUTES[segs[1] || ''] || NFL_ROUTES['']; // /nfl, /nfl/pairs, /nfl/yards/rush …
   if (segs[0] === 'nhl') return NHL_ROUTES[segs[1] || ''] || NHL_ROUTES['']; // /nhl, /nhl/recap …
   if (segs[0] === 'nba') return NBA_ROUTES[segs[1] || ''] || NBA_ROUTES['']; // /nba, /nba/threes …
+  if (segs[0] === 'soccer') return SOCCER_ROUTES[segs[1] || ''] || SOCCER_ROUTES['']; // /soccer, /soccer/recap …
   if (segs[0] === 'models') return MODELS;
   return LANDING; // "/" and anything else -> the sport picker
 }
@@ -160,12 +168,12 @@ async function playerMeta(pathname, requestUrl) {
   return { title: `${pl.n} · ${pl.pos} ${pl.tm} · Season stats · Ron's Tud Tool`, desc: `${G} game${G === 1 ? '' : 's'}: ${line}. Game log, every touchdown and its replay.` };
 }
 
-const SPORT = { mlb: 'MLB', nfl: 'NFL', nhl: 'NHL', nba: 'NBA' };
+const SPORT = { mlb: 'MLB', nfl: 'NFL', nhl: 'NHL', nba: 'NBA', soccer: 'MLS' };
 /** Slack's extra preview rows: the sport, and the tool when the link is to one. */
 function labels(pathname, title) {
   const segs = (pathname || '/').split('/').filter(Boolean), sport = SPORT[segs[0]];
   const tool = (segs.length === 2 || (segs[1] === 'yards' && segs.length === 3)) && title.includes(' · ') ? title.split(' · ')[0] : null;   // a tool page, not a replay or player link
-  const rows = sport ? [['Sport', sport], ...(tool ? [['Tool', tool]] : [])] : [['Sports', 'MLB · NFL · NHL · NBA']];
+  const rows = sport ? [['Sport', sport], ...(tool ? [['Tool', tool]] : [])] : [['Sports', 'MLB · NFL · NHL · NBA · MLS']];
   return rows.map(([l, v], i) => `<meta name="twitter:label${i + 1}" content="${esc(l)}">\n<meta name="twitter:data${i + 1}" content="${esc(v)}">`).join('\n');
 }
 

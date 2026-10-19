@@ -36,7 +36,7 @@ http.createServer((req, res) => {
   // Guard against path traversal, then serve the file if it really exists.
   // a folder with its own index.html (/models/) is a page, as on Netlify
   const dirIndex = path.join(filePath, 'index.html');
-  if (filePath.startsWith(ROOT) && urlPath !== '/' && !['/mlb/', '/nfl/', '/nhl/', '/nba/'].some(p => urlPath.startsWith(p) || urlPath === p.slice(0, -1))
+  if (filePath.startsWith(ROOT) && urlPath !== '/' && !['/mlb/', '/nfl/', '/nhl/', '/nba/', '/soccer/'].some(p => urlPath.startsWith(p) || urlPath === p.slice(0, -1))
       && fs.existsSync(dirIndex) && fs.statSync(filePath).isDirectory()) {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     fs.createReadStream(dirIndex).pipe(res);
@@ -51,7 +51,7 @@ http.createServer((req, res) => {
   // before the root landing page does. Without the per-app rules a deep link
   // like /nfl/picks renders the sport picker, so client routes cannot be
   // tested locally at all.
-  const app = ['/mlb/', '/nfl/', '/nhl/', '/nba/'].find(p => urlPath === p.slice(0, -1) || urlPath.startsWith(p));
+  const app = ['/mlb/', '/nfl/', '/nhl/', '/nba/', '/soccer/'].find(p => urlPath === p.slice(0, -1) || urlPath.startsWith(p));
   const fallback = app ? path.join(ROOT, app.slice(1, -1), 'index.html')
                        : path.join(ROOT, 'index.html');
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });

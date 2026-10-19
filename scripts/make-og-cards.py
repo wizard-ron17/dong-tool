@@ -1,6 +1,6 @@
 """Share cards (1200x630) for link previews — iMessage, X, Facebook, Slack, Discord.
 
-    python3 scripts/make-og-cards.py          # -> icons/og-{root,mlb,nfl,nhl,nba}.png
+    python3 scripts/make-og-cards.py          # -> icons/og-{root,mlb,nfl,nhl,nba,soccer}.png
 
 Each card is the app's own look (its logo, Chakra Petch / Plus Jakarta / JetBrains
 Mono, the green accent on the dark page) rendered in headless Chromium at the
@@ -19,12 +19,15 @@ CARDS = {
     "nfl": ("NFL", "Ron's", "Tud", "Tool", "nfl-icon-512.png",
             "Touchdowns, yards, receptions and passing. Every line priced.",
             ["Anytime TD", "Yards", "Receptions", "Completions", "Kickers", "Fantasy"]),
-    "nhl": ("NHL", "Ron's", "Goal", "Tool", "nhl-icon-512.png",
+    "nhl": ("NHL", "Ron's", "Puck", "Tool", "nhl-icon-512.png",
             "Goals, points, shots, saves, hits and blocks. Every line priced.",
             ["Goals", "Points", "Shots", "Saves", "Hits", "Blocks"]),
     "nba": ("NBA", "Ron's", "Hoop", "Tool", "nba-icon-512.png",
             "Threes, points, rebounds, assists and first basket. Every line priced.",
             ["Threes", "Points", "PRA", "Steals & Blocks", "Doubles", "First Basket"]),
+    "soccer": ("MLS", "Ron's", "Goal", "Tool", "soccer-icon-512.png",
+            "MLS game by game: the lines and the goals they imply. Goals and shots props next.",
+            ["Schedule", "Implied goals", "Recap", "Scorers", "Shooters", "Goals & Shots soon"]),
 }
 FONTS = ('<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=JetBrains+Mono:wght@600'
          '&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">')
@@ -69,9 +72,9 @@ def sport_card(key):
 
 
 def root_card():
-    logos = "".join(f'<img src="file://{ICONS}/{CARDS[k][4]}">' for k in ("mlb", "nfl", "nhl", "nba"))
+    logos = "".join(f'<img src="file://{ICONS}/{CARDS[k][4]}">' for k in ("mlb", "nfl", "nhl", "nba", "soccer"))
     return page(f"""<div class="card">
-      <div class="top"><div><div class="eyebrow">MLB · NFL · NHL · NBA</div><h1>Ron's <em>Tools</em></h1>
+      <div class="top"><div><div class="eyebrow">MLB · NFL · NHL · NBA · MLS</div><h1>Ron's <em>Tools</em></h1>
         <div class="tag">Every player prop priced: home runs, touchdowns, goals and threes, with parlays and line movement.</div></div></div>
       <div class="logos">{logos}</div>
       <div class="foot"><span><b>dong-tool.netlify.app</b></span><span>Fair odds, no vig · Inspired by Green Means Go</span></div>

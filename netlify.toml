@@ -2,8 +2,9 @@
 #   /            -> the sport picker (root index.html)
 #   /mlb/*       -> Ron's Dong Tool (mlb/index.html, a client-routed SPA)
 #   /nfl/*       -> Ron's Tud Tool (nfl/index.html)
-#   /nhl/*       -> Ron's Goal Tool (nhl/index.html)
+#   /nhl/*       -> Ron's Puck Tool (nhl/index.html)
 #   /nba/*       -> Ron's Hoop Tool (nba/index.html)
+#   /soccer/*    -> Ron's Goal Tool (soccer/index.html, MLS)
 #
 # Netlify serves real static files (mlb/data.json, mlb/sw.js, icons/*, …) before
 # applying these rewrites, so they only catch virtual client-side routes.
@@ -17,7 +18,7 @@
   # data straight from the repo (raw.githubusercontent.com — see dataFetch), so
   # those commits needn't redeploy anything. Exit 0 = nothing that matters
   # changed = skip. A code change anywhere else deploys as always.
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ':(exclude)mlb/*.json' ':(exclude)nfl/*.json' ':(exclude)nhl/*.json' ':(exclude)nba/*.json' ':(exclude)scripts' ':(exclude)research' ':(exclude).github' ':(exclude)tools' ':(exclude)*.md'"
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ':(exclude)mlb/*.json' ':(exclude)nfl/*.json' ':(exclude)nhl/*.json' ':(exclude)nba/*.json' ':(exclude)soccer/*.json' ':(exclude)scripts' ':(exclude)research' ':(exclude).github' ':(exclude)tools' ':(exclude)*.md'"
 
 [[headers]]
   for = "/mlb/data.json"
@@ -55,6 +56,11 @@
     Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
+  for = "/soccer/data.json"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
   for = "/nhl/data.json"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
@@ -71,7 +77,7 @@
   to = "/nfl/index.html"
   status = 200
 
-# NHL (Ron's Goal Tool) SPA fallback.
+# NHL (Ron's Puck Tool) SPA fallback.
 [[redirects]]
   from = "/nhl/*"
   to = "/nhl/index.html"
@@ -80,6 +86,12 @@
 [[redirects]]
   from = "/nba/*"
   to = "/nba/index.html"
+  status = 200
+
+# Soccer (Ron's Goal Tool, MLS first) SPA fallback.
+[[redirects]]
+  from = "/soccer/*"
+  to = "/soccer/index.html"
   status = 200
 
 # No catch-all: any other path that isn't a real file gets Netlify's automatic

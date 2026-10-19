@@ -54,9 +54,9 @@
   const HTML = `
     <div class="rw" role="dialog" aria-modal="true" aria-labelledby="rw-title" tabindex="-1">
       <button class="rw-x" onclick="RonWelcome.close()" aria-label="Close">×</button>
-      <div class="rw-marks"><img src="/icons/icon-512.png" alt="MLB"><img src="/icons/nfl-icon-512.png" alt="NFL"><img src="/icons/nhl-icon-512.png" alt="NHL"><img src="/icons/nba-icon-512.png" alt="NBA"></div>
+      <div class="rw-marks"><img src="/icons/icon-512.png" alt="MLB"><img src="/icons/nfl-icon-512.png" alt="NFL"><img src="/icons/nhl-icon-512.png" alt="NHL"><img src="/icons/nba-icon-512.png" alt="NBA"><img src="/icons/soccer-icon-512.png" alt="MLS"></div>
       <div class="rw-title" id="rw-title">Welcome to Ron's <em>Tools</em></div>
-      <div class="rw-sub">Free player-prop data for MLB, NFL, NHL and NBA. Not picks: a data site that shows how public, free data can find an edge.</div>
+      <div class="rw-sub">Free player-prop data for MLB, NFL, NHL, NBA and MLS. Not picks: a data site that shows how public, free data can find an edge.</div>
       <div class="rw-nums">
         <div class="rw-num"><b id="rw-lines">…</b><span>lines priced right now, every rung</span></div>
         <div class="rw-num"><b id="rw-players">…</b><span>players on today's boards</span></div>

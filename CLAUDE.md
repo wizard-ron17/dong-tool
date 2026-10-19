@@ -1,7 +1,7 @@
 # Ron's Tools (dong-tool)
 
 A free sports-betting data site at dong-tool.netlify.app: fair odds from our own
-backtested models, next to the market. "Not picks, not a capper." Four apps plus a
+backtested models, next to the market. "Not picks, not a capper." Five apps plus a
 landing page, all static HTML deployed by Netlify from `main`:
 
 | Path | App | Page |
@@ -9,8 +9,9 @@ landing page, all static HTML deployed by Netlify from `main`:
 | `/` | sport picker | `index.html` |
 | `/mlb` | Dong Tool | `mlb/index.html` (~12.6k lines) |
 | `/nfl` | Tud Tool | `nfl/index.html` (~9.5k) |
-| `/nhl` | Goal Tool | `nhl/index.html` (~6.5k) |
+| `/nhl` | Puck Tool | `nhl/index.html` (~6.5k) |
 | `/nba` | Hoop Tool | `nba/index.html` (~2.5k) |
+| `/soccer` | Goal Tool (MLS) | `soccer/index.html` (~1k, skeleton: no tools yet) |
 
 Shared by every app:
 - `odds.js`: `Odds.am/pct/inline/both` (the only way to print a price) and `RonTracker` (the parlay slip's Copy for tracker).

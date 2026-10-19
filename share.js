@@ -31,7 +31,7 @@
 
   const C = { bg: '#070b14', card: '#0e1626', line: '#1c2740', text: '#eef3fb', muted: '#8d9bb2', dim: '#5d6b84' };
   const APP = (location.pathname.split('/')[1] || '').toLowerCase();
-  const BRAND = { mlb: "Ron's Dong Tool", nfl: "Ron's Tud Tool", nhl: "Ron's Goal Tool", nba: "Ron's Hoop Tool" }[APP] || "Ron's Tools";
+  const BRAND = { mlb: "Ron's Dong Tool", nfl: "Ron's Tud Tool", nhl: "Ron's Puck Tool", nba: "Ron's Hoop Tool", soccer: "Ron's Goal Tool" }[APP] || "Ron's Tools";
   const specs = {};
   let blob = null, cur = null;
 

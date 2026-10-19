@@ -125,8 +125,9 @@
   const SPORTS = [
     ['mlb', '/icons/logo.svg', "Ron's Dong Tool", 'MLB'],
     ['nfl', '/icons/nfl-logo.svg', "Ron's Tud Tool", 'NFL'],
-    ['nhl', '/icons/nhl-logo.svg', "Ron's Goal Tool", 'NHL'],
+    ['nhl', '/icons/nhl-logo.svg', "Ron's Puck Tool", 'NHL'],
     ['nba', '/icons/nba-logo.svg', "Ron's Hoop Tool", 'NBA'],
+    ['soccer', '/icons/soccer-logo.svg', "Ron's Goal Tool", 'MLS'],
   ];
   const NAV = [
     ["home", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 11.2 12 4l9 7.2M5.5 9.4V20h13V9.4\"/></svg>", "Home"],

@@ -44,7 +44,7 @@ function staticChecks() {
     if (r.status) fail(rel(f), (r.stderr || '').split('\n').filter(Boolean).slice(0, 4).join(' | '));
   }
   // sport-folder JSON parses (a half-written data file breaks the page)
-  for (const sp of ['mlb', 'nfl', 'nhl', 'nba']) {
+  for (const sp of ['mlb', 'nfl', 'nhl', 'nba', 'soccer']) {
     for (const f of fs.readdirSync(path.join(ROOT, sp)).filter(f => f.endsWith('.json') || f.endsWith('.webmanifest'))) {
       try { JSON.parse(fs.readFileSync(path.join(ROOT, sp, f), 'utf8')); } catch (e) { fail(`${sp}/${f}`, 'invalid JSON: ' + e.message); }
     }
@@ -66,7 +66,7 @@ function staticChecks() {
     if (o.bulk != null && !(o.bulkIP > 0)) fail(w, 'a bulk arm needs bulkIP');
   });
   // <style> braces balance in every page
-  for (const f of ['index.html', '404.html', 'mlb/index.html', 'nfl/index.html', 'nhl/index.html', 'nba/index.html']) {
+  for (const f of ['index.html', '404.html', 'mlb/index.html', 'nfl/index.html', 'nhl/index.html', 'nba/index.html', 'soccer/index.html']) {
     const p = path.join(ROOT, f); if (!fs.existsSync(p)) continue;
     const html = fs.readFileSync(p, 'utf8');
     [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].forEach((m, k) => {
@@ -100,6 +100,7 @@ const ROUTES = [
   ['nfl', '/nfl/'], ['nfl', '/nfl/picks'], ['nfl', '/nfl/fantasy'], ['nfl', '/nfl/yards/pass'],
   ['nhl', '/nhl/'], ['nhl', '/nhl/picks'], ['nhl', '/nhl/points'],
   ['nba', '/nba/'], ['nba', '/nba/threes'], ['nba', '/nba/points'],
+  ['soccer', '/soccer/'], ['soccer', '/soccer/schedule'], ['soccer', '/soccer/recap'], ['soccer', '/soccer/stats'],
 ];
 const VIEWPORTS = [['desktop', { width: 1280, height: 900 }], ['phone', { width: 390, height: 844 }]];
 
