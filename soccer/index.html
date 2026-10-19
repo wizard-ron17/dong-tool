@@ -10,6 +10,7 @@
 <script src="/modal.js"></script>
 <script src="/share.js"></script>
 <script src="/board.js"></script>
+<script src="/ladder.js"></script>
 <script src="/slate.js"></script>
 <script src="/trend.js"></script>
 <meta name="theme-color" content="#05080f">
@@ -20,14 +21,14 @@
 <meta property="og:description" content="MLS anytime goalscorer, every player priced, plus the schedule with the lines and the goals they imply and every goal of the round graded against our price.">
 <meta property="og:url" content="https://dong-tool.netlify.app/soccer">
 <meta property="og:locale" content="en_US">
-<meta property="og:image" content="https://dong-tool.netlify.app/icons/og-soccer.png?v=2">
-<meta property="og:image:secure_url" content="https://dong-tool.netlify.app/icons/og-soccer.png?v=2">
+<meta property="og:image" content="https://dong-tool.netlify.app/icons/og-soccer.png?v=3">
+<meta property="og:image:secure_url" content="https://dong-tool.netlify.app/icons/og-soccer.png?v=3">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Ron's Goal Tool — MLS schedule, lines, goals and shots">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://dong-tool.netlify.app/icons/og-soccer.png?v=2">
+<meta name="twitter:image" content="https://dong-tool.netlify.app/icons/og-soccer.png?v=3">
 <meta name="twitter:image:alt" content="Ron's Goal Tool — MLS schedule, lines, goals and shots">
 <meta name="twitter:title" content="Ron's Goal Tool">
 <meta name="twitter:description" content="MLS game by game: lines and implied goals, every goal of the weekend, the season's scorers and shooters.">
@@ -355,15 +356,20 @@
   @media (min-width: 620px) {
     .pk-side-nav { width: 38px; height: 58px; font-size: 1.7rem; }
   }
+  #lc-back .pk-side-prev { left: max(6px, 50% - 562px); }
+  #lc-back .pk-side-next { right: max(6px, 50% - 562px); }
   #gm-back .pk-side-prev { left: max(6px, 50% - 552px); }
   #gm-back .pk-side-next { right: max(6px, 50% - 552px); }
   .pm-back { position: fixed; inset: 0px; background: rgba(0, 0, 0, 0.66); backdrop-filter: blur(3px); z-index: 300; display: flex; align-items: flex-start; justify-content: center; padding: 1.5rem 0.9rem; overflow-y: auto; }
   .pm { position: relative; margin: auto; background: var(--surface0); border: 1px solid var(--border2); border-radius: 14px; width: 100%; max-width: 520px; box-shadow: rgba(0, 0, 0, 0.6) 0px 18px 50px; padding: 1.1rem 1.2rem 1.3rem; }
+  .sg-proj { margin-left: 0.4rem; font-size: 0.7rem; color: var(--muted); }
+  .sg-proj b { font-family: var(--font-d); color: var(--accent); font-size: 0.86rem; }
   .hm-bet { display: inline-flex; align-items: baseline; gap: 0.3rem; white-space: nowrap; }
   .hm-bet small { font-family: var(--font-m, var(--font-d)); font-size: 0.72rem; color: var(--muted); font-weight: 600; }
   .hm-bet b { font-weight: 700; }
   .odfav { color: var(--gold); }
   .oddog { color: var(--good); }
+  .pc-tabs { margin: -0.15rem 0px 0.7rem; }
   /* recap: the first basket, the threes, the doubles — a drawn half court (no NBA clips exist) */
   .rx-tiles { margin-bottom: 0.7rem; }
   .rx-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.9rem; align-items: start; }
@@ -474,7 +480,7 @@
   RonChrome.mount({ sport: "soccer", season: "2026", credit: "A goal tool", tools: [
     {"group": "Props", "g": "g1"},
     {"nav": "goals", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2.5 19V6h19v13\"/><path d=\"M7.5 6v13M12 6v13M16.5 6v13M2.5 10.5h19M2.5 15h19\" stroke-width=\"1.2\" opacity=\"0.6\"/></svg>", "name": "Goals", "desc": "Every player priced to score &mdash; his minutes, his shooting and the goals the line expects from his team."},
-    {"nav": null, "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><circle cx=\"12\" cy=\"12\" r=\"3.8\"/><path d=\"M12 1.5v3.5M12 19v3.5M1.5 12H5M19 12h3.5\"/></svg>", "name": "Shots<span class=\"nm-soon\">Soon</span>", "desc": "Shots and shots on target for every player, priced at every line.", "soon": true}
+    {"nav": "shots", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><circle cx=\"12\" cy=\"12\" r=\"3.8\"/><path d=\"M12 1.5v3.5M12 19v3.5M1.5 12H5M19 12h3.5\"/></svg>", "name": "Shots", "desc": "Shots and shots on target for every player, priced at every line &mdash; his role, his shooting and the opponent."}
   ] });
 </script>
 
@@ -482,6 +488,7 @@
   <div id="panel-stats" class="panel"><div id="stats-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-recap" class="panel"><div id="recap-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-goals" class="panel"><div id="goals-content"><div class="empty">Loading…</div></div></div>
+  <div id="panel-shots" class="panel"><div id="shots-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-schedule" class="panel"><div id="schedule-content"><div class="empty">Loading…</div></div></div>
 
   <footer class="site-foot"></footer>
@@ -498,8 +505,8 @@
   RonChrome.onTheme(() => document.querySelectorAll('img[data-team]').forEach(img => { img.src = teamLogo(img.dataset.team); }));
 
   // ── Nav + routing ──────────────────────────────────────────────────────
-  const SOC_NAVS = ['home', 'stats', 'recap', 'goals', 'schedule'];   // tools added here as they ship
-  const PAGE_TITLES = { home: "Ron's Goal Tool", stats: "Stats · Ron's Goal Tool", recap: "Recap · Ron's Goal Tool", goals: "Goals · Ron's Goal Tool", schedule: "Schedule · Ron's Goal Tool" };
+  const SOC_NAVS = ['home', 'stats', 'recap', 'goals', 'shots', 'schedule'];   // tools added here as they ship
+  const PAGE_TITLES = { home: "Ron's Goal Tool", stats: "Stats · Ron's Goal Tool", recap: "Recap · Ron's Goal Tool", goals: "Goals · Ron's Goal Tool", shots: "Shots · Ron's Goal Tool", schedule: "Schedule · Ron's Goal Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
     activeNav = nav;
@@ -525,6 +532,7 @@
     else if (nav === 'recap') renderRecap();
     else if (nav === 'schedule') renderSchedule();
     else if (nav === 'goals') renderGoals();
+    else if (nav === 'shots') renderShots();
   }
 
   // ── Data ───────────────────────────────────────────────────────────────
@@ -655,7 +663,7 @@
   /** One goal: the minute, who scored (an own goal is credited to the other side), the assist, the score after it (away–home). */
   function goalRow(x, G) {
     const own = x.kind === 'Own goal';
-    const p = !own && G ? ghGame(G.date, G.id)?.[x.pid] : null;          // our last price before kickoff
+    const p = !own && G ? ghP(ghGame(G.date, G.id)?.[x.pid]) : null;     // our last price before kickoff
     const how = [own ? `own goal, for ${esc(x.team)}` : x.kind ? esc(x.kind.toLowerCase()) : '', x.ast ? `assist ${esc(shortName(x.ast.name))}` : ''].filter(Boolean).join(' · ');
     return `<div class="rx-row">
       <span class="gl-min">${minLbl(x)}</span>
@@ -710,7 +718,7 @@
           ${faceHtml(p.pid, p.name, p.hs)}
           <div class="rx-info"><div class="rx-nm">${esc(p.name)} <span class="dim">${esc(p.team)}</span></div>
             <div class="rx-sub">${posFam(p.gpos) || 'SUB'} · ${p.min}'${p.g ? ` · ${p.g === 1 ? 'scored' : p.g + ' goals'}` : ''}</div></div>
-          <div class="rx-right"><span class="rx-stat">${p.sh}<small> sh</small></span><span class="rx-sub">${p.sot} on target</span></div>
+          <div class="rx-right"><span class="rx-stat">${p.sh}<small> sh</small></span><span class="rx-sub">${p.sot} on target</span>${(() => { const c = loggedShots(ghGame(G.date, G.id)?.[p.pid], p).sh; return c ? `<span class="rx-grade ${p.sh > c.line ? 'hit' : 'miss'}">${p.sh > c.line ? '✓' : '✗'} o${c.line} ${Odds.am(c.p)}</span>` : ''; })()}</div>
         </div>`).join('');
       const shotsHtml = rxState === 'ready' ? shooters || '<div class="rx-none">No shots logged.</div>'
         : rxState === 'error' ? '<div class="rx-none">Couldn\'t load the player box.</div>' : '<div class="rx-none">Loading…</div>';
@@ -823,19 +831,19 @@
     if (!done) {
       // before kickoff: every priced player, his price to score and the minutes it assumes
       const G = (D.goals?.rows || []).filter(r => r.gid === g.id);
-      const cols = [COL_GOAL, { k: 'em', lab: 'MIN', title: 'Expected minutes' }, { k: 'sh90', lab: 'SH/90', title: 'Shots per 90 (shrunk)' }];
+      const cols = [COL_GOAL, { k: 'sh', lab: 'SH', title: 'Shots' }, { k: 'sot', lab: 'SOT', title: 'Shots on target' }, { k: 'em', lab: 'MIN', title: 'Expected minutes' }];
       const teams = [g.away.ab, g.home.ab].map(t => ({ abbr: t, logo: logoImg(t, ''), sub: esc(teamName(t)), groups: [{ name: 'Player', cols,
         rows: G.filter(r => r.team === t).sort((a, b) => b.p - a.p).map(r => ({ name: r.name, pos: r.pos, sub: r.xi === 'XI' ? 'XI' : r.xi === 'bench' ? 'bench' : '', face: faceHtml(r.pid, r.name, r.hs),
           open: `openGoalCard('${r.pid}','${g.id}')`, cells: { goal: { p: r.p, open: `openGoalCard('${r.pid}','${g.id}')` },
-            em: { info: true, big: `${r.em.toFixed(0)}'`, sort: r.em }, sh90: { info: true, big: r.sh90.toFixed(1), sort: r.sh90 } } })) }] }));
+            ...(r.sh ? { sh: shotCell(r, 'sh'), sot: shotCell(r, 'sot') } : {}), em: { info: true, big: `${r.em.toFixed(0)}'`, sort: r.em } } })) }] }));
       return RonSlate.box({ state: g.state === 'in' ? 'live' : 'pre', teams,
-        note: 'Our price for every player in the rotation to score, with the minutes it assumes. Tap a player for what makes his price. Shots ship next.',
+        note: 'Our price for every player in the rotation to score, and his projected shots and shots on target with the line closest to even and its fair price. Tap a number for the full ladder, a player for his goal price.',
         empty: g.state === 'in' ? 'Live: the box fills in at full time.' : 'Prices post once the game is inside the build\'s window, about four days out.' });
     }
     if (rxState !== 'ready') { loadRecapBox(); return `<div class="empty" style="padding:2rem 0">${rxState === 'error' ? 'Couldn\'t load the player box.' : 'Loading…'}</div>`; }
     const P = boxRows(g.id), H = ghGame(g.date, g.id) || {};
     const cells = (p) => ({ ...Object.fromEntries(BX_SOC.map(c => [c.k, { info: true, big: c.k === 'min' ? `${p.min}'` : p[c.k], sort: p[c.k] }])),
-      ...(H[p.pid] != null ? { goal: { p: H[p.pid], got: p.g } } : {}) });
+      ...(ghP(H[p.pid]) != null ? { goal: { p: ghP(H[p.pid]), got: p.g } } : {}), ...loggedShots(H[p.pid], p) });
     const row = (p) => ({ name: p.name, pos: posFam(p.gpos) || '', sub: [p.yc ? '🟨' : '', p.rc ? '🟥' : ''].join(''), face: faceHtml(p.pid, p.name, p.hs), cells: cells(p) });
     const teams = [g.away.ab, g.home.ab].map(t => {
       const mine = P.filter(p => p.team === t);
@@ -845,7 +853,7 @@
     });
     if (ghState === 'idle' || ghState === 'loading') loadGoalHist();
     return RonSlate.box({ state: Object.keys(H).length ? 'post' : 'pre', teams,
-      note: 'What each player did, and our last price before kickoff for him to score (green: he did; a long price is meant to miss). Shots ship next.',
+      note: 'What each player did, graded against our last prices before kickoff: to score, and over his shots and on-target lines (green: it landed; a long price is meant to miss).',
       empty: 'No player box for this game (it\'s older than the recap\'s four weeks).' });
   }
   function socGameHtml(g) {
@@ -1084,7 +1092,7 @@
       ['Position', [['ALL', 'All'], ['FWD', 'Forwards'], ['MID', 'Midfield'], ['DEF', 'Defenders']].map(([v, l]) => uiChip('setGoalsF', 'pos', v, l, gF.pos)).join('')],
       ['Sort', [['p', 'Shortest price'], ['em', 'Expected minutes'], ['sh90', 'Shots / 90'], ['imp', 'Team goals']].map(([v, l]) => uiChip('setGoalsF', 'sort', v, l, gF.sort)).join('')],
     ], changed) + uiSearch('goals-search', 'setGoalsF', gF.q, 'Search a player, team or position…');
-    const span = `${dayLabel(G.from, true)}${G.to && G.to !== G.from ? ` – ${dayLabel(G.to, true)}` : ''}`;
+    const span = `Each team's next game · ${dayLabel(G.from)}${G.to && G.to !== G.from ? ` – ${dayLabel(G.to)}` : ''}`;
     const meta = `<div class="result-meta"><b>${span}</b> · ${rows.length} players${gF.q ? '' : ` at ${Math.round(GOAL_MIN * 100)}%+`} · ${games.length} game${games.length === 1 ? '' : 's'} · anytime goal, fair odds, no vig</div>` + uiView('setGoalsF', gF.view);
     if (!rows.length) { el.innerHTML = controls + meta + '<div class="empty">Nothing matches that filter.</div>'; return; }
     const open = (r) => `openGoalCard('${r.pid}','${r.gid}')`;
@@ -1163,6 +1171,181 @@
   }
   function goalCardStep(d) { const r = gcDeck[gcAt + d]; if (r) openGoalCard(r.pid, r.gid); }
 
+  // ── Shots and shots on target ──────────────────────────────────────────
+  // Every player in a rotation for his team's next game, priced at every line
+  // (scripts/soccer-shots.js; fitted walk-forward in research/soccer_shots.py).
+  // A shot count is a mixture over his role — he starts, comes off the bench,
+  // or doesn't play — and given the role, his shooting per 90 over the minutes
+  // that role gets him, against what the opponent allows. Once lineups post the
+  // role is known and the price sharpens (XI, or a named sub).
+  const SK = { sh: { lab: 'Shots', unit: 'shots', lines: [0.5, 1.5, 2.5, 3.5, 4.5, 5.5], big: 'Projected shots', title: 'Shots distribution',
+                     blurb: 'Whether he starts, comes on or sits, then his shots per 90 over the minutes that role gets him, against what the opponent allows' },
+              sot: { lab: 'On target', unit: 'shots on target', lines: [0.5, 1.5, 2.5, 3.5], big: 'Projected on target', title: 'Shots on target distribution',
+                     blurb: 'The same role mixture, on his shots on target per 90 (his shots per 90 carries most of it)' } };
+  const sF = { kind: 'sh', open: false, line: 'auto', side: 'over', game: 'all', pos: 'ALL', sort: 'mu', q: '', view: 'cards' };
+  function setShotsF(k, v) { if (k === 'tab') { sF.kind = v; sF.line = 'auto'; } else sF[k] = v; renderShots(); }
+  /** P(count > L) off a stored distribution (its last bucket the tail). */
+  const pOver = (pmf, L) => pmf.reduce((a, v, k) => a + (k > L ? v : 0), 0);
+  /** His line closest to even among the board's lines. */
+  const evenLine = (pmf, lines) => lines.reduce((b, L) => Math.abs(pOver(pmf, L) - 0.5) < Math.abs(pOver(pmf, b) - 0.5) ? L : b, lines[0]);
+  function shotRows() {
+    const k = sF.kind, lines = SK[k].lines;
+    const rows = (D.goals?.rows || []).filter(r => r[k] && (sF.game === 'all' || r.gid === sF.game) && (sF.pos === 'ALL' || r.pos === sF.pos) && matchQ(r, sF.q))
+      .map(r => { const L = sF.line === 'auto' ? evenLine(r[k].pmf, lines) : +sF.line, po = pOver(r[k].pmf, L);
+        return { ...r, S: r[k], L, pAt: sF.side === 'under' ? 1 - po : po }; })
+      .filter(r => sF.q || r.S.mu >= (k === 'sh' ? 0.4 : 0.15));          // a centre-back's 0.1 shots is noise on a list
+    const S = { mu: (r) => r.S.mu, odds: (r) => r.pAt, ps: (r) => r.S.ps, opp: (r) => r.osha ?? 0 }[sF.sort] || ((r) => r.S.mu);
+    return rows.sort((a, b) => S(b) - S(a) || b.S.mu - a.S.mu).map((r, i) => ({ ...r, rank: i + 1 }));
+  }
+  const roleTxt = (S) => S.ps >= 0.97 ? 'starting' : S.ps <= 0.01 && S.pb > 0 ? 'on the bench' : `${Math.round(S.ps * 100)}% to start`;
+  function renderShots() {
+    const el = dataGate('shots-content'); if (!el) return;
+    const G = D.goals, k = sF.kind, C = SK[k];
+    if (!G?.rows?.some(r => r[k])) { el.innerHTML = '<div class="empty">No games to price yet. The board fills in once the next games are on the schedule.</div>'; return; }
+    const games = goalGames();
+    if (sF.game !== 'all' && !games.some(g => g.gid === sF.game)) sF.game = 'all';
+    const rows = shotRows();
+    RonShare.set('setShotsF', () => ({ title: C.lab, sub: `Next game · ${sF.side} · fair odds`, rows: rows.map(r => ({ ...shareGoal(r), p: r.pAt, tag: `${sF.side === 'under' ? 'u' : 'o'}${r.L}`,
+      line: `${r.team} ${r.home ? 'vs' : '@'} ${r.opp} · ${r.S.mu.toFixed(1)} proj` })) }));
+    const changed = (sF.line !== 'auto') + (sF.side !== 'over') + (sF.game !== 'all') + (sF.pos !== 'ALL') + (sF.sort !== 'mu');
+    const tabs = uiTabs('setShotsF', k, [['sh', 'Shots'], ['sot', 'On target']]);
+    const controls = uiFilters('setShotsF', sF.open, [
+      ['Line', ['auto', ...C.lines].map(v => uiChip('setShotsF', 'line', v, v === 'auto' ? 'Best line' : 'o' + v, sF.line)).join('')],
+      ['Side', [['over', 'Over'], ['under', 'Under']].map(([v, l]) => uiChip('setShotsF', 'side', v, l, sF.side)).join('')],
+      ['Game', [['all', 'All games'], ...games.map(g => [g.gid, `${gameLbl(g)} · ${dayLabel(etDay(g.start))}`])].map(([v, l]) => uiChip('setShotsF', 'game', v, l, sF.game)).join('')],
+      ['Position', [['ALL', 'All'], ['FWD', 'Forwards'], ['MID', 'Midfield'], ['DEF', 'Defenders']].map(([v, l]) => uiChip('setShotsF', 'pos', v, l, sF.pos)).join('')],
+      ['Sort', [['mu', 'Projection'], ['odds', 'Shortest price'], ['ps', 'Most likely to start'], ['opp', 'Softest opponent']].map(([v, l]) => uiChip('setShotsF', 'sort', v, l, sF.sort)).join('')],
+    ], changed) + uiSearch('shots-search', 'setShotsF', sF.q, 'Search a player, team or position…');
+    const meta = `<div class="result-meta"><b>Each team's next game</b> · ${rows.length} players · ${C.unit}, ${sF.line === 'auto' ? 'his line closest to even' : 'o' + sF.line} · ${sF.side} · fair odds, no vig</div>` + uiView('setShotsF', sF.view);
+    if (!rows.length) { el.innerHTML = tabs + controls + meta + '<div class="empty">Nothing matches that filter.</div>'; return; }
+    const open = (r) => `openShotCard('${k}','${r.pid}')`;
+    const started = (r) => new Date(r.start) <= new Date();
+    const side = (r) => `${sF.side === 'under' ? 'u' : 'o'}${r.L}`;
+    let body;
+    if (sF.view === 'table') {
+      body = `<div class="rc-tablewrap"><table class="rc-table">
+        <thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Proj</th><th class="num">Start</th><th class="num">${k === 'sh' ? 'SH' : 'SOT'}/90</th><th class="num">Opp allows</th><th class="num">Line</th><th class="num">Price</th></tr></thead>
+        <tbody>${rows.map(r => `
+          <tr onclick="${open(r)}"${started(r) ? ' class="dim"' : ''}>
+            <td class="num dim">${r.rank}</td>
+            <td><b>${esc(r.name)}</b> <span class="dim">${esc(r.pos || '')}</span> ${xiTag(r)}</td>
+            <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${dayLabel(etDay(r.start))}</td>
+            <td class="num"><b>${r.S.mu.toFixed(2)}</b></td>
+            <td class="num dim">${Math.round(r.S.ps * 100)}%</td>
+            <td class="num dim">${r.S.r90.toFixed(2)}</td>
+            <td class="num dim">${r.osha != null ? r.osha.toFixed(1) : '—'}</td>
+            <td class="num dim">${side(r)}</td>
+            <td class="num"><b>${Odds.inline(r.pAt)}</b></td>
+          </tr>`).join('')}</tbody></table></div>`;
+    } else {
+      body = `<div class="pb-list">${rows.map(r => `
+        <div class="pb-card${started(r) ? ' t3-started' : ''}" onclick="${open(r)}">
+          <div class="pb-rank">${r.rank}</div>${faceHtml(r.pid, r.name, r.hs)}
+          <div class="pb-info">
+            <div class="pb-nm">${esc(r.name)}${posBadge(r.pos)}${xiTag(r)}</div>
+            <div class="pb-line">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${dayLabel(etDay(r.start))} ${gameTime(r.start)}
+              <span class="sg-proj"><b>${r.S.mu.toFixed(1)}</b> proj</span></div>
+          </div>
+          <div class="pb-facts">
+            <span class="pb-f" title="His chance to start (known once lineups post)"><b>${Math.round(r.S.ps * 100)}%</b> START</span>
+            <span class="pb-f" title="${k === 'sh' ? 'Shots' : 'On target'} per 90, shrunk toward his position's"><b>${r.S.r90.toFixed(1)}</b> /90</span>
+            <span class="pb-f" title="Shots a game the opponent allows (its last 20)"><b>${r.osha != null ? r.osha.toFixed(1) : '—'}</b> OPP</span>
+          </div>
+          <div class="pb-price">
+            <span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${Odds.am(r.pAt)}</span>
+            <span class="pb-pct">${side(r)} · ${Odds.pct(r.pAt)}</span>
+          </div>
+        </div>`).join('')}</div>`;
+    }
+    const W = G.shotsModel?.[k];
+    el.innerHTML = tabs + controls + meta + body + `<div class="t3-note">Each player for his team's next game. A shot count is a mix of three games: he starts, he comes off the bench, or he sits (0). Given the role, it's his ${k === 'sh' ? 'shots' : 'shots on target'} per 90 (shrunk toward his position's) over the minutes that role gets him, against the shots the opponent allows, home or away. Once lineups post, about an hour before kickoff, the role is known and the prices move.${W ? ` Walk-forward ${W.seasons[0]}–${W.seasons[W.seasons.length - 1]}: AUC ${(W.auc?.[k === 'sh' ? '1.5' : '0.5'] ?? 0).toFixed(3)} at o${k === 'sh' ? '1.5' : '0.5'}; calibrated within a point or two except the very top (stars start, and shoot, a little more than it says before the lineups post).` : ''}</div>`;
+  }
+
+  // ── The ladder card (/ladder.js): the distribution, over/under, every line ──
+  const sc = { kind: 'sh', pid: null, line: 1.5, deck: [] };
+  const scRow = () => (D.goals?.rows || []).find(r => r.pid === sc.pid && r[sc.kind]);
+  function openShotCard(kind, pid, deck) {
+    sc.kind = kind; sc.pid = String(pid);
+    sc.deck = deck || (activeNav === 'shots' ? shotRows() : (D.goals?.rows || []).filter(r => r[kind]).sort((a, b) => b[kind].mu - a[kind].mu));
+    const r = scRow(); if (!r) return;
+    sc.line = activeNav === 'shots' && sF.line !== 'auto' && sF.kind === kind ? +sF.line : evenLine(r[kind].pmf, SK[kind].lines);
+    RonModal.open('lc-back', { cls: 'pm ydm', nav: { prev: 'scStep(-1)', next: 'scStep(1)' }, onClose: () => { sc.pid = null; } });
+    scRender();
+  }
+  function scStep(d) {
+    const at = sc.deck.findIndex(x => x.pid === sc.pid), nx = sc.deck[at + d]; if (!nx) return;
+    sc.pid = nx.pid; const r = scRow(); if (!r) return; sc.line = evenLine(r[sc.kind].pmf, SK[sc.kind].lines); scRender();
+  }
+  function scSetLine(x) { sc.line = x; scRender(); }
+  function scSetKind(k) { sc.kind = k; const r = scRow(); if (!r) return; sc.line = evenLine(r[k].pmf, SK[k].lines); scRender(); }
+  function scRender() {
+    const r = scRow(); if (!r) return;
+    const k = sc.kind, C = SK[k], S = r[k], pmf = S.pmf, top = pmf.length - 1, deck = sc.deck, at = deck.findIndex(x => x.pid === r.pid);
+    const side = RonLadder.side(pmf, { line: sc.line, pick: evenLine(pmf, C.lines), range: [0.5, top - 0.5], set: 'scSetLine' });
+    const ico = (path) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
+    const metric = (path, v, l) => `<div class="ydk"><span class="ydk-ic">${ico(path)}</span><b>${v}</b><span>${l}</span></div>`;
+    const I = { clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>', target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.8"/>',
+      bars: '<path d="M5 20V11M12 20V5M19 20v-7"/>', shield: '<path d="M12 3.5l7 2.5v5.5c0 4-3 7.3-7 9-4-1.7-7-5-7-9V6z"/>', team: '<circle cx="9" cy="9" r="3"/><path d="M3.5 19c.6-3 2.8-4.6 5.5-4.6s4.9 1.6 5.5 4.6"/>',
+      bulb: '<path d="M9 17.5h6M10 20.5h4M12 3.5a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V17h5v-.6c0-.8.4-1.5 1-2A6 6 0 0 0 12 3.5z"/>' };
+    const metrics = [
+      metric(I.team, `${Math.round(S.ps * 100)}%`, r.xi ? `starts (lineup: ${r.xi === 'XI' ? 'XI' : 'bench'})` : 'chance he starts'),
+      metric(I.clock, r.stMin != null ? `${Math.round(r.stMin)}'` : '—', 'minutes when he starts'),
+      metric(I.target, S.r90.toFixed(2), `${k === 'sh' ? 'shots' : 'on target'} / 90`),
+      metric(I.bars, S.muSt.toFixed(1), 'projected if he starts'),
+      metric(I.shield, r.osha != null ? r.osha.toFixed(1) : '—', `shots a game ${esc(r.opp)} allows`),
+    ].join('');
+    let c = 0, p10 = null, p90 = null; pmf.forEach((v, i) => { c += v; if (p10 == null && c >= 0.1) p10 = i; if (p90 == null && c >= 0.9) p90 = i; });
+    const med = pmf.reduce((a, v, i) => a.c >= 0.5 ? a : { c: a.c + v, k: i }, { c: 0, k: 0 }).k;
+    document.querySelector('#lc-back .ydm').innerHTML = `
+      <button class="pm-x" onclick="RonModal.close('lc-back')" aria-label="Close">×</button>
+      <header class="ydm-hero">
+        ${faceHtml(r.pid, r.name, r.hs)}
+        <div class="ydm-id"><h2>${esc(r.name)}</h2><div class="ydm-meta"><b>${esc(r.pos || '')}</b><span>•</span>${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}<img src="${teamLogo(r.team)}" alt="" loading="lazy">${at >= 0 ? `<span class="ydm-count">${at + 1} / ${deck.length}</span>` : ''}</div></div>
+        <div class="ydm-big"><div><span>${C.big}</span><span>Median <b>${med}</b></span></div><strong>${S.mu.toFixed(1)}</strong></div>
+      </header>
+      <div class="sub-tabs pc-tabs">${Object.entries(SK).map(([kk, v]) => `<button class="sub-btn${k === kk ? ' active' : ''}" onclick="scSetKind('${kk}')">${v.lab}</button>`).join('')}</div>
+      <div class="ydm-grid">
+        <div class="ydm-main">
+          <section class="ydm-panel">
+            <div class="ydm-chart-head"><div><h3>${C.title}</h3><p>${C.blurb}</p></div></div>
+            <div class="ydm-chart-row">
+              <div class="ydc-wrap">${RonLadder.chart(pmf, sc.line, { unit: C.unit, plus: true })}</div>
+              <div class="ydm-probs">${side.probs}</div>
+            </div>
+            <div class="ydl-mob-wrap"><div class="ydl ydl-mob" id="lc-ladder-m">${side.ladder}</div></div>
+          </section>
+          <section class="ydm-panel ydm-keys"><h4>Key metrics</h4><div class="ydk-row">${metrics}</div></section>
+        </div>
+        <aside class="ydm-panel ydm-side"><div class="ydm-side-in">
+          <h4 class="accent">The ladder</h4>
+          <p class="ydl-help">Tap a line to see it on the chart. Fair odds, no vig.</p>
+          <div class="ydl-head"><span>Line</span><span>Chance</span><span>Over</span><span>Under</span></div>
+          <div class="ydl">${side.ladder}</div>
+        </div></aside>
+      </div>
+      <footer class="ydm-tip">${ico(I.bulb)}<span>${p10 != null && p90 != null ? p10 === p90 ? `Most games land at <b>${p10}</b> ${C.unit}. ` : `Most games land between <b>${p10}</b> and <b>${p90}</b> ${C.unit}. ` : ''}${Math.round(S.ps * 100)}% to start, ${Math.round(S.pb * 100)}% to come off the bench, ${Math.max(0, Math.round((1 - S.ps - S.pb) * 100))}% to sit: if he starts, ${S.muSt.toFixed(1)} projected; off the bench, ${S.muSub.toFixed(1)}. Fair odds, no vig.</span></footer>`;
+    RonModal.navState('lc-back', at, deck.length);
+    RonLadder.center();
+  }
+  /** A final's logged shots ladders for the box score: his line closest to even, graded against what he did. */
+  function loggedShots(v, p) {
+    if (!v || typeof v === 'number') return {};
+    const out = {};
+    for (const k of ['sh', 'sot']) {
+      const a = v[k]; if (!a) continue;
+      const lines = (D.goals?.shotsModel?.lines?.[k]) || (k === 'sh' ? [0.5, 1.5, 2.5, 3.5, 4.5] : [0.5, 1.5, 2.5]);
+      let j = 0; for (let i = 1; i < lines.length; i++) if (Math.abs(a[i + 1] - 0.5) < Math.abs(a[j + 1] - 0.5)) j = i;
+      out[k] = { proj: a[0], dp: 1, line: lines[j], p: a[j + 1], got: p[k] };
+    }
+    return out;
+  }
+  /** Before kickoff: his projection, his line closest to even and its price, off the stored distribution. */
+  function shotCell(r, k) {
+    const S = r[k]; if (!S) return null;
+    const L = evenLine(S.pmf, SK[k].lines);
+    return { proj: S.mu, dp: 1, line: L, p: pOver(S.pmf, L), open: `openShotCard('${k}','${r.pid}')` };
+  }
+
   // Our last pre-kickoff price for every priced player (soccer/goals-history.json): Recap and Schedule grade off it.
   let GH = null, ghState = 'idle';
   function loadGoalHist() {
@@ -1173,12 +1356,14 @@
       .finally(() => { if (activeNav === 'recap') renderRecap(); if (activeNav === 'schedule') renderSchedule(); if (activeNav === 'home') renderHome(); });
   }
   const ghGame = (date, gid) => GH?.days?.[date]?.[gid] || null;
+  /** A logged entry: { g, sh: [mu, P(o0.5) …], sot } (a bare number is an early goal-only one). */
+  const ghP = (v) => typeof v === 'number' ? v : v?.g ?? null;
   /** A game's top pick: before kickoff off the board, after it off the price log; graded once final from the goal list. */
   function topPick(g) {
     const rows = (D.goals?.rows || []).filter(r => r.gid === g.id);
     if (g.state === 'pre' && rows.length) { const r = rows.reduce((a, b) => b.p > a.p ? b : a); return { pid: r.pid, name: r.name, team: r.team, p: r.p }; }
     const H = ghGame(g.date, g.id); if (!H) return null;
-    const [pid, p] = Object.entries(H).sort((a, b) => b[1] - a[1])[0] || []; if (!pid) return null;
+    const [pid, p] = Object.entries(H).map(([k, v]) => [k, ghP(v)]).filter(x => x[1] != null).sort((a, b) => b[1] - a[1])[0] || []; if (!pid) return null;
     const R = (D.recap || []).find(x => x.id === g.id);
     const fr = rows.find(r => r.pid === pid);
     const name = fr?.name || (R ? (boxRows(g.id).find(x => x.pid === pid)?.name || R.goals.find(x => x.pid === pid)?.name) : null) || '';
@@ -1240,11 +1425,18 @@
         ${faceHtml(r.pid, r.name, r.hs, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${dayLabel(etDay(r.start))} · ${r.em.toFixed(0)}' exp</span></span>
         <span class="hm-score hm-bet"><small>score</small><b class="${r.p >= 0.5 ? 'odfav' : 'oddog'}">${Odds.inline(r.p)}</b></span></div>`).join('');
+    const shotsHome = (D.goals?.rows || []).filter(r => r.sh && new Date(r.start) > new Date()).sort((a, b) => b.sh.mu - a.sh.mu).slice(0, 5).map(r => {
+      const L = evenLine(r.sh.pmf, SK.sh.lines), p = pOver(r.sh.pmf, L);
+      return `<div class="hm-row" onclick="event.stopPropagation(); openShotCard('sh','${r.pid}')">
+        ${faceHtml(r.pid, r.name, r.hs, 'hm-photo')}
+        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${r.sh.mu.toFixed(1)} shots proj · ${r.sot.mu.toFixed(1)} on target</span></span>
+        <span class="hm-score hm-bet"><small>o${L}</small><b class="${p >= 0.5 ? 'odfav' : 'oddog'}">${Odds.inline(p)}</b></span></div>`; }).join('');
     const lead = esc(String(D.leadersFrom).replace(/\s*MLS$/, ''));
     el.innerHTML = `
       <div class="hm-cols">
         <div class="hm-col">
-          ${card('goals', D.goals?.from ? `Goals · ${dayLabel(D.goals.from)}${D.goals.to && D.goals.to !== D.goals.from ? ` – ${dayLabel(D.goals.to)}` : ''}` : 'Goals', 'Goals', goalsHome, 'The board fills in once the next games are on the schedule.')}
+          ${card('goals', 'Goals · next game', 'Goals', goalsHome, 'The board fills in once the next games are on the schedule.')}
+          ${card('shots', 'Shots · next game', 'Shots', shotsHome, 'The board fills in once the next games are on the schedule.')}
           ${card('recap', lastRound ? `${roundLabel(lastRound)} Recap` : 'Recap', 'Recap', lastCard, 'No games in the last four weeks.')}
           ${card('stats', `${lead} Scorers`, 'Stats', leaders, 'No goals yet.')}
         </div>

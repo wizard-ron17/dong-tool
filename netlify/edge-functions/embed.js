@@ -97,6 +97,7 @@ const SOCCER_ROUTES = {
   '':         { title: "Ron's Goal Tool", desc: "MLS anytime goalscorer, every player priced — plus the schedule with DraftKings' lines and the goals they imply, every goal of the round graded against our price, and the season's scorers and shooters." },
   stats:      { title: "Leaders · Ron's Goal Tool", desc: "MLS season leaders — goals, assists, shots, shots on target and per-90 rates — plus the league's goals-per-game trend." },
   recap:      { title: "Recap · Ron's Goal Tool", desc: "Every MLS goal of the round, game by game — scorer, assist, the running score, and our price on him — with the team box and who shot." },
+  shots:      { title: "Shots · Ron's Goal Tool", desc: "Every MLS player's shots and shots on target for his next game, priced at every line — whether he starts, his shooting, and what the opponent allows." },
   goals:      { title: "Goals · Ron's Goal Tool", desc: "Every MLS player in a rotation priced to score — his minutes, his shooting, his penalties and the goals the line expects from his team." },
   schedule:   { title: "Schedule · Ron's Goal Tool", desc: "Every MLS game with its three-way moneyline, total and the goals each side is expected to score, plus form and the box score." },
 };

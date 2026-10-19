@@ -120,6 +120,9 @@ const BOARDS = {
       rows: (d.fun?.milestones || []).slice(0, 5).map(r => ({ face: nbaFace(r.pid), name: r.name, meta: `${r.team} · ${r.career.toLocaleString()} career`, val: String(r.away), unit: `from ${r.next.toLocaleString()}` })) }),
   },
   soccer: {
+    shots: (d) => ({ title: 'Shots', sub: 'MLS · projected shots, next game', when: dayLbl(d.goals?.from),
+      rows: top((d.goals?.rows || []).filter(r => r.sh && new Date(r.start) > new Date()), r => r.sh.mu).map(r => ({ face: r.hs ? `https://a.espncdn.com/i/headshots/soccer/players/full/${r.pid}.png` : null,
+        name: r.name, meta: `${r.pos} · ${vs(r)}`, val: r.sh.mu.toFixed(1), unit: `shots · ${r.sot.mu.toFixed(1)} on target` })) }),
     goals: (d) => ({ title: 'Anytime Goal', sub: 'MLS · to score · fair odds', when: dayLbl(d.goals?.from),
       rows: top((d.goals?.rows || []).filter(r => new Date(r.start) > new Date()), r => r.p).map(r => ({ face: r.hs ? `https://a.espncdn.com/i/headshots/soccer/players/full/${r.pid}.png` : null,
         name: r.name, meta: `${r.pos} · ${vs(r)}`, val: odds(r.p), unit: `${Math.round(r.p * 100)}% to score` })) }),

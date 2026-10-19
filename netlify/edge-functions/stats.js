@@ -27,7 +27,8 @@ const BOARDS = {
     [d.stats?.doubles, ['dd', 'td']],
     [(d.first?.games || []).flatMap(g => g.players), ['p']],
   ],
-  soccer: (d) => [[d.goals?.rows, ['p']]],
+  // goal, plus every shots (o0.5-o5.5) and on-target (o0.5-o3.5) line the board offers
+  soccer: (d) => [[d.goals?.rows, ['p', (r) => r.sh ? 6 : 0, (r) => r.sot ? 4 : 0]]],
   mlb: (d) => [[[...(d.picks || []), ...(d.value || [])].filter((r, i, a) => a.findIndex(x => x.pid === r.pid) === i), ['pHR']]],
 };
 
