@@ -119,6 +119,11 @@ const BOARDS = {
     milestones: (d) => ({ title: 'Milestone Watch', sub: 'Closing on a round number', when: dayLbl(d.today),
       rows: (d.fun?.milestones || []).slice(0, 5).map(r => ({ face: nbaFace(r.pid), name: r.name, meta: `${r.team} · ${r.career.toLocaleString()} career`, val: String(r.away), unit: `from ${r.next.toLocaleString()}` })) }),
   },
+  soccer: {
+    goals: (d) => ({ title: 'Anytime Goal', sub: 'MLS · to score · fair odds', when: dayLbl(d.goals?.from),
+      rows: top((d.goals?.rows || []).filter(r => new Date(r.start) > new Date()), r => r.p).map(r => ({ face: r.hs ? `https://a.espncdn.com/i/headshots/soccer/players/full/${r.pid}.png` : null,
+        name: r.name, meta: `${r.pos} · ${vs(r)}`, val: odds(r.p), unit: `${Math.round(r.p * 100)}% to score` })) }),
+  },
   mlb: {
     picks: (d) => mlbHr(d, d.picks, 'HR Picks', 'Home run · fair odds'),
     value: (d) => mlbHr(d, d.value, 'Value Bats', 'Longer shots in great spots · fair odds'),

@@ -100,7 +100,7 @@ const ROUTES = [
   ['nfl', '/nfl/'], ['nfl', '/nfl/picks'], ['nfl', '/nfl/fantasy'], ['nfl', '/nfl/yards/pass'],
   ['nhl', '/nhl/'], ['nhl', '/nhl/picks'], ['nhl', '/nhl/points'],
   ['nba', '/nba/'], ['nba', '/nba/threes'], ['nba', '/nba/points'],
-  ['soccer', '/soccer/'], ['soccer', '/soccer/schedule'], ['soccer', '/soccer/recap'], ['soccer', '/soccer/stats'],
+  ['soccer', '/soccer/'], ['soccer', '/soccer/schedule'], ['soccer', '/soccer/recap'], ['soccer', '/soccer/goals'], ['soccer', '/soccer/stats'],
 ];
 const VIEWPORTS = [['desktop', { width: 1280, height: 900 }], ['phone', { width: 390, height: 844 }]];
 

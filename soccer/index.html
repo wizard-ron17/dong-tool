@@ -8,24 +8,26 @@
 <script src="/app.js"></script>
 <script src="/chrome.js"></script>
 <script src="/modal.js"></script>
+<script src="/share.js"></script>
+<script src="/board.js"></script>
 <script src="/slate.js"></script>
 <script src="/trend.js"></script>
 <meta name="theme-color" content="#05080f">
-<meta name="description" content="MLS, game by game: the schedule with DraftKings' lines and the goals they imply, every goal of the weekend, and the season's scorers and shooters. Goals and shots props are next. Inspired by Green Means Go.">
+<meta name="description" content="MLS anytime goalscorer, every player priced off his minutes, his shooting and the goals the line expects, plus the schedule with lines, every goal of the weekend graded against our price, and the season's scorers and shooters. Inspired by Green Means Go.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Ron's Goal Tool">
 <meta property="og:title" content="Ron's Goal Tool">
-<meta property="og:description" content="MLS, game by game: the schedule with the lines and the goals they imply, every goal of the weekend, and the season's scorers and shooters.">
+<meta property="og:description" content="MLS anytime goalscorer, every player priced, plus the schedule with the lines and the goals they imply and every goal of the round graded against our price.">
 <meta property="og:url" content="https://dong-tool.netlify.app/soccer">
 <meta property="og:locale" content="en_US">
-<meta property="og:image" content="https://dong-tool.netlify.app/icons/og-soccer.png?v=1">
-<meta property="og:image:secure_url" content="https://dong-tool.netlify.app/icons/og-soccer.png?v=1">
+<meta property="og:image" content="https://dong-tool.netlify.app/icons/og-soccer.png?v=2">
+<meta property="og:image:secure_url" content="https://dong-tool.netlify.app/icons/og-soccer.png?v=2">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Ron's Goal Tool — MLS schedule, lines, goals and shots">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://dong-tool.netlify.app/icons/og-soccer.png?v=1">
+<meta name="twitter:image" content="https://dong-tool.netlify.app/icons/og-soccer.png?v=2">
 <meta name="twitter:image:alt" content="Ron's Goal Tool — MLS schedule, lines, goals and shots">
 <meta name="twitter:title" content="Ron's Goal Tool">
 <meta name="twitter:description" content="MLS game by game: lines and implied goals, every goal of the weekend, the season's scorers and shooters.">
@@ -289,10 +291,65 @@
   @media (max-width: 620px) {
     .pm.gmm { padding-left: 0.7rem; padding-right: 0.7rem; }
   }
+  .due-explainer { background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.9rem; margin-bottom: 0.6rem; font-size: 0.766rem; line-height: 1.5; color: var(--dim); cursor: pointer; transition: background 0.15s; }
+  .due-explainer:hover { background: var(--surface2); }
+  .pb-list { display: flex; flex-direction: column; gap: 0.4rem; }
+  .pb-card { display: flex; align-items: center; gap: 0.65rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.7rem; }
+  .pb-rank { font-family: var(--font-m); font-size: 0.742rem; color: var(--dim); min-width: 1.5rem; text-align: right; flex-shrink: 0; }
+  .pb-info { min-width: 0px; flex: 1 1 0%; }
+  .pb-nm { font-weight: 700; font-size: 0.85rem; color: var(--text-strong); display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+  .pb-line { font-size: 0.723rem; color: var(--muted); margin-top: 0.12rem; }
+  .pb-flag { font-family: var(--font-m); font-size: 0.655rem; font-weight: 700; padding: 0.06rem 0.32rem; border-radius: 4px; background: rgba(242, 201, 76, 0.14); color: var(--gold); border: 1px solid rgba(242, 201, 76, 0.4); }
+  .pb-facts { display: flex; gap: 0.3rem; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
+  .pb-f { font-family: var(--font-m); font-size: 0.692rem; color: var(--silver); background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 0.1rem 0.34rem; white-space: nowrap; }
+  .pb-f b { color: var(--text-strong); font-weight: 700; }
+  .pb-price { text-align: right; flex-shrink: 0; min-width: 4.1rem; }
+  .rc-tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface0); }
+  .rc-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 520px; }
+  .rc-table th { position: sticky; top: 0px; background: var(--surface1); color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; text-align: left; padding: 0.5rem 0.6rem; white-space: nowrap; }
+  .rc-table td { padding: 0.5rem 0.6rem; border-top: 1px solid var(--border); white-space: nowrap; }
+  .rc-table tbody tr { cursor: pointer; }
+  .rc-table tbody tr:hover { background: var(--surface1); }
+  .rc-table .num { text-align: right; font-family: var(--font-d); font-weight: 700; }
+  .rc-table .dim, .rc-table td.dim { color: var(--muted); font-weight: 500; }
+  .rc-table b { font-family: var(--font-d); font-weight: 700; }
+  .pb-odds { display: block; font-family: var(--font-d); font-size: 1.45rem; font-weight: 700; line-height: 1; color: var(--gold); }
+  .pb-odds.dog { color: var(--good); }
+  .pb-pct { display: block; font-family: var(--font-m); font-size: 0.692rem; color: var(--dim); margin-top: 0.16rem; }
+  @media (max-width: 620px) {
+    .pb-facts { display: none; }
+    .pb-rank { min-width: 1.1rem; font-size: 0.704rem; }
+    .pb-odds { font-size: 1.28rem; }
+  }
   .pm-back { position: fixed; inset: 0px; background: rgba(0, 0, 0, 0.66); backdrop-filter: blur(3px); z-index: 300; display: flex; align-items: flex-start; justify-content: center; padding: 1.5rem 0.9rem; overflow-y: auto; }
   @media (max-width: 619px) {
     .pm-back { padding: 1.1rem 2.6rem; }
   }
+  .pb-card { cursor: pointer; }
+  .pb-logo { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; vertical-align: -0.25em; }
+  .pm-hero { position: relative; display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 1rem 0.85rem; }
+  .pm-hero .rc-photo { width: 58px; height: 58px; flex-shrink: 0; }
+  .pm-id { flex: 1 1 0%; min-width: 0px; }
+  .pm-nm { font-family: var(--font-d); font-size: 1.5rem; font-weight: 700; color: var(--text-strong); line-height: 1.05; }
+  .pm-meta { font-size: 0.729rem; color: var(--muted); margin-top: 0.2rem; }
+  .pm-meta b { color: var(--silver); }
+  .pm-hero-price { text-align: right; flex-shrink: 0; }
+  .pm-hero-od { font-family: var(--font-d); font-size: 2.1rem; font-weight: 700; line-height: 1; color: var(--good); }
+  .pm-hero-od.dog { color: var(--gold); }
+  .pm-hero-lbl { font-size: 0.661rem; color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 0.2rem; }
+  .pm-sec { text-align: center; font-family: var(--font-d); font-size: 0.766rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin: 1.15rem 0px 0.15rem; }
+  .pm-body { padding: 0px 1rem 1.1rem; }
+  .pm-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; margin-top: 0.5rem; }
+  .pm-stat { background: var(--surface1); border: 1px solid var(--border); border-radius: 9px; padding: 0.45rem 0.3rem; text-align: center; }
+  .pm-stat-v { font-family: var(--font-d); font-size: 1.05rem; font-weight: 700; color: var(--text-strong); line-height: 1; }
+  .pm-stat-l { font-size: 0.642rem; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 0.22rem; }
+  .pm-foot { font-size: 0.692rem; color: var(--dim); line-height: 1.5; margin: 0.9rem 0px 0px; text-align: center; }
+  @media (max-width: 460px) {
+    .pm-stats { grid-template-columns: repeat(2, 1fr); }
+    .pm-nm { font-size: 1.25rem; }
+    .pm-hero-od { font-size: 1.7rem; }
+  }
+  .pb-card, .pb-table tbody tr { cursor: pointer; }
   .pk-side-nav { position: fixed; top: 46%; transform: translateY(-50%); z-index: 210; width: 30px; height: 52px; border: 1px solid var(--border2); border-radius: 8px; background: var(--surface1); color: var(--muted); font-size: 1.4rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0px; box-shadow: rgba(0, 0, 0, 0.45) 0px 3px 14px; transition: background 0.15s, color 0.15s, border-color 0.15s; }
   .pk-side-nav:not(:disabled) { color: var(--text); }
   @media (min-width: 620px) {
@@ -302,6 +359,9 @@
   #gm-back .pk-side-next { right: max(6px, 50% - 552px); }
   .pm-back { position: fixed; inset: 0px; background: rgba(0, 0, 0, 0.66); backdrop-filter: blur(3px); z-index: 300; display: flex; align-items: flex-start; justify-content: center; padding: 1.5rem 0.9rem; overflow-y: auto; }
   .pm { position: relative; margin: auto; background: var(--surface0); border: 1px solid var(--border2); border-radius: 14px; width: 100%; max-width: 520px; box-shadow: rgba(0, 0, 0, 0.6) 0px 18px 50px; padding: 1.1rem 1.2rem 1.3rem; }
+  .hm-bet { display: inline-flex; align-items: baseline; gap: 0.3rem; white-space: nowrap; }
+  .hm-bet small { font-family: var(--font-m, var(--font-d)); font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+  .hm-bet b { font-weight: 700; }
   .odfav { color: var(--gold); }
   .oddog { color: var(--good); }
   /* recap: the first basket, the threes, the doubles — a drawn half court (no NBA clips exist) */
@@ -323,9 +383,19 @@
   .rx-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.15rem; flex-shrink: 0; }
   .rx-stat { font: 700 1.1rem var(--font-d); color: var(--text-strong); }
   .rx-stat small { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+  .rx-grade { font: 600 0.66rem var(--font-m, var(--font-d)); padding: 0.1rem 0.45rem; border-radius: 999px; white-space: nowrap; }
+  .rx-grade.hit { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+  .rx-grade.miss { color: var(--muted); background: var(--surface2); }
   .rx-none { font-size: 0.76rem; color: var(--muted); padding: 0.2rem 0 0.3rem; }
   /* the schedule standard: two cards a row on desktop */
   @media (min-width: 900px) { .sc-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; align-items: start; } }
+  .t3-logo { width: 14px; height: 14px; object-fit: contain; vertical-align: -2px; }
+  .t3-pick { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.45rem; padding-top: 0.4rem; border-top: 1px solid var(--border); font-size: 0.76rem; min-width: 0; cursor: pointer; }
+  .t3-pick b { color: var(--text-strong); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .t3-pick-lbl { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+  .t3-pick-od { margin-left: auto; font-family: var(--font-m); font-size: 0.72rem; color: var(--accent); white-space: nowrap; }
+  .t3-pick-od small { color: var(--muted); }
+  .t3-note { font-size: 0.72rem; color: var(--muted); line-height: 1.45; margin-top: 0.8rem; }
   .sc-pre { font-family: var(--font-d); font-weight: 700; font-size: 0.63rem; letter-spacing: 0.06em; padding: 0.1rem 0.34rem; border-radius: 4px; color: var(--pos-g); background: color-mix(in srgb, var(--pos-g) 16%, transparent); }
   .sc-live { font-family: var(--font-d); font-weight: 700; font-size: 0.63rem; letter-spacing: 0.06em; padding: 0.1rem 0.34rem; border-radius: 4px; color: var(--bad); background: color-mix(in srgb, var(--bad) 16%, transparent); }
   .st-line { display: flex; flex-wrap: wrap; gap: 0.3rem 0.55rem; margin-top: 0.35rem; font-family: var(--font-m); font-size: 0.68rem; color: var(--muted); }
@@ -350,6 +420,10 @@
   .gl-score { font-family: var(--font-d); font-weight: 700; font-size: 0.95rem; color: var(--text-strong); white-space: nowrap; }
   .gl-tag { font: 700 0.58rem var(--font-d); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border2); border-radius: 4px; padding: 0.04rem 0.3rem; margin-left: 0.25rem; vertical-align: middle; }
   .rg-head .rx-btn { margin-left: auto; }
+  .gl-xi { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .gl-xi.bench { color: var(--muted); border-color: var(--border2); background: var(--surface2); }
+  .gl-hit { color: var(--good); } .gl-miss { color: var(--muted); }
+  .rg-head .rx-grade { font-size: 0.7rem; }
   .gl-day { font: 700 0.74rem var(--font-d); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 1.1rem 0.1rem 0.45rem; }
   .ss-row { display: grid; grid-template-columns: 2.6rem minmax(0, 1fr) 2.6rem; align-items: end; gap: 0.5rem; font-size: 0.74rem; margin-bottom: 0.35rem; }
   .ss-row b { font-family: var(--font-d); font-size: 0.92rem; color: var(--text-strong); }
@@ -399,7 +473,7 @@
   // The shared chrome (/chrome.js): what differs per app. Tools = the Tools menu, in order.
   RonChrome.mount({ sport: "soccer", season: "2026", credit: "A goal tool", tools: [
     {"group": "Props", "g": "g1"},
-    {"nav": null, "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2.5 19V6h19v13\"/><path d=\"M7.5 6v13M12 6v13M16.5 6v13M2.5 10.5h19M2.5 15h19\" stroke-width=\"1.2\" opacity=\"0.6\"/></svg>", "name": "Goals<span class=\"nm-soon\">Soon</span>", "desc": "Every player priced to score &mdash; his chances, his minutes and the goals the line expects from his team.", "soon": true},
+    {"nav": "goals", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2.5 19V6h19v13\"/><path d=\"M7.5 6v13M12 6v13M16.5 6v13M2.5 10.5h19M2.5 15h19\" stroke-width=\"1.2\" opacity=\"0.6\"/></svg>", "name": "Goals", "desc": "Every player priced to score &mdash; his minutes, his shooting and the goals the line expects from his team."},
     {"nav": null, "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><circle cx=\"12\" cy=\"12\" r=\"3.8\"/><path d=\"M12 1.5v3.5M12 19v3.5M1.5 12H5M19 12h3.5\"/></svg>", "name": "Shots<span class=\"nm-soon\">Soon</span>", "desc": "Shots and shots on target for every player, priced at every line.", "soon": true}
   ] });
 </script>
@@ -407,6 +481,7 @@
   <div id="panel-home" class="panel visible"><div id="home-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-stats" class="panel"><div id="stats-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-recap" class="panel"><div id="recap-content"><div class="empty">Loading…</div></div></div>
+  <div id="panel-goals" class="panel"><div id="goals-content"><div class="empty">Loading…</div></div></div>
   <div id="panel-schedule" class="panel"><div id="schedule-content"><div class="empty">Loading…</div></div></div>
 
   <footer class="site-foot"></footer>
@@ -423,8 +498,8 @@
   RonChrome.onTheme(() => document.querySelectorAll('img[data-team]').forEach(img => { img.src = teamLogo(img.dataset.team); }));
 
   // ── Nav + routing ──────────────────────────────────────────────────────
-  const SOC_NAVS = ['home', 'stats', 'recap', 'schedule'];   // tools added here as they ship
-  const PAGE_TITLES = { home: "Ron's Goal Tool", stats: "Stats · Ron's Goal Tool", recap: "Recap · Ron's Goal Tool", schedule: "Schedule · Ron's Goal Tool" };
+  const SOC_NAVS = ['home', 'stats', 'recap', 'goals', 'schedule'];   // tools added here as they ship
+  const PAGE_TITLES = { home: "Ron's Goal Tool", stats: "Stats · Ron's Goal Tool", recap: "Recap · Ron's Goal Tool", goals: "Goals · Ron's Goal Tool", schedule: "Schedule · Ron's Goal Tool" };
   let activeNav = 'home', applyingRoute = false;
   function switchNav(nav) {
     activeNav = nav;
@@ -449,6 +524,7 @@
     else if (nav === 'stats') renderStats();
     else if (nav === 'recap') renderRecap();
     else if (nav === 'schedule') renderSchedule();
+    else if (nav === 'goals') renderGoals();
   }
 
   // ── Data ───────────────────────────────────────────────────────────────
@@ -524,6 +600,8 @@
   /** Kickoff in the reader's own timezone — the feed publishes UTC. */
   const gameTime = (iso) => iso ? new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(new Date(iso)) : '';
   /** Today, on MLS's clock: the date keys are US Eastern. */
+  /** A kickoff's date on the feed's clock (US Eastern), yyyy-mm-dd. */
+  const etDay = (iso) => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
   const todayET = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   // Who has an ESPN headshot (about half the league): the rest get initials without a known-404 request.
   let HS = new Map();
@@ -575,15 +653,16 @@
   }
   function recapToLatest() { const rs = recapRounds(); setRecapDate(rs[rs.length - 1][0]); }
   /** One goal: the minute, who scored (an own goal is credited to the other side), the assist, the score after it (away–home). */
-  function goalRow(x) {
+  function goalRow(x, G) {
     const own = x.kind === 'Own goal';
+    const p = !own && G ? ghGame(G.date, G.id)?.[x.pid] : null;          // our last price before kickoff
     const how = [own ? `own goal, for ${esc(x.team)}` : x.kind ? esc(x.kind.toLowerCase()) : '', x.ast ? `assist ${esc(shortName(x.ast.name))}` : ''].filter(Boolean).join(' · ');
     return `<div class="rx-row">
       <span class="gl-min">${minLbl(x)}</span>
       ${faceHtml(x.pid, x.name)}
       <div class="rx-info"><div class="rx-nm">${esc(x.name)} <span class="dim">${own ? '' : esc(x.team)}</span>${x.kind === 'Penalty' ? '<span class="gl-tag">PK</span>' : ''}</div>
         <div class="rx-sub">${how || 'goal'}</div></div>
-      <div class="rx-right"><span class="gl-score">${x.a}–${x.h}</span></div>
+      <div class="rx-right"><span class="gl-score">${x.a}–${x.h}</span>${p != null ? `<span class="rx-sub" title="Our last price before kickoff for him to score">we had ${Odds.am(p)}</span>` : ''}</div>
     </div>`;
   }
   /** The two sides' bar colours: the home side takes its alternate when the primaries are too alike (CLB black vs CIN navy). */
@@ -603,7 +682,7 @@
   }
   function renderRecap() {
     const el = dataGate('recap-content'); if (!el) return;
-    loadRecapBox();
+    loadRecapBox(); loadGoalHist();
     const rs = recapRounds();
     if (!rs.length) { el.innerHTML = '<div class="empty">No games in the last four weeks.</div>'; return; }
     let i = rs.findIndex(r => r[0] === recapDate);
@@ -617,10 +696,12 @@
     const by = {};
     for (const G of games) for (const x of G.goals) if (x.kind !== 'Own goal' && x.pid) (by[x.pid] ||= { name: x.name, n: 0 }).n++;
     const top = Object.values(by).sort((a, b) => b.n - a.n)[0];
+    const picks = games.map(G => topPick({ ...G, state: 'post' })).filter(Boolean);
     const tiles = `<div class="hm-tiles rx-tiles">
       <div class="hm-tile"><b>${goals}</b><span>Goals · ${(goals / games.length).toFixed(1)} a game</span></div>
       <div class="hm-tile"><b>${sot}/${shots}</b><span>On target / shots</span></div>
-      <div class="hm-tile"><b>${top && top.n > 1 ? top.n : games.length}</b><span>${top && top.n > 1 ? `Goals · ${esc(shortName(top.name))}` : games.length === 1 ? 'Game' : 'Games'}</span></div>
+      ${picks.length ? `<div class="hm-tile" title="Each game's shortest price to score, our last before kickoff"><b>${picks.filter(t => t.scored).length}/${picks.length}</b><span>Top picks scored · ${picks.reduce((a, t) => a + t.p, 0).toFixed(1)} expected</span></div>`
+        : `<div class="hm-tile"><b>${top && top.n > 1 ? top.n : games.length}</b><span>${top && top.n > 1 ? `Goals · ${esc(shortName(top.name))}` : games.length === 1 ? 'Game' : 'Games'}</span></div>`}
     </div>`;
     const body = games.map((G, k) => {
       const aWin = G.away.score > G.home.score, hWin = G.home.score > G.away.score;
@@ -636,18 +717,20 @@
       // a round of two days: each day under its own heading
       const day = round.length > 1 && (k === 0 || games[k - 1].date !== G.date)
         ? `<div class="gl-day">${dayLabel(G.date, true)} · ${games.filter(x => x.date === G.date).length} game${games.filter(x => x.date === G.date).length === 1 ? '' : 's'}</div>` : '';
+      const tp = topPick({ ...G, state: 'post' });
+      const tpHtml = tp ? `<span class="rx-grade ${tp.scored ? 'hit' : 'miss'}" title="Our shortest price to score in this game, the last before kickoff">${tp.scored ? '✓' : '✗'} top pick ${esc(shortName(tp.name))} ${Odds.am(tp.p)}</span>` : '';
       return `${day}<div class="rg">
         <div class="rg-head">
           <span class="rg-score">
             ${logoImg(G.away.ab, 'rg-logo')}<span class="${aWin ? 'w' : ''}">${esc(G.away.ab)} ${G.away.score}</span>
             <span style="color:var(--dim)">–</span>
             <span class="${hWin ? 'w' : ''}">${G.home.score} ${esc(G.home.ab)}</span>${logoImg(G.home.ab, 'rg-logo')}
-          </span>${G.len > 90 ? '<span class="rg-end">AET</span>' : ''}${slugTag(G.slug)}
+          </span>${G.len > 90 ? '<span class="rg-end">AET</span>' : ''}${slugTag(G.slug)}${tpHtml}
           <button class="rx-btn" onclick="openGame('${G.id}')">Box score</button>
         </div>
         <div class="rx-grid">
           <div>
-            <div class="rx-sec">Goals</div>${G.goals.map(goalRow).join('') || '<div class="rx-none">Goalless.</div>'}
+            <div class="rx-sec">Goals</div>${G.goals.map(x => goalRow(x, G)).join('') || '<div class="rx-none">Goalless.</div>'}
             <div class="rx-sec">${esc(G.away.ab)} · team · ${esc(G.home.ab)}</div>${teamStats(G)}
           </div>
           <div><div class="rx-sec">Shots</div>${shotsHtml}</div>
@@ -705,6 +788,11 @@
         </div>
         ${end ? logoImg(t.ab, 'sc-logo') : ''}
       </div>`;
+    // the game's top goalscorer pick, graded once it's final (the schedule standard: a top pick on every game)
+    const tp = topPick(g);
+    const pick = tp ? `<div class="t3-pick" onclick="event.stopPropagation(); ${g.state === 'pre' ? `openGoalCard('${tp.pid}','${g.id}')` : `openGame('${g.id}')`}">
+        <span class="t3-pick-lbl">Top goal</span>${tp.team ? logoImg(tp.team, 't3-logo') : ''}<b>${esc(tp.name)}</b>
+        <span class="t3-pick-od">${Odds.am(tp.p)} <small>${Odds.pct(tp.p)}</small>${tp.scored == null ? '' : tp.scored ? ' <b class="gl-hit">✓</b>' : ' <b class="gl-miss">✗</b>'}</span></div>` : '';
     return `<div class="sc-game" data-gid="${g.id}" onclick="openGame('${g.id}')" role="button" tabindex="0">
       <div class="sc-top">
         ${side(g.away, false, aWin)}
@@ -712,6 +800,7 @@
         ${side(g.home, true, hWin)}
         <span class="sc-chev">▶</span>
       </div>
+      ${pick}
     </div>`;
   }
   // ── The game card and the split view (/slate.js) ──────────────────────
@@ -725,25 +814,38 @@
     const r = (D.recap || []).find(g => g.id === gid); if (!r) return null;
     return { id: gid, start: null, date: r.date, slug: r.slug, state: 'post', detail: r.len > 90 ? 'AET' : 'FT', home: r.home, away: r.away, lines: null };
   }
+  const COL_GOAL = { k: 'goal', lab: 'Goal', title: 'Anytime goal', yes: true };
   const BX_SOC = [{ k: 'min', lab: 'MIN', title: 'Minutes played' }, { k: 'g', lab: 'G', title: 'Goals' }, { k: 'a', lab: 'A', title: 'Assists' },
     { k: 'sh', lab: 'SH', title: 'Shots' }, { k: 'sot', lab: 'SOT', title: 'Shots on target' }];
   const FAM_ORDER = { GK: 0, DEF: 1, MID: 2, FWD: 3 };
   function socBox(g) {
     const done = g.state === 'post';
-    if (!done) return RonSlate.box({ state: 'pre', teams: [],
-      empty: g.state === 'in' ? 'Live — the box fills in at full time.' : 'Goals and Shots price every player here once they ship: his projection and fair odds, a column per market.' });
+    if (!done) {
+      // before kickoff: every priced player, his price to score and the minutes it assumes
+      const G = (D.goals?.rows || []).filter(r => r.gid === g.id);
+      const cols = [COL_GOAL, { k: 'em', lab: 'MIN', title: 'Expected minutes' }, { k: 'sh90', lab: 'SH/90', title: 'Shots per 90 (shrunk)' }];
+      const teams = [g.away.ab, g.home.ab].map(t => ({ abbr: t, logo: logoImg(t, ''), sub: esc(teamName(t)), groups: [{ name: 'Player', cols,
+        rows: G.filter(r => r.team === t).sort((a, b) => b.p - a.p).map(r => ({ name: r.name, pos: r.pos, sub: r.xi === 'XI' ? 'XI' : r.xi === 'bench' ? 'bench' : '', face: faceHtml(r.pid, r.name, r.hs),
+          open: `openGoalCard('${r.pid}','${g.id}')`, cells: { goal: { p: r.p, open: `openGoalCard('${r.pid}','${g.id}')` },
+            em: { info: true, big: `${r.em.toFixed(0)}'`, sort: r.em }, sh90: { info: true, big: r.sh90.toFixed(1), sort: r.sh90 } } })) }] }));
+      return RonSlate.box({ state: g.state === 'in' ? 'live' : 'pre', teams,
+        note: 'Our price for every player in the rotation to score, with the minutes it assumes. Tap a player for what makes his price. Shots ship next.',
+        empty: g.state === 'in' ? 'Live: the box fills in at full time.' : 'Prices post once the game is inside the build\'s window, about four days out.' });
+    }
     if (rxState !== 'ready') { loadRecapBox(); return `<div class="empty" style="padding:2rem 0">${rxState === 'error' ? 'Couldn\'t load the player box.' : 'Loading…'}</div>`; }
-    const P = boxRows(g.id);
-    const cells = (p) => Object.fromEntries(BX_SOC.map(c => [c.k, { info: true, big: c.k === 'min' ? `${p.min}'` : p[c.k], sort: p[c.k] }]));
+    const P = boxRows(g.id), H = ghGame(g.date, g.id) || {};
+    const cells = (p) => ({ ...Object.fromEntries(BX_SOC.map(c => [c.k, { info: true, big: c.k === 'min' ? `${p.min}'` : p[c.k], sort: p[c.k] }])),
+      ...(H[p.pid] != null ? { goal: { p: H[p.pid], got: p.g } } : {}) });
     const row = (p) => ({ name: p.name, pos: posFam(p.gpos) || '', sub: [p.yc ? '🟨' : '', p.rc ? '🟥' : ''].join(''), face: faceHtml(p.pid, p.name, p.hs), cells: cells(p) });
     const teams = [g.away.ab, g.home.ab].map(t => {
       const mine = P.filter(p => p.team === t);
       return { abbr: t, logo: logoImg(t, ''), sub: esc(teamName(t)), groups: [
-        { name: 'Starting XI', cols: BX_SOC, rows: mine.filter(p => p.st).sort((a, b) => (FAM_ORDER[posFam(a.gpos)] ?? 9) - (FAM_ORDER[posFam(b.gpos)] ?? 9)).map(row) },
-        { name: 'Subs', cols: BX_SOC, rows: mine.filter(p => !p.st).sort((a, b) => b.min - a.min).map(row) }] };
+        { name: 'Starting XI', cols: [COL_GOAL, ...BX_SOC], rows: mine.filter(p => p.st).sort((a, b) => (FAM_ORDER[posFam(a.gpos)] ?? 9) - (FAM_ORDER[posFam(b.gpos)] ?? 9)).map(row) },
+        { name: 'Subs', cols: [COL_GOAL, ...BX_SOC], rows: mine.filter(p => !p.st).sort((a, b) => b.min - a.min).map(row) }] };
     });
-    return RonSlate.box({ state: 'pre', teams,
-      note: 'What each player did. Once Goals and Shots ship, these columns carry our projection and fair price before kickoff and grade themselves at full time.',
+    if (ghState === 'idle' || ghState === 'loading') loadGoalHist();
+    return RonSlate.box({ state: Object.keys(H).length ? 'post' : 'pre', teams,
+      note: 'What each player did, and our last price before kickoff for him to score (green: he did; a long price is meant to miss). Shots ship next.',
       empty: 'No player box for this game (it\'s older than the recap\'s four weeks).' });
   }
   function socGameHtml(g) {
@@ -766,7 +868,7 @@
       : '';
     const form = !final && (g.away.form || g.home.form) ? `<div class="sl-facts">Form <b>${esc(g.away.ab)}</b> ${formHtml(g.away.form)} · <b>${esc(g.home.ab)}</b> ${formHtml(g.home.form)}</div>` : '';
     const R = final ? (D.recap || []).find(x => x.id === g.id) : null;
-    const goals = R ? `<div class="rx-grid" style="margin-bottom:0.9rem"><div><div class="rx-sec">Goals</div>${R.goals.map(goalRow).join('') || '<div class="rx-none">Goalless.</div>'}</div>
+    const goals = R ? `<div class="rx-grid" style="margin-bottom:0.9rem"><div><div class="rx-sec">Goals</div>${R.goals.map(x => goalRow(x, R)).join('') || '<div class="rx-none">Goalless.</div>'}</div>
         <div><div class="rx-sec">${esc(R.away.ab)} · team · ${esc(R.home.ab)}</div>${teamStats(R)}</div></div>` : '';
     return `<header class="gm-hero">
         <div class="gm-team">${logoImg(g.away.ab, '')}<b>${esc(g.away.ab)}</b>${side(false)}</div>
@@ -806,11 +908,12 @@
       return { id: g.id, live,
         when: final ? esc(g.detail || 'FT') : live ? `Live · ${esc(g.detail || '')}` : gameTime(g.start),
         note: !final && !live && L ? `${L.mlDraw != null ? `Draw ${odds(L.mlDraw)}` : ''}${L.total != null ? ` · O/U ${L.total}` : ''}` : '',
-        teams: [team(g.away, false), team(g.home, true)], pick: '' };
+        teams: [team(g.away, false), team(g.home, true)], pick: pickHtml(topPick(g)) };
     }) }];
   }
   function renderSchedule() {
     const el = dataGate('schedule-content'); if (!el) return;
+    loadGoalHist();
     if (!D.dates.length) { el.innerHTML = `<div class="empty">No games in the next two weeks.${D.nextDay ? ` Next up: ${dayLabel(D.nextDay, true)}.` : ''}</div>`; return; }
     if (scheduleDate == null || !D.dates.includes(scheduleDate)) scheduleDate = nextGameDate();
     const i = D.dates.indexOf(scheduleDate), atFirst = i <= 0, atLast = i >= D.dates.length - 1;
@@ -944,6 +1047,147 @@
       <div class="rc-list">${rows.length ? rows.slice(0, ST_SHOW).map(row).join('') : '<div class="empty">No players match these filters.</div>'}</div>`;
   }
 
+  // ── Goals: anytime goalscorer ──────────────────────────────────────────
+  // Every player in a rotation over the next few days, priced to score
+  // (scripts/soccer-goals.js; fitted walk-forward in research/soccer_goals.py):
+  // his expected minutes, his shooting and scoring rates shrunk to his
+  // position's, his team's goals off the line, and his share of its penalties.
+  // Prices are pre-lineup; once a lineup posts (about an hour out) a player
+  // outside the matchday squad drops off and the rest carry XI / bench.
+  const GOAL_MIN = 0.02;            // the board's floor: a 1-in-50 defender is noise on a list (the box score keeps him)
+  const gF = { open: false, game: 'all', pos: 'ALL', sort: 'p', q: '', view: 'cards' };
+  function setGoalsF(k, v) { gF[k] = v; renderGoals(); }
+  const goalGames = () => [...new Map((D.goals?.rows || []).map(r => [r.gid, r])).values()].sort((a, b) => a.start.localeCompare(b.start));
+  const gameLbl = (r) => `${r.home ? r.opp : r.team} @ ${r.home ? r.team : r.opp}`;
+  function goalRows() {
+    const S = { p: (r) => r.p, em: (r) => r.em, sh90: (r) => r.sh90, imp: (r) => r.imp ?? 0 }[gF.sort] || ((r) => r.p);
+    return (D.goals?.rows || []).filter(r => (r.p >= GOAL_MIN || gF.q) && (gF.game === 'all' || r.gid === gF.game)
+        && (gF.pos === 'ALL' || r.pos === gF.pos) && matchQ(r, gF.q))
+      .sort((a, b) => S(b) - S(a) || b.p - a.p).map((r, i) => ({ ...r, rank: i + 1 }));
+  }
+  const xiTag = (r) => r.xi ? `<span class="pb-flag gl-xi${r.xi === 'XI' ? '' : ' bench'}">${r.xi === 'XI' ? 'XI' : 'BENCH'}</span>` : '';
+  const shareGoal = (r) => ({ name: r.name, p: r.p, tag: 'Yes',
+    img: r.hs ? `https://a.espncdn.com/i/headshots/soccer/players/full/${r.pid}.png` : null,
+    logo: D?.teams?.[r.team]?.logoDark || D?.teams?.[r.team]?.logo || null,
+    line: `${r.team} ${r.home ? 'vs' : '@'} ${r.opp} · ${r.em.toFixed(0)}' expected` });
+  function renderGoals() {
+    const el = dataGate('goals-content'); if (!el) return;
+    const G = D.goals;
+    if (!G?.rows?.length) { el.innerHTML = '<div class="empty">No games to price yet. The board fills in once the next games are on the schedule.</div>'; return; }
+    const games = goalGames();
+    if (gF.game !== 'all' && !games.some(g => g.gid === gF.game)) gF.game = 'all';
+    const rows = goalRows();
+    RonShare.set('setGoalsF', () => ({ title: 'Anytime goal', sub: `${dayLabel(G.from)}${G.to && G.to !== G.from ? ' – ' + dayLabel(G.to) : ''} · fair odds`, rows: rows.map(shareGoal) }));
+    const changed = (gF.game !== 'all') + (gF.pos !== 'ALL') + (gF.sort !== 'p');
+    const controls = uiFilters('setGoalsF', gF.open, [
+      ['Game', [['all', 'All games'], ...games.map(g => [g.gid, `${gameLbl(g)} · ${dayLabel(etDay(g.start))}`])].map(([v, l]) => uiChip('setGoalsF', 'game', v, l, gF.game)).join('')],
+      ['Position', [['ALL', 'All'], ['FWD', 'Forwards'], ['MID', 'Midfield'], ['DEF', 'Defenders']].map(([v, l]) => uiChip('setGoalsF', 'pos', v, l, gF.pos)).join('')],
+      ['Sort', [['p', 'Shortest price'], ['em', 'Expected minutes'], ['sh90', 'Shots / 90'], ['imp', 'Team goals']].map(([v, l]) => uiChip('setGoalsF', 'sort', v, l, gF.sort)).join('')],
+    ], changed) + uiSearch('goals-search', 'setGoalsF', gF.q, 'Search a player, team or position…');
+    const span = `${dayLabel(G.from, true)}${G.to && G.to !== G.from ? ` – ${dayLabel(G.to, true)}` : ''}`;
+    const meta = `<div class="result-meta"><b>${span}</b> · ${rows.length} players${gF.q ? '' : ` at ${Math.round(GOAL_MIN * 100)}%+`} · ${games.length} game${games.length === 1 ? '' : 's'} · anytime goal, fair odds, no vig</div>` + uiView('setGoalsF', gF.view);
+    if (!rows.length) { el.innerHTML = controls + meta + '<div class="empty">Nothing matches that filter.</div>'; return; }
+    const open = (r) => `openGoalCard('${r.pid}','${r.gid}')`;
+    const started = (r) => new Date(r.start) <= new Date();
+    const facts = (r) => `<span class="pb-f" title="Expected minutes: his last five games for this team, the latest weighted most"><b>${r.em.toFixed(0)}'</b> MIN</span>
+      <span class="pb-f" title="Shots per 90, shrunk toward his position's rate"><b>${r.sh90.toFixed(1)}</b> SH/90</span>
+      <span class="pb-f" title="Goals the line expects from his team"><b>${r.imp != null ? r.imp.toFixed(2) : '—'}</b> TEAM</span>
+      ${r.pk >= 0.2 ? `<span class="pb-f" title="His share of his team's recent penalties"><b>${Math.round(r.pk * 100)}%</b> PENS</span>` : ''}`;
+    let body;
+    if (gF.view === 'table') {
+      body = `<div class="rc-tablewrap"><table class="rc-table">
+        <thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Min</th><th class="num">SH/90</th><th class="num">G/90</th><th class="num">Pens</th><th class="num">Team</th><th class="num">Price</th></tr></thead>
+        <tbody>${rows.map(r => `
+          <tr onclick="${open(r)}"${started(r) ? ' class="dim"' : ''}>
+            <td class="num dim">${r.rank}</td>
+            <td><b>${esc(r.name)}</b> <span class="dim">${esc(r.pos || '')}</span> ${xiTag(r)}</td>
+            <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${dayLabel(etDay(r.start))}</td>
+            <td class="num dim">${r.em.toFixed(0)}'</td>
+            <td class="num dim">${r.sh90.toFixed(2)}</td>
+            <td class="num dim">${r.g90.toFixed(2)}</td>
+            <td class="num dim">${r.pk ? Math.round(r.pk * 100) + '%' : '—'}</td>
+            <td class="num dim">${r.imp != null ? r.imp.toFixed(2) : '—'}</td>
+            <td class="num"><b>${Odds.inline(r.p)}</b></td>
+          </tr>`).join('')}</tbody></table></div>`;
+    } else {
+      body = `<div class="pb-list">${rows.map(r => `
+        <div class="pb-card${started(r) ? ' t3-started' : ''}" onclick="${open(r)}">
+          <div class="pb-rank">${r.rank}</div>${faceHtml(r.pid, r.name, r.hs)}
+          <div class="pb-info">
+            <div class="pb-nm">${esc(r.name)}${posBadge(r.pos)}${xiTag(r)}</div>
+            <div class="pb-line">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${dayLabel(etDay(r.start))} ${gameTime(r.start)}${r.noLine ? ' · <i>no line yet</i>' : ''}</div>
+          </div>
+          <div class="pb-facts">${facts(r)}</div>
+          <div class="pb-price">
+            <span class="pb-odds${r.p < 0.5 ? ' dog' : ''}">${Odds.am(r.p)}</span>
+            <span class="pb-pct">to score · ${Odds.pct(r.p)}</span>
+          </div>
+        </div>`).join('')}</div>`;
+    }
+    const M = G.model;
+    el.innerHTML = controls + meta + body + `<div class="t3-note">Priced off his expected minutes (his last five games for this team), his shots, shots on target and goals per 90 (shrunk toward his position's, so a hot month counts for a little), the goals the line expects from his team, and his share of its penalties. Prices are pre-lineup: when lineups post, about an hour before kickoff, a player outside the matchday squad drops off and the rest are tagged XI or bench.${M ? ` Walk-forward over ${M.seasons[0]}–${M.seasons[M.seasons.length - 1]} (each season priced by a model fitted only on the seasons before it): AUC ${M.auc.toFixed(3)}, calibrated within a point or two from 1% to 50%.` : ''}</div>`;
+  }
+  /** One player's price, taken apart. ‹ › step through the board as it's filtered. */
+  let gcDeck = [], gcAt = -1;
+  function openGoalCard(pid, gid) {
+    const all = D.goals?.rows || [];
+    const r = all.find(x => x.pid === String(pid) && (!gid || x.gid === String(gid))); if (!r) return;
+    gcDeck = activeNav === 'goals' ? goalRows() : all.filter(x => x.gid === r.gid).sort((a, b) => b.p - a.p);
+    gcAt = gcDeck.findIndex(x => x.pid === r.pid && x.gid === r.gid);
+    const dlg = RonModal.open('gc-back', { cls: 'pm', nav: { prev: 'goalCardStep(-1)', next: 'goalCardStep(1)' } });
+    const stat = (v, l, tip) => `<div class="pm-stat" title="${tip}"><div class="pm-stat-v">${v}</div><div class="pm-stat-l">${l}</div></div>`;
+    const sharePk = r.mu ? r.muPk / r.mu : 0;
+    dlg.innerHTML = `<button class="pm-x" onclick="RonModal.close('gc-back')" aria-label="Close">×</button>
+      <div class="pm-hero">${faceHtml(r.pid, r.name, r.hs)}
+        <div class="pm-id"><div class="pm-nm">${esc(r.name)}</div>
+          <div class="pm-meta">${posBadge(r.pos)} ${xiTag(r)} <b>${esc(r.team)}</b> ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${dayLabel(etDay(r.start))} ${gameTime(r.start)}</div></div>
+        <div class="pm-hero-price"><div class="pm-hero-od${r.p < 0.5 ? ' dog' : ''}">${Odds.am(r.p)}</div><div class="pm-hero-lbl">to score · ${Odds.pct(r.p)}</div></div>
+      </div>
+      <div class="pm-body">
+        <div class="pm-sec">What it's made of</div>
+        <div class="pm-stats">
+          ${stat(`${r.em.toFixed(0)}'`, 'Exp. minutes', 'His last five games for this team, the latest weighted most')}
+          ${stat(`${r.st5}/5`, 'Starts L5', 'Starts in his team\'s last five games')}
+          ${stat(r.sh90.toFixed(2), 'Shots / 90', 'Shrunk toward his position\'s rate')}
+          ${stat(r.sot90.toFixed(2), 'On target / 90', 'Shrunk toward his position\'s rate')}
+          ${stat(r.g90.toFixed(2), 'Goals / 90', 'Non-penalty, shrunk toward his position\'s rate')}
+          ${stat(r.imp != null ? r.imp.toFixed(2) : '—', 'Team goals', 'What the line (1X2 + total, devigged) expects his team to score')}
+          ${stat(r.pk ? Math.round(r.pk * 100) + '%' : '—', 'Pen share', `His share of his team's last ${r.pkN} penalties`)}
+          ${stat(r.mu.toFixed(2), 'Exp. goals', 'The model\'s goal count for him in this game')}
+        </div>
+        <p class="pm-foot">Over his last ${r.apps} appearances: <b>${r.np}</b> non-penalty goal${r.np === 1 ? '' : 's'} and <b>${r.sh}</b> shots in ${r.min.toLocaleString()} minutes.
+          ${sharePk >= 0.05 ? ` About ${Math.round(sharePk * 100)}% of his price is penalties.` : ''}${r.noLine ? ' No line on this game yet: his team is priced at the league\'s average goals.' : ''}
+          ${r.xi ? ` Lineups are out: he's ${r.xi === 'XI' ? 'in the starting XI' : 'on the bench'} (the price is still the pre-lineup one).` : ''}</p>
+      </div>`;
+    RonModal.navState('gc-back', gcAt, gcDeck.length);
+  }
+  function goalCardStep(d) { const r = gcDeck[gcAt + d]; if (r) openGoalCard(r.pid, r.gid); }
+
+  // Our last pre-kickoff price for every priced player (soccer/goals-history.json): Recap and Schedule grade off it.
+  let GH = null, ghState = 'idle';
+  function loadGoalHist() {
+    if (ghState !== 'idle') return;
+    ghState = 'loading';
+    dataFetch('goals-history.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { GH = j; ghState = 'ready'; }).catch(() => { ghState = 'error'; })
+      .finally(() => { if (activeNav === 'recap') renderRecap(); if (activeNav === 'schedule') renderSchedule(); if (activeNav === 'home') renderHome(); });
+  }
+  const ghGame = (date, gid) => GH?.days?.[date]?.[gid] || null;
+  /** A game's top pick: before kickoff off the board, after it off the price log; graded once final from the goal list. */
+  function topPick(g) {
+    const rows = (D.goals?.rows || []).filter(r => r.gid === g.id);
+    if (g.state === 'pre' && rows.length) { const r = rows.reduce((a, b) => b.p > a.p ? b : a); return { pid: r.pid, name: r.name, team: r.team, p: r.p }; }
+    const H = ghGame(g.date, g.id); if (!H) return null;
+    const [pid, p] = Object.entries(H).sort((a, b) => b[1] - a[1])[0] || []; if (!pid) return null;
+    const R = (D.recap || []).find(x => x.id === g.id);
+    const fr = rows.find(r => r.pid === pid);
+    const name = fr?.name || (R ? (boxRows(g.id).find(x => x.pid === pid)?.name || R.goals.find(x => x.pid === pid)?.name) : null) || '';
+    const scored = R && g.state === 'post' ? R.goals.some(x => x.pid === pid && x.kind !== 'Own goal') : null;
+    return { pid, name, team: fr?.team || '', p, scored };
+  }
+  const pickHtml = (t) => !t ? '' : `★ <b>${esc(t.name || '—')}</b> to score${t.scored == null ? `<span class="sl-od${t.p >= 0.5 ? ' fav' : ''}">${Odds.am(t.p)}</span>`
+    : `<span class="sl-od">${Odds.am(t.p)} <span class="${t.scored ? 'hit' : 'miss'}">${t.scored ? '✓' : '✗'}</span></span>`}`;
+
   // ── Home ───────────────────────────────────────────────────────────────
   // The skeleton's home: the last match day, the next one, the scorers. The
   // tools' cards join it as they ship.
@@ -990,10 +1234,17 @@
         ${faceHtml(r.pid, r.name, r.hs, 'hm-photo')}
         <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.pos || '')} ${esc(r.team)} · ${per90(r.sot, r).toFixed(2)} on target / 90</span></span>
         <span class="hm-score warm">${per90(r.sh, r).toFixed(2)}<span class="hm-subtle" style="font-size:0.766rem"> SH/90</span></span></div>`).join('');
+    // ── Goals: the shortest prices still to play ─────────────────────────
+    const goalsHome = (D.goals?.rows || []).filter(r => new Date(r.start) > new Date()).slice(0, 5).map(r => `
+      <div class="hm-row" onclick="event.stopPropagation(); openGoalCard('${r.pid}','${r.gid}')">
+        ${faceHtml(r.pid, r.name, r.hs, 'hm-photo')}
+        <span class="hm-name">${esc(r.name)}<span class="hm-subtle">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${dayLabel(etDay(r.start))} · ${r.em.toFixed(0)}' exp</span></span>
+        <span class="hm-score hm-bet"><small>score</small><b class="${r.p >= 0.5 ? 'odfav' : 'oddog'}">${Odds.inline(r.p)}</b></span></div>`).join('');
     const lead = esc(String(D.leadersFrom).replace(/\s*MLS$/, ''));
     el.innerHTML = `
       <div class="hm-cols">
         <div class="hm-col">
+          ${card('goals', D.goals?.from ? `Goals · ${dayLabel(D.goals.from)}${D.goals.to && D.goals.to !== D.goals.from ? ` – ${dayLabel(D.goals.to)}` : ''}` : 'Goals', 'Goals', goalsHome, 'The board fills in once the next games are on the schedule.')}
           ${card('recap', lastRound ? `${roundLabel(lastRound)} Recap` : 'Recap', 'Recap', lastCard, 'No games in the last four weeks.')}
           ${card('stats', `${lead} Scorers`, 'Stats', leaders, 'No goals yet.')}
         </div>

@@ -27,6 +27,7 @@ const BOARDS = {
     [d.stats?.doubles, ['dd', 'td']],
     [(d.first?.games || []).flatMap(g => g.players), ['p']],
   ],
+  soccer: (d) => [[d.goals?.rows, ['p']]],
   mlb: (d) => [[[...(d.picks || []), ...(d.value || [])].filter((r, i, a) => a.findIndex(x => x.pid === r.pid) === i), ['pHR']]],
 };
 
@@ -44,7 +45,7 @@ async function count(sport) {
 }
 
 export default async () => {
-  const sports = ['mlb', 'nfl', 'nhl', 'nba'];
+  const sports = ['mlb', 'nfl', 'nhl', 'nba', 'soccer'];
   const each = await Promise.all(sports.map(s => count(s).catch(() => ({ lines: 0, players: 0 }))));
   const by = Object.fromEntries(sports.map((s, i) => [s, each[i]]));
   const body = { lines: each.reduce((a, x) => a + x.lines, 0), players: each.reduce((a, x) => a + x.players, 0), by, generated: new Date().toISOString() };

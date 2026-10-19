@@ -26,8 +26,8 @@ CARDS = {
             "Threes, points, rebounds, assists and first basket. Every line priced.",
             ["Threes", "Points", "PRA", "Steals & Blocks", "Doubles", "First Basket"]),
     "soccer": ("MLS", "Ron's", "Goal", "Tool", "soccer-icon-512.png",
-            "MLS game by game: the lines and the goals they imply. Goals and shots props next.",
-            ["Schedule", "Implied goals", "Recap", "Scorers", "Shooters", "Goals & Shots soon"]),
+            "Anytime goalscorer, every player priced. The lines and the goals they imply.",
+            ["Anytime goal", "Implied goals", "Schedule", "Recap", "Scorers", "Shots soon"]),
 }
 FONTS = ('<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=JetBrains+Mono:wght@600'
          '&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">')
