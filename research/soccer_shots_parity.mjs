@@ -13,7 +13,7 @@ const num = (v) => v === '' || v == null ? null : +v;
 let n = 0, worst = 0, at = null;
 for (const r of csv('goal_rows.csv')) {
   const q = py.get(`${r.gid}|${r.pid}|${r.team}`); if (!q) continue;
-  const f = { pos: r.pos, min5: +r.min5, st5: +r.st5, lastSt: +r.lastSt, subs5: +r.subs5, st10: +r.st10, stMin: num(r.stMin), subMin: num(r.subMin), min: +r.min, sh: +r.sh, sot: +r.sot };
+  const f = { pos: r.pos, min5: +r.min5, st5: +r.st5, lastSt: +r.lastSt, subs5: +r.subs5, st10: +r.st10, apps: +r.apps, lastMin: +r.lastMin, stMin: num(r.stMin), subMin: num(r.subMin), min: +r.min, sh: +r.sh, sot: +r.sot };
   for (const kind of ['sh', 'sot']) {
     const S = shotLadder(f, { osha: +r.osha }, { home: r.home === '1' }, MM, kind);
     const gaps = [Math.abs(S.mu - +q[`mu_${kind}`]), ...MM[kind].lines.map(L => Math.abs(S.p[L] - +q[`${kind}_${L}`]))];

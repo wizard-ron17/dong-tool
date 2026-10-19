@@ -16,8 +16,8 @@ Dated and open work. Newest decisions at the top of each section. Remove items w
 
 ## Next up
 - **Soccer (/soccer, MLS):** Goals and Shots / On target live 10/19, all three on the role mixture (start / bench / sits) and lineup-aware: goals AUC .830 before lineups, .869 after (research/soccer_goals.py); each team's next game. Next:
-  - Pre-lineup, the top decile runs ~3pp short on shots (stars start, and shoot, a little more than the role model says). On target runs ~5% under in 2025-26 as the league's on-target rate rose: try a recent-seasons weight.
-  - Grade the live log (soccer/goals-history.json) against books' closes once a few rounds are in (the SmartStake recorder has MLS shots props?).
+  - **Grade vs the closes after the 10/24-25 round** (first live-logged prices: Wed 10/21): `python3 ~/smartstake-data/study/mls_props_v2.py` (recorder closes vs our prices vs results; aggregates only). First run 10/19 on 45 games: ours beat the sharp books on every line and the books price subs like starters. Next: grade the LIVE log (soccer/goals-history.json, if-he-plays prices) the same way, and how far books move once lineups post.
+  - Star gap: priced if he plays, the top decile at shots o1.5 still runs ~.66 vs ~.69 though the mean and start split are calibrated; dispersion curves, rate quadratics and recency didn't close it (10/19). Leave unless the live grade shows it.
   - Parlay slip: measured soccer correlations in parlay.js (a player's shots + his SOT + his goal, teammates) before legs go on it.
   - MLS regular season ends 11/07 (Decision Day), then playoffs; EPL on the same engine for the winter (Ron's EV scan flags EPL / LaLiga / Serie A shots).
 - Season-rollover tests: run each build against fixed dates (opening day, the day before, first playoff day).

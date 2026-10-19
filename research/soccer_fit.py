@@ -2,12 +2,13 @@
 import math
 import numpy as np, pandas as pd
 
-def poisson_glm(X, y, iters=50):
-    """Unpenalised Poisson regression with a log link, by IRLS. Returns (intercept, coefs)."""
+def poisson_glm(X, y, iters=50, w=None):
+    """Unpenalised Poisson regression with a log link, by IRLS (w: optional row weights). Returns (intercept, coefs)."""
     A = np.column_stack([np.ones(len(X)), X]); b = np.zeros(A.shape[1]); b[0] = math.log(max(y.mean(), 1e-6))
+    w = np.ones(len(y)) if w is None else np.asarray(w, float)
     for _ in range(iters):
         mu = np.exp(A @ b); z = A @ b + (y - mu) / mu
-        step = np.linalg.solve(A.T @ (A * mu[:, None]), A.T @ (mu * z))
+        step = np.linalg.solve(A.T @ (A * (w * mu)[:, None]), A.T @ (w * mu * z))
         if np.max(np.abs(step - b)) < 1e-9: b = step; break
         b = step
     return b[0], b[1:]

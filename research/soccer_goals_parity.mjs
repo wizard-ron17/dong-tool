@@ -15,7 +15,7 @@ for (const r of csv('goal_rows.csv')) {
   if (r.imp === '') continue;
   const q = py.get(`${r.gid}|${r.pid}|${r.team}`); if (!q) continue;
   const num = (v) => v === '' || v == null ? null : +v;
-  const f = { pos: r.pos, min5: +r.min5, st5: +r.st5, lastSt: +r.lastSt, subs5: +r.subs5, st10: +r.st10, stMin: num(r.stMin), subMin: num(r.subMin),
+  const f = { pos: r.pos, min5: +r.min5, st5: +r.st5, lastSt: +r.lastSt, subs5: +r.subs5, st10: +r.st10, apps: +r.apps, lastMin: +r.lastMin, stMin: num(r.stMin), subMin: num(r.subMin),
     min: +r.min, np: +r.np, sh: +r.sh, sot: +r.sot, pkShare: +r.pkShare, pkN: +r.pkN };
   const ctx = { imp: +r.imp, home: r.home === '1' };
   // before the lineups, and with them (a player outside the matchday squad prices at zero either side)

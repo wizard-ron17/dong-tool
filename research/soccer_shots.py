@@ -28,10 +28,11 @@ Every line (o0.5 .. o4.5 shots, o0.5 .. o2.5 on target) is read off the mixture.
 The line's goals for his team and the team's own shot volume were tried as
 terms and each made the fit worse walk-forward; recent form (last five
 appearances) added nothing. Walk-forward by season, 2022 burn-in.
-Known misses (2024-26): pre-lineup, the top decile at o1.5 shots prices ~.536
-and hits ~.569 (stars start a little more, and shoot a little more when they
-do, than the model says); with lineups known it's calibrated to the point.
-On target runs ~5% under in 2025-26 as the league's on-target rate rose.
+Known misses (2024-26), priced if he plays (books void a player who doesn't): the top
+decile at o1.5 shots prices ~.66 and hits ~.69, though stars' projected mean and their
+start-given-plays are both calibrated; curving the dispersion, a quadratic on the
+rate and recency weights each failed to close it (10/19). On target ran ~4% under as
+the league's on-target rate rose; a 365-day half-life on its counts trims that.
 """
 import json, math, os, sys, warnings
 warnings.filterwarnings('ignore')
@@ -65,8 +66,12 @@ def count_X(t, M, kind, started):
     X = {'lrm': np.log(np.maximum(em, 1) / 90), 'lsh': np.log(sh90), 'lsot': np.log(sot90),
          'losha': np.log(t.osha.values / M['league']['tsh']), 'home': t.home.values.astype(float), 'st': st}
     X['lrm2'] = X['lrm'] ** 2; X['lsh_st'] = X['lsh'] * st          # a starter's shooting counts for more than a sub's
+    X['lsh2'] = X['lsh'] ** 2; X['lsot2'] = X['lsot'] ** 2          # the best shooters bend up (10/19: +0.0005 / +0.0007 log loss)
     return pd.DataFrame(X)
-FEATS = {'sh': ['lrm', 'lrm2', 'lsh', 'lsh_st', 'losha', 'home', 'st'], 'sot': ['lrm', 'lrm2', 'lsot', 'lsh', 'lsh_st', 'losha', 'home', 'st']}
+FEATS = {'sh': ['lrm', 'lrm2', 'lsh', 'lsh2', 'lsh_st', 'losha', 'home', 'st'], 'sot': ['lrm', 'lrm2', 'lsot', 'lsot2', 'lsh', 'lsh_st', 'losha', 'home', 'st']}
+# on target's rate has risen season on season (2025-26 ran ~4% over a flat fit): its counts weight recent games,
+# a 365-day half-life back from the newest row (shots showed no drift and stay flat)
+HALF_LIFE = {'sot': 365}
 def mu_role(t, M, kind, started):
     X = count_X(t, M, kind, started); c = M['coef']
     return np.exp(c['b0'] + sum(c[f] * X[f].values for f in FEATS[kind]))
@@ -86,7 +91,10 @@ def fit(t, kind, shrink=3.0):
     M = {'priors': priors(t), 'shrink': shrink, 'league': {'tsh': float(t.drop_duplicates(['gid', 'team']).tsh.mean())}, 'role': fit_role(t)}
     p = t[t.played == 1]; y = p[MK[kind]['y']].values.astype(float)
     X = count_X(p, M, kind, p.started.values)
-    b0, b = poisson_glm(X[FEATS[kind]].values, y)
+    w = None
+    if kind in HALF_LIFE:
+        age = (pd.to_datetime(p.date).max() - pd.to_datetime(p.date)).dt.days.values; w = 0.5 ** (age / HALF_LIFE[kind])
+    b0, b = poisson_glm(X[FEATS[kind]].values, y, w=w)
     M['coef'] = {'b0': float(b0), **{f: float(v) for f, v in zip(FEATS[kind], b)}}
     M['disp'] = {}
     for role, sel in [('start', p.started.values == 1), ('sub', p.started.values == 0)]:

@@ -13,13 +13,19 @@
 
 const sig = (c, X) => 1 / (1 + Math.exp(-(c[0] + X.reduce((a, x, i) => a + c[i + 1] * x, 0))));
 
-/** P(start), P(comes on) before the lineups: the role model. */
+/**
+ * P(start), P(comes on) before the lineups (research/soccer_role.py): his chance of
+ * playing at all from the first two, then, given he plays, whether he starts from the
+ * split model (his starts per appearance and his last game's minutes on top).
+ */
 export function roleProbs(f, R) {
   const lm = Math.log(Math.max(f.min5, 1) / 90), q = Math.log((f.sh + 3) / (f.min / 90 + 3));
   const b = [f.st5 / 5, f.lastSt, f.subs5 / 5, lm, f.st10 / 10, q];
   const X = [...b, b[0] * b[4], b[0] * b[5], b[4] * b[5]];
-  const ps = sig(R.start, X);
-  return { ps, pb: (1 - ps) * sig(R.sub, X) };
+  const ps = sig(R.start, X), pb = (1 - ps) * sig(R.sub, X);
+  if (!R.split) return { ps, pb };
+  const split = sig(R.split, [...X, f.st10 / Math.max(Math.min(f.apps, 10), 1), f.lastMin / 90]), play = ps + pb;
+  return { ps: play * split, pb: play * (1 - split) };
 }
 
 /** The mean count for one role (started 1/0). */
@@ -28,7 +34,8 @@ function muRole(f, tf, ctx, M, kind, started, meta) {
   const sh90 = (f.sh + K * pr.sh90) / (n90 + K), sot90 = (f.sot + K * pr.sot90) / (n90 + K);
   const em = started ? (f.stMin ?? meta.stMin) : (f.subMin ?? meta.subMin);
   const lrm = Math.log(Math.max(em, 1) / 90), lsh = Math.log(sh90);
-  const x = { lrm, lrm2: lrm * lrm, lsh, lsot: Math.log(sot90), lsh_st: lsh * started,
+  const lsot = Math.log(sot90);
+  const x = { lrm, lrm2: lrm * lrm, lsh, lsh2: lsh * lsh, lsot, lsot2: lsot * lsot, lsh_st: lsh * started,
     losha: Math.log(tf.osha / M.league.tsh), home: ctx.home ? 1 : 0, st: started };
   let z = M.coef.b0; for (const [k, b] of Object.entries(M.coef)) if (k !== 'b0') z += b * x[k];
   return { mu: Math.exp(z), sh90, sot90, em };
