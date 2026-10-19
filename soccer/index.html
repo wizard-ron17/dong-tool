@@ -441,6 +441,37 @@
   .fm { display: inline-flex; gap: 2px; vertical-align: middle; }
   .fm i { font: 700 0.56rem var(--font-d); font-style: normal; width: 1.05rem; height: 1.05rem; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; color: #fff; }
   .fm-W { background: var(--good); } .fm-D { background: var(--silver); } .fm-L { background: var(--bad); }
+  /* what moves a goal price: a diverging (tornado) bar per factor from a 1.0x baseline (copied from /nhl's goal card) */
+  .fbars { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.1rem; position: relative; }
+  .fbar-legend { font-size: 0.667rem; color: var(--dim); margin: 0.1rem 0 0.75rem; letter-spacing: 0.02em; text-align: center; }
+  .fbar { display: grid; grid-template-columns: 6rem 1fr 3.2rem; align-items: center; gap: 0.5rem; }
+  .fbar-baseline { position: absolute; left: calc(50% + 1.4rem); top: 0; bottom: 0; width: 1px; background: color-mix(in srgb, var(--text) 50%, transparent); z-index: 2; pointer-events: none; }
+  .fbar-baseline::before { content: '1.00×'; position: absolute; top: 0; left: 50%; transform: translate(-50%, -105%); font-family: var(--font-d); font-weight: 700; font-size: 0.630rem; color: var(--text); background: var(--surface0); padding: 0 0.22rem; border-radius: 3px; white-space: nowrap; }
+  .fbar-label { font-size: 0.692rem; color: var(--muted); letter-spacing: 0.02em; text-transform: uppercase; font-weight: 600; line-height: 1.1; }
+  .fbar-track { position: relative; height: 15px; background: var(--surface1); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .fbar-fill { position: absolute; top: 1px; bottom: 1px; border-radius: 2px; min-width: 1px; }
+  .fbar-fill.pos { background: linear-gradient(90deg, rgba(53,201,110,0.32), rgba(53,201,110,0.85)); }
+  .fbar-fill.neg { background: linear-gradient(270deg, rgba(229,83,75,0.32), rgba(229,83,75,0.85)); }
+  .fbar-fill.mid { background: linear-gradient(90deg, rgba(242,201,76,0.30), rgba(242,201,76,0.80)); }
+  .fbar-val { font-family: var(--font-d); font-weight: 700; font-size: 0.779rem; text-align: right; }
+  .fbar-note { font-size: 0.680rem; color: var(--muted); margin-top: 0.5rem; }
+  .fbars.pct .fbar { grid-template-columns: 6rem 1fr 5.6rem; }
+  .fbars.pct .fbar-baseline { left: calc(50% + 0.2rem); }
+  .fbars.pct .fbar-baseline::before { content: '50th'; }
+  .fbars.pct .fbar-val small { font-size: 0.68rem; font-weight: 500; color: var(--dim); margin-left: 0.3rem; }
+  .fbar-head { display: flex; align-items: baseline; justify-content: center; gap: 0.5rem; margin: 0.1rem 0 0.5rem; font-size: 0.74rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .fbar-head b { font-family: var(--font-d); font-size: 1.05rem; color: var(--good); text-transform: none; }
+  .fbar-head em { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--dim); font-weight: 500; }
+  .fbar-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: center; margin-top: 0.55rem; }
+  .fbar-chip { font-size: 0.66rem; font-weight: 700; border-radius: 999px; padding: 0.1rem 0.5rem; border: 1px solid var(--border); color: var(--muted); }
+  .fbar-chip.pos { color: var(--good); } .fbar-chip.neg { color: var(--bad); }
+  .fbar-mode { display: flex; justify-content: center; gap: 0.3rem; margin: 0 0 0.6rem; }
+  /* the day bar: one slate a day, as /nfl's boards */
+  .day-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin: 0 0 0.6rem; }
+  .day-bar .pbf-chip.done:not(.on) { color: var(--dim); }
+  .day-bar .pbf-chip small { font-weight: 600; opacity: 0.75; margin-left: 0.25rem; }
+  .day-note { font-size: 0.76rem; color: var(--muted); margin-left: 0.2rem; }
+  .day-note a { color: var(--accent); cursor: pointer; }
   .brand-puck { width: 30px; height: 30px; flex-shrink: 0; }
   :root[data-theme="light"] .brand-puck { filter: drop-shadow(0 0 1px rgba(0,0,0,0.55)); }
   .foot-credit { min-width: 0; }
@@ -511,8 +542,8 @@
   function switchNav(nav) {
     activeNav = nav;
     RonChrome.show(nav, { title: PAGE_TITLES[nav] });
+    if (!applyingRoute) commitRoute();        // the address first: a panel that fails to draw mustn't strand the nav
     renderPanel(nav);
-    if (!applyingRoute) commitRoute();
   }
   function currentPath() { return activeNav === 'home' ? APP_BASE + '/' : APP_BASE + '/' + activeNav; }
   function commitRoute() { const p = currentPath(); if (location.pathname !== p) history.pushState(null, '', p); }
@@ -527,6 +558,14 @@
   window.addEventListener('popstate', applyRouteState);
 
   function renderPanel(nav) {
+    try { drawPanel(nav); }
+    catch (e) {
+      console.error(e);
+      const el = document.getElementById(nav + '-content');
+      if (el) el.innerHTML = `<div class="empty">Something on this page didn't draw (${esc(e.message)}). The data may be mid-update: <a href="javascript:void(0)" onclick="loadSoccer()">reload it</a>.</div>`;
+    }
+  }
+  function drawPanel(nav) {
     if (nav === 'home') renderHome();
     else if (nav === 'stats') renderStats();
     else if (nav === 'recap') renderRecap();
@@ -564,6 +603,7 @@
       D = await r.json();
       D.dates = [...new Set(D.schedule.map(g => g.date))].sort();
       HS = new Map((D.leaders || []).map(l => [l.pid, l.hs]));
+      for (const r of D.goals?.rows || []) for (const k of ['sh', 'sot']) if (r[k] != null && !Array.isArray(r[k]?.pmf)) delete r[k];
       const el = document.getElementById('eyebrow-season');
       if (el && D.season) el.textContent = String(D.season).replace(/\s*MLS$/, '');
       setStatus('ready', statusSummary(D));
@@ -1055,6 +1095,56 @@
       <div class="rc-list">${rows.length ? rows.slice(0, ST_SHOW).map(row).join('') : '<div class="empty">No players match these filters.</div>'}</div>`;
   }
 
+  // ── Day by day (as /nfl's boards) ─────────────────────────────────────
+  // The boards hold each team's next game, which can span a midweek day and a
+  // weekend. Each board shows one day, defaulting to the next with a game still
+  // to kick off, and drops players whose game has started: you can still open a
+  // finished day, or show the started games, from the bar.
+  const dayF = { day: null, started: false };
+  function setDay(day) { dayF.day = day; dayF.started = false; gF.game = 'all'; sF.game = 'all'; renderPanel(activeNav); }
+  function setDayStarted(v) { dayF.started = v; renderPanel(activeNav); }
+  const gameStarted = (r) => Date.parse(r.start) <= Date.now();
+  function slateDays() {
+    const by = new Map();
+    for (const g of goalGames()) {
+      const day = etDay(g.start), d = by.get(day) ?? by.set(day, { day, ids: new Set(), total: 0, started: 0 }).get(day);
+      d.ids.add(g.gid); d.total++; if (gameStarted(g)) d.started++;
+    }
+    return [...by.values()].sort((a, b) => a.day.localeCompare(b.day)).map(d => ({ ...d,
+      label: new Date(d.day + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric', timeZone: 'UTC' }).replace(',', '') }));
+  }
+  function activeDay(days = slateDays()) {
+    if (dayF.day === 'all') return null;
+    return days.find(d => d.day === dayF.day) ?? days.find(d => d.started < d.total) ?? days[days.length - 1] ?? null;
+  }
+  /** Rows for the selected day, minus players whose game already started. */
+  function dayScope(rows) {
+    const days = slateDays();
+    if (days.length < 2 && !days.some(d => d.started)) return rows;
+    const d = activeDay(days);
+    let out = d ? rows.filter(r => d.ids.has(r.gid)) : rows;
+    if (!dayF.started && (!d || d.started < d.total)) out = out.filter(r => !gameStarted(r));
+    return out;
+  }
+  function dayBar() {
+    const days = slateDays();
+    if (!days.length) return '';
+    const d = activeDay(days);
+    const chips = days.map(x => {
+      const done = x.started === x.total, tag = done ? '✓' : x.started ? 'live' : `${x.total}`;
+      return `<button class="pbf-chip${d?.day === x.day ? ' on' : ''}${done ? ' done' : ''}" onclick="setDay('${x.day}')">${x.label}<small>${tag}</small></button>`;
+    }).join('') + `<button class="pbf-chip${!d ? ' on' : ''}" onclick="setDay('all')">All games</button>`;
+    const scope = d ? [d] : days;
+    const hidden = scope.filter(x => x.started < x.total || !d).reduce((a, x) => a + x.started, 0);
+    const note = dayF.started
+      ? `<span class="day-note">showing started games · <a onclick="setDayStarted(false)">hide</a></span>`
+      : hidden && (!d || d.started < d.total)
+        ? `<span class="day-note">${hidden} game${hidden > 1 ? 's' : ''} already started · <a onclick="setDayStarted(true)">show</a></span>` : '';
+    return `<div class="day-bar">${chips}${note}</div>`;
+  }
+  /** The Game filter's chips: the selected day's games only. */
+  const dayGames = () => { const d = activeDay(); return goalGames().filter(g => !d || d.ids.has(g.gid)); };
+
   // ── Goals: anytime goalscorer ──────────────────────────────────────────
   // Every player in a rotation over the next few days, priced to score
   // (scripts/soccer-goals.js; fitted walk-forward in research/soccer_goals.py):
@@ -1069,7 +1159,7 @@
   const gameLbl = (r) => `${r.home ? r.opp : r.team} @ ${r.home ? r.team : r.opp}`;
   function goalRows() {
     const S = { p: (r) => r.p, em: (r) => r.em, sh90: (r) => r.sh90, imp: (r) => r.imp ?? 0 }[gF.sort] || ((r) => r.p);
-    return (D.goals?.rows || []).filter(r => (r.p >= GOAL_MIN || gF.q) && (gF.game === 'all' || r.gid === gF.game)
+    return dayScope(D.goals?.rows || []).filter(r => (r.p >= GOAL_MIN || gF.q) && (gF.game === 'all' || r.gid === gF.game)
         && (gF.pos === 'ALL' || r.pos === gF.pos) && matchQ(r, gF.q))
       .sort((a, b) => S(b) - S(a) || b.p - a.p).map((r, i) => ({ ...r, rank: i + 1 }));
   }
@@ -1082,19 +1172,19 @@
     const el = dataGate('goals-content'); if (!el) return;
     const G = D.goals;
     if (!G?.rows?.length) { el.innerHTML = '<div class="empty">No games to price yet. The board fills in once the next games are on the schedule.</div>'; return; }
-    const games = goalGames();
+    const games = dayGames();
     if (gF.game !== 'all' && !games.some(g => g.gid === gF.game)) gF.game = 'all';
     const rows = goalRows();
     RonShare.set('setGoalsF', () => ({ title: 'Anytime goal', sub: `${dayLabel(G.from)}${G.to && G.to !== G.from ? ' – ' + dayLabel(G.to) : ''} · fair odds`, rows: rows.map(shareGoal) }));
     const changed = (gF.game !== 'all') + (gF.pos !== 'ALL') + (gF.sort !== 'p');
     const controls = uiFilters('setGoalsF', gF.open, [
-      ['Game', [['all', 'All games'], ...games.map(g => [g.gid, `${gameLbl(g)} · ${dayLabel(etDay(g.start))}`])].map(([v, l]) => uiChip('setGoalsF', 'game', v, l, gF.game)).join('')],
+      ['Game', [['all', 'All games'], ...games.map(g => [g.gid, `${gameLbl(g)} · ${gameTime(g.start)}`])].map(([v, l]) => uiChip('setGoalsF', 'game', v, l, gF.game)).join('')],
       ['Position', [['ALL', 'All'], ['FWD', 'Forwards'], ['MID', 'Midfield'], ['DEF', 'Defenders']].map(([v, l]) => uiChip('setGoalsF', 'pos', v, l, gF.pos)).join('')],
       ['Sort', [['p', 'Shortest price'], ['em', 'Expected minutes'], ['sh90', 'Shots / 90'], ['imp', 'Team goals']].map(([v, l]) => uiChip('setGoalsF', 'sort', v, l, gF.sort)).join('')],
     ], changed) + uiSearch('goals-search', 'setGoalsF', gF.q, 'Search a player, team or position…');
-    const span = `Each team's next game · ${dayLabel(G.from)}${G.to && G.to !== G.from ? ` – ${dayLabel(G.to)}` : ''}`;
-    const meta = `<div class="result-meta"><b>${span}</b> · ${rows.length} players${gF.q ? '' : ` at ${Math.round(GOAL_MIN * 100)}%+`} · ${games.length} game${games.length === 1 ? '' : 's'} · anytime goal, fair odds, no vig</div>` + uiView('setGoalsF', gF.view);
-    if (!rows.length) { el.innerHTML = controls + meta + '<div class="empty">Nothing matches that filter.</div>'; return; }
+    const ad = activeDay();
+    const meta = `<div class="result-meta"><b>${ad ? dayLabel(ad.day, true) : "Each team's next game"}</b> · ${rows.length} players${gF.q ? '' : ` at ${Math.round(GOAL_MIN * 100)}%+`} · ${games.length} game${games.length === 1 ? '' : 's'} · anytime goal, fair odds, no vig</div>` + uiView('setGoalsF', gF.view);
+    if (!rows.length) { el.innerHTML = dayBar() + controls + meta + '<div class="empty">Nothing matches that filter.</div>'; return; }
     const open = (r) => `openGoalCard('${r.pid}','${r.gid}')`;
     const started = (r) => new Date(r.start) <= new Date();
     const facts = (r) => `<span class="pb-f" title="Expected minutes: his last five games for this team, the latest weighted most"><b>${r.em.toFixed(0)}'</b> MIN</span>
@@ -1133,8 +1223,69 @@
         </div>`).join('')}</div>`;
     }
     const M = G.model;
-    el.innerHTML = controls + meta + body + `<div class="t3-note">Priced off his expected minutes (his last five games for this team), his shots, shots on target and goals per 90 (shrunk toward his position's, so a hot month counts for a little), the goals the line expects from his team, and his share of its penalties. Prices are pre-lineup: when lineups post, about an hour before kickoff, a player outside the matchday squad drops off and the rest are tagged XI or bench.${M ? ` Walk-forward over ${M.seasons[0]}–${M.seasons[M.seasons.length - 1]} (each season priced by a model fitted only on the seasons before it): AUC ${M.auc.toFixed(3)}, calibrated within a point or two from 1% to 50%.` : ''}</div>`;
+    el.innerHTML = dayBar() + controls + meta + body + `<div class="t3-note">Priced off his expected minutes (his last five games for this team), his shots, shots on target and goals per 90 (shrunk toward his position's, so a hot month counts for a little), the goals the line expects from his team, and his share of its penalties. Prices are pre-lineup: when lineups post, about an hour before kickoff, a player outside the matchday squad drops off and the rest are tagged XI or bench.${M ? ` Walk-forward over ${M.seasons[0]}–${M.seasons[M.seasons.length - 1]} (each season priced by a model fitted only on the seasons before it): AUC ${M.auc.toFixed(3)}, calibrated within a point or two from 1% to 50%.` : ''}</div>`;
   }
+  // ── What moves a goal price: the tornado (as /nhl's goal card) ─────────
+  // Each factor is a multiplier on his expected goals against a reference
+  // player (his position's league rates, 80 expected minutes, four starts in
+  // five, the league's team goals, away, no penalties): scripts/soccer-goals.js
+  // goalFactors, so the bars multiply out to the price exactly. Ranks mode
+  // places him among the board's players at his position on each factor.
+  const GFX = [
+    ['min', 'Minutes', (r) => `${r.em.toFixed(0)}' expected · ${r.st5}/5 starts`, 'His expected minutes and recent starts, against a regular starter (80 minutes, four starts in five)'],
+    ['shoot', 'Shooting', (r) => `${r.sh90.toFixed(1)} shots · ${r.sot90.toFixed(1)} on target / 90`, "His shots and shots on target per 90 (shrunk toward his position's), against his position's league rate"],
+    ['finish', 'Finishing', (r) => `${r.g90.toFixed(2)} non-penalty goals / 90`, "His non-penalty goals per 90 (shrunk hard toward his position's: finishing is mostly noise), against the league"],
+    ['team', 'Team goals', (r) => r.imp != null ? `${r.imp.toFixed(2)} off the line` : 'no line yet', 'The goals the line (1X2 + total, devigged) expects his team to score, against the league average'],
+    ['pens', 'Penalties', (r) => r.pk ? `${Math.round(r.pk * 100)}% of his team's last ${r.pkN}` : 'not his', "His share of his team's recent penalties"],
+    ['home', 'Home', (r) => r.home ? 'at home' : 'away', 'Home teams score a touch more'],
+    ['cal', 'Calibration', () => 'out-of-sample fit', 'A two-number stretch fitted with the model (it lifts the top end, where the raw model ran short)'],
+  ];
+  const fxTone = (m) => m >= 1.03 ? 'pos' : m <= 0.97 ? 'neg' : 'mid';
+  const pcTone = (pc) => pc >= 0.6 ? 'pos' : pc <= 0.4 ? 'neg' : 'mid';
+  const TONE_VAR = { pos: 'var(--good)', neg: 'var(--bad)', mid: 'var(--gold)' };
+  const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' })[n % 10] || 'th');
+  let gcMode = 'pct';
+  function setGcMode(m) { gcMode = m; const r = gcDeck[gcAt]; if (r) openGoalCard(r.pid, r.gid); }
+  function goalTornado(r) {
+    if (!r.fx) return '';
+    const parts = GFX.map(([k, lab, det, tip]) => ({ k, lab, det: det(r), tip, d: r.fx.d[k] || 0 }));
+    const pool = (D.goals?.rows || []).filter(x => x.fx && x.pos === r.pos);
+    const rank = (k, v) => { let lo = 0, hi = 0; for (const x of pool) { const y = x.fx.d[k] || 0; if (y < v - 1e-9) lo++; if (y <= v + 1e-9) hi++; } return pool.length ? (lo + hi) / 2 / pool.length : 0.5; };
+    const roleNames = { FWD: 'forwards', MID: 'midfielders', DEF: 'defenders', GK: 'keepers' }[r.pos] || 'players';
+    const pctOk = pool.length >= 20, mode = pctOk ? gcMode : 'x';
+    const muCal = r.fx.base * Math.exp(parts.reduce((a, x) => a + x.d, 0));
+    const toggle = pctOk ? `<div class="fbar-mode">${[['pct', 'Rank on the board'], ['x', 'Multipliers']].map(([v, l]) =>
+      `<button class="due-filter-chip${mode === v ? ' active' : ''}" onclick="setGcMode('${v}')">${l}</button>`).join('')}</div>` : '';
+    const foot = `A ${{ FWD: 'forward', MID: 'midfielder', DEF: 'defender', GK: 'keeper' }[r.pos] || 'player'} at his position's league rates in a neutral spot is expected <b>${r.fx.base.toFixed(2)}</b> goals, <b>${Odds.pct(1 - Math.exp(-r.fx.base))}</b> to score; these take him to <b>${muCal.toFixed(2)}</b>, <b>${Odds.pct(r.p)}</b>.`;
+    if (mode === 'pct') {
+      const bars = parts.filter(x => !['home', 'cal'].includes(x.k)).map(x => {
+        const pc = rank(x.k, x.d), t = (pc - 0.5) * 2, n = Math.max(1, Math.min(99, Math.round(pc * 100)));
+        return `<div class="fbar"><span class="fbar-label" title="${esc(x.tip)} (${esc(x.det)})">${x.lab}</span>
+          <div class="fbar-track"><div class="fbar-fill ${pcTone(pc)}" style="${t >= 0 ? 'left:50%' : 'right:50%'};width:${Math.abs(t) * 50}%"></div></div>
+          <span class="fbar-val" style="color:${TONE_VAR[pcTone(pc)]}">${ordinal(n)}<small>${Math.exp(x.d).toFixed(2)}×</small></span></div>`;
+      }).join('');
+      const chips = parts.filter(x => ['home', 'cal'].includes(x.k) && Math.abs(x.d) >= 0.015)
+        .map(x => `<span class="fbar-chip ${x.d >= 0 ? 'pos' : 'neg'}" title="${esc(x.tip)}">${x.lab} ${Math.exp(x.d).toFixed(2)}×</span>`).join('');
+      const muRank = (() => { let lo = 0; for (const x of pool) if (x.p < r.p) lo++; return Math.max(1, Math.min(99, Math.round(lo / pool.length * 100))); })();
+      return `${toggle}<div class="fbar-head"><span>Expected goals</span><b>${muCal.toFixed(2)}</b><em>${ordinal(muRank)} of ${pool.length} ${roleNames} on the board</em></div>
+        <div class="fbar-legend">← below the board's ${roleNames} · middle · above →</div>
+        <div class="fbars pct"><div class="fbar-baseline"></div>${bars}</div>
+        ${chips ? `<div class="fbar-chips">${chips}</div>` : ''}
+        <div class="fbar-note">Each bar ranks him against the board's <b>${pool.length}</b> ${roleNames} on that factor; the grey number is what it does to his expected goals. ${foot}</div>`;
+    }
+    const shown = parts.filter(x => Math.abs(x.d) >= 0.015).sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
+    const maxAbs = Math.max(0.4, ...shown.map(x => Math.abs(x.d)));
+    const bars = shown.map(x => {
+      const w = Math.min(50, Math.abs(x.d) / maxAbs * 50), m = Math.exp(x.d);
+      return `<div class="fbar"><span class="fbar-label" title="${esc(x.tip)} (${esc(x.det)})">${x.lab}</span>
+        <div class="fbar-track"><div class="fbar-fill ${fxTone(m)}" style="${x.d > 0 ? 'left:50%' : 'right:50%'};width:${w}%"></div></div>
+        <span class="fbar-val" style="color:${TONE_VAR[fxTone(m)]}">${m.toFixed(2)}×</span></div>`;
+    }).join('');
+    return `${toggle}<div class="fbar-legend">← tougher · 1.0× neutral · juicier →</div>
+      <div class="fbars"><div class="fbar-baseline"></div>${bars}</div>
+      <div class="fbar-note">Each bar multiplies his expected goals (hover a factor for the detail). ${foot}</div>`;
+  }
+
   /** One player's price, taken apart. ‹ › step through the board as it's filtered. */
   let gcDeck = [], gcAt = -1;
   function openGoalCard(pid, gid) {
@@ -1152,7 +1303,8 @@
         <div class="pm-hero-price"><div class="pm-hero-od${r.p < 0.5 ? ' dog' : ''}">${Odds.am(r.p)}</div><div class="pm-hero-lbl">to score · ${Odds.pct(r.p)}</div></div>
       </div>
       <div class="pm-body">
-        <div class="pm-sec">What it's made of</div>
+        ${r.fx ? `<div class="pm-sec">What moves the price</div>${goalTornado(r)}` : ''}
+        <div class="pm-sec">The numbers</div>
         <div class="pm-stats">
           ${stat(`${r.em.toFixed(0)}'`, 'Exp. minutes', 'His last five games for this team, the latest weighted most')}
           ${stat(`${r.st5}/5`, 'Starts L5', 'Starts in his team\'s last five games')}
@@ -1163,7 +1315,7 @@
           ${stat(r.pk ? Math.round(r.pk * 100) + '%' : '—', 'Pen share', `His share of his team's last ${r.pkN} penalties`)}
           ${stat(r.mu.toFixed(2), 'Exp. goals', 'The model\'s goal count for him in this game')}
         </div>
-        <p class="pm-foot">Over his last ${r.apps} appearances: <b>${r.np}</b> non-penalty goal${r.np === 1 ? '' : 's'} and <b>${r.sh}</b> shots in ${r.min.toLocaleString()} minutes.
+        <p class="pm-foot">Over his last ${r.apps} appearances: <b>${r.np}</b> non-penalty goal${r.np === 1 ? '' : 's'} and <b>${r.shots ?? '—'}</b> shots in ${r.min.toLocaleString()} minutes.
           ${sharePk >= 0.05 ? ` About ${Math.round(sharePk * 100)}% of his price is penalties.` : ''}${r.noLine ? ' No line on this game yet: his team is priced at the league\'s average goals.' : ''}
           ${r.xi ? ` Lineups are out: he's ${r.xi === 'XI' ? 'in the starting XI' : 'on the bench'} (the price is still the pre-lineup one).` : ''}</p>
       </div>`;
@@ -1190,7 +1342,7 @@
   const evenLine = (pmf, lines) => lines.reduce((b, L) => Math.abs(pOver(pmf, L) - 0.5) < Math.abs(pOver(pmf, b) - 0.5) ? L : b, lines[0]);
   function shotRows() {
     const k = sF.kind, lines = SK[k].lines;
-    const rows = (D.goals?.rows || []).filter(r => r[k] && (sF.game === 'all' || r.gid === sF.game) && (sF.pos === 'ALL' || r.pos === sF.pos) && matchQ(r, sF.q))
+    const rows = dayScope(D.goals?.rows || []).filter(r => r[k] && (sF.game === 'all' || r.gid === sF.game) && (sF.pos === 'ALL' || r.pos === sF.pos) && matchQ(r, sF.q))
       .map(r => { const L = sF.line === 'auto' ? evenLine(r[k].pmf, lines) : +sF.line, po = pOver(r[k].pmf, L);
         return { ...r, S: r[k], L, pAt: sF.side === 'under' ? 1 - po : po }; })
       .filter(r => sF.q || r.S.mu >= (k === 'sh' ? 0.4 : 0.15));          // a centre-back's 0.1 shots is noise on a list
@@ -1202,7 +1354,7 @@
     const el = dataGate('shots-content'); if (!el) return;
     const G = D.goals, k = sF.kind, C = SK[k];
     if (!G?.rows?.some(r => r[k])) { el.innerHTML = '<div class="empty">No games to price yet. The board fills in once the next games are on the schedule.</div>'; return; }
-    const games = goalGames();
+    const games = dayGames();
     if (sF.game !== 'all' && !games.some(g => g.gid === sF.game)) sF.game = 'all';
     const rows = shotRows();
     RonShare.set('setShotsF', () => ({ title: C.lab, sub: `Next game · ${sF.side} · fair odds`, rows: rows.map(r => ({ ...shareGoal(r), p: r.pAt, tag: `${sF.side === 'under' ? 'u' : 'o'}${r.L}`,
@@ -1212,12 +1364,13 @@
     const controls = uiFilters('setShotsF', sF.open, [
       ['Line', ['auto', ...C.lines].map(v => uiChip('setShotsF', 'line', v, v === 'auto' ? 'Best line' : 'o' + v, sF.line)).join('')],
       ['Side', [['over', 'Over'], ['under', 'Under']].map(([v, l]) => uiChip('setShotsF', 'side', v, l, sF.side)).join('')],
-      ['Game', [['all', 'All games'], ...games.map(g => [g.gid, `${gameLbl(g)} · ${dayLabel(etDay(g.start))}`])].map(([v, l]) => uiChip('setShotsF', 'game', v, l, sF.game)).join('')],
+      ['Game', [['all', 'All games'], ...games.map(g => [g.gid, `${gameLbl(g)} · ${gameTime(g.start)}`])].map(([v, l]) => uiChip('setShotsF', 'game', v, l, sF.game)).join('')],
       ['Position', [['ALL', 'All'], ['FWD', 'Forwards'], ['MID', 'Midfield'], ['DEF', 'Defenders']].map(([v, l]) => uiChip('setShotsF', 'pos', v, l, sF.pos)).join('')],
       ['Sort', [['mu', 'Projection'], ['odds', 'Shortest price'], ['ps', 'Most likely to start'], ['opp', 'Softest opponent']].map(([v, l]) => uiChip('setShotsF', 'sort', v, l, sF.sort)).join('')],
     ], changed) + uiSearch('shots-search', 'setShotsF', sF.q, 'Search a player, team or position…');
-    const meta = `<div class="result-meta"><b>Each team's next game</b> · ${rows.length} players · ${C.unit}, ${sF.line === 'auto' ? 'his line closest to even' : 'o' + sF.line} · ${sF.side} · fair odds, no vig</div>` + uiView('setShotsF', sF.view);
-    if (!rows.length) { el.innerHTML = tabs + controls + meta + '<div class="empty">Nothing matches that filter.</div>'; return; }
+    const ad = activeDay();
+    const meta = `<div class="result-meta"><b>${ad ? dayLabel(ad.day, true) : "Each team's next game"}</b> · ${rows.length} players · ${C.unit}, ${sF.line === 'auto' ? 'his line closest to even' : 'o' + sF.line} · ${sF.side} · fair odds, no vig</div>` + uiView('setShotsF', sF.view);
+    if (!rows.length) { el.innerHTML = tabs + dayBar() + controls + meta + '<div class="empty">Nothing matches that filter.</div>'; return; }
     const open = (r) => `openShotCard('${k}','${r.pid}')`;
     const started = (r) => new Date(r.start) <= new Date();
     const side = (r) => `${sF.side === 'under' ? 'u' : 'o'}${r.L}`;
@@ -1258,7 +1411,7 @@
         </div>`).join('')}</div>`;
     }
     const W = G.shotsModel?.[k];
-    el.innerHTML = tabs + controls + meta + body + `<div class="t3-note">Each player for his team's next game. A shot count is a mix of three games: he starts, he comes off the bench, or he sits (0). Given the role, it's his ${k === 'sh' ? 'shots' : 'shots on target'} per 90 (shrunk toward his position's) over the minutes that role gets him, against the shots the opponent allows, home or away. Once lineups post, about an hour before kickoff, the role is known and the prices move.${W ? ` Walk-forward ${W.seasons[0]}–${W.seasons[W.seasons.length - 1]}: AUC ${(W.auc?.[k === 'sh' ? '1.5' : '0.5'] ?? 0).toFixed(3)} at o${k === 'sh' ? '1.5' : '0.5'}; calibrated within a point or two except the very top (stars start, and shoot, a little more than it says before the lineups post).` : ''}</div>`;
+    el.innerHTML = tabs + dayBar() + controls + meta + body + `<div class="t3-note">Each player for his team's next game. A shot count is a mix of three games: he starts, he comes off the bench, or he sits (0). Given the role, it's his ${k === 'sh' ? 'shots' : 'shots on target'} per 90 (shrunk toward his position's) over the minutes that role gets him, against the shots the opponent allows, home or away. Once lineups post, about an hour before kickoff, the role is known and the prices move.${W ? ` Walk-forward ${W.seasons[0]}–${W.seasons[W.seasons.length - 1]}: AUC ${(W.auc?.[k === 'sh' ? '1.5' : '0.5'] ?? 0).toFixed(3)} at o${k === 'sh' ? '1.5' : '0.5'}; calibrated within a point or two except the very top (stars start, and shoot, a little more than it says before the lineups post).` : ''}</div>`;
   }
 
   // ── The ladder card (/ladder.js): the distribution, over/under, every line ──

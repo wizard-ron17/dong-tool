@@ -15,7 +15,7 @@ import fs from 'node:fs';
 import { get, pool, SITE, SITE2, etDate, shiftDate, compact } from './soccer-api.js';
 import { reduceSummary, freshState, applyGame, posFam, STATE_VERSION } from './soccer-state.js';
 import { am2p, devig, impliedGoals } from './soccer-lines.js';
-import { freshGoalState, applyGoalGame, goalFeatures, teamFeatures, goalPrice, GOALS_VERSION } from './soccer-goals.js';
+import { freshGoalState, applyGoalGame, goalFeatures, teamFeatures, goalPrice, goalFactors, GOALS_VERSION } from './soccer-goals.js';
 import { shotLadder } from './soccer-shots.js';
 
 const AHEAD = 14;        // schedule days ahead (a week has a weekend and maybe a midweek round)
@@ -225,7 +225,7 @@ async function main() {
           const f = goalFeatures(GS, a.id, ab); if (!f) continue;
           const xi = squads?.[ab] ? squads[ab].get(a.id) || 'out' : null;
           if (xi === 'out') continue;
-          const P = goalPrice(f, { imp, home }, GM);
+          const P = goalPrice(f, { imp, home }, GM), FX = goalFactors(f, { imp, home }, GM, P);
           // shots and on target: the distribution (its last bucket the tail) and the role it assumes
           const shot = {};
           if (SM && tf.osha != null) for (const kind of ['sh', 'sot']) {
@@ -238,7 +238,7 @@ async function main() {
           rows.push({ gid: g.id, start: g.start, pid: a.id, name: a.displayName, team: ab, opp, home, pos: squad[a.id]?.pos || f.pos, hs: squad[a.id]?.hs || 0,
             p: +P.p.toFixed(4), mu: +P.mu.toFixed(3), muPk: +P.muPk.toFixed(3), em: +P.x.em.toFixed(1), st5: f.st5, imp, noLine: imp == null ? 1 : 0, xi,
             g90: +P.x.g90.toFixed(3), sh90: +P.x.sh90.toFixed(2), sot90: +P.x.sot90.toFixed(2), pk: +(f.pkShare || 0).toFixed(2), pkN: f.pkN,
-            apps: f.apps, np: f.np, shots: f.sh, sots: f.sot, min: f.min, ...shot });
+            apps: f.apps, np: f.np, shots: f.sh, sots: f.sot, min: f.min, fx: FX, ...shot });
         }
       }
     }

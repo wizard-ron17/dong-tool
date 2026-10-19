@@ -116,3 +116,25 @@ export function goalPrice(f, ctx, M) {
   const mu = muNp + muPk;
   return { muNp, muPk, mu, p: 1 - Math.exp(-M.cal.a * mu ** M.cal.k), x };
 }
+
+/**
+ * His price taken apart, for the card's tornado: each group of terms as a log
+ * multiplier on his expected goals against a reference player (his position's
+ * league rates, 80 expected minutes, four starts in five, the league's team
+ * goals, away, no penalties). The terms sum to log(calibrated mu / base).
+ */
+const REF_MIN = 80, REF_ST = 0.8;
+export function goalFactors(f, ctx, M, P = goalPrice(f, ctx, M)) {
+  const c = M.coef, x = P.x, pr = M.priors[f.pos] || M.priors.MID, lr = Math.log(REF_MIN / 90);
+  const base = Math.exp(c.b0 + c.lmin * lr + c.lmin2 * lr * lr + c.st * REF_ST + c.lg * Math.log(pr.g90) + c.lsh * Math.log(pr.sh90) + c.lsot * Math.log(pr.sot90));
+  const muCal = -Math.log(1 - Math.min(P.p, 0.999));
+  const d = {
+    min: c.lmin * (x.lmin - lr) + c.lmin2 * (x.lmin2 - lr * lr) + c.st * (x.st - REF_ST),
+    shoot: c.lsh * (x.lsh - Math.log(pr.sh90)) + c.lsot * (x.lsot - Math.log(pr.sot90)),
+    finish: c.lg * (x.lg - Math.log(pr.g90)),
+    team: c.limp * x.limp, home: c.home * x.home,
+    pens: Math.log(P.mu / P.muNp), cal: Math.log(muCal / P.mu),
+  };
+  for (const k in d) d[k] = +d[k].toFixed(4);
+  return { base: +base.toFixed(4), d };
+}
