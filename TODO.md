@@ -15,12 +15,12 @@ Dated and open work. Newest decisions at the top of each section. Remove items w
   - Verify the first real build: early-season term, rosters, recap, and grading of the new Due/Milestones.
 
 ## Next up
-- **Soccer (/soccer, MLS):** skeleton + Goals board live 10/19 (walk-forward AUC .830, research/soccer_goals.py). Next:
-  - Shots / shots on target off the same minutes model (`soccer-goals.js` history already has shots and SOT per app); that's where Ron's EV scan shows the outliers (EPL, LaLiga, Serie A as much as MLS).
-  - Lineup-aware goals: lineups post ~1h out and the board only tags XI/bench; fit a starter/bench variant on the `started` column.
-  - The 5-10% band prices ~1pt rich (part-timers); grade the live log (soccer/goals-history.json) before touching it.
-  - Parlay slip: needs measured soccer correlations in parlay.js (teammates' goals, scorer + team win) before legs go on it.
-  - MLS regular season ends 11/07 (Decision Day), then playoffs; EPL on the same engine for the winter (Understat has the xG).
+- **Soccer (/soccer, MLS):** Goals (walk-forward AUC .830) and Shots / On target (role mixture, research/soccer_shots.py) built 10/19; each team's next game. Next:
+  - Goals on the role mixture too: shots showed one distribution can't be "sits: 0" and "starts: 2.5"; it would make goals lineup-aware the same way (with lineups known shots are calibrated to the point).
+  - Pre-lineup, the top decile runs ~3pp short on shots (stars start, and shoot, a little more than the role model says). On target runs ~5% under in 2025-26 as the league's on-target rate rose: try a recent-seasons weight.
+  - Grade the live log (soccer/goals-history.json) against books' closes once a few rounds are in (the SmartStake recorder has MLS shots props?).
+  - Parlay slip: measured soccer correlations in parlay.js (a player's shots + his SOT + his goal, teammates) before legs go on it.
+  - MLS regular season ends 11/07 (Decision Day), then playoffs; EPL on the same engine for the winter (Ron's EV scan flags EPL / LaLiga / Serie A shots).
 - Season-rollover tests: run each build against fixed dates (opening day, the day before, first playoff day).
 - Fair-odds explainer: tap-to-explain wherever a fair price appears.
 - For outside agents: llms.txt, documented JSON endpoints, a RONBET spec.
