@@ -194,8 +194,8 @@ async function main() {
   // can wait for fresher minutes), priced off current squads; a game that has
   // kicked off keeps its rows as they stood before kickoff for the day.
   // Lineups post about an hour out: once they do, a player outside the
-  // matchday squad drops off, and shots and on target re-price off the known
-  // role (XI, or a named sub). Goals stay the pre-lineup model's.
+  // matchday squad drops off, and goals, shots and on target re-price off the
+  // known role (XI, or a named sub, who comes on about 56% of the time).
   const GM = readJSON(GOAL_MODEL, null);
   let goals = null;
   if (GM) {
@@ -225,7 +225,7 @@ async function main() {
           const f = goalFeatures(GS, a.id, ab); if (!f) continue;
           const xi = squads?.[ab] ? squads[ab].get(a.id) || 'out' : null;
           if (xi === 'out') continue;
-          const P = goalPrice(f, { imp, home }, GM), FX = goalFactors(f, { imp, home }, GM, P);
+          const P = goalPrice(f, { imp, home }, GM, xi), FX = goalFactors(f, { imp, home }, GM, P);
           // shots and on target: the distribution (its last bucket the tail) and the role it assumes
           const shot = {};
           if (SM && tf.osha != null) for (const kind of ['sh', 'sot']) {
@@ -236,7 +236,7 @@ async function main() {
           }
           if (shot.sh) Object.assign(shot, { stMin: f.stMin, subMin: f.subMin, osha: +tf.osha.toFixed(1) });
           rows.push({ gid: g.id, start: g.start, pid: a.id, name: a.displayName, team: ab, opp, home, pos: squad[a.id]?.pos || f.pos, hs: squad[a.id]?.hs || 0,
-            p: +P.p.toFixed(4), mu: +P.mu.toFixed(3), muPk: +P.muPk.toFixed(3), em: +P.x.em.toFixed(1), st5: f.st5, imp, noLine: imp == null ? 1 : 0, xi,
+            p: +P.p.toFixed(4), ps: +P.ps.toFixed(3), pb: +P.pb.toFixed(3), mu: +P.mu.toFixed(3), muPk: +P.muPk.toFixed(3), em: +P.x.em.toFixed(1), st5: f.st5, imp, noLine: imp == null ? 1 : 0, xi,
             g90: +P.x.g90.toFixed(3), sh90: +P.x.sh90.toFixed(2), sot90: +P.x.sot90.toFixed(2), pk: +(f.pkShare || 0).toFixed(2), pkN: f.pkN,
             apps: f.apps, np: f.np, shots: f.sh, sots: f.sot, min: f.min, fx: FX, ...shot });
         }

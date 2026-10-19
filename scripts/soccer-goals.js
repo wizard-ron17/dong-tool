@@ -4,17 +4,20 @@
 // live price are made by the same code. The model's numbers are fitted in
 // research/soccer_goals.py and read from soccer/goals-model.json; nothing here fits.
 //
-// A player's goals = non-penalty goals + penalties:
-//   non-penalty: Poisson, log mu = b0 + b·[log expected minutes (and squared),
-//     starts in the last five, his shooting and scoring rates (shrunk to his
-//     position's), his team's goals off the line, home]
+// The price (v2, 10/19) is a mixture over his role, as shots: P(start) and
+// P(comes on) from the shared role model (soccer-shots.js roleProbs), or known
+// once the lineups post. Given the role, his goals are
+//   non-penalty: Poisson, log mu = b0 + b·[log the minutes that role gets him,
+//     his goal / shot / on-target rates (shrunk to his position's), his team's
+//     goals off the line, home, started]
 //   penalties:   his share of his team's recent penalties x the team's penalty
-//     rate x conversion x his share of the 90
-// then p = 1 - exp(-a mu^k): a two-number stretch fitted with the model
-// (isotonic lost to the raw price walk-forward).
+//     rate x conversion x the role's share of the 90
+// then p = 1 - exp(-a mu^k) per role: a two-number stretch fitted per mode
+// (before the lineups, and with them).
 import { posFam } from './soccer-state.js';
+import { roleProbs } from './soccer-shots.js';
 
-export const GOALS_VERSION = 2;          // 2: team games carry shots for and against (the shots model's matchup)
+export const GOALS_VERSION = 2;          // the history's shape; 2: team games carry shots for and against (the model's own version is in goals-model.json)
 const HIST = 40;          // a player's appearances kept (about a season)
 const TEAM_HIST = 40;     // a team's games kept (penalty shares, the last five)
 const LAST = 5;           // the team games his expected minutes are read off
@@ -96,45 +99,57 @@ export function teamFeatures(GS, team, opp) {
   return { tsh: t.v, tsot: ts.v, osha: o.v, osota: os.v, tn: t.n, on: o.n };
 }
 
-/** The model's inputs from raw features: shrunk per-90 rates and the logs the regression reads. */
-export function goalInputs(f, ctx, M) {
-  const pr = M.priors[f.pos] || M.priors.MID, K = M.shrink;    // K: prior weight in 90s
-  const n90 = f.min / 90;
-  const g90 = (f.np + K.g * pr.g90) / (n90 + K.g), sh90 = (f.sh + K.sh * pr.sh90) / (n90 + K.sh), sot90 = (f.sot + K.sot * pr.sot90) / (n90 + K.sot);
-  const em = Math.max(f.min5, 1), lmin = Math.log(em / 90);
-  return { lmin, lmin2: lmin * lmin, st: f.st5 / 5, lg: Math.log(g90), lsh: Math.log(sh90), lsot: Math.log(sot90),
-    limp: Math.log((ctx.imp ?? M.league.imp) / M.league.imp), home: ctx.home ? 1 : 0, g90, sh90, sot90, em };
-}
-
-/** mu (non-penalty and penalty) and the calibrated anytime price. */
-export function goalPrice(f, ctx, M) {
-  const x = goalInputs(f, ctx, M), c = M.coef;
-  const muNp = Math.exp(c.b0 + c.lmin * x.lmin + c.lmin2 * x.lmin2 + c.st * x.st + c.lg * x.lg + c.lsh * x.lsh + c.lsot * x.lsot + c.limp * x.limp + c.home * x.home);
+/** One role's non-penalty goal mean and penalty mean: the minutes that role gets him (started 1/0). */
+function goalRole(f, ctx, M, started) {
+  const pr = M.priors[f.pos] || M.priors.MID, K = M.shrink, n90 = f.min / 90;
+  const g90 = (f.np + K.g * pr.g90) / (n90 + K.g), sh90 = (f.sh + K.sh * pr.sh90) / (n90 + K.sh), sot90 = (f.sot + K.sh * pr.sot90) / (n90 + K.sh);
+  const em = started ? (f.stMin ?? M.roleMin.start) : (f.subMin ?? M.roleMin.sub);
+  const imp = ctx.imp ?? M.league.imp;
+  const x = { lrm: Math.log(Math.max(em, 1) / 90), lg: Math.log(g90), lsh: Math.log(sh90), lsot: Math.log(sot90),
+    limp: Math.log(imp / M.league.imp), home: ctx.home ? 1 : 0, st: started };
+  const c = M.coef;
+  const np = Math.exp(c.b0 + c.lrm * x.lrm + c.lg * x.lg + c.lsh * x.lsh + c.lsot * x.lsot + c.limp * x.limp + c.home * x.home + c.st * x.st);
   // penalties: shrink his share toward none (a one-penalty sample says little), times the team's rate and conversion
   const share = f.pkN ? (f.pkShare * f.pkN) / (f.pkN + M.pen.k) : 0;
-  const muPk = share * M.pen.rate * ((ctx.imp ?? M.league.imp) / M.league.imp) * M.pen.conv * Math.min(1, x.em / 90);
-  const mu = muNp + muPk;
-  return { muNp, muPk, mu, p: 1 - Math.exp(-M.cal.a * mu ** M.cal.k), x };
+  const pk = share * M.pen.rate * (imp / M.league.imp) * M.pen.conv * Math.min(1, em / 90);
+  return { np, pk, mu: np + pk, x, em, g90, sh90, sot90 };
+}
+
+/**
+ * The anytime price: a mixture over his role (soccer-shots.js roleProbs, the
+ * same role model), each role's goals Poisson, then the mode's stretch
+ * p = 1 - exp(-a mu^k). xi: null before the lineups, else 'XI' / 'bench'.
+ */
+export function goalPrice(f, ctx, M, xi = null) {
+  const { ps, pb } = xi == null ? roleProbs(f, M.role) : { ps: xi === 'XI' ? 1 : 0, pb: xi === 'bench' ? M.role.benchOn : 0 };
+  const S = goalRole(f, ctx, M, 1), B = goalRole(f, ctx, M, 0), c = M.cal[xi == null ? 'pre' : 'known'];
+  const p = ps * (1 - Math.exp(-c.a * S.mu ** c.k)) + pb * (1 - Math.exp(-c.a * B.mu ** c.k));
+  const em = ps * S.em + pb * B.em;      // the minutes the price expects (the board's MIN)
+  return { p, ps, pb, S, B, mu: ps * S.mu + pb * B.mu, muPk: ps * S.pk + pb * B.pk,
+    x: { em, g90: S.g90, sh90: S.sh90, sot90: S.sot90 } };
 }
 
 /**
  * His price taken apart, for the card's tornado: each group of terms as a log
- * multiplier on his expected goals against a reference player (his position's
- * league rates, 80 expected minutes, four starts in five, the league's team
- * goals, away, no penalties). The terms sum to log(calibrated mu / base).
+ * multiplier on his expected goals against a reference starter (his
+ * position's league rates, 80 minutes, the league's team goals, away, no
+ * penalties). Minutes, shooting, finishing, team goals, home and penalties are
+ * his goals IF HE STARTS; "role" is the rest: his chances of starting or
+ * coming on, and the calibration. The terms sum to log(-ln(1 - p) / base).
  */
-const REF_MIN = 80, REF_ST = 0.8;
+const REF_MIN = 80;
 export function goalFactors(f, ctx, M, P = goalPrice(f, ctx, M)) {
-  const c = M.coef, x = P.x, pr = M.priors[f.pos] || M.priors.MID, lr = Math.log(REF_MIN / 90);
-  const base = Math.exp(c.b0 + c.lmin * lr + c.lmin2 * lr * lr + c.st * REF_ST + c.lg * Math.log(pr.g90) + c.lsh * Math.log(pr.sh90) + c.lsot * Math.log(pr.sot90));
-  const muCal = -Math.log(1 - Math.min(P.p, 0.999));
+  const c = M.coef, x = P.S.x, pr = M.priors[f.pos] || M.priors.MID, lr = Math.log(REF_MIN / 90);
+  const base = Math.exp(c.b0 + c.lrm * lr + c.lg * Math.log(pr.g90) + c.lsh * Math.log(pr.sh90) + c.lsot * Math.log(pr.sot90) + c.st);
   const d = {
-    min: c.lmin * (x.lmin - lr) + c.lmin2 * (x.lmin2 - lr * lr) + c.st * (x.st - REF_ST),
+    min: c.lrm * (x.lrm - lr),
     shoot: c.lsh * (x.lsh - Math.log(pr.sh90)) + c.lsot * (x.lsot - Math.log(pr.sot90)),
     finish: c.lg * (x.lg - Math.log(pr.g90)),
     team: c.limp * x.limp, home: c.home * x.home,
-    pens: Math.log(P.mu / P.muNp), cal: Math.log(muCal / P.mu),
+    pens: Math.log(P.S.mu / P.S.np),
   };
+  const muEff = -Math.log(1 - Math.min(P.p, 0.999));
+  d.role = Math.log(muEff / base) - Object.values(d).reduce((a, v) => a + v, 0);
   for (const k in d) d[k] = +d[k].toFixed(4);
   return { base: +base.toFixed(4), d };
 }

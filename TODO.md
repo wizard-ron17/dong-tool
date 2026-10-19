@@ -15,8 +15,7 @@ Dated and open work. Newest decisions at the top of each section. Remove items w
   - Verify the first real build: early-season term, rosters, recap, and grading of the new Due/Milestones.
 
 ## Next up
-- **Soccer (/soccer, MLS):** Goals (walk-forward AUC .830) and Shots / On target (role mixture, research/soccer_shots.py) built 10/19; each team's next game. Next:
-  - Goals on the role mixture too: shots showed one distribution can't be "sits: 0" and "starts: 2.5"; it would make goals lineup-aware the same way (with lineups known shots are calibrated to the point).
+- **Soccer (/soccer, MLS):** Goals and Shots / On target live 10/19, all three on the role mixture (start / bench / sits) and lineup-aware: goals AUC .830 before lineups, .869 after (research/soccer_goals.py); each team's next game. Next:
   - Pre-lineup, the top decile runs ~3pp short on shots (stars start, and shoot, a little more than the role model says). On target runs ~5% under in 2025-26 as the league's on-target rate rose: try a recent-seasons weight.
   - Grade the live log (soccer/goals-history.json) against books' closes once a few rounds are in (the SmartStake recorder has MLS shots props?).
   - Parlay slip: measured soccer correlations in parlay.js (a player's shots + his SOT + his goal, teammates) before legs go on it.

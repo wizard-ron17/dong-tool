@@ -1223,7 +1223,7 @@
         </div>`).join('')}</div>`;
     }
     const M = G.model;
-    el.innerHTML = dayBar() + controls + meta + body + `<div class="t3-note">Priced off his expected minutes (his last five games for this team), his shots, shots on target and goals per 90 (shrunk toward his position's, so a hot month counts for a little), the goals the line expects from his team, and his share of its penalties. Prices are pre-lineup: when lineups post, about an hour before kickoff, a player outside the matchday squad drops off and the rest are tagged XI or bench.${M ? ` Walk-forward over ${M.seasons[0]}–${M.seasons[M.seasons.length - 1]} (each season priced by a model fitted only on the seasons before it): AUC ${M.auc.toFixed(3)}, calibrated within a point or two from 1% to 50%.` : ''}</div>`;
+    el.innerHTML = dayBar() + controls + meta + body + `<div class="t3-note">Priced off his expected minutes (his last five games for this team), his shots, shots on target and goals per 90 (shrunk toward his position's, so a hot month counts for a little), the goals the line expects from his team, and his share of its penalties. A price is a mix of his roles: he starts, comes off the bench, or sits. When lineups post, about an hour before kickoff, the role is known: a player outside the matchday squad drops off, the rest are tagged XI or bench, and every price sharpens.${M ? ` Walk-forward over ${M.seasons[0]}–${M.seasons[M.seasons.length - 1]} (each season priced by a model fitted only on the seasons before it): AUC ${M.auc.toFixed(3)} before the lineups${M.aucKnown ? `, ${M.aucKnown.toFixed(3)} once they post` : ''}, calibrated within a point or two from 1% to 50%.` : ''}</div>`;
   }
   // ── What moves a goal price: the tornado (as /nhl's goal card) ─────────
   // Each factor is a multiplier on his expected goals against a reference
@@ -1237,8 +1237,8 @@
     ['finish', 'Finishing', (r) => `${r.g90.toFixed(2)} non-penalty goals / 90`, "His non-penalty goals per 90 (shrunk hard toward his position's: finishing is mostly noise), against the league"],
     ['team', 'Team goals', (r) => r.imp != null ? `${r.imp.toFixed(2)} off the line` : 'no line yet', 'The goals the line (1X2 + total, devigged) expects his team to score, against the league average'],
     ['pens', 'Penalties', (r) => r.pk ? `${Math.round(r.pk * 100)}% of his team's last ${r.pkN}` : 'not his', "His share of his team's recent penalties"],
+    ['role', 'Role', (r) => r.ps != null ? `${Math.round(r.ps * 100)}% to start · ${Math.round((r.pb || 0) * 100)}% off the bench` : 'start and bench chances', 'His chances of starting or coming on (known once the lineups post), and the calibration: everything above is his goals if he starts'],
     ['home', 'Home', (r) => r.home ? 'at home' : 'away', 'Home teams score a touch more'],
-    ['cal', 'Calibration', () => 'out-of-sample fit', 'A two-number stretch fitted with the model (it lifts the top end, where the raw model ran short)'],
   ];
   const fxTone = (m) => m >= 1.03 ? 'pos' : m <= 0.97 ? 'neg' : 'mid';
   const pcTone = (pc) => pc >= 0.6 ? 'pos' : pc <= 0.4 ? 'neg' : 'mid';
@@ -1256,15 +1256,15 @@
     const muCal = r.fx.base * Math.exp(parts.reduce((a, x) => a + x.d, 0));
     const toggle = pctOk ? `<div class="fbar-mode">${[['pct', 'Rank on the board'], ['x', 'Multipliers']].map(([v, l]) =>
       `<button class="due-filter-chip${mode === v ? ' active' : ''}" onclick="setGcMode('${v}')">${l}</button>`).join('')}</div>` : '';
-    const foot = `A ${{ FWD: 'forward', MID: 'midfielder', DEF: 'defender', GK: 'keeper' }[r.pos] || 'player'} at his position's league rates in a neutral spot is expected <b>${r.fx.base.toFixed(2)}</b> goals, <b>${Odds.pct(1 - Math.exp(-r.fx.base))}</b> to score; these take him to <b>${muCal.toFixed(2)}</b>, <b>${Odds.pct(r.p)}</b>.`;
+    const foot = `A ${{ FWD: 'forward', MID: 'midfielder', DEF: 'defender', GK: 'keeper' }[r.pos] || 'player'} at his position's league rates, starting in a neutral spot, is expected <b>${r.fx.base.toFixed(2)}</b> goals, <b>${Odds.pct(1 - Math.exp(-r.fx.base))}</b> to score; these take him to <b>${muCal.toFixed(2)}</b>, <b>${Odds.pct(r.p)}</b>.`;
     if (mode === 'pct') {
-      const bars = parts.filter(x => !['home', 'cal'].includes(x.k)).map(x => {
+      const bars = parts.filter(x => x.k !== 'home').map(x => {
         const pc = rank(x.k, x.d), t = (pc - 0.5) * 2, n = Math.max(1, Math.min(99, Math.round(pc * 100)));
         return `<div class="fbar"><span class="fbar-label" title="${esc(x.tip)} (${esc(x.det)})">${x.lab}</span>
           <div class="fbar-track"><div class="fbar-fill ${pcTone(pc)}" style="${t >= 0 ? 'left:50%' : 'right:50%'};width:${Math.abs(t) * 50}%"></div></div>
           <span class="fbar-val" style="color:${TONE_VAR[pcTone(pc)]}">${ordinal(n)}<small>${Math.exp(x.d).toFixed(2)}×</small></span></div>`;
       }).join('');
-      const chips = parts.filter(x => ['home', 'cal'].includes(x.k) && Math.abs(x.d) >= 0.015)
+      const chips = parts.filter(x => x.k === 'home' && Math.abs(x.d) >= 0.015)
         .map(x => `<span class="fbar-chip ${x.d >= 0 ? 'pos' : 'neg'}" title="${esc(x.tip)}">${x.lab} ${Math.exp(x.d).toFixed(2)}×</span>`).join('');
       const muRank = (() => { let lo = 0; for (const x of pool) if (x.p < r.p) lo++; return Math.max(1, Math.min(99, Math.round(lo / pool.length * 100))); })();
       return `${toggle}<div class="fbar-head"><span>Expected goals</span><b>${muCal.toFixed(2)}</b><em>${ordinal(muRank)} of ${pool.length} ${roleNames} on the board</em></div>
@@ -1317,7 +1317,7 @@
         </div>
         <p class="pm-foot">Over his last ${r.apps} appearances: <b>${r.np}</b> non-penalty goal${r.np === 1 ? '' : 's'} and <b>${r.shots ?? '—'}</b> shots in ${r.min.toLocaleString()} minutes.
           ${sharePk >= 0.05 ? ` About ${Math.round(sharePk * 100)}% of his price is penalties.` : ''}${r.noLine ? ' No line on this game yet: his team is priced at the league\'s average goals.' : ''}
-          ${r.xi ? ` Lineups are out: he's ${r.xi === 'XI' ? 'in the starting XI' : 'on the bench'} (the price is still the pre-lineup one).` : ''}</p>
+          ${r.xi ? ` Lineups are out: he's ${r.xi === 'XI' ? 'in the starting XI' : 'on the bench'}, and the price knows it.` : ''}</p>
       </div>`;
     RonModal.navState('gc-back', gcAt, gcDeck.length);
   }
