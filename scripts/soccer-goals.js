@@ -14,7 +14,7 @@
 // (isotonic lost to the raw price walk-forward).
 import { posFam } from './soccer-state.js';
 
-export const GOALS_VERSION = 1;
+export const GOALS_VERSION = 2;          // 2: team games carry shots for and against (the shots model's matchup)
 const HIST = 40;          // a player's appearances kept (about a season)
 const TEAM_HIST = 40;     // a team's games kept (penalty shares, the last five)
 const LAST = 5;           // the team games his expected minutes are read off
@@ -27,7 +27,12 @@ export function applyGoalGame(GS, r) {
   for (const ab of [r.home.ab, r.away.ab]) {
     const T = (GS.teams[ab] ||= { games: [] });
     if (T.games.some(g => g.id === r.id)) return;           // already in
-    T.games.push({ id: r.id, d: r.date, pka: r.players.filter(p => p.team === ab).reduce((n, p) => n + (p.pka || 0), 0) });
+    // team shots are the players' own, summed (the team box reads 0 when ESPN has none); a game where neither side shot is missing data
+    const opp = ab === r.home.ab ? r.away.ab : r.home.ab;
+    const sum = (t, k) => r.players.filter(p => p.team === t).reduce((n, p) => n + (p[k] || 0), 0);
+    const ok = sum(ab, 'sh') + sum(opp, 'sh') > 0;
+    T.games.push({ id: r.id, d: r.date, pka: r.players.filter(p => p.team === ab).reduce((n, p) => n + (p.pka || 0), 0),
+      sh: ok ? sum(ab, 'sh') : null, sot: ok ? sum(ab, 'sot') : null, sha: ok ? sum(opp, 'sh') : null, sota: ok ? sum(opp, 'sot') : null });
     if (T.games.length > TEAM_HIST) T.games.shift();
   }
   for (const p of r.players) {
@@ -67,9 +72,28 @@ export function goalFeatures(GS, pid, team) {
   const teamIds = new Set(T.games.map(g => g.id));
   const mine = P.apps.filter(a => teamIds.has(a[0]) && a[2] === team);
   const tPka = T.games.reduce((n, g) => n + g.pka, 0), pPka = mine.reduce((n, a) => n + a[6], 0);
-  return { pos, min5: +min5.toFixed(2), st5: st.reduce((a, b) => a + b, 0), lastMin: m[m.length - 1],
+  // his role: did he start the team's last game, how often he came off its bench, and the minutes each role gets him
+  // (his last ten starts and last ten sub appearances, any team; the league's typical when he has none)
+  const subs5 = m.filter((x, i) => x > 0 && !st[i]).length;
+  const sts = P.apps.filter(a => a[4]).slice(-10), sbs = P.apps.filter(a => !a[4]).slice(-10);
+  const stMin = sts.length ? sts.reduce((n, a) => n + a[3], 0) / sts.length : null, subMin = sbs.length ? sbs.reduce((n, a) => n + a[3], 0) / sbs.length : null;
+  // recent form: his last five appearances (any team)
+  const r5 = P.apps.slice(-5).reduce((o, a) => { o.min += a[3]; o.sh += a[8]; o.sot += a[9]; return o; }, { min: 0, sh: 0, sot: 0 });
+  return { pos, min5: +min5.toFixed(2), lastSt: st[st.length - 1], subs5, stMin: stMin == null ? null : +stMin.toFixed(1), subMin: subMin == null ? null : +subMin.toFixed(1),
+    nSt: sts.length, nSub: sbs.length, st10: P.apps.slice(-10).filter(a => a[4]).length, rmin: r5.min, rsh: r5.sh, rsot: r5.sot, st5: st.reduce((a, b) => a + b, 0), lastMin: m[m.length - 1],
     apps: P.apps.length, min: tot.min, np: tot.np, sh: tot.sh, sot: tot.sot,
     pkShare: tPka ? pPka / tPka : 0, pkN: tPka, teamGames: T.games.length };
+}
+
+/**
+ * A side's shooting matchup before a game: its own shots and shots on target a
+ * game and what the opponent allows, over each one's last TEAM_N games with a box.
+ */
+const TEAM_N = 20;
+export function teamFeatures(GS, team, opp) {
+  const avg = (ab, k) => { const g = (GS.teams[ab]?.games || []).filter(x => x[k] != null).slice(-TEAM_N); return g.length ? { v: g.reduce((a, x) => a + x[k], 0) / g.length, n: g.length } : { v: null, n: 0 }; };
+  const t = avg(team, 'sh'), ts = avg(team, 'sot'), o = avg(opp, 'sha'), os = avg(opp, 'sota');
+  return { tsh: t.v, tsot: ts.v, osha: o.v, osota: os.v, tn: t.n, on: o.n };
 }
 
 /** The model's inputs from raw features: shrunk per-90 rates and the logs the regression reads. */

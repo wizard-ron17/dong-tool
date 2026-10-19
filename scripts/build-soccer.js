@@ -15,7 +15,8 @@ import fs from 'node:fs';
 import { get, pool, SITE, SITE2, etDate, shiftDate, compact } from './soccer-api.js';
 import { reduceSummary, freshState, applyGame, posFam, STATE_VERSION } from './soccer-state.js';
 import { am2p, devig, impliedGoals } from './soccer-lines.js';
-import { freshGoalState, applyGoalGame, goalFeatures, goalPrice, GOALS_VERSION } from './soccer-goals.js';
+import { freshGoalState, applyGoalGame, goalFeatures, teamFeatures, goalPrice, GOALS_VERSION } from './soccer-goals.js';
+import { shotLadder } from './soccer-shots.js';
 
 const AHEAD = 14;        // schedule days ahead (a week has a weekend and maybe a midweek round)
 const BEHIND = 4;        // ...and behind (last weekend's finals stay on the schedule)
@@ -28,6 +29,8 @@ const OUT = new URL('../soccer/data.json', import.meta.url);
 const GOAL_STATE = new URL('../soccer/goal-state.json', import.meta.url);   // the goal model's history (soccer-goals.js)
 const GOAL_MODEL = new URL('../soccer/goals-model.json', import.meta.url);  // research/soccer_goals.py
 const GOAL_HIST = new URL('../soccer/goals-history.json', import.meta.url); // each game's last pre-kickoff prices, for grading
+const SHOT_MODEL = new URL('../soccer/shots-model.json', import.meta.url);  // research/soccer_shots.py
+const PMF_TOP = { sh: 7, sot: 4 };   // a stored distribution's last bucket holds the tail (7+ shots, 4+ on target)
 const SEED_SEASONS = 2;    // the goal history starts this many seasons back (a player's last 40 appearances)
 const HIST_DAYS = 35;      // graded prices kept
 
@@ -186,20 +189,24 @@ async function main() {
   fs.writeFileSync(DAYS_PATH, JSON.stringify(days));
   console.log(`League days: ${Object.keys(days.games).length} regular-season finals logged`);
 
-  // ── 6b) Goals: every player in a rotation on the next round, priced to score ──
-  // The window: the first day with a game still to play and the four after it
-  // (a midweek game and the weekend after it, or a weekend and the Wednesday). Priced off current squads and each side's
-  // goals off the line; a started game's rows are frozen as they stood before
-  // kickoff. Lineups post about an hour out: once they do, a player outside the
-  // matchday squad drops off and the rest are tagged XI / bench (the price is
-  // still the pre-lineup model's).
+  // ── 6b) Goals, shots and shots on target: every player in a rotation, priced for his team's next game ──
+  // Each team's next game still to play (the rest of the schedule's two weeks
+  // can wait for fresher minutes), priced off current squads; a game that has
+  // kicked off keeps its rows as they stood before kickoff for the day.
+  // Lineups post about an hour out: once they do, a player outside the
+  // matchday squad drops off, and shots and on target re-price off the known
+  // role (XI, or a named sub). Goals stay the pre-lineup model's.
   const GM = readJSON(GOAL_MODEL, null);
   let goals = null;
   if (GM) {
-    const first = schedule.find(g => g.state === 'pre' && g.date >= today)?.date;
-    const round = first ? schedule.filter(g => g.date >= first && g.date <= shiftDate(first, 4)) : [];
+    const SM = readJSON(SHOT_MODEL, null);
+    const next = new Map();                               // team -> its next game still to play
+    for (const g of schedule) if (g.state === 'pre' && g.date >= today) for (const ab of [g.home.ab, g.away.ab]) if (!next.has(ab)) next.set(ab, g);
     const prevData = readJSON(OUT, {});
     const frozen = prevData.goals?.rows || [];
+    const started = schedule.filter(g => g.state !== 'pre' && Date.now() - Date.parse(g.start) < 18 * 3600e3 && frozen.some(r => r.gid === g.id));
+    const round = [...new Map([...started, ...next.values()].map(g => [g.id, g])).values()].sort((a, b) => a.start.localeCompare(b.start));
+    const first = round.find(g => g.state === 'pre')?.date || round[0]?.date;
     const rows = [];
     for (const g of round) {
       if (g.state !== 'pre') { rows.push(...frozen.filter(r => r.gid === g.id)); continue; }
@@ -213,30 +220,43 @@ async function main() {
       }
       for (const [ab, opp, home] of [[g.home.ab, g.away.ab, true], [g.away.ab, g.home.ab, false]]) {
         const imp = g.lines?.impHome != null ? (home ? g.lines.impHome : g.lines.impAway) : null;
+        const tf = teamFeatures(GS, ab, opp);
         for (const a of rosters.get(ab) || []) {
           const f = goalFeatures(GS, a.id, ab); if (!f) continue;
           const xi = squads?.[ab] ? squads[ab].get(a.id) || 'out' : null;
           if (xi === 'out') continue;
           const P = goalPrice(f, { imp, home }, GM);
+          // shots and on target: the distribution (its last bucket the tail) and the role it assumes
+          const shot = {};
+          if (SM && tf.osha != null) for (const kind of ['sh', 'sot']) {
+            const S = shotLadder(f, tf, { home }, SM, kind, xi);
+            const top = PMF_TOP[kind], pmf = S.pmf.slice(0, top); pmf.push(Math.max(0, 1 - pmf.reduce((x, y) => x + y, 0)));
+            shot[kind] = { mu: +S.mu.toFixed(3), pmf: pmf.map(v => +v.toFixed(4)), ps: +S.ps.toFixed(3), pb: +S.pb.toFixed(3),
+              muSt: +S.muStart.toFixed(2), muSub: +S.muSub.toFixed(2), r90: +(kind === 'sh' ? S.sh90 : S.sot90).toFixed(2) };
+          }
+          if (shot.sh) Object.assign(shot, { stMin: f.stMin, subMin: f.subMin, osha: +tf.osha.toFixed(1) });
           rows.push({ gid: g.id, start: g.start, pid: a.id, name: a.displayName, team: ab, opp, home, pos: squad[a.id]?.pos || f.pos, hs: squad[a.id]?.hs || 0,
             p: +P.p.toFixed(4), mu: +P.mu.toFixed(3), muPk: +P.muPk.toFixed(3), em: +P.x.em.toFixed(1), st5: f.st5, imp, noLine: imp == null ? 1 : 0, xi,
             g90: +P.x.g90.toFixed(3), sh90: +P.x.sh90.toFixed(2), sot90: +P.x.sot90.toFixed(2), pk: +(f.pkShare || 0).toFixed(2), pkN: f.pkN,
-            apps: f.apps, np: f.np, sh: f.sh, sot: f.sot, min: f.min });
+            apps: f.apps, np: f.np, shots: f.sh, sots: f.sot, min: f.min, ...shot });
         }
       }
     }
     rows.sort((a, b) => b.p - a.p);
     goals = { from: first || null, to: round.at(-1)?.date || null, generated: new Date().toISOString(),
-      model: GM.meta?.walkForward || null, rows };
+      model: GM.meta?.walkForward || null, shotsModel: SM ? { sh: SM.sh.meta?.walkForward, sot: SM.sot.meta?.walkForward, lines: { sh: SM.sh.lines, sot: SM.sot.lines } } : null, rows };
     // the last pre-kickoff price of every priced player, by date and game: Recap and Schedule grade off it
     const H = readJSON(GOAL_HIST, { days: {} });
+    // { g: P(goal), sh: [mu, P(o0.5), P(o1.5) …], sot: […] } per player (a bare number is an older goal-only entry)
+    const lad = (S, kind) => S ? [S.mu, ...SM[kind].lines.map(L => +(1 - S.pmf.slice(0, Math.floor(L) + 1).reduce((x, y) => x + y, 0)).toFixed(4))] : undefined;
     for (const r of rows) if (new Date(r.start) > new Date()) {
       const d = etDate(new Date(r.start));
-      ((H.days[d] ||= {})[r.gid] ||= {})[r.pid] = r.p;
+      ((H.days[d] ||= {})[r.gid] ||= {})[r.pid] = { g: r.p, sh: lad(r.sh, 'sh'), sot: lad(r.sot, 'sot') };
     }
     for (const d of Object.keys(H.days)) if (d < shiftDate(today, -HIST_DAYS)) delete H.days[d];
     fs.writeFileSync(GOAL_HIST, JSON.stringify(H));
-    console.log(`Goals: ${rows.length} players priced across ${round.length} games (${first || 'no round'}), top ${rows[0] ? `${rows[0].name} ${(rows[0].p * 100).toFixed(1)}%` : '—'}`);
+    const topSh = rows.filter(r => r.sh).sort((a, b) => b.sh.mu - a.sh.mu)[0];
+    console.log(`Goals: ${rows.length} players priced across ${round.length} games (${first || 'no round'}), top ${rows[0] ? `${rows[0].name} ${(rows[0].p * 100).toFixed(1)}%` : '—'}; shots ${rows.filter(r => r.sh).length}${topSh ? `, top ${topSh.name} ${topSh.sh.mu.toFixed(2)}` : ''}`);
   } else console.log('Goals: no soccer/goals-model.json, board skipped');
 
   // ── 7) Leaders: season totals; last season's until 30 players have played ─

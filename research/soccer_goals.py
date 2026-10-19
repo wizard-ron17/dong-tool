@@ -21,21 +21,8 @@ import json, math, os, sys, warnings
 warnings.filterwarnings('ignore')
 import numpy as np, pandas as pd
 
-# ── small numpy stand-ins (no sklearn/statsmodels on this machine's Python) ──
-def poisson_glm(X, y, iters=50):
-    """Unpenalised Poisson regression with a log link, by IRLS. Returns (intercept, coefs)."""
-    A = np.column_stack([np.ones(len(X)), X]); b = np.zeros(A.shape[1]); b[0] = math.log(max(y.mean(), 1e-6))
-    for _ in range(iters):
-        mu = np.exp(A @ b); z = A @ b + (y - mu) / mu
-        step = np.linalg.solve(A.T @ (A * mu[:, None]), A.T @ (mu * z))
-        if np.max(np.abs(step - b)) < 1e-9: b = step; break
-        b = step
-    return b[0], b[1:]
+from soccer_fit import poisson_glm, log_loss, roc_auc_score
 
-def log_loss(y, p): y = np.asarray(y); p = np.asarray(p); return float(-np.mean(y * np.log(p) + (1 - y) * np.log(1 - p)))
-def roc_auc_score(y, p):
-    y = np.asarray(y); r = pd.Series(np.asarray(p)).rank().values; n1 = y.sum(); n0 = len(y) - n1
-    return float((r[y == 1].sum() - n1 * (n1 + 1) / 2) / (n1 * n0))
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 d = pd.read_csv(os.path.join(ROOT, 'research/.cache/soccer/goal_rows.csv'))
