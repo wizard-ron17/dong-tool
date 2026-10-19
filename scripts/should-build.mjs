@@ -1,6 +1,6 @@
 // Should this scheduled build run? Prints `run=true|false` for $GITHUB_OUTPUT.
 //
-//   node scripts/should-build.mjs <mlb|nhl|nba> [event_name]
+//   node scripts/should-build.mjs <mlb|nhl|nba|soccer> [event_name]
 //
 // The crons fire on a fixed clock; the season doesn't. On a game day every
 // scheduled run goes ahead. On a day without games only the morning run does
@@ -35,11 +35,12 @@ async function games(from, to) {
     }
     return out;
   }
-  if (sport === 'nba') {
-    // ESPN's NBA scoreboard takes one date at a time (a range is a 400)
+  if (sport === 'nba' || sport === 'soccer') {
+    // ESPN's NBA and soccer scoreboards take one date at a time (a range is a 400, or empty)
+    const path = sport === 'nba' ? 'basketball/nba' : 'soccer/usa.1';
     const out = [];
     for (let d = from; d <= to; d = new Date(Date.parse(d + 'T12:00:00Z') + 86400000).toISOString().slice(0, 10)) {
-      const j = await (await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${d.replace(/-/g, '')}`)).json();
+      const j = await (await fetch(`https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard?dates=${d.replace(/-/g, '')}`)).json();
       for (const e of j.events || []) out.push({ date: d, done: e.competitions?.[0]?.status?.type?.state === 'post' });
     }
     return out;

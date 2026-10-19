@@ -1,0 +1,77 @@
+name: Build soccer/data.json
+
+on:
+  schedule:
+    # Soccer is a weekend sport with a midweek round: a morning baseline, then
+    # hourly from early afternoon (weekend kickoffs run 1pm to 10:30pm ET)
+    # through the last western finish. Off days only the morning run goes ahead
+    # (scripts/should-build.mjs). All times UTC; ET is UTC-4 until November.
+    #   Morning: last night's finals are in, the player state rolls forward.
+    - cron: '52 11 * * *'
+    #   Lines, kickoffs and finals: 10am ET to 12:52am ET.
+    - cron: '52 14-23 * * *'
+    - cron: '52 0-4 * * *'
+  workflow_dispatch: {}      # manual trigger from the Actions tab
+
+permissions:
+  contents: write
+  issues: write        # build alerts (scripts/build-alert.sh)
+
+concurrency:
+  group: build-soccer
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04  # pinned: ubuntu-latest moves to 26 on 2026-10-19
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      # Game days build on every tick; off days only the morning run; the
+      # offseason only Monday mornings (scripts/should-build.mjs).
+      - name: Anything to build?
+        id: gate
+        run: node scripts/should-build.mjs soccer ${{ github.event_name }} >> "$GITHUB_OUTPUT"
+
+      - name: Build soccer/data.json
+        if: steps.gate.outputs.run == 'true'
+        run: node scripts/build-soccer.js
+
+      - name: Commit and push if changed
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add soccer/*.json
+          git diff --staged --quiet && { echo "No changes to commit"; exit 0; }
+          git commit -m "Update soccer/data.json"
+          # whole-file regenerates: replay onto main if a racing push lands first
+          for attempt in 1 2 3 4 5; do
+            if git push; then echo "Pushed on attempt $attempt"; exit 0; fi
+            echo "Push rejected (attempt $attempt) — replaying onto latest main"
+            # back off 5/20/45/80s: a GitHub 500 blip outlasted 3s retries on 10/7
+            sleep $((attempt * attempt * 5))
+            git fetch origin main
+            git reset FETCH_HEAD
+            git add soccer/*.json
+            git diff --staged --quiet && { echo "Already current with main"; exit 0; }
+            git commit -m "Update soccer/data.json"
+          done
+          echo "Failed to push after 5 attempts"; exit 1
+
+      # One issue per failing build, closed by the next green run (scripts/build-alert.sh)
+      - name: Alert on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/build-alert.sh fail "soccer data"
+
+      - name: Clear the alert
+        if: success() && steps.gate.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/build-alert.sh ok "soccer data"
