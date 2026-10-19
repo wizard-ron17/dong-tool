@@ -15,6 +15,11 @@ Dated and open work. Newest decisions at the top of each section. Remove items w
   - Verify the first real build: early-season term, rosters, recap, and grading of the new Due/Milestones.
 
 ## Next up
+- **Soccer (/soccer, MLS):** the skeleton is up (10/19). Next:
+  - First CI build: `gh workflow run build-soccer.yml` (the page shows "couldn't load" until soccer/data.json exists on main).
+  - Goals board: walk-forward anytime-goalscorer on ASA 2013–2026 xG × minutes × the line's implied goals (the NHL goals playbook), parity replay vs the build.
+  - Shots / shots on target off the same minutes model; that's where Ron's EV scan shows the outliers (EPL, LaLiga, Serie A as much as MLS).
+  - MLS regular season ends 11/07 (Decision Day), then playoffs; EPL on the same engine for the winter.
 - Season-rollover tests: run each build against fixed dates (opening day, the day before, first playoff day).
 - Fair-odds explainer: tap-to-explain wherever a fair price appears.
 - For outside agents: llms.txt, documented JSON endpoints, a RONBET spec.
