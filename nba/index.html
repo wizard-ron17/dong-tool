@@ -996,6 +996,8 @@
   // summary, reduced by the build's own code (scripts/nba-recap-core.js) — see nbaLiveTick
   const LIVE_RC = {};
   const rcGames = () => [...Object.values(RC?.games || {}), ...Object.values(LIVE_RC).filter(g => !RC?.games?.[g.gid])];
+  /** One game's detail: the build's recap, else tonight's live read (a game the build hasn't added yet). */
+  const rcGame = (gid) => RC?.games?.[gid] || LIVE_RC[gid] || null;
   const recapDates = () => [...new Set((RC ? rcGames() : D.recap || []).map(g => g.date))].sort();
   function setRecapDate(d) { recapDate = d; renderRecap(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
   function shiftRecapDate(n) {
@@ -1060,15 +1062,19 @@
     E.sh.setAttribute('cx', CX(x)); E.sh.setAttribute('cy', CY(y) + 4); E.sh.style.opacity = 0.5 - h * 0.3;
   }
   /** Run steps in order: each is { dur, frame(f) } — one requestAnimationFrame chain per game card. */
+  // a replay running: the live tick's Recap redraw waits for it (a redraw mid-replay would cut it off)
+  const rxBusy = {}; let rxRedraw = false;
+  const rxIdle = () => !Object.values(rxBusy).some(Boolean);
   function rxRun(gid, steps, done) {
     cancelAnimationFrame(rxAnim[gid]);
     const E = rxEls(gid); if (!E) return;
-    let i = 0, t0 = null;
+    let i = 0, t0 = null; rxBusy[gid] = true;
     const tick = (ts) => {
       if (t0 == null) t0 = ts;
       const s = steps[i], f = Math.min(1, (ts - t0) / s.dur);
       s.frame(f, E);
-      if (f >= 1) { i++; t0 = ts; if (i >= steps.length) { done?.(E); return; } }
+      if (f >= 1) { i++; t0 = ts; if (i >= steps.length) { done?.(E); rxBusy[gid] = false;
+        if (rxRedraw && rxIdle()) { rxRedraw = false; if (activeNav === 'recap') renderRecap(); } return; } }
       rxAnim[gid] = requestAnimationFrame(tick);
     };
     rxAnim[gid] = requestAnimationFrame(tick);
@@ -1088,7 +1094,7 @@
   function rxHighlight(E, idx) { E.svg.querySelectorAll('.rx-dot').forEach(el => el.classList.toggle('dim', idx != null && !idx.includes(+el.dataset.i))); }
   /** Play threes of a game, one after another; a single one is slower and captioned. */
   function rxPlay(gid, idx) {
-    const G = RC?.games?.[gid], E = rxEls(gid); if (!G || !E) return;
+    const G = rcGame(gid), E = rxEls(gid); if (!G || !E) return;
     idx = idx || G.threes.map((_, i) => i);
     rxHighlight(E, idx);
     const cap = (t) => { const b = G.box[t[0]] || [], a = t[6] ? G.box[t[6]] : null, ft = Math.round(Math.hypot(t[1] - 25, t[2] - 1));
@@ -1104,7 +1110,7 @@
   }
   /** The opening tip to the winning side, then the first basket from where it was taken. */
   function rxFirst(gid) {
-    const G = RC?.games?.[gid], E = rxEls(gid); if (!G?.fb || !E) return;
+    const G = rcGame(gid), E = rxEls(gid); if (!G?.fb || !E) return;
     const fb = G.fb, who = G.box[fb.pid]?.[BX.name] || '', a = fb.ast ? G.box[fb.ast]?.[BX.name] : null;
     const ft = fb.x != null ? Math.round(Math.hypot(fb.x - 25, fb.y - 1)) : null;
     const tip = G.tip ? `${esc(G.tip.won)} win the tip` : '';
@@ -1350,7 +1356,7 @@
     finally {
       nLiveBusy = false;
       if (activeNav === 'schedule') renderSchedule();
-      if (activeNav === 'recap' && Object.keys(LIVE_RC).length) renderRecap();
+      if (activeNav === 'recap' && Object.keys(LIVE_RC).length) { if (rxIdle()) renderRecap(); else rxRedraw = true; }
       if (nbaGid && document.getElementById('gm-back')) openGame(nbaGid);
     }
   }
