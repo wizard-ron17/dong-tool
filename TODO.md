@@ -12,7 +12,7 @@ Dated and open work. Newest decisions at the top of each section. Remove items w
 - **MLB playoff pitching:** update `mlb/pitching-overrides.json` per game day (openers and bullpen games).
 - **NBA opener (~2026-10-20):**
   - Schedule picks appear around 10/10.
-  - Verify the first real build: early-season term, rosters, recap, and grading of the new Due/Milestones.
+  - Verified 10/20: build healthy, boards priced and frozen at tip; live recap + player hub built; check grading after the first finals.
 
 ## Next up
 - **Soccer (/soccer, MLS):** Goals and Shots / On target live 10/19, all three on the role mixture (start / bench / sits) and lineup-aware: goals AUC .830 before lineups, .869 after (research/soccer_goals.py); each team's next game. Next:
