@@ -651,6 +651,116 @@
   @media (max-width: 460px) {
     .cd-g span { display: none; }
   }
+  /* the topbar search and the player card: copied from /nhl, rule for rule */
+  .tb-search { position: relative; display: flex; align-items: center; gap: 0.45rem; width: clamp(150px, 20vw, 260px);
+               background: var(--surface1); border: 1px solid var(--border2); border-radius: 10px; padding: 0.34rem 0.6rem; color: var(--muted); }
+  .tb-search:focus-within { border-color: var(--accent); color: var(--accent); }
+  .tb-search svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .tb-search input { flex: 1 1 0; width: 100%; min-width: 0; background: none; border: none; outline: none; color: var(--text); font: inherit; font-size: 0.86rem; }
+  .tb-search input::placeholder { color: var(--dim); }
+  .tb-results { position: absolute; top: calc(100% + 0.4rem); right: 0; left: 0; min-width: 240px; z-index: 300; background: var(--surface1);
+                border: 1px solid var(--border2); border-radius: 12px; box-shadow: 0 16px 40px rgba(0,0,0,0.5); padding: 0.25rem; max-height: 60vh; overflow-y: auto; }
+  .tb-results[hidden] { display: none; }
+  .tb-res { display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.4rem 0.5rem; border: none; background: none; border-radius: 8px;
+            color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+  .tb-res:hover, .tb-res.on { background: var(--surface2); }
+  .tb-logo { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
+  .tb-res b { font-family: var(--font-d); font-size: 0.9rem; }
+  .tb-res small { margin-left: auto; color: var(--muted); font-size: 0.72rem; white-space: nowrap; }
+  .tb-res .rc-photo { width: 24px; height: 24px; margin: 0; }
+  @media (max-width: 980px) { .tb-search { width: auto; flex: 1 1 0; min-width: 0; } }
+  @media (max-width: 600px) {
+    .tb-search { flex: 1 1 0; min-width: 0; width: auto; padding: 0.3rem 0.45rem; gap: 0.3rem; }
+    .tb-search input { font-size: 0.8rem; }
+    .tb-results { left: auto; right: 0; width: min(78vw, 300px); }
+  }
+  /* Player card: /nfl's, rule for rule. */
+  .pm.plm { max-width: 820px; }
+  .plm .pl-tabs { margin: 0 0 0.9rem; }
+  .plm-body { display: grid; gap: 0.8rem; min-width: 0; }
+
+  /* "Tonight": one row per market we price him in, each a door into that
+     tool's own card. Ported from /nfl's player card, minus its parlay column. */
+  .plw { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface0); }
+  .plw-hd { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0 0.5rem 0.8rem;
+            font-size: 0.667rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim);
+            border-bottom: 1px solid var(--border); background: var(--surface1); }
+  .plw-hd-l { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .plw-hd-r { flex: 0 0 auto; }
+  .plw-row { display: flex; align-items: stretch; border-top: 1px solid var(--border); }
+  .plw-row:first-of-type { border-top: none; }
+  .plw-go { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) 3.4rem 4.6rem 3rem;
+            align-items: center; gap: 0.5rem; background: none; border: none; cursor: pointer;
+            padding: 0.6rem 0.4rem 0.6rem 0.8rem; text-align: left; font-family: var(--font-b); }
+  .plw-go:hover { background: var(--surface1); }
+  .plw-mkt { font-size: 0.86rem; font-weight: 700; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .plw-line { font-family: var(--font-m); font-size: 0.75rem; color: var(--dim); text-align: right; }
+  .plw-od { font-family: var(--font-d); font-size: 1.15rem; font-weight: 700; text-align: right; }
+  .plw-pc { font-family: var(--font-m); font-size: 0.72rem; color: var(--dim); text-align: right; }
+  .plw-note { margin: 0.55rem 0 0; font-size: 0.72rem; line-height: 1.5; color: var(--dim); }
+  .plt-short { display: none; }
+  @media (max-width: 560px) {
+    .plw-go { grid-template-columns: minmax(0, 1fr) 2.7rem 4rem; padding-left: 0.6rem; }
+    .plw-pc { display: none; }
+    .plw-od { font-size: 1.05rem; }
+  }
+  .pl-tiles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .pl-sub { font-style: normal; font-size: 0.68rem; color: var(--muted); }
+  .pl-chart h4 { margin: 0 0 0.6rem; }
+  .plb-row { display: flex; align-items: flex-end; gap: 0.45rem; height: 9.5rem; overflow-x: auto; padding-bottom: 0.1rem; }
+  .plb { flex: 1 0 2.4rem; max-width: 4.2rem; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; text-align: center; }
+  .plb i { display: block; width: 100%; border-radius: 6px 6px 2px 2px; background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 45%, transparent)); min-height: 3px; max-height: calc(100% - 2.6rem); }
+  .plb-v { font-family: var(--font-d); font-size: 0.72rem; color: var(--text); padding-bottom: 0.15rem; }
+  .plb-td { font-size: 0.7rem; letter-spacing: -0.1em; line-height: 1.1; min-height: 0.8rem; }
+  #pl-back .pk-side-prev { left: max(6px, calc(50% - 410px - 52px)); }
+  #pl-back .pk-side-next { right: max(6px, calc(50% - 410px - 52px)); }
+  .plb-wk { font-family: var(--font-d); font-size: 0.68rem; color: var(--muted); padding-top: 0.2rem; }
+  .pl-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+  .pl-table { width: 100%; border-collapse: collapse; font-family: var(--font-d); font-size: 0.86rem; font-variant-numeric: tabular-nums; }
+  .pl-table th, .pl-table td { padding: 0.45rem 0.55rem; text-align: right; white-space: nowrap; }
+  .pl-table th:nth-child(-n+3), .pl-table td:nth-child(-n+3) { text-align: left; }
+  .pl-table thead th { font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); background: var(--surface0); position: sticky; top: 0; }
+  .pl-table tbody tr + tr td { border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+  .pl-table tfoot td { border-top: 1px solid var(--border2); color: var(--text-strong); font-weight: 700; background: var(--surface0); }
+  .pl-res.w { color: var(--good); } .pl-res.l { color: var(--muted); }
+  .pl-price { font-weight: 700; } .pl-price.hit { color: var(--gold); } .pl-price.miss { color: var(--muted); } .pl-price.none { color: var(--dim); }
+  .pl-tds { display: grid; gap: 0.45rem; }
+  .pl-td { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "b m p" "b s p"; align-items: center; column-gap: 0.7rem; row-gap: 0.1rem;
+           text-align: left; width: 100%; padding: 0.6rem 0.75rem; border-radius: 10px; border: 1px solid var(--border); background: var(--surface0); color: var(--text); cursor: pointer; font: inherit; }
+  .pl-td:hover { border-color: var(--accent); }
+  .pl-td .rc-badge { grid-area: b; } .pl-td-main { grid-area: m; font-size: 0.95rem; } .pl-td-main b { font-family: var(--font-d); color: var(--text-strong); }
+  .pl-td-sub { grid-area: s; font-size: 0.78rem; color: var(--muted); }
+  .pl-td-play { grid-area: p; font-family: var(--font-d); font-weight: 700; font-size: 0.8rem; color: var(--accent); }
+  @media (max-width: 620px) {
+    .pl-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    /* Four tabs do not fit a phone at full length: the short labels come in,
+       the strip scrolls as a backstop, and the "fair odds" note in the market
+       header gives up its space to the Add leg column. */
+    #pl-back .pl-tabs { gap: 1rem; overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
+    .plm .pl-tabs::-webkit-scrollbar { display: none; }
+    .plm .pl-tabs .sub-btn { font-size: 0.82rem; white-space: nowrap; }
+    .plm .pl-tabs .plt-long { display: none; }
+    .plm .pl-tabs .plt-short { display: inline; }
+    .plw-hd-r { display: none; }
+    #pl-back { padding-left: 2.1rem; padding-right: 2.1rem; }
+    .pl-table { font-size: 0.78rem; } .pl-table th, .pl-table td { padding: 0.4rem 0.4rem; }
+  }
+  /* 320px: the gap has to give too, or the last tab sits off the strip */
+  @media (max-width: 420px) {
+    #pl-back .pl-tabs { gap: 0.5rem; }
+    .plm .pl-tabs .sub-btn { font-size: 0.76rem; padding-left: 0.05rem; padding-right: 0.05rem; }
+    /* Three columns leave the market name ~60px here, which truncates every
+       label to "Anyt…". The line goes under the name instead of beside it. */
+    .plw-go { grid-template-columns: minmax(0, 1fr) 3.5rem; grid-template-areas: "m o" "l o";
+              row-gap: 0.05rem; column-gap: 0.35rem; padding-left: 0.55rem; }
+    .plw-mkt { font-size: 0.81rem; }
+    .plw-mkt .plt-long { display: none; }
+    .plw-mkt .plt-short { display: inline; }
+    .plw-mkt { grid-area: m; }
+    .plw-line { grid-area: l; text-align: left; min-height: 0.9rem; }
+    .plw-od { grid-area: o; align-self: center; }
+    .plw-hd { padding-left: 0.55rem; }
+  }
   .brand-puck { width: 30px; height: 30px; flex-shrink: 0; }
   :root[data-theme="light"] .brand-puck { filter: drop-shadow(0 0 1px rgba(0,0,0,0.55)); }
   .foot-credit { min-width: 0; }
@@ -682,6 +792,12 @@
     <nav id="main-nav"></nav>
     </div>
     <div class="tb-right">
+      <div class="tb-search" id="tb-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+        <input type="text" id="site-search" placeholder="Player, team, tool…" autocomplete="off" spellcheck="false"
+               oninput="siteSearch()" onfocus="loadGameLog();siteSearch()" onkeydown="siteSearchKey(event)" aria-label="Search players, teams and tools">
+        <div class="tb-results" id="tb-results" hidden></div>
+      </div>
       <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light or dark mode" title="Toggle light/dark"></button>
     </div>
   </header>
@@ -737,8 +853,9 @@
   const NBA_NAVS = ['home', 'stats', 'recap', 'threes', 'first', 'points', 'stocks', 'doubles', 'due', 'milestones', 'birthdays', 'schedule'];   // tools added here as they ship
   const PAGE_TITLES = { home: "Ron's Hoop Tool", stats: "Stats · Ron's Hoop Tool", recap: "Recap · Ron's Hoop Tool", threes: "Threes · Ron's Hoop Tool", first: "First Basket · Ron's Hoop Tool", points: "Points · Ron's Hoop Tool", stocks: "Steals & Blocks · Ron's Hoop Tool", doubles: "Double & Triple-Doubles · Ron's Hoop Tool", due: "Due · Ron's Hoop Tool", milestones: "Milestones · Ron's Hoop Tool", birthdays: "Birthdays · Ron's Hoop Tool", schedule: "Schedule · Ron's Hoop Tool" };
   let activeNav = 'home', applyingRoute = false;
+  let SEEN_NAV = null;
   function switchNav(nav) {
-    activeNav = nav;
+    activeNav = nav; SEEN_NAV = nav;
     RonChrome.show(nav, { title: PAGE_TITLES[nav] });
     if (!applyingRoute) commitRoute();        // the address first: a panel that fails to draw mustn't strand the nav
     renderPanel(nav);
@@ -749,10 +866,14 @@
   function applyRouteState() {
     applyingRoute = true;
     let nav = parsePath();
+    const pl = plFromPath();           // /nba/player/<id>: his card over the page you were on (Home on a fresh load)
+    if (pl) nav = SEEN_NAV || 'home';
     if (nav === 'pra') { bdState('points').tab = 'pra'; nav = 'points'; }   // PRA moved into Points; old links still land
     switchNav(NBA_NAVS.includes(nav) ? nav : 'home');
-    history.replaceState(history.state, '', currentPath());
+    if (!pl) history.replaceState(history.state, '', currentPath());
     applyingRoute = false;
+    if (pl && D && D !== 'error') openPlayer(pl, null, true);
+    else if (!pl && plOpen.pid) RonModal.close('pl-back');
   }
   window.addEventListener('popstate', applyRouteState);
 
@@ -805,6 +926,7 @@
     } catch (e) { D = 'error'; setStatus('error'); }
     renderPanel(activeNav);
     if (D && D !== 'error') nbaLiveStart();
+    const pl = plFromPath(); if (pl && D && D !== 'error') openPlayer(pl, null, true);
   }
   function dataGate(id) {
     const el = document.getElementById(id); if (!el) return null;
@@ -1264,7 +1386,7 @@
     for (const r of fg?.players || []) row(r).cells.fb = { p: r.p, leg: fbLeg(r, fg), open: `fbF.game='${g.id}';switchNav('first')` };
     const teams = [g.away.ab, g.home.ab].map(t => ({ abbr: t, logo: logoImg(t, ''), sub: esc(teamName(t)), groups: [{ name: 'Players', cols: BX_NBA,
       rows: [...P.values()].filter(r => r.team === t).sort((a, b) => (b.cells.pts?.proj ?? 0) - (a.cells.pts?.proj ?? 0))
-        .map(r => ({ name: r.name, pos: r.pos, sub: r.min ? `${r.min.toFixed(0)} min` : '', face: faceHtml(r.pid, r.name), open: `openLc('pts','${r.pid}')`, cells: r.cells })) }] }));
+        .map(r => ({ name: r.name, pos: r.pos, sub: r.min ? `${r.min.toFixed(0)} min` : '', face: faceHtml(r.pid, r.name), open: `openPlayer('${r.pid}')`, cells: r.cells })) }] }));
     const done = g.state === 'post' || g.state === 'in';
     const live = NLIVE[g.id]?.state === 'in';
     if (live) for (const r of P.values()) for (const [k, c] of Object.entries(r.cells)) nbaLiveCell(g, r.pid, k, c);
@@ -1389,6 +1511,7 @@
       teams: [{ v: 'ALL', name: 'All teams' }, ...Object.keys(D.teams || {}).sort((a, b) => teamName(a).localeCompare(teamName(b))).map(v => ({ v, name: teamName(v) }))],
       note: 'Three-pointers made by both teams, per game, regular season. With a team picked: that team\'s own threes per game.' });
   }
+  let stDeck = [];
   function renderStats() {
     const el = dataGate('stats-content'); if (!el) return;
     const tabsHtml = `<div class="sub-tabs u-tabs">
@@ -1402,6 +1525,7 @@
     const [sortLbl, val] = ST_SORT[stF.sort] || ST_SORT.pts;
     const rows = all.filter(r => (stF.pos === 'all' || (POS_FAM[r.pos] || 'F') === stF.pos) && (stF.team === 'all' || r.team === stF.team))
       .slice().sort((a, b) => (val(b) ?? 0) - (val(a) ?? 0));
+    stDeck = rows.map(r => r.pid);
     const fmt = (v) => v == null ? '—' : stF.sort.endsWith('Pct') ? pct(v) : v.toFixed(1);
     const posChip = (v, lbl) => `<button class="due-filter-chip${stF.pos === v ? ' active' : ''}" onclick="setStF('pos','${v}')">${lbl}</button>`;
     const teamOpts = ['all', ...teams].map(t => `<option value="${t}"${stF.team === t ? ' selected' : ''}>${t === 'all' ? 'All teams' : t}</option>`).join('');
@@ -1409,7 +1533,7 @@
     const row = (r, i) => {
       const line = [['GP', r.gp], ['MIN', r.min], ['PTS', r.pts], ['REB', r.reb], ['AST', r.ast], ['3PM', r.tpm], ['3P%', pct(r.tpPct)]]
         .map(([k, v]) => `<span><i>${k}</i> <b>${v}</b></span>`).join('');
-      return `<div class="rc-card st-card"><span class="st-rank">${i + 1}</span>
+      return `<div class="rc-card st-card" onclick="openPlayer('${r.pid}', stDeck)" style="cursor:pointer"><span class="st-rank">${i + 1}</span>
         ${faceHtml(r.pid, r.name)}
         <div class="rc-info">
           <div class="rc-name">${esc(r.name)} ${posBadge(r.pos)}</div>
@@ -1566,7 +1690,7 @@
           <div class="ydl" id="lc-ladder">${side.ladder}</div>
         </div></aside>
       </div>
-      <div class="lc-add" style="text-align:center;margin:0.2rem 0 0.6rem">${lcAddBtn()}</div>
+      <div class="lc-add" style="text-align:center;margin:0.2rem 0 0.6rem">${lcAddBtn()} <button class="vid-btn" style="margin-left:0.4rem" onclick="RonModal.close('lc-back');openPlayer('${r.pid}')">Player card →</button></div>
       <footer class="ydm-tip">${ydIco('bulb')}<span>${p10 != null && p90 != null ? p10 === p90 ? `Most games land at <b>${p10}</b> ${C.unit}. ` : `Most games land between about <b>${p10}</b> and <b>${p90}</b> ${C.unit}. ` : ''}Priced off <b>${r.min.toFixed(1)}</b> projected minutes${r.q ? ` · <b>${esc(r.q)}</b> on the injury report` : ''}.${lc.kind === '3pm' && (r.f?.dr ?? 0) >= 3 ? ` No made three in his last <b>${r.f.dr}</b> games — priced in: a drought that long means he's shooting fewer, not that he's due.` : ''} Fair odds, no vig.</span></footer>`;
     document.querySelector('#lc-back .ydm').innerHTML = html;
     RonModal.navState('lc-back', at, deck.length);
@@ -2213,6 +2337,213 @@
         (${near.pts ?? '—'} on ${near.proj ?? '—'}, ${(near.games ?? 0).toLocaleString()} games) say the same. Enjoy it as trivia.</p>`;
   }
 
+  // ── The player hub: his card, and the topbar search that finds him (as /nhl's) ──
+  // Tonight: every market we price him in, each a door into its tool's card.
+  // Season: his averages (this season once he's played, last season until then)
+  // and a bar a game. Game log: every game this season (nba/gamelog.json, a row
+  // per player per final, written by the build), with our pre-tip threes line
+  // beside it, graded. Lives at /nba/player/<id>.
+  let GLOG = null, glState = 'idle';
+  function loadGameLog() {
+    if (glState !== 'idle') return;
+    glState = 'loading';
+    dataFetch('gamelog.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => { GLOG = j; glState = 'ready'; }).catch(() => { glState = 'error'; })
+      .finally(() => { if (plOpen.pid) plRender(); });
+  }
+  const GL_IX = (k) => GLOG?.cols?.indexOf(k) ?? -1;
+  /** His season so far as objects, oldest first. */
+  function plGames(pid) {
+    const rows = GLOG?.p?.[pid] || [], c = GLOG?.cols || [];
+    return rows.map(r => Object.fromEntries(c.map((k, i) => [k, r[i]])));
+  }
+  /** Who he is: off tonight's boards, the leaders, the log, the recap's box. */
+  function plWho(pid) {
+    pid = String(pid);
+    const r = [D.threes?.rows, D.stats?.boards?.pts?.rows, D.stats?.doubles].flatMap(x => x || []).find(x => x.pid === pid);
+    const l = (D.leaders || []).find(x => x.pid === pid);
+    const g = GLOG?.n?.[pid];
+    const fb = (D.first?.games || []).flatMap(x => x.players).find(x => x.pid === pid);
+    return { pid, name: r?.name || l?.name || g?.[0] || fb?.name || '', team: r?.team || g?.[1] || l?.team || fb?.team || '', pos: r?.pos || l?.pos || g?.[2] || fb?.pos || '', lead: l || null };
+  }
+  /** Every market we price him in tonight. */
+  function plTonight(pid) {
+    pid = String(pid); const rows = []; let game = null, start = null;
+    const even = (r, kind) => { const pmf = lcPmf(r, kind), [lo, hi] = LC[kind].range; let L = lo;
+      for (let x = lo; x <= hi; x++) if (Math.abs(overAt(pmf, x) - 0.5) < Math.abs(overAt(pmf, L) - 0.5)) L = x; return [L, overAt(pmf, L)]; };
+    const LAB = { '3pm': 'Threes', pts: 'Points', reb: 'Rebounds', ast: 'Assists', pra: 'Pts + Reb + Ast', stl: 'Steals', blk: 'Blocks', stk: 'Steals + Blocks' };
+    for (const k of Object.keys(LAB)) {
+      const r = lcRows(k).find(x => x.pid === pid); if (!r) continue;
+      game ||= `${r.team} ${r.home ? 'vs' : '@'} ${r.opp}`; start ||= r.start;
+      const [L, p] = even(r, k);
+      rows.push({ lab: `${LAB[k]} <small class="pl-sub">${r.mu.toFixed(1)} proj</small>`, line: `o${L}`, p, open: `plTo(()=>openLc('${k}','${pid}'))` });
+    }
+    const d = (D.stats?.doubles || []).find(x => x.pid === pid);
+    if (d) { rows.push({ lab: 'Double-double', line: 'yes', p: d.dd, open: `plTo(()=>openDoubleCard('${pid}'))` });
+             if (d.td >= 0.001) rows.push({ lab: 'Triple-double', line: 'yes', p: d.td, open: `plTo(()=>openDoubleCard('${pid}'))` }); }
+    for (const g of D.first?.games || []) { const f = g.players.find(x => x.pid === pid);
+      if (f) rows.push({ lab: 'First basket', line: f.jumper ? 'takes the tip' : 'yes', p: f.p, open: `plTo(()=>{fbF.game='${g.gid}';switchNav('first')})` }); }
+    return { rows, game, start };
+  }
+  window.plTo = (fn) => { RonModal.close('pl-back'); fn(); };
+  const plOpen = { pid: null, tab: 'tonight', deck: null };
+  let plPushed = false;
+  const plPathOf = (pid) => `${APP_BASE}/player/${pid}`;
+  const plFromPath = () => (location.pathname.match(/\/player\/(\d+)\/?$/) || [])[1] || null;
+  function openPlayer(pid, deck, fromRoute) {
+    pid = String(pid); if (!D || D === 'error') return;
+    plOpen.pid = pid; plOpen.deck = Array.isArray(deck) ? deck.map(String) : null;
+    plOpen.tab = plTonight(pid).rows.length ? 'tonight' : 'season';
+    if (!fromRoute && location.pathname !== plPathOf(pid)) { history.pushState({ pl: 1 }, '', plPathOf(pid)); plPushed = true; }
+    RonModal.open('pl-back', { cls: 'pm ydm plm', nav: { prev: 'plStep(-1)', next: 'plStep(1)' },
+      onClose: () => { plOpen.pid = null; if (!plFromPath()) return;
+        if (plPushed && history.state?.pl) { plPushed = false; history.back(); } else history.replaceState(null, '', currentPath()); } });
+    loadGameLog(); loadRecap();
+    plRender();
+  }
+  function plStep(d) {
+    const deck = plOpen.deck || [], at = deck.indexOf(plOpen.pid), nx = deck[at + d];
+    if (at < 0 || nx == null) return;
+    plOpen.pid = nx; history.replaceState(history.state, '', plPathOf(nx)); plRender();
+  }
+  function setPlTab(t) { plOpen.tab = t; plRender(); }
+  function plRender() {
+    const box = document.querySelector('#pl-back .plm'); if (!box || !plOpen.pid) return;
+    const pid = plOpen.pid, w = plWho(pid), deck = plOpen.deck || [], at = deck.indexOf(pid);
+    const T = plTonight(pid), games = plGames(pid);
+    const tabs = (T.rows.length ? [['tonight', `Tonight · ${T.rows.length}`, `Tonight`]] : []).concat([['season', 'Season', 'Season'], ['log', `Game log${games.length ? ` · ${games.length}` : ''}`, 'Log']]);
+    if (!tabs.some(t => t[0] === plOpen.tab)) plOpen.tab = tabs[0][0];
+    const inj = D.injuries?.[pid];
+    const big = games.length ? (games.reduce((a, g) => a + g.pts, 0) / games.length).toFixed(1) : w.lead ? w.lead.pts.toFixed(1) : '—';
+    const loading = glState === 'idle' || glState === 'loading';
+    let body;
+    if (plOpen.tab === 'tonight') body = plTonightPanel(T);
+    else if (loading) body = '<div class="empty" style="padding:2.5rem 0">Loading the season…</div>';
+    else if (plOpen.tab === 'season') body = plSeasonPanel(w, games);
+    else body = plLogPanel(pid, games);
+    box.innerHTML = `
+      <button class="pm-x" onclick="RonModal.close('pl-back')" aria-label="Close">×</button>
+      <header class="ydm-hero">
+        ${faceHtml(pid, w.name)}
+        <div class="ydm-id"><h2>${esc(w.name)}${inj ? ` <span class="t3-q" title="${esc(inj.detail || '')}">${esc(String(inj.status).toUpperCase())}</span>` : ''}</h2>
+          <div class="ydm-meta">${w.pos ? `<b>${esc(w.pos)}</b><span>•</span>` : ''}${esc(teamName(w.team) || w.team)}${w.team ? `<img src="${teamLogo(w.team)}" alt="" loading="lazy">` : ''}${at >= 0 ? `<span class="ydm-count">${at + 1} / ${deck.length}</span>` : ''}</div></div>
+        <div class="ydm-big"><div><span>${games.length ? esc(D.season) : esc(D.leadersFrom || 'last')} season</span><span>${games.length || w.lead?.gp || 0} games</span></div><strong>${big}<small>PPG</small></strong></div>
+      </header>
+      <div class="sub-tabs u-tabs pl-tabs">${tabs.map(([v, l, sh]) => `<button class="sub-btn${plOpen.tab === v ? ' active' : ''}" onclick="setPlTab('${v}')"><span class="plt-long">${l}</span><span class="plt-short">${sh}</span></button>`).join('')}</div>
+      ${body}`;
+    RonModal.navState('pl-back', at, deck.length);
+  }
+  function plTonightPanel(T) {
+    const started = T.start && new Date(T.start) <= new Date();
+    return `<div class="plm-body"><div class="plw${started ? ' done' : ''}">
+      <div class="plw-hd"><span class="plw-hd-l">${T.rows.length} market${T.rows.length === 1 ? '' : 's'}${T.game ? ` · ${esc(T.game)}` : ''}${T.start ? ` · ${gameTime(T.start)}` : ''}</span>
+        <span class="plw-hd-r">${started ? 'our pre-tip price' : 'fair odds, no vig'}</span></div>
+      ${T.rows.map(r => `<div class="plw-row"><button class="plw-go" onclick="${r.open}">
+          <span class="plw-mkt">${r.lab}</span><span class="plw-line">${r.line}</span>
+          <span class="plw-od ${r.p >= 0.5 ? 'odfav' : 'oddog'}">${Odds.am(r.p)}</span><span class="plw-pc">${Odds.pct(r.p)}</span></button></div>`).join('')}
+    </div>${started ? '<p class="plw-note">His game is underway or over: these are the prices we posted before tip, not live numbers (the box score has those).</p>' : '<p class="plw-note">Each line is his closest to even money; tap one for the full ladder.</p>'}</div>`;
+  }
+  function plSeasonPanel(w, games) {
+    const G = games.length, avg = (k) => G ? (games.reduce((a, g) => a + (g[k] || 0), 0) / G) : null, L = w.lead;
+    const tile = (v, l, sub) => `<div class="ydk"><b>${v}</b><span class="pl-lbl">${l}</span>${sub ? `<em class="pl-sub">${sub}</em>` : ''}</div>`;
+    const v = (k, lk = k) => G ? avg(k).toFixed(1) : L?.[lk] != null ? (+L[lk]).toFixed(1) : '—';
+    const tpa = G ? avg('tpa') : null;
+    const tiles = [tile(G || L?.gp || 0, 'Games', G ? `${games.filter(g => g.st).length} starts` : L ? `${L.gs} starts` : ''),
+      tile(v('min'), 'Minutes'), tile(v('pts'), 'Points'), tile(v('reb'), 'Rebounds'), tile(v('ast'), 'Assists'),
+      tile(v('tpm'), 'Threes', G && tpa ? `${(avg('tpm') / tpa * 100).toFixed(0)}% on ${tpa.toFixed(1)}` : L?.tpPct != null ? `${(L.tpPct * 100).toFixed(0)}%` : '')];
+    const last = games.slice(-15), max = Math.max(10, ...last.map(g => g.pts));
+    const bars = last.map(g => `<div class="plb" title="${dayLabel(g.date)} ${g.home ? 'vs' : '@'} ${g.opp}: ${g.pts} pts, ${g.reb} reb, ${g.ast} ast, ${g.tpm} 3pm">
+        <span class="plb-v">${g.pts}</span><span class="plb-td">${g.tpm ? '·'.repeat(Math.min(g.tpm, 6)) : ''}</span>
+        <i style="height:${Math.max(3, g.pts / max * 72).toFixed(1)}%"></i><span class="plb-wk">${g.home ? '' : '@'}${g.opp}</span></div>`).join('');
+    return `<div class="plm-body">
+      <div class="ydk-row pl-tiles">${tiles.join('')}</div>
+      ${G ? `<section class="ydm-panel pl-chart"><h4>Points by game${last.length < G ? ` · last ${last.length}` : ''} <span class="pl-sub">(a dot per three)</span></h4><div class="plb-row">${bars}</div></section>`
+          : `<p class="plw-note">${L ? `Per game, ${esc(D.leadersFrom)}. ` : ''}This season's game-by-game fills in from his first game.</p>`}
+    </div>`;
+  }
+  function plLogPanel(pid, games) {
+    if (!games.length) return '<div class="empty" style="padding:2rem 0">No games yet this season: the log fills in from his first one.</div>';
+    // our pre-tip threes ladder for that night (prices-history), at his line closest to even, marked when he went over
+    const price = (g) => { const e = PH?.days?.[g.date]?.t3?.[pid]; if (!e) return '<span class="pl-price none">—</span>';
+      const k = bestRung(e.slice(1)), hit = g.tpm >= k + 1;
+      return `<span class="pl-price ${hit ? 'hit' : 'miss'}" title="Our pre-tip price for ${k + 1}+ threes">o${k + 0.5} ${Odds.am(e[k + 1])}${hit ? ' ✓' : ''}</span>`; };
+    const cols = [['MIN', g => g.min], ['PTS', g => g.pts], ['REB', g => g.reb], ['AST', g => g.ast], ['3PM', g => `${g.tpm}/${g.tpa}`], ['STL', g => g.stl], ['BLK', g => g.blk]];
+    const sum = (k) => games.reduce((a, g) => a + (g[k] || 0), 0), n = games.length;
+    const rows = games.slice().reverse().map(g => {
+      const res = g.tsc != null && g.osc != null ? `${g.tsc > g.osc ? 'W' : 'L'} ${g.tsc}-${g.osc}` : '—';
+      return `<tr><td>${dayLabel(g.date)}</td><td class="pl-opp">${g.home ? 'vs' : '@'} ${g.opp}</td><td class="pl-res ${g.tsc > g.osc ? 'w' : 'l'}">${res}</td>
+        ${cols.map(([, f]) => `<td>${f(g)}</td>`).join('')}<td>${price(g)}</td></tr>`;
+    }).join('');
+    return `<div class="plm-body"><div class="pl-table-wrap"><table class="pl-table">
+      <thead><tr><th>Date</th><th>Opp</th><th>Result</th>${cols.map(([h]) => `<th>${h}</th>`).join('')}<th title="Our pre-tip threes price, his line closest to even">Our threes</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><td colspan="3">Per game</td>${['min', 'pts', 'reb', 'ast'].map(k => `<td>${(sum(k) / n).toFixed(1)}</td>`).join('')}<td>${(sum('tpm') / n).toFixed(1)}</td><td>${(sum('stl') / n).toFixed(1)}</td><td>${(sum('blk') / n).toFixed(1)}</td><td></td></tr></tfoot>
+    </table></div><p class="plw-note">Our threes is what the Threes board had him at before that tip (his line closest to even), marked ✓ when he went over.</p></div>`;
+  }
+
+  // ── Top-bar search (/nhl's): a player opens his card, a club its game, a tool its page ──
+  let tbSel = -1;
+  const tbNorm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  function tbIndex() {
+    const out = new Map();
+    const add = (pid, name, team, pos, today) => { if (!pid || !name) return; pid = String(pid);
+      const cur = out.get(pid); if (cur) { if (today) cur.today = true; return; } out.set(pid, { pid, name, team, pos, today: !!today }); };
+    for (const r of D?.threes?.rows || []) add(r.pid, r.name, r.team, r.pos, true);
+    for (const r of D?.stats?.boards?.pts?.rows || []) add(r.pid, r.name, r.team, r.pos, true);
+    for (const r of D?.leaders || []) add(r.pid, r.name, r.team, r.pos);
+    for (const [pid, n] of Object.entries(GLOG?.n || {})) add(pid, n[0], n[1], n[2]);
+    return [...out.values()];
+  }
+  function tbScore(r, q) {
+    const n = tbNorm(r.name); if (!n.includes(q)) return 0;
+    const last = n.slice(n.lastIndexOf(' ') + 1);
+    return (last.startsWith(q) ? 5 : n.startsWith(q) ? 4 : n.includes(' ' + q) ? 3 : 2) + (r.today ? 3 : 0);
+  }
+  /** Live > finished in the last two days > next up > his last one. */
+  function teamGame(ab) {
+    const mine = (D?.schedule || []).filter(g => g.away.ab === ab || g.home.ab === ab).sort((a, b) => a.start.localeCompare(b.start));
+    if (!mine.length) return null;
+    const now = Date.now();
+    return mine.find(g => g.state === 'in') || [...mine].reverse().find(g => g.state === 'post' && now - Date.parse(g.start) <= 2 * 864e5)
+      || mine.find(g => g.state === 'pre') || mine[mine.length - 1];
+  }
+  const TB_TOOLS = [['threes', 'Threes'], ['points', 'Points'], ['points', 'Rebounds'], ['points', 'Assists'], ['points', 'PRA'], ['stocks', 'Steals & Blocks'], ['doubles', 'Double-doubles'], ['first', 'First Basket'], ['due', 'Due'], ['milestones', 'Milestones'], ['birthdays', 'Birthdays'], ['stats', 'Stats'], ['recap', 'Recap'], ['schedule', 'Schedule'], ['home', 'Home']];
+  function siteSearch() {
+    const box = document.getElementById('tb-results'), input = document.getElementById('site-search');
+    if (!box || !input || !D || D === 'error') return;
+    const q = tbNorm(input.value.trim());
+    if (!q) { box.hidden = true; box.innerHTML = ''; tbSel = -1; return; }
+    const players = tbIndex().map(r => ({ r, s: tbScore(r, q) })).filter(x => x.s > 0).sort((a, b) => b.s - a.s || a.r.name.localeCompare(b.r.name)).slice(0, 7).map(x => x.r);
+    const teams = Object.entries(D.teams || {}).filter(([ab, t]) => tbNorm(ab) === q || tbNorm(t.full || t.name).includes(q) || tbNorm(t.name).startsWith(q))
+      .map(([ab, t]) => ({ ab, t, g: teamGame(ab) })).filter(x => x.g).slice(0, 4);
+    const tools = TB_TOOLS.filter(([, lab]) => tbNorm(lab).includes(q)).slice(0, 3);
+    if (!players.length && !teams.length && !tools.length) { box.hidden = false; box.innerHTML = '<div class="tb-res" style="color:var(--muted)">No player, team or tool by that name</div>'; return; }
+    box.hidden = false; tbSel = -1;
+    const tsub = (ab, g) => { const home = g.home.ab === ab, o = home ? g.away.ab : g.home.ab;
+      return `${home ? 'vs' : '@'} ${o}${g.state === 'pre' ? ` · ${dayLabel(g.date)} ${gameTime(g.start)}` : ` · ${home ? g.home.score : g.away.score}-${home ? g.away.score : g.home.score} ${g.state === 'in' ? 'live' : 'final'}`}`; };
+    box.innerHTML = teams.map(({ ab, t, g }) => `<button class="tb-res" onclick="tbGo(&quot;tbOpenGame('${g.date}','${g.id}')&quot;)"><img class="tb-logo" src="${teamLogo(ab)}" alt="" loading="lazy"><b>${esc(t.full || t.name)}</b><small>${esc(tsub(ab, g))}</small></button>`).join('')
+      + players.map(r => `<button class="tb-res" onclick="tbGo(&quot;openPlayer('${r.pid}')&quot;)">${faceHtml(r.pid, r.name)}<b>${esc(r.name)}</b><small>${esc(r.pos || '')} ${esc(r.team || '')}</small></button>`).join('')
+      + tools.map(([nav, lab]) => `<button class="tb-res" onclick="tbGo(&quot;switchNav('${nav}')&quot;)"><b>${lab}</b><small>tool</small></button>`).join('');
+  }
+  function tbOpenGame(date, gid) { scheduleDate = date; switchNav('schedule'); openGame(gid); }
+  function tbGo(code) {
+    const input = document.getElementById('site-search');
+    document.getElementById('tb-results').hidden = true;
+    if (input) { input.value = ''; input.blur(); }
+    try { (new Function(code))(); } catch (e) { /* a player the board dropped since the index was built */ }
+  }
+  function siteSearchKey(e) {
+    const box = document.getElementById('tb-results');
+    const items = box && !box.hidden ? [...box.querySelectorAll('.tb-res')] : [];
+    if (e.key === 'Escape') { box.hidden = true; e.target.blur(); return; }
+    if (!items.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault(); tbSel = Math.max(0, Math.min(items.length - 1, tbSel + (e.key === 'ArrowDown' ? 1 : -1)));
+      items.forEach((el, i) => el.classList.toggle('on', i === tbSel));
+    } else if (e.key === 'Enter') { e.preventDefault(); (items[Math.max(0, tbSel)] || items[0]).click(); }
+  }
+  document.addEventListener('click', (e) => { if (!e.target.closest('#tb-search')) { const b = document.getElementById('tb-results'); if (b) b.hidden = true; } });
+
   function renderHome() {
     const el = dataGate('home-content'); if (!el) return;
     const card = (nav, title, link, body, empty) =>
@@ -2223,10 +2554,11 @@
 
     // ── Opening-night countdown, until the first regular-season tip ───────
     const opener = regStart();
-    const days = Math.ceil((new Date(opener + 'T23:30:00Z') - Date.now()) / 86400000);
+    // whole days on the league's calendar (US Eastern): on opening day it's 0 ("Opening night"), and gone the day after
+    const days = Math.round((Date.parse(opener + 'T12:00:00Z') - Date.parse(todayET() + 'T12:00:00Z')) / 86400000);
     const openers = D.schedule.filter(g => g.date === opener && g.type === 2);
     const countdown = days >= 0 ? `<div class="cd">
-        <span class="cd-n">${days}</span>
+        <span class="cd-n">${days === 0 ? 'Tonight' : days}</span>
         <div class="cd-t"><b>${days === 0 ? 'Opening night' : days === 1 ? 'day to opening night' : 'days to opening night'}</b>
           <span>${dayLabel(opener, true)} · ${esc(D.season)}${D.phase === 'pre' ? ' · preseason under way' : ''}</span></div>
         ${openers[0] ? `<div class="cd-g">${logoImg(openers[0].away.ab, '')}<span style="color:var(--dim)">@</span>${logoImg(openers[0].home.ab, '')}</div>` : ''}

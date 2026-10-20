@@ -99,7 +99,7 @@ const ROUTES = [
   ['mlb', '/mlb/'], ['mlb', '/mlb/picks'], ['mlb', '/mlb/due'],
   ['nfl', '/nfl/'], ['nfl', '/nfl/picks'], ['nfl', '/nfl/fantasy'], ['nfl', '/nfl/yards/pass'],
   ['nhl', '/nhl/'], ['nhl', '/nhl/picks'], ['nhl', '/nhl/points'],
-  ['nba', '/nba/'], ['nba', '/nba/threes'], ['nba', '/nba/points'],
+  ['nba', '/nba/'], ['nba', '/nba/threes'], ['nba', '/nba/points'], ['nba', '/nba/recap'], ['nba', '/nba/player/4065648'],
   ['soccer', '/soccer/'], ['soccer', '/soccer/schedule'], ['soccer', '/soccer/recap'], ['soccer', '/soccer/goals'], ['soccer', '/soccer/shots'], ['soccer', '/soccer/stats'],
 ];
 const VIEWPORTS = [['desktop', { width: 1280, height: 900 }], ['phone', { width: 390, height: 844 }]];

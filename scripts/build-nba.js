@@ -119,10 +119,50 @@ async function main() {
     try { const s = await get(`${SITE}/summary?event=${f.id}`); return [f.id, { s, r: reduceSummary(s, f) }]; } catch (e) { return [f.id, null]; }
   }));
   for (const f of todo) { const x = got.get(f.id); if (x?.r) applyGame(state, x.r); }
+
   console.log(`Player state: ${todo.length} new finals applied (${state.done.length} this season)`);
   console.log(`League days: ${saveLeagueDays(todo.map(f => { const x = got.get(f.id); return x?.r ? leagueRow(x.r) : null; }), label)} regular-season finals logged`);
   const recapKept = saveRecap(recapTodo.map(f => { const x = got.get(f.id); return x?.r ? recapDetail(x.s, f, x.r) : null; }), today, RECAP_DAYS, shiftDate);
   console.log(`Recap detail: ${recapTodo.length} new finals, ${recapKept} kept`);
+  // the season's game log, one row per player per game (the page's player card), from the same new finals
+  {
+    const GL_PATH = new URL('../nba/gamelog.json', import.meta.url);
+    let GL = readJSON(GL_PATH, null);
+    if (!GL || GL.season !== label) GL = { season: label, n: {},
+      cols: ['gid', 'date', 'opp', 'home', 'st', 'min', 'pts', 'reb', 'ast', 'tpm', 'tpa', 'stl', 'blk', 'fgm', 'fga', 'to', 'tsc', 'osc'], p: {} };
+    const evById = new Map(pastEvents.map(e => [e.id, e]));
+    let added = 0;
+    for (const f of todo) {
+      const x = got.get(f.id); if (!x?.r || ![2, 3, 5].includes(f.type)) continue;
+      const { g, players } = x.r, ev = evById.get(f.id);
+      const score = Object.fromEntries((ev?.competitions?.[0]?.competitors || []).map(c => [c.team.abbreviation, num(c.score)]));
+      for (const q of players) {
+        if (q.dnp) continue;
+        const rows = (GL.p[q.pid] ||= []); if (rows.some(r => r[0] === g.id)) continue;
+        const opp = q.team === g.home ? g.away : g.home;
+        rows.push([g.id, g.date, opp, q.team === g.home ? 1 : 0, q.st, Math.round(q.min), q.pts, q.reb, q.ast, q.tpm, q.tpa, q.stl, q.blk, q.fgm, q.fga, q.to, score[q.team] ?? null, score[opp] ?? null]);
+        GL.n[q.pid] = [q.name, q.team, q.pos || null]; added++;
+      }
+    }
+    // a final already applied before the log existed (or by a build that lost its log) is filled from the recap's box,
+    // which keeps every recent final's line per player (no shooting splits there: those stay empty)
+    let filled = 0;
+    try {
+      const RJ = JSON.parse(fs.readFileSync(new URL('../nba/recap.json', import.meta.url), 'utf8'));
+      const have = new Set(Object.values(GL.p).flatMap(rows => rows.map(r => r[0])));
+      for (const G of Object.values(RJ.games || {})) {
+        if (have.has(G.gid) || ![2, 3, 5].includes(G.type) || G.date < (phases.find(p => p.key === 'reg')?.start || '')) continue;
+        for (const [pid, b] of Object.entries(G.box || {})) {
+          const [name, team, st, min, pts, reb, ast, stl, blk, tpm, tpa] = b, home = team === G.home, opp = home ? G.away : G.home;
+          (GL.p[pid] ||= []).push([G.gid, G.date, opp, home ? 1 : 0, st, min, pts, reb, ast, tpm, tpa, stl, blk, null, null, null, home ? G.hs : G.as, home ? G.as : G.hs]);
+          GL.n[pid] ||= [name, team, null]; filled++;
+        }
+      }
+    } catch (e) { /* no recap yet */ }
+    for (const rows of Object.values(GL.p)) rows.sort((a, b) => a[1].localeCompare(b[1]));
+    fs.writeFileSync(GL_PATH, JSON.stringify(GL));
+    console.log(`Game log: ${added} player-games added${filled ? `, ${filled} filled from the recap` : ''}, ${Object.keys(GL.p).length} players this season`);
+  }
 
   // ── 5) Recap: the finals of the last three weeks, with each side's leaders ─
   const recap = [];
