@@ -117,7 +117,11 @@ async function browserChecks() {
     for (const [ename, engine] of engines) {
       const browser = await engine.launch();
       for (const [vname, viewport] of VIEWPORTS) {
-        const ctx = await browser.newContext({ viewport });
+        // ESPN 403s a headless browser (its sec-ch-ua names HeadlessChrome, and so does its UA), so the live
+        // fetches never ran in a check and warned as CORS errors: present as the Chrome a reader runs
+        const ctx = await browser.newContext({ viewport, ...(ename === 'chromium' ? {
+          userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+          extraHTTPHeaders: { 'sec-ch-ua': '"Chromium";v="140", "Google Chrome";v="140", "Not;A=Brand";v="24"' } } : {}) });
         // skip the first-visit welcome modal so it doesn't cover the page
         await ctx.addInitScript(() => { try { localStorage.setItem('rons-tools-welcome-v2', '1'); } catch (e) {} });
         for (const [app, route] of ROUTES.filter(([a]) => !ONLY || a === ONLY || a === 'root' && ONLY === 'root')) {

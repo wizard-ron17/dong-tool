@@ -740,8 +740,8 @@
   function switchNav(nav) {
     activeNav = nav;
     RonChrome.show(nav, { title: PAGE_TITLES[nav] });
+    if (!applyingRoute) commitRoute();        // the address first: a panel that fails to draw mustn't strand the nav
     renderPanel(nav);
-    if (!applyingRoute) commitRoute();
   }
   function currentPath() { return activeNav === 'home' ? APP_BASE + '/' : APP_BASE + '/' + activeNav; }
   function commitRoute() { const p = currentPath(); if (location.pathname !== p) history.pushState(null, '', p); }
@@ -860,7 +860,7 @@
   // pre-tip price (nba/prices-history.json). No NBA clips exist to show, so
   // the shots are drawn: ESPN logs where every field goal was taken
   // (scripts/nba-recap.js — x 0-50 ft across, y out from the rim at (25, 1)).
-  let RC = null, PH = null, rcState = 'idle';
+  let RC = null, PH = null, rcState = 'idle', liveRecapSeen = false;
   function loadRecap() {
     if (rcState !== 'idle') return;
     rcState = 'loading';
@@ -870,7 +870,10 @@
       .catch(() => { rcState = 'error'; })
       .finally(() => { if (activeNav === 'recap') renderRecap(); if (activeNav === 'threes' && t3x.v) renderBoard('threes'); });   // Value's record reads the same files
   }
-  const rcGames = () => Object.values(RC?.games || {});
+  // the night's games still being played (or just finished, before the build adds them): off ESPN's live
+  // summary, reduced by the build's own code (scripts/nba-recap-core.js) — see nbaLiveTick
+  const LIVE_RC = {};
+  const rcGames = () => [...Object.values(RC?.games || {}), ...Object.values(LIVE_RC).filter(g => !RC?.games?.[g.gid])];
   const recapDates = () => [...new Set((RC ? rcGames() : D.recap || []).map(g => g.date))].sort();
   function setRecapDate(d) { recapDate = d; renderRecap(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
   function shiftRecapDate(n) {
@@ -997,10 +1000,12 @@
   function renderRecap() {
     const el = dataGate('recap-content'); if (!el) return;
     loadRecap();
+    if (!Object.keys(LIVE_RC).length && nbaLiveWanted()) setTimeout(nbaLiveTick, 0);   // tonight's games now, not at the next minute
     if (rcState === 'loading' || rcState === 'idle') { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
     const ds = recapDates();
     if (!ds.length) { el.innerHTML = `<div class="empty">No games have been played yet${D.phase === 'pre' || D.phase === 'off' ? ' — opening night is ' + dayLabel(regStart(), true) : ''}.</div>`; return; }
     if (recapDate == null || !ds.includes(recapDate)) recapDate = ds[ds.length - 1];
+    if (!liveRecapSeen && Object.keys(LIVE_RC).length) { liveRecapSeen = true; recapDate = ds[ds.length - 1]; }   // tonight, once it's live
     const i = ds.indexOf(recapDate), atFirst = i <= 0, atLast = i >= ds.length - 1;
     const games = rcGames().filter(g => g.date === recapDate).sort((a, b) => a.gid.localeCompare(b.gid));
     const P = PH?.days?.[recapDate] || null;
@@ -1072,7 +1077,7 @@
             ${logoImg(G.away, 'rg-logo')}<span class="${aWin ? 'w' : ''}">${esc(G.away)} ${G.as}</span>
             <span style="color:var(--dim)">–</span>
             <span class="${!aWin ? 'w' : ''}">${G.hs} ${esc(G.home)}</span>${logoImg(G.home, 'rg-logo')}
-          </span>${G.ot ? `<span class="rg-end">${G.ot > 1 ? G.ot : ''}OT</span>` : ''}${typeTag(G.type)}
+          </span>${G.ot ? `<span class="rg-end">${G.ot > 1 ? G.ot : ''}OT</span>` : ''}${typeTag(G.type)}${G.live ? `<span class="sc-live">LIVE</span><span class="rg-end" style="color:var(--muted)">${esc(G.live)}</span>` : ''}
         </div>
         <div class="rx-grid">
           <div class="rx-courtwrap">
@@ -1099,7 +1104,7 @@
         </div>
         ${atLast ? '' : `<button class="rc-latest" onclick="recapToLatest()">Latest night →</button>`}
       </div>
-      <div class="result-meta"><b>${dayLabel(recapDate, true)}</b> · ${games.length} game${games.length === 1 ? '' : 's'}${P ? ' · graded against our last pre-tip prices' : ' · not priced'}</div>
+      <div class="result-meta"><b>${dayLabel(recapDate, true)}</b> · ${games.length} game${games.length === 1 ? '' : 's'}${games.some(g => g.live) ? ` · <span style="color:var(--bad)">${games.filter(g => g.live).length} live</span>, updating every minute` : ''}${P ? ' · graded against our last pre-tip prices' : ' · not priced'}</div>
       ${tiles}
       ${body || '<div class="empty">Nothing final on this date.</div>'}`;
   }
@@ -1200,6 +1205,15 @@
           if (g && L.state !== 'pre') { g.state = L.state; g.detail = L.detail; g.away.score = L.as; g.home.score = L.hs; }
         }
       }
+      // the Recap's live games: every game on now (and one last read at the final whistle), reduced like a final
+      if (activeNav === 'recap' && window.nbaRecapOf) for (const g of D.schedule) {
+        const L = NLIVE[g.id]; if (!L || L.state === 'pre' || RC?.games?.[g.id] || LIVE_RC[g.id]?.done) continue;
+        try {
+          const s = await (await fetch(NBA_SUM + g.id)).json();
+          const det = window.nbaRecapOf(s, { id: g.id, date: g.date, type: g.type });
+          if (det) LIVE_RC[g.id] = { ...det, live: L.state === 'in' ? L.detail : null, done: L.state === 'post' };
+        } catch (e) { /* next tick */ }
+      }
       const open = nbaOpenGid();
       if (open && NLIVE[open]?.state === 'in') {
         const j = await (await fetch(NBA_SUM + open)).json(), m = {};
@@ -1214,6 +1228,7 @@
     finally {
       nLiveBusy = false;
       if (activeNav === 'schedule') renderSchedule();
+      if (activeNav === 'recap' && Object.keys(LIVE_RC).length) renderRecap();
       if (nbaGid && document.getElementById('gm-back')) openGame(nbaGid);
     }
   }
@@ -2324,6 +2339,12 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => { updateThemeToggleIcon(); applyRouteState(); loadNba(); });
+</script>
+<script type="module">
+  // the build's own reducers, for the Recap's live games (nbaLiveTick): a game being played reads like a final
+  import { reduceSummary } from '/scripts/nba-state.js';
+  import { recapDetail } from '/scripts/nba-recap-core.js';
+  window.nbaRecapOf = (s, ev) => { const r = reduceSummary(s, ev); return r ? recapDetail(s, ev, r) : null; };
 </script>
 <script src="/welcome.js?v=5" defer></script>
 </body>

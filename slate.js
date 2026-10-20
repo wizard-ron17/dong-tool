@@ -231,7 +231,10 @@
         calls.push({ p: c.p, hit: col.yes ? c.got >= 1 : c.got > c.line });
       }
       const priced = calls.filter(x => x.p != null);
-      if (calls.length) sum = `<div class="bx-sum"><span><b>${calls.filter(x => x.hit).length}/${calls.length}</b> calls landed</span>${priced.length === calls.length ? `<span><b>${priced.reduce((a, x) => a + x.p, 0).toFixed(1)}</b> expected at our prices</span>` : ''}${spec.extra || ''}</div>`;
+      // mid-game a cell only counts once it's already over, so "landed" would read as a perfect night
+      if (calls.length) sum = state === 'live'
+        ? `<div class="bx-sum"><span><b>${calls.filter(x => x.hit).length}</b> already over</span>${spec.extra || ''}</div>`
+        : `<div class="bx-sum"><span><b>${calls.filter(x => x.hit).length}/${calls.length}</b> calls landed</span>${priced.length === calls.length ? `<span><b>${priced.reduce((a, x) => a + x.p, 0).toFixed(1)}</b> expected at our prices</span>` : ''}${spec.extra || ''}</div>`;
     }
     const table = (g) => {
       const cols = g.cols.filter(col => g.rows.some(r => r.cells[col.k]));
