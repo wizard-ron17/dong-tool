@@ -5733,12 +5733,15 @@ function rwSideFor(teamAbbr) {
 function projectedLineupFor(teamAbbr) {
   const rw = rwSideFor(teamAbbr);
   if (rw) return [...rw.rwLineup].sort((a, b) => a.order - b.order).map(p => String(p.pid));
-  const eligible = Object.keys(playerTeams)
-    .filter(pid => playerTeams[pid] === teamAbbr
-      && (playerGames[pid] ?? 0) >= 15
+  // played lately = within a week of his club's own latest game (as the build), so a club idle
+  // between postseason rounds keeps its regulars
+  const mine = Object.keys(playerTeams).filter(pid => playerTeams[pid] === teamAbbr);
+  const tl = mine.reduce((m, pid) => (playerLastGame[pid] || '') > m ? playerLastGame[pid] : m, '');
+  const eligible = mine
+    .filter(pid => (playerGames[pid] ?? 0) >= 15
       && (playerABs[pid] ?? 0) / Math.max(playerGames[pid] ?? 1, 1) >= 1.5
       && !injuryStatus[pid]
-      && (!playerLastGame[pid] || daysSince(playerLastGame[pid]) <= 7))
+      && (!playerLastGame[pid] || !tl || (Date.parse(tl) - Date.parse(playerLastGame[pid])) / 86400000 <= 7))
     .sort((a, b) => (playerGames[b] ?? 0) - (playerGames[a] ?? 0));
   return pickPositionalLineup(eligible, pid => (batMeta[pid] || {}).p || '');
 }

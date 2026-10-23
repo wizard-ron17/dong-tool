@@ -60,6 +60,15 @@ function daysSince(d) {
   const [y,m,day] = d.split('-').map(Number);
   return Math.round((new Date() - new Date(y,m-1,day)) / 86400000);
 }
+// "Played lately" for a lineup projection: within a week of his club's own latest game, not of
+// today, so a club idle between rounds (the Brewers' 8 days before the World Series) or over the
+// All-Star break keeps its regulars.
+function teamLastGame(teamAbbr) {
+  let last = '';
+  for (const pid in playerTeams) if (playerTeams[pid] === teamAbbr && (playerLastGame[pid] || '') > last) last = playerLastGame[pid];
+  return last;
+}
+const playedLately = (pid, teamLast) => !!playerLastGame[pid] && !!teamLast && (Date.parse(teamLast) - Date.parse(playerLastGame[pid])) / 86400000 <= 7;
 
 async function fetchDay(date) {
   const sched = await fetch(`${MLB}/schedule?sportId=1&date=${date}&gameType=${GAME_TYPES}`).then(r => r.json());
@@ -927,6 +936,7 @@ function oddsPitcherZ(pid, stuff, seasonStats) {
 // bat the page projects into a lineup (index.html projectedLineupFor, which has no
 // floor) gets a price.
 function projectLineupFor(teamAbbr, batMetaMap = {}, injuryStatus = {}, minHr = PICKS_MIN_HR) {
+  const tl = teamLastGame(teamAbbr);
   const eligible = Object.keys(playerTeams)
     .filter(pid =>
       playerTeams[pid] === teamAbbr &&
@@ -934,7 +944,7 @@ function projectLineupFor(teamAbbr, batMetaMap = {}, injuryStatus = {}, minHr = 
       (playerABs[pid] ?? 0) / Math.max(playerGames[pid] ?? 1, 1) >= 1.5 &&
       (hrTotals[pid] ?? 0) >= minHr &&
       !injuryStatus[pid] &&
-      daysSince(playerLastGame[pid] || '2000-01-01') <= 7
+      playedLately(pid, tl)
     )
     .sort((a, b) => (playerGames[b] ?? 0) - (playerGames[a] ?? 0));
   // Field a positionally-valid lineup (one per spot + DH), not just the 9
@@ -1974,11 +1984,12 @@ async function computeSteals(todaySchedule, batMetaMap, stealData, injuryStatus 
   // Likely everyday bats for a team whose lineup hasn't posted (no power floor —
   // base-stealers are often light hitters). Reuses the positional projector.
   const everyday = teamAbbr => {
+    const tl = teamLastGame(teamAbbr);
     const el = Object.keys(playerTeams).filter(pid =>
       playerTeams[pid] === teamAbbr && (playerGames[pid] ?? 0) >= 15 &&
       (playerABs[pid] ?? 0) / Math.max(playerGames[pid] ?? 1, 1) >= 1.5 &&
       !injuryStatus[pid] &&
-      daysSince(playerLastGame[pid] || '2000-01-01') <= 7)
+      playedLately(pid, tl))
       .sort((a, b) => (playerGames[b] ?? 0) - (playerGames[a] ?? 0));
     return pickPositionalLineup(el, pid => batMetaMap[pid]?.p || '');
   };
