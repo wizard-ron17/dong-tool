@@ -8301,6 +8301,7 @@ let pairStacks = false;
   }
   function lcKey(e) {
     if (!document.getElementById('lc-back')) return;
+    if (e.key !== 'Escape' && e.target.closest?.('input, textarea, select')) return;   // typing in the Any line box
     e.stopPropagation();
     if (e.key === 'Escape') closeLc();
     else if (e.key === 'ArrowLeft') lcStep(-1);

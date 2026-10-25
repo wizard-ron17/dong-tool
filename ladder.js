@@ -45,6 +45,10 @@
   .ydp i { display: block; height: 7px; border-radius: 4px; background: var(--surface2); overflow: hidden; }
   .ydp i em { display: block; height: 100%; background: var(--good); border-radius: 4px; }
   .ydp.under i em { background: var(--silver); opacity: 0.6; }
+  .ydp-any { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.55rem 0.9rem; border-top: 1px solid var(--border); }
+  .ydp-any span { font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--silver); }
+  .ydp-any input { width: 5.5rem; padding: 0.35rem 0.5rem; border: 1px solid var(--border2); border-radius: 7px; background: var(--surface0); color: var(--text-strong); font-family: var(--font-d); font-size: 1rem; text-align: right; }
+  .ydp-any input:focus { outline: none; border-color: var(--good); }
   .ydk-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 0.5rem; }
   .ydk { border: 1px solid var(--border); border-radius: 10px; padding: 0.65rem 0.4rem; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.25rem; background: var(--surface0); }
   .ydk-ic svg { width: 22px; height: 22px; color: var(--silver); }
@@ -183,8 +187,11 @@
   function side(pmf, { line: L, pick, range: [lo, hi], set = 'lcSetLine', even = true }) {
     const p = over(pmf, L);
     let first = Math.max(lo, pick - 3);
-    const last = Math.min(hi, first + 7);
+    let last = Math.min(hi, first + 7);
     first = Math.max(lo, last - 7);
+    // a line typed in (or stepped to) past the window slides the window to it
+    if (L < first) { first = L; last = Math.min(hi, first + 7); }
+    if (L > last) { last = L; first = Math.max(lo, last - 7); }
     let rungs = []; for (let x = first; x <= last; x++) rungs.push(x);
     // counts are lumpy, so the window's edges can land on -700 / +5000 lines
     // nobody bets; drop anything past 97/3 unless it leaves under four
@@ -200,9 +207,22 @@
     }).join('');
     return {
       probs: `<div class="ydp"><span>Probability of going over ${L}</span><b>${Math.round(p * 100)}%</b><i><em style="width:${(p * 100).toFixed(1)}%"></em></i></div>
-            <div class="ydp under"><span>Probability of going under ${L}</span><b>${Math.round((1 - p) * 100)}%</b><i><em style="width:${((1 - p) * 100).toFixed(1)}%"></em></i></div>`,
+            <div class="ydp under"><span>Probability of going under ${L}</span><b>${Math.round((1 - p) * 100)}%</b><i><em style="width:${((1 - p) * 100).toFixed(1)}%"></em></i></div>
+            <label class="ydp-any"><span>Any line</span><input id="ydl-any" type="number" inputmode="decimal" step="0.5" min="${lo}" max="${hi}" placeholder="${L}"
+              onkeydown="if(event.key==='Enter')RonLadder.any(this,'${set}',${lo},${hi})" onchange="RonLadder.any(this,'${set}',${lo},${hi})"></label>`,
       ladder,
     };
+  }
+
+  /**
+   * The "Any line" box: snap what was typed to the half line it means (41 or 41.5 -> 41.5,
+   * counts never push), keep it in the market's range, and hand it to the page's setter.
+   */
+  function any(el, set, lo, hi) {
+    const v = parseFloat(el.value);
+    if (!Number.isFinite(v)) return;
+    const x = Math.min(hi, Math.max(lo, Math.floor(v) + 0.5));
+    if (typeof window[set] === 'function') window[set](x);
   }
 
   /** Scroll the phone's sideways ladder so the selected line sits in the middle. */
@@ -212,5 +232,5 @@
     box.scrollLeft = on.offsetLeft - box.offsetLeft - (box.clientWidth - on.offsetWidth) / 2;
   }
 
-  window.RonLadder = { over, chart, side, center };
+  window.RonLadder = { over, chart, side, center, any };
 })();
