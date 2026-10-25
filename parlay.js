@@ -532,8 +532,10 @@
   }
   function parRemove(k) { PARLAY.legs = PARLAY.legs.filter(l => l.k !== k); parRender(); parPaint(); parSave(); }
   function parClear() { PARLAY.legs = []; parRender(); parPaint(); parSave(); }
-  function parSetBoost(v) { PARLAY.boost = +v || 0; parRender(); parSave(); }
-  function parCustomBoost(el) { PARLAY.boost = Math.max(0, Math.min(10, (parseFloat(el.value) || 0) / 100)); parRender(); parSave(); }
+  function parSetBoost(v) { PARLAY.boost = +v || 0; PARLAY.boostTxt = null; parRender(); parSave(); }
+  // what's typed stays in the box: "5" on the way to "50" (a preset) mustn't light the chip and empty it
+  // (a text box, not a number one, so the focus keeper in /app.js can put the caret back where it was)
+  function parCustomBoost(el) { PARLAY.boostTxt = el.value.replace(/[^\d.]/g, ''); PARLAY.boost = Math.max(0, Math.min(10, (parseFloat(PARLAY.boostTxt) || 0) / 100)); parRender(); parSave(); }
   function parBook(el) { PARLAY.book = el.value; parRenderEv(); }
 
   /** Mark selected rows, and show the button only where there is something to pick. */
@@ -597,7 +599,8 @@
     }
     const mixed = new Set(legs.map(l => l.sp)).size > 1;
     const boostPct = Math.round(PARLAY.boost * 100);
-    const custom = !PAR_BOOSTS.includes(PARLAY.boost);
+    const typed = PARLAY.boostTxt != null && PARLAY.boostTxt !== '';
+    const custom = typed || !PAR_BOOSTS.includes(PARLAY.boost);
     // With a boost, the worst book price that still beats fair: boosts lift
     // profit, not stake, so 1 + (d-1)(1+b) >= 1/p solves to this.
     const need = 1 + (1 / p - 1) / (1 + PARLAY.boost);
@@ -612,7 +615,7 @@
       + `<div class="par-lbl2">Profit boost</div>
       <div class="par-chips">
         ${PAR_BOOSTS.map(b => `<button class="par-chip${!custom && PARLAY.boost === b ? ' on' : ''}" onclick="parSetBoost(${b})">${b ? Math.round(b * 100) + '%' : 'None'}</button>`).join('')}
-        <span class="par-chip${custom ? ' on' : ''}"><input type="number" min="0" max="500" step="5" placeholder="custom" value="${custom ? boostPct : ''}" oninput="parCustomBoost(this)">%</span>
+        <span class="par-chip${custom ? ' on' : ''}"><input type="text" id="par-boost" inputmode="decimal" maxlength="5" placeholder="custom" value="${typed ? parEsc(PARLAY.boostTxt) : custom ? boostPct : ''}" oninput="parCustomBoost(this)">%</span>
       </div>
       <div class="par-nums">
         <div class="par-num acc"><b>${am(p)}</b><span>Fair odds</span></div>
