@@ -2211,6 +2211,10 @@
   .ydp i { display: block; height: 7px; border-radius: 4px; background: var(--surface2); overflow: hidden; }
   .ydp i em { display: block; height: 100%; background: var(--good); border-radius: 4px; }
   .ydp.under i em { background: var(--silver); opacity: 0.6; }
+  .ydp-any { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.55rem 0.9rem; border-top: 1px solid var(--border); }
+  .ydp-any span { font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--silver); }
+  .ydp-any input { width: 5.5rem; padding: 0.35rem 0.5rem; border: 1px solid var(--border2); border-radius: 7px; background: var(--surface0); color: var(--text-strong); font-family: var(--font-d); font-size: 1rem; text-align: right; }
+  .ydp-any input:focus { outline: none; border-color: var(--good); }
   .ydk-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 0.5rem; }
   .ydk { border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.4rem; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.25rem; background: var(--surface0); }
   .ydk-ic svg { width: 22px; height: 22px; color: var(--silver); }
@@ -11416,6 +11420,7 @@ function pcSide(mu) {
     let i = Math.max(0, rungs.findIndex(x => Math.abs(x - pick) < 0.01) - 3);
     rungs = rungs.slice(Math.min(i, rungs.length - 8), Math.min(i, rungs.length - 8) + 8);
   }
+  if (!rungs.some(x => Math.abs(x - pc.line) < 0.01)) rungs.push(pc.line), rungs.sort((a, b) => a - b);   // a line typed in Any line
   const ladder = rungs.map(x => {
     const px = pcOver(mu, x), on = Math.abs(x - pc.line) < 0.01;
     return `<button class="ydl-row${on ? ' on' : ''}" onclick="pcSetLine(${x})" aria-pressed="${on}">
@@ -11426,7 +11431,9 @@ function pcSide(mu) {
   }).join('');
   return {
     probs: `<div class="ydp"><span>Probability of going over ${pc.line}</span><b>${Math.round(p * 100)}%</b><i><em style="width:${(p * 100).toFixed(1)}%"></em></i></div>
-            <div class="ydp under"><span>Probability of going under ${pc.line}</span><b>${Math.round((1 - p) * 100)}%</b><i><em style="width:${((1 - p) * 100).toFixed(1)}%"></em></i></div>`,
+            <div class="ydp under"><span>Probability of going under ${pc.line}</span><b>${Math.round((1 - p) * 100)}%</b><i><em style="width:${((1 - p) * 100).toFixed(1)}%"></em></i></div>
+            <label class="ydp-any"><span>Any line</span><input id="ydl-any" type="number" inputmode="decimal" step="0.5" min="0.5" max="19.5" placeholder="${pc.line}"
+              onkeydown="if(event.key==='Enter')pcAnyLine(this)" onchange="pcAnyLine(this)"></label>`,
     ladder,
   };
 }
@@ -11582,6 +11589,8 @@ function pcSetTab(t) {
   pcRender();
 }
 function pcSetLine(x) { pc.line = x; pcRefresh(); }
+// the card's Any line box (as /ladder.js RonLadder.any): 6 or 6.5 -> 6.5, counts never push
+function pcAnyLine(el) { const v = parseFloat(el.value); if (Number.isFinite(v)) pcSetLine(Math.min(19.5, Math.max(0.5, Math.floor(v) + 0.5))); }
 function pcStep(d) {
   const deck = pcDeck(), at = deck.findIndex(x => x.pid === pc.pid), nx = deck[at + d];
   if (!nx) return;
@@ -11590,6 +11599,7 @@ function pcStep(d) {
   pcRender();
 }
 function pcKey(e) {
+  if (e.key !== 'Escape' && e.target.closest?.('input, textarea, select')) return;   // typing in the Any line box
   if (e.key === 'Escape') closePc();
   else if (e.key === 'ArrowLeft') pcStep(-1);
   else if (e.key === 'ArrowRight') pcStep(1);
