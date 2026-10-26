@@ -84,6 +84,21 @@
   /* today's slate: a fact, not a rating, so it stays out of the green/gold status hues */
   .tile-today { font-size: 0.7rem; margin-top: 0.22rem; color: var(--muted); letter-spacing: 0.01em; padding-left: calc(6px + 0.34rem); }
   .tile-today b { color: var(--text); font-weight: 700; }
+  .tile-today:not([hidden]) { margin-bottom: 0.7rem; }
+  .tile-game[hidden] { display: none; }
+  /* one game from today's slate: the next to start (or the one being played) */
+  .tile-game { align-self: stretch; display: flex; align-items: center; gap: 0.5rem; margin-top: auto; padding: 0.5rem 0.65rem;
+    border: 1px solid var(--border); border-radius: 11px; background: rgba(5,8,15,0.45); font-size: 0.8rem; min-width: 0; }
+  .tile-game .tm { display: flex; align-items: center; gap: 0.35rem; min-width: 0; flex: 0 1 auto; }
+  .tile-game .tm img { width: 20px; height: 20px; object-fit: contain; flex: none; }
+  .tile-game .tm span { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile-game .tm b { font-weight: 800; color: var(--text); margin-left: 0.15rem; }
+  .tile-game .at { color: var(--dim); font-size: 0.72rem; flex: none; }
+  .tile-game .when { margin-left: auto; color: var(--muted); font-size: 0.72rem; white-space: nowrap; flex: none; padding-left: 0.4rem; }
+  .tile-game .when.in { color: var(--text); }
+  .tile-game .when.in::before { content: ''; display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: #ff5a5f; margin-right: 0.3rem; vertical-align: 1px; }
+  .today-sum { margin-top: 0.5rem; color: var(--muted); font-size: clamp(0.74rem, 2.3vw, 0.86rem); letter-spacing: 0.01em; }
+  .today-sum b { color: var(--text); font-weight: 700; }
   .foot { margin-top: 2rem; color: var(--dim); font-size: 0.68rem; letter-spacing: 0.02em; }
 </style>
 <script defer src="/analytics.js"></script>
@@ -92,6 +107,7 @@
   <div class="wrap">
     <div class="brand">Ron's Tools</div>
     <div class="tag">Pick your sport.</div>
+    <div class="today-sum" id="today-sum" hidden></div>
     <div class="grid">
       <a class="tile live" href="/nfl/" data-sport="nfl">
         <span class="badge go">Live</span>
@@ -100,6 +116,7 @@
         <span class="tile-sub">NFL · touchdowns, yards, receptions, passing &amp; kickers</span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
         <span class="tile-today" hidden></span>
+        <span class="tile-game" hidden></span>
       </a>
       <a class="tile live" href="/mlb/" data-sport="mlb">
         <span class="badge go">Live</span>
@@ -108,6 +125,7 @@
         <span class="tile-sub">MLB · home runs, strikeouts, walks, steals &amp; matchups</span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
         <span class="tile-today" hidden></span>
+        <span class="tile-game" hidden></span>
       </a>
       <a class="tile live" href="/nhl/" data-sport="nhl">
         <span class="badge go">Live</span>
@@ -116,6 +134,7 @@
         <span class="tile-sub">NHL · goals, points, shots, saves, hits &amp; blocks</span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
         <span class="tile-today" hidden></span>
+        <span class="tile-game" hidden></span>
       </a>
       <a class="tile live" href="/nba/" data-sport="nba">
         <span class="badge soon">Soon</span>
@@ -124,6 +143,7 @@
         <span class="tile-sub">NBA · threes, points, rebounds, assists, doubles &amp; first basket</span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
         <span class="tile-today" hidden></span>
+        <span class="tile-game" hidden></span>
       </a>
       <a class="tile live" href="/soccer/" data-sport="soccer">
         <span class="badge go">Live</span>
@@ -132,6 +152,7 @@
         <span class="tile-sub">MLS · anytime goals, shots &amp; shots on target, lines &amp; implied goals</span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
         <span class="tile-today" hidden></span>
+        <span class="tile-game" hidden></span>
       </a>
     </div>
     <div class="foot">Inspired by Green Means Go · <a class="rw-about" href="javascript:void(0)" onclick="RonWelcome.open()" style="color:inherit;text-decoration:underline;text-underline-offset:2px">About</a> · <a href="/models/" style="color:inherit;text-decoration:underline;text-underline-offset:2px">Models</a></div>
@@ -230,11 +251,13 @@
     setInterval(paint, 30000);
   })();
 
-  // Today's games per sport: how many, and the first start, straight from ESPN's
-  // public scoreboard (CORS-open; the apps' live scores read the same feed), so it
-  // never waits on a build or a deploy. "Today" is the US Eastern date, as every
-  // app's slate is. Postponed / cancelled games don't count. Off-season tiles and a
-  // failed fetch show nothing.
+  // Today's games per sport: how many, the first start, and one game on the tile
+  // (the next to start, or the one being played; the last final once all are
+  // done), straight from ESPN's public scoreboard (CORS-open; the apps' live
+  // scores read the same feed), so it never waits on a build or a deploy. "Today"
+  // is the US Eastern date, as every app's slate is. Postponed / cancelled games
+  // don't count. Off-season tiles and a failed fetch show nothing. The line under
+  // the title sums the leagues that play.
   (function () {
     var ESPN = { nfl: 'football/nfl', mlb: 'baseball/mlb', nhl: 'hockey/nhl', nba: 'basketball/nba', soccer: 'soccer/usa.1' };
     var WORD = { nfl: ['game', 'games'], mlb: ['game', 'games'], nhl: ['game', 'games'], nba: ['game', 'games'], soccer: ['match', 'matches'] };
@@ -245,31 +268,62 @@
       return g('year') + g('month') + g('day');
     }
     function time(iso) { return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
+    function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+    var state = function (e) { return ((e.status || {}).type || {}).state; };
+    // the dark-background logo (the page is dark); the plain one if a team has none
+    function logo(t) {
+      var u = t.logo || '', dk = u.replace('/500/', '/500-dark/');
+      return u ? '<img src="' + esc(dk) + '" alt="" loading="lazy" onerror="this.onerror=null;this.src=\'' + esc(u) + '\'">' : '';
+    }
+    function gameHtml(e) {
+      var c = (e.competitions || [])[0] || {}, cs = c.competitors || [];
+      var away = cs.filter(function (x) { return x.homeAway === 'away'; })[0], home = cs.filter(function (x) { return x.homeAway === 'home'; })[0];
+      if (!away || !home) return '';
+      var st = state(e), scored = st === 'in' || st === 'post';
+      var side = function (x) { var t = x.team || {};
+        return '<span class="tm">' + logo(t) + '<span title="' + esc(t.displayName) + '">' + esc(t.shortDisplayName || t.abbreviation) + '</span>' + (scored ? '<b>' + esc(x.score) + '</b>' : '') + '</span>'; };
+      var when = st === 'pre' ? time(e.date) : st === 'post' ? 'Final' : esc(((e.status || {}).type || {}).shortDetail || 'Live');
+      return side(away) + '<span class="at">@</span>' + side(home) + '<span class="when' + (st === 'in' ? ' in' : '') + '">' + when + '</span>';
+    }
+    function one(k, day) {
+      var tile = document.querySelector('[data-sport="' + k + '"]'); if (!tile) return Promise.resolve(null);
+      var el = tile.querySelector('.tile-today'), gm = tile.querySelector('.tile-game'), badge = tile.querySelector('.badge');
+      var hide = function () { el.hidden = true; gm.hidden = true; return null; };
+      if (!tile.classList.contains('live') || /\b(soon|count)\b/.test(badge.className)) return Promise.resolve(hide());
+      return fetch('https://site.api.espn.com/apis/site/v2/sports/' + ESPN[k] + '/scoreboard?dates=' + day)
+        .then(function (r) { if (!r.ok) throw r.status; return r.json(); })
+        .then(function (d) {
+          var ev = (d.events || []).filter(function (e) { return !DROP.test(((e.status || {}).type || {}).name || ''); })
+            .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+          var n = ev.length;
+          if (!n) { el.innerHTML = 'No ' + WORD[k][1] + ' today'; el.hidden = false; gm.hidden = true; return { k: k, n: 0 }; }
+          var live = ev.filter(function (e) { return state(e) === 'in'; }).length;
+          var done = ev.filter(function (e) { return state(e) === 'post'; }).length;
+          var tail = done === n ? 'all final' : n > 1 ? 'first ' + time(ev[0].date) : '';
+          if (live) tail += (tail ? ' · ' : '') + '<b>' + live + '</b> live';
+          el.innerHTML = '<b>' + n + '</b> ' + WORD[k][n === 1 ? 0 : 1] + ' today' + (tail ? ' · ' + tail : '');
+          el.hidden = false;
+          var show = ev.filter(function (e) { return state(e) === 'in'; })[0] || ev.filter(function (e) { return state(e) === 'pre'; })[0] || ev[n - 1];
+          gm.innerHTML = gameHtml(show); gm.hidden = !gm.innerHTML;
+          return { k: k, n: n, first: ev[0].date, live: live };
+        })
+        .catch(hide);
+    }
     function load() {
       var day = etDate();
-      Object.keys(ESPN).forEach(function (k) {
-        var tile = document.querySelector('[data-sport="' + k + '"]'); if (!tile) return;
-        var el = tile.querySelector('.tile-today'), badge = tile.querySelector('.badge');
-        if (!tile.classList.contains('live') || /\b(soon|count)\b/.test(badge.className)) { el.hidden = true; return; }
-        fetch('https://site.api.espn.com/apis/site/v2/sports/' + ESPN[k] + '/scoreboard?dates=' + day)
-          .then(function (r) { if (!r.ok) throw r.status; return r.json(); })
-          .then(function (d) {
-            var ev = (d.events || []).filter(function (e) { return !DROP.test(((e.status || {}).type || {}).name || ''); });
-            var n = ev.length;
-            if (!n) { el.innerHTML = 'No ' + WORD[k][1] + ' today'; el.hidden = false; return; }
-            var st = function (e) { return ((e.status || {}).type || {}).state; };
-            var live = ev.filter(function (e) { return st(e) === 'in'; }).length;
-            var done = ev.filter(function (e) { return st(e) === 'post'; }).length;
-            var first = ev.map(function (e) { return e.date; }).sort()[0];
-            var tail = done === n ? 'all final' : 'first ' + time(first) + (live ? ' · <b>' + live + '</b> live' : '');
-            el.innerHTML = '<b>' + n + '</b> ' + WORD[k][n === 1 ? 0 : 1] + ' today · ' + tail;
-            el.hidden = false;
-          })
-          .catch(function () { el.hidden = true; });
+      Promise.all(Object.keys(ESPN).map(function (k) { return one(k, day); })).then(function (rs) {
+        var on = rs.filter(function (r) { return r && r.n; }), sum = document.getElementById('today-sum');
+        if (!rs.some(Boolean)) { sum.hidden = true; return; }
+        if (!on.length) { sum.innerHTML = 'No games today'; sum.hidden = false; return; }
+        var games = on.reduce(function (a, r) { return a + r.n; }, 0), live = on.reduce(function (a, r) { return a + r.live; }, 0);
+        var first = on.map(function (r) { return r.first; }).sort()[0];
+        sum.innerHTML = '<b>' + on.length + '</b> ' + (on.length === 1 ? 'league plays' : 'leagues play') + ' today · <b>' + games + '</b> ' + (games === 1 ? 'game' : 'games')
+          + (live ? ' · <b>' + live + '</b> live' : new Date(first) > new Date() ? ' · first ' + time(first) : '');
+        sum.hidden = false;
       });
     }
     load();
-    setInterval(load, 5 * 60 * 1000);
+    setInterval(load, 2 * 60 * 1000);
   })();
 </script>
 <script src="/welcome.js?v=5" defer></script>
