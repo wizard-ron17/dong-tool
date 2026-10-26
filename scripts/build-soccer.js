@@ -253,7 +253,7 @@ async function main() {
     // the last pre-kickoff price of every priced player, by date and game: Recap and Schedule grade off it
     const H = readJSON(GOAL_HIST, { days: {} });
     // { g: P(goal), sh: [mu, P(o0.5), P(o1.5) …], sot: […] } per player (a bare number is an older goal-only entry)
-    const lad = (S, kind) => S ? [S.mu, ...SM[kind].lines.map(L => +(1 - S.pmf.slice(0, Math.floor(L) + 1).reduce((x, y) => x + y, 0)).toFixed(4))] : undefined;
+    const lad = (S, kind) => S ? [S.mu, ...SM[kind].lines.map(L => +Math.max(0, 1 - S.pmf.slice(0, Math.floor(L) + 1).reduce((x, y) => x + y, 0)).toFixed(4))] : undefined;
     for (const r of rows) if (new Date(r.start) > new Date()) {
       const d = etDate(new Date(r.start));
       ((H.days[d] ||= {})[r.gid] ||= {})[r.pid] = { g: r.p, sh: lad(r.sh, 'sh'), sot: lad(r.sot, 'sot') };
