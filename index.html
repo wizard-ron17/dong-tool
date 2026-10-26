@@ -81,6 +81,9 @@
   .badge.go.now { animation: pulse 2.4s ease-in-out infinite; }
   @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(51,208,124,0.45); } 50% { box-shadow: 0 0 0 5px rgba(51,208,124,0); } }
   @media (prefers-reduced-motion: reduce) { .badge.go.now { animation: none; } }
+  /* today's slate: a fact, not a rating, so it stays out of the green/gold status hues */
+  .tile-today { font-size: 0.7rem; margin-top: 0.22rem; color: var(--muted); letter-spacing: 0.01em; padding-left: calc(6px + 0.34rem); }
+  .tile-today b { color: var(--text); font-weight: 700; }
   .foot { margin-top: 2rem; color: var(--dim); font-size: 0.68rem; letter-spacing: 0.02em; }
 </style>
 <script defer src="/analytics.js"></script>
@@ -96,6 +99,7 @@
         <span class="tile-name">Ron's Tud Tool</span>
         <span class="tile-sub">NFL · touchdowns, yards, receptions, passing &amp; kickers</span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
+        <span class="tile-today" hidden></span>
       </a>
       <a class="tile live" href="/mlb/" data-sport="mlb">
         <span class="badge go">Live</span>
@@ -103,6 +107,7 @@
         <span class="tile-name">Ron's Dong Tool</span>
         <span class="tile-sub">MLB · home runs, strikeouts, walks, steals &amp; matchups</span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
+        <span class="tile-today" hidden></span>
       </a>
       <a class="tile live" href="/nhl/" data-sport="nhl">
         <span class="badge go">Live</span>
@@ -110,6 +115,7 @@
         <span class="tile-name">Ron's Puck Tool</span>
         <span class="tile-sub">NHL · goals, points, shots, saves, hits &amp; blocks</span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
+        <span class="tile-today" hidden></span>
       </a>
       <a class="tile live" href="/nba/" data-sport="nba">
         <span class="badge soon">Soon</span>
@@ -117,6 +123,7 @@
         <span class="tile-name">Ron's Hoop Tool</span>
         <span class="tile-sub">NBA · threes, points, rebounds, assists, doubles &amp; first basket</span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
+        <span class="tile-today" hidden></span>
       </a>
       <a class="tile live" href="/soccer/" data-sport="soccer">
         <span class="badge go">Live</span>
@@ -124,6 +131,7 @@
         <span class="tile-name">Ron's Goal Tool</span>
         <span class="tile-sub">MLS · anytime goals, shots &amp; shots on target, lines &amp; implied goals</span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
+        <span class="tile-today" hidden></span>
       </a>
     </div>
     <div class="foot">Inspired by Green Means Go · <a class="rw-about" href="javascript:void(0)" onclick="RonWelcome.open()" style="color:inherit;text-decoration:underline;text-underline-offset:2px">About</a> · <a href="/models/" style="color:inherit;text-decoration:underline;text-underline-offset:2px">Models</a></div>
@@ -220,6 +228,48 @@
     }
     paint();
     setInterval(paint, 30000);
+  })();
+
+  // Today's games per sport: how many, and the first start, straight from ESPN's
+  // public scoreboard (CORS-open; the apps' live scores read the same feed), so it
+  // never waits on a build or a deploy. "Today" is the US Eastern date, as every
+  // app's slate is. Postponed / cancelled games don't count. Off-season tiles and a
+  // failed fetch show nothing.
+  (function () {
+    var ESPN = { nfl: 'football/nfl', mlb: 'baseball/mlb', nhl: 'hockey/nhl', nba: 'basketball/nba', soccer: 'soccer/usa.1' };
+    var WORD = { nfl: ['game', 'games'], mlb: ['game', 'games'], nhl: ['game', 'games'], nba: ['game', 'games'], soccer: ['match', 'matches'] };
+    var DROP = /POSTPONED|CANCELED|CANCELLED|SUSPENDED|FORFEIT/;
+    function etDate() {
+      var p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+      var g = function (t) { return p.filter(function (x) { return x.type === t; })[0].value; };
+      return g('year') + g('month') + g('day');
+    }
+    function time(iso) { return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
+    function load() {
+      var day = etDate();
+      Object.keys(ESPN).forEach(function (k) {
+        var tile = document.querySelector('[data-sport="' + k + '"]'); if (!tile) return;
+        var el = tile.querySelector('.tile-today'), badge = tile.querySelector('.badge');
+        if (!tile.classList.contains('live') || /\b(soon|count)\b/.test(badge.className)) { el.hidden = true; return; }
+        fetch('https://site.api.espn.com/apis/site/v2/sports/' + ESPN[k] + '/scoreboard?dates=' + day)
+          .then(function (r) { if (!r.ok) throw r.status; return r.json(); })
+          .then(function (d) {
+            var ev = (d.events || []).filter(function (e) { return !DROP.test(((e.status || {}).type || {}).name || ''); });
+            var n = ev.length;
+            if (!n) { el.innerHTML = 'No ' + WORD[k][1] + ' today'; el.hidden = false; return; }
+            var st = function (e) { return ((e.status || {}).type || {}).state; };
+            var live = ev.filter(function (e) { return st(e) === 'in'; }).length;
+            var done = ev.filter(function (e) { return st(e) === 'post'; }).length;
+            var first = ev.map(function (e) { return e.date; }).sort()[0];
+            var tail = done === n ? 'all final' : 'first ' + time(first) + (live ? ' · <b>' + live + '</b> live' : '');
+            el.innerHTML = '<b>' + n + '</b> ' + WORD[k][n === 1 ? 0 : 1] + ' today · ' + tail;
+            el.hidden = false;
+          })
+          .catch(function () { el.hidden = true; });
+      });
+    }
+    load();
+    setInterval(load, 5 * 60 * 1000);
   })();
 </script>
 <script src="/welcome.js?v=5" defer></script>
