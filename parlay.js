@@ -114,6 +114,8 @@
   //   links     NHL: (scorer, assister) -> games this season B assisted A, or null
   //   onAdd     called with a leg of that sport when it's added
   //   decorate  (leg) -> leg, before it's stored (stamp what other pages need)
+  //   start     (team) -> ISO start of that team's next game; stamped on the leg as
+  //             `st`, so Copy for tracker knows when the slip locks
   parLoad();   // now, not at DOMContentLoaded: pages call provide() (and read PARLAY) while they load
   let CTX = {};
   try { CTX = JSON.parse(localStorage.getItem(CTX_KEY) || '{}') || {}; } catch (e) {}
@@ -515,6 +517,7 @@
     if (i >= 0) PARLAY.legs.splice(i, 1);
     else {
       if (HOST[leg.sp]?.decorate) leg = HOST[leg.sp].decorate(leg) || leg;
+      leg = parStamp(leg);
       // Two lines in one player's market are not a parlay: over 7.5 and under
       // 7.5 can never both land, and over 7.5 with over 8.5 is one bet priced
       // twice. A new selection replaces the old one, like any bet slip.
@@ -563,7 +566,21 @@
   // the slip as text for Ron's odds-viewer bet tracker (its "Import from Ron's Tools")
   function parCopyTracker(btn) {
     const { p, corr } = parPrice();
-    if (PARLAY.legs.length && window.RonTracker) RonTracker.copy(PARLAY.legs, p, { corr, book: PARLAY.book }, btn);
+    if (PARLAY.legs.length && window.RonTracker) RonTracker.copy(PARLAY.legs.map(parStamp), p, { corr, book: PARLAY.book, boost: PARLAY.boost }, btn);
+  }
+  // For a page's start hook: a team's next game in [{ start, away, home, done }]: the
+  // earliest not final that started under 6h ago (a leg added live keeps its game)
+  function nextStart(games, team) {
+    const now = Date.now();
+    const g = (games || []).filter(x => !x.done && (x.away === team || x.home === team) && Date.parse(x.start) > now - 6 * 3600e3)
+      .sort((a, b) => Date.parse(a.start) - Date.parse(b.start))[0];
+    return g ? new Date(g.start).toISOString() : null;
+  }
+  // the leg's game start, from its sport's page (a leg restored from storage gets it here too)
+  function parStamp(leg) {
+    if (leg.st || !leg.t) return leg;
+    let st = null; try { st = HOST[leg.sp]?.start?.(leg.t) || null; } catch (e) {}
+    return st ? { ...leg, st } : leg;
   }
 
   // Gambly line-shops a slip, SGPs included, from a chat prompt; its site takes the
@@ -770,7 +787,7 @@
     parRender(); parPaint();
   }
 
-  window.RonParlay = { provide, price: parPrice, priceLegs: (legs) => parPrice(legs), rho: { mlb: sgpRhoMLB, nfl: sgpRhoNFL, nhl: sgpRhoNHL }, goalGroupMult, stackMult };
+  window.RonParlay = { provide, nextStart, price: parPrice, priceLegs: (legs) => parPrice(legs), rho: { mlb: sgpRhoMLB, nfl: sgpRhoNFL, nhl: sgpRhoNHL }, goalGroupMult, stackMult };
   Object.assign(window, {
     PARLAY, PAR_SPORT, parLeg, parAttr, parGame, parSideGet, parSideSet, parSideLeg, parSideTag, parSideRow, parSideLine, parSidePrice, parSideToggleHtml, setParSide, parEsc, parDecAm, parAmDec, parSave, parPrice,
     parMode, parToggleOpen, parToggleLeg, parRemove, parClear, parSetBoost, parCustomBoost, parBook,

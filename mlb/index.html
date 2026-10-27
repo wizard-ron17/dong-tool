@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ron's Dong Tool</title>
-<script src="/odds.js?v=1"></script>
+<script src="/odds.js?v=2"></script>
 <script src="/app.js"></script>
 <script src="/chrome.js"></script>
 <script src="/modal.js"></script>
@@ -12314,6 +12314,9 @@ if ('serviceWorker' in navigator) {
 
 // ── Parlay slip: /parlay.js (one module for every app: state, pricing,
 // markup, styles). Rows here only tag themselves with parAttr({...}).
+RonParlay.provide('mlb', {
+  start: (t) => RonParlay.nextStart((todaySchedule || []).map(g => ({ start: g.gameDate, away: g.away?.teamAbbr, home: g.home?.teamAbbr, done: /final/i.test(g.status || '') })), t),
+});
 </script>
   <footer class="site-foot"></footer>
 <script>RonChrome.mount()</script>

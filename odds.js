@@ -23,7 +23,7 @@
   // book, the price you got and the stake — only you know those).
   const amNum = (p) => { const s = am(p); return s === '—' ? null : parseInt(s, 10); };
   const bookAm = (s) => { const m = String(s || '').trim().match(/^([+-]?\d{3,5})$/); return m ? parseInt(m[1], 10) : null; };
-  function trackerText(legs, p, { corr = false, book = '' } = {}) {
+  function trackerText(legs, p, { corr = false, book = '', boost = 0 } = {}) {
     const sports = [...new Set(legs.map(l => String(l.sp || '').toUpperCase()).filter(Boolean))];
     const games = [...new Set(legs.map(l => String(l.g || '').replace('@', ' @ ')).filter(Boolean))];
     const one = legs.length === 1;
@@ -36,6 +36,16 @@
       odds: bookAm(book), fair: amNum(p),
       note: `Ron's Tools fair ${am(p)} (${pct(p)})${corr === true || corr === 'sgp' ? ', correlation-priced' : ''}`,
     };
+    // A profit boost on the book's price: the tracker logs the boosted odds, with the
+    // price before it and the boost %
+    if (boost > 0 && bet.odds != null) {
+      const d = 1 + (bet.odds > 0 ? bet.odds / 100 : 100 / -bet.odds) * (1 + boost);
+      Object.assign(bet, { kind: 'boost', baseOdds: bet.odds, boostPct: Math.round(boost * 100),
+        odds: d >= 2 ? Math.round((d - 1) * 100) : -Math.round(100 / (d - 1)) });
+    }
+    // the first leg's start: when the slip locks
+    const starts = legs.map(l => l.st).filter(s => s && !isNaN(Date.parse(s))).sort((a, b) => Date.parse(a) - Date.parse(b));
+    if (starts.length) bet.gametime = new Date(starts[0]).toISOString();
     const lines = [`Ron's Tools · ${one ? 'Single' : `${bet.market}`} · fair ${both(p)}`,
       ...legs.map(l => `  ${legName(l)}${l.g ? ' · ' + String(l.g).replace('@', ' @ ') : ''} · ${both(l.p)}`),
       `RONBET:${JSON.stringify(bet)}`];

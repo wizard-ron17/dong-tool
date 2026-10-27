@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ron's Puck Tool</title>
-<script src="/odds.js?v=1"></script>
+<script src="/odds.js?v=2"></script>
 <script src="/app.js"></script>
 <script src="/chrome.js"></script>
 <script src="/modal.js"></script>
@@ -5165,6 +5165,7 @@
     ctx: () => { try { return D?.parlay; } catch (e) { return null; } },
     links: (a, b) => parLinks(a, b),
     onAdd: (leg) => { if (leg.m === 'ast' || leg.m === 'g1') loadPlayersLog(); },
+    start: (t) => RonParlay.nextStart((D?.schedule || []).map(g => ({ start: g.start, away: g.away, home: g.home, done: ['OFF', 'FINAL'].includes(g.state) })), t),
   });
 
   // ── Pairs ───────────────────────────────────────────────────────────────

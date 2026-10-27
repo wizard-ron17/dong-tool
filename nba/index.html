@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ron's Hoop Tool</title>
-<script src="/odds.js?v=1"></script>
+<script src="/odds.js?v=2"></script>
 <script src="/app.js"></script>
 <script src="/chrome.js"></script>
 <script src="/modal.js"></script>
@@ -1796,6 +1796,9 @@
   const BD_TOOL = (kind) => Object.keys(BD).find(nav => BD[nav].tabs.some(([k]) => k === kind)) || kind;
   const dblLeg = (r, m, side = 'over') => parSideLeg({ k: `${m}|${r.pid}`, n: r.name, t: r.team, g: parGame(r), m, s: m === 'td' ? 'Triple-double' : 'Double-double', p: r[m], i: r.pid }, side, true);
   const fbLeg = (r, g) => ({ k: `fb|${r.pid}`, n: r.name, t: r.team, g: `${g.away}@${g.home}`, m: 'fb', s: 'First basket', p: r.p, i: r.pid });
+  RonParlay.provide('nba', {
+    start: (t) => RonParlay.nextStart((D?.schedule || []).map(g => ({ start: g.start, away: g.away?.ab, home: g.home?.ab, done: g.state === 'post' })), t),
+  });
   // ── Threes factor table: the made-threes model's terms as multipliers on his expected threes ─────
   // Shooter = his makes per minute against his position's (NBA's base power); Minutes = tonight's projected minutes
   // against his last ten (a role change); Form = his last ten against his longer rate; Drought = games since his last

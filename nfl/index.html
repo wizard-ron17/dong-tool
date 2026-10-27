@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ron's Tud Tool</title>
-<script src="/odds.js?v=1"></script>
+<script src="/odds.js?v=2"></script>
 <script src="/app.js"></script>
 <script src="/chrome.js"></script>
 <script src="/modal.js"></script>
@@ -8948,6 +8948,7 @@ let pairStacks = false;
     pos: posOf,
     // stamp the position so the TD splits (WR/TE, RB, QB) hold on the other sports' pages too
     decorate: (leg) => leg.m === 'td1' && !leg.pos ? { ...leg, pos: posOf(leg.i) || undefined } : leg,
+    start: (t) => RonParlay.nextStart((nflData?.schedule || []).filter(g => g.gametime && g.homeScore == null).map(g => ({ start: `${g.gameday}T${g.gametime}:00${[11, 12, 1, 2].includes(+g.gameday.slice(5, 7)) ? '-05:00' : '-04:00'}`, away: g.away, home: g.home })), t),
   });
 </script>
   <footer class="site-foot"></footer>
