@@ -19,7 +19,7 @@ Dated and open work. Newest decisions at the top of each section. Remove items w
 - Public track record per tool: calibration and results vs close, from the graded histories we already keep.
 
 ## Research queue
-- **MLB pitcher Ks lose to the close (10/23, `~/smartstake-data/study/mlb_closes.py kbb`):** our Poisson-on-projection K price is anti-signal at the main line (AUC .49 vs .58; ours β −0.46). The hole is batters faced: where we're 1K+ over the market, he faced 18.3 vs our 22.1. Fix the leash (pitch-count caps, IL returns, openers, late-season pulls) before the rate; until then don't bet Ks off the odds-viewer fair. Walks tie the close and add in a blend: keep.
+- **MLB pitcher Ks and outs lose to the close (10/23, re-tested 10/27 in `research/mlb_outs.py`):** a real leash model (batters faced RMSE 3.92 vs the build's 4.50) still doesn't beat the market on Ks (log loss .715 vs close .681, ours β −0.17) or outs (β −0.06). The hole is the K RATE, not the leash: our batters-faced disagreement with the market carries nothing. Only lead left: pitch-level Statcast (whiff/CSW) for the rate, low odds. Don't bet Ks off the odds-viewer fair. Walks tie the close and add in a blend: keep.
 - **MLB HR vs the close (10/23):** v1 adds nothing over the all-book close (power devig understates HR overs ~2.4pp; recalibrate before comparing). Same verdict as Kalshi.
 - Pick-factor regression (MLB HR): ran 9/25 on 474 rows, too small. Re-run with more data, or log every lineup batter instead of only the board.
 - NFL receptions: our term z 3.0 beside the Kalshi mid in the week 3 grade, so blend it with the mid.
