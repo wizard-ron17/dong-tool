@@ -82,6 +82,9 @@
   .chip { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border2);
     border-radius: 999px; padding: 0.12rem 0.45rem; white-space: nowrap; }
   .m-auc { margin-left: auto; text-align: right; flex: none; }
+  .lns { display: inline-flex; gap: 0.25rem; flex-wrap: wrap; vertical-align: middle; }
+  button.chip { background: none; font-family: inherit; cursor: pointer; }
+  button.chip.on { color: var(--strong); border-color: var(--strong); }
   .m-score { margin-left: auto; flex: none; width: 3.6rem; height: 3.6rem; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center;
     border: 1.5px solid currentColor; background: color-mix(in srgb, currentColor 9%, transparent); cursor: help; }
   .m-score b { font-family: var(--mono); font-size: 1.45rem; font-weight: 800; line-height: 1; }
@@ -151,7 +154,7 @@
     <h1>The Models</h1>
     <p class="lede">Every price on the site comes from a model built on free, public data. Here is every one of them, <b>scored the same way</b>: each season predicted by a model that had never seen it, then checked against what actually happened. The good, the middling, and the markets where the book still knows more than we do.</p>
     <div class="stats" id="stats">
-      <div class="stat"><b id="s-models">—</b><span>markets modelled</span></div>
+      <div class="stat"><b id="s-models">—</b><span>models</span></div>
       <div class="stat"><b id="s-preds">—</b><span>predictions scored</span></div>
       <div class="stat"><b id="s-scripts">98</b><span>research scripts</span></div>
       <div class="stat"><b id="s-null">—</b><span>big ideas tested and dropped</span></div>
@@ -271,6 +274,25 @@
     'MLB|Pitcher strikeouts': '<b>Batters faced × strikeout rate</b> against the actual lineup, with the pen taking over. Scored here at a fixed o5.5 for every starter (the fair test of ranking); the board\'s own lines, which sit at each pitcher\'s projection, are graded live below. The average projection has run 6.00 against 5.96 actual.',
     'MLB|Pitcher walks': 'Batters faced × walk rate against the lineup\'s discipline. <b>Walks barely repeat</b>: a pitcher\'s projection and his actual walks correlate at only 0.13, so this is a thin market for any model. The high line has run about 2.6 points over.',
   };
+  // One model priced at several lines is one card with a line switch. "market": [model, line label]
+  const GROUP = {
+    'NHL|Anytime goal': ['Goals', '1+'], 'NHL|2+ goals': ['Goals', '2+'], 'NHL|Hat trick': ['Goals', '3+'],
+    'NHL|Points': ['Points', '1+'], 'NHL|Points 2+': ['Points', '2+'],
+    'NBA|Made threes 1+': ['Made threes', '1+'], 'NBA|Made threes 2+': ['Made threes', '2+'], 'NBA|Made threes 3+': ['Made threes', '3+'],
+    'NBA|Points 20+': ['Points', '20+'], 'NBA|Points 25+': ['Points', '25+'],
+  };
+  function groups(A) {
+    const out = new Map();
+    for (const m of A) {
+      const [name, lab] = GROUP[m.sport + '|' + m.market] ?? [m.market, m.line];
+      const k = m.sport + '|' + name;
+      if (!out.has(k)) out.set(k, { id: 'g' + out.size, sport: m.sport, name, ms: [], labs: [], sel: 0 });
+      const g = out.get(k); g.ms.push(m); g.labs.push(lab);
+    }
+    return [...out.values()];
+  }
+  // the same player-games scored at each line: count them once
+  const gN = (g) => Math.max(...g.ms.map(m => m.n));
   const tone = (auc) => auc >= 0.8 ? 'great' : auc >= 0.7 ? 'good' : auc >= 0.62 ? 'ok' : auc >= 0.55 ? 'weak' : 'flip';
   const WORD = { great: 'strong', good: 'good', ok: 'fair', weak: 'thin', flip: 'coin flip' };
   const pc = (x, d = 1) => x == null ? '—' : (x * 100).toFixed(d) + '%';
@@ -302,8 +324,8 @@
     return { total: Math.round(100 * total), R, C, E, rel, noise, events };
   }
   const sTone = (x) => x >= 85 ? 'great' : x >= 70 ? 'good' : x >= 55 ? 'ok' : x >= 35 ? 'weak' : 'flip';
-  function card(m) {
-    const S = scoreOf(m), st = S ? sTone(S.total) : null;
+  function card(g) {
+    const m = g.ms[g.sel], S = scoreOf(m), st = S ? sTone(S.total) : null;
     const part = (lab, v, tip) => `<div class="part" title="${tip}"><span>${lab}<b>${v == null ? '—' : Math.round(v * 100)}</b></span><i><em class="bg-${v == null ? 'flip' : sTone(v * 100)}" style="width:${v == null ? 0 : (v * 100).toFixed(0)}%"></em></i></div>`;
     const t = m.auc != null ? tone(m.auc) : null;
     const pos = m.auc != null ? Math.max(0, Math.min(1, (m.auc - 0.5) / 0.5)) * 100 : 0;
@@ -315,34 +337,43 @@
           <div class="kpi"><b>${m.ece != null ? m.ece.toFixed(2) + ' pts' : '—'}</b><span>calibration gap</span></div>
           <div class="kpi"><b>${m.top10 != null ? pc(m.top10) : '—'}${m.lift != null ? ` <small class="t-${t || 'ok'}" style="font-size:0.72rem">${m.lift.toFixed(1)}×</small>` : ''}</b><span>top 10% hit rate${m.base != null ? ` (avg ${pc(m.base)})` : ''}</span></div>
         </div>`;
-    return `<div class="m">
+    return `<div class="m" id="${g.id}">
       <div class="m-hd">
-        <div><div class="m-nm">${esc(m.market)}</div><div class="m-sub"><span class="chip">${esc(m.line)}</span> &nbsp;${esc(m.tool)} tool</div></div>
+        <div><div class="m-nm">${esc(g.name)}</div><div class="m-sub">${g.ms.length > 1
+          ? `<span class="lns">${g.labs.map((l, i) => `<button class="chip${i === g.sel ? ' on' : ''}" data-g="${g.id}" data-i="${i}">${esc(l)}</button>`).join('')}</span>`
+          : `<span class="chip">${esc(m.line)}</span>`} &nbsp;${esc(m.tool)} tool</div></div>
         ${S ? `<div class="m-score t-${st}" title="Model score ${S.total}/100: ranking ${Math.round(S.R * 100)}, honest prices ${S.C == null ? 'n/a (a score, not a probability)' : Math.round(S.C * 100)}, evidence ${Math.round(S.E * 100)}"><b>${S.total}</b><span>score</span></div>` : ''}
       </div>
       ${S ? `<div class="parts">${part('Ranking', S.R, `AUC ${m.auc.toFixed(3)} (${WORD[t]})`)}${part('Honest prices', S.C, S.C == null ? 'publishes a score, not a probability' : `top of the board priced ${pc(m.top10_priced)}, hit ${pc(m.top10)}: ${S.rel >= 0 ? '+' : ''}${(S.rel * 100).toFixed(1)}% (noise alone ±${(S.noise * 100).toFixed(1)}%)`)}${part('Evidence', S.E, `${Math.round(S.events).toLocaleString()} hits behind ${m.n.toLocaleString()} predictions`)}</div>` : ''}
       ${m.auc != null ? `<div class="bar-lbl" style="margin-top:-0.3rem"><span>AUC <b class="t-${t}">${m.auc.toFixed(3)}</b> · ${WORD[t]} ranking</span><span>0.50 = coin flip</span></div>` : ''}
       ${kpis}
       ${m.auc != null && m.cal ? `<div class="cal">${m.cal.map(([k, pr, act]) => `<div class="cal-row"><span>board's ${k}</span><span>priced <b>${pc(pr)}</b></span><span>hit <b>${pc(act)}</b></span></div>`).join('')}</div>` : ''}
-      ${HOW[m.sport + '|' + m.market] ? `<div class="m-how">${HOW[m.sport + '|' + m.market]}</div>` : ''}
+      ${(HOW[m.sport + '|' + m.market] ?? HOW[m.sport + '|' + g.ms[0].market]) ? `<div class="m-how">${HOW[m.sport + '|' + m.market] ?? HOW[m.sport + '|' + g.ms[0].market]}</div>` : ''}
       ${m.note ? `<div class="m-note">${esc(m.note)}</div>` : ''}
       <div class="m-foot"><span>${m.n.toLocaleString()} ${m.sport === 'MLB' ? 'graded' : 'walk-forward'} predictions</span><span>${typeof m.seasons === 'number' ? m.seasons + ' season' + (m.seasons === 1 ? '' : 's') : esc(m.seasons)}</span></div>
     </div>`;
   }
 
   load().then(A => {
-    document.getElementById('s-models').textContent = A.length;
-    document.getElementById('s-preds').textContent = fmtN(A.reduce((a, m) => a + m.n, 0));
-    document.getElementById('sports').innerHTML = ['NFL', 'NHL', 'NBA', 'MLB'].map(sp => {
-      const ms = A.filter(m => m.sport === sp); if (!ms.length) return '';
-      ms.sort((a, b) => (scoreOf(b)?.total ?? -1) - (scoreOf(a)?.total ?? -1));
-      const S = SPORT[sp], best = ms[0], bs = scoreOf(best);
+    const G = groups(A), byId = Object.fromEntries(G.map(g => [g.id, g]));
+    document.getElementById('s-models').textContent = G.length;
+    document.getElementById('s-preds').textContent = fmtN(G.reduce((a, g) => a + gN(g), 0));
+    const sports = document.getElementById('sports');
+    sports.innerHTML = ['NFL', 'NHL', 'NBA', 'MLB'].map(sp => {
+      const gs = G.filter(g => g.sport === sp); if (!gs.length) return '';
+      gs.sort((a, b) => (scoreOf(b.ms[0])?.total ?? -1) - (scoreOf(a.ms[0])?.total ?? -1));    // ranked on the headline line
+      const S = SPORT[sp], best = gs[0], bs = scoreOf(best.ms[0]);
       return `<section id="${sp.toLowerCase()}">
-        <h2>${S.ico} ${S.name} <small>${ms.length} markets · ${fmtN(ms.reduce((a, m) => a + m.n, 0))} predictions${bs ? ` · most robust: ${esc(best.market)} (${bs.total})` : ''}</small></h2>
+        <h2>${S.ico} ${S.name} <small>${gs.length} models · ${fmtN(gs.reduce((a, g) => a + gN(g), 0))} predictions${bs ? ` · most robust: ${esc(best.name)} (${bs.total})` : ''}</small></h2>
         <p class="intro">${S.blurb} <a href="${S.app}">Open the ${S.name} tool →</a></p>
-        <div class="grid">${ms.map(card).join('')}</div>
+        <div class="grid">${gs.map(card).join('')}</div>
       </section>`;
     }).join('');
+    sports.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-g]'); if (!b) return;
+      const g = byId[b.dataset.g]; g.sel = +b.dataset.i;
+      document.getElementById(g.id).outerHTML = card(g);
+    });
   }).catch(() => { document.getElementById('sports').innerHTML = '<div class="loading">Couldn\'t load the scorecard. Refresh to try again.</div>'; });
 
   // Against the market: every head-to-head we've run, dated. verdict: us | mkt | even | add
