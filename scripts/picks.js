@@ -1156,6 +1156,9 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
   // rush + receiving, TE1 receptions (research/depth_live.py: the live pipeline replayed over 2025, checked on
   // 2026 weeks 2-6, RB1 rushing ladder log loss 0.6231 -> 0.6125). Rank as the role step reads it.
   const starterX = (board, pid, pos) => role.get(pid)?.rank === 1 ? (DEPTH_MODEL.starter[board]?.[pos] ?? 1) : 1;
+  // And the projection itself times x^g per board: the square root on the features under-corrected both ways on the
+  // live pipeline (promoted players ran 1.03-1.19x their projection, demoted 0.92-0.97x). research/depth_model.json role_mu.
+  const roleMu = (board, pid) => Math.pow(role.get(pid)?.x ?? 1, DEPTH_MODEL.role_mu?.[board] ?? 0);
   // ── Returners ───────────────────────────────────────────────────────────
   // Built from TWO seasons rather than one. The old build read a single
   // season's play-by-play, and that season flips to the new one the moment
@@ -1519,22 +1522,22 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
       const common = { snapL3: +f.snap_l3.toFixed(3), implied: r1(ctx.implied), fav: r1(ctx.fav), games: f._games,
                        roleX: +(role.get(pid)?.x ?? 1).toFixed(2), depth: role.get(pid)?.rank ?? null, q: questionable.has(pid) };
       if (info.position === 'RB' && f.car_prior >= 4) {
-        const mu = ydsMu('rush', f) * starterX('rush', pid, 'RB');
+        const mu = ydsMu('rush', f) * starterX('rush', pid, 'RB') * roleMu('rush', pid);
         yards.rush.push({ ...base, m: 'rush', mu: r1(mu), med: r1(ydsQ('rush', mu)),
           f: { ...common, avg: r1(f.rush_prior), car: r1(f.car_prior), l3: r1(f.rush_l3), carL3: r1(f.car_l3), ypc: +f.ypc.toFixed(2) } });
       }
       const recF = { ...common, avg: r1(f.ryds_prior), tgt: r1(f.tgt_prior), l3: r1(f.ryds_l3), shareL3: +f.share_l3.toFixed(3), ypt: +f.ypt.toFixed(2) };
       if (f.tgt_prior >= 2) {
-        const mu = ydsMu('rec', f);
+        const mu = ydsMu('rec', f) * roleMu('rec', pid);
         yards.rec.push({ ...base, m: 'rec', mu: r1(mu), med: r1(ydsQ('rec', mu)), f: recF });
       } else {
         // a low two-season average but targets lately (a backup back his team
         // throws to): scaled down, with the group's own wider spread
-        const lo = recLow(f);
+        const lo = recLow(f, roleMu('rec', pid));
         if (lo && qMedian(lo.tq) >= 3) yards.rec.push({ ...base, m: 'rec', mu: r1(lo.mu), med: r1(qMedian(lo.tq)), tq: lo.tq, f: { ...recF, recent: true, tgtL3: r1(f.tgt_l3) } });
       }
       if (f.tgt_prior + f.car_prior >= 5) {
-        const mu = ydsMu('rr', f) * starterX('rr', pid, info.position);
+        const mu = ydsMu('rr', f) * starterX('rr', pid, info.position) * roleMu('rr', pid);
         yards.rr.push({ ...base, m: 'rr', mu: r1(mu), med: r1(ydsQ('rr', mu)),
           f: { ...common, avg: r1(f.rr_prior), l3: r1(f.rr_l3), tgt: r1(f.tgt_prior), car: r1(f.car_prior), rec: r1(f.ryds_prior), rushAvg: r1(f.rush_prior) } });
       }
@@ -1581,7 +1584,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     const rs = roleS(pid);                      // depth chart + injuries, see "Role, sitewide"
     row.snap_l3 *= rs; row.share_l3 *= rs; row.rec_l3 *= rs;
     const track = recTrack(pid, info.position, season, week);
-    const mu = scoreMu(row, track) * starterX('recn', pid, info.position);
+    const mu = scoreMu(row, track) * starterX('recn', pid, info.position) * roleMu('recn', pid);
     if (mu < 0.35) continue;                    // nothing to quote
     receptions.push({
       pid, name: info.name, team: info.team, opp: ctx.opp, pos: info.position,

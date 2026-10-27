@@ -188,12 +188,12 @@ export const thinOver = (qs, line) => Math.min(0.995, Math.max(0.005, qs.filter(
 /**
  * Receiving yards below the 2-target prior with a real recent role (last-3
  * targets >= 2): the main model's mean times a measured scale, priced from the
- * group's own spread (research/yards.py --rec-low). Returns { mu, tq } or null.
+ * group's own spread (research/yards.py --rec-low), times k (the role step). Returns { mu, tq } or null.
  */
-export function recLow(f) {
+export function recLow(f, k = 1) {
   const R = M.rec_low;
   if (!R || !(f.tgt_prior < 2) || !(f.tgt_l3 >= 2)) return null;
-  const mu = scoreMu('rec', f) * R.scale;
+  const mu = scoreMu('rec', f) * R.scale * k;
   return { mu, tq: R.ratio_q.map(r => +(mu * r).toFixed(1)) };
 }
 export const qMean = (qs) => qs.reduce((a, b) => a + b, 0) / qs.length;

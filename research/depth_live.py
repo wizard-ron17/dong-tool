@@ -47,7 +47,8 @@ for b, g in fit.groupby('board'):
 SHIP = {'rush': ['RB|1'], 'rr': ['RB|1'], 'recn': ['TE|1']}
 if '--export' in sys.argv:
     p = os.path.join(HERE, 'depth_model.json')
-    json.dump({'note': ('Multiplier on a STARTER\'s projection (depth rank 1 on the published chart, as the build reads it), fitted on the '
+    keep = json.load(open(p)) if os.path.exists(p) else {}       # td_starter / role_mu are written elsewhere
+    json.dump({**keep, 'note': ('Multiplier on a STARTER\'s projection (depth rank 1 on the published chart, as the build reads it), fitted on the '
                         'live pipeline replayed over 2025 weeks 2-18 and checked on 2026 weeks 2-6 (research/depth_live.py). '
                         'Boards: recn = receptions, rush / rr = yards.'), 'shrink': SHRINK,
                'starter': {b: {c.split('|')[0]: out[b][c] for c in cells} for b, cells in SHIP.items()}},
