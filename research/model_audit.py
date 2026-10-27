@@ -186,11 +186,25 @@ def nfl_passing():
 
 
 def nfl_receptions():
+    # Scored at a line on each player's own projection (rounded down to .5), players projected 1.5+: the
+    # setting a book's main line puts him in. A fixed o3.5 for everyone mostly scored who is a receiver
+    # at all (AUC .86), which no bettor gets paid for.
     import receptions_disp as D
-    _, _, seasons, rows = D.walkforward()
-    score("NFL", "Receptions", "o3.5", np.concatenate(rows[3.5]["pow"]), np.concatenate(rows[3.5]["y"]),
-          len(seasons) - 1, tool="Receptions",
-            note="walk-forward mean calibration and volume-scaled NB dispersion, both fit on earlier seasons")
+    M, P, seasons, _ = D.walkforward()
+    ps, ys = [], []
+    for s in seasons[1:]:
+        tr, te = P[P.season < s], P[P.season == s]
+        x, y = D.fit_mu_map(tr.mu.to_numpy(), tr.y.to_numpy())
+        train_m = D.apply_mu_map(tr.mu.to_numpy(), x, y, extend=True)
+        m = D.apply_mu_map(te.mu.to_numpy(), x, y, extend=True)
+        c, pw = D.fit_pow(train_m, tr.y.to_numpy())
+        k = m >= 1.5; m = m[k]; act = te.y.to_numpy()[k]
+        L = np.floor(m) + 0.5; a = D.alpha_of(m, c, pw); p = np.empty(len(m))
+        for v in np.unique(L):                   # nb_sf takes one line at a time
+            w = L == v; p[w] = D.nb_sf(v, m[w], a[w])
+        ps.append(p); ys.append((act > L).astype(float))
+    score("NFL", "Receptions", "line at projection", np.concatenate(ps), np.concatenate(ys), len(seasons) - 1, tool="Receptions",
+          note="line = projection rounded down to .5 (players projected 1.5+), so every player sits near a coin flip")
 
 
 def nfl_yards():
