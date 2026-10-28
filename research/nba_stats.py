@@ -8,7 +8,11 @@ Every stat is the same shape (nba_points.py found it, round three):
   mu = projected minutes (nba_minutes.py) x his per-minute rate, times the game
      his rate   season to date + 0.5 x last season, shrunk 300 minutes to his
                 position family's rate — LAST season's family rate (the build
-                can't know this season's; research/nba_parity.mjs)
+                can't know this season's; research/nba_parity.mjs). When last
+                season was thin (injury), the season before it counts too:
+                weight 0.5 x (1 - last season's minutes / 1500), so a full
+                season leaves it out (10/28: deviance better on every stat,
+                0.7-1.2% on the thin-season players)
      form       his last-10 rate against that rate (shrunk 120 minutes)
      the game   his team's implied points / last season's league mean, the
                 opponent's allowance of this stat per game so far (shrunk 10
@@ -26,6 +30,7 @@ import pandas as pd
 from scipy.stats import nbinom, gamma as gamma_dist
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+PREV2_W, PREV2_FULL = 0.5, 1500
 STATS = ["pts", "reb", "ast", "pra", "stl", "blk", "stk"]
 RUNGS = {"pts": [10, 15, 20, 25, 30, 35], "reb": [4, 6, 8, 10, 12, 14], "ast": [2, 4, 6, 8, 10, 12],
          "pra": [15, 20, 25, 30, 35, 40, 45], "stl": [1, 2, 3], "blk": [1, 2, 3], "stk": [1, 2, 3, 4]}
@@ -64,11 +69,13 @@ def build():
     for c in ("pts", "reb", "ast", "stl", "blk", "min"): D[c] = D[c].astype(float).fillna(0)
     D["pra"] = D.pts + D.reb + D.ast; D["stk"] = D.stl + D.blk
     D["fam"] = D.fam.fillna("?")
-    ss = sorted(D.season.unique()); nxt = {s: ss[i + 1] for i, s in enumerate(ss[:-1])}
+    ss = sorted(D.season.unique()); nxt = {s: ss[i + 1] for i, s in enumerate(ss[:-1])}; nxt2 = {s: ss[i + 2] for i, s in enumerate(ss[:-2])}
     g = D.groupby(["pid", "season"])
     D["s_min"] = g["min"].cumsum() - D["min"]
-    pm = D.groupby(["pid", "season"])["min"].sum().reset_index(); pm["season"] = pm.season.map(nxt)
-    D = D.merge(pm.dropna().rename(columns={"min": "p_min"}), on=["pid", "season"], how="left").fillna({"p_min": 0})
+    pm = D.groupby(["pid", "season"])["min"].sum().reset_index()
+    D = D.merge(pm.assign(season=pm.season.map(nxt)).dropna().rename(columns={"min": "p_min"}), on=["pid", "season"], how="left").fillna({"p_min": 0})
+    D = D.merge(pm.assign(season=pm.season.map(nxt2)).dropna().rename(columns={"min": "q_min"}), on=["pid", "season"], how="left").fillna({"q_min": 0})
+    D["k2"] = PREV2_W * (1 - D.p_min / PREV2_FULL).clip(0, 1)              # the season before last, when last was thin
     D["implied"] = D.total / 2 - D.spread / 2
     imp_s = D.groupby("season").implied.mean(); D["limp"] = np.log((D.implied / D.season.map(imp_s.shift(1).fillna(imp_s))).fillna(1.0).clip(0.6, 1.4))
     D["home"] = D.home.astype(float)
@@ -76,14 +83,15 @@ def build():
     league = {"implied": float(D[D.season == ss[-1]].implied.mean()), "fam_rate": {}, "allowed": {}}
     for st in STATS:
         D[f"s_{st}"] = g[st].cumsum() - D[st]
-        pt = D.groupby(["pid", "season"])[st].sum().reset_index(); pt["season"] = pt.season.map(nxt)
-        D = D.merge(pt.dropna().rename(columns={st: f"p_{st}"}), on=["pid", "season"], how="left").fillna({f"p_{st}": 0})
+        pt = D.groupby(["pid", "season"])[st].sum().reset_index()
+        D = D.merge(pt.assign(season=pt.season.map(nxt)).dropna().rename(columns={st: f"p_{st}"}), on=["pid", "season"], how="left").fillna({f"p_{st}": 0})
+        D = D.merge(pt.assign(season=pt.season.map(nxt2)).dropna().rename(columns={st: f"q_{st}"}), on=["pid", "season"], how="left").fillna({f"q_{st}": 0})
         fr = D.groupby(["season", "fam"]).apply(lambda d, st=st: d[st].sum() / d["min"].sum(), include_groups=False).rename(f"fr_{st}").reset_index()
         league["fam_rate"][st] = {k: float(v) for k, v in fr[fr.season == ss[-1]].set_index("fam")[f"fr_{st}"].items()}
         frp = fr.assign(season=fr.season.map(nxt)).dropna()
         fr = pd.concat([frp, fr[fr.season == ss[0]]]).drop_duplicates(["season", "fam"])
         D = D.merge(fr, on=["season", "fam"], how="left")
-        D[f"rate_{st}"] = (D[f"s_{st}"] + 0.5 * D[f"p_{st}"] + 300 * D[f"fr_{st}"]) / (D.s_min + 0.5 * D.p_min + 300)
+        D[f"rate_{st}"] = (D[f"s_{st}"] + 0.5 * D[f"p_{st}"] + D.k2 * D[f"q_{st}"] + 300 * D[f"fr_{st}"]) / (D.s_min + 0.5 * D.p_min + D.k2 * D.q_min + 300)
         rs = D.groupby("pid")[st].transform(lambda x: x.shift(1).rolling(10, min_periods=1).sum()).fillna(0)
         rm = D.groupby("pid")["min"].transform(lambda x: x.shift(1).rolling(10, min_periods=1).sum()).fillna(0)
         D[f"r10_{st}"] = np.log(((rs + 120 * D[f"rate_{st}"]) / (rm + 120)).clip(1e-3)) - np.log(D[f"rate_{st}"].clip(1e-3))
@@ -198,6 +206,7 @@ def main():
     M["stats"] = {
         "note": "research/nba_stats.py — mu = projected minutes x his rate x the game (Poisson GLM, log(minutes) offset); variance given minutes = a x lam^p; ladder mixed over minutes.",
         "cols": ["const", "lrate", "r10", "limp", "lopp", "home", "early", "r10_x_early"], "shrink_min": 300, "prev_weight": 0.5, "form_k": 120,
+        "prev2_weight": PREV2_W, "prev2_full": PREV2_FULL,
         "opp_shrink_games": 10, "clip": {"imp": [0.6, 1.4], "opp": [0.7, 1.3]},
         "models": {st: {"coef": [float(x) for x in fits[st][0]], "a": fits[st][1], "p": fits[st][2], "rungs": RUNGS[st]} for st in STATS},
         "league": league,

@@ -143,10 +143,13 @@ export function fbWeight(s, pos) {
 // rate x the game; variance given minutes a x lam^p; mixed over his minutes.
 const STAT_PARTS = { tpm: ['tpm'], pts: ['pts'], reb: ['reb'], ast: ['ast'], pra: ['pts', 'reb', 'ast'], stl: ['stl'], blk: ['blk'], stk: ['stl', 'blk'] };
 const sumParts = (o, st) => STAT_PARTS[st].reduce((a, k) => a + (o?.[k] || 0), 0);
-/** His per-minute rate for a stat: season to date + half of last season, shrunk to his position (last season's). */
-export function statRate(st, s, prev, pos) {
+/** His per-minute rate for a stat: season to date + half of last season, shrunk to his position (last season's).
+ *  A thin last season (injury) lets the one before it in: weight prev2_weight x (1 - last season's minutes / prev2_full). */
+export function statRate(st, s, prev, pos, prev2) {
   const S = MODEL.stats, fr = S.league.fam_rate[st][fam(pos)] ?? Object.values(S.league.fam_rate[st])[0];
-  return (sumParts(s, st) + S.prev_weight * sumParts(prev, st) + S.shrink_min * fr) / ((s?.min || 0) + S.prev_weight * (prev?.min || 0) + S.shrink_min);
+  const k2 = prev2 && S.prev2_weight ? S.prev2_weight * clip(1 - (prev?.min || 0) / S.prev2_full, 0, 1) : 0;
+  return (sumParts(s, st) + S.prev_weight * sumParts(prev, st) + k2 * sumParts(prev2, st) + S.shrink_min * fr)
+    / ((s?.min || 0) + S.prev_weight * (prev?.min || 0) + k2 * (prev2?.min || 0) + S.shrink_min);
 }
 /** Recent form: his last-10 rate against the longer one, on the log scale (shrunk form_k minutes). */
 export function statForm(st, s, rate) {

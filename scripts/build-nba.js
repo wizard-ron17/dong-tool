@@ -41,6 +41,49 @@ async function events(from, to) {
   return [...byId.values()];
 }
 
+// RotoWire's NBA lineups: each club's starting five, Expected until it's Confirmed
+// (~30 min before tip). Starting tonight switches the minutes to research's lineup
+// model (nba_minutes.py: a bench player moved into the five was 6.0 minutes short
+// without it, 0.3 with it) — and the stat ladders were fit on those minutes.
+// Fetched as any browser would, as the MLB build does; only a full five we can
+// place on the roster is used. Returns gid -> team -> { status, ids: Set }.
+const RW_NBA = { NYK: 'NY', SAS: 'SA', GSW: 'GS', NOP: 'NO', UTA: 'UTAH', WAS: 'WSH', PHO: 'PHX' };
+const rwNorm = (n) => String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  .replace(/[.'’-]/g, '').replace(/\b(jr|sr|ii|iii|iv)\b/g, '').replace(/\s+/g, ' ').trim();
+async function rotowireStarters(boardDate, today, slate, rosters) {
+  const url = boardDate === today ? 'https://www.rotowire.com/basketball/nba-lineups.php'
+    : boardDate === shiftDate(today, 1) ? 'https://www.rotowire.com/basketball/nba-lineups.php?date=tomorrow' : null;
+  const out = {}; if (!url || !slate.length) return out;
+  let html = '';
+  try { html = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (dong-tool)' } }).then(r => r.ok ? r.text() : ''); }
+  catch (e) { console.warn(`  RotoWire lineups skipped: ${e.message}`); return out; }
+  let used = 0, seen = 0;
+  for (const b of html.split('<div class="lineup is-nba').slice(1)) {
+    const abbrs = [...b.matchAll(/lineup__abbr">([A-Z]+)</g)].map(m => RW_NBA[m[1]] || m[1]);
+    if (abbrs.length < 2) continue;
+    const [visit, home] = abbrs, g = slate.find(x => x.home.ab === home && x.away.ab === visit);
+    if (!g) continue;
+    for (const [cls, team] of [['is-visit', visit], ['is-home', home]]) {
+      const i = b.indexOf(`lineup__list ${cls}`); if (i < 0) continue;
+      const list = b.slice(i, b.indexOf('</ul>', i)), cut = list.indexOf('MAY NOT PLAY');
+      const five = (cut < 0 ? list : list.slice(0, cut));
+      const status = /lineup__status is-confirmed/.test(five) ? 'confirmed' : /lineup__status is-expected/.test(five) ? 'expected' : null;
+      const names = [...five.matchAll(/<li class="lineup__player[^"]*"[\s\S]*?<a title="([^"]+)"/g)].map(m => m[1]);
+      seen++;
+      const byName = new Map((rosters.get(team) || []).map(a => [rwNorm(a.displayName), a.id]));
+      const ids = names.map(n => byName.get(rwNorm(n))).filter(Boolean);
+      if (!status || names.length !== 5 || ids.length !== 5) {
+        if (status && names.length === 5) console.warn(`  RotoWire ${team}: couldn't place ${names.filter(n => !byName.has(rwNorm(n))).join(', ')}`);
+        continue;
+      }
+      (out[g.id] ||= {})[team] = { status, ids: new Set(ids.map(String)) };
+      used++;
+    }
+  }
+  console.log(`  RotoWire lineups: ${used}/${seen} starting fives placed (${boardDate})`);
+  return out;
+}
+
 async function main() {
   const today = etDate();
   // ── 1) The season and its phases ──────────────────────────────────────
@@ -234,6 +277,7 @@ async function main() {
   const rosters = new Map(await pool(Object.values(teams), 6, async (t) => {
     try { return [t.ab, (await get(`${SITE}/teams/${t.id}/roster`)).athletes || []]; } catch (e) { return [t.ab, null]; }
   }));
+  const fives = await rotowireStarters(boardDate, today, slate.filter(g => g.state === 'pre'), rosters);
   for (const g of slate) {
     if (g.state !== 'pre') {
       rows.push(...frozen.filter(r => r.gid === g.id));
@@ -266,15 +310,17 @@ async function main() {
         const s = state.players[a.id]; if (!s?.last10?.length) continue;
         const prevTot = priorPrev[a.id]?.prev || null, pos = a.position?.abbreviation || s.pos;
         const inp = minutesInputs(s, prevTot);
+        const five = fives[g.id]?.[me];
         const M = projectMinutes(inp, { date: g.date, teamLast, absSpread: sp != null ? Math.abs(sp) : null, b2b,
-          vacated: vac, vacPos: vacFam[fam(pos)] || 0 });
+          vacated: vac, vacPos: vacFam[fam(pos)] || 0, starting: five ? five.ids.has(String(a.id)) : undefined });
         ctxList.push({ a, s, pos, min: M.min, start10: inp.start10 ?? 0, margin: sp != null ? -sp : 0 });
         if (M.min < 8) continue;                                  // not a rotation player tonight
         // every counting-stat ladder and the double / triple-double, off the same minutes (research/nba_stats.py)
-        const base = { gid: g.id, start: g.start, pid: a.id, name: a.displayName, team: me, opp, home, pos, min: +M.min.toFixed(1), sd: +M.sd.toFixed(2), q: injuries[a.id]?.status || null };
+        const base = { gid: g.id, start: g.start, pid: a.id, name: a.displayName, team: me, opp, home, pos, min: +M.min.toFixed(1), sd: +M.sd.toFixed(2), q: injuries[a.id]?.status || null,
+          ...(five ? { st: five.ids.has(String(a.id)) ? 1 : 0, lu: five.status } : {}) };
         const mus = {};
         for (const st of STATS) {
-          const r0 = statRate(st, s, prevTot, pos);
+          const r0 = statRate(st, s, prevTot, pos, priorPrev[a.id]?.prev2);
           const mu = statMu(st, { rate: r0, form: statForm(st, s, r0), implied, oppRatio: statOpp(st, state.teams?.[opp]), home, mproj: M.min, early: inp.early });
           mus[st] = mu;
           // the card's key metrics: his per-game rate (this season, else last), his last ten, the matchup
@@ -329,7 +375,10 @@ async function main() {
     if (g.state !== 'pre') { fbGames.push(...frozenFb.filter(x => x.gid === g.id)); continue; }
     const side = {};
     for (const ab of [g.home.ab, g.away.ab]) {
-      const L = (teamCtx[g.id]?.[ab] || []).filter(x => x.min >= 12)
+      // the posted (or RotoWire's expected) five when we have it, else the five who usually start
+      const five = fives[g.id]?.[ab], all = teamCtx[g.id]?.[ab] || [];
+      const known = five ? all.filter(x => five.ids.has(String(x.a.id))) : [];
+      const L = known.length === 5 ? known : all.filter(x => x.min >= 12)
         .sort((x, y) => y.start10 - x.start10 || y.min - x.min).slice(0, 5);
       if (L.length < 5) { side[ab] = null; continue; }
       const jumper = [...L].sort((x, y) => (y.s.tipn || 0) - (x.s.tipn || 0) || (fam(y.pos) === 'C') - (fam(x.pos) === 'C') || y.min - x.min)[0];

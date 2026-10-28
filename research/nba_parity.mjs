@@ -26,7 +26,7 @@ const toReduced = ({ game: g, players }) => ({
     ...Object.fromEntries(['min', 'pts', 'fgm', 'fga', 'tpm', 'tpa', 'ftm', 'fta', 'oreb', 'dreb', 'reb', 'ast', 'stl', 'blk', 'to'].map(k => [k, p[k] || 0])) })),
 });
 
-let state = null, prev = {}, season = null, famRates = null, lgAllowed = null, statFam = null, statLg = null;
+let state = null, prev = {}, prev2 = {}, season = null, famRates = null, lgAllowed = null, statFam = null, statLg = null;
 const out = ['gid,pid,season,m3,m5,m10,mseason,mprev,start10,rest,rate3,opp3,rate_pts,form_pts,opp_pts,rate_reb,form_reb,opp_reb,l40dd,form_tpm,dr_t1'];
 const S0 = MODEL.stats.league;
 for (const d of games) {
@@ -34,6 +34,7 @@ for (const d of games) {
   if (g.season !== season) {
     // the season break: this season's totals become "prev"; recent games carry over
     if (state) {
+      prev2 = prev;                                                   // the season before last, as priors.json carries it
       prev = Object.fromEntries(Object.entries(state.players).filter(([, p]) => p.gp > 0).map(([pid, p]) => [pid, { ...p }]));
       // last season's league constants, as nba_model.json carries them for the live build
       const f = {};
@@ -67,7 +68,7 @@ for (const d of games) {
         threesRate(s, prev[p.pid], p.pos ?? s.pos, famRates || undefined), oppThreesRatio(state.teams?.[opp], lgAllowed || undefined),
         ...['pts', 'reb'].flatMap(st => {
           if (statFam) { S0.fam_rate[st] = statFam[st]; S0.allowed[st] = statLg[st]; }
-          const r = statRate(st, s, prev[p.pid], p.pos ?? s.pos);
+          const r = statRate(st, s, prev[p.pid], p.pos ?? s.pos, prev2[p.pid]);
           return [r, statForm(st, s, r), statOpp(st, state.teams?.[opp])];
         }),
         (() => { const h = (s.cats40 || '').slice(-40), n = h.length, hit = [...h].filter(c => +c >= 2).length;
