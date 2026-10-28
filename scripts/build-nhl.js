@@ -296,12 +296,20 @@ async function main() {
     const pf = pc('bf'), po = pc('bo');
     for (const r of list) r.val = r.p <= 0.2 && pf(r.bf) >= 0.6 && po(r.bo) >= 0.6 ? 1 : 0;
   }
+  // Line combinations, read off the finished games' shift charts (scripts/nhl-combos.js). Built before the
+  // boards: the points models price off each skater's PP unit in his team's previous game.
+  console.log('Line combinations…');
+  let lines = null;
+  try { lines = await buildLines({ schedule }); }
+  catch (e) { console.warn(`  lines not built: ${e.message}`); }   // the schedule and tools degrade; the build doesn't
+  const ppUnit = Object.fromEntries(Object.entries(lines?.teams || {}).map(([team, t]) =>
+    [team, Object.fromEntries(t.pp.flatMap((grp, i) => grp.map(p => [p, i + 1])))]));
   let points = { board: [], model: null, date: upcoming || null };
   let hits = { board: [], model: null, date: upcoming || null };
   let blocks = { board: [], model: null, date: upcoming || null };
   try {
     const r = await buildShotsBoard({
-      season: UP.id, prevSeason: HIST.id, games: slate, playedDates,
+      season: UP.id, prevSeason: HIST.id, games: slate, playedDates, ppUnit,
     });
     shots = { board: r.board, model: r.model, date: upcoming || null };
     picks = { picks: r.picks, model: r.picksModel, date: upcoming || null };
@@ -579,12 +587,6 @@ async function main() {
     fun = await buildFun({ season: UP.id, hist: HIST.id, today, schedule, picks: picks.picks, log: playersLog });
     console.log(`  ${fun.birthdays.length} birthdays this week, ${fun.milestones.length} milestone chases, ${fun.due.length} droughts`);
   } catch (e) { console.warn(`  fun pages not built: ${e.message}`); }
-
-  // ── 7f) Line combinations, read off the finished games' shift charts (scripts/nhl-combos.js) ──
-  console.log('Line combinations…');
-  let lines = null;
-  try { lines = await buildLines({ schedule }); }
-  catch (e) { console.warn(`  lines not built: ${e.message}`); }   // the schedule and tools degrade; the build doesn't
 
   // ── 8) Write ───────────────────────────────────────────────────────────
   const output = {

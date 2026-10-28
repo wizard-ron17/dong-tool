@@ -84,7 +84,7 @@ async function recentGames(dates) {
  * @param {Array}  o.games       today's games: { gameId, date, away, home, start }
  * @param {string[]} o.playedDates  dates already played this season, newest last
  */
-export async function buildShotsBoard({ season, prevSeason, games, playedDates }) {
+export async function buildShotsBoard({ season, prevSeason, games, playedDates, ppUnit = {} }) {
   if (!games.length) return { board: [], teams: {}, model: meta() };
 
   const recentDates = playedDates.slice(-RECENT_DATES);
@@ -260,7 +260,7 @@ export async function buildShotsBoard({ season, prevSeason, games, playedDates }
       const rec = (log.get(+pid) || []);
       const pf = pointsFeatures({ role: (rs.pos || who.pos) === 'D' ? 'D' : 'F', h: { gp, ...hist },
         recent: rec, teamGf: teamGf(team), oppGa: teamGa(opp[team]), oppPk: teamPk(opp[team]), isHome: home[team] });
-      const m = projectPoints(pf);
+      const m = projectPoints(pf, ppUnit[team] ? ppUnit[team][pid] ?? 0 : undefined);
       points.push({
         pid: +pid, name: who.name, pos: rs.pos || who.pos, team, mug: rs.mug || null,
         opp: opp[team], home: !!home[team], gameId: g.gameId, date: g.date, start: g.start, gp,
@@ -268,7 +268,8 @@ export async function buildShotsBoard({ season, prevSeason, games, playedDates }
         f: { ptsPg: +pf.pts_prior.toFixed(3), aPg: +pf.a_prior.toFixed(3), pppPg: +pf.ppp_prior.toFixed(3),
              ptsL10: +pf.pts_l10.toFixed(2), aL10: +pf.a_l10.toFixed(2), pppL10: +pf.ppp_l10.toFixed(2),
              toi: +pf.toi_l5.toFixed(0), pptoi: +pf.pptoi_l5.toFixed(0),
-             teamGf: +pf.team_gf_prior.toFixed(2), oppGa: +pf.opp_ga_prior.toFixed(2), oppPk: +pf.opp_pk_prior.toFixed(3) },
+             teamGf: +pf.team_gf_prior.toFixed(2), oppGa: +pf.opp_ga_prior.toFixed(2), oppPk: +pf.opp_pk_prior.toFixed(3),
+             ppUnit: ppUnit[team] ? ppUnit[team][pid] ?? 0 : null },
         recent: { pts: rec.slice(-10).map(x => x.pts), a: rec.slice(-10).map(x => x.a), ppp: rec.slice(-10).map(x => x.ppp) },
       });
     }

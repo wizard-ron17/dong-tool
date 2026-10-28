@@ -50,9 +50,14 @@ function iso(p, { x, y }) {
   const t = (p - x[i - 1]) / (x[i] - x[i - 1]);
   return y[i - 1] + t * (y[i] - y[i - 1]);
 }
-/** Expected points, assists and PP points. PP points' mean comes back through its isotonic map. */
-export function projectPoints(f) {
+/**
+ * Expected points, assists and PP points. PP points' mean comes back through its isotonic map.
+ * ppUnit: his power-play unit in his team's previous game (scripts/nhl-combos.js), 0 = none, undefined =
+ * no lines for his team. The first unit runs above the minutes-based price (research/nhl_pp_unit.py).
+ */
+export function projectPoints(f, ppUnit) {
   const pts = linear(PT_MODEL.pts, f), a = linear(PT_MODEL.a, f), raw = linear(PT_MODEL.ppp, f);
   const p1 = Math.min(0.97, Math.max(1e-5, iso(1 - Math.exp(-raw), PT_MODEL.ppp.iso)));
-  return { pts, a, ppp: -Math.log(1 - p1) };
+  const U = PT_MODEL.pp_unit, m = (k) => ppUnit == null || !U ? 1 : Math.exp(U[k].all + (ppUnit === 1 ? U[k].pp1 : ppUnit === 2 ? U[k].pp2 : 0));
+  return { pts: pts * m('pts'), a: a * m('a'), ppp: -Math.log(1 - p1) * m('ppp') };
 }
