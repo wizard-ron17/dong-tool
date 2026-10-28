@@ -84,9 +84,54 @@ for target in ('pts', 'a', 'ppp'):
     print(g.to_string())
     out[target] = {'all': float(w[0]), 'pp1': float(w[1]), 'pp2': float(w[2])}
 
-M = json.load(open(MODEL))
+M = json.load(open(MODEL))                         # points / assists / PP points ship (written before the goals test below)
 M['pp_unit'] = {**out, 'note': "log-multipliers on each mean when the player's team's previous game gave his PP unit "
                 "(scripts/nhl-combos.js): 'all' for every skater with a known unit (0 = none), plus pp1 / pp2. "
                 "Fitted on 2025-26 with the shipped means as offset (research/nhl_pp_unit.py)."}
 json.dump(M, open(MODEL, 'w'), indent=1)
 print(f'\nwrote pp_unit into {MODEL}')
+
+
+# ── Goals and shots on goal, the same test (10/28: closes PP1 goals .276 vs ours .253, z +3.0; SOG z +2.0) ──
+# Goals: the unit multiplies the CALIBRATED mean (-ln(1 - p) after the isotonic map). SOG: the Poisson mean.
+# NULL on 2025-26, NOT shipped (prints only): goals +0.01% (PP1 and PP2 alike +3%: no first-unit effect, the
+# model's PP minutes already carry it), SOG -0.01% (PP1 +2.4% on the mean). The live gaps were two weeks' noise.
+import nhl_goals as NG
+import nhl_sog as NS
+
+
+def units(df):
+    df = df[df.season == S].copy()
+    k = list(zip(df.date, df.team))
+    df['ppu'] = [pre[x].get(int(p), 0) if x in pre else np.nan for x, p in zip(k, df.pid)]
+    df = df[df.ppu.notna()].copy(); df['pp1'] = (df.ppu == 1).astype(float); df['pp2'] = (df.ppu == 2).astype(float)
+    return df
+
+
+for name, mod in (('goals', NG), ('sog', NS)):
+    Dm = mod.D; trm = Dm[Dm.season < S]; tem = units(Dm)
+    ref = {f: (trm[f].mean(), trm[f].std() or 1.0) for f in mod.SHIPPED}
+    b = poisson_irls(mod.design(trm, mod.SHIPPED, ref), trm[name].to_numpy(float))
+    mu = np.exp(np.clip(mod.design(tem, mod.SHIPPED, ref) @ b, -8, 3))
+    if name == 'goals':
+        mtr = np.exp(np.clip(mod.design(trm, mod.SHIPPED, ref) @ b, -8, 3))
+        kx, ky = isotonic_fit(1 - np.exp(-mtr), (trm.goals.to_numpy() > 0).astype(float))
+        mu = -np.log(1 - np.clip(np.interp(1 - np.exp(-mu), kx, ky), 1e-5, 0.97))
+    off, y = np.log(mu), tem[name].to_numpy(float)
+    Xm = np.column_stack([np.ones(len(tem)), tem.pp1, tem.pp2])
+    h1 = (tem.date < '2026-01-01').to_numpy()
+    if name == 'sog':
+        a = NS.nb_dispersion(trm.sog.to_numpy(float), np.exp(np.clip(mod.design(trm, mod.SHIPPED, ref) @ b, -8, 3)))
+        score = lambda m, yy: float(np.mean([-np.mean(np.where(yy > L, np.log(NS.nb_sf(L, m, a)), np.log(1 - NS.nb_sf(L, m, a)))) for L in (1.5, 2.5, 3.5)]))
+        lab = 'NB log loss o1.5/2.5/3.5'
+    else:
+        score, lab = ll1, '1+ log loss'
+    r = []
+    for tr_, te_ in ((h1, ~h1), (~h1, h1)):
+        w0 = fit(off[tr_], Xm[tr_, :1], y[tr_]); w = fit(off[tr_], Xm[tr_], y[tr_])
+        r.append((te_.sum(), score(np.exp(off[te_] + Xm[te_, :1] @ w0), y[te_]), score(np.exp(off[te_] + Xm[te_] @ w), y[te_])))
+    n = sum(x[0] for x in r); l0 = sum(x[0] * x[1] for x in r) / n; l1 = sum(x[0] * x[2] for x in r) / n
+    w = fit(off, Xm, y)
+    print(f'\n{name}: {len(tem):,} skater-games; cross-fit {lab}, level only {l0:.5f} -> + PP unit {l1:.5f} ({(l1 / l0 - 1) * 100:+.2f}%)'
+          f'   log-multipliers: all {w[0]:+.3f}  PP1 {w[1]:+.3f}  PP2 {w[2]:+.3f}')
+    print(tem.assign(shipped=mu, with_unit=np.exp(off + Xm @ w), act=y).groupby('ppu')[['shipped', 'with_unit', 'act']].mean().round(3).to_string())
