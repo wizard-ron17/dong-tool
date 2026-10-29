@@ -19,13 +19,12 @@ fr = R.groupby(["season", "fam"]).apply(lambda d: d.tpm.sum() / d["min"].sum(), 
 fr_prev = fr.assign(season=fr.season.map(nxt)).dropna()                   # last season's, as research now uses
 fr = pd.concat([fr_prev, fr[fr.season == min(fr.season)]]).drop_duplicates(["season", "fam"])
 R = R.merge(fr, on=["season", "fam"], how="left")
-R["rate3"] = (R.s_tpm + 0.5 * R.p_tpm + 300 * R.fam_rate) / (R.s_min + 0.5 * R.p_min + 300)
 R["mprev_r"] = R.mprev.fillna(R.m10); R["mseason_r"] = R.mseason.fillna(R.m10)
-M = B.merge(R[["gid", "pid", "m3", "m5", "m10", "mseason_r", "mprev_r", "start10", "rest", "rate3"]].rename(columns=lambda c: c + "_r" if c in ("m3", "m5", "m10", "start10", "rest", "rate3") else c), on=["gid", "pid"])
+M = B.merge(R[["gid", "pid", "m3", "m5", "m10", "mseason_r", "mprev_r", "start10", "rest"]].rename(columns=lambda c: c + "_r" if c in ("m3", "m5", "m10", "start10", "rest") else c), on=["gid", "pid"])
 M = M[M.season >= ss[1]]
 print(f"{len(M):,} player-games matched (seasons {ss[1]}..{ss[-1]})\n")
 print(f"{'input':10s} {'mean |diff|':>12s} {'share within 1%':>16s} {'corr':>7s}")
-for b, r in (("m3", "m3_r"), ("m5", "m5_r"), ("m10", "m10_r"), ("mseason", "mseason_r"), ("mprev", "mprev_r"), ("start10", "start10_r"), ("rest", "rest_r"), ("rate3", "rate3_r")):
+for b, r in (("m3", "m3_r"), ("m5", "m5_r"), ("m10", "m10_r"), ("mseason", "mseason_r"), ("mprev", "mprev_r"), ("start10", "start10_r"), ("rest", "rest_r")):
     x, y = M[b].astype(float), M[r].astype(float); ok = x.notna() & y.notna()
     d = (x[ok] - y[ok]).abs(); within = (d <= 0.01 * y[ok].abs().clip(lower=0.01)).mean()
     print(f"{b:10s} {d.mean():12.4f} {within:16.1%} {np.corrcoef(x[ok], y[ok])[0, 1]:7.4f}")
@@ -49,10 +48,10 @@ from nba_due import droughts
 M3 = pd.read_parquet(os.path.join(HERE, "nba_minutes.parquet"))
 M3 = M3[(M3.type == 2) & (~M3.dnp)][["gid", "pid", "date", "tpm"]].copy(); M3["h1"] = M3.tpm >= 1
 T3 = T3.merge(droughts(M3, "pid", "h1")[["gid", "pid", "drought"]], on=["gid", "pid"], how="left")
-K3 = B.merge(T3[["gid", "pid", "r10_tpm", "drought"]], on=["gid", "pid"])
+K3 = B.merge(T3[["gid", "pid", "rate_tpm", "r10_tpm", "drought"]], on=["gid", "pid"])
 K3 = K3[K3.season >= ss[2]]
 print(f"\nthrees: {len(K3):,} player-games matched")
-for b, r in (("form_tpm", "r10_tpm"), ("dr_t1", "drought")):
+for b, r in (("rate3", "rate_tpm"), ("form_tpm", "r10_tpm"), ("dr_t1", "drought")):   # rate: the stats engine's, prev2 included
     x, y = pd.to_numeric(K3[b], errors="coerce"), K3[r].astype(float); ok = x.notna() & y.notna()
     d = (x[ok] - y[ok]).abs(); within = (d <= 0.01 * y[ok].abs().clip(lower=0.01)).mean()
     print(f"{b:10s} {d.mean():12.4f} {within:16.1%} {np.corrcoef(x[ok], y[ok])[0, 1]:7.4f}   (null both: {(x.isna() & y.isna()).sum():,}, one only: {(x.isna() ^ y.isna()).sum():,})")

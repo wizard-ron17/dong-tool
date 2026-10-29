@@ -336,7 +336,7 @@ async function main() {
         ddRows.push({ ...base, pts: +mus.pts.toFixed(1), reb: +mus.reb.toFixed(1), ast: +mus.ast.toFixed(1),
           dd: +dbl.dd.toFixed(4), td: +dbl.td.toFixed(5), ddOwn: +dbl.ddOwn.toFixed(3), tdOwn: +dbl.tdOwn.toFixed(4),
           l40: (s.cats40 || '').length, dd40: [...(s.cats40 || '')].filter(c => +c >= 2).length, td40: [...(s.cats40 || '')].filter(c => +c >= 3).length });
-        const rate = threesRate(s, prevTot, pos);
+        const rate = threesRate(s, prevTot, pos, undefined, priorPrev[a.id]?.prev2);
         const form3 = statForm('tpm', s, rate);
         const mu = threesMu({ rate, form: form3, implied, oppRatio: oppThreesRatio(state.teams?.[opp]), home, mproj: M.min,
           early: inp.early, drought: s.dr?.t1 ?? null });

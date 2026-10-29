@@ -101,7 +101,9 @@ def export_threes():
     """The shipped threes model (D82+sq), fit on every season, for nba_model.json["threes"].
     scripts/nba-models.js threesMu applies it: the stats engine's columns for tpm
     (nba_stats.X_of) plus log(1 + drought) and its square, the drought capped 82
-    games (none on record = 82) — the build's state counts it the same (dr.t1)."""
+    games (none on record = 82) — the build's state counts it the same (dr.t1).
+    His rate is the stats engine's, so a thin last season lets the one before in (10/29, threesRate's prev2):
+    walk-forward 1+ log loss -0.11% (better every season), -0.66% on the thin-season players."""
     NS.STATS = ["tpm"]
     D, league, _ = NS.build()
     D = D[D.tpm.notna()].copy()
@@ -116,9 +118,9 @@ def export_threes():
     b = TH.glm_poisson(X, D.tpm.values, D.off.values)
     cols = ["const", "lrate", "form", "limp", "lopp", "home", "early", "form_x_early", "ldr", "ldr2"]
     return {
-        "note": "research/nba_threes_form2.py — made threes: Poisson GLM on the stats engine's columns (his rate, last-10 form, implied, opponent, home, early season) plus log(1 + games since his last made three) and its square; NB alpha 0.1 over minutes.",
+        "note": "research/nba_threes_form2.py — made threes: Poisson GLM on the stats engine's columns (his rate, last-10 form, implied, opponent, home, early season) plus log(1 + games since his last made three) and its square; NB alpha 0.1 over minutes. A thin last season lets the one before in (prev2), as the stats engine.",
         "cols": cols, "coef": dict(zip(cols, [float(x) for x in b])), "rows": int(len(D)),
-        "shrink_min": 300, "prev_weight": 0.5, "form_k": 120, "opp_shrink_games": 10, "drought_cap": 82,
+        "shrink_min": 300, "prev_weight": 0.5, "prev2_weight": NS.PREV2_W, "prev2_full": NS.PREV2_FULL, "form_k": 120, "opp_shrink_games": 10, "drought_cap": 82,
         "alpha": 0.1, "sd_min": 5.2, "clip": {"imp": [0.6, 1.4], "opp": [0.7, 1.3]}, "rungs": [1, 2, 3, 4, 5],
         "league": {"fam_rate": league["fam_rate"]["tpm"], "allowed": league["allowed"]["tpm"], "implied": league["implied"]},
     }

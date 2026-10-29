@@ -54,10 +54,11 @@ export function projectMinutes(inp, ctx) {
 }
 
 /** His made threes per minute: season to date + half of last season, shrunk to his position family. */
-export function threesRate(s, prev, pos, famRates = MODEL.threes.league.fam_rate) {
+export function threesRate(s, prev, pos, famRates = MODEL.threes.league.fam_rate, prev2) {
   const T = MODEL.threes, fr = famRates[fam(pos)] ?? 0.05;
   const pt = prev?.tpm || 0, pm = prev?.min || 0;
-  return (s.tpm + T.prev_weight * pt + T.shrink_min * fr) / (s.min + T.prev_weight * pm + T.shrink_min);
+  const k2 = prev2 && T.prev2_weight ? T.prev2_weight * clip(1 - pm / T.prev2_full, 0, 1) : 0;   // as statRate
+  return (s.tpm + T.prev_weight * pt + k2 * (prev2?.tpm || 0) + T.shrink_min * fr) / (s.min + T.prev_weight * pm + k2 * (prev2?.min || 0) + T.shrink_min);
 }
 
 /** Opponent's threes allowed per game so far, shrunk 10 games to the league, as a ratio. */

@@ -65,7 +65,7 @@ for (const d of games) {
       const opp = p.team === g.home ? g.away : g.home;
       const lastD = state.teams?.[p.team]?.last, rest = lastD ? Math.min(7, Math.max(0, Math.round((Date.parse(g.date + 'T12:00:00Z') - Date.parse(lastD + 'T12:00:00Z')) / 864e5))) : 7;
       out.push([g.id, p.pid, g.season, inp.m3, inp.m5, inp.m10, inp.mseason, inp.mprev, inp.start10, rest,
-        threesRate(s, prev[p.pid], p.pos ?? s.pos, famRates || undefined), oppThreesRatio(state.teams?.[opp], lgAllowed || undefined),
+        threesRate(s, prev[p.pid], p.pos ?? s.pos, famRates || undefined, prev2[p.pid]), oppThreesRatio(state.teams?.[opp], lgAllowed || undefined),
         ...['pts', 'reb'].flatMap(st => {
           if (statFam) { S0.fam_rate[st] = statFam[st]; S0.allowed[st] = statLg[st]; }
           const r = statRate(st, s, prev[p.pid], p.pos ?? s.pos, prev2[p.pid]);
@@ -73,7 +73,7 @@ for (const d of games) {
         }),
         (() => { const h = (s.cats40 || '').slice(-40), n = h.length, hit = [...h].filter(c => +c >= 2).length;
                  return n ? hit / n : ''; })(),
-        (() => { const r3 = threesRate(s, prev[p.pid], p.pos ?? s.pos, famRates || undefined); return statForm('tpm', s, r3); })(),
+        (() => { const r3 = threesRate(s, prev[p.pid], p.pos ?? s.pos, famRates || undefined, prev2[p.pid]); return statForm('tpm', s, r3); })(),
         s.dr?.t1 ?? ''].map(v => typeof v === 'number' ? +v.toFixed(5) : v).join(','));
     }
   }
