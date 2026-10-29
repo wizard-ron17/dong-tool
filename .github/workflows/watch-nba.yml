@@ -1,0 +1,44 @@
+name: Watch nba lineups
+
+# The pre-game window in one long run (scripts/pregame-watch.mjs): rebuild every 5 minutes from 90
+# minutes before each tip through the last one, so prices carry confirmed starting fives. GitHub drops
+# and delays scheduled runs, so several crons start it; one runs, the rest find nothing left to do.
+# Public repo: Actions minutes are free. Times UTC (ET is UTC-4 until November, UTC-5 after).
+on:
+  schedule:
+    - cron: '7 21,22,23 * * *'
+    - cron: '7 0,1 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  issues: write        # build alerts (scripts/build-alert.sh)
+
+concurrency:
+  group: watch-nba
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Anything to build?
+        id: gate
+        run: node scripts/should-build.mjs nba schedule >> "$GITHUB_OUTPUT"
+
+      - name: Rebuild through the pre-game window
+        if: steps.gate.outputs.run == 'true'
+        run: node scripts/pregame-watch.mjs nba
+
+      - name: Alert on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/build-alert.sh fail "nba lineup watch"
