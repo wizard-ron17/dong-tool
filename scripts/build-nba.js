@@ -406,7 +406,7 @@ async function main() {
   ddRows.sort((a, b) => b.dd - a.dd);
   // the spread each distribution uses, so the page's ladder card draws what the build priced
   const stats = boardDate ? { date: boardDate, generated: new Date().toISOString(),
-    spread: Object.fromEntries(STATS.map(st => [st, { a: MODEL.stats.models[st].a, p: MODEL.stats.models[st].p }])),
+    spread: Object.fromEntries(STATS.map(st => [st, { a: MODEL.stats.models[st].a, p: MODEL.stats.models[st].p, ...(MODEL.stats.shape_cal?.[st] ? { cal: MODEL.stats.shape_cal[st] } : {}) }])),
     boards: Object.fromEntries(STATS.map(st => [st, { rungs: MODEL.stats.models[st].rungs, rows: statRows[st] }])), doubles: ddRows } : null;
   console.log(`Stats boards: ${STATS.map(st => `${st} ${statRows[st].length}`).join(', ')} · doubles ${ddRows.length}`);
   // the model's terms, so the page's factor table splits each price exactly the way the build made it

@@ -176,6 +176,12 @@ function sfPow(k, lam, a, p) {
   const l = Math.max(lam, 0.02), alpha = Math.max((a * Math.pow(l, p) - l) / (l * l), 1e-4);
   return nbSf(k, l, alpha);
 }
+/** Points / PRA shape (research/nba_shape.py): P(X >= k) remapped on the logit scale by log mu. */
+export function shapeCal(p, mu, C) {
+  if (!C) return p;
+  const c = C.c, m = clip(Math.log(Math.max(mu, 1e-3)), C.m[0], C.m[1]), q = clip(p, 1e-9, 1 - 1e-9), z = Math.log(q / (1 - q));
+  return 1 / (1 + Math.exp(-(c[0] + c[1] * z + c[2] * m + c[3] * z * m + c[4] * m * m + c[5] * z * m * m)));
+}
 /** A stat's ladder over its rungs, mixed over minutes N(mproj, sd); g scales the rate (the shared night). */
 export function statLadder(st, mu, mproj, sd, g = 1, rungs = MODEL.stats.models[st].rungs) {
   const m = MODEL.stats.models[st], out = rungs.map(() => 0);
@@ -183,7 +189,8 @@ export function statLadder(st, mu, mproj, sd, g = 1, rungs = MODEL.stats.models[
     const lam = mu * g * clip(mproj + sd * GH.x[i], 1, 48) / Math.max(mproj, 1);
     rungs.forEach((k, j) => { out[j] += GH.w[i] * sfPow(k, lam, m.a, m.p); });
   }
-  return out;
+  const C = MODEL.stats.shape_cal?.[st];
+  return C ? out.map(p => shapeCal(p, mu * g, C)) : out;
 }
 /**
  * Double / triple-double: pts, reb, ast independent GIVEN minutes and a shared

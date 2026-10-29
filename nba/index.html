@@ -1592,7 +1592,17 @@
       const alpha = spread.alpha ?? Math.max((spread.a * Math.pow(lam, spread.p) - lam) / (lam * lam), 1e-4);
       nbPmf(lam, alpha, K).forEach((v, k) => { out[k] += GH_W[i] * v; });
     }
-    return out;
+    return spread.cal ? shapeCal(out, mu, spread.cal) : out;
+  }
+  // points / PRA shape (research/nba_shape.py): P(X >= k) remapped on the logit scale by log mu
+  function shapeCal(pmf, mu, C) {
+    const c = C.c, m = Math.min(C.m[1], Math.max(C.m[0], Math.log(Math.max(mu, 1e-3)))), K = pmf.length - 1, S = [1];
+    let tail = 1;
+    for (let k = 1; k <= K; k++) {
+      tail -= pmf[k - 1]; const q = Math.min(1 - 1e-9, Math.max(1e-9, tail)), z = Math.log(q / (1 - q));
+      S.push(Math.min(S[k - 1], 1 / (1 + Math.exp(-(c[0] + c[1] * z + c[2] * m + c[3] * z * m + c[4] * m * m + c[5] * z * m * m)))));
+    }
+    return pmf.map((_, k) => k === K ? S[K] : S[k] - S[k + 1]);
   }
   const overAt = RonLadder.over;
 
