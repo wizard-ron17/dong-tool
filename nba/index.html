@@ -1907,7 +1907,7 @@
     if (!rows.length) return card + bar + `<div class="empty">Nobody matches these factor filters. <a href="javascript:void(0)" onclick="RonFx.reset('nbaT3',&quot;renderBoard('threes')&quot;)">Clear them →</a></div>`;
     const G = [['Player', 2], ['Price', 2, 'price'], ['Situational', 7, 'sit'], ['Production', 3, 'prod'], ['Game', 1, 'game']];
     return `${card}${bar}<div class="rc-tablewrap"><table class="rc-table t3x u-tbl">${uiCols(G)}
-      <thead>${uiBand(G)}<tr><th title="Rank in the current sort"></th>${th('name', 'Player', 'Click any column to sort by it; click again to reverse')}${th('mu', 'Proj', 'Projected made threes')}${th('p', 'Fair', 'Our fair price at his line, no vig, with the line and chance below it', ' u-fair')}
+      <thead>${uiBand(G)}<tr><th title="Rank in the current sort"></th>${th('name', 'Player', 'Click any column to sort by it; click again to reverse')}${th('mu', 'Proj', 'Projected made threes')}${th('p', 'Ron', 'Our fair price at his line, no vig, with the line and chance below it', ' u-fair')}
         ${th('shooter', 'Shooter ×', "His makes per minute against his position's: who he is, the NBA version of MLB Power")}${th('minutes', 'Min ×', 'Projected minutes tonight against his last ten games: a role that just grew (a teammate out) or shrank')}
         ${th('form', 'Form ×', 'His last ten games against his longer rate')}${th('drought', 'Drought ×', 'Games since his last made three: a long drought pulls the price down')}
         ${th('spot', 'Spot ×', "The opponent's threes allowed, his team's implied points, home")}${th('lift', 'Lift ×', 'Everything except Shooter: minutes x form x drought x spot')}${th('bueno', 'Bueno ×', "The matchup alone: Form x the opponent's threes allowed (MLB's Bueno is P. Vuln x Contact x Platoon). The 🎯 Value screen's score")}
@@ -1980,7 +1980,7 @@
         ['Avg miss', rs => `<td class="num dim">${miss(rs).toFixed(2)}</td>`]])}
       ${nbNav(set, days, F.night, `${dayLabel(F.night, true)} · ${rec(night)} over`)}
       <div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
-        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num">Proj</th><th class="num u-fair">Fair</th><th class="num">Got</th><th class="num">Result</th><th>Game</th></tr></thead>
+        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num">Proj</th><th class="num u-fair" title="Ron's fair price: our model, no vig, with its chance">Ron</th><th class="num">Got</th><th class="num">Result</th><th>Game</th></tr></thead>
         <tbody>${night.map((r, i) => `<tr onclick="openBoardCard('${LC[kind].nav}','${r.pid}')">
           <td class="num${i < 10 ? '' : ' dim'}"${i < 10 ? ' style="color:var(--accent);font-weight:700"' : ''}>${i + 1}</td><td><b>${esc(r.b[BX.name])}</b> <span class="dim">${r.b[BX.min]} min</span></td>
           <td class="num"><b>${r.mu.toFixed(1)}</b></td>${uiFair(r.p, 'o' + r.L)}<td class="num"><b>${r.got}</b></td>
@@ -2021,7 +2021,7 @@
     else if (F.view === 'table') {
       const G = [['Player', 2], ['Price', 2, 'price'], ['Situational', 1, 'sit'], ['Production', 2, 'prod'], ['Game', 1, 'game']];
       body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
-        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num">Proj</th><th class="num u-fair">Fair</th><th class="num" title="The opponent against the league at this stat">Opp</th><th class="num">Min</th><th class="num">${kind === '3pm' ? '3PA/g' : 'L10'}</th><th>Game</th></tr></thead>
+        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num">Proj</th><th class="num u-fair" title="Ron's fair price: our model, no vig, with its chance">Ron</th><th class="num" title="The opponent against the league at this stat">Opp</th><th class="num">Min</th><th class="num">${kind === '3pm' ? '3PA/g' : 'L10'}</th><th>Game</th></tr></thead>
         <tbody>${rows.map(r => `
           <tr onclick="${open(r)}"${started(r) ? ' class="dim"' : ''}${parAttr(bdLeg(kind, r, r.L, r.pAt))}>
             <td class="num dim">${r.rank}</td>
@@ -2238,7 +2238,7 @@
         ['In top 3', rs => `<td class="num">${rec(rs, top3)}</td>`]])}
       ${nbNav('setFbF', days, fbF.night, `${dayLabel(fbF.night, true)} · ${rec(night, hit)} favourites`)}
       <div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
-        <thead>${uiBand(G)}<tr><th>Game</th><th>Player</th><th class="num u-fair">Fair</th><th>Player</th><th class="num">Our price</th><th class="num">Our rank</th></tr></thead>
+        <thead>${uiBand(G)}<tr><th>Game</th><th>Player</th><th class="num u-fair" title="Ron's fair price: our model, no vig, with its chance">Ron</th><th>Player</th><th class="num">Our price</th><th class="num">Our rank</th></tr></thead>
         <tbody>${night.map(x => `<tr>
           <td class="dim">${esc(x.G.away)} @ ${esc(x.G.home)}</td>
           <td><b>${nm(x, x.top[0])}</b></td>${uiFair(x.top[1])}
@@ -2293,7 +2293,7 @@
     if (fbF.view === 'table') {
       const G = [['Player', 2], ['Price', 1, 'price'], ['Situational', 1, 'sit'], ['Production', 1, 'prod'], ['Game', 1, 'game']];
       body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
-        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num u-fair">Fair</th><th class="num" title="His team's chance to score the game's first basket">Team first</th><th class="num">First baskets</th><th>Game</th></tr></thead>
+        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num u-fair" title="Ron's fair price: our model, no vig, with its chance">Ron</th><th class="num" title="His team's chance to score the game's first basket">Team first</th><th class="num">First baskets</th><th>Game</th></tr></thead>
         <tbody>${all.map((r, i) => `<tr${parAttr(fbLeg(r, r.g))}>
           <td class="num dim">${i + 1}</td><td><b>${esc(r.name)}</b> <span class="dim">${esc(r.pos || '')}${r.jumper ? ' · tip' : ''}</span></td>
           ${uiFair(r.p)}

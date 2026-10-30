@@ -1195,7 +1195,7 @@
     if (gF.view === 'table') {
       const G = [['Player', 2], ['Price', 1, 'price'], ['Situational', 1, 'sit'], ['Production', 4, 'prod'], ['Game', 1, 'game']];
       body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
-        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num u-fair">Fair</th><th class="num" title="Goals the line expects from his team">Team</th><th class="num" title="Expected minutes">Min</th><th class="num">SH/90</th><th class="num">G/90</th><th class="num" title="His share of his team's penalties">Pens</th><th>Game</th></tr></thead>
+        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num u-fair" title="Ron's fair price: our model, no vig, with its chance">Ron</th><th class="num" title="Goals the line expects from his team">Team</th><th class="num" title="Expected minutes">Min</th><th class="num">SH/90</th><th class="num">G/90</th><th class="num" title="His share of his team's penalties">Pens</th><th>Game</th></tr></thead>
         <tbody>${rows.map(r => `
           <tr onclick="${open(r)}"${started(r) ? ' class="dim"' : ''}>
             <td class="num dim">${r.rank}</td>
@@ -1379,7 +1379,7 @@
     if (sF.view === 'table') {
       const G = [['Player', 2], ['Price', 2, 'price'], ['Situational', 1, 'sit'], ['Production', 2, 'prod'], ['Game', 1, 'game']];
       body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
-        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num">Proj</th><th class="num u-fair">Fair</th><th class="num" title="Shots a game the opponent allows (its last 20)">Opp allows</th><th class="num" title="His chance to start">Start</th><th class="num">${k === 'sh' ? 'SH' : 'SOT'}/90</th><th>Game</th></tr></thead>
+        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num">Proj</th><th class="num u-fair" title="Ron's fair price: our model, no vig, with its chance">Ron</th><th class="num" title="Shots a game the opponent allows (its last 20)">Opp allows</th><th class="num" title="His chance to start">Start</th><th class="num">${k === 'sh' ? 'SH' : 'SOT'}/90</th><th>Game</th></tr></thead>
         <tbody>${rows.map(r => `
           <tr onclick="${open(r)}"${started(r) ? ' class="dim"' : ''}>
             <td class="num dim">${r.rank}</td>

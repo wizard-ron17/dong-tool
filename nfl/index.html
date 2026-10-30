@@ -3899,7 +3899,7 @@
     const th = (v, lab, cls = '', tip = '') => `<th class="${cls}${pbF.sort === v ? ' on' : ''}" onclick="setPbSort('${v}')"${tip ? ` title="${tip}"` : ''}>${lab}${pbF.sort === v ? `<span class="ar">${pbF.dir === 'desc' ? '▼' : '▲'}</span>` : ''}</th>`;
     const G = [['Player', 2], ['Price', 4, 'price'], ['Production', 1, 'prod'], ['Game', 2, 'game']];
     return `<div class="pb-tablewrap"><table class="pb-table u-tbl">${uiCols(G)}
-      <thead>${uiBand(G)}<tr><th class="static" title="Rank in the current sort">#</th>${th('name', 'Quarterback', '', 'Click any column to sort by it; click again to reverse')}${th('proj', 'Proj TD', 'num', 'Projected passing touchdowns')}${th('p', 'Fair', 'num u-fair', 'Our fair price at this line, no vig, with the chance beside it')}<th class="static num" title="Fair price for 1+ passing touchdowns">O0.5</th><th class="static num" title="Fair price for 3+ passing touchdowns">O2.5</th><th class="static num" title="Pass attempts per game">Att/g</th>${th('imp', 'Total', 'num', 'Points his team is implied to score, from the game total and spread')}${th('time', 'Game', '', 'The game, sorted by kickoff')}</tr></thead>
+      <thead>${uiBand(G)}<tr><th class="static" title="Rank in the current sort">#</th>${th('name', 'Quarterback', '', 'Click any column to sort by it; click again to reverse')}${th('proj', 'Proj TD', 'num', 'Projected passing touchdowns')}${th('p', 'Ron', 'num u-fair', 'Our fair price at this line, no vig, with the chance beside it')}<th class="static num" title="Fair price for 1+ passing touchdowns">O0.5</th><th class="static num" title="Fair price for 3+ passing touchdowns">O2.5</th><th class="static num" title="Pass attempts per game">Att/g</th>${th('imp', 'Total', 'num', 'Points his team is implied to score, from the game total and spread')}${th('time', 'Game', '', 'The game, sorted by kickoff')}</tr></thead>
       <tbody>${rows.map((r, i) => `<tr onclick="openPick('${r.pid}')"${parAttr(pbLeg(r))}>
         <td class="num">${r.rank ?? i + 1}</td>
         <td class="nm">${r.name}</td>
@@ -3928,7 +3928,7 @@
     if (pbMkt().qbOnly) return bar + '<div class="empty">The passing-TD market is its own Poisson model — pick an anytime market to see factors.</div>';
     const G = [['Player', 3], ['Price', 1, 'price'], ['Situational', 4, 'sit'], ['Production', 5, 'prod'], ['Game', 2, 'game']];
     return `${card}${bar}<div class="pb-tablewrap"><table class="pb-table pbx-table u-tbl">${uiCols(G)}
-      <thead>${uiBand(G)}<tr><th class="static" title="Rank in the current sort">#</th>${th('name', 'Player', '', 'Click any column to sort by it; click again to reverse')}${th('pos', 'Pos', '', 'Position')}${th('p', 'Fair', 'num u-fair', 'Our fair price to score, no vig, with the chance beside it')}
+      <thead>${uiBand(G)}<tr><th class="static" title="Rank in the current sort">#</th>${th('name', 'Player', '', 'Click any column to sort by it; click again to reverse')}${th('pos', 'Pos', '', 'Position')}${th('p', 'Ron', 'num u-fair', 'Our fair price to score, no vig, with the chance beside it')}
         ${th('role', 'Role ×', 'num', 'Who he is: touches, snaps, TD share, red zone (and goal-line carries for a QB). The NFL version of MLB Power.')}
         ${th('trend', 'Trend ×', 'num', 'His last three games vs his usual touches — a role growing (green) or shrinking (red).')}
         ${th('spot', 'Spot ×', 'num', 'This game: his team\'s implied total and teammates ruled out. Mostly the team total — opposing defense tested as a null.')}
@@ -7035,7 +7035,7 @@ let pairStacks = false;
     if (rcF.view === 'table') {
       const G = [['Player', 2], ['Price', 2, 'price'], ['Production', 2, 'prod'], ['Game', 1, 'game']];
       body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
-        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num">Proj</th><th class="num u-fair">Fair</th>
+        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num">Proj</th><th class="num u-fair" title="Ron's fair price: our model, no vig, with its chance">Ron</th>
           <th class="num" title="Share of his offense's snaps, last three games">Snap</th><th class="num" title="Share of his team's targets, last three games">Tgt</th><th>Game</th></tr></thead>
         <tbody>${rows.map((r, i) => `
           <tr onclick="openRec('${r.pid}')"${parAttr(rcLeg(r))}>
@@ -7283,7 +7283,7 @@ let pairStacks = false;
     let body;
     if (cpF.view === 'table') {
       const G = [['Player', 2], ['Price', 2, 'price'], ['Production', 2, 'prod'], ['Game', 1, 'game']];
-      body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}<thead>${uiBand(G)}<tr><th></th><th>QB</th><th class="num">Proj</th><th class="num u-fair">Fair</th><th class="num">Att</th><th class="num">Cmp%</th><th>Game</th></tr></thead><tbody>${rows.map((r, i) => `
+      body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}<thead>${uiBand(G)}<tr><th></th><th>QB</th><th class="num">Proj</th><th class="num u-fair" title="Ron's fair price: our model, no vig, with its chance">Ron</th><th class="num">Att</th><th class="num">Cmp%</th><th>Game</th></tr></thead><tbody>${rows.map((r, i) => `
         <tr onclick="openCmp('${r.pid}')"${parAttr(cpLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td>
           <td class="num"><b>${r.mu.toFixed(1)}</b></td>${uiFair(r.p, parSideLine(r))}<td class="num dim">${r.f.attPrior.toFixed(0)}</td><td class="num dim">${(r.f.rate * 100).toFixed(0)}%</td>
           <td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td></tr>`).join('')}</tbody></table></div>`;
@@ -7413,7 +7413,7 @@ let pairStacks = false;
     let body;
     if (inF.view === 'table') {
       const G = [['Player', 2], ['Price', 1, 'price'], ['Situational', 2, 'sit'], ['Production', 1, 'prod'], ['Game', 1, 'game']];
-      body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}<thead>${uiBand(G)}<tr><th></th><th>QB</th><th class="num u-fair">Fair</th><th class="num" title="Point spread for his team: trailing teams throw riskier passes">Spread</th><th class="num" title="Share of passes this defense intercepts">Opp INT%</th><th class="num" title="Share of his passes intercepted or broken up">Bad balls</th><th>Game</th></tr></thead><tbody>${rows.map(r => `
+      body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}<thead>${uiBand(G)}<tr><th></th><th>QB</th><th class="num u-fair" title="Ron's fair price: our model, no vig, with its chance">Ron</th><th class="num" title="Point spread for his team: trailing teams throw riskier passes">Spread</th><th class="num" title="Share of passes this defense intercepts">Opp INT%</th><th class="num" title="Share of his passes intercepted or broken up">Bad balls</th><th>Game</th></tr></thead><tbody>${rows.map(r => `
         <tr onclick="openInt('${r.pid}')"${parAttr(inLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td>
           ${uiFair(r.p, parSideLine(r))}<td class="num dim">${spreadTxt(r.f.fav)}</td><td class="num dim">${(r.f.defInt * 100).toFixed(1)}%</td><td class="num dim">${(r.f.bad * 100).toFixed(1)}%</td>
           <td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td></tr>`).join('')}</tbody></table></div>`;
@@ -7553,7 +7553,7 @@ let pairStacks = false;
     let body;
     if (kkF.view === 'table') {
       const G = [['Player', 2], ['Price', 2, 'price'], ['Situational', 3, 'sit'], ['Game', 1, 'game']];
-      body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}<thead>${uiBand(G)}<tr><th></th><th>Kicker</th><th class="num">Proj</th><th class="num u-fair">Fair</th><th class="num">Team total</th><th class="num">Spread</th><th class="num">Weather</th><th>Game</th></tr></thead><tbody>${rows.map(r => `
+      body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}<thead>${uiBand(G)}<tr><th></th><th>Kicker</th><th class="num">Proj</th><th class="num u-fair" title="Ron's fair price: our model, no vig, with its chance">Ron</th><th class="num">Team total</th><th class="num">Spread</th><th class="num">Weather</th><th>Game</th></tr></thead><tbody>${rows.map(r => `
         <tr onclick="openKick('${r.pid}')"${parAttr(kkLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td>
           <td class="num"><b>${kkProj(r)}</b></td>${uiFair(r.pp, parSideLine(r))}
           <td class="num dim">${r.f.implied.toFixed(1)}</td><td class="num dim">${spreadTxt(r.f.fav)}</td><td class="num dim">${kkWx(r.f)}</td>
@@ -7729,7 +7729,7 @@ let pairStacks = false;
     let body;
     if (ydF.view === 'table') {
       const G = [['Player', 2], ['Price', 2, 'price'], ['Production', 2, 'prod'], ['Game', 1, 'game']];
-      body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}<thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num">Median</th><th class="num u-fair">Fair</th><th class="num">Avg</th><th class="num">Last 3</th><th>Game</th></tr></thead><tbody>${rows.map(r => `
+      body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}<thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num">Median</th><th class="num u-fair" title="Ron's fair price: our model, no vig, with its chance">Ron</th><th class="num">Avg</th><th class="num">Last 3</th><th>Game</th></tr></thead><tbody>${rows.map(r => `
         <tr onclick="openYds('${r.pid}','${r.m}')"${parAttr(ydLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b> <span class="dim">${r.pos}</span></td>
           <td class="num"><b>${r.med.toFixed(0)}</b></td>${uiFair(r.p, parSideLine(r))}<td class="num dim">${r.f.avg != null ? r.f.avg.toFixed(0) : '—'}</td><td class="num dim">${r.f.l3 != null ? r.f.l3.toFixed(0) : '—'}</td>
           <td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td></tr>`).join('')}</tbody></table></div>`;

@@ -3143,7 +3143,7 @@
     if (sgF.view === 'table') {
       const G = [['Player', 2], ['Price', 2, 'price'], ['Situational', 1, 'sit'], ['Production', 2, 'prod'], ['Game', 1, 'game']];
       body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
-        <thead>${uiBand(G)}<tr><th></th><th>Skater</th><th class="num">Proj</th><th class="num u-fair">Fair</th>
+        <thead>${uiBand(G)}<tr><th></th><th>Skater</th><th class="num">Proj</th><th class="num u-fair" title="Ron's fair price: our model, no vig, with its chance">Ron</th>
           <th class="num" title="Shots on goal a game the opponent allows">Opp SA</th><th class="num">TOI</th><th class="num">L10</th><th>Game</th></tr></thead>
         <tbody>${rows.map(r => `
           <tr onclick="openShot(${r.pid})"${parAttr(lcLegOf('sog', r, r.L, r.pAt))}>
@@ -3343,7 +3343,7 @@
     if (F.view === 'table') {
       const G = [['Player', 2], ['Price', 2, 'price'], ['Situational', 2, 'sit'], ['Production', 2, 'prod'], ['Game', 1, 'game']];
       body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
-        <thead>${uiBand(G)}<tr><th></th><th>Goalie</th><th class="num">Proj</th><th class="num u-fair">Fair</th><th class="num">${ga ? 'Team GA' : 'Opp SF'}</th>
+        <thead>${uiBand(G)}<tr><th></th><th>Goalie</th><th class="num">Proj</th><th class="num u-fair" title="Ron's fair price: our model, no vig, with its chance">Ron</th><th class="num">${ga ? 'Team GA' : 'Opp SF'}</th>
           <th class="num">${ga ? 'Opp GF' : 'Team SA'}</th><th class="num">SV%</th><th class="num">Starts</th><th>Game</th></tr></thead>
         <tbody>${rows.map(r => `
           <tr onclick="${open(r)}"${parAttr(lcLegOf(P.kind, r, r.L, r.pAt))}>
@@ -3466,7 +3466,7 @@
     if (F.view === 'table') {
       const G = [['Player', 2], ['Price', 2, 'price'], ['Situational', 1, 'sit'], ['Production', 3, 'prod'], ['Game', 1, 'game']];
       body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
-        <thead>${uiBand(G)}<tr><th></th><th>Skater</th><th class="num">Proj</th><th class="num u-fair">Fair</th><th class="num" title="This rink's scorekeeper against the league">Rink</th>
+        <thead>${uiBand(G)}<tr><th></th><th>Skater</th><th class="num">Proj</th><th class="num u-fair" title="Ron's fair price: our model, no vig, with its chance">Ron</th><th class="num" title="This rink's scorekeeper against the league">Rink</th>
           <th class="num">Per game</th><th class="num">L10</th><th class="num">TOI</th><th>Game</th></tr></thead>
         <tbody>${rows.map(r => `<tr onclick="${open(r)}"${leg(r)}>
             <td class="num dim">${r.rank}</td><td><b>${esc(r.name)}</b> <span class="dim">${POS_NAME[r.pos] || r.pos}</span></td>
@@ -3716,7 +3716,7 @@
     if (ptF.view === 'table') {
       const G = [['Player', 2], ['Price', 2, 'price'], ['Situational', 1, 'sit'], ['Production', 2, 'prod'], ['Game', 1, 'game']];
       body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
-        <thead>${uiBand(G)}<tr><th></th><th>Skater</th><th class="num">Proj</th><th class="num u-fair">Fair</th><th class="num" title="Goals a game the opponent allows">Opp GA</th>
+        <thead>${uiBand(G)}<tr><th></th><th>Skater</th><th class="num">Proj</th><th class="num u-fair" title="Ron's fair price: our model, no vig, with its chance">Ron</th><th class="num" title="Goals a game the opponent allows">Opp GA</th>
           <th class="num">${ptF.tab === 'ppp' ? 'PP min' : 'TOI'}</th><th class="num">${ptF.tab === 'ast' ? 'A/g' : ptF.tab === 'ppp' ? 'PPP/g' : 'P/g'}</th><th>Game</th></tr></thead>
         <tbody>${rows.map(r => `<tr onclick="${open(r)}"${parAttr(lcLegOf(ptF.tab, r, r.L, r.pAt))}>
             <td class="num dim">${r.rank}</td><td><b>${esc(r.name)}</b> <span class="dim">${POS_NAME[r.pos] || r.pos}</span></td>
@@ -4051,7 +4051,7 @@
     if (!rows.length) return card + bar + `<div class="empty">Nobody matches these factor filters. <a href="javascript:void(0)" onclick="RonFx.reset('nhlGoals','renderPicks()')">Clear them →</a></div>`;
     const G = [['Player', 3], ['Price', 1, 'price'], ['Situational', 7, 'sit'], ['Production', 5, 'prod'], ['Game', 2, 'game']];
     return `${card}${bar}<div class="pb-tablewrap"><table class="pb-table pbx-table u-tbl">${uiCols(G)}
-      <thead>${uiBand(G)}<tr><th class="static" title="Rank in the current sort">#</th>${th('name', 'Skater', '', 'Click any column to sort by it; click again to reverse')}<th class="static" title="Position, with his current line and power-play unit">Pos</th>${th('p', 'Fair', 'num u-fair', 'Our fair price to score, no vig, with the chance beside it')}
+      <thead>${uiBand(G)}<tr><th class="static" title="Rank in the current sort">#</th>${th('name', 'Skater', '', 'Click any column to sort by it; click again to reverse')}<th class="static" title="Position, with his current line and power-play unit">Pos</th>${th('p', 'Ron', 'num u-fair', 'Our fair price to score, no vig, with the chance beside it')}
         ${th('talent', 'Talent ×', 'num', 'Career scoring: goals, shot volume and shooting % together, and whether he plays defence — the NHL version of MLB Power.')}
         ${th('ice', 'Ice ×', 'num', 'Minutes a night, weighted to his last five — how much the coach uses him now, against players at his position.')}
         ${th('ppx', 'PP ×', 'num', 'Power-play minutes over his last five, against players at his position.')}
