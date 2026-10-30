@@ -1637,9 +1637,15 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
     // A starter (depth rank 1 on the published chart) is lifted on the log-odds scale: every season's starters
     // scored more than priced, the live board's included (research/td_depth_live.py: fitted on the live pipeline
     // over 2025, checked on 2026 weeks 2-6; RB1 / TE1 / WR1 each better, backups left alone - their cells flip).
+    // A backup (rank 2+, or off the chart) with no games in the window is priced on his position's MEAN usage,
+    // a starter's touches, TD share and red zone: training only saw that on rookies who played. Such backups
+    // scored about a third as often as priced, so they're pulled down too (research/td_prior.py: fitted on the
+    // live pipeline over 2025, checked on 2026; Jaydn Ott, KC's RB4, was 18.8%).
     const pCal = calibrate(score(row));
     const lift = depthRank === 1 ? (DEPTH_MODEL.td_starter?.[pos] ?? 0) : 0;
-    const pBase = lift ? 1 / (1 + Math.exp(-(Math.log(pCal / (1 - pCal)) + lift))) : pCal;
+    const onPrior = pos !== 'QB' && !(depthRank <= 1) && row.touches_prior2 === priorFor('touches', row.position, season);
+    const thin = onPrior ? (DEPTH_MODEL.td_prior ?? 0) : 0;
+    const pBase = lift || thin ? 1 / (1 + Math.exp(-(Math.log(pCal / (1 - pCal)) + lift + thin))) : pCal;
     picks.push({
       pid, name: info.name, team: info.team, opp: ctx.opp, pos,
       gameId: ctx.gameId, home: ctx.home,
@@ -1663,6 +1669,7 @@ export async function buildPicks({ schedule, historySeason, upcomingSeason, targ
         snap3Raw: +(row.snap_last3_raw ?? row.snap_last3).toFixed(6),
         ...(depthRank ? { depthRank } : {}),
         ...(lift ? { starter: +lift.toFixed(3) } : {}),   // the starter lift, log-odds (the card shows it as its own step)
+        ...(thin ? { prior: +thin.toFixed(3) } : {}),     // the no-history backup pull, log-odds (its own step too)
         snapPrior: +row.snap_share_prior.toFixed(6),
         tdShare: +row.td_share_prior.toFixed(6),
         rz: +row.rz_touches_prior.toFixed(6),
