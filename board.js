@@ -17,7 +17,6 @@
 //                                                       Situational, Production, Game. Categorical tints, never the
 //                                                       good-bad ramp. uiCols draws each group's divider down the table.
 //   uiFair(p, sub)                                      the price cell: odds over "sub · chance", the lit column
-// uiBand.extra / uiBand.priceLabel let a page that adds price columns (the local odds build) widen and rename Price.
 (function () {
   const CSS = `
   .pb-search { position: relative; margin-bottom: 0.55rem; }
@@ -123,15 +122,10 @@
         <input type="text" id="${id}" placeholder="${ph}" value="${esc(q)}" oninput="${setFn}('q',this.value,true)" autocomplete="off" spellcheck="false">
         <button class="pb-search-x" onclick="${setFn}('q','')" aria-label="Clear">×</button>
       </div>`;
-  // the price group grows by uiBand.extra columns (the local odds build's Market / Best / EV)
-  const uiSpan = (n, kind) => n + (kind === 'price' ? uiBand.extra || 0 : 0);
-  function uiBand(groups) {
-    return `<tr class="u-band">${groups.map(([l, n, k = 'plain']) =>
-      `<th colspan="${uiSpan(n, k)}" class="u-b-${k}">${k === 'price' && uiBand.priceLabel ? uiBand.priceLabel : l}</th>`).join('')}</tr>`;
-  }
+  const uiBand = (groups) => `<tr class="u-band">${groups.map(([l, n, k = 'plain']) => `<th colspan="${n}" class="u-b-${k}">${l}</th>`).join('')}</tr>`;
   // a <col span> repeats its border on every column it spans, so each group is its first column (the divider) plus the rest
-  const uiCols = (groups) => `<colgroup>${groups.map(([, n, k = 'plain']) => { const m = uiSpan(n, k);
-    return `<col class="u-g u-g-${k}">${m > 1 ? `<col span="${m - 1}" class="u-g-${k}">` : ''}`; }).join('')}</colgroup>`;
+  const uiCols = (groups) => `<colgroup>${groups.map(([, n, k = 'plain']) =>
+    `<col class="u-g u-g-${k}">${n > 1 ? `<col span="${n - 1}" class="u-g-${k}">` : ''}`).join('')}</colgroup>`;
   const uiFair = (p, sub = '', cls = '') => `<td class="u-fair${p < 0.5 ? ' dog' : ''}${cls ? ' ' + cls : ''}">${Odds.am(p)}<small>${sub ? sub + ' · ' : ''}${Odds.pct(p)}</small></td>`;
   const matchQ = (r, q) => { const t = q.trim().toLowerCase(); return !t || r.name.toLowerCase().includes(t) || r.team.toLowerCase() === t || r.opp.toLowerCase() === t || (r.pos || '').toLowerCase() === t; };
 
