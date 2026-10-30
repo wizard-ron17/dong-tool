@@ -562,6 +562,18 @@
   .rb-res-hr { margin-left: auto; flex-shrink: 0; font-family: var(--font-d); font-weight: 700; font-size: 0.766rem; color: var(--dim); }
   .offday-banner { background: var(--surface1); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 0.6rem 0.85rem; margin-bottom: 1.1rem; font-size: 0.766rem; line-height: 1.5; color: var(--dim); }
   .offday-banner b { color: var(--text); }
+  .offday-banner[data-home] { display: none !important; }
+  .ow-hero { display: flex; align-items: center; gap: 1.2rem; padding: 1.2rem 1.3rem; margin-bottom: 1.1rem; border-radius: 14px; border: 1px solid var(--border);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--gold) 13%, var(--surface1)), var(--surface1) 60%); }
+  .ow-trophy { width: 64px; height: 64px; flex: none; filter: drop-shadow(0 0 8px rgba(242,182,50,0.45)); }
+  .ow-kick { font-family: var(--font-d); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
+  .ow-team { display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-d); font-size: 1.55rem; font-weight: 700; color: var(--text-strong); margin: 0.15rem 0; }
+  .ow-team .ow-logo { width: 34px; height: 34px; }
+  .ow-sub { color: var(--dim); font-size: 0.86rem; }
+  .ow-acts { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.7rem; }
+  .ow-note { font-size: 0.74rem; color: var(--dim); line-height: 1.5; margin: 0.6rem 0 0; }
+  .hm-sec { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin: 0.8rem 0 0.2rem; }
+  @media (max-width: 600px) { .ow-hero { gap: 0.8rem; padding: 1rem; } .ow-trophy { width: 46px; height: 46px; } .ow-team { font-size: 1.2rem; } }
   .rb-hit-row { background: rgba(74,222,128,0.06); }
   .rb-hit-row .rb-res-hr { color: #4ade80; }
   .rb-miss-row .rb-res-name { color: var(--dim); }
@@ -3070,13 +3082,23 @@ let dueRows      = [];
 let prospects    = { justCalledUp: [], history: [] };
 let birthdays    = []; // hitters celebrating a birthday today 🎂
 let birthdayHistory = []; // past birthday boys + whether they homered
-let birthdaySubTab = 'today';
+// ── The offseason (hand-set once a year, like the picker's season dates) ──
+// From the day after the World Series until a week before Opening Day, when the builds resume
+// (scripts/should-build.mjs skips MLB with no game within a week). The boards keep their last slate;
+// every tool opens on its Results, home is the season wrap, and a banner says when it's back.
+// ?offseason previews it.
+const MLB_OFF = { from: '2026-10-29', until: '2027-03-18', spring: '2027-02-19', opening: '2027-03-25', season: '2026',
+  champ: { ab: 'MIL', name: 'Milwaukee Brewers', opp: 'Tampa Bay Rays', series: '4–1', clinched: '2026-10-28' } };
+const OFFSEASON = (() => { const t = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  return /[?&]offseason\b/.test(location.search) || (t >= MLB_OFF.from && t < MLB_OFF.until); })();
+const daysTo = (ymd) => Math.max(0, Math.ceil((Date.parse(ymd + 'T00:00:00-04:00') - Date.now()) / 864e5));
+let birthdaySubTab = OFFSEASON ? 'results' : 'today';
 let birthdayById = {}; // pid -> birthday entry, for the site-wide badge
 let milestones   = []; // hitters closing in on (or just past) a round-hundred career HR total
-let milestoneSubTab = 'hunt'; // 'hunt' = Closing In (default) · 'reached' = crossed this season
+let milestoneSubTab = OFFSEASON ? 'reached' : 'hunt'; // 'hunt' = Closing In (default) · 'reached' = crossed this season
 let steals       = []; // today's base-stealers ranked vs the battery they'll face
 let stealsHistory = []; // past steal boards + who actually swiped a bag
-let stealsSubTab = 'board'; // 'board' (default) | 'results'
+let stealsSubTab = OFFSEASON ? 'results' : 'board'; // 'board' (default) | 'results'
 let pitchArsenal = null, pitchArsenalLoading = false; // lazy-loaded pitch-arsenal.json
 let ptPitch = null;      // selected pitch type
 let ptTeam = null;       // drilled-into team (null = team leaderboard)
@@ -3113,7 +3135,7 @@ function walksRankRecord(rank) {
 }
 // Ks / Walks Results: the two tools each keep their own sub-tab, so switching
 // between them doesn't drag the other one onto its history view.
-let ppSub = { pitcherks: 'board', pitcherwalks: 'board' };
+let ppSub = OFFSEASON ? { pitcherks: 'results', pitcherwalks: 'results' } : { pitcherks: 'board', pitcherwalks: 'board' };
 // Which bet the Results box score grades. null = use the tab's evidence-based
 // default. Kept per tool because the answer genuinely differs: walks have a real
 // under edge, strikeouts have no side worth leaning on.
@@ -3201,7 +3223,7 @@ let listView = (() => {
   return (window.matchMedia && window.matchMedia('(max-width: 600px)').matches) ? 'cards' : 'table';
 })();
 let picksFiltersPanelOpen = false;
-let picksSubTab = 'today';
+let picksSubTab = OFFSEASON ? 'results' : 'today';
 
 let activeNav      = 'pairs';
 let activePairSize = 2;
@@ -3317,7 +3339,7 @@ let dueFilters     = { hideCold: false, longestOnly: false, hideNoBarrels: false
 let dueFiltersPanelOpen = false;
 let dueStreaks = {};   // pid -> { since, maxScore, bestRank } for players currently on the list
 let dueHistory = [];   // one entry per scored day: { date, of, grads: [...] }
-let dueSubTab  = 'list';
+let dueSubTab  = OFFSEASON ? 'results' : 'list';
 let activeTerms    = [];
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -3617,7 +3639,7 @@ function applyData(data) {
   todayDate = data.todayDate ?? null;
   postDates = data.postDates ?? [];
   postAlive = data.postAlive ?? null;
-  applyPostseason(data.postseason);
+  applyPostseason(data.postseason && !OFFSEASON);
   setTimeout(maybePostWelcome, 700);
   schedHistory = data.schedHistory ?? [];
   todaySchedule = data.todaySchedule ?? [];
@@ -3735,23 +3757,23 @@ function applyRouteState() {
     document.getElementById('stats-league').style.display = activeStatsView === 'league' ? '' : 'none';
     document.getElementById('stats-individual').style.display = activeStatsView === 'individual' ? '' : 'none';
   } else if (validNav === 'picks') {
-    picksSubTab = sub === 'results' ? 'results' : 'today';
+    picksSubTab = sub === 'results' || (!sub && OFFSEASON) ? 'results' : 'today';
   } else if (validNav === 'due') {
-    dueSubTab = sub === 'results' ? 'results' : 'list';
+    dueSubTab = sub === 'results' || (!sub && OFFSEASON) ? 'results' : 'list';
   } else if (validNav === 'prospects') {
-    activeProspectTab = sub === 'results' ? 'results' : 'justCalledUp';
+    activeProspectTab = sub === 'results' || (!sub && OFFSEASON) ? 'results' : 'justCalledUp';
   } else if (validNav === 'daylate') {
-    dayLateSubTab = sub === 'results' ? 'results' : 'today';
+    dayLateSubTab = sub === 'results' || (!sub && OFFSEASON) ? 'results' : 'today';
   } else if (validNav === 'returning') {
-    returningSubTab = sub === 'results' ? 'results' : 'today';
+    returningSubTab = sub === 'results' || (!sub && OFFSEASON) ? 'results' : 'today';
   } else if (validNav === 'birthdays') {
-    birthdaySubTab = sub === 'results' ? 'results' : 'today';
+    birthdaySubTab = sub === 'results' || (!sub && OFFSEASON) ? 'results' : 'today';
   } else if (validNav === 'milestones') {
-    milestoneSubTab = sub === 'reached' ? 'reached' : 'hunt';
+    milestoneSubTab = sub === 'reached' || (!sub && OFFSEASON) ? 'reached' : 'hunt';
   } else if (validNav === 'steals') {
-    stealsSubTab = sub === 'results' ? 'results' : 'board';
+    stealsSubTab = sub === 'results' || (!sub && OFFSEASON) ? 'results' : 'board';
   } else if (validNav === 'pitcherks' || validNav === 'pitcherwalks') {
-    ppSub[validNav] = sub === 'results' ? 'results' : 'board';
+    ppSub[validNav] = sub === 'results' || (!sub && OFFSEASON) ? 'results' : 'board';
   } else if (validNav === 'recap') {
     recapDate = /^\d{4}-\d{2}-\d{2}$/.test(sub) ? sub : null; // /recap/2026-07-10 deep-links a day
   }
@@ -3889,6 +3911,7 @@ const PAGE_TITLES = {
 };
 function switchNav(nav) {
   activeNav = nav;
+  document.getElementById('offday-banner')?.toggleAttribute('data-home', OFFSEASON && nav === 'home');   // the offseason home has its own season wrap
   RonChrome.show(nav, { title: PAGE_TITLES[nav] });
   renderCurrentPanel();
   commitRoute();
@@ -3935,6 +3958,7 @@ function disableNav(disabled) {
 function renderHome() {
   const el = document.getElementById('home-content');
   if (!Object.keys(dailyHRs).length) return; // pre-load; applyData re-renders
+  if (OFFSEASON) { el.innerHTML = seasonWrapHtml(); return; }
 
   // Latest COMPLETED day: the finished active-date slate, or the last game day
   // before an off day / All-Star break. Never a partial slate (see
@@ -4970,10 +4994,80 @@ function recapAvailableDates() { return completedGameDates(); }
 function updateOffdayBanner() {
   const el = document.getElementById('offday-banner');
   if (!el) return;
+  if (OFFSEASON) {
+    const c = MLB_OFF.champ;
+    el.style.display = '';
+    el.innerHTML = `🏆 <b>The ${c.name} won the ${MLB_OFF.season} World Series.</b> The season's over: every tool's Results, the Recap and Stats cover all of it, and the boards come back for Opening Day, ${fmtDateLong(MLB_OFF.opening)} (${daysTo(MLB_OFF.opening)} days).`;
+    return;
+  }
   if (!noGamesToday()) { el.style.display = 'none'; return; }
   const last = recapLatestDate();
   el.style.display = '';
   el.innerHTML = `${RonChrome.logo('mlb')} <b>No MLB games today.</b> ${last ? `Recap shows the last slate (${fmtDateLong(last)}), and Due` : 'Due'} still lists who's overdue to go deep. Picks & Schedule come back when the next slate does.`;
+}
+// The offseason home: the champion, the season in numbers, our picks' season, and when it's back.
+function seasonWrapHtml() {
+  const c = MLB_OFF.champ;
+  const games = Object.values(dailyGames).reduce((a, b) => a + b, 0), hrs = Object.values(hrTotals).reduce((a, b) => a + b, 0);
+  const leaders = Object.entries(hrTotals).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([pid, n], i) => `
+    <div class="hm-row">
+      <span class="hm-rank">${i + 1}</span><img class="hm-photo" src="${playerPhotoUrl(pid)}" alt="" loading="lazy">
+      <span class="hm-name"><span class="hm-nm">${compactPlayerName(playerNames[pid] || pid)}</span><span class="hm-subtle">${playerTeams[pid] || ''}</span></span>
+      <span class="hm-score" style="color:var(--accent)">${n}<span class="hm-subtle" style="font-size:0.766rem"> HR</span></span></div>`).join('');
+  // every graded pick of the season (picksHistory: the board's top picks each day, hit or not)
+  // (the top 3 = each day's first three, the board's order, as the Results tab counts them)
+  let n = 0, hit = 0, t3 = 0, t3hit = 0, days = 0;
+  for (const d of Object.values(picksHistory || {})) {
+    const g = (d.picks || []).filter(x => x.hit === true || x.hit === false); if (!g.length) continue;
+    days++; n += g.length; hit += g.filter(x => x.hit).length;
+    const top = (d.picks || []).slice(0, 3).filter(x => x.hit === true || x.hit === false); t3 += top.length; t3hit += top.filter(x => x.hit).length;
+  }
+  const short = (ymd) => new Date(ymd + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const last = dailyGames[c.clinched] ? c.clinched : recapLatestDate();
+  return `
+  <div class="ow-hero">
+    <img class="ow-trophy" src="/icons/trophy.svg" alt="">
+    <div class="ow-id">
+      <div class="ow-kick">${MLB_OFF.season} World Series champions</div>
+      <div class="ow-team">${teamLogoImg(c.ab, 'ow-logo')}${c.name}</div>
+      <div class="ow-sub">Beat the ${c.opp} ${c.series}. That's the season.</div>
+      <div class="ow-acts"><button class="ps-act" onclick="openPostSheet()">🏆 Bracket &amp; HR leaders</button>${last ? `<button class="ps-act alt" onclick="openRecapFor('${last}')">${last === c.clinched ? 'The clincher' : 'The last night'} in Recap</button>` : ''}</div>
+    </div>
+  </div>
+  <div class="hm-cols">
+    <div class="hm-col">
+      <div class="hm-card" onclick="switchNav('stats')">
+        <div class="hm-head"><span class="hm-title">${MLB_OFF.season} in review</span><span class="hm-link">Stats →</span></div>
+        <div class="hm-tiles">
+          <div class="hm-tile"><b>${hrs.toLocaleString()}</b><span>Home runs</span></div>
+          <div class="hm-tile"><b>${games.toLocaleString()}</b><span>Games</span></div>
+          <div class="hm-tile"><b>${games ? (hrs / games).toFixed(2) : '—'}</b><span>HR / game</span></div>
+        </div>
+        <div class="hm-sec">Home-run leaders · regular season</div>
+        ${leaders}
+      </div>
+    </div>
+    <div class="hm-col">
+      <div class="hm-card" onclick="switchNav('picks')">
+        <div class="hm-head"><span class="hm-title">Our picks, all season</span><span class="hm-link">Results →</span></div>
+        <div class="hm-tiles">
+          <div class="hm-tile"><b>${hit.toLocaleString()}</b><span>Homered</span></div>
+          <div class="hm-tile"><b>${n ? (hit / n * 100).toFixed(1) + '%' : '—'}</b><span>Of ${n.toLocaleString()} picks</span></div>
+          <div class="hm-tile"><b>${t3 ? Math.round(t3hit / t3 * 100) + '%' : '—'}</b><span>Top 3 a day</span></div>
+        </div>
+        <p class="ow-note">${days} slates graded, ${t3hit} of ${t3} top-3 picks homered. Every tool's Results tab has its own season.</p>
+      </div>
+      <div class="hm-card ow-next">
+        <div class="hm-head"><span class="hm-title">Next season</span></div>
+        <div class="hm-tiles">
+          <div class="hm-tile"><b>${daysTo(MLB_OFF.opening)}</b><span>Days to Opening Day</span></div>
+          <div class="hm-tile"><b>${short(MLB_OFF.spring)}</b><span>Spring training</span></div>
+          <div class="hm-tile"><b>${short(MLB_OFF.opening)}</b><span>Opening Day</span></div>
+        </div>
+        <p class="ow-note">The boards and the daily builds are off until a week before Opening Day. Recap, Stats and every Results tab stay up.</p>
+      </div>
+    </div>
+  </div>`;
 }
 function recapLatestDate() { const d = recapAvailableDates(); return d[d.length - 1]; }
 function shiftRecapDate(delta) {
@@ -10137,7 +10231,7 @@ function prospectCard(r, isBomb) {
     ${milbHtml ? `<div class="prospect-milb">${milbHtml}</div>` : ''}
   </div>`;
 }
-let activeProspectTab = 'justCalledUp';
+let activeProspectTab = OFFSEASON ? 'results' : 'justCalledUp';
 function prospectDaysWaiting(sinceDate) { return sinceDate ? Math.max(0, Math.round((new Date(todayDate) - new Date(sinceDate)) / 86400000)) : null; }
 function switchProspectTab(tab) { activeProspectTab = tab; renderProspects(); commitRoute(); }
 function renderProspects() {
@@ -11856,7 +11950,7 @@ function dayLateEligible(p) {
   return dayLateFullBoard || p.provenPower !== false;
 }
 let dayLateSort = 'yrank';          // yrank | hr | pick | due
-let dayLateSubTab = 'today';        // today | results
+let dayLateSubTab = OFFSEASON ? 'results' : 'today';        // today | results
 function applyDayLateSub(sub) {
   dayLateSubTab = sub;
   document.getElementById('daylate-today-wrap').style.display   = sub === 'today'   ? '' : 'none';
@@ -12065,7 +12159,7 @@ function renderDayLateResults() {
 // build) and still-listed guys already confirmed in today's lineup get the
 // spotlight section up top.
 let returningSort  = 'date'; // date | hr  (the season-HR floor now lives in the build — RETURNING_MIN_HR)
-let returningSubTab = 'today'; // today | results
+let returningSubTab = OFFSEASON ? 'results' : 'today'; // today | results
 function applyReturningSub(sub) {
   returningSubTab = sub;
   document.getElementById('returning-today-wrap').style.display   = sub === 'today'   ? '' : 'none';

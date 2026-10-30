@@ -5,7 +5,8 @@
 // The crons fire on a fixed clock; the season doesn't. On a game day every
 // scheduled run goes ahead. On a day without games only the morning run does
 // (it settles yesterday's grading and today's slate). With no games for a week
-// either way — the offseason, the All-Star break — only Monday's morning run.
+// either way — the offseason, the All-Star break — only Monday's morning run
+// (MLB: none at all until the week before Opening Day).
 // A manual run (workflow_dispatch) always builds. If the schedule can't be
 // read, build: a wasted run is cheaper than a stale site.
 const [sport, event] = process.argv.slice(2);
@@ -52,6 +53,9 @@ try {
   const g = await games(shift(-7), shift(7));
   if (g.some(x => x.date === today)) out(true, 'games today');
   if (g.some(x => x.date === yday && !x.done)) out(true, "last night's games still going");
+  // MLB's offseason builds nothing: the site is a season wrap until a week before Opening Day (spring
+  // training games aren't in this query, so the first regular-season week brings the builds back)
+  if (!g.length && sport === 'mlb') out(false, 'MLB offseason — no game within a week; run it by hand to force one');
   if (!g.length) out(monday && hour === MORNING_UTC, 'offseason — Monday mornings only');
   out(hour === MORNING_UTC, 'no games today — morning run only');
 } catch (e) {

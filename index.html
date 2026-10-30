@@ -176,7 +176,9 @@
     // replayed); postStart: first Wild Card pitch, PHI@ATL — not MLB's nominal
     // 09-28 postSeasonStartDate, which is an off day.
     mlb: { start: '2026-03-25T00:00:00-04:00', regEnd: '2026-09-27T19:00:00-04:00',
-           postStart: '2026-09-29T14:00:00-04:00', postEnd: '2026-10-31T23:59:59-04:00', post: 'Postseason' },
+           postStart: '2026-09-29T14:00:00-04:00', postEnd: '2026-10-28T23:59:59-04:00', post: 'Postseason',
+           // the Brewers won it 10/28; next: Opening Day 2027 (statsapi /seasons/2027), for the offseason line
+           next: '2027-03-25T00:00:00-04:00' },
     nhl: { preStart: '2026-09-19T00:00:00-04:00', start: '2026-09-29T00:00:00-04:00', regEnd: '2027-04-10T23:59:59-04:00',
            postStart: '2027-04-17T00:00:00-04:00', postEnd: '2027-06-20T23:59:59-04:00', post: 'Playoffs' },
     nba: { preStart: '2026-10-03T00:00:00-04:00', start: '2026-10-20T00:00:00-04:00', regEnd: '2027-04-11T23:59:59-04:00',
@@ -233,6 +235,7 @@
           cls = 'badge go now'; label = 'Live'; note = 'Regular season';
         } else {
           cls = 'badge soon'; label = 'Off'; note = 'Offseason';
+          if (s.next && new Date(s.next) > now) { var dn = Math.ceil((new Date(s.next) - now) / 86400000); note += ' · Opening Day ' + fmt(new Date(s.next)) + ' (' + dn + ' days)'; }
         }
         // The badge tracks whether the TOOL is usable; the status line tracks the
         // season. A green "Live" on a tile you cannot click would be a lie, so a
