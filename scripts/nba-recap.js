@@ -58,8 +58,9 @@ export const recapHas = () => { try { return new Set(Object.keys(JSON.parse(fs.r
  * over — rows freeze at tip, so what stays is the last pre-tip price.
  *   t3:  pid -> [mu, P(1+) .. P(5+)]      dbl: pid -> [P(DD), P(TD)]
  *   fb:  gid -> pid -> P(first basket)
+ *   st:  stat -> pid -> [mu, line, P(over)]  (pts reb ast pra stl blk stk, at the board's line nearest even money)
  */
-export function savePrices(date, { threes, doubles, first }, today, shiftDate) {
+export function savePrices(date, { threes, doubles, first, stats, nearEven }, today, shiftDate) {
   if (!date) return;
   let H = { days: {} };
   try { H = JSON.parse(fs.readFileSync(HIST_PATH, 'utf8')); } catch (e) { /* first build */ }
@@ -68,6 +69,7 @@ export function savePrices(date, { threes, doubles, first }, today, shiftDate) {
     v3: (threes || []).filter(r => r.val).map(r => r.pid),          // the 🎯 Value screen's picks (2+ threes), graded on their own
     dbl: Object.fromEntries((doubles || []).map(r => [r.pid, [r.dd, r.td]])),
     fb: Object.fromEntries((first || []).map(g => [g.gid, Object.fromEntries(g.players.map(x => [x.pid, x.p]))])),
+    st: Object.fromEntries(Object.entries(stats || {}).map(([st, rs]) => [st, Object.fromEntries(rs.map(r => [r.pid, nearEven(st, r)]))])),
   };
   const from = shiftDate(today, -HIST_DAYS);
   for (const d of Object.keys(H.days)) if (d < from) delete H.days[d];

@@ -994,7 +994,8 @@
                  dataFetch('prices-history.json', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ days: {} }))])
       .then(([r, h]) => { RC = r; PH = h; rcState = 'ready'; })
       .catch(() => { rcState = 'error'; })
-      .finally(() => { if (activeNav === 'recap') renderRecap(); if (activeNav === 'threes' && t3x.v) renderBoard('threes'); if (activeNav === 'doubles' && dblF.tab === 'results') renderDoubles(); });   // Value's record reads the same files
+      .finally(() => { if (activeNav === 'recap') renderRecap(); if (activeNav === 'threes' && t3x.v) renderBoard('threes'); if (activeNav === 'doubles' && dblF.tab === 'results') renderDoubles();
+        if (BD[activeNav] && bdState(activeNav).res === 'results') renderBoard(activeNav); if (activeNav === 'first' && fbF.res === 'results') renderFirst(); });   // Value's record reads the same files
   }
   // the night's games still being played (or just finished, before the build adds them): off ESPN's live
   // summary, reduced by the build's own code (scripts/nba-recap-core.js) — see nbaLiveTick
@@ -1919,11 +1920,81 @@
         <td class="dim">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}</td></tr>`).join('')}</tbody></table></div>
       <div class="t3-note">Expected threes = his minutes × his rate × <b>Form</b> × <b>Drought</b> × <b>Spot</b>. <b>Shooter</b> is his rate against his position's; <b>Min</b> is tonight's minutes against his last ten. <b>Lift</b> is everything but <b>Shooter</b>, so sort by its column to see what tonight is doing for him. Numbers are coloured by where they sit among tonight's players at his position: green better, red worse, gold the middle.</div>`;
   }
+  // ── Results, every board: what we priced each night against the box score ─────────────────
+  // The pre-tip prices are nba/prices-history.json (nba-recap.js savePrices), the box scores recap.json, both
+  // loaded by loadRecap. Each board shows the record by day (its top 10 a night and every priced player),
+  // then one night in full. A player who didn't play is left out, the way books void it.
+  const nbResTabs = (set, cur) => `<div class="sub-tabs u-tabs">${[['board', 'Board'], ['results', 'Results']].map(([v, l]) =>
+    `<button class="sub-btn${(cur || 'board') === v ? ' active' : ''}" onclick="${set}('res','${v}')">${l}</button>`).join('')}</div>`;
+  // a board's markets as its big mode buttons (Doubles' Double-double / Triple-double, Threes' Chalk / Value)
+  const nbMktMode = (set, cur, tabs) => tabs.length < 2 ? '' : `<div class="picks-mode dbl-mode">${tabs.map(([v, l]) =>
+    `<button class="picks-mode-btn${cur === v ? ' active' : ''}" onclick="${set}('tab','${v}')">${l}</button>`).join('')}</div>`;
+  const nbResWait = () => { if (rcState !== 'ready') loadRecap(); return rcState === 'error' ? '<div class="empty">Couldn\'t load the results.</div>' : '<div class="empty">Loading results…</div>'; };
+  /** The record by day: cols [[label, (dayRows) => html cell]], a click opens that night. */
+  function nbDayTable(days, set, night, cols) {
+    const G = [['Night', 1], ['Record', cols.length, 'price']];
+    return `<div class="rc-h2" style="margin:0.4rem 0 0.35rem;font:700 0.72rem var(--font-b);letter-spacing:0.08em;text-transform:uppercase;color:var(--muted)">By night</div>
+      <div class="rc-tablewrap" style="margin-bottom:0.9rem"><table class="rc-table u-tbl">${uiCols(G)}<thead>${uiBand(G)}<tr><th>Night</th>${cols.map(([l]) => `<th class="num">${l}</th>`).join('')}</tr></thead>
+        <tbody>${days.map(([d, rows]) => `<tr onclick="${set}('night','${d}')"${d === night ? ' style="background:color-mix(in srgb, var(--accent) 10%, transparent)"' : ''}>
+          <td data-sv="${d.replace(/-/g, '')}"><b>${dayLabel(d)}</b></td>${cols.map(([, f]) => f(rows)).join('')}</tr>`).join('')}</tbody></table></div>`;
+  }
+  const nbNav = (set, days, night, label) => { const i = days.indexOf(night);
+    return `<div class="cp-wknav">
+      <button class="due-filter-chip mode-chip" onclick="${set}('night','${days[Math.max(0, i - 1)]}')"${i <= 0 ? ' disabled' : ''}>‹</button>
+      <span class="cp-wk">${label}</span>
+      <button class="due-filter-chip mode-chip" onclick="${set}('night','${days[Math.min(days.length - 1, i + 1)]}')"${i >= days.length - 1 ? ' disabled' : ''}>›</button></div>`; };
+  const nbGame = (b, G) => `${esc(b[BX.team])} ${b[BX.team] === G.home ? 'vs' : '@'} ${esc(b[BX.team] === G.home ? G.away : G.home)}`;
+  /** The count boards (threes and every stat): at the line each quoted, nearest even money; top 10 = by projection. */
+  function nbResults(kind, set, F) {
+    if (rcState !== 'ready') return nbResWait();
+    const got = (b) => kind === '3pm' ? b[BX.tpm] : kind === 'pra' ? b[BX.pts] + b[BX.reb] + b[BX.ast] : kind === 'stk' ? b[BX.stl] + b[BX.blk] : b[BX[kind]];
+    const by = {};
+    for (const G of Object.values(RC.games || {})) {
+      const P = PH.days?.[G.date]; if (!P || !G.box) continue;
+      for (const [pid, b] of Object.entries(G.box)) {
+        if (!((b[BX.min] || 0) > 0)) continue;
+        let e = null;
+        if (kind === '3pm') { const a = P.t3?.[pid]; if (a) { let j = 1; for (let i = 2; i < a.length; i++) if (Math.abs(a[i] - 0.5) < Math.abs(a[j] - 0.5)) j = i; e = [a[0], j - 0.5, a[j]]; } }
+        else e = P.st?.[kind]?.[pid];
+        if (e) (by[G.date] ||= []).push({ pid, mu: e[0], L: e[1], p: e[2], got: got(b), b, G });
+      }
+    }
+    const days = Object.keys(by).sort();
+    if (!days.length) return `<div class="empty">No graded nights yet. Each night's board is saved before tip and graded once its games are final${kind === '3pm' ? '' : ' (this board started saving on Oct 31)'}.</div>`;
+    for (const d of days) by[d].sort((a, b) => b.mu - a.mu);
+    if (!days.includes(F.night)) F.night = days[days.length - 1];
+    const over = (r) => r.got > r.L, miss = (rs) => rs.reduce((a, r) => a + Math.abs(r.got - r.mu), 0) / rs.length;
+    const all = days.flatMap(d => by[d]), top = days.flatMap(d => by[d].slice(0, 10));
+    const rec = (rs) => `${rs.filter(over).length}/${rs.length}`;
+    const night = by[F.night], G = [['Player', 2], ['Price', 2, 'price'], ['Production', 2, 'prod'], ['Game', 1, 'game']];
+    return `
+      <div class="hm-tiles" style="margin-bottom:0.6rem">
+        <div class="hm-tile"><b>${rec(top)}</b><span>Top 10 a night went over</span></div>
+        <div class="hm-tile"><b>${rec(all)}</b><span>Overs · we said ${all.reduce((a, r) => a + r.p, 0).toFixed(0)}</span></div>
+        <div class="hm-tile"><b>${miss(all).toFixed(2)}</b><span>Avg miss, ${LC[kind].unit}</span></div>
+      </div>
+      ${nbDayTable([...days].reverse().map(d => [d, by[d]]), set, F.night, [
+        ['Top 10 over', rs => `<td class="num"><b>${rec(rs.slice(0, 10))}</b></td>`],
+        ['All over', rs => `<td class="num">${rec(rs)}</td>`],
+        ['We said', rs => `<td class="num dim">${rs.reduce((a, r) => a + r.p, 0).toFixed(1)}</td>`],
+        ['Avg miss', rs => `<td class="num dim">${miss(rs).toFixed(2)}</td>`]])}
+      ${nbNav(set, days, F.night, `${dayLabel(F.night, true)} · ${rec(night)} over`)}
+      <div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
+        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num">Proj</th><th class="num u-fair">Fair</th><th class="num">Got</th><th class="num">Result</th><th>Game</th></tr></thead>
+        <tbody>${night.map((r, i) => `<tr onclick="openBoardCard('${LC[kind].nav}','${r.pid}')">
+          <td class="num${i < 10 ? '' : ' dim'}"${i < 10 ? ' style="color:var(--accent);font-weight:700"' : ''}>${i + 1}</td><td><b>${esc(r.b[BX.name])}</b> <span class="dim">${r.b[BX.min]} min</span></td>
+          <td class="num"><b>${r.mu.toFixed(1)}</b></td>${uiFair(r.p, 'o' + r.L)}<td class="num"><b>${r.got}</b></td>
+          <td class="num" style="font-weight:700;color:${over(r) ? 'var(--good)' : 'var(--dim)'}">${over(r) ? 'OVER' : 'UNDER'}</td>
+          <td class="dim">${nbGame(r.b, r.G)}</td></tr>`).join('')}</tbody></table></div>
+      <div class="pt-meta" style="margin-top:0.5rem">Each night is graded against the board as it stood before tip, at the line it quoted (the one nearest even money), from the box score. The top 10 (accent #) are the night's highest projections. "We said" adds up our chances: a well-priced night lands near it.</div>`;
+  }
   function renderBoard(nav) {
     const el = dataGate(nav + '-content'); if (!el) return;
     const cfg = BD[nav], F = bdState(nav), set = BD_SET[nav], kind = F.tab;
+    const tabs = nbMktMode(set, F.tab, cfg.tabs) + nbResTabs(set, F.res);
+    if (F.res === 'results') { el.innerHTML = t3ModeBar(nav, nav === 'threes' && t3x.v) + tabs + nbResults(kind, set, F); return; }
     const src = LC[kind].st ? D.stats : D.threes;
-    if (!src || !lcRows(kind).length) { el.innerHTML = '<div class="empty">No slate to price yet — the board fills in once the next games have lines.</div>'; return; }
+    if (!src || !lcRows(kind).length) { el.innerHTML = tabs + '<div class="empty">No slate to price yet — the board fills in once the next games have lines.</div>'; return; }
     const C = LC[kind], [lo, hi] = C.range;
     const lines = []; for (let x = lo; x <= hi; x++) lines.push(x);
     const games = [...new Map(lcRows(kind).map(r => [r.gid, r])).values()].sort((a, b) => a.start.localeCompare(b.start));
@@ -1934,7 +2005,6 @@
     RonShare.set(set, () => ({ title: C.unit.replace(/^./, c => c.toUpperCase()), sub: dayLabel(src.date, true),
       rows: rows.map(r => shareRow(r, r.pAt, parSideLine(r), `${r.mu.toFixed(1)} proj`)) }));
     const changed = (F.line !== 'auto') + (F.pos !== 'ALL') + (F.game !== 'all') + (F.sort !== 'proj');
-    const tabs = cfg.tabs.length > 1 ? uiTabs(set, F.tab, cfg.tabs) : '';
     const controls = uiFilters(set, F.open, [
       ['Line', ['auto', ...lines].map(v => uiChip(set, 'line', v, v === 'auto' ? 'Best line' : 'o' + v, F.line)).join('')],
       ['Position', [['ALL', 'All'], ['G', 'Guards'], ['F', 'Forwards'], ['C', 'Centers']].map(([v, l]) => uiChip(set, 'pos', v, l, F.pos)).join('')],
@@ -2021,7 +2091,7 @@
   }
   /** Results: every player we priced on a past night (the pre-tip price, prices-history) against his box score (recap). */
   function dblResults() {
-    if (rcState !== 'ready') { loadRecap(); return rcState === 'error' ? '<div class="empty">Couldn\'t load the results.</div>' : '<div class="empty">Loading results…</div>'; }
+    if (rcState !== 'ready') return nbResWait();
     const td = dblF.sort === 'td', k = td ? 1 : 0, need = td ? 3 : 2;
     // night -> [{ pid, p, b, g }], only players who played (a box line) on a night we logged prices for
     const byDay = {};
@@ -2032,13 +2102,15 @@
     const days = Object.keys(byDay).sort();
     if (!days.length) return '<div class="empty">No graded nights yet.</div>';
     if (!days.includes(dblF.night)) dblF.night = days[days.length - 1];
-    const di = days.indexOf(dblF.night), rows = byDay[dblF.night].slice().sort((a, b) => b.p - a.p);
+    const rows = byDay[dblF.night].slice().sort((a, b) => b.p - a.p);
     const hit = (x) => cats10(x.b) >= need;
     // the season so far: how many hit against how many we said, and our top 10 a night
     let n = 0, h = 0, said = 0, tn = 0, th = 0;
     for (const d of days) { const L = byDay[d].slice().sort((a, b) => b.p - a.p);
       L.forEach((x, i) => { n++; said += x.p; if (hit(x)) h++; if (i < 10) { tn++; if (hit(x)) th++; } }); }
     const nh = rows.filter(hit).length, nsaid = rows.reduce((a, x) => a + x.p, 0);
+    const byNight = [...days].reverse().map(d => [d, byDay[d].slice().sort((a, b) => b.p - a.p)]);
+    const rec = (rs) => `${rs.filter(hit).length}/${rs.length}`;
     const G = [['Player', 2], ['Price', 1, 'price'], ['Production', 5, 'prod'], ['Result', 1, 'plain'], ['Game', 1, 'game']];
     const st = (b, kk) => `<td class="num${b[BX[kk]] >= 10 ? '' : ' dim'}">${b[BX[kk]]}</td>`;
     return `
@@ -2047,11 +2119,12 @@
         <div class="hm-tile"><b>${Odds.pct(h / n)}</b><span>Hit · we said ${Odds.pct(said / n)}</span></div>
         <div class="hm-tile"><b>${Odds.pct(tn ? th / tn : 0)}</b><span>Our top 10 a night</span></div>
       </div>
-      <div class="cp-wknav">
-        <button class="due-filter-chip mode-chip" onclick="setDblF('night','${days[Math.max(0, di - 1)]}')"${di <= 0 ? ' disabled' : ''}>‹</button>
-        <span class="cp-wk">${dayLabel(dblF.night, true)} · ${nh} of ${rows.length} · we said ${nsaid.toFixed(1)}</span>
-        <button class="due-filter-chip mode-chip" onclick="setDblF('night','${days[Math.min(days.length - 1, di + 1)]}')"${di >= days.length - 1 ? ' disabled' : ''}>›</button>
-      </div>
+      ${nbDayTable(byNight, 'setDblF', dblF.night, [
+        ['Top 10 hit', rs => `<td class="num"><b>${rec(rs.slice(0, 10))}</b></td>`],
+        ['Top 10 said', rs => `<td class="num dim">${rs.slice(0, 10).reduce((a, x) => a + x.p, 0).toFixed(1)}</td>`],
+        ['All hit', rs => `<td class="num">${rec(rs)}</td>`],
+        ['We said', rs => `<td class="num dim">${rs.reduce((a, x) => a + x.p, 0).toFixed(1)}</td>`]])}
+      ${nbNav('setDblF', days, dblF.night, `${dayLabel(dblF.night, true)} · ${nh} of ${rows.length} · we said ${nsaid.toFixed(1)}`)}
       <div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
         <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num u-fair">${td ? 'TD' : 'DD'}</th><th class="num">Pts</th><th class="num">Reb</th><th class="num">Ast</th><th class="num">Stl</th><th class="num">Blk</th><th class="num">Got</th><th>Game</th></tr></thead>
         <tbody>${rows.map((x, i) => { const b = x.b, c = cats10(b), ok = c >= need, opp = b[BX.team] === x.G.home ? x.G.away : x.G.home;
@@ -2135,15 +2208,55 @@
   // position (centres score first most — the opening set, the putback). Starters
   // are projected until lineups post. research/nba_firstbasket2.py: calibrated
   // over 7,200 games walk-forward.
-  const fbF = { open: false, game: 'all', q: '', view: 'cards' };
+  const fbF = { open: false, game: 'all', q: '', view: 'cards', res: 'board', night: null };
+  /** First basket results: each game's favourite (our shortest price) against who scored first. */
+  function fbResults() {
+    if (rcState !== 'ready') return nbResWait();
+    const by = {};
+    for (const G of Object.values(RC.games || {})) {
+      const P = PH.days?.[G.date]?.fb?.[G.gid]; if (!P || !G.fb?.pid) continue;
+      const ranked = Object.entries(P).sort((a, b) => b[1] - a[1]), at = ranked.findIndex(([pid]) => pid === G.fb.pid);
+      (by[G.date] ||= []).push({ G, top: ranked[0], scorer: G.fb.pid, sp: P[G.fb.pid] ?? null, rank: at < 0 ? null : at + 1 });
+    }
+    const days = Object.keys(by).sort();
+    if (!days.length) return '<div class="empty">No graded nights yet.</div>';
+    if (!days.includes(fbF.night)) fbF.night = days[days.length - 1];
+    const all = days.flatMap(d => by[d]), hit = (x) => x.rank === 1, top3 = (x) => x.rank != null && x.rank <= 3;
+    const rec = (rs, f) => `${rs.filter(f).length}/${rs.length}`, said = (rs) => rs.reduce((a, x) => a + x.top[1], 0);
+    const nm = (x, pid) => esc(x.G.box?.[pid]?.[BX.name] || '—');
+    const G = [['Game', 1], ['Our favourite', 2, 'price'], ['Scored first', 3, 'prod']];
+    const night = by[fbF.night];
+    return `
+      <div class="hm-tiles" style="margin-bottom:0.6rem">
+        <div class="hm-tile"><b>${rec(all, hit)}</b><span>Favourite scored first · we said ${said(all).toFixed(1)}</span></div>
+        <div class="hm-tile"><b>${rec(all, top3)}</b><span>Scorer in our top 3</span></div>
+        <div class="hm-tile"><b>${Odds.am(all.filter(x => x.sp).reduce((a, x) => a + x.sp, 0) / Math.max(1, all.filter(x => x.sp).length))}</b><span>Scorer's avg price</span></div>
+      </div>
+      ${nbDayTable([...days].reverse().map(d => [d, by[d]]), 'setFbF', fbF.night, [
+        ['Favourite hit', rs => `<td class="num"><b>${rec(rs, hit)}</b></td>`],
+        ['We said', rs => `<td class="num dim">${said(rs).toFixed(1)}</td>`],
+        ['In top 3', rs => `<td class="num">${rec(rs, top3)}</td>`]])}
+      ${nbNav('setFbF', days, fbF.night, `${dayLabel(fbF.night, true)} · ${rec(night, hit)} favourites`)}
+      <div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
+        <thead>${uiBand(G)}<tr><th>Game</th><th>Player</th><th class="num u-fair">Fair</th><th>Player</th><th class="num">Our price</th><th class="num">Our rank</th></tr></thead>
+        <tbody>${night.map(x => `<tr>
+          <td class="dim">${esc(x.G.away)} @ ${esc(x.G.home)}</td>
+          <td><b>${nm(x, x.top[0])}</b></td>${uiFair(x.top[1])}
+          <td${hit(x) ? ' style="color:var(--good);font-weight:700"' : ''}><b>${nm(x, x.scorer)}</b></td>
+          <td class="num">${x.sp ? Odds.inline(x.sp) : '<span class="dim">not priced</span>'}</td>
+          <td class="num"${x.rank === 1 ? ' style="color:var(--good);font-weight:700"' : ''}>${x.rank ?? '—'}</td></tr>`).join('')}</tbody></table></div>
+      <div class="pt-meta" style="margin-top:0.5rem">Each game graded against our last pre-tip first-basket prices. "Our favourite" is the shortest price in the game; a game's favourite is usually 15-20%, so most nights most of them miss. "We said" adds up those chances.</div>`;
+  }
   function setFbF(k, v, typing) {
     fbF[k] = v; renderFirst();
     if (typing) { const i = document.getElementById('first-search'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
   }
   function renderFirst() {
     const el = dataGate('first-content'); if (!el) return;
+    const tabs = nbResTabs('setFbF', fbF.res);
+    if (fbF.res === 'results') { el.innerHTML = tabs + fbResults(); return; }
     const B = D.first;
-    if (!B || !B.games?.length) { el.innerHTML = '<div class="empty">No slate to price yet — first basket fills in once the next games have lines.</div>'; return; }
+    if (!B || !B.games?.length) { el.innerHTML = tabs + '<div class="empty">No slate to price yet — first basket fills in once the next games have lines.</div>'; return; }
     const games = [...B.games].sort((a, b) => a.start.localeCompare(b.start));
     const started = (g) => new Date(g.start) <= new Date();
     const pl = (r, g) => `<div class="fb-pl${r.jumper ? ' fb-jump' : ''}"${parAttr(fbLeg(r, g))}>
@@ -2195,7 +2308,7 @@
       const byGame = shown.map(g => ({ ...g, players: g.players.filter(r => matchQ({ ...r, opp: r.team === g.home ? g.away : g.home }, fbF.q)) })).filter(g => g.players.length);
       body = `<div class="fb-games">${byGame.map(gameCard).join('') || '<div class="empty">Nothing matches that filter.</div>'}</div>`;
     }
-    el.innerHTML = controls + meta + body + `
+    el.innerHTML = tabs + controls + meta + body + `
       <div class="t3-note"><b>Starters are projected</b> until lineups post (~30 minutes before tip): the five who've started most of his team's last ten. If a projected starter sits, his price doesn't apply. The tip winner's team scores first about 64% of the time; the betting line adds the better offense; within a team it's his own first-basket record, pulled toward his position's. Check whether a book settles on the first <i>basket</i> or the first <i>points</i> — about 8% of games start with a free throw.</div>`;
   }
 

@@ -414,7 +414,16 @@ async function main() {
   const threes = boardDate ? { date: boardDate, generated: new Date().toISOString(), rungs: MODEL.threes.rungs, alpha: MODEL.threes.alpha, factors, rows } : null;
   console.log(`Threes board: ${rows.length} players, ${boardDate || 'no slate'}${frozen.length ? ` (${rows.filter(r => frozen.includes(r)).length} frozen)` : ''}`);
 
-  savePrices(boardDate, { threes: rows, doubles: ddRows, first: fbGames }, today, shiftDate);
+  // the stat boards at the line the page quotes: the one nearest even money over the page's range (nba/index.html LC)
+  const ST_RANGE = { pts: [4.5, 45.5], reb: [1.5, 18.5], ast: [0.5, 15.5], pra: [9.5, 60.5], stl: [0.5, 4.5], blk: [0.5, 5.5], stk: [0.5, 7.5] };
+  const nearEven = (st, r) => {
+    const [lo, hi] = ST_RANGE[st] || [0.5, 9.5], ks = [];
+    for (let L = lo; L <= hi; L++) ks.push(L + 0.5);                 // over L.5 is P(X >= L + 1)
+    const p = statLadder(st, r.mu, r.min, r.sd ?? 6, 1, ks);
+    let j = 0; p.forEach((x, i) => { if (Math.abs(x - 0.5) < Math.abs(p[j] - 0.5)) j = i; });
+    return [r.mu, ks[j] - 0.5, +p[j].toFixed(4)];
+  };
+  savePrices(boardDate, { threes: rows, doubles: ddRows, first: fbGames, stats: statRows, nearEven }, today, shiftDate);
 
   // ── 11) Watch lists: Milestones, Due, Birthdays ──────────────────────────
   let fun = null;
