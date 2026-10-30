@@ -980,7 +980,7 @@ async function computePicks(todaySchedule, bullpensMap, pitcherSeasonStats = {},
         }
       }
     }
-    if (!candidates.length) return [];
+    if (!candidates.length) return { picks: [], value: [], cards: null, stuff: null };   // no slate (the offseason): the same shape, empty
     const seen = new Set();
     const uniq = candidates.filter(c => seen.has(c.pid) ? false : (seen.add(c.pid), true));
 
