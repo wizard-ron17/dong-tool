@@ -184,14 +184,24 @@ export function shapeCal(p, mu, C) {
   return 1 / (1 + Math.exp(-(c[0] + c[1] * z + c[2] * m + c[3] * z * m + c[4] * m * m + c[5] * z * m * m)));
 }
 /** A stat's ladder over its rungs, mixed over minutes N(mproj, sd); g scales the rate (the shared night). */
-export function statLadder(st, mu, mproj, sd, g = 1, rungs = MODEL.stats.models[st].rungs) {
-  const m = MODEL.stats.models[st], out = rungs.map(() => 0);
+export function statLadder(st, mu, mproj, sd, g = 1, rungs = MODEL.stats.models[st].rungs, spread = null) {
+  const m = spread || MODEL.stats.models[st], out = rungs.map(() => 0);
   for (let i = 0; i < GH.x.length; i++) {
     const lam = mu * g * clip(mproj + sd * GH.x[i], 1, 48) / Math.max(mproj, 1);
     rungs.forEach((k, j) => { out[j] += GH.w[i] * sfPow(k, lam, m.a, m.p); });
   }
-  const C = MODEL.stats.shape_cal?.[st];
+  const C = spread ? spread.cal : MODEL.stats.shape_cal?.[st];
   return C ? out.map(p => shapeCal(p, mu * g, C)) : out;
+}
+/** The line a stat board quotes: nearest even money over the page's range (nba/index.html LC), as [mu, line, P(over)].
+ *  spread: a board's own { a, p, cal } (data.json stats.spread), to re-derive a past night exactly as it was priced. */
+export const ST_RANGE = { pts: [4.5, 45.5], reb: [1.5, 18.5], ast: [0.5, 15.5], pra: [9.5, 60.5], stl: [0.5, 4.5], blk: [0.5, 5.5], stk: [0.5, 7.5] };
+export function statNearEven(st, r, spread = null) {
+  const [lo, hi] = ST_RANGE[st] || [0.5, 9.5], ks = [];
+  for (let L = lo; L <= hi; L++) ks.push(L + 0.5);                   // over L.5 is P(X >= L + 1)
+  const p = statLadder(st, r.mu, r.min, r.sd ?? 6, 1, ks, spread);
+  let j = 0; p.forEach((x, i) => { if (Math.abs(x - 0.5) < Math.abs(p[j] - 0.5)) j = i; });
+  return [r.mu, ks[j] - 0.5, +p[j].toFixed(4)];
 }
 /**
  * Double / triple-double: pts, reb, ast independent GIVEN minutes and a shared
