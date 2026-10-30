@@ -17,6 +17,7 @@
 //                                                       Situational, Production, Game. Categorical tints, never the
 //                                                       good-bad ramp. uiCols draws each group's divider down the table.
 //   uiFair(p, sub)                                      the price cell: odds over "sub · chance", the lit column
+// Every u-tbl whose headers don't sort themselves (no th[onclick]) sorts by clicking a header, here: see below.
 (function () {
   const CSS = `
   .pb-search { position: relative; margin-bottom: 0.55rem; }
@@ -65,6 +66,9 @@
   table.u-tbl.u-tbl td b { font-weight: 700; color: var(--text-strong); }
   table.u-tbl.u-tbl th.on { color: var(--accent); background-color: color-mix(in srgb, var(--accent) 9%, var(--surface2)); }
   table.u-tbl.u-tbl th[onclick] { cursor: pointer; } table.u-tbl.u-tbl th[onclick]:hover { color: var(--text); }
+  table.u-sortable thead tr:last-child th { cursor: pointer; user-select: none; }
+  table.u-sortable.u-sortable thead tr:last-child th:hover { color: var(--text); }
+  table.u-sortable thead th .ar { font-size: 0.62rem; margin-left: 0.2rem; }
   table.u-tbl col.u-g { border-left: 1px solid var(--border2); }
   table.u-tbl col.u-g:first-child { border-left: none; }
   table.u-tbl.u-tbl tr.u-band th { font: 700 0.66rem var(--font-b); letter-spacing: 0.09em; text-transform: uppercase; text-align: left; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); cursor: default; position: static; }
@@ -126,7 +130,7 @@
   // a <col span> repeats its border on every column it spans, so each group is its first column (the divider) plus the rest
   const uiCols = (groups) => `<colgroup>${groups.map(([, n, k = 'plain']) =>
     `<col class="u-g u-g-${k}">${n > 1 ? `<col span="${n - 1}" class="u-g-${k}">` : ''}`).join('')}</colgroup>`;
-  const uiFair = (p, sub = '', cls = '') => `<td class="u-fair${p < 0.5 ? ' dog' : ''}${cls ? ' ' + cls : ''}">${Odds.am(p)}<small>${sub ? sub + ' · ' : ''}${Odds.pct(p)}</small></td>`;
+  const uiFair = (p, sub = '', cls = '') => `<td data-sv="${p}" class="u-fair${p < 0.5 ? ' dog' : ''}${cls ? ' ' + cls : ''}">${Odds.am(p)}<small>${sub ? sub + ' · ' : ''}${Odds.pct(p)}</small></td>`;
   const matchQ = (r, q) => { const t = q.trim().toLowerCase(); return !t || r.name.toLowerCase().includes(t) || r.team.toLowerCase() === t || r.opp.toLowerCase() === t || (r.pos || '').toLowerCase() === t; };
 
   Object.assign(window, { uiArg, uiChip, uiFilters, uiTabs, uiView, uiSearch, matchQ, uiBand, uiCols, uiFair });
@@ -217,4 +221,69 @@
     </div>`;
   }
   window.RonFx = { state, set, reset, apply, pass, html, count };
+})();
+
+// ── Click-to-sort for the board tables (u-tbl) that don't sort themselves ──
+// Any header sorts its column on the cell's real value: data-sv when the cell has one (uiFair's chance), American
+// odds as their chance (Market, Best), else the first number (×1.02, 92', 4/5, +11.2%), else the text. Numbers
+// start high-first, text A-Z; a second click reverses. Blanks (—) always sink. # is renumbered in the new order
+// (sorting # itself restores the board's own). The sort is kept per board for the session and re-applied whenever
+// the board redraws (a filter, a live odds poll), so a page needs nothing beyond class u-tbl.
+(function () {
+  const S = (() => { try { return JSON.parse(sessionStorage.getItem('uiSort') || '{}'); } catch { return {}; } })();
+  const save = () => { try { sessionStorage.setItem('uiSort', JSON.stringify(S)); } catch {} };
+  const head = (t) => t.tHead?.rows[t.tHead.rows.length - 1];
+  const lab = (th) => th.dataset.lab ?? (th.dataset.lab = th.textContent.trim());
+  const rankCol = (h) => ['', '#'].includes(lab(h.cells[0]));
+  const amP = (o) => o > 0 ? 100 / (o + 100) : -o / (100 - o);
+  function val(td) {
+    if (!td) return null;
+    if (td.dataset.sv != null) return +td.dataset.sv;
+    const t = td.textContent.replace(/\u2212/g, '-').trim();
+    if (!t || /^[—–-]$/.test(t)) return null;
+    const am = t.match(/^([+-]\d{3,5})(?![\d.])/); if (am) return amP(+am[1]);
+    const n = t.match(/^[×x]?\s*([+-]?\d*\.?\d+)/); if (n) return +n[1];
+    return t.toLowerCase();
+  }
+  function apply(t) {
+    const h = head(t), st = S[t.dataset.uk];
+    [...h.cells].forEach((c, i) => {
+      const on = st && st.i === i; c.classList.toggle('on', !!on);
+      c.querySelector('.ar')?.remove(); if (on) c.insertAdjacentHTML('beforeend', `<span class="ar">${st.d > 0 ? '▲' : '▼'}</span>`);
+    });
+    const body = t.tBodies[0]; if (!body) return;
+    // a row with fewer cells (Fantasy's open breakdown) travels with the row above it
+    const groups = [];
+    for (const tr of [...body.rows]) (tr.cells.length < h.cells.length && groups.length ? groups[groups.length - 1] : groups[groups.push([]) - 1]).push(tr);
+    const rk = rankCol(h);
+    if (rk) for (const [tr] of groups) if (tr.cells[0].dataset.sv == null) tr.cells[0].dataset.sv = tr.cells[0].textContent.trim() || 0;
+    if (!st) return;
+    groups.sort((a, b) => {
+      const x = val(a[0].cells[st.i]), y = val(b[0].cells[st.i]);
+      if (x == null || y == null) return x == null ? (y == null ? 0 : 1) : -1;
+      if (typeof x !== typeof y) return typeof x === 'number' ? -1 : 1;
+      return (x < y ? -1 : x > y ? 1 : 0) * st.d;
+    });
+    body.append(...groups.flat());
+    if (rk) groups.forEach(([tr], i) => { tr.cells[0].textContent = i + 1; });
+  }
+  let q = 0;
+  function scan() {
+    q = 0;
+    for (const t of document.querySelectorAll('table.u-tbl:not([data-us])')) {
+      const h = head(t); if (!h || t.querySelector('thead th[onclick]')) continue;
+      t.dataset.us = 1; t.classList.add('u-sortable');
+      t.dataset.uk = (t.closest('.panel')?.id || location.pathname) + '|' + [...h.cells].map(lab).join(',');
+      apply(t);
+    }
+  }
+  new MutationObserver(() => { if (!q) q = requestAnimationFrame(scan); }).observe(document.documentElement, { childList: true, subtree: true });
+  document.addEventListener('click', (e) => {
+    const th = e.target.closest('table.u-sortable thead tr:last-child th'); if (!th) return;
+    const t = th.closest('table'), i = th.cellIndex, cur = S[t.dataset.uk];
+    const first = [...t.tBodies[0].rows].map(r => val(r.cells[i])).find(v => v != null);
+    const d0 = i === 0 && rankCol(head(t)) || typeof first === 'string' ? 1 : -1;     // # and text start at the top
+    S[t.dataset.uk] = cur && cur.i === i ? { i, d: -cur.d } : { i, d: d0 };
+    save(); apply(t);
+  });
 })();

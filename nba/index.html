@@ -342,6 +342,10 @@
   .picks-mode-btn:hover:not(.active) { color: var(--text); border-color: var(--border2); }
   .picks-mode-btn.active { color: #fff; }
   #picks-mode-chalk.active { background: #e2883a; border-color: #e2883a; box-shadow: 0 2px 14px rgba(226,136,58,0.3); }
+  /* a night picker for Results (copied verbatim from /nfl's Completions results) */
+  .cp-wknav { display: flex; align-items: center; justify-content: center; gap: 0.6rem; margin: 0.2rem 0 0.5rem; }
+  .cp-wk { font-family: var(--font-d); font-weight: 700; color: var(--text); min-width: 11rem; text-align: center; }
+  .dbl-mode .picks-mode-btn.active { background: var(--accent); border-color: var(--accent); box-shadow: 0 2px 14px rgba(53,201,110,0.28); }
   #picks-mode-value.active { background: var(--accent); border-color: var(--accent); box-shadow: 0 2px 14px rgba(53,201,110,0.28); }
   .t3x-bar { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin: 0 0 0.6rem; }
   .t3x .t3x-c { font-family: var(--font-d); font-weight: 700; white-space: nowrap; } .t3x .t3x-c small { font-size: 0.66rem; opacity: 0.8; margin-left: 0.15rem; }
@@ -990,7 +994,7 @@
                  dataFetch('prices-history.json', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ days: {} }))])
       .then(([r, h]) => { RC = r; PH = h; rcState = 'ready'; })
       .catch(() => { rcState = 'error'; })
-      .finally(() => { if (activeNav === 'recap') renderRecap(); if (activeNav === 'threes' && t3x.v) renderBoard('threes'); });   // Value's record reads the same files
+      .finally(() => { if (activeNav === 'recap') renderRecap(); if (activeNav === 'threes' && t3x.v) renderBoard('threes'); if (activeNav === 'doubles' && dblF.tab === 'results') renderDoubles(); });   // Value's record reads the same files
   }
   // the night's games still being played (or just finished, before the build adds them): off ESPN's live
   // summary, reduced by the build's own code (scripts/nba-recap-core.js) — see nbaLiveTick
@@ -2005,7 +2009,7 @@
   // a shared "big night" factor (pace, overtime), then blended with his own
   // last-40 rate — the reliable rebounders are steadier than rates alone say.
   // Kalshi overpriced triple-doubles last season (11.4% mid vs 8.2% hit).
-  const dblF = { open: false, sort: 'dd', game: 'all', q: '', view: 'cards' };
+  const dblF = { open: false, sort: 'dd', game: 'all', q: '', view: 'cards', tab: 'board', night: null };
   function setDblF(k, v, typing) {
     dblF[k] = v; renderDoubles();
     if (typing) { const i = document.getElementById('doubles-search'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
@@ -2015,10 +2019,57 @@
     rows.forEach((r, i) => { r.rank = i + 1; });
     return rows;
   }
+  /** Results: every player we priced on a past night (the pre-tip price, prices-history) against his box score (recap). */
+  function dblResults() {
+    if (rcState !== 'ready') { loadRecap(); return rcState === 'error' ? '<div class="empty">Couldn\'t load the results.</div>' : '<div class="empty">Loading results…</div>'; }
+    const td = dblF.sort === 'td', k = td ? 1 : 0, need = td ? 3 : 2;
+    // night -> [{ pid, p, b, g }], only players who played (a box line) on a night we logged prices for
+    const byDay = {};
+    for (const G of Object.values(RC.games || {})) {
+      const P = PH.days?.[G.date]?.dbl; if (!P || !G.box) continue;
+      for (const [pid, b] of Object.entries(G.box)) if (P[pid] && (b[BX.min] || 0) > 0) (byDay[G.date] ||= []).push({ pid, p: P[pid][k], b, G });
+    }
+    const days = Object.keys(byDay).sort();
+    if (!days.length) return '<div class="empty">No graded nights yet.</div>';
+    if (!days.includes(dblF.night)) dblF.night = days[days.length - 1];
+    const di = days.indexOf(dblF.night), rows = byDay[dblF.night].slice().sort((a, b) => b.p - a.p);
+    const hit = (x) => cats10(x.b) >= need;
+    // the season so far: how many hit against how many we said, and our top 10 a night
+    let n = 0, h = 0, said = 0, tn = 0, th = 0;
+    for (const d of days) { const L = byDay[d].slice().sort((a, b) => b.p - a.p);
+      L.forEach((x, i) => { n++; said += x.p; if (hit(x)) h++; if (i < 10) { tn++; if (hit(x)) th++; } }); }
+    const nh = rows.filter(hit).length, nsaid = rows.reduce((a, x) => a + x.p, 0);
+    const G = [['Player', 2], ['Price', 1, 'price'], ['Production', 5, 'prod'], ['Result', 1, 'plain'], ['Game', 1, 'game']];
+    const st = (b, kk) => `<td class="num${b[BX[kk]] >= 10 ? '' : ' dim'}">${b[BX[kk]]}</td>`;
+    return `
+      <div class="hm-tiles" style="margin-bottom:0.6rem">
+        <div class="hm-tile"><b>${h}/${n}</b><span>${td ? 'Triple' : 'Double'}-doubles graded</span></div>
+        <div class="hm-tile"><b>${Odds.pct(h / n)}</b><span>Hit · we said ${Odds.pct(said / n)}</span></div>
+        <div class="hm-tile"><b>${Odds.pct(tn ? th / tn : 0)}</b><span>Our top 10 a night</span></div>
+      </div>
+      <div class="cp-wknav">
+        <button class="due-filter-chip mode-chip" onclick="setDblF('night','${days[Math.max(0, di - 1)]}')"${di <= 0 ? ' disabled' : ''}>‹</button>
+        <span class="cp-wk">${dayLabel(dblF.night, true)} · ${nh} of ${rows.length} · we said ${nsaid.toFixed(1)}</span>
+        <button class="due-filter-chip mode-chip" onclick="setDblF('night','${days[Math.min(days.length - 1, di + 1)]}')"${di >= days.length - 1 ? ' disabled' : ''}>›</button>
+      </div>
+      <div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
+        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num u-fair">${td ? 'TD' : 'DD'}</th><th class="num">Pts</th><th class="num">Reb</th><th class="num">Ast</th><th class="num">Stl</th><th class="num">Blk</th><th class="num">Got</th><th>Game</th></tr></thead>
+        <tbody>${rows.map((x, i) => { const b = x.b, c = cats10(b), ok = c >= need, opp = b[BX.team] === x.G.home ? x.G.away : x.G.home;
+          return `<tr onclick="funOpen('${td ? 'td' : 'dd'}','${x.pid}')">
+            <td class="num dim">${i + 1}</td><td><b>${esc(b[BX.name])}</b> <span class="dim">${b[BX.min]} min</span></td>
+            ${uiFair(x.p)}${st(b, 'pts')}${st(b, 'reb')}${st(b, 'ast')}${st(b, 'stl')}${st(b, 'blk')}
+            <td class="num" data-sv="${c}"><span style="font-weight:700;color:${ok ? 'var(--good)' : 'var(--dim)'}">${ok ? (c >= 3 ? 'TD' : 'DD') : c >= 2 ? 'DD' : '—'}</span></td>
+            <td class="dim">${esc(b[BX.team])} ${b[BX.team] === x.G.home ? 'vs' : '@'} ${esc(opp)}</td></tr>`; }).join('')}</tbody></table></div>
+      <div class="pt-meta" style="margin-top:0.5rem">Every player we priced that night, at his last pre-tip price, against his box score. Categories at 10+ are bold. "We said" adds up our chances: a well-priced night lands near it.</div>`;
+  }
   function renderDoubles() {
     const el = dataGate('doubles-content'); if (!el) return;
+    // Double-double / Triple-double are the board's two modes (like Threes' Chalk / Value); Board / Results under them
+    const mode = `<div class="picks-mode dbl-mode">${[['dd', 'Double-double'], ['td', 'Triple-double']].map(([v, l]) =>
+      `<button class="picks-mode-btn${dblF.sort === v ? ' active' : ''}" onclick="setDblF('sort','${v}')">${l}</button>`).join('')}</div>` + uiTabs('setDblF', dblF.tab);
+    if (dblF.tab === 'results') { el.innerHTML = mode + dblResults(); return; }
     const R0 = D.stats?.doubles;
-    if (!R0?.length) { el.innerHTML = '<div class="empty">No slate to price yet — the board fills in once the next games have lines.</div>'; return; }
+    if (!R0?.length) { el.innerHTML = mode + '<div class="empty">No slate to price yet — the board fills in once the next games have lines.</div>'; return; }
     const games = [...new Map(R0.map(r => [r.gid, r])).values()].sort((a, b) => a.start.localeCompare(b.start));
     if (dblF.game !== 'all' && !games.some(g => g.gid === dblF.game)) dblF.game = 'all';
     const rows = dblRows(), td = dblF.sort === 'td';
@@ -2028,11 +2079,10 @@
         rows: rows.map(r => shareRow(r, parSidePrice(r[dblF.sort], parSideGet('doubles')), '', `${r.pts} · ${r.reb} · ${r.ast} proj`)) };
     });
     const controls = uiFilters('setDblF', dblF.open, [
-      ['Market', [['dd', 'Double-double'], ['td', 'Triple-double']].map(([v, l]) => uiChip('setDblF', 'sort', v, l, dblF.sort)).join('')],
       ['Game', [['all', 'All games'], ...games.map(g => [g.gid, `${g.home ? g.opp : g.team} @ ${g.home ? g.team : g.opp}`])].map(([v, l]) => uiChip('setDblF', 'game', v, l, dblF.game)).join('')],
-    ], (dblF.sort !== 'dd') + (dblF.game !== 'all')) + uiSearch('doubles-search', 'setDblF', dblF.q, 'Search a player, team or position…');
+    ], +(dblF.game !== 'all')) + uiSearch('doubles-search', 'setDblF', dblF.q, 'Search a player, team or position…');
     const meta = `<div class="result-meta"><b>${dayLabel(D.stats.date, true)}</b> · ${rows.length} of ${R0.length} players · ${td ? 'triple' : 'double'}-double · fair odds, no vig</div>` + uiView('setDblF', dblF.view, parSideToggleHtml('doubles', true, 'renderDoubles()'));
-    if (!rows.length) { el.innerHTML = controls + meta + '<div class="empty">Nothing matches that filter.</div>'; return; }
+    if (!rows.length) { el.innerHTML = mode + controls + meta + '<div class="empty">Nothing matches that filter.</div>'; return; }
     const open = (r) => `openDoubleCard('${r.pid}')`, started = (r) => new Date(r.start) <= new Date();
     const side = parSideGet('doubles'), pk = (r) => parSidePrice(r[dblF.sort], side);
     let body;
@@ -2073,7 +2123,7 @@
           </div>
         </div>`).join('')}</div>`;
     }
-    el.innerHTML = controls + meta + body + `<div class="t3-note">Points, rebounds and assists each priced at 10 over his minutes — they barely move together once minutes are known — with a shared big-night factor (pace, overtime), then blended with his own last-40 rate. Tap a player for each of the three. Beat each player's own rate walk-forward; on Kalshi last season triple-doubles were overpriced (an 11.4% mid on an 8.2% outcome).</div>` + RonBacktest.html('dd') + RonBacktest.html('td');
+    el.innerHTML = mode + controls + meta + body + `<div class="t3-note">Points, rebounds and assists each priced at 10 over his minutes — they barely move together once minutes are known — with a shared big-night factor (pace, overtime), then blended with his own last-40 rate. Tap a player for each of the three. Beat each player's own rate walk-forward; on Kalshi last season triple-doubles were overpriced (an 11.4% mid on an 8.2% outcome).</div>` + RonBacktest.html('dd') + RonBacktest.html('td');
   }
   /** A player's card on the three the double-double is built from, stepping the board as shown. */
   function openDoubleCard(pid) { openLc('pts', pid, dblRows(), 9.5); }
