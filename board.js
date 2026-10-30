@@ -10,6 +10,14 @@
 //   uiView(setFn, current, extra)                     (table / cards, the data's age, Share; extra = more toolbar, e.g. parSideToggleHtml)
 //   uiSearch(inputId, setFn, query, placeholder)      (setFn('q', text, true) as you type)
 //   matchQ(row, query)                                name, team, opponent or position
+//
+// Board tables (Ron's table, from the NFL TD Factors view): add class u-tbl to the <table>, then
+//   uiCols(groups) + <thead>uiBand(groups)<tr>...       groups: [[label, columns, kind]], kind one of price / sit /
+//                                                       prod / game / plain, always in that order: Player, Price,
+//                                                       Situational, Production, Game. Categorical tints, never the
+//                                                       good-bad ramp. uiCols draws each group's divider down the table.
+//   uiFair(p, sub)                                      the price cell: odds over "sub · chance", the lit column
+// uiBand.extra / uiBand.priceLabel let a page that adds price columns (the local odds build) widen and rename Price.
 (function () {
   const CSS = `
   .pb-search { position: relative; margin-bottom: 0.55rem; }
@@ -52,6 +60,24 @@
   .pbf-row { display: grid; grid-template-columns: 5.6rem 1fr; align-items: start; gap: 0.75rem; padding: 0.55rem 0; border-top: 1px solid var(--border); }
   .pbf-row:first-child { border-top: none; padding-top: 0.1rem; }
   .pbf-lbl { font-family: var(--font-d); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); text-align: right; padding-top: 0.22rem; }
+  table.u-tbl.u-tbl th { font-family: var(--font-d); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); background: var(--surface2); padding: 0.45rem 0.6rem; white-space: nowrap; }
+  table.u-tbl.u-tbl td { font-family: var(--font-b); font-size: 0.8rem; font-variant-numeric: tabular-nums; padding: 0.42rem 0.6rem; }
+  table.u-tbl.u-tbl td.num, table.u-tbl.u-tbl td.num b { font-family: var(--font-b); }
+  table.u-tbl.u-tbl td b { font-weight: 700; color: var(--text-strong); }
+  table.u-tbl.u-tbl th.on { color: var(--accent); background-color: color-mix(in srgb, var(--accent) 9%, var(--surface2)); }
+  table.u-tbl.u-tbl th[onclick] { cursor: pointer; } table.u-tbl.u-tbl th[onclick]:hover { color: var(--text); }
+  table.u-tbl col.u-g { border-left: 1px solid var(--border2); }
+  table.u-tbl col.u-g:first-child { border-left: none; }
+  table.u-tbl.u-tbl tr.u-band th { font: 700 0.66rem var(--font-b); letter-spacing: 0.09em; text-transform: uppercase; text-align: left; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); cursor: default; position: static; }
+  table.u-tbl.u-tbl tr.u-band th + th { border-left: 1px solid var(--border2); }
+  table.u-tbl.u-tbl tr.u-band .u-b-price { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface2)); }
+  table.u-tbl.u-tbl tr.u-band .u-b-sit { color: #6ea8ff; background: color-mix(in srgb, #6ea8ff 10%, var(--surface2)); }
+  table.u-tbl.u-tbl tr.u-band .u-b-prod { color: #b48cff; background: color-mix(in srgb, #b48cff 10%, var(--surface2)); }
+  table.u-tbl.u-tbl tr.u-band .u-b-game, table.u-tbl.u-tbl tr.u-band .u-b-plain { color: var(--dim); }
+  table.u-tbl.u-tbl td.u-fair { text-align: right; font-weight: 700; color: var(--gold); background-color: color-mix(in srgb, var(--accent) 8%, transparent); line-height: 1.15; }
+  table.u-tbl.u-tbl td.u-fair.dog { color: var(--good); }
+  table.u-tbl.u-tbl td.u-fair small { display: block; font-size: 0.68rem; font-weight: 500; color: var(--muted); white-space: nowrap; }
+  table.u-tbl.u-tbl th.u-fair { color: var(--accent); background-color: color-mix(in srgb, var(--accent) 9%, var(--surface2)); }
   .pbf-chips { display: flex; gap: 0.32rem; flex-wrap: wrap; align-items: center; }
   .pbf-chip { background: var(--surface1); border: 1px solid var(--border2); color: var(--silver); font-family: var(--font-b); font-size: 0.729rem; font-weight: 700; padding: 0.26rem 0.66rem; border-radius: 7px; cursor: pointer; line-height: 1.25; transition: background 0.14s, color 0.14s, border-color 0.14s; }
   .pbf-chip:hover { background: var(--surface2); color: var(--text-strong); }
@@ -97,9 +123,19 @@
         <input type="text" id="${id}" placeholder="${ph}" value="${esc(q)}" oninput="${setFn}('q',this.value,true)" autocomplete="off" spellcheck="false">
         <button class="pb-search-x" onclick="${setFn}('q','')" aria-label="Clear">×</button>
       </div>`;
+  // the price group grows by uiBand.extra columns (the local odds build's Market / Best / EV)
+  const uiSpan = (n, kind) => n + (kind === 'price' ? uiBand.extra || 0 : 0);
+  function uiBand(groups) {
+    return `<tr class="u-band">${groups.map(([l, n, k = 'plain']) =>
+      `<th colspan="${uiSpan(n, k)}" class="u-b-${k}">${k === 'price' && uiBand.priceLabel ? uiBand.priceLabel : l}</th>`).join('')}</tr>`;
+  }
+  // a <col span> repeats its border on every column it spans, so each group is its first column (the divider) plus the rest
+  const uiCols = (groups) => `<colgroup>${groups.map(([, n, k = 'plain']) => { const m = uiSpan(n, k);
+    return `<col class="u-g u-g-${k}">${m > 1 ? `<col span="${m - 1}" class="u-g-${k}">` : ''}`; }).join('')}</colgroup>`;
+  const uiFair = (p, sub = '', cls = '') => `<td class="u-fair${p < 0.5 ? ' dog' : ''}${cls ? ' ' + cls : ''}">${Odds.am(p)}<small>${sub ? sub + ' · ' : ''}${Odds.pct(p)}</small></td>`;
   const matchQ = (r, q) => { const t = q.trim().toLowerCase(); return !t || r.name.toLowerCase().includes(t) || r.team.toLowerCase() === t || r.opp.toLowerCase() === t || (r.pos || '').toLowerCase() === t; };
 
-  Object.assign(window, { uiArg, uiChip, uiFilters, uiTabs, uiView, uiSearch, matchQ });
+  Object.assign(window, { uiArg, uiChip, uiFilters, uiTabs, uiView, uiSearch, matchQ, uiBand, uiCols, uiFair });
 })();
 
 // ── Factor filters: the MLB Matchups table's card, for every factor table (NHL goals, NFL TDs, NBA threes) ──

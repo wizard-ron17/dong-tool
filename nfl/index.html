@@ -3897,17 +3897,18 @@
   /** Passing TDs are their own Poisson model (no Role/Trend/Spot): the table shows what it's built from. */
   function pbPassTable(rows) {
     const th = (v, lab, cls = '', tip = '') => `<th class="${cls}${pbF.sort === v ? ' on' : ''}" onclick="setPbSort('${v}')"${tip ? ` title="${tip}"` : ''}>${lab}${pbF.sort === v ? `<span class="ar">${pbF.dir === 'desc' ? '▼' : '▲'}</span>` : ''}</th>`;
-    return `<div class="pb-tablewrap"><table class="pb-table">
-      <thead><tr><th class="static" title="Rank in the current sort">#</th>${th('name', 'Quarterback', '', 'Click any column to sort by it; click again to reverse')}${th('p', 'Fair', 'num', 'Our fair price at this line, no vig, with the chance beside it')}${th('proj', 'Proj TD', 'num', 'Projected passing touchdowns')}<th class="static num" title="Pass attempts per game">Att/g</th>${th('imp', 'Total', 'num', 'Points his team is implied to score, from the game total and spread')}<th class="static num" title="Fair price for 1+ passing touchdowns">O0.5</th><th class="static num" title="Fair price for 3+ passing touchdowns">O2.5</th>${th('time', 'Game', '', 'The game, sorted by kickoff')}</tr></thead>
+    const G = [['Player', 2], ['Price', 4, 'price'], ['Production', 1, 'prod'], ['Game', 2, 'game']];
+    return `<div class="pb-tablewrap"><table class="pb-table u-tbl">${uiCols(G)}
+      <thead>${uiBand(G)}<tr><th class="static" title="Rank in the current sort">#</th>${th('name', 'Quarterback', '', 'Click any column to sort by it; click again to reverse')}${th('proj', 'Proj TD', 'num', 'Projected passing touchdowns')}${th('p', 'Fair', 'num u-fair', 'Our fair price at this line, no vig, with the chance beside it')}<th class="static num" title="Fair price for 1+ passing touchdowns">O0.5</th><th class="static num" title="Fair price for 3+ passing touchdowns">O2.5</th><th class="static num" title="Pass attempts per game">Att/g</th>${th('imp', 'Total', 'num', 'Points his team is implied to score, from the game total and spread')}${th('time', 'Game', '', 'The game, sorted by kickoff')}</tr></thead>
       <tbody>${rows.map((r, i) => `<tr onclick="openPick('${r.pid}')"${parAttr(pbLeg(r))}>
         <td class="num">${r.rank ?? i + 1}</td>
         <td class="nm">${r.name}</td>
-        <td class="od${pbShown(r) < 0.5 ? ' dog' : ''}">${pbOdds(pbShown(r))}<small>${(pbShown(r) * 100).toFixed(0)}%</small></td>
         <td class="num">${(r.pass?.proj ?? 0).toFixed(2)}</td>
-        <td class="num">${(r.pass?.attPg ?? 0).toFixed(0)}</td>
-        <td class="num">${(r.f?.implied ?? 0).toFixed(1)}</td>
+        ${uiFair(pbShown(r), parSideGet('picks') === 'under' ? 'u1.5' : 'o1.5')}
         <td class="num" style="color:var(--dim)">${Odds.inline(r.pass?.p?.['1'])}</td>
         <td class="num" style="color:var(--dim)">${Odds.inline(r.pass?.p?.['3'])}</td>
+        <td class="num">${(r.pass?.attPg ?? 0).toFixed(0)}</td>
+        <td class="num">${(r.f?.implied ?? 0).toFixed(1)}</td>
         <td><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}${r.kick ? ` <span style="color:var(--dim)">${r.kick}</span>` : ''}</td>
       </tr>`).join('')}</tbody></table></div>`;
   }
@@ -3925,8 +3926,9 @@
     const card = pbMkt().qbOnly ? '' : RonFx.html('nflTd', PB_FX, nflData.picks?.picks || []);
     if (!rows.length) return card + bar + `<div class="empty">Nobody matches these factor filters. <a href="javascript:void(0)" onclick="RonFx.reset('nflTd','renderPicks()')">Clear them →</a></div>`;
     if (pbMkt().qbOnly) return bar + '<div class="empty">The passing-TD market is its own Poisson model — pick an anytime market to see factors.</div>';
-    return `${card}${bar}<div class="pb-tablewrap"><table class="pb-table pbx-table">
-      <thead><tr><th class="static" title="Rank in the current sort">#</th>${th('name', 'Player', '', 'Click any column to sort by it; click again to reverse')}${th('pos', 'Pos', '', 'Position')}${th('p', 'Fair', 'num', 'Our fair price to score, no vig, with the chance beside it')}
+    const G = [['Player', 3], ['Price', 1, 'price'], ['Situational', 4, 'sit'], ['Production', 5, 'prod'], ['Game', 2, 'game']];
+    return `${card}${bar}<div class="pb-tablewrap"><table class="pb-table pbx-table u-tbl">${uiCols(G)}
+      <thead>${uiBand(G)}<tr><th class="static" title="Rank in the current sort">#</th>${th('name', 'Player', '', 'Click any column to sort by it; click again to reverse')}${th('pos', 'Pos', '', 'Position')}${th('p', 'Fair', 'num u-fair', 'Our fair price to score, no vig, with the chance beside it')}
         ${th('role', 'Role ×', 'num', 'Who he is: touches, snaps, TD share, red zone (and goal-line carries for a QB). The NFL version of MLB Power.')}
         ${th('trend', 'Trend ×', 'num', 'His last three games vs his usual touches — a role growing (green) or shrinking (red).')}
         ${th('spot', 'Spot ×', 'num', 'This game: his team\'s implied total and teammates ruled out. Mostly the team total — opposing defense tested as a null.')}
@@ -3936,7 +3938,7 @@
         <td class="num">${r.rank ?? i + 1}</td>
         ${td('name', `${r.name}${f.newAbsence ? ' <span class="pb-flag">ROLE OPEN</span>' : ''}`, 'nm')}
         ${td('pos', posBadge(r.pos), '')}
-        <td class="od pbx-fair${pbShown(r) < 0.5 ? ' dog' : ''}${on('p')}" title="${(pbP(r) * 100).toFixed(1)}% to score">${pbOdds(pbShown(r))}<small>${(pbShown(r) * 100).toFixed(pbShown(r) < 0.1 ? 1 : 0)}%</small></td>
+        <td class="od pbx-fair u-fair${pbShown(r) < 0.5 ? ' dog' : ''}${on('p')}" title="${(pbP(r) * 100).toFixed(1)}% to score">${pbOdds(pbShown(r))}<small>${(pbShown(r) * 100).toFixed(pbShown(r) < 0.1 ? 1 : 0)}%</small></td>
         ${td('role', pbFxCell(r, 'role'))}${td('trend', pbFxCell(r, 'trend'))}${td('spot', pbFxCell(r, 'spot'))}${td('lift', pbFxCell(r, 'lift'), 'num pbx-div')}
         ${td('touch', (f.touches ?? 0).toFixed(1), 'num', pbInk(pbPc('touch', q => q.f?.touches ?? 0, r)))}${td('touch3', (f.touch3 ?? 0).toFixed(1), 'num', pbInk(pbPc('touch3', q => q.f?.touch3 ?? 0, r)))}${td('snap3', Math.round((f.snap3 ?? 0) * 100) + '%', 'num', pbInk(pbPc('snap3', q => q.f?.snap3 ?? 0, r)))}
         ${td('tds', Math.round((f.tdShare ?? 0) * 100) + '%', 'num', pbInk(pbPc('tds', q => q.f?.tdShare ?? 0, r)))}${td('rz', (f.rz ?? 0).toFixed(1), 'num', pbInk(pbPc('rz', q => q.f?.rz ?? 0, r)))}${td('imp', (f.implied ?? 0).toFixed(1), 'num', pbInk(pbPc('imp', q => q.f?.implied ?? 0, r)))}
@@ -7031,19 +7033,19 @@ let pairStacks = false;
 
     let body;
     if (rcF.view === 'table') {
-      body = `<div class="rc-tablewrap"><table class="rc-table">
-        <thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Proj</th>
-          <th class="num">Snap</th><th class="num">Tgt</th><th class="num">Line</th><th class="num">Price</th></tr></thead>
+      const G = [['Player', 2], ['Price', 2, 'price'], ['Production', 2, 'prod'], ['Game', 1, 'game']];
+      body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
+        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num">Proj</th><th class="num u-fair">Fair</th>
+          <th class="num" title="Share of his offense's snaps, last three games">Snap</th><th class="num" title="Share of his team's targets, last three games">Tgt</th><th>Game</th></tr></thead>
         <tbody>${rows.map((r, i) => `
           <tr onclick="openRec('${r.pid}')"${parAttr(rcLeg(r))}>
             <td class="num dim">${r.rank}</td>
             <td><b>${r.name}</b> <span class="dim">${r.pos}</span></td>
-            <td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
             <td class="num"><b>${r.mu.toFixed(2)}</b></td>
+            ${uiFair(r.p, parSideLine(r))}
             <td class="num dim">${Math.round((r.f.snapL3 || 0) * 100)}%</td>
             <td class="num dim">${r.f.thinRole ? '—' : Math.round((r.f.shareL3 || 0) * 100) + '%'}</td>
-            <td class="num dim">${parSideLine(r)}</td>
-            <td class="num"><b class="${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</b></td>
+            <td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
           </tr>`).join('')}</tbody></table></div>`;
     } else if (rcF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map((r, i) => `
@@ -7161,14 +7163,14 @@ let pairStacks = false;
     const open = (r) => `ffToggle('${r.pid}')`;
     let body;
     if (ffF.view === 'table') {
-      body = `<div class="rc-tablewrap"><table class="rc-table">
-        <thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Pts</th><th class="num">Rec</th><th class="num">Rec yds</th><th class="num">Rush yds</th><th class="num">TD</th><th class="num">Pass yds</th><th class="num">Pass TD</th><th class="num">INT</th></tr></thead>
+      const G = [['Player', 2], ['Points', 1, 'price'], ['Projected stats', 7, 'prod'], ['Game', 1, 'game']];
+      body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
+        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num u-fair">Pts</th><th class="num">Rec</th><th class="num">Rec yds</th><th class="num">Rush yds</th><th class="num">TD</th><th class="num">Pass yds</th><th class="num">Pass TD</th><th class="num">INT</th><th>Game</th></tr></thead>
         <tbody>${rows.map(r => `
           <tr onclick="${open(r)}">
             <td class="num dim">${r.rank}</td>
             <td><b>${r.name}</b> <span class="dim">${r.pos}</span></td>
-            <td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
-            <td class="num"><b>${r.total.toFixed(1)}</b></td>
+            <td class="num u-fair" style="color:var(--text-strong)">${r.total.toFixed(1)}</td>
             <td class="num">${r.pos === 'QB' ? '—' : r.s.rec.toFixed(1)}</td>
             <td class="num">${r.pos === 'QB' ? '—' : Math.round(r.s.ryds) + (r.s.rydsEst ? '*' : '')}</td>
             <td class="num">${r.s.uyds >= 1 ? Math.round(r.s.uyds) : '—'}</td>
@@ -7176,6 +7178,7 @@ let pairStacks = false;
             <td class="num">${r.pos === 'QB' ? Math.round(r.s.pyds) : '—'}</td>
             <td class="num">${r.pos === 'QB' ? r.s.ptd.toFixed(1) : '—'}</td>
             <td class="num">${r.pos === 'QB' ? r.s.int.toFixed(1) : '—'}</td>
+            <td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
           </tr>${ffF.pid === r.pid ? `<tr class="ff-trow"><td></td><td colspan="10">${ffBreak(r)}</td></tr>` : ''}`).join('')}</tbody></table></div>`;
     } else if (ffF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
@@ -7279,10 +7282,11 @@ let pairStacks = false;
     if (!rows.length) { el.innerHTML = controls + '<div class="empty">Nothing matches that search.</div>'; return; }
     let body;
     if (cpF.view === 'table') {
-      body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>QB</th><th>Game</th><th class="num">Proj</th><th class="num">Att</th><th class="num">Cmp%</th><th class="num">Line</th><th class="num">Price</th></tr></thead><tbody>${rows.map((r, i) => `
-        <tr onclick="openCmp('${r.pid}')"${parAttr(cpLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
-          <td class="num"><b>${r.mu.toFixed(1)}</b></td><td class="num dim">${r.f.attPrior.toFixed(0)}</td><td class="num dim">${(r.f.rate * 100).toFixed(0)}%</td>
-          <td class="num dim">${parSideLine(r)}</td><td class="num"><b class="${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</b></td></tr>`).join('')}</tbody></table></div>`;
+      const G = [['Player', 2], ['Price', 2, 'price'], ['Production', 2, 'prod'], ['Game', 1, 'game']];
+      body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}<thead>${uiBand(G)}<tr><th></th><th>QB</th><th class="num">Proj</th><th class="num u-fair">Fair</th><th class="num">Att</th><th class="num">Cmp%</th><th>Game</th></tr></thead><tbody>${rows.map((r, i) => `
+        <tr onclick="openCmp('${r.pid}')"${parAttr(cpLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td>
+          <td class="num"><b>${r.mu.toFixed(1)}</b></td>${uiFair(r.p, parSideLine(r))}<td class="num dim">${r.f.attPrior.toFixed(0)}</td><td class="num dim">${(r.f.rate * 100).toFixed(0)}%</td>
+          <td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td></tr>`).join('')}</tbody></table></div>`;
     } else if (cpF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map((r, i) => `
         <div class="rc-crow" onclick="openCmp('${r.pid}')"${parAttr(cpLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
@@ -7408,10 +7412,11 @@ let pairStacks = false;
     const under = (r) => Odds.inline(1 - r.pO);
     let body;
     if (inF.view === 'table') {
-      body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>QB</th><th>Game</th><th class="num">Spread</th><th class="num">Bad balls</th><th class="num">Opp INT%</th><th class="num">Over</th><th class="num">Under</th></tr></thead><tbody>${rows.map(r => `
-        <tr onclick="openInt('${r.pid}')"${parAttr(inLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
-          <td class="num dim">${spreadTxt(r.f.fav)}</td><td class="num dim">${(r.f.bad * 100).toFixed(1)}%</td><td class="num dim">${(r.f.defInt * 100).toFixed(1)}%</td>
-          <td class="num${r.side === 'under' ? ' dim' : ''}"><b class="${r.pO < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.pO)}</b></td><td class="num${r.side === 'under' ? '' : ' dim'}">${under(r)}</td></tr>`).join('')}</tbody></table></div>`;
+      const G = [['Player', 2], ['Price', 1, 'price'], ['Situational', 2, 'sit'], ['Production', 1, 'prod'], ['Game', 1, 'game']];
+      body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}<thead>${uiBand(G)}<tr><th></th><th>QB</th><th class="num u-fair">Fair</th><th class="num" title="Point spread for his team: trailing teams throw riskier passes">Spread</th><th class="num" title="Share of passes this defense intercepts">Opp INT%</th><th class="num" title="Share of his passes intercepted or broken up">Bad balls</th><th>Game</th></tr></thead><tbody>${rows.map(r => `
+        <tr onclick="openInt('${r.pid}')"${parAttr(inLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td>
+          ${uiFair(r.p, parSideLine(r))}<td class="num dim">${spreadTxt(r.f.fav)}</td><td class="num dim">${(r.f.defInt * 100).toFixed(1)}%</td><td class="num dim">${(r.f.bad * 100).toFixed(1)}%</td>
+          <td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td></tr>`).join('')}</tbody></table></div>`;
     } else if (inF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
         <div class="rc-crow" onclick="openInt('${r.pid}')"${parAttr(inLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
@@ -7545,13 +7550,14 @@ let pairStacks = false;
       </div>
       <div class="pb-head"><span class="pb-week">${WK_LABEL(firstUpcomingWeek())}</span><span class="pb-meta">${rows.length} kickers · ${kkF.line === 'even' ? `${M.unit} at each kicker's median line` : `${parSideGet('kick')} ${kkF.line} ${M.unit}`} · fair odds, no vig</span></div>${dayBar()}`;
     if (!rows.length) { el.innerHTML = controls + '<div class="empty">Nothing matches that search.</div>'; return; }
-    const under = (r) => Odds.inline(1 - r.pO);
     let body;
     if (kkF.view === 'table') {
-      body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>Kicker</th><th>Game</th><th class="num">Team total</th><th class="num">Spread</th><th class="num">Weather</th><th class="num">Proj</th><th class="num">Over</th><th class="num">Under</th></tr></thead><tbody>${rows.map(r => `
-        <tr onclick="openKick('${r.pid}')"${parAttr(kkLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
-          <td class="num dim">${r.f.implied.toFixed(1)}</td><td class="num dim">${spreadTxt(r.f.fav)}</td><td class="num dim">${kkWx(r.f)}</td><td class="num">${kkProj(r)}</td>
-          <td class="num${r.side === 'under' ? ' dim' : ''}"><b class="${r.pO < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.pO)}</b></td><td class="num${r.side === 'under' ? '' : ' dim'}">${under(r)}</td></tr>`).join('')}</tbody></table></div>`;
+      const G = [['Player', 2], ['Price', 2, 'price'], ['Situational', 3, 'sit'], ['Game', 1, 'game']];
+      body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}<thead>${uiBand(G)}<tr><th></th><th>Kicker</th><th class="num">Proj</th><th class="num u-fair">Fair</th><th class="num">Team total</th><th class="num">Spread</th><th class="num">Weather</th><th>Game</th></tr></thead><tbody>${rows.map(r => `
+        <tr onclick="openKick('${r.pid}')"${parAttr(kkLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b></td>
+          <td class="num"><b>${kkProj(r)}</b></td>${uiFair(r.pp, parSideLine(r))}
+          <td class="num dim">${r.f.implied.toFixed(1)}</td><td class="num dim">${spreadTxt(r.f.fav)}</td><td class="num dim">${kkWx(r.f)}</td>
+          <td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td></tr>`).join('')}</tbody></table></div>`;
     } else if (kkF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
         <div class="rc-crow" onclick="openKick('${r.pid}')"${parAttr(kkLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
@@ -7722,10 +7728,11 @@ let pairStacks = false;
     const pos = (r) => `<span class="posb ${r.pos}">${r.pos}</span>`;
     let body;
     if (ydF.view === 'table') {
-      body = `<div class="rc-tablewrap"><table class="rc-table"><thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Median</th><th class="num">Avg</th><th class="num">Last 3</th><th class="num">Line</th><th class="num">Over</th><th class="num">Under</th></tr></thead><tbody>${rows.map(r => `
-        <tr onclick="openYds('${r.pid}','${r.m}')"${parAttr(ydLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b> <span class="dim">${r.pos}</span></td><td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td>
-          <td class="num"><b>${r.med.toFixed(0)}</b></td><td class="num dim">${r.f.avg != null ? r.f.avg.toFixed(0) : '—'}</td><td class="num dim">${r.f.l3 != null ? r.f.l3.toFixed(0) : '—'}</td>
-          <td class="num dim">${r.L}</td><td class="num${r.side === 'under' ? ' dim' : ''}"><b class="${r.pO < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.pO)}</b></td><td class="num${r.side === 'under' ? '' : ' dim'}">${Odds.inline(1 - r.pO)}</td></tr>`).join('')}</tbody></table></div>`;
+      const G = [['Player', 2], ['Price', 2, 'price'], ['Production', 2, 'prod'], ['Game', 1, 'game']];
+      body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}<thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num">Median</th><th class="num u-fair">Fair</th><th class="num">Avg</th><th class="num">Last 3</th><th>Game</th></tr></thead><tbody>${rows.map(r => `
+        <tr onclick="openYds('${r.pid}','${r.m}')"${parAttr(ydLeg(r))}><td class="num dim">${r.rank}</td><td><b>${r.name}</b> <span class="dim">${r.pos}</span></td>
+          <td class="num"><b>${r.med.toFixed(0)}</b></td>${uiFair(r.p, parSideLine(r))}<td class="num dim">${r.f.avg != null ? r.f.avg.toFixed(0) : '—'}</td><td class="num dim">${r.f.l3 != null ? r.f.l3.toFixed(0) : '—'}</td>
+          <td class="dim">${r.team} ${r.home ? 'vs' : '@'} ${r.opp}</td></tr>`).join('')}</tbody></table></div>`;
     } else if (ydF.view === 'compact') {
       body = `<div class="rc-compact">${rows.map(r => `
         <div class="rc-crow" onclick="openYds('${r.pid}','${r.m}')"${parAttr(ydLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>

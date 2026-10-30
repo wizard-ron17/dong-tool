@@ -1193,19 +1193,20 @@
       ${r.pk >= 0.2 ? `<span class="pb-f" title="His share of his team's recent penalties"><b>${Math.round(r.pk * 100)}%</b> PENS</span>` : ''}`;
     let body;
     if (gF.view === 'table') {
-      body = `<div class="rc-tablewrap"><table class="rc-table">
-        <thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Min</th><th class="num">SH/90</th><th class="num">G/90</th><th class="num">Pens</th><th class="num">Team</th><th class="num">Price</th></tr></thead>
+      const G = [['Player', 2], ['Price', 1, 'price'], ['Situational', 1, 'sit'], ['Production', 4, 'prod'], ['Game', 1, 'game']];
+      body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
+        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num u-fair">Fair</th><th class="num" title="Goals the line expects from his team">Team</th><th class="num" title="Expected minutes">Min</th><th class="num">SH/90</th><th class="num">G/90</th><th class="num" title="His share of his team's penalties">Pens</th><th>Game</th></tr></thead>
         <tbody>${rows.map(r => `
           <tr onclick="${open(r)}"${started(r) ? ' class="dim"' : ''}>
             <td class="num dim">${r.rank}</td>
             <td><b>${esc(r.name)}</b> <span class="dim">${esc(r.pos || '')}</span> ${xiTag(r)}</td>
-            <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${dayLabel(etDay(r.start))}</td>
+            ${uiFair(r.p)}
+            <td class="num dim">${r.imp != null ? r.imp.toFixed(2) : '—'}</td>
             <td class="num dim">${r.em.toFixed(0)}'</td>
             <td class="num dim">${r.sh90.toFixed(2)}</td>
             <td class="num dim">${r.g90.toFixed(2)}</td>
             <td class="num dim">${r.pk ? Math.round(r.pk * 100) + '%' : '—'}</td>
-            <td class="num dim">${r.imp != null ? r.imp.toFixed(2) : '—'}</td>
-            <td class="num"><b>${Odds.inline(r.p)}</b></td>
+            <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${dayLabel(etDay(r.start))}</td>
           </tr>`).join('')}</tbody></table></div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
@@ -1376,19 +1377,19 @@
     const side = (r) => `${sF.side === 'under' ? 'u' : 'o'}${r.L}`;
     let body;
     if (sF.view === 'table') {
-      body = `<div class="rc-tablewrap"><table class="rc-table">
-        <thead><tr><th></th><th>Player</th><th>Game</th><th class="num">Proj</th><th class="num">Start</th><th class="num">${k === 'sh' ? 'SH' : 'SOT'}/90</th><th class="num">Opp allows</th><th class="num">Line</th><th class="num">Price</th></tr></thead>
+      const G = [['Player', 2], ['Price', 2, 'price'], ['Situational', 1, 'sit'], ['Production', 2, 'prod'], ['Game', 1, 'game']];
+      body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
+        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num">Proj</th><th class="num u-fair">Fair</th><th class="num" title="Shots a game the opponent allows (its last 20)">Opp allows</th><th class="num" title="His chance to start">Start</th><th class="num">${k === 'sh' ? 'SH' : 'SOT'}/90</th><th>Game</th></tr></thead>
         <tbody>${rows.map(r => `
           <tr onclick="${open(r)}"${started(r) ? ' class="dim"' : ''}>
             <td class="num dim">${r.rank}</td>
             <td><b>${esc(r.name)}</b> <span class="dim">${esc(r.pos || '')}</span> ${xiTag(r)}</td>
-            <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${dayLabel(etDay(r.start))}</td>
             <td class="num"><b>${r.S.mu.toFixed(2)}</b></td>
+            ${uiFair(r.pAt, side(r))}
+            <td class="num dim">${r.osha != null ? r.osha.toFixed(1) : '—'}</td>
             <td class="num dim">${Math.round(r.S.ps * 100)}%</td>
             <td class="num dim">${r.S.r90.toFixed(2)}</td>
-            <td class="num dim">${r.osha != null ? r.osha.toFixed(1) : '—'}</td>
-            <td class="num dim">${side(r)}</td>
-            <td class="num"><b>${Odds.inline(r.pAt)}</b></td>
+            <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${dayLabel(etDay(r.start))}</td>
           </tr>`).join('')}</tbody></table></div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
