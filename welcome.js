@@ -43,6 +43,12 @@
     background: color-mix(in srgb, var(--text, #e8edf5) 5%, transparent); border-left: 3px solid var(--accent, var(--green, #33d07c)); }
   .rw-story i { display: block; margin-top: 0.35rem; font-style: normal; font-size: 0.74rem; color: var(--muted, #8a94a6); }
   .rw-story a, .rw-fine a { color: var(--accent, var(--green, #33d07c)); text-decoration: none; font-weight: 600; }
+  .rw-ref { display: flex; gap: 0.7rem; align-items: flex-start; margin-top: 0.8rem; padding: 0.75rem 0.95rem; border-radius: 12px; font-size: 0.82rem; line-height: 1.5;
+    border: 1px solid color-mix(in srgb, var(--text, #e8edf5) 10%, transparent); }
+  .rw-ref b { color: var(--text-strong, #fff); }
+  .rw-ref > div > b { display: block; font-size: 0.9rem; }
+  .rw-ref a { color: var(--accent, var(--green, #33d07c)); text-decoration: none; font-weight: 600; }
+  .rw-ref i { display: block; margin-top: 0.3rem; font-style: normal; font-size: 0.72rem; color: var(--muted, #8a94a6); }
   .rw-go { display: block; width: 100%; margin-top: 1.1rem; padding: 0.75rem; border: 0; border-radius: 11px; cursor: pointer;
     font: 700 0.95rem var(--font-d, 'Chakra Petch', sans-serif); letter-spacing: 0.02em; color: #04170f; background: var(--accent, var(--green, #33d07c)); }
   .rw-go:hover { filter: brightness(1.08); }
@@ -72,6 +78,9 @@
       </div>
       <div class="rw-story">I went the usual route: arbitrage, then +EV betting at the soft books, plus betting into the sharps' traps on the exchanges. My accounts got limited. Bottom-up betting is what came next, and Ron's Tools is how I do it.
         <i>— Ron · inspired by <a href="https://www.youtube.com/@greenmeansgosports" target="_blank" rel="noopener">Green Means Go</a> and his home run research</i></div>
+      <div class="rw-ref">${ic('<path d="M7 7h11l-3-3M17 17H6l3 3"/>')}<div><b>Where I bet: <a href="https://4cx.io/sign-up/ron17" target="_blank" rel="sponsored noopener">4Cx</a></b>
+        It's Novig and ProphetX before their prediction-market switch: an exchange with zero fees that still shows American odds. A sweepstakes book, so check it's open in your state.
+        <i>Referral link: sign up with code <b>ron17</b> and we both get $25 when you buy a $25+ package. The boards don't favour any book.</i></div></div>
       <button class="rw-go" onclick="RonWelcome.close()">Let's go</button>
       <div class="rw-fine">Free, for research and entertainment. Not betting advice, and no price wins every time. 21+. Bet what you can afford to lose. Gambling problem? Call 1-800-GAMBLER.</div>
     </div>`;
