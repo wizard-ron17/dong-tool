@@ -23,7 +23,7 @@
   // book, the price you got and the stake — only you know those).
   const amNum = (p) => { const s = am(p); return s === '—' ? null : parseInt(s, 10); };
   const bookAm = (s) => { const m = String(s || '').trim().match(/^([+-]?\d{3,5})$/); return m ? parseInt(m[1], 10) : null; };
-  function trackerText(legs, p, { corr = false, book = '', boost = 0, mkt = null } = {}) {
+  function trackerText(legs, p, { corr = false, book = '', boost = 0, mkt = null, bookName = '', bookPrice = '' } = {}) {
     const sports = [...new Set(legs.map(l => String(l.sp || '').toUpperCase()).filter(Boolean))];
     const games = [...new Set(legs.map(l => String(l.g || '').replace('@', ' @ ')).filter(Boolean))];
     const one = legs.length === 1;
@@ -33,7 +33,8 @@
       v: 1, league: sports.join(' / '), event: games.join(', '),
       market: one ? (legs[0].s || 'Player prop') : `${sgp ? 'SGP' : 'Parlay'} · ${legs.length} legs`,
       betname: legs.map(legName).join(' + '),
-      odds: bookAm(book), fair: amNum(p), fairRon: amNum(p),
+      // the price you typed; else the book the slip picked (the local odds build), with its name either way
+      odds: bookAm(book) ?? bookAm(bookPrice), fair: amNum(p), fairRon: amNum(p), ...(bookName ? { book: bookName } : {}),
       // the market's fair for the slip when the page has one (the local odds build); the tracker blends the two
       ...(mkt > 0 && mkt < 1 ? { fairMkt: amNum(mkt) } : {}),
       note: `Ron's Tools fair ${am(p)} (${pct(p)})${corr === true || corr === 'sgp' ? ', correlation-priced' : ''}`,
