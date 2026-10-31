@@ -15,6 +15,8 @@
 // again after it. The sport menu builds itself. Loaded in <head>, before the
 // page's own scripts, which use the globals at the bottom (toggleTheme,
 // closeNavTools, currentTheme, ...).
+// the holiday touches (/holiday.js): on a few days a year, by date
+if (!document.querySelector('script[src^="/holiday.js"]')) { const h = document.createElement('script'); h.src = '/holiday.js'; h.defer = true; document.head.appendChild(h); }
 (function () {
   // Styles for the header, main nav, tools menu, sport switcher and footer: the rules that were identical in all four apps.
   // Injected from <head>, so each page's own <style> (loaded after) still wins.
