@@ -3,8 +3,10 @@
 Dated and open work. Newest decisions at the top of each section. Remove items when done.
 
 ## Scheduled
-- **MLB season end (World Series, by 10/31):** the home tile flips to Off on 10/31. MLB has never built through an offseason, so check the first offseason `Build data.json` run passes and the app shows a clean empty state (an off day works; a whole offseason hasn't been tried).
-- **MLB playoff pitching:** update `mlb/pitching-overrides.json` per game day (openers and bullpen games) until the Series ends.
+- **Weekly closes re-grade, next ~11/03:** `~/smartstake-data/study/cv/grade_all.sh --since 2026-10-28` (pull fresh closes first). Checks the 10/28 NBA lineup fix, the 10/29 points/PRA shape and threes prev2, the 10/30 NFL TD no-history pull (−1.45) and additive TD devig, and the NHL PP unit. Then rewrite the Models page "vs the market" rows: the NBA row still reads opening week (close sharper on double-doubles), and DD has beaten the close since the 10/28 fix.
+- **First-scorer grades at ~100 games:** NBA first basket (market slightly better at 44 games), NHL first goal (ours better at 30).
+- **NBA overs:** Results (10/20-30) show points and rebounds going over 2-3pp more than priced (minutes, as the close grade said); watch it shrink at the re-grade.
+- **MLB offseason:** `MLB_OFF` in mlb/index.html is hand-set each year (opening 2027-03-25); builds resume ~03/18 via should-build.
 - **MLS Decision Day 11/07, playoffs from 11/11:** check the soccer build and boards on the first playoff day (slug `playoffs`?), and that the home tile switches to Post.
 
 ## Next up
