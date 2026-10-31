@@ -1,5 +1,5 @@
-// Holiday touches, a few days a year. A holiday is on between its dates (US Eastern), then it's gone with no
-// deploy. Loaded on every page (chrome.js loads it in the apps; the picker has its own tag).
+// Holiday touches, a few days a year. Each holiday is on for three days, the day before, the day itself and the day
+// after (US Eastern), then it's gone with no deploy. Loaded on every page (chrome.js loads it in the apps; the picker has its own tag).
 // ?holiday=halloween turns one on any day, to preview it; ?holiday=off turns them all off.
 //
 //   halloween  a night scene behind the page (the sides and the gaps between cards): moon and a witch, bats, a haunted
@@ -9,11 +9,14 @@
 (function () {
   if (window.RonHoliday) return;
   const HOLIDAYS = [
-    { key: 'halloween', from: '10-29', to: '11-01' },
+    { key: 'halloween', date: '10-31' },
   ];
   const q = new URLSearchParams(location.search).get('holiday');
-  const md = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', month: '2-digit', day: '2-digit' }).format(new Date());
-  const on = q === 'off' ? null : HOLIDAYS.find(h => h.key === q) || (q ? null : HOLIDAYS.find(h => md >= h.from && md <= h.to));
+  // today in US Eastern, and whether a holiday's month-day is within a day of it (across a month or year end)
+  const et = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const today = Date.UTC(+et.slice(0, 4), +et.slice(5, 7) - 1, +et.slice(8, 10));
+  const near = (h) => [-1, 0, 1].some(dy => { const d = Date.UTC(+et.slice(0, 4) + dy, +h.date.slice(0, 2) - 1, +h.date.slice(3, 5)); return Math.abs(d - today) <= 864e5; });
+  const on = q === 'off' ? null : HOLIDAYS.find(h => h.key === q) || (q ? null : HOLIDAYS.find(near));
   window.RonHoliday = { on: on?.key || null };
   if (!on) return;
   const root = document.documentElement;
