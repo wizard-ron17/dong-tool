@@ -1174,13 +1174,14 @@
     if (!G?.rows?.length) { el.innerHTML = '<div class="empty">No games to price yet. The board fills in once the next games are on the schedule.</div>'; return; }
     const games = dayGames();
     if (gF.game !== 'all' && !games.some(g => g.gid === gF.game)) gF.game = 'all';
-    const rows = goalRows();
+    const GL_SORT = { p: ['Shortest price', r => r.p], em: ['Expected minutes', r => r.em], sh90: ['Shots / 90', r => r.sh90], g90: ['Goals / 90', r => r.g90], imp: ['Team goals', r => r.imp], pk: ['Penalties', r => r.pk || null] };
+    const rows = uiSorted(goalRows(), gF.sort, GL_SORT);
     RonShare.set('setGoalsF', () => ({ title: 'Anytime goal', sub: `${dayLabel(G.from)}${G.to && G.to !== G.from ? ' – ' + dayLabel(G.to) : ''} · fair odds`, rows: rows.map(shareGoal) }));
     const changed = (gF.game !== 'all') + (gF.pos !== 'ALL') + (gF.sort !== 'p');
     const controls = uiFilters('setGoalsF', gF.open, [
       ['Game', [['all', 'All games'], ...games.map(g => [g.gid, `${gameLbl(g)} · ${gameTime(g.start)}`])].map(([v, l]) => uiChip('setGoalsF', 'game', v, l, gF.game)).join('')],
       ['Position', [['ALL', 'All'], ['FWD', 'Forwards'], ['MID', 'Midfield'], ['DEF', 'Defenders']].map(([v, l]) => uiChip('setGoalsF', 'pos', v, l, gF.pos)).join('')],
-      ['Sort', [['p', 'Shortest price'], ['em', 'Expected minutes'], ['sh90', 'Shots / 90'], ['imp', 'Team goals']].map(([v, l]) => uiChip('setGoalsF', 'sort', v, l, gF.sort)).join('')],
+      ...(gF.view === 'table' ? [] : [['Sort', uiSort('setGoalsF', gF.sort, GL_SORT)]]),
     ], changed) + uiSearch('goals-search', 'setGoalsF', gF.q, 'Search a player, team or position…');
     const ad = activeDay();
     const meta = `<div class="result-meta"><b>${ad ? dayLabel(ad.day, true) : "Each team's next game"}</b> · ${rows.length} players${gF.q ? '' : ` at ${Math.round(GOAL_MIN * 100)}%+`} · ${games.length} game${games.length === 1 ? '' : 's'} · anytime goal if he plays, fair odds, no vig</div>` + uiView('setGoalsF', gF.view);
@@ -1357,7 +1358,8 @@
     if (!G?.rows?.some(r => r[k])) { el.innerHTML = '<div class="empty">No games to price yet. The board fills in once the next games are on the schedule.</div>'; return; }
     const games = dayGames();
     if (sF.game !== 'all' && !games.some(g => g.gid === sF.game)) sF.game = 'all';
-    const rows = shotRows();
+    const SH_SORT = { mu: ['Projection', r => r.S.mu], odds: ['Shortest price', r => r.pAt], ps: ['Most likely to start', r => r.S.ps], opp: ['Softest opponent', r => r.osha], r90: ['Shots / 90', r => r.S.r90] };
+    const rows = uiSorted(shotRows(), sF.sort, SH_SORT);
     RonShare.set('setShotsF', () => ({ title: C.lab, sub: `Next game · ${sF.side} · fair odds`, rows: rows.map(r => ({ ...shareGoal(r), p: r.pAt, tag: `${sF.side === 'under' ? 'u' : 'o'}${r.L}`,
       line: `${r.team} ${r.home ? 'vs' : '@'} ${r.opp} · ${r.S.mu.toFixed(1)} proj` })) }));
     const changed = (sF.line !== 'auto') + (sF.side !== 'over') + (sF.game !== 'all') + (sF.pos !== 'ALL') + (sF.sort !== 'mu');
@@ -1367,7 +1369,7 @@
       ['Side', [['over', 'Over'], ['under', 'Under']].map(([v, l]) => uiChip('setShotsF', 'side', v, l, sF.side)).join('')],
       ['Game', [['all', 'All games'], ...games.map(g => [g.gid, `${gameLbl(g)} · ${gameTime(g.start)}`])].map(([v, l]) => uiChip('setShotsF', 'game', v, l, sF.game)).join('')],
       ['Position', [['ALL', 'All'], ['FWD', 'Forwards'], ['MID', 'Midfield'], ['DEF', 'Defenders']].map(([v, l]) => uiChip('setShotsF', 'pos', v, l, sF.pos)).join('')],
-      ['Sort', [['mu', 'Projection'], ['odds', 'Shortest price'], ['ps', 'Most likely to start'], ['opp', 'Softest opponent']].map(([v, l]) => uiChip('setShotsF', 'sort', v, l, sF.sort)).join('')],
+      ...(sF.view === 'table' ? [] : [['Sort', uiSort('setShotsF', sF.sort, SH_SORT)]]),
     ], changed) + uiSearch('shots-search', 'setShotsF', sF.q, 'Search a player, team or position…');
     const ad = activeDay();
     const meta = `<div class="result-meta"><b>${ad ? dayLabel(ad.day, true) : "Each team's next game"}</b> · ${rows.length} players · ${C.unit}, ${sF.line === 'auto' ? 'his line closest to even' : 'o' + sF.line} · ${sF.side} · if he plays, fair odds, no vig</div>` + uiView('setShotsF', sF.view);

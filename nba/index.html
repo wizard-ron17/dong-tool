@@ -2011,7 +2011,10 @@
     if (F.game !== 'all' && !games.some(g => g.gid === F.game)) F.game = 'all';
     let rows = bdRows(nav, true);
     const t3val = nav === 'threes' && t3x.v;
+    const BD_SORT = { proj: ['Projection', r => r.mu], odds: ['Shortest price', r => r.pAt], opp: ['Opponent', r => r.f?.opp ?? 1], min: ['Minutes', r => r.min],
+      l10: [kind === '3pm' ? '3PA' : 'Last 10', r => kind === '3pm' ? r.f?.tpa : r.f?.l10] };
     if (t3val) rows = rows.filter(t3IsValue).sort((a, b) => t3Fx(b).bueno - t3Fx(a).bueno).map((r, i) => ({ ...r, rank: i + 1 }));
+    else rows = uiSorted(rows, F.sort, BD_SORT);
     RonShare.set(set, () => ({ title: C.unit.replace(/^./, c => c.toUpperCase()), sub: dayLabel(src.date, true),
       rows: rows.map(r => shareRow(r, r.pAt, parSideLine(r), `${r.mu.toFixed(1)} proj`)) }));
     const changed = (F.line !== 'auto') + (F.pos !== 'ALL') + (F.game !== 'all') + (F.sort !== 'proj');
@@ -2019,7 +2022,7 @@
       ['Line', ['auto', ...lines].map(v => uiChip(set, 'line', v, v === 'auto' ? 'Best line' : 'o' + v, F.line)).join('')],
       ['Position', [['ALL', 'All'], ['G', 'Guards'], ['F', 'Forwards'], ['C', 'Centers']].map(([v, l]) => uiChip(set, 'pos', v, l, F.pos)).join('')],
       ['Game', [['all', 'All games'], ...games.map(g => [g.gid, `${g.home ? g.opp : g.team} @ ${g.home ? g.team : g.opp}`])].map(([v, l]) => uiChip(set, 'game', v, l, F.game)).join('')],
-      ['Sort', [['proj', 'Projection'], ['odds', 'Shortest price']].map(([v, l]) => uiChip(set, 'sort', v, l, F.sort)).join('')],
+      ...(F.view === 'table' ? [] : [['Sort', uiSort(set, F.sort, BD_SORT)]]),
     ], changed) + uiSearch(nav + '-search', set, F.q, 'Search a player, team or position…');
     const meta = `<div class="result-meta">${t3val ? `🎯 <b>${rows.length} longshot${rows.length === 1 ? '' : 's'}</b> · 2+ threes at +200 or longer · sorted by Bueno · form and the opponent's threes allowed both in the top 40% of the slate (experimental) · ${t3ValueRecord()}<br>` : ''}<b>${dayLabel(src.date, true)}</b> · ${rows.length} of ${lcRows(kind).length} players · ${esc(C.unit)} · fair odds, no vig</div>` + uiView(set, F.view, parSideToggleHtml(nav, false, `renderBoard('${nav}')`));
     if (!rows.length) { el.innerHTML = t3ModeBar(nav, t3val) + tabs + controls + meta + `<div class="empty">${t3val ? `No player passes the Value screen tonight. It takes 2+ threes at +200 or longer, in the top 40% of the slate on both form and the opponent's threes allowed. The closest are on the <a href="javascript:void(0)" onclick="setT3Mode('chalk')">Chalk</a> board.` : 'Nothing matches that filter.'}</div>`; return; }
@@ -2155,7 +2158,9 @@
     if (!R0?.length) { el.innerHTML = mode + '<div class="empty">No slate to price yet — the board fills in once the next games have lines.</div>'; return; }
     const games = [...new Map(R0.map(r => [r.gid, r])).values()].sort((a, b) => a.start.localeCompare(b.start));
     if (dblF.game !== 'all' && !games.some(g => g.gid === dblF.game)) dblF.game = 'all';
-    const rows = dblRows(), td = dblF.sort === 'td';
+    const dsd = parSideGet('doubles'), DB_SORT = { dd: ['Double-double', r => parSidePrice(r.dd, dsd)], td: ['Triple-double', r => parSidePrice(r.td, dsd)],
+      pts: ['Points', r => r.pts], reb: ['Rebounds', r => r.reb], ast: ['Assists', r => r.ast], l40: ['Last 40', r => r.dd40] };
+    const rows = uiSorted(dblRows(), dblF.ord, DB_SORT), td = dblF.sort === 'td';
     RonShare.set('setDblF', () => {
       const no = parSideGet('doubles') === 'under';
       return { title: `${no ? 'No ' : ''}${td ? 'Triple-double' : 'Double-double'}`, sub: dayLabel(D.stats.date, true),
@@ -2163,7 +2168,8 @@
     });
     const controls = uiFilters('setDblF', dblF.open, [
       ['Game', [['all', 'All games'], ...games.map(g => [g.gid, `${g.home ? g.opp : g.team} @ ${g.home ? g.team : g.opp}`])].map(([v, l]) => uiChip('setDblF', 'game', v, l, dblF.game)).join('')],
-    ], +(dblF.game !== 'all')) + uiSearch('doubles-search', 'setDblF', dblF.q, 'Search a player, team or position…');
+      ...(dblF.view === 'table' ? [] : [['Sort', uiSort('setDblF', dblF.ord, DB_SORT, 'ord')]]),
+    ], +(dblF.game !== 'all') + !!dblF.ord) + uiSearch('doubles-search', 'setDblF', dblF.q, 'Search a player, team or position…');
     const meta = `<div class="result-meta"><b>${dayLabel(D.stats.date, true)}</b> · ${rows.length} of ${R0.length} players · ${td ? 'triple' : 'double'}-double · fair odds, no vig</div>` + uiView('setDblF', dblF.view, parSideToggleHtml('doubles', true, 'renderDoubles()'));
     if (!rows.length) { el.innerHTML = mode + controls + meta + '<div class="empty">Nothing matches that filter.</div>'; return; }
     const open = (r) => `openDoubleCard('${r.pid}')`, started = (r) => new Date(r.start) <= new Date();

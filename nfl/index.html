@@ -7005,19 +7005,19 @@ let pairStacks = false;
       chip('line', v, v === 'auto' ? 'Best line' : 'o' + v, rcF.line)).join('');
     const posChips = ['ALL', 'WR', 'TE', 'RB'].map(v =>
       uiChip('setRc', 'pos', v, v === 'ALL' ? 'All' : v, rcF.pos, v === 'ALL' ? '' : 'pos ' + v)).join('');
-    const sortChips = [['proj', 'Projection'], ['odds', 'Shortest price']].map(([v, l]) =>
-      chip('sort', v, l, rcF.sort)).join('');
+    // Cards sort by the table's columns (a table sorts by its headers)
+    const RC_SORT = { proj: ['Projection', r => r.mu], odds: ['Shortest price', r => r.p], snap: ['Snap share', r => r.f.snapL3], tgt: ['Target share', r => r.f.thinRole ? null : r.f.shareL3] };
 
     if (rcF.tab === 'results') {
       el.innerHTML = rcTabs() + liveResults('rec', 'setLr')
         + `<details class="lr-bt"${window.lrBtOpen ? ' open' : ''} ontoggle="window.lrBtOpen = this.open"><summary>2025 backtest — every past week replayed</summary>${renderRecResults()}</details>`;
       return;
     }
-    const rows = rcRows();
+    const rows = uiSorted(rcRows(), rcF.sort, RC_SORT);
     RonShare.set('setRc', () => ({ title: 'Receptions', sub: `${WK_LABEL(w)} · ${rcF.line === 'auto' ? 'each at his best line' : parSideGet('rec') + ' ' + rcF.line}`,
       rows: rows.map(r => shareRow(r, r.p, parSideLine(r), `${r.mu.toFixed(1)} proj`)) }));
     const controls = rcTabs() + `
-      ${uiFilters('setRc', rcF.open, [['Line', lineChips], ['Position', posChips], ['Sort', sortChips]],
+      ${uiFilters('setRc', rcF.open, [['Line', lineChips], ['Position', posChips], ...(rcF.view === 'table' ? [] : [['Sort', uiSort('setRc', rcF.sort, RC_SORT)]])],
         (rcF.line !== 'auto') + (rcF.pos !== 'ALL') + (rcF.sort !== 'proj'))}
       <div class="pb-search">
         <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
@@ -7153,12 +7153,15 @@ let pairStacks = false;
     if (!nflData) { el.innerHTML = '<div class="empty">Loading…</div>'; return; }
     if (nflData === 'error') { el.innerHTML = `<div class="empty">Couldn't load NFL data. <a href="javascript:void(0)" onclick="loadNfl()">Retry</a></div>`; return; }
     if (!(nflData.picks?.picks || []).length) { el.innerHTML = '<div class="empty">No projections yet — they fill in once the slate has lines.</div>'; return; }
-    const rows = ffRows(), w = firstUpcomingWeek();
+    const FF_SORT = { pts: ['Projected points', r => r.total], yds: ['Yardage points', null], td: ['TD points', null], rec: ['Receptions', r => r.pos === 'QB' ? null : r.s.rec],
+      ryds: ['Rec yards', r => r.pos === 'QB' ? null : r.s.ryds], uyds: ['Rush yards', r => r.s.uyds >= 1 ? r.s.uyds : null], tds: ['TDs', r => r.s.td],
+      pyds: ['Pass yards', r => r.pos === 'QB' ? r.s.pyds : null], ptd: ['Pass TDs', r => r.pos === 'QB' ? r.s.ptd : null], int: ['INTs', r => r.pos === 'QB' ? r.s.int : null] };
+    const rows = uiSorted(ffRows(), ffF.sort, FF_SORT), w = firstUpcomingWeek();
     RonShare.set('setFf', () => ({ title: 'Fantasy', sub: `${WK_LABEL(w)} · half-PPR projections`, foot: 'Projected half-PPR points from our stat models.',
       rows: rows.map(r => ({ ...shareRow(r, 0, ''), big: r.total.toFixed(1), small: `${r.pos} · pts` })) }));
     const controls = uiFilters('setFf', ffF.open, [
       ['Position', ['ALL', 'QB', 'RB', 'WR', 'TE'].map(v => uiChip('setFf', 'pos', v, v === 'ALL' ? 'All' : v, ffF.pos, v === 'ALL' ? '' : 'pos ' + v)).join('')],
-      ['Sort', [['pts', 'Projected points'], ['yds', 'Yardage points'], ['td', 'TD points']].map(([v, l]) => uiChip('setFf', 'sort', v, l, ffF.sort)).join('')],
+      ...(ffF.view === 'table' ? [] : [['Sort', uiSort('setFf', ffF.sort, FF_SORT)]]),
     ], (ffF.pos !== 'ALL') + (ffF.sort !== 'pts')) + `
       <div class="pb-search${ffF.q ? ' on' : ''}">
         <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
@@ -7269,7 +7272,8 @@ let pairStacks = false;
     }
     const R = nflData.completions || [];
     if (!R.length) { el.innerHTML = tabs + '<div class="empty">No projections yet — they fill in once the slate has lines.</div>'; return; }
-    const rows = cpRows();
+    const CP_SORT = { proj: ['Projection', r => r.mu], odds: ['Shortest price', r => r.p], att: ['Attempts', r => r.f.attPrior], rate: ['Completion %', r => r.f.rate] };
+    const rows = uiSorted(cpRows(), cpF.sort, CP_SORT);
     RonShare.set('setCp', () => ({ title: 'Completions', sub: WK_LABEL(firstUpcomingWeek()),
       rows: rows.map(r => shareRow(r, r.p, parSideLine(r), `${r.mu.toFixed(1)} proj`)) }));
     const controls = tabs + `
@@ -7278,7 +7282,7 @@ let pairStacks = false;
         const mus = R.map(r => r.mu), lo = Math.min(...mus) - 1, hi = Math.max(...mus) + 1;
         const near = CP_LINES().filter(L => L >= lo && L <= hi);
         return ['auto', ...near].map(v => cpChip('line', v, v === 'auto' ? 'Best line' : 'o' + v, cpF.line)).join('');
-      })()], ['Sort', cpChip('sort', 'proj', 'Projection', cpF.sort) + cpChip('sort', 'odds', 'Shortest price', cpF.sort)]],
+      })()], ...(cpF.view === 'table' ? [] : [['Sort', uiSort('setCp', cpF.sort, CP_SORT)]])],
         (cpF.line !== 'auto') + (cpF.sort !== 'proj'))}
       <div class="pb-search">
         <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
@@ -7400,14 +7404,15 @@ let pairStacks = false;
     }
     const R = nflData.interceptions || [];
     if (!R.length) { el.innerHTML = tabs + '<div class="empty">No prices yet — they fill in once the slate has lines.</div>'; return; }
-    const rows = inRows();
+    const IN_SORT = { most: ['Most likely', r => r.p], spread: ['Spread', r => r.f.fav], def: ["Defense's INT rate", r => r.f.defInt], bad: ['Bad balls', r => r.f.bad] };
+    const rows = uiSorted(inRows(), inF.sort, IN_SORT);
     RonShare.set('setIn', () => ({ title: 'Interceptions', sub: WK_LABEL(firstUpcomingWeek()),
       rows: rows.map(r => shareRow(r, r.p, parSideLine(r))) }));
     const lines = nflData.interceptionModel?.lines || [0.5, 1.5];
     const controls = tabs + `
       ${uiFilters('setIn', inF.open, [
         ['Line', lines.slice(0, 2).map(L => uiChip('setIn', 'line', L, 'o' + L, inF.line)).join('')],
-        ['Sort', uiChip('setIn', 'sort', 'most', 'Most likely', inF.sort) + uiChip('setIn', 'sort', 'least', 'Least likely', inF.sort)],
+        ...(inF.view === 'table' ? [] : [['Sort', uiSort('setIn', inF.sort, IN_SORT)]]),
       ], (inF.line !== 0.5) + (inF.sort !== 'most'))}
       <div class="pb-search">
         <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
@@ -7541,14 +7546,15 @@ let pairStacks = false;
       return;
     }
     if (!(nflData.kickers || []).length) { el.innerHTML = tabs + '<div class="empty">No prices yet — they fill in once the slate has lines.</div>'; return; }
-    const rows = kkRows();
+    const KK_SORT = { proj: ['Projection', r => parseFloat(kkProj(r))], most: ['Most likely over', r => r.pp], imp: ['Team total', r => r.f.implied], spread: ['Spread', r => r.f.fav] };
+    const rows = uiSorted(kkRows(), kkF.sort, KK_SORT);
     RonShare.set('setKk', () => ({ title: KK_MKTS[kkF.mkt].lab, sub: WK_LABEL(firstUpcomingWeek()),
       rows: rows.map(r => shareRow(r, r.pp, parSideLine(r), `${kkProj(r)} proj`)) }));
     const controls = tabs + `
       <div class="pbf-chips" style="margin-bottom:0.6rem">${mktChips}</div>
       ${uiFilters('setKk', kkF.open, [
         ['Line', uiChip('setKk', 'line', 'even', 'His median', kkF.line) + M.lines.map(L => uiChip('setKk', 'line', L, 'o' + L, kkF.line)).join('')],
-        ['Sort', uiChip('setKk', 'sort', 'proj', 'Projection', kkF.sort) + uiChip('setKk', 'sort', 'most', 'Most likely over', kkF.sort) + uiChip('setKk', 'sort', 'least', 'Least likely', kkF.sort)],
+        ...(kkF.view === 'table' ? [] : [['Sort', uiSort('setKk', kkF.sort, KK_SORT)]]),
       ], (kkF.line !== 'even') + (kkF.sort !== 'proj'))}
       <div class="pb-search">
         <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
@@ -7716,11 +7722,12 @@ let pairStacks = false;
     const mktChips = `<div class="pbf-chips" style="margin-bottom:0.6rem">${YD_MKTS.map(([v, l]) => uiChip('setYd', 'mkt', v, l, ydF.mkt)).join('')}</div>`;
     if (ydF.tab === 'results') { el.innerHTML = tabs + mktChips + liveResults('yds', 'setLr'); return; }
     if (!nflData.yards) { el.innerHTML = tabs + '<div class="empty">No projections yet — they fill in once the slate has lines.</div>'; return; }
-    const rows = ydRows();
+    const YD_SORT = { high: ['Most yards', r => r.med], odds: ['Shortest price', r => r.p], avg: ['Average', r => r.f.avg], l3: ['Last 3', r => r.f.l3] };
+    const rows = uiSorted(ydRows(), ydF.sort, YD_SORT);
     RonShare.set('setYd', () => ({ title: `${YD_MKTS.find(x => x[0] === ydF.mkt)[1]} yards`, sub: WK_LABEL(firstUpcomingWeek()),
       rows: rows.map(r => shareRow(r, r.p, parSideLine(r), `${r.med.toFixed(0)} median`)) }));
     const posList = YD_POS[ydF.mkt];
-    const filterRows = [['Sort', uiChip('setYd', 'sort', 'high', 'Most yards', ydF.sort) + uiChip('setYd', 'sort', 'low', 'Fewest yards', ydF.sort)]];
+    const filterRows = [...(ydF.view === 'table' ? [] : [['Sort', uiSort('setYd', ydF.sort, YD_SORT)]])];
     if (posList.length) filterRows.unshift(['Position', ['ALL', ...posList].map(v => uiChip('setYd', 'pos', v, v === 'ALL' ? 'All' : v, ydF.pos, v === 'ALL' ? '' : 'pos ' + v)).join('')]);
     const label = YD_MKTS.find(x => x[0] === ydF.mkt)[1];
     const controls = tabs + mktChips + `

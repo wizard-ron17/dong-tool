@@ -3120,7 +3120,8 @@
       return;
     }
     const lines = S.model?.lines || [1.5, 2.5, 3.5];
-    const rows = sgRows(true);
+    const SG_SORT = { proj: ['Projection', r => r.mu], odds: ['Shortest price', r => r.pAt], osa: ['Opp shots allowed', r => r.oppSa], toi: ['Ice time', r => r.toi], l10: ['Last 10', r => r.sogL10] };
+    const rows = uiSorted(sgRows(true), sgF.sort, SG_SORT);
     RonShare.set('setSg', () => ({ title: 'Shots on goal', sub: S.date ? dayLabel(S.date, true) : '', rows: rows.map(r => shareRow(r, r.pAt, parSideLine(r), `${r.mu.toFixed(1)} proj`)) }));
     const nFilt = (sgF.pos !== 'ALL') + (sgF.line !== 'auto') + (sgF.sort !== 'proj');
 
@@ -3128,8 +3129,7 @@
         ['Line', ['auto', ...lines].map(v => uiChip('setSg', 'line', v, v === 'auto' ? 'Best line' : 'o' + v, sgF.line)).join('')],
         ['Position', [['ALL', 'All'], ['F', 'Forwards'], ['C', 'C'], ['L', 'LW'], ['R', 'RW'], ['D', 'D']]
           .map(([v, l]) => uiChip('setSg', 'pos', v, l, sgF.pos)).join('')],
-        ['Sort', [['proj', 'Projection'], ['odds', 'Shortest price']]
-          .map(([v, l]) => uiChip('setSg', 'sort', v, l, sgF.sort)).join('')],
+        ...(sgF.view === 'table' ? [] : [['Sort', uiSort('setSg', sgF.sort, SG_SORT)]]),
       ], (sgF.pos !== 'ALL') + (sgF.line !== 'auto') + (sgF.sort !== 'proj')) + `
       <div class="pb-search${sgF.q ? ' on' : ''}">
         <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
@@ -3327,12 +3327,13 @@
     const B = D.saves || {};
     if (!B.board?.length) { el.innerHTML = tabs + `<div class="empty">No goalie projections yet — the board fills in once the slate is set.</div>`; return; }
     const ga = P.kind === 'ga', dp = P.dp;
-    const rows = svRows(P.kind, true);
+    const SV_SORT = { proj: ['Projection', r => r.m], odds: ['Shortest price', r => r.pAt], sv: ['Save %', r => r.svPct], starts: ['Starts', r => r.starter.of ? r.starter.starts : null] };
+    const rows = uiSorted(svRows(P.kind, true), F.sort, SV_SORT);
     RonShare.set(fn, () => ({ title: P.kind === 'ga' ? 'Goals allowed' : 'Saves', sub: B.date ? dayLabel(B.date, true) : '',
       rows: rows.map(r => shareRow(r, r.pAt, parSideLine(r), `${r.m.toFixed(P.kind === 'ga' ? 2 : 1)} proj`)) }));
     const controls = uiFilters(fn, F.open, [
         ['Line', ['auto', ...P.lines].map(v => uiChip(fn, 'line', v, v === 'auto' ? 'Best line' : 'o' + v, F.line)).join('')],
-        ['Sort', [['proj', 'Projection'], ['odds', 'Shortest price']].map(([v, l]) => uiChip(fn, 'sort', v, l, F.sort)).join('')],
+        ...(F.view === 'table' ? [] : [['Sort', uiSort(fn, F.sort, SV_SORT)]]),
       ], (F.line !== 'auto') + (F.sort !== 'proj')) + `
       <div class="pb-search${F.q ? ' on' : ''}">
         <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
@@ -3449,13 +3450,14 @@
     const B = P.data();
     if (!B.board?.length) { el.innerHTML = tabs + `<div class="empty">No projections yet — the board fills in once the slate is set.</div>`; return; }
     const lines = B.model?.lines || [0.5, 1.5, 2.5];
-    const rows = pxRows(page, true);
+    const PX_SORT = { proj: ['Projection', r => r.mu], odds: ['Shortest price', r => r.pAt], rink: ['Rink', r => r.f.rinkGames ? r.f.arena : null], pg: ['Per game', r => r.f.prior], l10: ['Last 10', r => r.f.l10], toi: ['Ice time', r => r.f.toi] };
+    const rows = uiSorted(pxRows(page, true), F.sort, PX_SORT);
     RonShare.set(fn, () => ({ title: page === 'hits' ? 'Hits' : 'Blocked shots', sub: B.date ? dayLabel(B.date, true) : '',
       rows: rows.map(r => shareRow(r, r.pAt, parSideLine(r), `${r.mu.toFixed(1)} proj`)) }));
     const controls = uiFilters(fn, F.open, [
         ['Line', ['auto', ...lines].map(v => uiChip(fn, 'line', v, v === 'auto' ? 'Best line' : 'o' + v, F.line)).join('')],
         ['Position', [['ALL', 'All'], ['F', 'Forwards'], ['C', 'C'], ['L', 'LW'], ['R', 'RW'], ['D', 'D']].map(([v, l]) => uiChip(fn, 'pos', v, l, F.pos)).join('')],
-        ['Sort', [['proj', 'Projection'], ['odds', 'Shortest price']].map(([v, l]) => uiChip(fn, 'sort', v, l, F.sort)).join('')],
+        ...(F.view === 'table' ? [] : [['Sort', uiSort(fn, F.sort, PX_SORT)]]),
       ], (F.pos !== 'ALL') + (F.line !== 'auto') + (F.sort !== 'proj')) + `
       <div class="pb-search${F.q ? ' on' : ''}">
         <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
@@ -3692,13 +3694,15 @@
     if (ptF.tab === 'results') { el.innerHTML = tabs + ptResults(); return; }
     const B = D.points || {}, P = PT[ptF.tab];
     if (!B.board?.length) { el.innerHTML = tabs + `<div class="empty">No projections yet — the board fills in once the slate is set.</div>`; return; }
-    const rows = ptRows(ptF.tab, true);
+    const PT_SORT = { proj: ['Projection', r => r.m], odds: ['Shortest price', r => r.pAt], oga: ['Opp goals allowed', r => r.f.oppGa],
+      toi: ['Ice time', r => ptF.tab === 'ppp' ? r.f.pptoi : r.f.toi], pg: ['Per game', r => ptF.tab === 'ast' ? r.f.aPg : ptF.tab === 'ppp' ? r.f.pppPg : r.f.ptsPg] };
+    const rows = uiSorted(ptRows(ptF.tab, true), ptF.sort, PT_SORT);
     RonShare.set('setPt', () => ({ title: { pts: 'Points', ast: 'Assists', ppp: 'Power-play points' }[ptF.tab] || 'Points', sub: B.date ? dayLabel(B.date, true) : '',
       rows: rows.map(r => shareRow(r, r.pAt, parSideLine(r), `${r.m.toFixed(2)} proj`)) }));
     const controls = uiFilters('setPt', ptF.open, [
         ['Line', ['auto', ...P.lines].map(v => uiChip('setPt', 'line', v, v === 'auto' ? 'Best line' : 'o' + v, ptF.line)).join('')],
         ['Position', [['ALL', 'All'], ['F', 'Forwards'], ['C', 'C'], ['L', 'LW'], ['R', 'RW'], ['D', 'D']].map(([v, l]) => uiChip('setPt', 'pos', v, l, ptF.pos)).join('')],
-        ['Sort', [['proj', 'Projection'], ['odds', 'Shortest price']].map(([v, l]) => uiChip('setPt', 'sort', v, l, ptF.sort)).join('')],
+        ...(ptF.view === 'table' ? [] : [['Sort', uiSort('setPt', ptF.sort, PT_SORT)]]),
       ], (ptF.line !== 'auto') + (ptF.pos !== 'ALL') + (ptF.sort !== 'proj')) + `
       <div class="pb-search${ptF.q ? ' on' : ''}">
         <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">

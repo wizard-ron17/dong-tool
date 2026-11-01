@@ -5,6 +5,10 @@
 // call the page's own setter (setFn(key, value)), so each board keeps its state.
 //
 //   uiFilters(setFn, open, [[label, chipsHtml], ...], changedCount)   a Filters button; its rows open in one modal (the filter sheet)
+//   uiSort(setFn, cur, defs) / uiSorted(rows, cur, defs)   a Cards view's Sort row (cards have no headers to click):
+//                                                       defs { key: [label, row => value, 'asc'?] }, the table's columns;
+//                                                       tap the lit one again to reverse ('-key'); rows re-ranked to match.
+//                                                       A Table view leaves Sort out of the sheet: its headers sort.
 //   RonUf.node(el, { onClose })                        a board with its own filter markup: el moves into the same sheet
 //   uiChip(setFn, key, value, label, current, extraClass)
 //   uiTabs(setFn, current, [[value, label], ...])     (defaults to Board / Results)
@@ -198,9 +202,25 @@
   const uiCols = (groups) => `<colgroup>${groups.map(([, n, k = 'plain']) =>
     `<col class="u-g u-g-${k}">${n > 1 ? `<col span="${n - 1}" class="u-g-${k}">` : ''}`).join('')}</colgroup>`;
   const uiFair = (p, sub = '', cls = '') => `<td data-sv="${p}" class="u-fair${p < 0.5 ? ' dog' : ''}${cls ? ' ' + cls : ''}">${Odds.am(p)}<small>${sub ? sub + ' · ' : ''}${Odds.pct(p)}</small></td>`;
+  const uiSort = (setFn, cur, defs, key = 'sort') => Object.entries(defs).map(([k, [lab]]) => {
+    const on = cur === k || cur === '-' + k, rev = String(cur)[0] === '-';
+    return `<button class="pbf-chip${on ? ' on' : ''}" onclick="${setFn}('${key}','${on && !rev ? '-' + k : k}')" title="${on ? 'Tap again to reverse' : 'Sort the cards by this'}">${lab}${on ? (rev ? ' ↑' : ' ↓') : ''}</button>`;
+  }).join('');
+  function uiSorted(rows, cur, defs) {
+    const k = String(cur || '').replace(/^-/, ''), d = defs[k]; if (!d?.[1]) return rows;          // no value: the board's own order
+    const dir = (d[2] === 'asc' ? 1 : -1) * (String(cur)[0] === '-' ? -1 : 1);
+    const out = rows.map((r, i) => [r, d[1](r), i]).sort((a, b) => {
+      const x = a[1], y = b[1];
+      if (x == null || Number.isNaN(x)) return y == null || Number.isNaN(y) ? a[2] - b[2] : 1;      // blanks last, either way
+      if (y == null || Number.isNaN(y)) return -1;
+      return (x < y ? -1 : x > y ? 1 : 0) * dir || a[2] - b[2];
+    }).map(x => x[0]);
+    out.forEach((r, i) => { if (r && typeof r === 'object' && 'rank' in r) r.rank = i + 1; });
+    return out;
+  }
   const matchQ = (r, q) => { const t = q.trim().toLowerCase(); return !t || r.name.toLowerCase().includes(t) || r.team.toLowerCase() === t || r.opp.toLowerCase() === t || (r.pos || '').toLowerCase() === t; };
 
-  Object.assign(window, { uiArg, uiChip, uiFilters, uiTabs, uiView, uiSearch, matchQ, uiBand, uiCols, uiFair });
+  Object.assign(window, { uiArg, uiChip, uiSort, uiSorted, uiFilters, uiTabs, uiView, uiSearch, matchQ, uiBand, uiCols, uiFair });
 })();
 
 // ── Factor filters: the MLB Matchups table's card, for every factor table (NHL goals, NFL TDs, NBA threes) ──
