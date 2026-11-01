@@ -25,6 +25,7 @@ Shared by every app:
 - `slate.js`: the Schedule on every sport. Desktop is a split view: a rail of the day's games, and the picked game on the right. Phone is the list plus a pop-up. The game card leads with a box score, one row per priced player and a column per market, showing projection, even-money line and fair odds. Each cell is a parlay leg, and final games grade themselves. Each page supplies `*Rail(games)`, a panel `(gid) => html` and a box spec. `openGame` starts with `RonSlate.select(gid)`. It also holds the shared game-header styles (`.gm-hero`).
 - `share.js`: share cards. A board registers its top rows with `RonShare.set(setFn, () => spec)` each render, and the toolbar's Share button (`uiView`, or `RonShare.button(key)`) draws the top 10 as an image with Copy / Save / Share / Copy as text. Views are Table (the price beside what drives it) and Cards; Compact is retired.
 - `trend.js`: the League trend chart on NHL / NFL / NBA Stats tabs (`RonTrend.render(el, spec)`): a per-game rate with rolling averages, σ bands, MACD, zoom. Each page hands it a `series(team)`: NHL goals/game by day (from the schedule's scores), NFL TDs/game by week (tdRecap), NBA threes/game by day (`nba/league-days.json`, a row per regular-season final, written by build-nba). MLB's Stats chart is its own older copy and has not been moved onto this module.
+- `status.js`: the site-wide status view (`?status` on any page, or tap a board's "Updated ... ago"; chrome.js loads it on first use). It shows every sport's data build time and each build workflow's runs, with how many of its scheduled runs GitHub actually started in the last 24h (crons are read from the workflow files). A page adds its own rows by defining `window.ronStatusPage = () => html`, built with `RonStatus.row / sec` (MLB and NFL do).
 - `welcome.js`: the About modal.
 
 Builds live in `scripts/build-*.js` (GitHub Actions crons in `.github/workflows/`). Link previews live in `netlify/edge-functions/` (`embed.js` meta per route, `og.js` live board cards, `stats.js`). Research lives in `research/` (Python + a few `.mjs` parity replays).
@@ -70,6 +71,8 @@ Builds live in `scripts/build-*.js` (GitHub Actions crons in `.github/workflows/
 **Late news no feed carries** is hand-entered, and `npm run check` validates the shape:
 - `nfl/qb-overrides.json`: the starting QB per team-week.
 - `mlb/pitching-overrides.json`: openers, bulk arms and bullpen games per date.
+
+**GitHub drops scheduled runs.** On 11/1 it started 3 of build-nfl's 18 crons in a day. Game windows that matter run as one long job that dispatches its own successor (`scripts/pregame-watch.mjs`, `watch-nba.yml` / `watch-nfl.yml`), not as hourly crons. Check `?status` before trusting that a cron ran.
 
 **Network traps.**
 - ESPN returns 403 to a custom User-Agent. Send none.

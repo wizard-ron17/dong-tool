@@ -3482,6 +3482,18 @@
     if (nflData && nflData !== 'error') nflLiveStart();
     tdOpenPending(); plOpenPending(); gmOpenPending(); cardOpenPending();
   }
+  // This page's rows in the status view (/status.js, ?status): the week the boards price, and what landed
+  window.ronStatusPage = () => {
+    const d = nflData; if (!d || d === 'error') return RonStatus.row('data.json', d === 'error' ? 'failed to load' : 'loading', d === 'error' ? 'bad' : 'warn');
+    const P = d.picks || {}, wk = P.week, games = (d.schedule || []).filter(g => g.week === wk && g.type === (d.schedule.find(x => x.week === wk)?.type));
+    const fin = games.filter(g => g.homeScore != null).length, qb = Object.values(P.qbStatus || {});
+    const n = (x) => Array.isArray(x) ? x.length : 0, Y = d.yards || {};
+    const { row } = RonStatus;
+    return row('Week priced', wk ? `week ${wk}` : '—', wk ? 'ok' : 'bad', `${games.length} games · ${fin} final · ${games.length - fin} to play`)
+      + row('Anytime TD board', `${n(P.picks)} players`, n(P.picks) ? 'ok' : 'bad')
+      + row('Receptions / Yards', `${n(d.receptions)} / ${n(Y.pass) + n(Y.rush) + n(Y.rec) + n(Y.rr)}`, n(d.receptions) ? 'ok' : 'warn')
+      + row('Starting QBs', `${qb.length} teams`, qb.length ? 'ok' : 'warn', qb.length ? `${qb.filter(q => q.how === 'override').length} hand override${qb.filter(q => q.how === 'override').length === 1 ? '' : 's'} · rest from depth charts` : '');
+  };
   // Coverage · volume · freshness, mirroring the MLB badge's "147d · 4481 HR".
   function statusSummary(d) {
     const weeks = (d.tdRecapWeeks || []).length;

@@ -26,6 +26,8 @@ if (!document.querySelector('script[src^="/holiday.js"]')) { const h = document.
   .tb-right { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
   .ron-fresh { font-size: 0.68rem; font-weight: 600; color: var(--dim); white-space: nowrap; letter-spacing: 0.02em; }
   .ron-fresh.stale { color: var(--gold); }
+  .ron-fresh[onclick] { cursor: pointer; }
+  .ron-fresh[onclick]:hover { color: var(--text); }
   .lb-toolbar .ron-fresh { margin-right: auto; }
   .ron-stale { margin: 0 0 0.8rem; padding: 0.55rem 0.8rem; border: 1px solid var(--gold); border-radius: 9px; background: color-mix(in srgb, var(--gold) 10%, transparent); color: var(--text); font-size: 0.78rem; line-height: 1.45; }
   .ron-stale b { color: var(--gold); }
@@ -311,12 +313,12 @@ if (!document.querySelector('script[src^="/holiday.js"]')) { const h = document.
   const freshTitle = () => FRESH ? `Prices built ${new Date(FRESH.t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}` : '';
   function freshHtml() {
     if (!FRESH) return '<span class="ron-fresh"></span>';
-    return `<span class="ron-fresh${freshStale() ? ' stale' : ''}" title="${freshTitle()}">Updated ${freshAgo(FRESH.t)}</span>`;
+    return `<span class="ron-fresh${freshStale() ? ' stale' : ''}" title="${freshTitle()} · tap for status" onclick="RonChrome.status()">Updated ${freshAgo(FRESH.t)}</span>`;
   }
   function freshPaint() {
     if (!FRESH) return;
     for (const el of document.querySelectorAll('.ron-fresh')) {
-      el.textContent = 'Updated ' + freshAgo(FRESH.t); el.title = freshTitle(); el.classList.toggle('stale', freshStale());
+      el.textContent = 'Updated ' + freshAgo(FRESH.t); el.title = freshTitle() + ' · tap for status'; el.classList.toggle('stale', freshStale());
     }
     let b = document.getElementById('ron-stale');
     if (freshStale()) {
@@ -336,8 +338,20 @@ if (!document.querySelector('script[src^="/holiday.js"]')) { const h = document.
   setInterval(freshPaint, 60000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) freshPaint(); });
 
+  // ── Status (/status.js): every sport's builds and data, loaded on first use ──
+  // ?status in the URL opens it once the page is up; so does tapping any "Updated ... ago".
+  let statusP = null;
+  function status() {
+    statusP ||= new Promise((ok, no) => { const s = document.createElement('script'); s.src = '/status.js'; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+    return statusP.then(() => window.RonStatus.open());
+  }
+  if (new URLSearchParams(location.search).has('status')) {
+    const go = () => setTimeout(status, 0);
+    if (document.readyState === 'complete') go(); else window.addEventListener('load', go, { once: true });
+  }
+
   const logo = (sp) => { const s = SPORTS.find(x => x[0] === sp); return s ? `<img class="sp-logo" src="${s[1]}" alt="">` : ''; };
-  window.RonChrome = { mount, onTheme, show, fresh, freshHtml, SPORTS, logo };
+  window.RonChrome = { mount, onTheme, show, fresh, freshHtml, SPORTS, logo, status, cfg: () => CFG, freshInfo: () => FRESH };
   Object.assign(window, { currentTheme, updateThemeToggleIcon, toggleTheme, sportBackdrop, placeSportMenu, toggleSportMenu, closeSportMenu, openNavTools, closeNavTools, toggleNavTools });
   Object.defineProperty(window, 'navToolsOpen', { get: () => navToolsOpen, configurable: true });
 })();
