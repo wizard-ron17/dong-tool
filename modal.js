@@ -61,6 +61,18 @@
 `;
   if (!document.getElementById('modal-css')) document.head.insertAdjacentHTML('beforeend', `<style id="modal-css">${CSS}</style>`);
 
+  // ── Embedded (?embed=1) ───────────────────────────────────────────────────
+  // A page opened in another page's frame to show one card: Ron's Plays opens a tool's card this way, with a
+  // ?card= link, so it never leaves the page. Only the cards show, over a see-through page, and the frame's
+  // parent hears when the first card opens and when the last one closes (then it takes the frame down).
+  const EMBED = window.parent !== window && /[?&]embed=1(&|$)/.test(location.search);
+  if (EMBED) {
+    document.documentElement.classList.add('embed');
+    document.head.insertAdjacentHTML('beforeend', `<style id="embed-css">html.embed, html.embed body { background: transparent !important; }
+      html.embed body::before, html.embed body::after { display: none !important; }
+      html.embed body > :not(.pm-back):not(.ps-back):not(.due-modal-backdrop):not(.sb-modal-backdrop):not(.dd-backdrop):not(.st-backdrop):not([id$="-back"]):not(script):not(style) { display: none !important; }
+      html.embed body > .rw-back { display: none !important; }</style>`);
+  }
   const SEL = '.pm-back, .rw-back, .ps-back, .due-modal-backdrop, .sb-modal-backdrop, .dd-backdrop, .st-backdrop';
   const zOf = (el) => parseInt(getComputedStyle(el).zIndex, 10) || 0;
   /** Open modals, bottom to top: by z-index, then by order in the page. */
@@ -75,10 +87,11 @@
   // `body.style.overflow = ''` on closing an inner card is put right at once.
   // Only a lock this file applied is released here: a page that locked for its
   // own reasons (full-screen reels) keeps its lock.
-  let queued = false, ours = false;
+  let queued = false, ours = false, embedOpen = false;
   function sync() {
     queued = false;
     const open = stack().length > 0;
+    if (EMBED && open !== embedOpen) { embedOpen = open; parent.postMessage({ ronCard: open ? 'open' : 'closed' }, location.origin); }
     if (open && document.body.style.overflow !== 'hidden') { document.body.style.overflow = 'hidden'; ours = true; }
     else if (!open && ours) { if (document.body.style.overflow === 'hidden') document.body.style.overflow = ''; ours = false; }
   }
