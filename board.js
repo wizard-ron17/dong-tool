@@ -317,7 +317,9 @@
   const save = () => { try { sessionStorage.setItem('uiSort', JSON.stringify(S)); } catch {} };
   const head = (t) => t.tHead?.rows[t.tHead.rows.length - 1];
   const lab = (th) => th.dataset.lab ?? (th.dataset.lab = th.textContent.trim());
-  const rankCol = (h) => ['', '#'].includes(lab(h.cells[0]));
+  // a rank column: headed # or blank, and its cells really are numbers (a blank header over names isn't one:
+  // Ron's Plays' Record tables had their Lane / Sport / Market names renumbered 1, 2, 3)
+  const rankCol = (h, body) => ['', '#'].includes(lab(h.cells[0])) && [...(body?.rows || [])].every(tr => /^\d*$/.test((tr.cells[0]?.dataset.sv ?? tr.cells[0]?.textContent ?? '').trim()));
   const amP = (o) => o > 0 ? 100 / (o + 100) : -o / (100 - o);
   function val(td) {
     if (!td) return null;
@@ -338,7 +340,7 @@
     // a row with fewer cells (Fantasy's open breakdown) travels with the row above it
     const groups = [];
     for (const tr of [...body.rows]) (tr.cells.length < h.cells.length && groups.length ? groups[groups.length - 1] : groups[groups.push([]) - 1]).push(tr);
-    const rk = rankCol(h);
+    const rk = rankCol(h, body);
     if (rk) for (const [tr] of groups) if (tr.cells[0].dataset.sv == null) tr.cells[0].dataset.sv = tr.cells[0].textContent.trim() || 0;
     if (!st) return;
     groups.sort((a, b) => {
@@ -365,7 +367,7 @@
     const th = e.target.closest('table.u-sortable thead tr:last-child th'); if (!th) return;
     const t = th.closest('table'), i = th.cellIndex, cur = S[t.dataset.uk];
     const first = [...t.tBodies[0].rows].map(r => val(r.cells[i])).find(v => v != null);
-    const d0 = i === 0 && rankCol(head(t)) || typeof first === 'string' ? 1 : -1;     // # and text start at the top
+    const d0 = i === 0 && rankCol(head(t), t.tBodies[0]) || typeof first === 'string' ? 1 : -1;     // # and text start at the top
     S[t.dataset.uk] = cur && cur.i === i ? { i, d: -cur.d } : { i, d: d0 };
     save(); apply(t);
   });
