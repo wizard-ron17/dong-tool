@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  actions: write      # the run hands on to the next (gh workflow run) when games outlast it
   issues: write        # build alerts (scripts/build-alert.sh)
 
 concurrency:
@@ -35,7 +36,14 @@ jobs:
 
       - name: Rebuild through the pre-game window
         if: steps.gate.outputs.run == 'true'
+        id: watch
         run: node scripts/pregame-watch.mjs nba
+
+      - name: Hand on to the next run
+        if: steps.watch.outputs.more == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run watch-nba.yml --ref main
 
       - name: Alert on failure
         if: failure()

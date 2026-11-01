@@ -1,0 +1,55 @@
+name: Watch nfl game days
+
+# Game days in long runs (scripts/pregame-watch.mjs nfl): rebuild every 15 minutes from 2 hours
+# before each kickoff until it's final, so boards carry the inactives and finished games grade.
+# GitHub drops scheduled runs (11/1 it started 3 of build-nfl's 18 crons in a day, none of
+# Sunday's from 05:50 to 16:32 UTC), so several crons start this, off the busy top of the hour;
+# one runs, and when the day outlasts it (the 6h job limit) it dispatches the next itself.
+# A queued one finds the window covered or nothing left, and on a day without games exits at once.
+# build-nfl.yml's own crons still run the morning baseline and anything this misses.
+# Times UTC (ET is UTC-4 until November, UTC-5 after).
+on:
+  schedule:
+    # Sunday: 1pm ET kickoffs through Sunday Night Football's finish (two runs back to back)
+    - cron: '41 14,15,19,20,23 * * 0'
+    - cron: '41 1,2 * * 1'
+    # Thursday / Monday nights, Saturdays late in the season (and Christmas, Black Friday: any day it finds games)
+    - cron: '41 21,22 * * 1,4,6'
+    - cron: '41 15,16,19 * * 6'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  actions: write      # the run hands on to the next (gh workflow run) when games outlast it
+  issues: write        # build alerts (scripts/build-alert.sh)
+
+concurrency:
+  group: watch-nfl
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Rebuild through the game window
+        id: watch
+        run: node scripts/pregame-watch.mjs nfl
+
+      - name: Hand on to the next run
+        if: steps.watch.outputs.more == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run watch-nfl.yml --ref main
+
+      - name: Alert on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/build-alert.sh fail "nfl game-day watch"
