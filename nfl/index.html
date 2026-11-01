@@ -2815,11 +2815,9 @@
       <button class="sub-btn" id="picks-sub-results" onclick="switchPicksSub('results')">Results</button>
     </div>
 
-    <div class="due-filters-card" id="picks-filters-card">
-      <button class="due-filters-toggle" id="picks-filters-toggle" onclick="togglePicksFilters()" aria-expanded="false">
-        <span class="due-explainer-title">Filters &amp; view<span class="due-filters-badge" id="picks-filters-badge" style="display:none"></span></span>
-        <span class="due-explainer-chevron" id="picks-filters-chevron">▶</span>
-      </button>
+    <!-- Filters: one button, everything in one sheet (board.js RonUf): this board's own rows move in while it's open -->
+    <div class="uf-bar" id="picks-filters-card">
+      <button class="uf-btn" id="picks-filters-toggle" data-n="0" onclick="togglePicksFilters()" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M20 6h0M4 12h4M14 12h6M4 18h12"/><circle cx="17" cy="6" r="2.2"/><circle cx="11" cy="12" r="2.2"/><circle cx="19" cy="18" r="2.2"/></svg><span>Filters</span><span class="uf-n" id="picks-filters-badge" hidden></span></button>
       <div class="due-filter-row" id="picks-filter-row" style="display:none"></div>
     </div>
 
@@ -3646,7 +3644,7 @@
     else pbF.pos = pbF.pos.includes(v) ? pbF.pos.filter(x => x !== v) : [...pbF.pos, v];
     pbSave(); renderPicksFilters(); renderPicks();
   }
-  function togglePicksFilters() { pbFiltersOpen = !pbFiltersOpen; renderPicksFilters(); }
+  function togglePicksFilters() { pbFiltersOpen = true; renderPicksFilters(); RonUf.node(document.getElementById('picks-filter-row'), { onClose: () => { pbFiltersOpen = false; renderPicksFilters(); } }); }
   function switchPicksSub(sub) {
     pbSub = sub;
     document.getElementById('picks-sub-board').classList.toggle('active', sub === 'board');
@@ -3853,13 +3851,10 @@
       ${pbView() === 'table' ? '' : `<div class="pbf-row"><span class="pbf-lbl">Sort</span><div class="pbf-chips">${sortChips}</div></div>`}
       ${dirty ? `<div class="pbf-foot"><button class="pbf-reset" onclick="clearPbF()">Reset filters</button></div>` : ''}`;
     row.style.display = pbFiltersOpen ? '' : 'none';
-    document.getElementById('picks-filters-chevron').classList.toggle('open', pbFiltersOpen);
-    document.getElementById('picks-filters-toggle').setAttribute('aria-expanded', String(pbFiltersOpen));
     const n = ['mkt', 'team', 'cut', 'sort'].filter(k => pbF[k] !== PB_DEFAULTS[k]).length
             + (pbF.pos.length ? 1 : 0);
-    const badge = document.getElementById('picks-filters-badge');
-    badge.style.display = n ? 'inline-flex' : 'none';
-    badge.textContent = n;
+    document.getElementById('picks-filters-toggle').dataset.n = n;
+    RonUf.badges();                                                   // with the factor filters' count
   }
 
   const posBadge = (pos) => `<span class="posb ${pos}">${pos}</span>`;

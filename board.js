@@ -4,7 +4,8 @@
 // .sub-tabs box, so it has to load after it, in the app); the helpers below write the markup and
 // call the page's own setter (setFn(key, value)), so each board keeps its state.
 //
-//   uiFilters(setFn, open, [[label, chipsHtml], ...], changedCount)
+//   uiFilters(setFn, open, [[label, chipsHtml], ...], changedCount)   a Filters button; its rows open in one modal (the filter sheet)
+//   RonUf.node(el, { onClose })                        a board with its own filter markup: el moves into the same sheet
 //   uiChip(setFn, key, value, label, current, extraClass)
 //   uiTabs(setFn, current, [[value, label], ...])     (defaults to Board / Results)
 //   uiView(setFn, current, extra)                     (table / cards, the data's age, Share; extra = more toolbar, e.g. parSideToggleHtml)
@@ -36,6 +37,26 @@
   .due-explainer-chevron.open { transform: rotate(90deg); color: var(--accent); }
   .due-explainer:hover .due-explainer-chevron, .due-filters-toggle:hover .due-explainer-chevron { color: var(--accent); }
   .due-filters-card { background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.9rem; margin-bottom: 0.6rem; }
+  .uf-bar { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.55rem; }
+  .uf-btn { display: inline-flex; align-items: center; gap: 0.45rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: var(--font-b); font-size: 0.8rem; font-weight: 700; padding: 0.5rem 0.85rem; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .uf-btn:hover { border-color: var(--border2); background: var(--surface2); }
+  .uf-btn svg { width: 16px; height: 16px; color: var(--accent); }
+  .uf-n { min-width: 1.15rem; height: 1.15rem; border-radius: 999px; background: var(--accent); color: var(--bg); font-size: 0.66rem; font-weight: 800; display: inline-grid; place-items: center; padding: 0 0.3rem; box-sizing: border-box; }
+  .uf-n[hidden] { display: none; }
+  .pm.uf-sheet { max-width: 620px; padding: 1rem 1.15rem 0.9rem; }
+  .uf-title { font-family: var(--font-d); font-size: 1.15rem; font-weight: 700; color: var(--text-strong); margin-bottom: 0.6rem; }
+  .uf-sheet .pbf-row { padding: 0.5rem 0; border-top: 1px solid var(--border); }
+  .uf-sheet .uf-base > .pbf-row:first-child, .uf-sheet .due-filter-row > .pbf-row:first-child { border-top: none; }
+  .uf-sheet .due-filter-row { display: block; padding: 0; border: none; margin: 0; }
+  .uf-sec { font-size: 0.692rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 0.8rem 0 0.45rem; padding-top: 0.7rem; border-top: 1px solid var(--border2); display: flex; align-items: center; gap: 0.4rem; }
+  .uf-fx:empty { display: none; }
+  .rfx-body { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+  .uf-foot { display: flex; justify-content: flex-end; margin-top: 0.9rem; }
+  .uf-done { background: var(--accent); border: none; color: var(--bg); font-family: var(--font-b); font-weight: 800; font-size: 0.85rem; padding: 0.55rem 1.4rem; border-radius: 9px; cursor: pointer; }
+  @media (max-width: 600px) {
+    #uf-back { align-items: flex-end; padding: 0; }
+    .pm.uf-sheet { max-width: none; width: 100%; margin: auto 0 0; border-radius: 16px 16px 0 0; max-height: 86vh; overflow-y: auto; }
+  }
   .due-filters-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; background: transparent; border: none; padding: 0.1rem 0; cursor: pointer; text-align: left; }
   .due-filters-toggle:hover .due-explainer-title { color: #4ad888; }
   .due-filters-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 1.1rem; height: 1.1rem; padding: 0 0.3rem; margin-left: 0.4rem; background: var(--accent); color: #fff; font-size: 0.673rem; font-weight: 700; border-radius: 10px; vertical-align: middle; }
@@ -100,16 +121,62 @@
   const uiArg = (v) => typeof v === 'number' ? v : `'${v}'`;
   const uiChip = (setFn, k, v, lab, cur, extra = '') =>
     `<button class="pbf-chip${extra ? ' ' + extra : ''}${String(cur) === String(v) ? ' on' : ''}" onclick="${setFn}('${k}',${uiArg(v)})">${lab}</button>`;
+  // ── The filter sheet ──────────────────────────────────────────────────────
+  // Every board's filters behind one button, in one modal: the board's own rows, then (on a Factors view) its
+  // factor filters (RonFx below), so there's one place to look, not a drawer per kind. Changes apply live behind
+  // it. A board's `open` only opens the sheet after a tap here (arm), so a saved state never pops it on load.
   // rows: [[label, chipsHtml]]; changed: how many filters are off their default
-  const uiFilters = (setFn, open, rows, changed) => `
-    <div class="due-filters-card">
-      <button class="due-filters-toggle" onclick="${setFn}('open',${!open})" aria-expanded="${open}">
-        <span class="due-explainer-title">Filters${changed ? `<span class="due-filters-badge">${changed}</span>` : ''}</span>
-        <span class="due-explainer-chevron${open ? ' open' : ''}">▶</span>
-      </button>
-      ${open ? `<div class="due-filter-row pbf-body">${rows.map(([l, c]) =>
-        `<div class="pbf-row"><span class="pbf-lbl">${l}</span><div class="pbf-chips">${c}</div></div>`).join('')}</div>` : ''}
-    </div>`;
+  let armed = false, owner = null, home = null;
+  const SHEET = 'uf-back';
+  const panelId = () => document.querySelector('.panel.visible')?.id || 'page';
+  const sheetDlg = () => document.querySelector(`#${SHEET} [role="dialog"]`);
+  function sheetOpen(who, onClose) {
+    if (sheetDlg() && owner === who) return sheetDlg();
+    if (sheetDlg()) RonModal.close(SHEET);
+    owner = who;
+    const dlg = RonModal.open(SHEET, { cls: 'pm uf-sheet', label: 'Filters', onClose: () => { const o = owner; owner = null; armed = false; putBack(); onClose?.(o); } });
+    dlg.innerHTML = `<button class="pm-x" onclick="RonModal.close('${SHEET}')" aria-label="Close">×</button><div class="uf-title">Filters</div>
+      <div class="uf-base"></div><div class="uf-fx"></div><div class="uf-foot"><button class="uf-done" onclick="RonModal.close('${SHEET}')">Done</button></div>`;
+    return dlg;
+  }
+  // a board's own filter markup (a node it keeps filling by id) borrowed into the sheet, and returned on close
+  function putBack() { if (!home) return; const { el, parent, next, display } = home; home = null; el.style.display = display; parent.insertBefore(el, next); }
+  function node(el, { onClose } = {}) {
+    if (!el) return;
+    home = { el, parent: el.parentNode, next: el.nextSibling, display: el.style.display };
+    const dlg = sheetOpen('node:' + (el.id || ''), () => onClose?.());
+    el.style.display = ''; dlg.querySelector('.uf-base').appendChild(el); fxPaint();
+  }
+  const FILTER_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M20 6h0M4 12h4M14 12h6M4 18h12"/><circle cx="17" cy="6" r="2.2"/><circle cx="11" cy="12" r="2.2"/><circle cx="19" cy="18" r="2.2"/></svg>';
+  const uiFilters = (setFn, open, rows, changed) => {
+    const body = rows.map(([l, c]) => `<div class="pbf-row"><span class="pbf-lbl">${l}</span><div class="pbf-chips">${c}</div></div>`).join('');
+    queueMicrotask(() => {
+      if (open && armed) {
+        const dlg = sheetOpen(setFn, (o) => { try { new Function(`${o}('open',false)`)(); } catch (e) {} });
+        const b = dlg.querySelector('.uf-base'); if (b.innerHTML !== body) b.innerHTML = body;
+        fxPaint();
+      } else if (!open && owner === setFn && sheetDlg()) { owner = null; RonModal.close(SHEET); }
+      badges();
+    });
+    return `<div class="uf-bar"><button class="uf-btn" data-n="${changed || 0}" onclick="RonUf.arm();${setFn}('open',true)" aria-haspopup="dialog">${FILTER_ICO}<span>Filters</span><span class="uf-n"${changed ? '' : ' hidden'}>${changed || ''}</span></button></div>`;
+  };
+  // the factor section of the board on screen, if it's on a Factors view (RonFx.html leaves a marker there)
+  const FX = {};
+  const fxOn = () => { const f = FX[panelId()]; return f && document.getElementById('rfx-mark-' + f.key) ? f : null; };
+  function fxPaint() {
+    const box = sheetDlg()?.querySelector('.uf-fx'); if (!box) return;
+    const f = fxOn(), html = f ? `<div class="uf-sec">Factors${f.n ? `<span class="due-filters-badge">${f.n}</span>` : ''}</div>${f.html}` : '';
+    if (box.innerHTML !== html) box.innerHTML = html;
+  }
+  // a button's count: its board's filters plus its factor filters
+  function badges() {
+    const f = fxOn();
+    document.querySelectorAll('.panel.visible .uf-btn').forEach(b => {
+      const n = (+b.dataset.n || 0) + (f?.n || 0), el = b.querySelector('.uf-n');
+      if (el) { el.textContent = n || ''; el.hidden = !n; }
+    });
+  }
+  window.RonUf = { arm: () => { armed = true; }, node, fx: (panel, f) => { FX[panel] = f; queueMicrotask(() => { fxPaint(); badges(); }); }, panelId, badges, close: () => sheetDlg() && RonModal.close(SHEET) };
   const uiTabs = (setFn, cur, tabs = [['board', 'Board'], ['results', 'Results']]) => `
     <div class="sub-tabs u-tabs">${tabs.map(([v, l]) =>
       `<button class="sub-btn${cur === v ? ' active' : ''}" onclick="${setFn}('tab','${v}')">${l}</button>`).join('')}</div>`;
@@ -202,12 +269,8 @@
     const fin = ([k, lbl]) => { const p90 = q(k, 0.9), lo = q(k, 0), hi = q(k, 1), pos = !!s.pos[k];
       return `<label class="rfx-in${s.min[k] != null || pos ? ' on' : ''}" title="${lbl} tonight: ${lo?.toFixed(2)}–${hi?.toFixed(2)}× · top 10% from ${p90?.toFixed(2)}×"><button type="button" class="rfx-pos${pos ? ' on' : ''}" onclick="event.preventDefault();RonFx.set(${K},'pos','${k}',${RE})" title="${pos ? 'Clear' : 'Only'} ${lbl} over 1.00× (green)" aria-pressed="${pos}">+</button><span>${lbl} ≥</span><input type="number" step="0.01" min="0" placeholder="${p90 != null ? p90.toFixed(2) : '—'}" value="${s.min[k] ?? ''}" onchange="RonFx.set(${K},'min',['${k}',this.value],${RE})"></label>`; };
     const odds = (w, lab, ph, tip) => `<label class="rfx-in${s[w] != null ? ' on' : ''}" title="${tip}"><span>${lab}</span><input type="text" inputmode="numeric" placeholder="${ph}" value="${s[w] ?? ''}" onchange="RonFx.set(${K},'${w}',this.value,${RE})"></label>`;
-    return `<div class="due-filters-card">
-      <button class="due-filters-toggle" onclick="RonFx.set(${K},'open',null,${RE})" aria-expanded="${s.open}">
-        <span class="due-explainer-title">Factor filters${n ? `<span class="due-filters-badge">${n}</span>` : ''}</span>
-        <span class="due-explainer-chevron${s.open ? ' open' : ''}">▶</span>
-      </button>
-      ${s.open ? `<div class="due-filter-row">
+    // the factor filters live in the board's filter sheet (RonUf): register them there, and mark the board
+    RonUf.fx(RonUf.panelId(), { key, n, html: `<div class="rfx-body">
         <button class="rfx-tog${s.noRed ? ' on' : ''}" onclick="RonFx.set(${K},'noRed',null,${RE})" title="Nothing working against him: every factor 1.00× or better">🟢 No red</button>
         ${n ? `<button class="rfx-clear" onclick="RonFx.reset(${K},${RE})">Reset ×</button>` : ''}
         <div class="rfx-grid">
@@ -217,8 +280,8 @@
           ${cfg.base ? `<label class="rfx-in${s.baseMax != null ? ' on' : ''}" title="${cfg.base[1]} ceiling: hunt players who aren't stars in great spots"><span>${cfg.base[1]} ≤</span><input type="number" step="0.05" min="0" placeholder="1.00" value="${s.baseMax ?? ''}" onchange="RonFx.set(${K},'baseMax',this.value,${RE})"></label>` : ''}
         </div>
         <div class="rfx-hint">Tap <b>+</b> for only green (over 1.00×), or type a floor (1.20× = 20% better than neutral). The grey number is where tonight's top 10% starts: factors run on different scales.</div>
-      </div>` : ''}
-    </div>`;
+      </div>` });
+    return `<i hidden id="rfx-mark-${key}"></i>`;
   }
   window.RonFx = { state, set, reset, apply, pass, html, count };
 })();
