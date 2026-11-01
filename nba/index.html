@@ -847,6 +847,15 @@
 <script src="/parlay.js"></script>
 <script>
   const APP_BASE = '/nba';
+  // ?card=<market>&p=<player id>[&L=<line>]: open that market's card for him once the data's in (Ron's Plays
+  // links here). Read now: the route code rewrites the address before the data arrives.
+  let cardLink = (() => { const q = new URLSearchParams(location.search); return q.get('card') && q.get('p') ? { mk: q.get('card'), pid: q.get('p'), L: parseFloat(q.get('L')) } : null; })();
+  function cardOpenPending() {
+    const c = cardLink; if (!c || !D || D === 'error') return; cardLink = null;
+    if (['pts', 'reb', 'ast', 'pra', '3pm', 'stl', 'blk', 'stk'].includes(c.mk)) openLc(c.mk, c.pid, null, Number.isFinite(c.L) ? c.L : undefined);
+    else if (c.mk === 'dd' || c.mk === 'td') openDoubleCard(c.pid);
+    else openPlayer(c.pid);
+  }
 
   // ── Theme, sport switcher, tools menu: /chrome.js ─────────────────────────
   // ESPN ships a dark-background cut of every mark; repaint on the flip.
@@ -931,6 +940,7 @@
     renderPanel(activeNav);
     if (D && D !== 'error') nbaLiveStart();
     const pl = plFromPath(); if (pl && D && D !== 'error') openPlayer(pl, null, true);
+    cardOpenPending();
   }
   function dataGate(id) {
     const el = document.getElementById(id); if (!el) return null;

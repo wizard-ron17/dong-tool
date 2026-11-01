@@ -3141,6 +3141,18 @@
 <script>
   // ── Ron's Tud Tool (NFL) — shell. Mirrors the MLB nav; tools + data TBD. ──
   const APP_BASE = '/nfl';
+  // ?card=<market>&p=<player id>[&L=<line>]: open that market's card for him once the data's in (Ron's Plays
+  // links here). Read now: the route code rewrites the address before the data arrives.
+  let cardLink = (() => { const q = new URLSearchParams(location.search); return q.get('card') && q.get('p') ? { mk: q.get('card'), pid: q.get('p'), L: parseFloat(q.get('L')) } : null; })();
+  function cardOpenPending() {
+    const c = cardLink; if (!c || !nflData || nflData === 'error') return; cardLink = null;
+    const YD = { ypass: 'pass', yrush: 'rush', yrec: 'rec', yrr: 'rr' }, KK = { kpts: 'kpts', kfgm: 'kfg', kpatm: 'kpat' };
+    if (['any', 'first', 'last', 'td2', 'pass2'].includes(c.mk)) openPick(c.pid);
+    else if (YD[c.mk]) { ydF.mkt = YD[c.mk]; openYds(c.pid, YD[c.mk]); }
+    else if (['rec', 'cmp', 'int'].includes(c.mk)) openLc(c.mk, c.pid);
+    else if (KK[c.mk]) openLc(KK[c.mk], c.pid);
+    else openPlayer(c.pid);
+  }
   // ── News: injury chips, the ticker, board alerts, player-card news ────────
   // news.json (the build: ESPN's injury report and transaction wire, matched to
   // our ids) drives the chips beside a name and the card's status line. The
@@ -3470,7 +3482,7 @@
     catch (e) { nflData = 'error'; setStatus('error'); }
     renderPanel(activeNav);
     if (nflData && nflData !== 'error') nflLiveStart();
-    tdOpenPending(); plOpenPending(); gmOpenPending();
+    tdOpenPending(); plOpenPending(); gmOpenPending(); cardOpenPending();
   }
   // Coverage · volume · freshness, mirroring the MLB badge's "147d · 4481 HR".
   function statusSummary(d) {

@@ -1519,6 +1519,19 @@
 </div>
 <script>
   const APP_BASE = '/nhl';
+  // ?card=<market>&p=<player id>[&L=<line>]: open that market's card for him once the data's in (Ron's Plays
+  // links here). Read now: the route code rewrites the address before the data arrives.
+  let cardLink = (() => { const q = new URLSearchParams(location.search); return q.get('card') && q.get('p') ? { mk: q.get('card'), pid: q.get('p'), L: parseFloat(q.get('L')) } : null; })();
+  function cardOpenPending() {
+    const c = cardLink; if (!c || !D || D === 'error') return; cardLink = null;
+    const id = +c.pid;
+    if (['any', 'g2', 'g3', 'first', 'last'].includes(c.mk)) openPick(id);
+    else if (c.mk === 'sog') openShot(id);
+    else if (['pts', 'ast', 'ppp'].includes(c.mk)) openPointsCard(id, c.mk);
+    else if (c.mk === 'blk') openLc('blk', id);
+    else if (c.mk === 'sv') openSave(id, 'sv');
+    else openPlayer(id);
+  }
   // ── News: injury chips, the ticker, board alerts, player-card news ────────
   // news.json (the build: ESPN's injury report and transaction wire, matched to
   // our ids) drives the chips beside a name and the card's status line. The
@@ -1772,7 +1785,7 @@
     } catch (e) { D = 'error'; setStatus('error'); }
     renderPanel(activeNav);
     liveStart();
-    plOpenPending();
+    plOpenPending(); cardOpenPending();
   }
   function dataGate(id) {
     const el = document.getElementById(id); if (!el) return null;
