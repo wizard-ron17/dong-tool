@@ -1524,12 +1524,9 @@
   let cardLink = (() => { const q = new URLSearchParams(location.search); return q.get('card') && q.get('p') ? { mk: q.get('card'), pid: q.get('p'), L: parseFloat(q.get('L')) } : null; })();
   function cardOpenPending() {
     const c = cardLink; if (!c || !D || D === 'error') return; cardLink = null;
-    const id = +c.pid;
+    const id = +c.pid, L = Number.isFinite(c.L) ? c.L : undefined;
     if (['any', 'g2', 'g3', 'first', 'last'].includes(c.mk)) openPick(id);
-    else if (c.mk === 'sog') openShot(id);
-    else if (['pts', 'ast', 'ppp'].includes(c.mk)) openPointsCard(id, c.mk);
-    else if (c.mk === 'blk') openLc('blk', id);
-    else if (c.mk === 'sv') openSave(id, 'sv');
+    else if (['sog', 'pts', 'ast', 'ppp', 'blk', 'sv'].includes(c.mk)) openLc(c.mk, id, L);
     else openPlayer(id);
   }
   // ── News: injury chips, the ticker, board alerts, player-card news ────────
@@ -4678,10 +4675,10 @@
     lc.line = lcPick(r, lcPmf(r)); lcRender();
   }
   function openSave(pid, kind = 'sv') { openLc(kind, pid); }
-  function openLc(kind, pid) {
+  function openLc(kind, pid, line) {
     lc.kind = kind; lc.pid = pid;
     const r = lcRow(); if (!r) return;
-    lc.line = lcPick(r, lcPmf(r));
+    lc.line = line ?? lcPick(r, lcPmf(r));
     if (!document.getElementById('lc-back')) {
       document.body.insertAdjacentHTML('beforeend', `
         <div class="pm-back" id="lc-back" onclick="if(event.target===this)closeLc()">

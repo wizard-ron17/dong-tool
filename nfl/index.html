@@ -3146,11 +3146,11 @@
   let cardLink = (() => { const q = new URLSearchParams(location.search); return q.get('card') && q.get('p') ? { mk: q.get('card'), pid: q.get('p'), L: parseFloat(q.get('L')) } : null; })();
   function cardOpenPending() {
     const c = cardLink; if (!c || !nflData || nflData === 'error') return; cardLink = null;
-    const YD = { ypass: 'pass', yrush: 'rush', yrec: 'rec', yrr: 'rr' }, KK = { kpts: 'kpts', kfgm: 'kfg', kpatm: 'kpat' };
+    const YD = { ypass: 'pass', yrush: 'rush', yrec: 'rec', yrr: 'rr' }, KK = { kpts: 'kpts', kfgm: 'kfg', kpatm: 'kpat' }, L = Number.isFinite(c.L) ? c.L : undefined;
     if (['any', 'first', 'last', 'td2', 'pass2'].includes(c.mk)) openPick(c.pid);
-    else if (YD[c.mk]) { ydF.mkt = YD[c.mk]; openYds(c.pid, YD[c.mk]); }
-    else if (['rec', 'cmp', 'int'].includes(c.mk)) openLc(c.mk, c.pid);
-    else if (KK[c.mk]) openLc(KK[c.mk], c.pid);
+    else if (YD[c.mk]) { ydF.mkt = YD[c.mk]; openYds(c.pid, YD[c.mk], L); }
+    else if (['rec', 'cmp', 'int'].includes(c.mk)) openLc(c.mk, c.pid, L);
+    else if (KK[c.mk]) openLc(KK[c.mk], c.pid, L);
     else openPlayer(c.pid);
   }
   // ── News: injury chips, the ticker, board alerts, player-card news ────────
@@ -7971,9 +7971,9 @@ let pairStacks = false;
     back.querySelector('.pk-side-next').disabled = at < 0 || at >= deck.length - 1;
   }
 
-  function openYds(pid, m) {
+  function openYds(pid, m, line) {
     const r = (nflData?.yards?.[ydF.mkt] || []).find(x => x.pid === pid && (!m || x.m === m)); if (!r) return;
-    Object.assign(ydm, { pid, m: r.m, line: ydPick(r) });
+    Object.assign(ydm, { pid, m: r.m, line: line ?? ydPick(r) });
     if (!document.getElementById('yd-back')) {
       document.body.insertAdjacentHTML('beforeend', `
         <div class="pm-back" id="yd-back" onclick="if(event.target===this)closeYds()">
@@ -8307,10 +8307,10 @@ let pairStacks = false;
     document.querySelectorAll('.lc-add').forEach(el => { el.innerHTML = lcAddBtn(); });
     lcCenter();
   }
-  function openLc(kind, pid) {
+  function openLc(kind, pid, line) {
     lc.kind = kind; lc.pid = pid;
     const r = lcRow(); if (!r) return;
-    lc.line = lcPick(r, lcPmf(r));
+    lc.line = line ?? lcPick(r, lcPmf(r));
     if (!document.getElementById('lc-back')) {
       document.body.insertAdjacentHTML('beforeend', `
         <div class="pm-back" id="lc-back" onclick="if(event.target===this)closeLc()">
