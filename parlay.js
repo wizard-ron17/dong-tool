@@ -281,7 +281,7 @@
     const mates = Object.values(teams).some(n => n > 1);
     if (legs.length > 1 && legs.every(l => l.m === 'td1' && l.i && side(l) > 0)) {
       const p = tdGroupNFL(legs);
-      if (p != null) return { p, corr: true, notes: [`Priced with the measured touchdown correlation rather than by multiplying${mates ? ' — teammates compete for the same end-zone trips' : ''}. Straight multiplication says <b>${am(naive)}</b>.`] };
+      if (p != null) return { p, corr: true, notes: [`Priced with the measured touchdown correlation rather than by multiplying${mates ? ': teammates compete for the same end-zone trips' : ''}. Straight multiplication says <b>${am(naive)}</b>.`] };
     }
     // everything else in one game: the copula over the measured ρs.
     // `unmeasured`: same-game pairs research never measured; `indep`: measured, and independent
@@ -297,7 +297,7 @@
     }
     if ((corr === 'sgp' || corr === 'indep') && unmeasured) why.push(`${unmeasured} pair${unmeasured === 1 ? '' : 's'} not measured, multiplied`);
     const notes = corr === 'sgp' ? [sgpNote(why, p, naive)]
-      : corr === 'indep' ? [`Same-game legs, but measured independent — these markets don't move together (${SGP_NFL_SEASONS}), so multiplying them is the fair same-game price.`] : [];
+      : corr === 'indep' ? [`Same-game legs, but measured independent: these markets don't move together (${SGP_NFL_SEASONS}), so multiplying them is the fair same-game price.`] : [];
     return { p, corr, why, notes };
   }
 
@@ -435,7 +435,7 @@
       const f = goalGroupMult(legs);
       if (f != null) {
         const p = naive * f, gap = Math.round((p / naive - 1) * 100);
-        return { p, corr: 'goals', notes: gap ? [`Priced with the measured goal-scorer correlation — ${gap < 0 ? 'teammates share a fixed number of goals, so a big same-club group lands below' : 'these legs land above'} straight multiplication, which says <b>${am(naive)}</b> (${gap > 0 ? '+' : ''}${gap}%).`] : [] };
+        return { p, corr: 'goals', notes: gap ? [`Priced with the measured goal-scorer correlation: ${gap < 0 ? 'teammates share a fixed number of goals, so a big same-club group lands below' : 'these legs land above'} straight multiplication, which says <b>${am(naive)}</b> (${gap > 0 ? '+' : ''}${gap}%).`] : [] };
       }
     } else if (legs.length === 2) {
       const A = legs.find(l => l.m === 'g1' && side(l) > 0), B = legs.find(l => l.m === 'ast' && l.L === 0.5 && side(l) > 0);
@@ -444,7 +444,7 @@
         const st = stackMult(A.i, B.i);
         if (st) {
           const p = naive * st.mult, gap = Math.round((p / naive - 1) * 100);
-          return { p, corr: 'stack', notes: [`A scorer + assist stack: when ${parEsc(A.n)} scores, someone gets the assist — ${parEsc(B.n)} ${st.known ? (st.links ? `has set him up in <b>${st.links}</b> game${st.links === 1 ? '' : 's'} this season` : `hasn't set him up yet this season`) : (PAR_SPORT === 'nhl' ? '(this season\'s assists are loading)' : '(open the NHL page once for this season\'s assists)')}, so this runs <b>+${gap}%</b> over multiplying (${am(naive)}).`] };
+          return { p, corr: 'stack', notes: [`A scorer + assist stack: when ${parEsc(A.n)} scores, someone gets the assist, and ${parEsc(B.n)} ${st.known ? (st.links ? `has set him up in <b>${st.links}</b> game${st.links === 1 ? '' : 's'} this season` : `hasn't set him up yet this season`) : (PAR_SPORT === 'nhl' ? '(this season\'s assists are loading)' : '(open the NHL page once for this season\'s assists)')}, so this runs <b>+${gap}%</b> over multiplying (${am(naive)}).`] };
         }
       }
     }
@@ -462,7 +462,7 @@
     return { p: naive, corr: null };
   }
 
-  const sgpNote = (why, p, naive) => `Priced as a same-game parlay with measured correlations, not by multiplying: ${why.join('; ')}. Straight multiplication says <b>${am(naive)}</b> — this slip hits <b>${moreLess(p, naive)}</b> often than that.`;
+  const sgpNote = (why, p, naive) => `Priced as a same-game parlay with measured correlations, not by multiplying: ${why.join('; ')}. Straight multiplication says <b>${am(naive)}</b>; this slip hits <b>${moreLess(p, naive)}</b> often than that.`;
   const RULES = { mlb: priceMLB, nfl: priceNFL, nhl: priceNHL };
 
   /**
@@ -594,8 +594,8 @@
     const sgp = new Set(legs.map(l => l.g)).size < legs.length;
     const leg = (l) => `${l.n}${l.s ? ' ' + l.s : ''}${l.t ? ` (${l.t})` : ''}`;
     const q = legs.length === 1
-      ? `Find me the best price for ${leg(legs[0])}${games.length ? ` — ${sport ? sport + ' ' : ''}${games[0]}` : ''}`
-      : `Build me a betslip${sgp ? ' (same game parlay)' : ''} and find the best price: ${legs.map(leg).join(' + ')}${games.length ? ` — ${sport ? sport + ' ' : ''}${games.join(', ')}` : ''}`;
+      ? `Find me the best price for ${leg(legs[0])}${games.length ? ` (${sport ? sport + ' ' : ''}${games[0]})` : ''}`
+      : `Build me a betslip${sgp ? ' (same game parlay)' : ''} and find the best price: ${legs.map(leg).join(' + ')}${games.length ? ` (${sport ? sport + ' ' : ''}${games.join(', ')})` : ''}`;
     return 'https://gambly.com/chat?q=' + encodeURIComponent(q);
   }
 
@@ -613,7 +613,7 @@
     ho.textContent = legs.length ? Odds.both(p) : '0 legs';
     const body = document.getElementById('par-body');
     if (!legs.length) {
-      body.innerHTML = `<div class="par-empty">Tap any priced row to add it.<br>One slip for the whole site: legs from every tool — and every sport — combine here.</div>`;
+      body.innerHTML = `<div class="par-empty">Tap any priced row to add it.<br>One slip for the whole site: legs from every tool and every sport combine here.</div>`;
       return;
     }
     const mixed = new Set(legs.map(l => l.sp)).size > 1;
@@ -641,11 +641,11 @@
         <div class="par-num"><b>${(p * 100).toFixed(p < 0.1 ? 2 : 1)}%</b><span>True chance</span></div>
       </div>
       <p class="par-note">${PARLAY.boost
-        ? `With a <b>${boostPct}%</b> profit boost, take it at <b>${parDecAm(need)}</b> or better and you have the best of it.`
+        ? `With a <b>${boostPct}%</b> profit boost, anything longer than <b>${parDecAm(need)}</b> at your book beats fair.`
         : `Anything longer than <b>${am(p)}</b> at your book beats fair.`}</p>
       ${notes.map(n => `<p class="par-note">${n}</p>`).join('')}
-      ${samePlayer.length ? `<p class="par-note par-warn">Two markets on ${samePlayer.map(parEsc).join(' and ')} — one player's lines move together, so multiplying them overstates the price.</p>` : ''}
-      ${shared.length ? `<p class="par-note par-warn">${shared.map(v => `${v.length} legs in ${parEsc(v[0].g)}`).join(', ')} — we haven't measured how these same-game legs move together, so this is a multiplied estimate, not a fair same-game price.</p>` : ''}
+      ${samePlayer.length ? `<p class="par-note par-warn">Two markets on ${samePlayer.map(parEsc).join(' and ')}: one player's lines move together, so multiplying them overstates the price.</p>` : ''}
+      ${shared.length ? `<p class="par-note par-warn">${shared.map(v => `${v.length} legs in ${parEsc(v[0].g)}`).join(', ')}: we haven't measured how these same-game legs move together, so this is a multiplied estimate, not a fair same-game price.</p>` : ''}
       <div class="par-ev">
         <label for="par-book">Your book's price</label>
         <input type="text" id="par-book" inputmode="text" placeholder="+1400" value="${parEsc(PARLAY.book)}" oninput="parBook(this)">
