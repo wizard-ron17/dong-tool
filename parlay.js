@@ -555,13 +555,15 @@
   }
   function parRenderEv() {
     const out = document.getElementById('par-ev-out'); if (!out) return;
-    const { p, corr } = parPrice(), d = parAmDec(PARLAY.book);
+    const { p } = parPrice(), d = parAmDec(PARLAY.book);
     if (!d || !(p > 0) || !PARLAY.legs.length) { out.textContent = ''; out.className = 'par-ev-out'; return; }
     const boosted = 1 + (d - 1) * (1 + PARLAY.boost);
-    const ev = p * boosted - 1;
-    const tax = ev < 0 ? ` — the book's ${PARLAY.legs.length > 1 && corr ? 'SGP ' : ''}tax is ${Math.abs(ev * 100).toFixed(0)}% of your stake` : ' — you have the best of it';
-    out.textContent = `${parDecAm(boosted)} after the boost · ${ev >= 0 ? '+' : '−'}${Math.abs(ev * 100).toFixed(1)}% EV${tax}`;
-    out.className = 'par-ev-out ' + (ev >= 0 ? 'good' : 'bad');
+    // EV against our fair; with market odds (the local odds build) also against the blend and the market's
+    const f = window.RonLive?.slipFairs?.(PARLAY.legs, p);
+    const evs = f ? [['Ron', p], ['Blend', f.blend], ['Mkt', f.mkt]].filter(([, q]) => q > 0) : [['', p]];
+    const pc = (q) => { const e = q * boosted - 1; return `<b class="${e >= 0 ? 'good' : 'bad'}">${e >= 0 ? '+' : '−'}${Math.abs(e * 100).toFixed(1)}%</b>`; };
+    out.innerHTML = `${PARLAY.boost ? `Boosted to ${parDecAm(boosted)} · ` : ''}EV ${evs.map(([l, q]) => `${l ? l + ' ' : ''}${pc(q)}`).join(' · ')}`;
+    out.className = 'par-ev-out';
   }
   // the slip as text for Ron's odds-viewer bet tracker (its "Import from Ron's Tools")
   function parCopyTracker(btn) {
@@ -735,6 +737,7 @@
   .par-ev input:focus { border-color: var(--accent); }
   .par-ev-out { font-family: var(--font-d); font-weight: 700; }
   .par-ev-out.good { color: var(--good); }
+  .par-ev-out b.good { color: var(--good); } .par-ev-out b.bad { color: var(--bad); }
   .par-ev-out.bad { color: var(--bad); }
   .par-legs-hd { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.1rem; }
   .par-legs-hd .par-lbl2 { margin: 0; }
