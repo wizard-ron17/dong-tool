@@ -7,6 +7,8 @@
 //   nba   the court from above on maple (scene/wood.jpg, ambientCG WoodFloor062, CC0): a navy apron and key, the half-court line and centre circle, the arc and the painted key; dark-stained floor in dark mode
 //   nhl   the rink from above: rink ice (scene/ice.jpg, ambientCG Snow006, CC0) with skate marks drawn on, soft under-ice paint (the red line, a blue line, the end-zone circles
 //         and hashes in the margins), the boards at both edges with the yellow kick plate; dark slate ice in dark mode
+//   soccer  one end of the pitch from above on the same turf: mowing stripes, the goal line at the top with the goal behind it,
+//         the six-yard box, the penalty box, spot and D, the corner arcs at the touchlines; phones reach the halfway line and centre circle
 //   nfl   close up on the field from straight above: real turf under white paint, the yard lines across the screen, a
 //         big number in each side margin, night-lit. (The stadium panorama before it is in git history, 11/02.)
 (function () {
@@ -16,7 +18,7 @@
   let mode = MODES.test(q || '') ? q : null;
   try { mode = mode || sessionStorage.getItem('ronScene'); } catch (e) {}
   const sport = location.pathname.split('/').filter(Boolean)[0] || '';
-  const SCENES = { nfl: nfl, nhl: nhl, nba: nba };
+  const SCENES = { nfl: nfl, nhl: nhl, nba: nba, soccer: soccer };
   window.RonScene = { on: null };
   if (!mode || !SCENES[sport]) return;
   // a holiday asked for by name (?holiday=halloween) wins; otherwise holiday.js stands aside while a scene is previewed
@@ -105,6 +107,60 @@
     mount(css, LAND + PORT); fitW();
   }
 
+
+  function soccer() {
+    const S = 'html[data-scene="soccer"]', DARK = `${S}:not([data-theme="light"])`, LIGHT = `${S}[data-theme="light"]`;
+    const f1 = (n) => +n.toFixed(1);
+    // One end of the pitch from straight above, in metres (68 wide, FIFA markings): the goal line across the top, the goal
+    // behind it, the boxes coming down the middle, the touchlines and corner arcs near the screen's edges. Mowing stripes
+    // every 5.5 m (the six-yard box's depth, a third of the penalty box) are what make it a pitch and not a gridiron.
+    const pitch = (W, m, y0) => {      // m: px per metre; y0: the goal line
+      const L = 'var(--scn-paint)', lw = f1(Math.max(1.8, m * 0.16)), mid = W / 2, H = 4000, X = (x) => f1(mid + x * m), Y = (y) => f1(y0 + y * m);
+      const tl = X(-34), tr = X(34), r = (n) => f1(n * m);
+      let out = '';
+      // stripes: from the goal line down, and the strip behind it
+      for (let i = -4, y = y0 - 4 * 5.5 * m; y < H; i++, y += 5.5 * m) if (i % 2 === 0) out += `<rect x="0" y="${f1(y)}" width="${W}" height="${r(5.5)}" fill="var(--scn-stripe)"/>`;
+      // beyond the touchlines and behind the goal: a little darker
+      out += `<rect x="0" y="0" width="${W}" height="${f1(y0)}" fill="var(--scn-oob)"/>`;
+      if (tl > 0) out += `<rect x="0" y="${f1(y0)}" width="${tl}" height="${H}" fill="var(--scn-oob)"/><rect x="${tr}" y="${f1(y0)}" width="${f1(W - tr)}" height="${H}" fill="var(--scn-oob)"/>`;
+      const box = (w, d) => `M${X(-w / 2)} ${Y(0)}V${Y(d)}H${X(w / 2)}V${Y(0)}`;
+      // the D: the part of the 9.15 m circle round the spot (11 m out) that's outside the box (16.5 m)
+      const dy = 16.5 - 11, dx = Math.sqrt(9.15 * 9.15 - dy * dy);
+      const cc = 52.5;     // the halfway line
+      out += `<g fill="none" stroke="${L}" stroke-width="${lw}">
+        <path d="M${tl} ${Y(cc)}V${Y(0)}H${tr}V${Y(cc)}M${tl} ${Y(cc)}H${tr}"/>
+        <path d="${box(40.32, 16.5)}"/><path d="${box(18.32, 5.5)}"/>
+        <path d="M${X(-dx)} ${Y(16.5)}A${r(9.15)} ${r(9.15)} 0 0 0 ${X(dx)} ${Y(16.5)}"/>
+        <path d="M${X(-34 + 1)} ${Y(0)}A${r(1)} ${r(1)} 0 0 0 ${X(-34)} ${Y(1)}M${X(34 - 1)} ${Y(0)}A${r(1)} ${r(1)} 0 0 1 ${X(34)} ${Y(1)}"/>
+        <circle cx="${mid}" cy="${Y(cc)}" r="${r(9.15)}"/>
+        <path d="M${X(-34)} ${Y(105 - 16.5)}H${X(-20.16)}V${Y(105)}M${X(34)} ${Y(105 - 16.5)}H${X(20.16)}V${Y(105)}"/>
+      </g>
+      <circle cx="${mid}" cy="${Y(11)}" r="${f1(Math.max(2, m * 0.2))}" fill="${L}"/><circle cx="${mid}" cy="${Y(cc)}" r="${f1(Math.max(2, m * 0.25))}" fill="${L}"/>`;
+      // the goal: 7.32 m between the posts, the net 2 m deep behind the line, a faint mesh
+      const g = 7.32 / 2, nd = 2;
+      out += `<rect x="${X(-g)}" y="${Y(-nd)}" width="${r(7.32)}" height="${r(nd)}" fill="url(#scn-net)" stroke="var(--scn-net)" stroke-width="${f1(lw * 0.6)}"/>
+        <path d="M${X(-g)} ${Y(0)}H${X(g)}" stroke="var(--scn-post)" stroke-width="${f1(lw * 1.4)}" stroke-linecap="round"/>`;
+      const mesh = f1(Math.max(3, m * 0.3));
+      return `<defs><pattern id="scn-net" width="${mesh}" height="${mesh}" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0H${mesh}M0 0V${mesh}" stroke="var(--scn-net)" stroke-width=".6" fill="none"/></pattern></defs>` + out;
+    };
+    const LAND = `<svg class="scn-land" data-w="1600" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMin slice">${pitch(1600, 22, 46)}</svg>`;
+    const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${pitch(420, 9.4, 40)}</svg>`;
+    const css = `
+      ${DARK} { --bg: #040c09; --surface0: #07130f; --surface1: #0a1a14; --surface2: #10261d; --border: #1a3529; --border2: #264d3b;
+        --scn-paint: rgba(235,245,238,0.3); --scn-stripe: rgba(255,255,255,0.045); --scn-oob: rgba(0,0,0,0.3); --scn-net: rgba(235,245,238,0.18); --scn-post: rgba(245,248,246,0.55);
+        --scn-night: rgba(2,10,6,0.82); --scn-vig: .75; --scn-top: rgba(2,8,5,0.85); }
+      ${LIGHT} { --border: #cfe0d6; --border2: #b4ccbe; --scn-paint: rgba(255,255,255,0.86); --scn-stripe: rgba(255,255,255,0.2); --scn-oob: rgba(0,0,0,0.1); --scn-net: rgba(255,255,255,0.55); --scn-post: #fff;
+        --scn-night: rgba(20,70,25,0.1); --scn-vig: .16; --scn-top: rgba(238,244,240,0.92); }
+      /* the turf under everything, so overscroll past the page ends is grass, not white */
+      ${DARK} { background: #0b2412; } ${LIGHT} { background: #5f9a3c; }
+      ${S} body { background: transparent; } ${S} body::before { display: none; }
+      ${S} .scn { background: url(/scene/turf.jpg) 0 0 / 420px repeat; }
+      ${S} .scn::before { content: ''; position: absolute; inset: 0; background: var(--scn-night); }
+      ${S} .scn::after { content: ''; position: absolute; inset: 0; background: linear-gradient(var(--scn-top), transparent 190px), radial-gradient(70% 60% at 50% 40%, rgba(220,255,230,.04), transparent 70%), radial-gradient(115% 95% at 50% 45%, transparent 50%, rgba(0,0,0,var(--scn-vig)) 100%); }
+      ${LIGHT} .scn svg { opacity: 1; }
+      ${FULL_CSS(S, LIGHT)}`;
+    mount(css, LAND + PORT); fitW();
+  }
 
   function nhl() {
     const S = 'html[data-scene="nhl"]', DARK = `${S}:not([data-theme="light"])`, LIGHT = `${S}[data-theme="light"]`;
