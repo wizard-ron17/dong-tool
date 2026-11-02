@@ -43,8 +43,12 @@
       ${LIGHT} .scn-c { opacity: .38; }
       /* phones: no margins, so the pieces sit behind the page, stronger than Halloween's (.4) at the bottom; the top two
          ride up and dim so the header reads over them */
-      @media (max-width: 760px) { ${S} .scn-tl, ${S} .scn-tr { width: 40vw; top: -4vw; opacity: .4; } ${S} .scn-bl, ${S} .scn-br { width: 52vw; opacity: .66; }
-        ${LIGHT} .scn-c { opacity: .3; } }`; }
+      /* phones: no margins, so the art lives where a phone shows it: the top corners, cropped off the edges, light the
+         header (the cores stay small so the title reads), and the bottom pieces sit behind the frosted nav bar */
+      @media (max-width: 760px) { ${S} .scn-tl { width: 66vw; top: -16vw; left: -18vw; opacity: .85; }
+        ${S} .scn-tr { width: 60vw; top: -8vw; right: -12vw; opacity: .7; }
+        ${S} .scn-bl, ${S} .scn-br { width: 58vw; opacity: .9; }
+        ${LIGHT} .scn-c { opacity: .32; } }`; }
 
   function nfl() {
     const S = 'html[data-scene="nfl"]', DARK = `${S}:not([data-theme="light"])`, LIGHT = `${S}[data-theme="light"]`;
