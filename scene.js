@@ -91,9 +91,8 @@
     const LAND = `<svg class="scn-land" data-w="1600" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMin slice">${field(1600, 70, 150, 24, 30, 280)}</svg>`;
     const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${field(420, 34, 70, 6, 30, 260)}</svg>`;
     const css = `
-      ${DARK} { --bg: #040d08; --surface0: #07130d; --surface1: #0a1a12; --surface2: #10261a; --border: #1a3526; --border2: #264d37;
-        --glow: rgba(51,208,124,0.08); --scn-paint: rgba(235,245,238,0.3); --scn-oob: rgba(0,0,0,0.25); --scn-night: rgba(2,10,5,0.84); --scn-vig: .75; --scn-top: rgba(2,8,4,0.85); }
-      ${LIGHT} { --border: #cfe0d6; --border2: #b4ccbe; --scn-paint: rgba(255,255,255,0.86); --scn-oob: rgba(0,0,0,0.1); --scn-night: rgba(20,70,25,0.08); --scn-vig: .16; --scn-top: rgba(238,244,240,0.92); }
+      ${DARK} { --scn-paint: rgba(235,245,238,0.3); --scn-oob: rgba(0,0,0,0.25); --scn-night: rgba(2,10,5,0.84); --scn-vig: .75; --scn-top: rgba(2,8,4,0.85); }
+      ${LIGHT} { --scn-paint: rgba(255,255,255,0.86); --scn-oob: rgba(0,0,0,0.1); --scn-night: rgba(20,70,25,0.08); --scn-vig: .16; --scn-top: rgba(238,244,240,0.92); }
       /* the turf under everything, so overscroll past the page ends is grass, not white */
       ${DARK} { background: #0b2412; } ${LIGHT} { background: #5f9a3c; }
       ${S} body { background: transparent; } ${S} body::before { display: none; }
@@ -111,49 +110,42 @@
   function soccer() {
     const S = 'html[data-scene="soccer"]', DARK = `${S}:not([data-theme="light"])`, LIGHT = `${S}[data-theme="light"]`;
     const f1 = (n) => +n.toFixed(1);
-    // One end of the pitch from straight above, in metres (68 wide, FIFA markings): the goal line across the top, the goal
-    // behind it, the boxes coming down the middle, the touchlines and corner arcs near the screen's edges. Mowing stripes
-    // every 5.5 m (the six-yard box's depth, a third of the penalty box) are what make it a pitch and not a gridiron.
-    const pitch = (W, m, y0) => {      // m: px per metre; y0: the goal line
-      const L = 'var(--scn-paint)', lw = f1(Math.max(1.8, m * 0.16)), mid = W / 2, H = 4000, X = (x) => f1(mid + x * m), Y = (y) => f1(y0 + y * m);
-      const tl = X(-34), tr = X(34), r = (n) => f1(n * m);
-      let out = '';
-      // stripes: from the goal line down, and the strip behind it
-      for (let i = -4, y = y0 - 4 * 5.5 * m; y < H; i++, y += 5.5 * m) if (i % 2 === 0) out += `<rect x="0" y="${f1(y)}" width="${W}" height="${r(5.5)}" fill="var(--scn-stripe)"/>`;
-      // beyond the touchlines and behind the goal: a little darker
-      out += `<rect x="0" y="0" width="${W}" height="${f1(y0)}" fill="var(--scn-oob)"/>`;
-      if (tl > 0) out += `<rect x="0" y="${f1(y0)}" width="${tl}" height="${H}" fill="var(--scn-oob)"/><rect x="${tr}" y="${f1(y0)}" width="${f1(W - tr)}" height="${H}" fill="var(--scn-oob)"/>`;
-      const box = (w, d) => `M${X(-w / 2)} ${Y(0)}V${Y(d)}H${X(w / 2)}V${Y(0)}`;
-      // the D: the part of the 9.15 m circle round the spot (11 m out) that's outside the box (16.5 m)
-      const dy = 16.5 - 11, dx = Math.sqrt(9.15 * 9.15 - dy * dy);
-      const cc = 52.5;     // the halfway line
-      out += `<g fill="none" stroke="${L}" stroke-width="${lw}">
-        <path d="M${tl} ${Y(cc)}V${Y(0)}H${tr}V${Y(cc)}M${tl} ${Y(cc)}H${tr}"/>
-        <path d="${box(40.32, 16.5)}"/><path d="${box(18.32, 5.5)}"/>
-        <path d="M${X(-dx)} ${Y(16.5)}A${r(9.15)} ${r(9.15)} 0 0 0 ${X(dx)} ${Y(16.5)}"/>
-        <path d="M${X(-34 + 1)} ${Y(0)}A${r(1)} ${r(1)} 0 0 0 ${X(-34)} ${Y(1)}M${X(34 - 1)} ${Y(0)}A${r(1)} ${r(1)} 0 0 1 ${X(34)} ${Y(1)}"/>
-        <circle cx="${mid}" cy="${Y(cc)}" r="${r(9.15)}"/>
-        <path d="M${X(-34)} ${Y(105 - 16.5)}H${X(-20.16)}V${Y(105)}M${X(34)} ${Y(105 - 16.5)}H${X(20.16)}V${Y(105)}"/>
-      </g>
-      <circle cx="${mid}" cy="${Y(11)}" r="${f1(Math.max(2, m * 0.2))}" fill="${L}"/><circle cx="${mid}" cy="${Y(cc)}" r="${f1(Math.max(2, m * 0.25))}" fill="${L}"/>`;
-      // the goal: 7.32 m between the posts, the net 2 m deep behind the line, a faint mesh
-      const g = 7.32 / 2, nd = 2;
-      out += `<rect x="${X(-g)}" y="${Y(-nd)}" width="${r(7.32)}" height="${r(nd)}" fill="url(#scn-net)" stroke="var(--scn-net)" stroke-width="${f1(lw * 0.6)}"/>
-        <path d="M${X(-g)} ${Y(0)}H${X(g)}" stroke="var(--scn-post)" stroke-width="${f1(lw * 1.4)}" stroke-linecap="round"/>`;
-      const mesh = f1(Math.max(3, m * 0.3));
-      return `<defs><pattern id="scn-net" width="${mesh}" height="${mesh}" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0H${mesh}M0 0V${mesh}" stroke="var(--scn-net)" stroke-width=".6" fill="none"/></pattern></defs>` + out;
+    // The pitch from straight above, drawn in metres (105 by 68, FIFA markings) and laid onto the screen by a transform: on
+    // phones one end with the goal at the top (the boxes down the middle, the halfway line and centre circle below); on
+    // desktops turned sideways, a goal at each screen edge so both penalty boxes sit in the margins. Natural grass mown in
+    // two directions, a checkerboard (5.5 m bands along the pitch, 6.8 m across), is what makes it a pitch and not a gridiron.
+    //   u: across the pitch (−34 … 34), v: along it (0 at one goal line, 105 at the other)
+    const pitch = (tf, px) => {        // px: screen pixels per metre, to keep the paint's width sensible
+      const L = 'var(--scn-paint)', lw = +Math.max(0.13, 1.6 / px).toFixed(3), c = 52.5, r9 = 9.15;
+      let o = '';
+      for (let i = 0; i * 5.5 < 105; i++) if (i % 2 === 0) o += `<rect x="-34" y="${f1(i * 5.5)}" width="68" height="${f1(Math.min(5.5, 105 - i * 5.5))}" fill="var(--scn-stripe)"/>`;
+      for (let j = 0; j < 10; j++) if (j % 2 === 0) o += `<rect x="${f1(-34 + j * 6.8)}" y="0" width="6.8" height="105" fill="var(--scn-cross)"/>`;
+      // beyond the lines: a little darker
+      o += `<path d="M-400 -400H400V505H-400ZM-34 0V105H34V0Z" fill="var(--scn-oob)" fill-rule="evenodd"/>`;
+      // each end's markings, the far one mirrored
+      const dy = 16.5 - 11, dx = Math.sqrt(r9 * r9 - dy * dy), g = 7.32 / 2, nd = 2;
+      const end = `<path d="M-20.16 0V16.5H20.16V0M-9.16 0V5.5H9.16V0M${f1(-dx)} 16.5A${r9} ${r9} 0 0 0 ${f1(dx)} 16.5M-33 0A1 1 0 0 0 -34 1M33 0A1 1 0 0 1 34 1"/>`;
+      const spot = `<circle cx="0" cy="11" r="0.22" fill="${L}" stroke="none"/>`;
+      const goal = `<rect x="${-g}" y="${-nd}" width="7.32" height="${nd}" fill="url(#scn-net)" stroke="var(--scn-net)" stroke-width="${f1(lw * 0.6 * 100) / 100}"/><path d="M${-g} 0H${g}" stroke="var(--scn-post)" stroke-width="${f1(lw * 1.5 * 100) / 100}" stroke-linecap="round"/>`;
+      o += `<g fill="none" stroke="${L}" stroke-width="${lw}">
+        <rect x="-34" y="0" width="68" height="105"/><path d="M-34 ${c}H34"/><circle cx="0" cy="${c}" r="${r9}"/>
+        ${end}${spot}<g transform="matrix(1 0 0 -1 0 105)">${end}${spot}</g></g>
+        <circle cx="0" cy="${c}" r="0.27" fill="${L}"/>${goal}<g transform="matrix(1 0 0 -1 0 105)">${goal}</g>`;
+      return `<defs><pattern id="scn-net" width=".32" height=".32" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0H.32M0 0V.32" stroke="var(--scn-net)" stroke-width=".035" fill="none"/></pattern></defs><g transform="${tf}">${o}</g>`;
     };
-    const LAND = `<svg class="scn-land" data-w="1600" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMin slice">${pitch(1600, 22, 46)}</svg>`;
-    const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${pitch(420, 9.4, 40)}</svg>`;
+    // desktop: 105 m across 1600 with a little room past each goal; the top touchline just under the header's line
+    const m = 14.6, x0 = (1600 - 105 * m) / 2, yc = 70 + 34 * m;
+    const LAND = `<svg class="scn-land" data-w="1600" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMin slice">${pitch(`matrix(0 ${m} ${m} 0 ${f1(x0)} ${f1(yc)})`, m)}</svg>`;
+    const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${pitch('matrix(9.4 0 0 9.4 210 40)', 9.4)}</svg>`;
     const css = `
-      ${DARK} { --bg: #040c09; --surface0: #07130f; --surface1: #0a1a14; --surface2: #10261d; --border: #1a3529; --border2: #264d3b;
-        --scn-paint: rgba(235,245,238,0.3); --scn-stripe: rgba(255,255,255,0.045); --scn-oob: rgba(0,0,0,0.3); --scn-net: rgba(235,245,238,0.18); --scn-post: rgba(245,248,246,0.55);
-        --scn-night: rgba(2,10,6,0.82); --scn-vig: .75; --scn-top: rgba(2,8,5,0.85); }
-      ${LIGHT} { --border: #cfe0d6; --border2: #b4ccbe; --scn-paint: rgba(255,255,255,0.86); --scn-stripe: rgba(255,255,255,0.2); --scn-oob: rgba(0,0,0,0.1); --scn-net: rgba(255,255,255,0.55); --scn-post: #fff;
-        --scn-night: rgba(20,70,25,0.1); --scn-vig: .16; --scn-top: rgba(238,244,240,0.92); }
+      ${DARK} { --scn-paint: rgba(235,245,238,0.34); --scn-stripe: rgba(255,255,255,0.05); --scn-cross: rgba(0,0,0,0.12); --scn-oob: rgba(0,0,0,0.3); --scn-net: rgba(235,245,238,0.2); --scn-post: rgba(245,248,246,0.6);
+        --scn-night: rgba(3,16,9,0.74); --scn-vig: .75; --scn-top: rgba(2,8,5,0.85); }
+      ${LIGHT} { --scn-paint: rgba(255,255,255,0.86); --scn-stripe: rgba(255,255,255,0.17); --scn-cross: rgba(0,40,0,0.09); --scn-oob: rgba(0,0,0,0.1); --scn-net: rgba(255,255,255,0.55); --scn-post: #fff;
+        --scn-night: rgba(60,170,40,0.12); --scn-vig: .16; --scn-top: rgba(238,244,240,0.92); }
       /* the turf under everything, so overscroll past the page ends is grass, not white */
-      ${DARK} { background: #0b2412; } ${LIGHT} { background: #5f9a3c; }
+      ${DARK} { background: #0c2a14; } ${LIGHT} { background: #5aa83c; }
       ${S} body { background: transparent; } ${S} body::before { display: none; }
+      /* natural grass: the same turf, richer and a touch brighter than the gridiron's */
       ${S} .scn { background: url(/scene/turf.jpg) 0 0 / 420px repeat; }
       ${S} .scn::before { content: ''; position: absolute; inset: 0; background: var(--scn-night); }
       ${S} .scn::after { content: ''; position: absolute; inset: 0; background: linear-gradient(var(--scn-top), transparent 190px), radial-gradient(70% 60% at 50% 40%, rgba(220,255,230,.04), transparent 70%), radial-gradient(115% 95% at 50% 45%, transparent 50%, rgba(0,0,0,var(--scn-vig)) 100%); }
@@ -225,10 +217,9 @@
     const LAND = `<svg class="scn-land" data-w="1600" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMin slice">${rink(1600, 16, 22, 150, 'L')}</svg>`;
     const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${rink(420, 5.2, 6, 205, 'P')}</svg>`;
     const css = `
-      ${DARK} { --bg: #060a12; --surface0: #0a101b; --surface1: #0e1624; --surface2: #142034; --border: #1c2a40; --border2: #283b5a;
-        --scn-ice: #101a2a; --scn-tint: .86; --scn-cloud: #24395a; --scn-scratch: rgba(205,225,255,0.24); --scn-speck: rgba(220,235,255,0.16); --scn-paintop: .72;
+      ${DARK} { --scn-ice: #101a2a; --scn-tint: .86; --scn-cloud: #24395a; --scn-scratch: rgba(205,225,255,0.24); --scn-speck: rgba(220,235,255,0.16); --scn-paintop: .72;
         --scn-red: #c8323f; --scn-blue: #2f6bd0; --scn-crease: rgba(47,107,208,0.25); --scn-board: #05080e; --scn-kick: #c9a227; --scn-vig: .6; }
-      ${LIGHT} { --border: #d3dee9; --border2: #b9c8d8; --scn-ice: #e8f1f8; --scn-tint: .45; --scn-cloud: #ffffff; --scn-scratch: rgba(105,135,170,0.34); --scn-speck: rgba(255,255,255,0.85); --scn-paintop: .8;
+      ${LIGHT} { --scn-ice: #e8f1f8; --scn-tint: .45; --scn-cloud: #ffffff; --scn-scratch: rgba(105,135,170,0.34); --scn-speck: rgba(255,255,255,0.85); --scn-paintop: .8;
         --scn-red: #c8102e; --scn-blue: #0b4f9c; --scn-crease: rgba(90,160,230,0.35); --scn-board: #f9fbfd; --scn-kick: #e2b400; --scn-vig: .1; }
       /* the ice under everything, so overscroll past the page ends is ice, not white */
       ${DARK} { background: #0a111c; } ${LIGHT} { background: #eef4f9; }
@@ -286,11 +277,10 @@
     const LAND = `<svg class="scn-land" data-w="1600" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMin slice">${court(1600, 30.4, 24, -450, "RON'S HOOP TOOL", 1000)}</svg>`;
     const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${court(420, 8.16, 5, 420, 'HOOP TOOL', 1020)}</svg>`;
     const css = `
-      ${DARK} { --bg: #0a0705; --surface0: #110c08; --surface1: #16100b; --surface2: #20170f; --border: #2e2216; --border2: #433222;
-        --scn-stain: rgba(10,6,2,0.74); --scn-paint: rgba(226,214,192,0.8); --scn-apron: #0e1a30; --scn-apron-text: rgba(245,240,230,0.18);
-        --scn-key: #14233f; --scn-rim: rgba(255,120,40,0.6); --scn-vig: .65; }
-      ${LIGHT} { --border: #e3d8c8; --border2: #d2c3ad; --scn-stain: rgba(255,248,236,0.06); --scn-paint: #fbfaf6; --scn-apron: #17305c;
-        --scn-apron-text: rgba(255,255,255,0.55); --scn-key: #1f3f78; --scn-rim: #ff6a00; --scn-vig: .12; }
+      ${DARK} { --scn-stain: rgba(10,6,2,0.74); --scn-paint: rgba(226,214,192,0.8); --scn-apron: #1a1438; --scn-apron-text: rgba(245,240,230,0.18);
+        --scn-key: #221a4a; --scn-rim: rgba(255,120,40,0.6); --scn-vig: .65; }
+      ${LIGHT} { --scn-stain: rgba(255,248,236,0.06); --scn-paint: #fbfaf6; --scn-apron: #3a2a7a;
+        --scn-apron-text: rgba(255,255,255,0.55); --scn-key: #4a36a0; --scn-rim: #ff6a00; --scn-vig: .12; }
       /* the floor under everything, so overscroll past the page ends is wood, not white */
       ${DARK} { background: #120c07; } ${LIGHT} { background: #c99a62; }
       ${S} body { background: transparent; } ${S} body::before { display: none; }

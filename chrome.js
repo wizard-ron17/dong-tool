@@ -61,7 +61,7 @@ if (!document.querySelector('script[src^="/scene.js"]')) { const h = document.cr
   .sport-item { display: flex; align-items: center; gap: 0.65rem; padding: 0.55rem 0.6rem; border-radius: 10px; text-decoration: none; color: var(--text); min-width: 0; }
   .sport-item .sport-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   a.sport-item:hover { background: var(--surface2); }
-  .sport-item.current { background: rgba(51,208,124,0.12); }
+  .sport-item.current { background: color-mix(in srgb, var(--accent) 12%, transparent); }
   .sport-ico { font-size: 1.25rem; line-height: 1; width: 1.5rem; text-align: center; }
   .sport-ico img { width: 1.35rem; height: 1.35rem; object-fit: contain; display: block; margin: 0 auto; }
   /* a sport's logo inline in text, where an emoji used to sit: RonChrome.logo(sport) */
