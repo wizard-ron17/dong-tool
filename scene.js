@@ -4,8 +4,7 @@
 // PREVIEW ONLY for now: ?bg=night turns it on for this tab (it stays on as you move around), ?bg=off turns it off.
 // A holiday stands aside while a scene is previewed, unless asked for by name (?holiday=halloween). chrome.js loads this file.
 //
-//   nba   the court from above on maple (scene/wood.jpg, ambientCG WoodFloor062, CC0): a painted apron with RON'S HOOP TOOL
-//         down the margins, the half-court line and centre circle, the arc and the painted key; dark-stained floor in dark mode
+//   nba   the court from above on maple (scene/wood.jpg, ambientCG WoodFloor062, CC0): a navy apron and key, the half-court line and centre circle, the arc and the painted key; dark-stained floor in dark mode
 //   nhl   the rink from above: rink ice (scene/ice.jpg, ambientCG Snow006, CC0) with skate marks drawn on, soft under-ice paint (the red line, a blue line, the end-zone circles
 //         and hashes in the margins), the boards at both edges with the yellow kick plate; dark slate ice in dark mode
 //   nfl   close up on the field from straight above: real turf under white paint, the yard lines across the screen, a
@@ -228,14 +227,14 @@
           <feComposite in="d" in2="ga" operator="in"/></filter></defs>
         <g filter="url(#paint${W})" transform="matrix(1 0 0 -1 0 ${T})">${o}</g>`;
     };
-    const LAND = `<svg class="scn-land" data-w="1600" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMin slice">${court(1600, 30.4, 40, -450, "RON'S HOOP TOOL", 1049)}</svg>`;
-    const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${court(420, 8.16, 6, 420, 'HOOP TOOL', 1050)}</svg>`;
+    const LAND = `<svg class="scn-land" data-w="1600" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMin slice">${court(1600, 30.4, 24, -450, "RON'S HOOP TOOL", 1000)}</svg>`;
+    const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${court(420, 8.16, 5, 420, 'HOOP TOOL', 1020)}</svg>`;
     const css = `
       ${DARK} { --bg: #0a0705; --surface0: #110c08; --surface1: #16100b; --surface2: #20170f; --border: #2e2216; --border2: #433222;
-        --scn-stain: rgba(10,6,2,0.74); --scn-paint: rgba(226,214,192,0.8); --scn-apron: #0c2a1a; --scn-apron-text: rgba(245,240,230,0.18);
-        --scn-key: #123a25; --scn-rim: rgba(255,120,40,0.6); --scn-vig: .65; }
-      ${LIGHT} { --border: #e3d8c8; --border2: #d2c3ad; --scn-stain: rgba(255,248,236,0.06); --scn-paint: #fbfaf6; --scn-apron: #0f6e3e;
-        --scn-apron-text: rgba(255,255,255,0.55); --scn-key: #14874c; --scn-rim: #ff6a00; --scn-vig: .12; }
+        --scn-stain: rgba(10,6,2,0.74); --scn-paint: rgba(226,214,192,0.8); --scn-apron: #0e1a30; --scn-apron-text: rgba(245,240,230,0.18);
+        --scn-key: #14233f; --scn-rim: rgba(255,120,40,0.6); --scn-vig: .65; }
+      ${LIGHT} { --border: #e3d8c8; --border2: #d2c3ad; --scn-stain: rgba(255,248,236,0.06); --scn-paint: #fbfaf6; --scn-apron: #17305c;
+        --scn-apron-text: rgba(255,255,255,0.55); --scn-key: #1f3f78; --scn-rim: #ff6a00; --scn-vig: .12; }
       /* the floor under everything, so overscroll past the page ends is wood, not white */
       ${DARK} { background: #120c07; } ${LIGHT} { background: #c99a62; }
       ${S} body { background: transparent; } ${S} body::before { display: none; }
