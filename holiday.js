@@ -87,6 +87,7 @@
       ${DARK} body { background: radial-gradient(1100px 700px at 92% 0%, rgba(140,70,210,0.30), transparent 62%),
           radial-gradient(900px 600px at 0% 100%, rgba(242,138,46,0.12), transparent 60%), linear-gradient(#120a24, #0a0614) fixed; }
       ${LIGHT} body { background: linear-gradient(#efe4ff, #ffe8d4) fixed; }
+      ${DARK} { background-color: #0a0614; } ${LIGHT} { background-color: #ffe8d4; }   /* overscroll past the page ends: the sky's colour, not white */
       ${H} .hol-scene { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
       ${DARK} .hol-scene { background-image: radial-gradient(1.2px 1.2px at 8% 12%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 22% 30%, #fff 50%, transparent 51%),
           radial-gradient(1.4px 1.4px at 41% 8%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 63% 22%, #fff 50%, transparent 51%), radial-gradient(1.2px 1.2px at 78% 38%, #fff 50%, transparent 51%),
