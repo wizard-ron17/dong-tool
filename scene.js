@@ -55,10 +55,10 @@
       const C = ['var(--scn-c1)', 'var(--scn-c2)', 'var(--scn-c3)', 'var(--scn-c4)', 'var(--scn-c5)', 'var(--scn-c6)', 'var(--scn-c1)', 'var(--scn-c6)'];
       let out = '';
       for (let row = 0; row < 2; row++) {
-        const y = 6 + row * 11;
-        out += `<rect x="0" y="${y + 3.4}" width="72" height="2" fill="var(--scn-seatline)"/>`;
-        for (let x = 1.5 + row * 2.4; x < 71; x += 3.6 + rnd() * 2.4)
-          out += `<rect x="${f1(x - 1.6)}" y="${f1(y - 1.2 + rnd() * 1.4)}" width="${f1(2.6 + rnd() * 0.9)}" height="${f1(3.2 + rnd() * 0.8)}" rx="1.3" fill="${C[Math.floor(rnd() * C.length)]}"/>`;
+        const y = 2.2 + row * 6;
+        out += `<rect x="0" y="${f1(y + 2.6)}" width="96" height="1.1" fill="var(--scn-seatline)"/>`;
+        for (let x = 0.8 + row * 1.3; x < 95; x += 2.3 + rnd() * 1.4)
+          if (rnd() > 0.07) out += `<rect x="${f1(x)}" y="${f1(y - 0.6 + rnd() * 0.9)}" width="${f1(1.5 + rnd() * 0.6)}" height="${f1(2 + rnd() * 0.6)}" rx=".7" fill="${C[Math.floor(rnd() * C.length)]}" opacity="${f1(0.55 + rnd() * 0.4)}"/>`;
       }
       return out;
     })();
@@ -73,7 +73,7 @@
       <linearGradient id="${p}mast" x1="0" x2="1"><stop offset="0" stop-color="var(--scn-sil)"/><stop offset=".7" stop-color="var(--scn-sil)"/><stop offset="1" stop-color="var(--scn-mast-hi)"/></linearGradient>
       <linearGradient id="${p}post" x1="0" x2="1"><stop offset="0" stop-color="var(--scn-post-hi)"/><stop offset=".4" stop-color="var(--scn-post)"/><stop offset="1" stop-color="var(--scn-post-lo)"/></linearGradient>
       <linearGradient id="${p}turf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-turf-far)"/><stop offset="1" stop-color="var(--scn-turf-near)"/></linearGradient>
-      <pattern id="${p}crowd" width="72" height="22" patternUnits="userSpaceOnUse"><rect width="72" height="22" fill="var(--scn-stand)"/>${CROWD_TILE}</pattern>
+      <pattern id="${p}crowd" width="96" height="12" patternUnits="userSpaceOnUse"><rect width="96" height="12" fill="var(--scn-stand)"/>${CROWD_TILE}</pattern>
       <linearGradient id="${p}shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-sil)" stop-opacity=".72"/><stop offset=".4" stop-color="var(--scn-sil)" stop-opacity=".3"/><stop offset="1" stop-color="var(--scn-sil)" stop-opacity="0"/></linearGradient>
       <filter id="${p}soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="10"/></filter>
       
@@ -157,16 +157,19 @@
     for (let y = 10; y < 110; y += 5) if ((y / 5) % 2) { const [a, b] = at(y / 120), [c, d] = at((y + 5) / 120); field += `<path d="M${a}L${c}L${d}L${b}Z" fill="var(--scn-stripe)"/>`; }
     for (const [t0, t1] of [[0, 10 / 120], [110 / 120, 1]]) {
       const [a, b] = at(t0), [c, d] = at(t1);
-      field += `<path d="M${a}L${c}L${d}L${b}Z" fill="var(--scn-ez-paint)"/>` + ezText(a, c, b, d, 0.5);
+      field += `<path d="M${a}L${c}L${d}L${b}Z" fill="var(--scn-ez-paint)"/>` + ezText(a, c, b, d, 0.42);
     }
     for (let y = 10; y <= 110; y += 5) { const [a, b] = at(y / 120); field += `<path d="M${a.map(f1)}L${b.map(f1)}" stroke="var(--scn-line)" stroke-width="${y % 10 ? 1.4 : 2.6}"/>`; }
     field += `<path d="M${F0}L${F1}M${F0}L${N0}M${F1}L${N1}" stroke="var(--scn-line)" stroke-width="3"/>`;
     // the wall along the far sideline: an LED ribbon, segments lit
-    let wall = `<path d="M${F0[0] - 20} ${FAR - 2}L${F1[0] + 20} ${FAR - 2}L${F1[0] + 20} ${FAR - 22}L${F0[0] - 20} ${FAR - 22}Z" fill="var(--scn-sil)"/>`;
-    for (let x = F0[0]; x < F1[0]; x += 74) wall += `<rect x="${x}" y="${FAR - 18}" width="64" height="11" rx="2" fill="url(#Lled)" opacity="${(x / 74) % 3 ? .5 : .9}"/>`;
+    let wall = `<path d="M${F0[0]} ${FAR - 1}L${F1[0]} ${FAR - 1}L${F1[0]} ${FAR - 20}L${F0[0]} ${FAR - 20}Z" fill="var(--scn-sil)"/>`;
+    for (let x = F0[0] + 6; x + 64 < F1[0]; x += 74) wall += `<rect x="${x}" y="${FAR - 16}" width="64" height="10" rx="2" fill="url(#Lled)" opacity="${Math.round((x - F0[0]) / 74) % 3 ? .45 : .9}"/>`;
     // suites: a row of warm windows across the far stands
     let suites = '';
     for (let x = 430; x < 1170; x += 13) suites += `<rect x="${x}" y="603" width="8" height="5" rx="1" fill="var(--scn-window)" opacity="${f1(0.35 + rnd() * 0.55)}"/>`;
+    const edgeY = (x) => x < F0[0] ? L(F0, N0, (F0[0] - x) / (F0[0] - N0[0]))[1] : x > F1[0] ? L(F1, N1, (x - F1[0]) / (N1[0] - F1[0]))[1] : FAR - 20;
+    let aisles = '';
+    for (let x = 60; x < W; x += 132) { const y0 = rimL(x) + 4, x1 = x + (x - 800) * 0.07, y1 = edgeY(x1); if (y1 > y0 + 20) aisles += `M${f1(x)} ${f1(y0)}L${f1(x1)} ${f1(y1)}`; }
     const lFlash = []; seed = 11;
     while (lFlash.length < 46) { const x = rnd() * W, top = rimL(x) + 10, bot = x < F0[0] ? L(F0, N0, (F0[0] - x) / (F0[0] - N0[0]))[1] - 12 : x > F1[0] ? L(F1, N1, (x - F1[0]) / (N1[0] - F1[0]))[1] - 12 : FAR - 30; if (bot > top + 6) lFlash.push([x, top + rnd() * (bot - top)]); }
     const towersL = [[120, 92, 176, 86, 560, 4], [1484, 70, 176, 86, 540, -4], [560, 352, 86, 40, 590, 2], [1040, 352, 86, 40, 590, -2]];
@@ -177,6 +180,7 @@
       ${blimp('L', 228, 236, 0.52)}
       ${jumbotron('L', 1388, 262, 168, 102, 480)}
       <path d="${bowl}" fill="url(#Lcrowd)"/><path d="${bowl}" fill="url(#Lshade)"/><path d="${bowl}" fill="url(#Llit)"/>
+      <path d="${aisles}" stroke="var(--scn-aisle)" stroke-width="5" fill="none"/>
       <path d="${fasciaL}" stroke="var(--scn-fascia)" stroke-width="7" fill="none"/><path d="${fasciaL}" stroke="var(--scn-rim)" stroke-width="1" fill="none" transform="translate(0 -3.5)"/>
       <path d="${rimPath}" stroke="var(--scn-rim)" stroke-width="1.6" fill="none"/>
       ${suites}<g fill="var(--scn-flash)">${flashes(lFlash)}</g>
@@ -202,6 +206,8 @@
         font-family="'Chakra Petch', sans-serif" font-weight="700" font-size="100" letter-spacing="6" fill="var(--scn-ez-text)" stroke="var(--scn-ez-edge)" stroke-width="7" paint-order="stroke" stroke-linejoin="round">TUD TOOL</text>`; }
     for (let d = 10; d <= 40; d += 5) { const [a, b] = Pl(d); fieldP += `<path d="M${a}L${b}" stroke="var(--scn-line)" stroke-width="${d % 10 ? 1.6 : 3}"/>`; }
     fieldP += `<path d="M260 ${PF}L640 ${PF}M260 ${PF}L-160 ${PH + 60}M640 ${PF}L1060 ${PH + 60}" stroke="var(--scn-line)" stroke-width="3"/>`;
+    let aislesP = '';
+    for (let x = 30; x < PW; x += 110) { const y0 = rimP(x) + 4, x1 = x + (x - 450) * 0.12; aislesP += `M${f1(x)} ${f1(y0)}L${f1(x1)} ${PF - 4}`; }
     const pFlash = []; seed = 23;
     while (pFlash.length < 30) { const x = rnd() * PW, top = rimP(x) + 10, bot = PF - 16; if (bot > top + 6) pFlash.push([x, top + rnd() * (bot - top)]); }
     let suitesP = '';
@@ -213,6 +219,7 @@
       ${towersP.map(t => tower('P', ...t)).join('')}
       ${jumbotron('P', 330, 560, 240, 140, 760)}
       <path d="${bowlP}" fill="url(#Pcrowd)"/><path d="${bowlP}" fill="url(#Pshade)"/><path d="${bowlP}" fill="url(#Plit)"/>
+      <path d="${aislesP}" stroke="var(--scn-aisle)" stroke-width="6" fill="none"/>
       <path d="${fasciaP}" stroke="var(--scn-fascia)" stroke-width="8" fill="none"/><path d="${fasciaP}" stroke="var(--scn-rim)" stroke-width="1" fill="none" transform="translate(0 -4)"/>
       <path d="${rimPP}" stroke="var(--scn-rim)" stroke-width="1.6" fill="none"/>
       ${suitesP}<g fill="var(--scn-flash)">${flashes(pFlash)}</g>
@@ -222,13 +229,13 @@
 
     const css = `
       ${DARK} { --bg: #040b0c; --surface0: #081416; --surface1: #0c1b1e; --surface2: #122729; --border: #1b3638; --border2: #285055;
-        --glow: rgba(51,208,124,0.10); --scn-sil: #03060c; --scn-stand: #070b13; --scn-seatline: #030509; --scn-fascia: #0f1828;
+        --glow: rgba(51,208,124,0.10); --scn-sil: #03060c; --scn-stand: #070b13; --scn-seatline: #030509; --scn-fascia: #0f1828; --scn-aisle: #0b111c;
         --scn-c1: #8c94a3; --scn-c2: #8e3f3f; --scn-c3: #34558f; --scn-c4: #a8862f; --scn-c5: #3d7d58; --scn-c6: #535a68; --scn-rim: rgba(170,215,235,0.26);
         --scn-mast-hi: #2c4c55; --scn-lamp: #ffffff; --scn-light: #e8f3ff; --scn-flare: #9fd0ff; --scn-flash: #ffffff;
         --scn-fieldglow: #49de92; --scn-turf-far: #1f7a45; --scn-turf-near: #0b3a21; --scn-stripe: rgba(255,255,255,0.045); --scn-line: rgba(245,255,248,0.55);
         --scn-ez-paint: #0b4a2b; --scn-ez-text: #f5f1e4; --scn-ez-edge: #33d07c; --scn-standlit: #ffe6bf; --scn-post: #e2bd3c; --scn-post-hi: #ffe896; --scn-post-lo: #8a6c16; --scn-pad: #0b1e3a; --scn-flag: #ff7a1a;
         --scn-led: #33d07c; --scn-led-text: #04140c; --scn-window: #ffd98a; --scn-screen: #021309; --scn-screen-hi: #07301b; --scn-ribbon: #ffc94d; --scn-ribbon-bg: #0b0802; }
-      ${LIGHT} { --border: #cfe0dc; --border2: #b4ccc6; --scn-sil: #4f6d67; --scn-stand: #6f8e88; --scn-seatline: #5c7a74; --scn-fascia: #8aa6a0;
+      ${LIGHT} { --border: #cfe0dc; --border2: #b4ccc6; --scn-sil: #4f6d67; --scn-stand: #6f8e88; --scn-seatline: #5c7a74; --scn-fascia: #8aa6a0; --scn-aisle: #87a39d;
         --scn-c1: #f2f4f7; --scn-c2: #d77a7a; --scn-c3: #7b9ad3; --scn-c4: #e2c46e; --scn-c5: #7fbf96; --scn-c6: #a3abb8; --scn-rim: rgba(255,255,255,0.6);
         --scn-mast-hi: #9fb9b3; --scn-lamp: #ffffff; --scn-light: #ffffff; --scn-flare: #ffffff; --scn-flash: #ffffff;
         --scn-fieldglow: #8fe0b2; --scn-turf-far: #6fbf8c; --scn-turf-near: #4f9d6c; --scn-stripe: rgba(255,255,255,0.08); --scn-line: rgba(255,255,255,0.85);
