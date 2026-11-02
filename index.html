@@ -65,7 +65,12 @@
   .tile.off { order: 1; grid-column: 1 / -1; padding: 0.6rem 1rem; }
   .tile-hd { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
   .tile-hd .badge { position: static; margin-left: auto; }
-  .tile.live:hover { transform: translateY(-3px); border-color: var(--green); box-shadow: 0 14px 34px rgba(0,0,0,0.45), 0 0 0 1px rgba(51,208,124,0.25); }
+  /* each tile wears its tool's colour (the accent each app uses): the name's middle word, a wash in the corner, the hover */
+  .tile[data-sport="mlb"] { --t: #33d07c; } .tile[data-sport="nfl"] { --t: #33d07c; } .tile[data-sport="nhl"] { --t: #3cc4f0; }
+  .tile[data-sport="nba"] { --t: #ff6a1f; } .tile[data-sport="soccer"] { --t: #ff4fa3; }
+  .tile { background: radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--t, transparent) 9%, transparent), transparent 60%), linear-gradient(180deg, var(--card2), var(--card)); }
+  .tile-name em { font-style: normal; color: var(--t); }
+  .tile.live:hover { transform: translateY(-3px); border-color: var(--t); box-shadow: 0 14px 34px rgba(0,0,0,0.45), 0 0 0 1px color-mix(in srgb, var(--t) 25%, transparent); }
   /* Upcoming sports are dimmed, but not so far that they read as broken — they
      carry a real date, so they should look scheduled rather than disabled. */
   .tile.soon { opacity: 0.78; cursor: default; }
@@ -121,31 +126,31 @@
     <div class="today-sum" id="today-sum" hidden></div>
     <div class="grid">
       <a class="tile live" href="/nfl/" data-sport="nfl">
-        <span class="tile-hd"><span class="tile-ico"><img class="tile-logo" src="/icons/nfl-logo.svg" alt=""></span><span class="tile-name">Ron's Tud Tool</span><span class="badge go">Live</span></span>
+        <span class="tile-hd"><span class="tile-ico"><img class="tile-logo" src="/icons/nfl-logo.svg" alt=""></span><span class="tile-name">Ron's <em>Tud</em> Tool</span><span class="badge go">Live</span></span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
         <span class="tile-today" hidden></span>
         <span class="tile-game" hidden></span>
       </a>
       <a class="tile live" href="/mlb/" data-sport="mlb">
-        <span class="tile-hd"><span class="tile-ico"><img class="tile-logo" src="/icons/logo.svg" alt=""></span><span class="tile-name">Ron's Dong Tool</span><span class="badge go">Live</span></span>
+        <span class="tile-hd"><span class="tile-ico"><img class="tile-logo" src="/icons/logo.svg" alt=""></span><span class="tile-name">Ron's <em>Dong</em> Tool</span><span class="badge go">Live</span></span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
         <span class="tile-today" hidden></span>
         <span class="tile-game" hidden></span>
       </a>
       <a class="tile live" href="/nhl/" data-sport="nhl">
-        <span class="tile-hd"><span class="tile-ico"><img class="tile-logo" src="/icons/nhl-logo.svg" alt=""></span><span class="tile-name">Ron's Puck Tool</span><span class="badge go">Live</span></span>
+        <span class="tile-hd"><span class="tile-ico"><img class="tile-logo" src="/icons/nhl-logo.svg" alt=""></span><span class="tile-name">Ron's <em>Puck</em> Tool</span><span class="badge go">Live</span></span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
         <span class="tile-today" hidden></span>
         <span class="tile-game" hidden></span>
       </a>
       <a class="tile live" href="/nba/" data-sport="nba">
-        <span class="tile-hd"><span class="tile-ico"><img class="tile-logo" src="/icons/nba-logo.svg" alt=""></span><span class="tile-name">Ron's Hoop Tool</span><span class="badge soon">Soon</span></span>
+        <span class="tile-hd"><span class="tile-ico"><img class="tile-logo" src="/icons/nba-logo.svg" alt=""></span><span class="tile-name">Ron's <em>Hoop</em> Tool</span><span class="badge soon">Soon</span></span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
         <span class="tile-today" hidden></span>
         <span class="tile-game" hidden></span>
       </a>
       <a class="tile live" href="/soccer/" data-sport="soccer">
-        <span class="tile-hd"><span class="tile-ico"><img class="tile-logo" src="/icons/soccer-logo.svg" alt=""></span><span class="tile-name">Ron's Goal Tool</span><span class="badge go">Live</span></span>
+        <span class="tile-hd"><span class="tile-ico"><img class="tile-logo" src="/icons/soccer-logo.svg" alt=""></span><span class="tile-name">Ron's <em>Goal</em> Tool</span><span class="badge go">Live</span></span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
         <span class="tile-today" hidden></span>
         <span class="tile-game" hidden></span>
