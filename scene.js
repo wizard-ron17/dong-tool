@@ -32,17 +32,18 @@
   // the corners: four art pieces, each its own drawing so it stays a whole picture at any width (the Halloween layout:
   // a piece per corner, the sky between). Cards and tables are solid, so the art shows only around them.
   function CORNER_CSS(S, LIGHT) { return `
-      ${S} .scn { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+      /* under everything (z-index -1, above only the page background): no header, footer or panel can ever be covered */
+      ${S} .scn { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
       ${S} .scn-c { position: absolute; display: block; height: auto; }
-      ${S} .scn-tl { top: 0; left: 0; width: clamp(150px, 23vw, 360px); }
-      ${S} .scn-tr { top: 0; right: 0; width: clamp(150px, 23vw, 360px); }
-      ${S} .scn-bl { bottom: 0; left: 0; width: clamp(160px, 24vw, 380px); }
-      ${S} .scn-br { bottom: 0; right: 0; width: clamp(170px, 26vw, 400px); }
+      ${S} .scn-tl { top: 0; left: 0; width: clamp(130px, 16vw, 300px); }
+      ${S} .scn-tr { top: 0; right: 0; width: clamp(130px, 16vw, 300px); }
+      ${S} .scn-bl { bottom: 0; left: 0; width: clamp(150px, 19vw, 330px); }
+      ${S} .scn-br { bottom: 0; right: 0; width: clamp(160px, 21vw, 360px); }
       ${LIGHT} .scn-c { opacity: .38; }
-      /* phones: no margins, so the pieces sit behind the page, bigger and stronger than Halloween's (.4) */
-      @media (max-width: 760px) { ${S} .scn-tl, ${S} .scn-tr { width: 46vw; } ${S} .scn-bl, ${S} .scn-br { width: 50vw; }
-        ${S} .scn-c { opacity: .62; } ${LIGHT} .scn-c { opacity: .32; } }
-      ${S} .wrap { position: relative; z-index: 1; }`; }
+      /* phones: no margins, so the pieces sit behind the page, stronger than Halloween's (.4) at the bottom; the top two
+         ride up and dim so the header reads over them */
+      @media (max-width: 760px) { ${S} .scn-tl, ${S} .scn-tr { width: 40vw; top: -4vw; opacity: .4; } ${S} .scn-bl, ${S} .scn-br { width: 52vw; opacity: .66; }
+        ${LIGHT} .scn-c { opacity: .3; } }`; }
 
   function nfl() {
     const S = 'html[data-scene="nfl"]', DARK = `${S}:not([data-theme="light"])`, LIGHT = `${S}[data-theme="light"]`;
