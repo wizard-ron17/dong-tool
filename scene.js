@@ -232,7 +232,7 @@
     const PORT = `<svg class="scn-port" viewBox="0 0 ${PW} ${PH}" preserveAspectRatio="xMidYMin slice">${defs('P')}
       <ellipse cx="450" cy="${PF + 60}" rx="700" ry="320" fill="url(#Pfieldglow)"/>
       ${towersP.map(t => tower('P', ...t)).join('')}
-      ${jumbotron('P', 330, 560, 240, 140, 760)}
+      ${jumbotron('P', 330, 470, 240, 140, 740)}
       <path d="${bowlP}" fill="url(#Pcrowd)"/><path d="${bowlP}" fill="url(#Pshade)"/><path d="${bowlP}" fill="url(#Plit)"/>
       <path d="${aislesP}" stroke="var(--scn-aisle)" stroke-width="6" fill="none"/>
       <path d="${fasciaP}" stroke="var(--scn-fascia)" stroke-width="8" fill="none"/><path d="${fasciaP}" stroke="var(--scn-rim)" stroke-width="1" fill="none" transform="translate(0 -4)"/>
