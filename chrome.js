@@ -17,6 +17,8 @@
 // closeNavTools, currentTheme, ...).
 // the holiday touches (/holiday.js): on a few days a year, by date
 if (!document.querySelector('script[src^="/holiday.js"]')) { const h = document.createElement('script'); h.src = '/holiday.js'; h.defer = true; document.head.appendChild(h); }
+// each sport's night scene (/scene.js): preview only, ?bg=night
+if (!document.querySelector('script[src^="/scene.js"]')) { const h = document.createElement('script'); h.src = '/scene.js'; h.defer = true; document.head.appendChild(h); }
 (function () {
   // Styles for the header, main nav, tools menu, sport switcher and footer: the rules that were identical in all four apps.
   // Injected from <head>, so each page's own <style> (loaded after) still wins.
@@ -31,7 +33,7 @@ if (!document.querySelector('script[src^="/holiday.js"]')) { const h = document.
   .lb-toolbar .ron-fresh { margin-right: auto; }
   .ron-stale { margin: 0 0 0.8rem; padding: 0.55rem 0.8rem; border: 1px solid var(--gold); border-radius: 9px; background: color-mix(in srgb, var(--gold) 10%, transparent); color: var(--text); font-size: 0.78rem; line-height: 1.45; }
   .ron-stale b { color: var(--gold); }
-  .site-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; margin: 2.2rem 0 0; padding: 0.9rem 0 0.4rem; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--muted); }
+  .site-foot { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; margin: 2.2rem 0 0; padding: 0.9rem 0 0.4rem; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--muted); }
   .social-links { display: inline-flex; align-items: center; gap: 0.55rem; margin-left: 0.5rem; vertical-align: middle; }
   .social-links a { color: var(--muted); display: inline-flex; transition: color 0.15s; }
   .social-links a:hover { color: var(--accent); }
