@@ -45,10 +45,13 @@
          ride up and dim so the header reads over them */
       /* phones: no margins, so the art lives where a phone shows it: the top corners, cropped off the edges, light the
          header (the cores stay small so the title reads), and the bottom pieces sit behind the frosted nav bar */
-      @media (max-width: 760px) { ${S} .scn-tl { width: 66vw; top: -16vw; left: -18vw; opacity: .85; }
+      @media (max-width: 760px) { ${S} .scn-tl { width: 66vw; top: -21vw; left: -27vw; opacity: .85; }
         ${S} .scn-tr { width: 60vw; top: -8vw; right: -12vw; opacity: .7; }
         ${S} .scn-bl, ${S} .scn-br { width: 58vw; opacity: .9; }
-        ${LIGHT} .scn-c { opacity: .32; } }`; }
+        ${LIGHT} .scn-c { opacity: .32; } }
+      /* the footer gets its own frosted panel: the art reaches the page end, and its text must read over it */
+      ${S} .site-foot { background: color-mix(in srgb, var(--bg) 72%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+        border: 1px solid var(--border); border-radius: 14px; padding: 0.8rem 1rem; }`; }
 
   function nfl() {
     const S = 'html[data-scene="nfl"]', DARK = `${S}:not([data-theme="light"])`, LIGHT = `${S}[data-theme="light"]`;
