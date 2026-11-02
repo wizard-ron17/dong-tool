@@ -1,8 +1,8 @@
 // Night scenes: each sport's own sky behind the page, the look Halloween had all year round (a lit sky instead of flat
 // black, the cards tinted to it, brighter borders, art in the empty margins), in the sport's own hue. The accent and the
 // good/bad ramp stay the app's; only the sky, the surfaces and the borders change.
-// PREVIEW ONLY for now: ?bg=night turns it on for this tab (it stays on as you move around), ?bg=off turns it off.
-// A holiday stands aside while a scene is previewed, unless asked for by name (?holiday=halloween). chrome.js loads this file.
+// On by default (11/02). ?bg=off turns it off for this tab (it stays off as you move around), ?bg=night turns it back on.
+// A holiday takes over on its dates (holiday.js); ?bg=night in the address beats the holiday, ?holiday=<name> beats that. chrome.js loads this file.
 //
 //   nba   the court from above on maple (scene/wood.jpg, ambientCG WoodFloor062, CC0): a navy apron and key, the half-court line and centre circle, the arc and the painted key; dark-stained floor in dark mode
 //   nhl   the rink from above: rink ice (scene/ice.jpg, ambientCG Snow006, CC0) with skate marks drawn on, soft under-ice paint (the red line, a blue line, the end-zone circles
@@ -14,16 +14,20 @@
 (function () {
   if (window.RonScene) return;
   const q = new URLSearchParams(location.search).get('bg'), MODES = /^night$/;
-  try { if (MODES.test(q || '')) sessionStorage.setItem('ronScene', q); else if (q === 'off') sessionStorage.removeItem('ronScene'); } catch (e) {}
-  let mode = MODES.test(q || '') ? q : null;
-  try { mode = mode || sessionStorage.getItem('ronScene'); } catch (e) {}
+  try { if (q === 'off') sessionStorage.setItem('ronScene', 'off'); else if (MODES.test(q || '')) sessionStorage.setItem('ronScene', q); } catch (e) {}
+  let mode = q === 'off' ? null : 'night';
+  try { if (sessionStorage.getItem('ronScene') === 'off') mode = null; } catch (e) {}
   const sport = location.pathname.split('/').filter(Boolean)[0] || '';
   const SCENES = { nfl: nfl, nhl: nhl, nba: nba, soccer: soccer };
   window.RonScene = { on: null };
   if (!mode || !SCENES[sport]) return;
-  // a holiday asked for by name (?holiday=halloween) wins; otherwise holiday.js stands aside while a scene is previewed
+  // a holiday wins: asked for by name (?holiday=halloween), or on its dates unless ?bg=night is in the address (holiday.js
+  // then stands aside). Whichever script runs second sorts it out: holiday.js takes down a scene that's already up.
   const go = () => {
-    if (new URLSearchParams(location.search).get('holiday') && new URLSearchParams(location.search).get('holiday') !== 'off') return;
+    let hq = new URLSearchParams(location.search).get('holiday');
+    try { hq = hq || sessionStorage.getItem('ronHoliday'); } catch (e) {}
+    if (hq && hq !== 'off') return;
+    if (document.documentElement.hasAttribute('data-holiday')) return;
     window.RonScene.on = sport;
     document.documentElement.setAttribute('data-scene', sport);
     SCENES[sport]();

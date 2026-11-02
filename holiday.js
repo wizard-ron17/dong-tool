@@ -11,19 +11,23 @@
   const HOLIDAYS = [
     { key: 'halloween', date: '10-31' },
   ];
-  const q = new URLSearchParams(location.search).get('holiday');
+  let q = new URLSearchParams(location.search).get('holiday');
+  try { q = q || sessionStorage.getItem('ronHoliday'); } catch (e) {}       // a preview kept by chrome.js for the tab
   // today in US Eastern, and whether a holiday's month-day is within a day of it (across a month or year end)
   const et = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   const today = Date.UTC(+et.slice(0, 4), +et.slice(5, 7) - 1, +et.slice(8, 10));
   const near = (h) => [-1, 0, 1].some(dy => { const d = Date.UTC(+et.slice(0, 4) + dy, +h.date.slice(0, 2) - 1, +h.date.slice(3, 5)); return Math.abs(d - today) <= 864e5; });
-  // a night-scene preview (scene.js, ?bg=night) is a choice someone made: the date's holiday steps aside for it
+  // the sport backgrounds (scene.js) are on by default and a holiday takes over from them on its dates; ?bg=night in the
+  // address is a choice someone made (kept for the tab by chrome.js), so the date's holiday steps aside for it
   let scene = /[?&]bg=night\b/.test(location.search);
-  try { scene = scene || (!/[?&]bg=off\b/.test(location.search) && !!sessionStorage.getItem('ronScene')); } catch (e) {}
+  try { scene = scene || sessionStorage.getItem('ronScene') === 'night'; } catch (e) {}
   const on = q === 'off' ? null : HOLIDAYS.find(h => h.key === q) || (q || scene ? null : HOLIDAYS.find(near));
   window.RonHoliday = { on: on?.key || null };
   if (!on) return;
   const root = document.documentElement;
   root.setAttribute('data-holiday', on.key);
+  // a background already up (scene.js ran first) comes down: the holiday has the page
+  if (root.hasAttribute('data-scene')) { root.removeAttribute('data-scene'); document.getElementById('scene-css')?.remove(); document.querySelector('.scn')?.remove(); if (window.RonScene) window.RonScene.on = null; }
 
   if (on.key === 'halloween') {
     const H = 'html[data-holiday="halloween"]', DARK = `${H}:not([data-theme="light"])`, LIGHT = `${H}[data-theme="light"]`;

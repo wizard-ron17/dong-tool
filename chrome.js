@@ -15,11 +15,13 @@
 // again after it. The sport menu builds itself. Loaded in <head>, before the
 // page's own scripts, which use the globals at the bottom (toggleTheme,
 // closeNavTools, currentTheme, ...).
-// the holiday touches (/holiday.js): on a few days a year, by date
+// the holiday touches (/holiday.js): on a few days a year, by date. A ?holiday= preview is kept for the tab here, in <head>,
+// before the app's router strips the query (WebKit runs the deferred holiday.js after that)
+try { const hq = new URLSearchParams(location.search).get('holiday'); if (hq === 'off') sessionStorage.removeItem('ronHoliday'); else if (hq) sessionStorage.setItem('ronHoliday', hq); } catch (e) {}
 if (!document.querySelector('script[src^="/holiday.js"]')) { const h = document.createElement('script'); h.src = '/holiday.js'; h.defer = true; document.head.appendChild(h); }
-// the background previews (/scene.js): ?bg=night, each sport's playing surface. The choice is kept here, in <head>, before the app's
-// router can strip the query: holiday.js and scene.js (deferred) both read it from sessionStorage.
-try { const bg = new URLSearchParams(location.search).get('bg'); if (bg === 'night') sessionStorage.setItem('ronScene', bg); else if (bg === 'off') sessionStorage.removeItem('ronScene'); } catch (e) {}
+// the backgrounds (/scene.js): each sport's playing surface, on by default; ?bg=off turns them off for the tab. The choice is
+// kept here, in <head>, before the app's router can strip the query: scene.js (deferred) reads it from sessionStorage.
+try { const bg = new URLSearchParams(location.search).get('bg'); if (bg === 'off') sessionStorage.setItem('ronScene', 'off'); else if (bg === 'night') sessionStorage.setItem('ronScene', 'night'); } catch (e) {}
 if (!document.querySelector('script[src^="/scene.js"]')) { const h = document.createElement('script'); h.src = '/scene.js'; h.defer = true; document.head.appendChild(h); }
 (function () {
   // Styles for the header, main nav, tools menu, sport switcher and footer: the rules that were identical in all four apps.
