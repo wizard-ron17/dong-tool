@@ -63,7 +63,9 @@
       <linearGradient id="${p}turf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-turf-far)"/><stop offset="1" stop-color="var(--scn-turf-near)"/></linearGradient>
       <pattern id="${p}crowd" width="16" height="11" patternUnits="userSpaceOnUse"><rect width="16" height="11" fill="var(--scn-stand)"/>
         <circle cx="3.5" cy="4" r="2.7" fill="var(--scn-crowd)"/><circle cx="11.5" cy="8.5" r="2.5" fill="var(--scn-crowd)"/><circle cx="12" cy="1.5" r="1.4" fill="var(--scn-crowd2)"/><circle cx="6" cy="9.5" r="1.3" fill="var(--scn-crowd2)"/></pattern>
-      <pattern id="${p}rain" width="22" height="66" patternUnits="userSpaceOnUse"><path d="M15 4l-4 13M6 37l-3 9M19 50l-2 6" stroke="var(--scn-rain)" stroke-width="1.15" stroke-linecap="round"/>${calm ? '' : '<animateTransform attributeName="patternTransform" type="translate" from="0 0" to="-22 66" dur="0.8s" repeatCount="indefinite"/>'}</pattern>
+      <pattern id="${p}rain" width="16" height="64" patternUnits="userSpaceOnUse"><path d="M11 3l-2.6 9M4 29l-1.8 6M14 44l-2.2 7.5M7 56l-1.2 4" stroke="var(--scn-rain)" stroke-width=".8" stroke-linecap="round"/>${calm ? '' : '<animateTransform attributeName="patternTransform" type="translate" from="0 0" to="-16 64" dur="0.62s" repeatCount="indefinite"/>'}</pattern>
+      <filter id="${p}soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="10"/></filter>
+      <linearGradient id="${p}mist" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-mist)" stop-opacity="0"/><stop offset=".5" stop-color="var(--scn-mist)" stop-opacity=".16"/><stop offset="1" stop-color="var(--scn-mist)" stop-opacity="0"/></linearGradient>
       <pattern id="${p}ez" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="24" height="24" fill="var(--scn-ez)"/><rect width="9" height="24" fill="var(--scn-ez2)"/></pattern>
       <linearGradient id="${p}screen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-screen-hi)"/><stop offset="1" stop-color="var(--scn-screen)"/></linearGradient>
       <radialGradient id="${p}screenglow"><stop offset="0" stop-color="var(--scn-led)" stop-opacity=".32"/><stop offset="1" stop-color="var(--scn-led)" stop-opacity="0"/></radialGradient>
@@ -156,7 +158,8 @@
       ${field}${wall}
       ${goal('L', 170, 784, 28, -9, 50, 200, 7, false)}${goal('L', 1430, 784, 28, 9, 50, 200, 7, true)}
       <clipPath id="Lbeams"><path d="${beamsL.join('')}"/></clipPath>
-      <path d="${beamsL.join('')}" fill="url(#Lbeam)"/><rect width="${W}" height="${H}" fill="url(#Lrain)" clip-path="url(#Lbeams)" opacity=".75"/></svg>`;
+      <rect x="0" y="${FAR - 70}" width="${W}" height="120" fill="url(#Lmist)"/>
+      <path d="${beamsL.join('')}" fill="url(#Lbeam)" filter="url(#Lsoft)"/><rect width="${W}" height="${H}" fill="url(#Lrain)" clip-path="url(#Lbeams)" opacity=".6"/></svg>`;
 
     // ── portrait (phones): the end-zone view, the goalposts straight ahead, a light bank in each top corner ─────
     const PW = 900, PH = 1600, PF = 1040;
@@ -186,17 +189,18 @@
       ${fieldP}
       ${goal('P', 450, PF + 6, 92, 0, 80, 300, 10, false)}
       <clipPath id="Pbeams"><path d="${beamsP.join('')}"/></clipPath>
-      <path d="${beamsP.join('')}" fill="url(#Pbeam)"/><rect width="${PW}" height="${PH}" fill="url(#Prain)" clip-path="url(#Pbeams)" opacity=".75"/></svg>`;
+      <rect x="0" y="${PF - 90}" width="${PW}" height="150" fill="url(#Pmist)"/>
+      <path d="${beamsP.join('')}" fill="url(#Pbeam)" filter="url(#Psoft)"/><rect width="${PW}" height="${PH}" fill="url(#Prain)" clip-path="url(#Pbeams)" opacity=".6"/></svg>`;
 
     const css = `
       ${DARK} { --bg: #040b0c; --surface0: #081416; --surface1: #0c1b1e; --surface2: #122729; --border: #1b3638; --border2: #285055;
-        --glow: rgba(51,208,124,0.10); --scn-sil: #020809; --scn-stand: #071518; --scn-crowd: #0b1f21; --scn-crowd2: #10282a; --scn-rim: rgba(170,215,235,0.26);
+        --glow: rgba(51,208,124,0.10); --scn-sil: #020708; --scn-stand: #051012; --scn-crowd: #081719; --scn-crowd2: #0b1d1f; --scn-mist: #bfe3ff; --scn-rim: rgba(170,215,235,0.26);
         --scn-mast-hi: #2c4c55; --scn-lamp: #ffffff; --scn-light: #dceeff; --scn-flare: #8fc7ff; --scn-rain: rgba(225,240,255,0.55); --scn-flash: #ffffff;
-        --scn-fieldglow: #3fd58a; --scn-turf-far: #154f2f; --scn-turf-near: #061a10; --scn-stripe: rgba(255,255,255,0.028); --scn-line: rgba(240,255,245,0.28);
+        --scn-fieldglow: #3fd58a; --scn-turf-far: #10422a; --scn-turf-near: #04120b; --scn-stripe: rgba(255,255,255,0.028); --scn-line: rgba(240,255,245,0.28);
         --scn-ez: #0b301e; --scn-ez2: #0d3a24; --scn-post: #e2bd3c; --scn-post-hi: #ffe896; --scn-post-lo: #8a6c16; --scn-pad: #0b1e3a; --scn-flag: #ff7a1a;
         --scn-led: #33d07c; --scn-led-text: #04140c; --scn-window: #ffd98a; --scn-screen: #021309; --scn-screen-hi: #07301b; --scn-ribbon: #ffc94d; --scn-ribbon-bg: #0b0802; }
       ${LIGHT} { --border: #cfe0dc; --border2: #b4ccc6; --scn-sil: #4f6d67; --scn-stand: #6f8e88; --scn-crowd: #5f7e78; --scn-crowd2: #7d9a94; --scn-rim: rgba(255,255,255,0.6);
-        --scn-mast-hi: #9fb9b3; --scn-lamp: #ffffff; --scn-light: #ffffff; --scn-flare: #ffffff; --scn-rain: rgba(255,255,255,0.7); --scn-flash: #ffffff;
+        --scn-mast-hi: #9fb9b3; --scn-mist: #ffffff; --scn-lamp: #ffffff; --scn-light: #ffffff; --scn-flare: #ffffff; --scn-rain: rgba(255,255,255,0.7); --scn-flash: #ffffff;
         --scn-fieldglow: #8fe0b2; --scn-turf-far: #6fbf8c; --scn-turf-near: #4f9d6c; --scn-stripe: rgba(255,255,255,0.08); --scn-line: rgba(255,255,255,0.85);
         --scn-ez: #4a9466; --scn-ez2: #57a473; --scn-post: #d4ad2a; --scn-post-hi: #f5dd7c; --scn-post-lo: #9a7a1c; --scn-pad: #2b4466; --scn-flag: #e8650c;
         --scn-led: #10a758; --scn-led-text: #ffffff; --scn-window: #fff3cf; --scn-screen: #13321f; --scn-screen-hi: #1f4a30; --scn-ribbon: #ffd56a; --scn-ribbon-bg: #1c1a12; }
