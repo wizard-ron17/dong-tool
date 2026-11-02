@@ -197,7 +197,7 @@
       const base = y0 + 47 * ft, hoopY = base - 5.25 * ft, r3 = 23.75 * ft, cx3 = 22 * ft, yBreak = hoopY - Math.sqrt(r3 * r3 - cx3 * cx3);
       const key = 8 * ft, ft15 = base - 19 * ft;
       let o = `<rect x="0" y="-200" width="${S}" height="${H}" fill="var(--scn-apron)"/><rect x="${W - S}" y="-200" width="${S}" height="${H}" fill="var(--scn-apron)"/>
-        <rect x="0" y="${f1(base)}" width="${W}" height="${H}" fill="var(--scn-apron)"/>`;
+        <rect x="0" y="${f1(base)}" width="${W}" height="${f1(Math.max(4, ft * 0.6))}" fill="var(--scn-apron)"/>`;     // a thin strip past the baseline, wood beyond
       // the apron's words, running down each side (left reads bottom to top, right top to bottom), faint
       const fs = f1(S * 0.42);
       if (S > 60) for (const [x, rot] of [[S / 2, -90], [W - S / 2, 90]]) for (let y = 200; y < H; y += 1100)
