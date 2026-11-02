@@ -84,6 +84,6 @@ for a_,b_ in edges:
             run=[]
     if len(run)>1: seg.append(run)
 seam_d=''.join('M'+'L'.join(f'{x:.1f} {y:.1f}' for x,y in r) for r in seg)
-G='#66bc07'
+G='#e8338a'
 svg=f'''<svg class="brand-puck" viewBox="0 0 64 64" aria-hidden="true"><defs><clipPath id="brand-ball-clip"><circle cx="32" cy="32" r="{RAD}"/></clipPath></defs><circle cx="32" cy="32" r="{RAD}" fill="#ffffff"/><g clip-path="url(#brand-ball-clip)"><path d="{''.join(pent_d)}" fill="{G}"/><path d="{seam_d}" fill="none" stroke="{G}" stroke-width="1.8" stroke-linejoin="round"/></g><circle cx="32" cy="32" r="{RAD+1.1}" fill="none" stroke="{G}" stroke-width="2.6"/></svg>'''
 print(svg)

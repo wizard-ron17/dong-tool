@@ -13,11 +13,11 @@ const DATA_RAW = 'https://raw.githubusercontent.com/wizard-ron17/dong-tool/main'
 const APP = {
   mlb: { name: ['Ron\'s', 'Dong', 'Tool'], logo: '/icons/icon-512.png', card: '/icons/og-mlb.png' },
   nfl: { name: ['Ron\'s', 'Tud', 'Tool'], logo: '/icons/nfl-icon-512.png', card: '/icons/og-nfl.png' },
-  nhl: { name: ['Ron\'s', 'Puck', 'Tool'], logo: '/icons/nhl-icon-512.png', card: '/icons/og-nhl.png' },
-  nba: { name: ['Ron\'s', 'Hoop', 'Tool'], logo: '/icons/nba-icon-512.png', card: '/icons/og-nba.png' },
-  soccer: { name: ['Ron\'s', 'Goal', 'Tool'], logo: '/icons/soccer-icon-512.png', card: '/icons/og-soccer.png' },
+  nhl: { name: ['Ron\'s', 'Puck', 'Tool'], logo: '/icons/nhl-icon-512.png', card: '/icons/og-nhl.png', accent: '#3cc4f0' },
+  nba: { name: ['Ron\'s', 'Hoop', 'Tool'], logo: '/icons/nba-icon-512.png', card: '/icons/og-nba.png', accent: '#ff6a1f' },
+  soccer: { name: ['Ron\'s', 'Goal', 'Tool'], logo: '/icons/soccer-icon-512.png', card: '/icons/og-soccer.png', accent: '#ff4fa3' },
 };
-const G = '#33d07c', BG = '#05080f', INK = '#e8edf5', MUTED = '#8a94a6';
+const GREEN = '#33d07c', BG = '#05080f', INK = '#e8edf5', MUTED = '#8a94a6';
 
 // ── cached fetches (per edge instance) ───────────────────────────────────
 const memo = new Map();
@@ -59,7 +59,7 @@ const top = (a, by, n = 5) => [...(a || [])].sort((x, y) => by(y) - by(x)).slice
 // ── one extractor per board: { title, sub, when, rows: [{ face, name, meta, val, unit, tag, color }] } ──
 // nfl.com serves the 4 MB original unless asked for a size
 const nflFace = (d, pid) => (d.headshots?.[pid] || '').replace('f_auto,q_auto', 'f_png,q_auto,w_160') || null;
-const nflCol = (d, t) => d.teamColors?.[t]?.[0] || G;
+const nflCol = (d, t) => d.teamColors?.[t]?.[0] || GREEN;
 const nhlFace = (r) => r.mug || null;
 const nbaFace = (pid) => `https://a.espncdn.com/i/headshots/nba/players/full/${pid}.png`;
 const mlbFace = (pid) => `https://img.mlbstatic.com/mlb-photos/image/upload/w_180,q_auto:best/v1/people/${pid}/headshot/67/current`;
@@ -164,7 +164,8 @@ function nflFantasy(d) {
 const h = (type, style, ...kids) => React.createElement(type, { style: { display: 'flex', ...style } }, ...kids.flat().filter(k => k != null && k !== false));
 const I = (src, style) => React.createElement('img', { src, width: style.width, height: style.height, style });
 function card(app, B, path, logo, faces) {
-  const [a, b, c] = app.name;
+  const [a, b, c] = app.name, G = app.accent || GREEN;      // the tool's own accent (the app's --accent)
+  const wash = (o) => `rgba(${[1, 3, 5].map(i => parseInt(G.slice(i, i + 2), 16)).join(',')},${o})`;     // the renderer has no color-mix
   const header = h('div', { alignItems: 'center', justifyContent: 'space-between' },
     h('div', { alignItems: 'center', gap: 16 },
       logo ? I(logo, { width: 44, height: 44, borderRadius: 10 }) : null,
@@ -174,7 +175,7 @@ function card(app, B, path, logo, faces) {
     h('div', { fontFamily: 'Chakra', fontSize: 58, color: '#fff', lineHeight: 1 }, B.title),
     B.sub ? h('div', { fontFamily: 'Jakarta', fontWeight: 500, fontSize: 22, color: MUTED, marginTop: 6 }, B.sub) : null);
   const rows = (B.rows || []).map((r, i) => h('div', { alignItems: 'center', height: 60, marginTop: i ? 6 : 0, padding: '0 18px', borderRadius: 14,
-      background: i === 0 ? 'rgba(51,208,124,0.10)' : 'rgba(255,255,255,0.035)', borderLeft: `5px solid ${r.color || G}` },
+      background: i === 0 ? wash(0.10) : 'rgba(255,255,255,0.035)', borderLeft: `5px solid ${r.color || G}` },
     h('div', { width: 34, fontFamily: 'Mono', fontSize: 22, color: MUTED }, String(i + 1)),
     faces[i] ? I(faces[i], { width: 48, height: 48, borderRadius: 24, objectFit: 'cover', background: '#111a2b' })
              : h('div', { width: 48, height: 48, borderRadius: 24, background: '#111a2b' }),
@@ -193,7 +194,7 @@ function card(app, B, path, logo, faces) {
     h('div', {}, h('span', { color: G }, 'dong-tool.netlify.app'), path),
     h('div', {}, 'Fair odds, no vig · Inspired by Green Means Go'));
   return h('div', { width: 1200, height: 630, flexDirection: 'column', padding: '32px 56px 26px', color: INK, fontFamily: 'Jakarta',
-    backgroundColor: BG, backgroundImage: 'linear-gradient(135deg, rgba(51,208,124,0.16) 0%, rgba(5,8,15,0) 45%)' },
+    backgroundColor: BG, backgroundImage: `linear-gradient(135deg, ${wash(0.16)} 0%, rgba(5,8,15,0) 45%)` },
     header, title, body, foot);
 }
 
