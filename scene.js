@@ -108,20 +108,27 @@
     const f1 = (n) => +n.toFixed(1);
     let seed = 41; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
     // the ice: long skate strides carved into it (sweeping arcs), a few hockey stops (short fans of scrapes), snow specks
+    // the ice's marks, the way skating leaves them: hundreds of hairline cuts every which way, long gentle curves and short
+    // straight ones, often in pairs (both edges of a blade), wobbling a little; a few tight crossover loops; frost dust in them
     const scratches = (() => {
       let o = '';
-      for (let i = 0; i < 70; i++) {
-        const x = rnd() * 700, y = rnd() * 700, a = rnd() * 6.283, l = 80 + rnd() * 260, bend = (rnd() - 0.5) * l * 0.5;
-        const x2 = x + Math.cos(a) * l, y2 = y + Math.sin(a) * l, mx = (x + x2) / 2 - Math.sin(a) * bend, my = (y + y2) / 2 + Math.cos(a) * bend;
-        o += `<path d="M${f1(x)} ${f1(y)}Q${f1(mx)} ${f1(my)} ${f1(x2)} ${f1(y2)}" stroke-width="${f1(0.4 + rnd() * 0.9)}" opacity="${f1(0.3 + rnd() * 0.7)}"/>`;
+      const cut = (x, y, a, l, curve, w, op) => {
+        let d = `M${f1(x)} ${f1(y)}`, n = Math.max(2, Math.round(l / 18));
+        for (let k = 1; k <= n; k++) { a += curve / n + (rnd() - 0.5) * 0.05; x += Math.cos(a) * l / n; y += Math.sin(a) * l / n; d += `L${f1(x)} ${f1(y)}`; }
+        return `<path d="${d}" stroke-width="${f1(w)}" opacity="${f1(op)}"/>`;
+      };
+      for (let i = 0; i < 420; i++) {
+        const x = rnd() * 900, y = rnd() * 900, a = rnd() * 6.283, long = rnd() < 0.35, l = long ? 160 + rnd() * 420 : 20 + rnd() * 110;
+        const curve = (rnd() - 0.5) * (long ? 1.1 : 0.4), w = 0.25 + rnd() ** 2 * 0.9, op = 0.25 + rnd() * 0.75;
+        o += cut(x, y, a, l, curve, w, op);
+        if (rnd() < 0.4) { const off = 1.2 + rnd() * 2.2; o += cut(x - Math.sin(a) * off, y + Math.cos(a) * off, a, l * (0.8 + rnd() * 0.2), curve, w * 0.8, op * 0.7); }
       }
-      for (let i = 0; i < 6; i++) {
-        const x = rnd() * 700, y = rnd() * 700, a = rnd() * 6.283;
-        for (let k = 0; k < 9; k++) { const b = a + (k - 4) * 0.06, l = 22 + rnd() * 18; o += `<path d="M${f1(x)} ${f1(y)}l${f1(Math.cos(b) * l)} ${f1(Math.sin(b) * l)}" stroke-width=".9"/>`; }
-      }
+      for (let i = 0; i < 14; i++) o += cut(rnd() * 900, rnd() * 900, rnd() * 6.283, 140 + rnd() * 160, (rnd() < 0.5 ? -1 : 1) * (3 + rnd() * 2.5), 0.5, 0.5);
       return o;
     })();
-    let specks = ''; for (let i = 0; i < 90; i++) specks += `<circle cx="${f1(rnd() * 700)}" cy="${f1(rnd() * 700)}" r="${f1(0.4 + rnd() * 1.1)}"/>`;
+    let specks = ''; for (let i = 0; i < 260; i++) specks += `<circle cx="${f1(rnd() * 900)}" cy="${f1(rnd() * 900)}" r="${f1(0.3 + rnd() ** 3 * 1.6)}" opacity="${f1(0.3 + rnd() * 0.7)}"/>`;
+    // frost: soft snowy smudges where the blades piled shavings
+    let frost = ''; for (let i = 0; i < 16; i++) frost += `<ellipse cx="${f1(rnd() * 900)}" cy="${f1(rnd() * 900)}" rx="${f1(20 + rnd() * 60)}" ry="${f1(6 + rnd() * 18)}" transform="rotate(${f1(rnd() * 180)})" opacity="${f1(0.3 + rnd() * 0.6)}"/>`;
     // the rink from above, down the screen: boards at both edges, the red line, a blue line, the end-zone circles (their outer
     // arcs and hashes in the margins). Not to scale where the page needs it. Lines are painted under the ice: soft-edged.
     const rink = (W, ft, side, y0, id) => {
@@ -137,7 +144,8 @@
         }
         return o;
       };
-      let o = `<defs><pattern id="${id}scr" width="700" height="700" patternUnits="userSpaceOnUse"><g fill="none" stroke="var(--scn-scratch)" stroke-linecap="round">${scratches}</g><g fill="var(--scn-speck)">${specks}</g></pattern>
+      let o = `<defs><pattern id="${id}scr" width="900" height="900" patternUnits="userSpaceOnUse"><g fill="var(--scn-speck)" filter="url(#${id}frostblur)">${frost}</g><g fill="none" stroke="var(--scn-scratch)" stroke-linecap="round" stroke-linejoin="round">${scratches}</g><g fill="var(--scn-speck)">${specks}</g></pattern>
+        <filter id="${id}frostblur"><feGaussianBlur stdDeviation="8"/></filter>
         <filter id="${id}under" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="${f1(Math.max(0.5, ft * 0.06))}"/></filter>
         <radialGradient id="${id}cloud"><stop offset="0" stop-color="var(--scn-cloud)" stop-opacity=".5"/><stop offset="1" stop-color="var(--scn-cloud)" stop-opacity="0"/></radialGradient></defs>
         <rect x="0" y="-200" width="${W}" height="${H}" fill="var(--scn-ice)" opacity="var(--scn-tint)"/>`;
@@ -159,9 +167,9 @@
     const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${rink(420, 5.2, 6, 205, 'P')}</svg>`;
     const css = `
       ${DARK} { --bg: #060a12; --surface0: #0a101b; --surface1: #0e1624; --surface2: #142034; --border: #1c2a40; --border2: #283b5a;
-        --scn-ice: #101a2a; --scn-tint: .86; --scn-cloud: #24395a; --scn-scratch: rgba(190,215,255,0.09); --scn-speck: rgba(220,235,255,0.1); --scn-paintop: .72;
+        --scn-ice: #101a2a; --scn-tint: .86; --scn-cloud: #24395a; --scn-scratch: rgba(200,222,255,0.16); --scn-speck: rgba(220,235,255,0.12); --scn-paintop: .72;
         --scn-red: #c8323f; --scn-blue: #2f6bd0; --scn-crease: rgba(47,107,208,0.25); --scn-board: #05080e; --scn-kick: #c9a227; --scn-vig: .6; }
-      ${LIGHT} { --border: #d3dee9; --border2: #b9c8d8; --scn-ice: #e8f1f8; --scn-tint: .45; --scn-cloud: #ffffff; --scn-scratch: rgba(110,140,175,0.16); --scn-speck: rgba(120,150,185,0.18); --scn-paintop: .8;
+      ${LIGHT} { --border: #d3dee9; --border2: #b9c8d8; --scn-ice: #e8f1f8; --scn-tint: .45; --scn-cloud: #ffffff; --scn-scratch: rgba(255,255,255,0.75); --scn-speck: rgba(255,255,255,0.7); --scn-paintop: .8;
         --scn-red: #c8102e; --scn-blue: #0b4f9c; --scn-crease: rgba(90,160,230,0.35); --scn-board: #f9fbfd; --scn-kick: #e2b400; --scn-vig: .1; }
       /* the ice under everything, so overscroll past the page ends is ice, not white */
       ${DARK} { background: #0a111c; } ${LIGHT} { background: #eef4f9; }
