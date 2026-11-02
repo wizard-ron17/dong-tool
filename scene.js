@@ -54,7 +54,7 @@
       const GL = Y * 7.4, END = GL - Y * 10, H = GL + Y * 130, S = side, NX = S + num * 1.05;
       let out = `<defs>
         <pattern id="${id}grain" width="7" height="9" patternUnits="userSpaceOnUse"><path d="M1 1v3M4.5 5v3M6 0.5v2M2.5 6v2.4" stroke="var(--scn-blade)" stroke-width=".8" stroke-linecap="round"/></pattern>
-        <radialGradient id="${id}light" cx="50%" cy="38%" r="75%"><stop offset="0" stop-color="var(--scn-pool)" stop-opacity=".16"/><stop offset=".55" stop-color="var(--scn-pool)" stop-opacity="0"/></radialGradient>
+        <radialGradient id="${id}light" cx="50%" cy="38%" r="75%"><stop offset="0" stop-color="var(--scn-pool)" stop-opacity=".2"/><stop offset=".6" stop-color="var(--scn-pool)" stop-opacity="0"/></radialGradient>
         <radialGradient id="${id}vig" cx="50%" cy="45%" r="78%"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="var(--scn-vig)"/></radialGradient></defs>
         <rect x="0" y="${END - 400}" width="${W}" height="${H - END + 800}" fill="var(--scn-turf)"/>`;
       // mowing stripes, five yards each
@@ -98,15 +98,15 @@
     const css = `
       ${DARK} { --bg: #040d08; --surface0: #07130d; --surface1: #0a1a12; --surface2: #10261a; --border: #1a3526; --border2: #264d37;
         --glow: rgba(51,208,124,0.08); --scn-turf: #0d3a22; --scn-stripe: rgba(255,255,255,0.03); --scn-blade: rgba(0,0,0,0.16); --scn-oob: rgba(0,0,0,0.22);
-        --scn-line: rgba(245,250,246,0.62); --scn-num: rgba(245,250,246,0.6); --scn-ez-paint: #0a2c1a; --scn-ez-text: rgba(251,248,238,0.86); --scn-ez-edge: #1f8f52;
-        --scn-pool: #c8ffe0; --scn-vig: .62; }
+        --scn-line: rgba(245,250,246,0.5); --scn-num: rgba(245,250,246,0.48); --scn-ez-paint: #0a2c1a; --scn-ez-text: rgba(251,248,238,0.16); --scn-ez-edge: rgba(51,208,124,0.22);
+        --scn-pool: #c8ffe0; --scn-vig: .78; }
       ${LIGHT} { --border: #cfe0d6; --border2: #b4ccbe; --scn-turf: #4e9a63; --scn-stripe: rgba(255,255,255,0.06); --scn-blade: rgba(0,0,0,0.07); --scn-oob: rgba(0,0,0,0.08);
-        --scn-line: rgba(255,255,255,0.9); --scn-num: rgba(255,255,255,0.88); --scn-ez-paint: #2f7a4b; --scn-ez-text: #ffffff; --scn-ez-edge: #1d5c37;
+        --scn-line: rgba(255,255,255,0.9); --scn-num: rgba(255,255,255,0.88); --scn-ez-paint: #2f7a4b; --scn-ez-text: rgba(255,255,255,0.35); --scn-ez-edge: rgba(29,92,55,0.4);
         --scn-pool: #ffffff; --scn-vig: .18; }
       /* the turf's colour under everything, so overscroll past the page ends isn't white */
       ${DARK} { background: #071a10; } ${LIGHT} { background: #4e9a63; }
       ${S} body { background: transparent; } ${S} body::before { display: none; }
-      ${S} .scn::after { content: ''; position: absolute; inset: 0; background: radial-gradient(120% 95% at 50% 42%, transparent 55%, rgba(0,0,0,var(--scn-vig)) 100%); }
+      ${S} .scn::after { content: ''; position: absolute; inset: 0; background: radial-gradient(110% 90% at 50% 45%, transparent 45%, rgba(0,0,0,var(--scn-vig)) 100%); }
       ${LIGHT} .scn svg { opacity: 1; }
       ${FULL_CSS(S, LIGHT)}`;
     mount(css, LAND + PORT);
