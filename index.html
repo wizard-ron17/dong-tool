@@ -115,6 +115,9 @@
   .tile-game .when.in::before { content: ''; display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: #ff5a5f; margin-right: 0.3rem; vertical-align: 1px; }
   .today-sum { margin-top: 0.5rem; color: var(--muted); font-size: clamp(0.74rem, 2.3vw, 0.86rem); letter-spacing: 0.01em; }
   .today-sum b { color: var(--text); font-weight: 700; }
+  .foot-support { color: var(--green); font-weight: 700; text-decoration: none; white-space: nowrap; }
+  .foot-support::before { content: ''; display: inline-block; width: 0.95em; height: 0.95em; margin-right: 0.25em; vertical-align: -0.12em; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8h13v5a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6z'/%3E%3Cpath d='M17 10h1.5a2.5 2.5 0 0 1 0 5H17'/%3E%3Cpath d='M8 2.5v2M12 2.5v2'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8h13v5a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6z'/%3E%3Cpath d='M17 10h1.5a2.5 2.5 0 0 1 0 5H17'/%3E%3Cpath d='M8 2.5v2M12 2.5v2'/%3E%3C/svg%3E") center / contain no-repeat; }
+  .foot-support:hover { text-decoration: underline; text-underline-offset: 2px; }
   .foot { margin-top: 2rem; color: var(--dim); font-size: 0.68rem; letter-spacing: 0.02em; }
 </style>
 <script defer src="/analytics.js"></script>
@@ -156,7 +159,7 @@
         <span class="tile-game" hidden></span>
       </a>
     </div>
-    <div class="foot">Inspired by Green Means Go · <a class="rw-about" href="javascript:void(0)" onclick="RonWelcome.open()" style="color:inherit;text-decoration:underline;text-underline-offset:2px">About</a> · <a href="/models/" style="color:inherit;text-decoration:underline;text-underline-offset:2px">Models</a> · <a href="https://4cx.io/sign-up/ron17" target="_blank" rel="sponsored noopener" title="A zero-fee exchange. Referral link (code ron17): we both get $25 when you buy a $25+ package" style="color:inherit;text-decoration:underline;text-underline-offset:2px">Sign up for 4Cx: we both get $25</a></div>
+    <div class="foot">Inspired by Green Means Go · <a class="rw-about" href="javascript:void(0)" onclick="RonWelcome.open()" style="color:inherit;text-decoration:underline;text-underline-offset:2px">About</a> · <a href="/models/" style="color:inherit;text-decoration:underline;text-underline-offset:2px">Models</a> · <a class="foot-support" href="javascript:void(0)" onclick="(window.RonSupport ? RonSupport.open() : (s => (s.src = '/support.js', s.onload = () => RonSupport.open(), document.head.appendChild(s)))(document.createElement('script')))">Support Ron</a></div>
   </div>
 <script>
   // Season status per sport, computed in the browser so a tile never goes stale

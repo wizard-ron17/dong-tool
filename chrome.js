@@ -37,6 +37,10 @@ if (!document.querySelector('script[src^="/scene.js"]')) { const h = document.cr
   .lb-toolbar .ron-fresh { margin-right: auto; }
   .ron-stale { margin: 0 0 0.8rem; padding: 0.55rem 0.8rem; border: 1px solid var(--gold); border-radius: 9px; background: color-mix(in srgb, var(--gold) 10%, transparent); color: var(--text); font-size: 0.78rem; line-height: 1.45; }
   .ron-stale b { color: var(--gold); }
+  /* Support Ron: the footer's one ask, in the tool's accent with a cup */
+  .foot-support { color: var(--accent); font-weight: 700; text-decoration: none; white-space: nowrap; }
+  .foot-support::before { content: ''; display: inline-block; width: 0.95em; height: 0.95em; margin-right: 0.25em; vertical-align: -0.12em; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8h13v5a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6z'/%3E%3Cpath d='M17 10h1.5a2.5 2.5 0 0 1 0 5H17'/%3E%3Cpath d='M8 2.5v2M12 2.5v2'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8h13v5a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6z'/%3E%3Cpath d='M17 10h1.5a2.5 2.5 0 0 1 0 5H17'/%3E%3Cpath d='M8 2.5v2M12 2.5v2'/%3E%3C/svg%3E") center / contain no-repeat; }
+  .foot-support:hover { text-decoration: underline; text-underline-offset: 2px; }
   .site-foot { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; margin: 2.2rem 0 0; padding: 0.9rem 0 0.4rem; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--muted); }
   .social-links { display: inline-flex; align-items: center; gap: 0.55rem; margin-left: 0.5rem; vertical-align: middle; }
   .social-links a { color: var(--muted); display: inline-flex; transition: color 0.15s; }
@@ -184,7 +188,7 @@ if (!document.querySelector('script[src^="/scene.js"]')) { const h = document.cr
   function footHtml(c) {
     const lbl = (SPORTS.find(s => s[0] === c.sport) || [])[3] || c.sport.toUpperCase();
     return `<span class="foot-data">${lbl} · <span id="eyebrow-season">${c.season}</span> · ${c.source ? c.source + ' · ' : ''}<span id="status-badge" class="status-badge fetching">Loading</span></span>
-    <span class="foot-credit">${c.credit} inspired by Green Means Go · <a class="rw-about" href="javascript:void(0)" onclick="RonWelcome.open()" style="color:inherit;text-decoration:underline;text-underline-offset:2px">About</a> · <a class="rw-about" href="/models/" style="color:inherit;text-decoration:underline;text-underline-offset:2px">Models</a> · <a class="rw-about" href="https://4cx.io/sign-up/ron17" target="_blank" rel="sponsored noopener" title="A zero-fee exchange. Referral link (code ron17): we both get $25 when you buy a $25+ package" style="color:inherit;text-decoration:underline;text-underline-offset:2px">Sign up for 4Cx: we both get $25</a>
+    <span class="foot-credit">${c.credit} inspired by Green Means Go · <a class="rw-about" href="javascript:void(0)" onclick="RonWelcome.open()" style="color:inherit;text-decoration:underline;text-underline-offset:2px">About</a> · <a class="rw-about" href="/models/" style="color:inherit;text-decoration:underline;text-underline-offset:2px">Models</a> · <a class="rw-about foot-support" href="javascript:void(0)" onclick="RonChrome.support()">Support Ron</a>
       <span class="social-links">${SOCIAL.map(([label, svg, href]) => `<a href="${href}" target="_blank" rel="noopener" aria-label="${label}">${svg}</a>`).join('')}</span>
     </span>`;
   }
@@ -356,8 +360,15 @@ if (!document.querySelector('script[src^="/scene.js"]')) { const h = document.cr
     if (document.readyState === 'complete') go(); else window.addEventListener('load', go, { once: true });
   }
 
+  // ── Support Ron (/support.js): Ko-fi tips and the 4Cx referral, loaded on first use ──
+  let supportP = null;
+  function support() {
+    supportP ||= new Promise((ok, no) => { const s = document.createElement('script'); s.src = '/support.js'; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+    return supportP.then(() => window.RonSupport.open(), () => { supportP = null; window.open('https://ko-fi.com/tipron', '_blank', 'noopener'); });
+  }
+
   const logo = (sp) => { const s = SPORTS.find(x => x[0] === sp); return s ? `<img class="sp-logo" src="${s[1]}" alt="">` : ''; };
-  window.RonChrome = { mount, onTheme, show, fresh, freshHtml, SPORTS, logo, status, cfg: () => CFG, freshInfo: () => FRESH };
+  window.RonChrome = { mount, onTheme, show, fresh, freshHtml, SPORTS, logo, status, support, cfg: () => CFG, freshInfo: () => FRESH };
   Object.assign(window, { currentTheme, updateThemeToggleIcon, toggleTheme, sportBackdrop, placeSportMenu, toggleSportMenu, closeSportMenu, openNavTools, closeNavTools, toggleNavTools });
   Object.defineProperty(window, 'navToolsOpen', { get: () => navToolsOpen, configurable: true });
 })();
