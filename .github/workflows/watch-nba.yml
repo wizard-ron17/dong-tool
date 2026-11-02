@@ -44,8 +44,12 @@ jobs:
         if: steps.watch.outputs.more == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        # retried: one GitHub 500 on the dispatch ended the chain (11/02)
-        run: for i in 1 2 3 4 5; do gh workflow run watch-nba.yml --ref main && exit 0; sleep 30; done; exit 1
+        # rate limit: a healthy chain hands on once per ~5.5h run; 3+ dispatched runs in 3 hours is a loop (11/02), so stop
+        # and alert. Then retried: one GitHub 500 on the dispatch ended the chain (11/02).
+        run: |
+          n=$(gh run list --workflow watch-nba.yml --event workflow_dispatch --created ">=$(date -u -d '3 hours ago' +%FT%TZ)" --limit 50 --json databaseId --jq length)
+          if [ "$n" -ge 3 ]; then echo "::error::$n dispatched watch-nba runs in 3 hours: refusing to hand on (loop guard)"; exit 1; fi
+          for i in 1 2 3 4 5; do gh workflow run watch-nba.yml --ref main && exit 0; sleep 30; done; exit 1
 
       - name: Alert on failure
         if: failure()

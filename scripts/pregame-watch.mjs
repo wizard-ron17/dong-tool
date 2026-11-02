@@ -66,6 +66,9 @@ for (;;) {
     if (!inWindow) { log('the window opens past this run\'s limit: waiting it out here'); await sleep(Math.max(0, t0 + STOP - Date.now())); }
     // GitHub starts few of the crons (11/1: 3 of build-nfl's 18 in a day), so the next run isn't left to
     // them: the workflow dispatches itself when this prints more=true (a GITHUB_TOKEN dispatch does start a run)
+    // loop guard: a real hand-off comes at the end of a full run (in the window, or after waiting it out); a young run
+    // handing on is the 11/02 loop, so fail instead (the workflow's alert opens an issue)
+    if (Date.now() - t0 < STOP - 30 * 60e3) { log(`loop guard: this run is only ${Math.round((Date.now() - t0) / 60e3)} minutes old, not handing on`); process.exit(1); }
     log(`next build at ${new Date(wake).toISOString().slice(11, 16)}Z is past this run's limit, handing on to the next run`);
     if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, 'more=true\n');
     break;

@@ -48,7 +48,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add mlb/data.json mlb/news.json mlb/groups.json mlb/matchup-cards.json mlb/pitch-arsenal.json research/logs/mlb-slate mlb/sw.js
           git diff --staged --quiet && { echo "No changes to commit"; exit 0; }
-          git commit -m "Update data.json"
+          git commit -m "Update data.json [skip netlify]"
           # main can move under us if a cron tick or a code push lands during the
           # ~3-min build. We only (re)generate WHOLE files — data.json,
           # matchup-cards.json, sw.js — so a rebase can't merge two full rewrites
@@ -74,7 +74,7 @@ jobs:
             git reset FETCH_HEAD
             git add mlb/data.json mlb/news.json mlb/groups.json mlb/matchup-cards.json mlb/pitch-arsenal.json research/logs/mlb-slate
             git diff --staged --quiet && { echo "Already current with main"; exit 0; }
-            git commit -m "Update data.json"
+            git commit -m "Update data.json [skip netlify]"
           done
           echo "Failed to push after 5 attempts"; exit 1
 

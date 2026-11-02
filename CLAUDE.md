@@ -74,6 +74,14 @@ Builds live in `scripts/build-*.js` (GitHub Actions crons in `.github/workflows/
 
 **GitHub drops scheduled runs.** On 11/1 it started 3 of build-nfl's 18 crons in a day. Game windows that matter run as one long job that dispatches its own successor (`scripts/pregame-watch.mjs`, `watch-nba.yml` / `watch-nfl.yml`), not as hourly crons. Check `?status` before trusting that a cron ran.
 
+**Runaway guards** (11/02: the NBA watcher handed on to itself ~2,300 times overnight, each a full build).
+- Every CI data commit carries `[skip netlify]`, so Netlify never starts a build for it. Keep it on any new data commit.
+- `commit-data.sh` refuses past 20 data commits per sport per hour.
+- `pregame-watch.mjs` hands on only from a run near its 5.5h limit.
+- The watch workflows refuse a hand-off after 3 dispatches in 3h.
+- Each guard fails its step, which opens a build-alert issue.
+- To stop a builder now: `gh workflow disable <file>.yml`.
+
 **Network traps.**
 - ESPN returns 403 to a custom User-Agent. Send none.
 - Kalshi from Python needs an unverified SSL context plus a UA.
