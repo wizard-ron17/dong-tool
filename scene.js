@@ -199,7 +199,7 @@
       <path d="${fasciaL}" stroke="var(--scn-fascia)" stroke-width="7" fill="none"/><path d="${fasciaL}" stroke="var(--scn-rim)" stroke-width="1" fill="none" transform="translate(0 -3.5)"/>
       <path d="${rimPath}" stroke="var(--scn-rim)" stroke-width="1.6" fill="none"/>
       ${suites}<g fill="var(--scn-flash)">${flashes(lFlash)}</g>
-      <g transform="matrix(0.9 0.42 0 1 1412 452)">${jumbotron('L', 0, 0, 160, 98, 114)}</g>
+      <g transform="matrix(0.9 0.42 0 1 1440 386)">${jumbotron('L', 0, 0, 160, 98, 114)}</g>
       ${field}${wall}
       ${goal('L', 99, 781, 22, -10, 52, 206, 7, false)}${goal('L', 1501, 781, -22, -10, 52, 206, 7, true)}
       <path d="${beamsL.join('')}" fill="url(#Lbeam)" filter="url(#Lsoft)"/></svg>`;
