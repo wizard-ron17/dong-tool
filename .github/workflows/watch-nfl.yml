@@ -46,7 +46,8 @@ jobs:
         if: steps.watch.outputs.more == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run watch-nfl.yml --ref main
+        # retried: one GitHub 500 on the dispatch ended the chain (11/02)
+        run: for i in 1 2 3 4 5; do gh workflow run watch-nfl.yml --ref main && exit 0; sleep 30; done; exit 1
 
       - name: Alert on failure
         if: failure()

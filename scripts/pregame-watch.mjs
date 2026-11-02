@@ -59,6 +59,11 @@ for (;;) {
   const inWindow = T[0] - now <= LEAD * 60e3;           // the earliest start: due within LEAD, or kicked off (TAIL)
   const wake = inWindow ? now + EVERY * 60e3 : T[0] - LEAD * 60e3;
   if (wake - t0 > STOP) {
+    // a window more than a whole run away (after the night's last tip, tomorrow's): stop, the crons start it. Handing on
+    // here looped: each run built, found the window out of reach and handed on at once (11/02: ~2,300 runs overnight)
+    if (!inWindow && wake - now > STOP) { log(`next window opens ${new Date(wake).toISOString().slice(0, 16)}Z, more than a run away: the crons start it`); break; }
+    // a window that opens just past this run's limit: wait out the run here, so the next one starts within reach of it
+    if (!inWindow) { log('the window opens past this run\'s limit: waiting it out here'); await sleep(Math.max(0, t0 + STOP - Date.now())); }
     // GitHub starts few of the crons (11/1: 3 of build-nfl's 18 in a day), so the next run isn't left to
     // them: the workflow dispatches itself when this prints more=true (a GITHUB_TOKEN dispatch does start a run)
     log(`next build at ${new Date(wake).toISOString().slice(11, 16)}Z is past this run's limit, handing on to the next run`);

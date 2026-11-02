@@ -6,6 +6,7 @@ name: Watch nba lineups
 # Public repo: Actions minutes are free. Times UTC (ET is UTC-4 until November, UTC-5 after).
 on:
   schedule:
+    - cron: '7 15,17,19 * * *'     # weekend afternoon tips (a window more than a run away just exits)
     - cron: '7 21,22,23 * * *'
     - cron: '7 0,1 * * *'
   workflow_dispatch: {}
@@ -43,7 +44,8 @@ jobs:
         if: steps.watch.outputs.more == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run watch-nba.yml --ref main
+        # retried: one GitHub 500 on the dispatch ended the chain (11/02)
+        run: for i in 1 2 3 4 5; do gh workflow run watch-nba.yml --ref main && exit 0; sleep 30; done; exit 1
 
       - name: Alert on failure
         if: failure()
