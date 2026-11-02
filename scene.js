@@ -78,11 +78,11 @@
       <path d="M0 520V452Q200 436 400 456V520Z" fill="url(#scn-turf)"/>
       <path d="M0 476Q200 462 400 480" stroke="var(--scn-yard)" stroke-width="3" fill="none"/>
       <g fill="none" stroke="var(--scn-post)" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M172 470V380Q172 352 200 352" stroke-width="12"/>
-        <path d="M80 352H320" stroke-width="10"/>
-        <path d="M80 352V40M320 352V40" stroke-width="8"/></g>
-      <rect x="160" y="400" width="24" height="70" rx="6" fill="${SIL}"/>
-      <path d="M80 44L54 52L80 62Z" fill="var(--scn-flag)"/><path d="M320 44L294 52L320 62Z" fill="var(--scn-flag)"/>
+        <path d="M122 470V380Q122 352 150 352" stroke-width="12"/>
+        <path d="M60 352H240" stroke-width="10"/>
+        <path d="M60 352V40M240 352V40" stroke-width="8"/></g>
+      <rect x="110" y="400" width="24" height="70" rx="6" fill="${SIL}"/>
+      <path d="M60 44L34 52L60 62Z" fill="var(--scn-flag)"/><path d="M240 44L214 52L240 62Z" fill="var(--scn-flag)"/>
       <path d="M30 472L36 432H54L60 472Z" fill="var(--scn-flag)"/><rect x="32" y="446" width="26" height="5" fill="#fff" opacity=".8"/></svg>`;
     // bottom right: the stands with the crowd in them, a lit scoreboard over them on two legs, flashes in the seats
     const heads = [];
@@ -94,12 +94,12 @@
       <g fill="var(--scn-crowd)">${heads.join('')}</g>
       <g fill="var(--scn-lamp)">${flashes}</g>
       <path d="M0 520V470Q200 456 400 466V520Z" fill="url(#scn-turf2)"/>
-      <rect x="196" y="190" width="10" height="160" fill="${SIL}"/><rect x="334" y="190" width="10" height="150" fill="${SIL}"/>
-      <rect x="160" y="70" width="222" height="126" rx="8" fill="${SIL}" stroke="var(--scn-rim)" stroke-width="2"/>
+      <rect x="262" y="176" width="9" height="150" fill="${SIL}"/><rect x="362" y="176" width="9" height="140" fill="${SIL}"/>
+      <rect x="232" y="70" width="162" height="110" rx="8" fill="${SIL}" stroke="var(--scn-rim)" stroke-width="2"/>
       <g font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="700" text-anchor="middle">
-        <text x="216" y="102" font-size="15" fill="var(--scn-board-dim)">HOME</text><text x="326" y="102" font-size="15" fill="var(--scn-board-dim)">AWAY</text>
-        <text x="216" y="146" font-size="40" fill="var(--scn-board)">24</text><text x="326" y="146" font-size="40" fill="var(--scn-board)">21</text>
-        <text x="271" y="180" font-size="16" fill="var(--scn-board-dim)">4TH · 0:42</text></g></svg>`;
+        <text x="273" y="98" font-size="13" fill="var(--scn-board-dim)">HOME</text><text x="353" y="98" font-size="13" fill="var(--scn-board-dim)">AWAY</text>
+        <text x="273" y="138" font-size="34" fill="var(--scn-board)">24</text><text x="353" y="138" font-size="34" fill="var(--scn-board)">21</text>
+        <text x="313" y="168" font-size="13" fill="var(--scn-board-dim)">4TH · 0:42</text></g></svg>`;
     const css = `
       ${DARK} { --bg: #040b0c; --surface0: #081416; --surface1: #0c1b1e; --surface2: #122729; --border: #1b3638; --border2: #285055;
         --glow: rgba(51,208,124,0.10); --scn-sil: #020607; --scn-lamp: #f4f9ff; --scn-light: #d6ebff; --scn-rim: rgba(150,190,200,0.22);
