@@ -2205,14 +2205,15 @@
     const side = parSideGet('doubles'), pk = (r) => parSidePrice(r[dblF.sort], side);
     let body;
     if (dblF.view === 'table') {
-      const G = [['Player', 2], ['Price', 2, 'price'], ['Production', 4, 'prod'], ['Game', 1, 'game']];
+      // only the selected mode's price: a triple-double column beside the double-double board read as a second bet
+      const G = [['Player', 2], ['Price', 1, 'price'], ['Production', 4, 'prod'], ['Game', 1, 'game']];
       body = `<div class="rc-tablewrap"><table class="rc-table u-tbl">${uiCols(G)}
-        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num u-fair">DD</th><th class="num u-fair">TD</th><th class="num" title="Projected points">Pts</th><th class="num" title="Projected rebounds">Reb</th><th class="num" title="Projected assists">Ast</th><th class="num">Last ${R0[0].l40 || 40}</th><th>Game</th></tr></thead>
+        <thead>${uiBand(G)}<tr><th></th><th>Player</th><th class="num u-fair">${td ? 'TD' : 'DD'}</th><th class="num" title="Projected points">Pts</th><th class="num" title="Projected rebounds">Reb</th><th class="num" title="Projected assists">Ast</th><th class="num">Last ${R0[0].l40 || 40}</th><th>Game</th></tr></thead>
         <tbody>${rows.map(r => `
           <tr onclick="${open(r)}"${started(r) ? ' class="dim"' : ''}${parAttr(dblLeg(r, dblF.sort, side))}>
             <td class="num dim">${r.rank}</td>
             <td><b>${esc(r.name)}</b> <span class="dim">${esc(r.pos || '')}</span>${roleTag(r.pid)}</td>
-            ${uiFair(parSidePrice(r.dd, side), side === 'under' ? 'no' : '')}${uiFair(parSidePrice(r.td, side), side === 'under' ? 'no' : '')}
+            ${uiFair(parSidePrice(r[td ? 'td' : 'dd'], side), side === 'under' ? 'no' : '')}
             <td class="num">${r.pts}</td><td class="num">${r.reb}</td><td class="num">${r.ast}</td>
             <td class="num dim">${r.dd40} DD · ${r.td40} TD</td>
             <td class="dim">${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}</td>
