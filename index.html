@@ -46,24 +46,34 @@
       var(--bg);
     color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 2rem 1.2rem calc(2rem + env(safe-area-inset-bottom)); min-height: 100dvh; text-align: center; }
+    padding: 2rem 1rem calc(2rem + env(safe-area-inset-bottom)); min-height: 100dvh; text-align: center; }
+  @media (max-width: 560px) { body { padding-top: 1.2rem; padding-bottom: calc(1.2rem + env(safe-area-inset-bottom)); } .foot { margin-top: 1.2rem !important; }
+    .brand { font-size: 2.2rem; } .tag { margin-top: 0.3rem; }
+    /* one line under the name: today's slate stands in for a plain "Regular season" (a phase with news, like playoffs, stays) */
+    .tile.slate .tile-status.plain { display: none; } .tile-today { padding-left: 0; margin-top: 0.4rem; } }
   .wrap { width: 100%; max-width: 760px; }
   .brand { font-weight: 800; font-size: clamp(2.1rem, 7vw, 3.4rem); letter-spacing: -0.02em; line-height: 1.02; }
   .tag { color: var(--muted); font-size: clamp(0.8rem, 2.6vw, 0.98rem); margin-top: 0.6rem; letter-spacing: 0.01em; }
-  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.9rem; margin-top: 2.2rem; }
-  @media (max-width: 460px) { .grid { grid-template-columns: 1fr; } }
-  .tile { position: relative; display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 0.15rem;
-    background: linear-gradient(180deg, var(--card2), var(--card)); border: 1px solid var(--border); border-radius: 18px;
-    padding: 1.15rem 1.2rem 1.2rem; text-decoration: none; color: inherit; transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s; }
+  /* five tiles that fit one screen, phone included: logo, name and badge on one line, then the season and today's slate.
+     minmax(0, 1fr): a game's no-wrap text can't widen the column past the screen. An offseason sport sinks to the end
+     as a slim full-width row (paint() sets .off). */
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-top: 1.6rem; }
+  @media (max-width: 560px) { .grid { grid-template-columns: minmax(0, 1fr); gap: 0.6rem; margin-top: 1.2rem; } }
+  .tile { position: relative; display: flex; flex-direction: column; align-items: stretch; text-align: left; gap: 0.1rem; min-width: 0;
+    background: linear-gradient(180deg, var(--card2), var(--card)); border: 1px solid var(--border); border-radius: 16px;
+    padding: 0.85rem 1rem 0.9rem; text-decoration: none; color: inherit; transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s; }
+  .tile.off { order: 1; grid-column: 1 / -1; padding: 0.6rem 1rem; }
+  .tile-hd { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+  .tile-hd .badge { position: static; margin-left: auto; }
   .tile.live:hover { transform: translateY(-3px); border-color: var(--green); box-shadow: 0 14px 34px rgba(0,0,0,0.45), 0 0 0 1px rgba(51,208,124,0.25); }
   /* Upcoming sports are dimmed, but not so far that they read as broken — they
      carry a real date, so they should look scheduled rather than disabled. */
   .tile.soon { opacity: 0.78; cursor: default; }
-  .tile-ico { font-size: 2rem; line-height: 1; margin-bottom: 0.5rem; }
-  .tile-logo { width: 2.2rem; height: 2.2rem; object-fit: contain; display: block; }
-  .tile-name { font-weight: 800; font-size: 1.18rem; }
-  .tile-sub { color: var(--muted); font-size: 0.78rem; margin-top: 0.15rem; }
-  .tile-status { font-size: 0.7rem; margin-top: 0.5rem; color: var(--dim); letter-spacing: 0.01em; display: flex; align-items: center; gap: 0.34rem; }
+  .tile-ico { line-height: 1; flex: none; }
+  .tile-logo { width: 2rem; height: 2rem; object-fit: contain; display: block; }
+  .tile.off .tile-logo { width: 1.6rem; height: 1.6rem; }
+  .tile-name { font-weight: 800; font-size: 1.12rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .tile-status { font-size: 0.7rem; margin-top: 0.45rem; color: var(--dim); letter-spacing: 0.01em; display: flex; align-items: center; gap: 0.34rem; }
   .tile-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--dim); flex: none; }
   .tile-status.on { color: var(--green); } .tile-status.on .dot { background: var(--green); }
   .tile-status.up { color: var(--gold); } .tile-status.up .dot { background: var(--gold); }
@@ -84,7 +94,8 @@
   /* today's slate: a fact, not a rating, so it stays out of the green/gold status hues */
   .tile-today { font-size: 0.7rem; margin-top: 0.22rem; color: var(--muted); letter-spacing: 0.01em; padding-left: calc(6px + 0.34rem); }
   .tile-today b { color: var(--text); font-weight: 700; }
-  .tile-today:not([hidden]) { margin-bottom: 0.7rem; }
+  .tile-today:not([hidden]) { margin-bottom: 0.5rem; }
+  .tile.off .tile-status { margin-top: 0.3rem; }
   .tile-game[hidden] { display: none; }
   /* one game from today's slate: the next to start (or the one being played) */
   .tile-game { align-self: stretch; display: flex; align-items: center; gap: 0.5rem; margin-top: auto; padding: 0.5rem 0.65rem;
@@ -110,46 +121,31 @@
     <div class="today-sum" id="today-sum" hidden></div>
     <div class="grid">
       <a class="tile live" href="/nfl/" data-sport="nfl">
-        <span class="badge go">Live</span>
-        <span class="tile-ico"><img class="tile-logo" src="/icons/nfl-logo.svg" alt=""></span>
-        <span class="tile-name">Ron's Tud Tool</span>
-        <span class="tile-sub">NFL · touchdowns, yards, receptions, passing &amp; kickers</span>
+        <span class="tile-hd"><span class="tile-ico"><img class="tile-logo" src="/icons/nfl-logo.svg" alt=""></span><span class="tile-name">Ron's Tud Tool</span><span class="badge go">Live</span></span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
         <span class="tile-today" hidden></span>
         <span class="tile-game" hidden></span>
       </a>
       <a class="tile live" href="/mlb/" data-sport="mlb">
-        <span class="badge go">Live</span>
-        <span class="tile-ico"><img class="tile-logo" src="/icons/logo.svg" alt=""></span>
-        <span class="tile-name">Ron's Dong Tool</span>
-        <span class="tile-sub">MLB · home runs, strikeouts, walks, steals &amp; matchups</span>
+        <span class="tile-hd"><span class="tile-ico"><img class="tile-logo" src="/icons/logo.svg" alt=""></span><span class="tile-name">Ron's Dong Tool</span><span class="badge go">Live</span></span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
         <span class="tile-today" hidden></span>
         <span class="tile-game" hidden></span>
       </a>
       <a class="tile live" href="/nhl/" data-sport="nhl">
-        <span class="badge go">Live</span>
-        <span class="tile-ico"><img class="tile-logo" src="/icons/nhl-logo.svg" alt=""></span>
-        <span class="tile-name">Ron's Puck Tool</span>
-        <span class="tile-sub">NHL · goals, points, shots, saves, hits &amp; blocks</span>
+        <span class="tile-hd"><span class="tile-ico"><img class="tile-logo" src="/icons/nhl-logo.svg" alt=""></span><span class="tile-name">Ron's Puck Tool</span><span class="badge go">Live</span></span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
         <span class="tile-today" hidden></span>
         <span class="tile-game" hidden></span>
       </a>
       <a class="tile live" href="/nba/" data-sport="nba">
-        <span class="badge soon">Soon</span>
-        <span class="tile-ico"><img class="tile-logo" src="/icons/nba-logo.svg" alt=""></span>
-        <span class="tile-name">Ron's Hoop Tool</span>
-        <span class="tile-sub">NBA · threes, points, rebounds, assists, doubles &amp; first basket</span>
+        <span class="tile-hd"><span class="tile-ico"><img class="tile-logo" src="/icons/nba-logo.svg" alt=""></span><span class="tile-name">Ron's Hoop Tool</span><span class="badge soon">Soon</span></span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
         <span class="tile-today" hidden></span>
         <span class="tile-game" hidden></span>
       </a>
       <a class="tile live" href="/soccer/" data-sport="soccer">
-        <span class="badge go">Live</span>
-        <span class="tile-ico"><img class="tile-logo" src="/icons/soccer-logo.svg" alt=""></span>
-        <span class="tile-name">Ron's Goal Tool</span>
-        <span class="tile-sub">MLS · anytime goals, shots &amp; shots on target, lines &amp; implied goals</span>
+        <span class="tile-hd"><span class="tile-ico"><img class="tile-logo" src="/icons/soccer-logo.svg" alt=""></span><span class="tile-name">Ron's Goal Tool</span><span class="badge go">Live</span></span>
         <span class="tile-status"><span class="dot"></span><span class="txt"></span></span>
         <span class="tile-today" hidden></span>
         <span class="tile-game" hidden></span>
@@ -245,9 +241,11 @@
           if (cls.indexOf('count') === -1) { cls = 'badge soon'; label = 'Soon'; }
         }
         badge.className = cls; badge.textContent = label;
+        tile.classList.toggle('off', label === 'Off');           // the offseason sinks to the bottom, slim
         var st = tile.querySelector('.tile-status');
         st.className = 'tile-status' + (cls.indexOf('go') > -1 ? ' on' : cls.indexOf('pre') > -1 ? ' pre' : cls.indexOf('post') > -1 ? ' post' : cls.indexOf('count') > -1 ? ' up' : '');
         st.querySelector('.txt').textContent = note;
+        st.classList.toggle('plain', note === 'Regular season');
       });
     }
     paint();
@@ -284,7 +282,7 @@
       if (!away || !home) return '';
       var st = state(e), scored = st === 'in' || st === 'post';
       var side = function (x) { var t = x.team || {};
-        return '<span class="tm">' + logo(t) + '<span title="' + esc(t.displayName) + '">' + esc(t.shortDisplayName || t.abbreviation) + '</span>' + (scored ? '<b>' + esc(x.score) + '</b>' : '') + '</span>'; };
+        return '<span class="tm">' + logo(t) + '<span title="' + esc(t.displayName) + '">' + esc(t.abbreviation || t.shortDisplayName) + '</span>' + (scored ? '<b>' + esc(x.score) + '</b>' : '') + '</span>'; };
       var when = st === 'pre' ? time(e.date) : st === 'post' ? 'Final' : esc(((e.status || {}).type || {}).shortDetail || 'Live');
       return side(away) + '<span class="at">@</span>' + side(home) + '<span class="when' + (st === 'in' ? ' in' : '') + '">' + when + '</span>';
     }
@@ -305,7 +303,7 @@
           var tail = done === n ? 'all final' : n > 1 ? 'first ' + time(ev[0].date) : '';
           if (live) tail += (tail ? ' · ' : '') + '<b>' + live + '</b> live';
           el.innerHTML = '<b>' + n + '</b> ' + WORD[k][n === 1 ? 0 : 1] + ' today' + (tail ? ' · ' + tail : '');
-          el.hidden = false;
+          el.hidden = false; tile.classList.add('slate');
           var show = ev.filter(function (e) { return state(e) === 'in'; })[0] || ev.filter(function (e) { return state(e) === 'pre'; })[0] || ev[n - 1];
           gm.innerHTML = gameHtml(show); gm.hidden = !gm.innerHTML;
           return { k: k, n: n, first: ev[0].date, live: live };
