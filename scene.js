@@ -124,7 +124,7 @@
     let specks = ''; for (let i = 0; i < 90; i++) specks += `<circle cx="${f1(rnd() * 700)}" cy="${f1(rnd() * 700)}" r="${f1(0.4 + rnd() * 1.1)}"/>`;
     // the rink from above, down the screen: boards at both edges, the red line, a blue line, the end-zone circles (their outer
     // arcs and hashes in the margins). Not to scale where the page needs it. Lines are painted under the ice: soft-edged.
-    const rink = (W, ft, side, y0, id) => {
+    const rink = (W, ft, side, y0, id, lamps) => {     // lamps: [x, y, size] where the arena lights hit the ice
       const S = side, X = (f) => W / 2 + f * ft, lw = f1(ft * 1), red = 'var(--scn-red)', blue = 'var(--scn-blue)', H = 4000;
       const yRed = y0, yBlue = y0 + 25 * ft, yDots = yBlue + 5 * ft, yEz = yBlue + 31 * ft, yGoal = yEz + 20 * ft;
       const cxL = S + 15.5 * ft, cxR = W - S - 15.5 * ft, r = 15 * ft;
@@ -153,13 +153,23 @@
         <rect x="0" y="-200" width="${W}" height="${H}" fill="url(#${id}scr)"/>
         <rect x="0" y="-200" width="${S}" height="${H}" fill="var(--scn-board)"/><rect x="${W - S}" y="-200" width="${S}" height="${H}" fill="var(--scn-board)"/>
         <rect x="${f1(S - ft * 0.35)}" y="-200" width="${f1(ft * 0.35)}" height="${H}" fill="var(--scn-kick)"/><rect x="${W - S}" y="-200" width="${f1(ft * 0.35)}" height="${H}" fill="var(--scn-kick)"/>`;
+      // the arena lights on dark glossy ice (dark mode): a pool of cool light where each lamp hits, a tall soft reflection
+      // streak through it (the ice mirrors the lamp), a hot core; haze across the top
+      o += `<defs><radialGradient id="${id}pool"><stop offset="0" stop-color="#cfe2ff" stop-opacity=".34"/><stop offset=".35" stop-color="#8fb2e8" stop-opacity=".12"/><stop offset="1" stop-color="#8fb2e8" stop-opacity="0"/></radialGradient>
+        <radialGradient id="${id}streak"><stop offset="0" stop-color="#eef5ff" stop-opacity=".42"/><stop offset=".5" stop-color="#bcd3f5" stop-opacity=".1"/><stop offset="1" stop-color="#bcd3f5" stop-opacity="0"/></radialGradient>
+        <radialGradient id="${id}core"><stop offset="0" stop-color="#ffffff" stop-opacity=".55"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+        <linearGradient id="${id}haze" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a9c4f0" stop-opacity=".16"/><stop offset="1" stop-color="#a9c4f0" stop-opacity="0"/></linearGradient></defs>
+        <g class="scn-lamps">${lamps.map(([x, y, k]) => `<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(W * 0.16 * k)}" ry="${f1(W * 0.12 * k)}" fill="url(#${id}pool)"/>
+          <ellipse cx="${f1(x)}" cy="${f1(y + W * 0.05 * k)}" rx="${f1(W * 0.022 * k)}" ry="${f1(W * 0.17 * k)}" fill="url(#${id}streak)"/>
+          <ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(W * 0.03 * k)}" ry="${f1(W * 0.02 * k)}" fill="url(#${id}core)"/>`).join('')}
+          <rect x="0" y="-200" width="${W}" height="${f1(W * 0.28)}" fill="url(#${id}haze)"/></g>`;
       return o;
     };
-    const LAND = `<svg class="scn-land" data-w="1600" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMin slice">${rink(1600, 16, 22, 150, 'L')}</svg>`;
-    const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${rink(420, 5.2, 6, 205, 'P')}</svg>`;
+    const LAND = `<svg class="scn-land" data-w="1600" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMin slice">${rink(1600, 16, 22, 150, 'L', [[150, 210, 1], [1450, 230, 1], [800, 40, 0.8], [210, 820, 0.9], [1390, 800, 0.9], [560, 520, 0.6], [1050, 560, 0.6]])}</svg>`;
+    const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${rink(420, 5.2, 6, 205, 'P', [[60, 120, 1.6], [370, 140, 1.6], [210, 560, 1.4], [80, 900, 1.5], [350, 860, 1.5]])}</svg>`;
     const css = `
       ${DARK} { --bg: #060a12; --surface0: #0a101b; --surface1: #0e1624; --surface2: #142034; --border: #1c2a40; --border2: #283b5a;
-        --scn-ice: #101a2a; --scn-tint: .86; --scn-cloud: #24395a; --scn-scratch: rgba(190,215,255,0.09); --scn-speck: rgba(220,235,255,0.1); --scn-paintop: .72;
+        --scn-ice: #070c16; --scn-tint: .92; --scn-cloud: #1a2a44; --scn-scratch: rgba(190,215,255,0.08); --scn-speck: rgba(220,235,255,0.09); --scn-paintop: .55;
         --scn-red: #c8323f; --scn-blue: #2f6bd0; --scn-crease: rgba(47,107,208,0.25); --scn-board: #05080e; --scn-kick: #c9a227; --scn-vig: .6; }
       ${LIGHT} { --border: #d3dee9; --border2: #b9c8d8; --scn-ice: #e8f1f8; --scn-tint: .45; --scn-cloud: #ffffff; --scn-scratch: rgba(110,140,175,0.16); --scn-speck: rgba(120,150,185,0.18); --scn-paintop: .8;
         --scn-red: #c8102e; --scn-blue: #0b4f9c; --scn-crease: rgba(90,160,230,0.35); --scn-board: #f9fbfd; --scn-kick: #e2b400; --scn-vig: .1; }
@@ -169,7 +179,7 @@
       /* resurfaced rink ice: scene/ice.jpg (ambientCG Snow006, CC0) for the milky cloud, tinted to the theme; skate marks drawn over it */
       ${S} .scn { background: url(/scene/ice.jpg) 0 0 / 520px repeat; }
       ${S} .scn::after { content: ''; position: absolute; inset: 0; background: radial-gradient(115% 95% at 50% 45%, transparent 50%, rgba(0,0,0,var(--scn-vig)) 100%); }
-      ${LIGHT} .scn svg { opacity: 1; }
+      ${LIGHT} .scn svg { opacity: 1; } ${LIGHT} .scn-lamps { display: none; }
       ${FULL_CSS(S, LIGHT)}`;
     mount(css, LAND + PORT); fitW();
   }
