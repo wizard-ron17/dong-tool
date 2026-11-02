@@ -75,7 +75,7 @@
     const css = `
       ${DARK} { --bg: #040d08; --surface0: #07130d; --surface1: #0a1a12; --surface2: #10261a; --border: #1a3526; --border2: #264d37;
         --glow: rgba(51,208,124,0.08); --scn-paint: rgba(235,245,238,0.3); --scn-oob: rgba(0,0,0,0.25); --scn-night: rgba(2,10,5,0.84); --scn-vig: .75; --scn-top: rgba(2,8,4,0.85); }
-      ${LIGHT} { --border: #cfe0d6; --border2: #b4ccbe; --scn-paint: rgba(255,255,255,0.86); --scn-oob: rgba(0,0,0,0.1); --scn-night: rgba(255,255,255,0.08); --scn-vig: .18; --scn-top: rgba(255,255,255,0.35); }
+      ${LIGHT} { --border: #cfe0d6; --border2: #b4ccbe; --scn-paint: rgba(255,255,255,0.86); --scn-oob: rgba(0,0,0,0.1); --scn-night: rgba(240,246,242,0.3); --scn-vig: .12; --scn-top: rgba(238,244,240,0.92); }
       /* the turf under everything, so overscroll past the page ends is grass, not white */
       ${DARK} { background: #0b2412; } ${LIGHT} { background: #5f9a3c; }
       ${S} body { background: transparent; } ${S} body::before { display: none; }
