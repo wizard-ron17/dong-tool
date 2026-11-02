@@ -4,10 +4,10 @@
 // PREVIEW ONLY for now: ?bg=night turns it on for this tab (it stays on as you move around), ?bg=off turns it off.
 // A holiday stands aside while a scene is previewed, unless asked for by name (?holiday=halloween). chrome.js loads this file.
 //
-//   nfl   a night game in the rain, one panorama from the 50: the field in perspective (mowing stripes, end zones, yard
-//         lines), goalposts on both end lines, the bowl of stands wrapping round (a lit crowd, suites, phone flashes),
-//         light towers standing on its rim with rain in their beams, the jumbotron calling TOUCHDOWN, the blimp. Phones
-//         get an end-zone view of the same night.
+//   nfl   a clear night game, one panorama from the 50: the lit field in perspective (mowing stripes, yard lines, end
+//         zones painted TUD TOOL), goalposts on both end lines, the bowl of stands wrapping round (two decks, a crowd in
+//         jersey colours, suites, phone flashes), light towers standing on its rim, the jumbotron calling TOUCHDOWN, the
+//         blimp. Phones get an end-zone view of the same night.
 (function () {
   if (window.RonScene) return;
   const q = new URLSearchParams(location.search).get('bg');
@@ -50,6 +50,18 @@
     const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const f1 = (n) => +n.toFixed(1), L = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
     let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    // a crowd at night is a mass of colours in rows, not dots: heads in jersey colours, a seat-row shadow under each row
+    const CROWD_TILE = (() => {
+      const C = ['var(--scn-c1)', 'var(--scn-c2)', 'var(--scn-c3)', 'var(--scn-c4)', 'var(--scn-c5)', 'var(--scn-c6)', 'var(--scn-c1)', 'var(--scn-c6)'];
+      let out = '';
+      for (let row = 0; row < 2; row++) {
+        const y = 6 + row * 11;
+        out += `<rect x="0" y="${y + 3.4}" width="72" height="2" fill="var(--scn-seatline)"/>`;
+        for (let x = 1.5 + row * 2.4; x < 71; x += 3.6 + rnd() * 2.4)
+          out += `<rect x="${f1(x - 1.6)}" y="${f1(y - 1.2 + rnd() * 1.4)}" width="${f1(2.6 + rnd() * 0.9)}" height="${f1(3.2 + rnd() * 0.8)}" rx="1.3" fill="${C[Math.floor(rnd() * C.length)]}"/>`;
+      }
+      return out;
+    })();
 
     // shared paint: gradients and patterns, prefixed per drawing so the two never share an id
     const defs = (p) => `<defs>
@@ -61,18 +73,16 @@
       <linearGradient id="${p}mast" x1="0" x2="1"><stop offset="0" stop-color="var(--scn-sil)"/><stop offset=".7" stop-color="var(--scn-sil)"/><stop offset="1" stop-color="var(--scn-mast-hi)"/></linearGradient>
       <linearGradient id="${p}post" x1="0" x2="1"><stop offset="0" stop-color="var(--scn-post-hi)"/><stop offset=".4" stop-color="var(--scn-post)"/><stop offset="1" stop-color="var(--scn-post-lo)"/></linearGradient>
       <linearGradient id="${p}turf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-turf-far)"/><stop offset="1" stop-color="var(--scn-turf-near)"/></linearGradient>
-      <pattern id="${p}crowd" width="16" height="11" patternUnits="userSpaceOnUse"><rect width="16" height="11" fill="var(--scn-stand)"/>
-        <circle cx="3.5" cy="4" r="2.7" fill="var(--scn-crowd)"/><circle cx="11.5" cy="8.5" r="2.5" fill="var(--scn-crowd)"/><circle cx="12" cy="1.5" r="1.4" fill="var(--scn-crowd2)"/><circle cx="6" cy="9.5" r="1.3" fill="var(--scn-crowd2)"/></pattern>
-      <pattern id="${p}rain" width="16" height="64" patternUnits="userSpaceOnUse"><path d="M11 3l-2.6 9M4 29l-1.8 6M14 44l-2.2 7.5M7 56l-1.2 4" stroke="var(--scn-rain)" stroke-width=".8" stroke-linecap="round"/>${calm ? '' : '<animateTransform attributeName="patternTransform" type="translate" from="0 0" to="-16 64" dur="0.62s" repeatCount="indefinite"/>'}</pattern>
+      <pattern id="${p}crowd" width="72" height="22" patternUnits="userSpaceOnUse"><rect width="72" height="22" fill="var(--scn-stand)"/>${CROWD_TILE}</pattern>
+      <linearGradient id="${p}shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-sil)" stop-opacity=".72"/><stop offset=".4" stop-color="var(--scn-sil)" stop-opacity=".3"/><stop offset="1" stop-color="var(--scn-sil)" stop-opacity="0"/></linearGradient>
       <filter id="${p}soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="10"/></filter>
-      <linearGradient id="${p}mist" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-mist)" stop-opacity="0"/><stop offset=".5" stop-color="var(--scn-mist)" stop-opacity=".16"/><stop offset="1" stop-color="var(--scn-mist)" stop-opacity="0"/></linearGradient>
+      
       <pattern id="${p}ez" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="24" height="24" fill="var(--scn-ez)"/><rect width="9" height="24" fill="var(--scn-ez2)"/></pattern>
       <linearGradient id="${p}screen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-screen-hi)"/><stop offset="1" stop-color="var(--scn-screen)"/></linearGradient>
       <radialGradient id="${p}screenglow"><stop offset="0" stop-color="var(--scn-led)" stop-opacity=".32"/><stop offset="1" stop-color="var(--scn-led)" stop-opacity="0"/></radialGradient>
       <linearGradient id="${p}led" x1="0" x2="1"><stop offset="0" stop-color="var(--scn-led)" stop-opacity=".2"/><stop offset=".5" stop-color="var(--scn-led)" stop-opacity=".95"/><stop offset="1" stop-color="var(--scn-led)" stop-opacity=".2"/></linearGradient>
       <linearGradient id="${p}blimp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-stand)"/><stop offset="1" stop-color="var(--scn-sil)"/></linearGradient>
-      <pattern id="${p}crowdb" width="23" height="14" patternUnits="userSpaceOnUse" patternTransform="translate(5 3)"><circle cx="5" cy="5" r="2.4" fill="var(--scn-crowd2)"/><circle cx="17" cy="11" r="2.1" fill="var(--scn-crowd)"/><circle cx="20" cy="2" r="1.6" fill="var(--scn-crowd2)"/></pattern>
-      <linearGradient id="${p}lit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-fieldglow)" stop-opacity="0"/><stop offset="1" stop-color="var(--scn-fieldglow)" stop-opacity=".22"/></linearGradient></defs>`;
+      <linearGradient id="${p}lit" x1="0" y1="0" x2="0" y2="1"><stop offset=".35" stop-color="var(--scn-standlit)" stop-opacity="0"/><stop offset="1" stop-color="var(--scn-standlit)" stop-opacity=".2"/></linearGradient></defs>`;
 
     // a light bank on a mast. The mast runs down past the rim; the stands, drawn after, cover its foot (grounded)
     const tower = (p, x, top, w, h, foot, tilt) => {
@@ -90,7 +100,7 @@
         <path d="M${P00}L${P10}L${P11}L${P01}Z" fill="var(--scn-sil)" stroke="var(--scn-rim)" stroke-width="${f1(Math.max(1, w / 90))}" stroke-linejoin="round"/>${lamps}
         <ellipse cx="${x}" cy="${top + h / 2}" rx="${w * 1.9}" ry="${f1(Math.max(2.5, w / 40))}" fill="url(#${p}flare)"/>`;
     };
-    // a beam from a bank to a spot on the field, and rain only inside the beams
+    // a beam from a bank to a spot on the field
     const beam = (x, top, w, h, a, b) => `M${x - w / 2 + 4} ${top + h}L${x + w / 2 - 4} ${top + h}L${b[0]} ${b[1]}L${a[0]} ${a[1]}Z`;
     // a crowd's phone flashes, twinkling at their own pace
     const flashes = (pts) => pts.map(([x, y], k) => `<circle class="scn-tw" style="animation-delay:${f1((k * 1.37) % 5)}s;animation-duration:${f1(3.5 + (k % 4) * 0.8)}s" cx="${f1(x)}" cy="${f1(y)}" r="1.9"/>`).join('');
@@ -106,6 +116,15 @@
           <path d="M${f1(a[0] - sw * 0.3)} ${f1(a[1])}V${f1(a[1] - up)}M${f1(b[0] - sw * 0.3)} ${f1(b[1])}V${f1(b[1] - up)}" stroke="var(--scn-post-hi)" stroke-width="${f1(sw * 0.22)}" opacity=".85"/></g>
         <rect x="${bx - sw * 1.2}" y="${by - rise * 0.42}" width="${sw * 2.4}" height="${rise * 0.42}" rx="${sw * 0.7}" fill="var(--scn-pad)"/>
         ${flag([a[0], a[1] - up], 0)}${flag([b[0], b[1] - up], -1.1)}`;
+    };
+    const ezText = (endF, goalF, endN, goalN, size) => {
+      const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], Mf = mid(endF, goalF), Mn = mid(endN, goalN);
+      const A = L(Mn, Mf, 0.16), B = L(Mn, Mf, 0.86), h = L([endN[0] - goalN[0], endN[1] - goalN[1]], [endF[0] - goalF[0], endF[1] - goalF[1]], 0.5);
+      const hl = Math.hypot(...h), up = [h[0] / hl, h[1] / hl], k = hl * size / 70;
+      let xv = [(B[0] - A[0]) / 520, (B[1] - A[1]) / 520], o = mid(A, B), yv = [-up[0] * k, -up[1] * k];
+      if (xv[0] * yv[1] - xv[1] * yv[0] < 0) xv = [-xv[0], -xv[1]];                       // never mirrored
+      return `<text transform="matrix(${[...xv, ...yv, ...o].map(n => +n.toFixed(4)).join(' ')})" x="0" y="0" text-anchor="middle" dominant-baseline="central" textLength="520" lengthAdjust="spacingAndGlyphs"
+        font-family="'Chakra Petch', sans-serif" font-weight="700" font-size="100" letter-spacing="6" fill="var(--scn-ez-text)" stroke="var(--scn-ez-edge)" stroke-width="7" paint-order="stroke" stroke-linejoin="round">TUD TOOL</text>`;
     };
     const jumbotron = (p, x, y, w, h, foot) => `<circle cx="${x + w / 2}" cy="${y + h / 2}" r="${w * 1.1}" fill="url(#${p}screenglow)"/>
       <path d="M${x + w * 0.22} ${y + h}V${foot}M${x + w * 0.78} ${y + h}V${foot}" stroke="var(--scn-sil)" stroke-width="${w * 0.05}"/>
@@ -131,10 +150,15 @@
     let rimPath = 'M0 ' + f1(rimL(0));
     for (let x = 20; x <= W; x += 20) rimPath += ' L' + x + ' ' + f1(rimL(x));
     const bowl = `${rimPath} L${W} ${H} L0 ${H}Z`;
+    let fasciaL = 'M0 ' + f1(rimL(0) + 58);
+    for (let x = 20; x <= W; x += 20) fasciaL += ' L' + x + ' ' + f1(rimL(x) + 58);
     // the field: mowing stripes every 5 yards, the end zones, yard lines (heavier every 10), the sidelines
     let field = `<path d="M${F0}L${F1}L${N1}L${N0}Z" fill="url(#Lturf)"/>`;
     for (let y = 10; y < 110; y += 5) if ((y / 5) % 2) { const [a, b] = at(y / 120), [c, d] = at((y + 5) / 120); field += `<path d="M${a}L${c}L${d}L${b}Z" fill="var(--scn-stripe)"/>`; }
-    for (const [t0, t1] of [[0, 10 / 120], [110 / 120, 1]]) { const [a, b] = at(t0), [c, d] = at(t1); field += `<path d="M${a}L${c}L${d}L${b}Z" fill="url(#Lez)"/>`; }
+    for (const [t0, t1] of [[0, 10 / 120], [110 / 120, 1]]) {
+      const [a, b] = at(t0), [c, d] = at(t1);
+      field += `<path d="M${a}L${c}L${d}L${b}Z" fill="var(--scn-ez-paint)"/>` + ezText(a, c, b, d, 0.5);
+    }
     for (let y = 10; y <= 110; y += 5) { const [a, b] = at(y / 120); field += `<path d="M${a.map(f1)}L${b.map(f1)}" stroke="var(--scn-line)" stroke-width="${y % 10 ? 1.4 : 2.6}"/>`; }
     field += `<path d="M${F0}L${F1}M${F0}L${N0}M${F1}L${N1}" stroke="var(--scn-line)" stroke-width="3"/>`;
     // the wall along the far sideline: an LED ribbon, segments lit
@@ -152,14 +176,13 @@
       ${towersL.slice(2).map(t => tower('L', ...t)).join('')}${towersL.slice(0, 2).map(t => tower('L', ...t)).join('')}
       ${blimp('L', 228, 236, 0.52)}
       ${jumbotron('L', 1388, 262, 168, 102, 480)}
-      <path d="${bowl}" fill="url(#Lcrowd)"/><path d="${bowl}" fill="url(#Lcrowdb)" opacity=".7"/><path d="${bowl}" fill="url(#Llit)"/>
+      <path d="${bowl}" fill="url(#Lcrowd)"/><path d="${bowl}" fill="url(#Lshade)"/><path d="${bowl}" fill="url(#Llit)"/>
+      <path d="${fasciaL}" stroke="var(--scn-fascia)" stroke-width="7" fill="none"/><path d="${fasciaL}" stroke="var(--scn-rim)" stroke-width="1" fill="none" transform="translate(0 -3.5)"/>
       <path d="${rimPath}" stroke="var(--scn-rim)" stroke-width="1.6" fill="none"/>
       ${suites}<g fill="var(--scn-flash)">${flashes(lFlash)}</g>
       ${field}${wall}
-      ${goal('L', 170, 784, 28, -9, 50, 200, 7, false)}${goal('L', 1430, 784, 28, 9, 50, 200, 7, true)}
-      <clipPath id="Lbeams"><path d="${beamsL.join('')}"/></clipPath>
-      <rect x="0" y="${FAR - 70}" width="${W}" height="120" fill="url(#Lmist)"/>
-      <path d="${beamsL.join('')}" fill="url(#Lbeam)" filter="url(#Lsoft)"/><rect width="${W}" height="${H}" fill="url(#Lrain)" clip-path="url(#Lbeams)" opacity=".6"/></svg>`;
+      ${goal('L', 99, 804, 23, -13, 52, 206, 7, false)}${goal('L', 1501, 804, -23, -13, 52, 206, 7, true)}
+      <path d="${beamsL.join('')}" fill="url(#Lbeam)" filter="url(#Lsoft)"/></svg>`;
 
     // ── portrait (phones): the end-zone view, the goalposts straight ahead, a light bank in each top corner ─────
     const PW = 900, PH = 1600, PF = 1040;
@@ -167,10 +190,16 @@
     let rimPP = 'M0 ' + f1(rimP(0));
     for (let x = 15; x <= PW; x += 15) rimPP += ' L' + x + ' ' + f1(rimP(x));
     const bowlP = `${rimPP} L${PW} ${PH} L0 ${PH}Z`;
+    let fasciaP = 'M0 ' + f1(rimP(0) + 96);
+    for (let x = 15; x <= PW; x += 15) fasciaP += ' L' + x + ' ' + f1(rimP(x) + 96);
     const Pl = (d) => { const t = (d / 42) ** 1.35, y = PF + (PH + 60 - PF) * t; return [[f1(260 - 420 * t), f1(y)], [f1(640 + 420 * t), f1(y)]]; };   // a line across at d yards from the end line
     let fieldP = `<path d="M260 ${PF}L640 ${PF}L1060 ${PH + 60}L-160 ${PH + 60}Z" fill="url(#Pturf)"/>`;
     for (let d = 10; d < 42; d += 5) if ((d / 5) % 2) { const [a, b] = Pl(d), [c, e] = Pl(Math.min(42, d + 5)); fieldP += `<path d="M${a}L${b}L${e}L${c}Z" fill="var(--scn-stripe)"/>`; }
-    { const [a, b] = Pl(0), [c, e] = Pl(10); fieldP += `<path d="M${a}L${b}L${e}L${c}Z" fill="url(#Pez)"/>`; }
+    { const [a, b] = Pl(0), [c, e] = Pl(10); fieldP += `<path d="M${a}L${b}L${e}L${c}Z" fill="var(--scn-ez-paint)"/>`;
+      // seen end-on the letters run left to right across it: the same map, end line and goal line swapped for sideline and sideline
+      const M = (u, v) => [(u[0] + v[0]) / 2, (u[1] + v[1]) / 2], A = L(M(a, c), M(b, e), 0.1), B = L(M(a, c), M(b, e), 0.9), up = [0, -1], k = ((c[1] + e[1]) / 2 - (a[1] + b[1]) / 2) * 0.55 / 70;
+      fieldP += `<text transform="matrix(${[(B[0] - A[0]) / 520, (B[1] - A[1]) / 520, 0, k, (A[0] + B[0]) / 2, (A[1] + B[1]) / 2].map(n => +n.toFixed(4)).join(' ')})" x="0" y="0" text-anchor="middle" dominant-baseline="central" textLength="520" lengthAdjust="spacingAndGlyphs"
+        font-family="'Chakra Petch', sans-serif" font-weight="700" font-size="100" letter-spacing="6" fill="var(--scn-ez-text)" stroke="var(--scn-ez-edge)" stroke-width="7" paint-order="stroke" stroke-linejoin="round">TUD TOOL</text>`; }
     for (let d = 10; d <= 40; d += 5) { const [a, b] = Pl(d); fieldP += `<path d="M${a}L${b}" stroke="var(--scn-line)" stroke-width="${d % 10 ? 1.6 : 3}"/>`; }
     fieldP += `<path d="M260 ${PF}L640 ${PF}M260 ${PF}L-160 ${PH + 60}M640 ${PF}L1060 ${PH + 60}" stroke="var(--scn-line)" stroke-width="3"/>`;
     const pFlash = []; seed = 23;
@@ -183,30 +212,32 @@
       <ellipse cx="450" cy="${PF + 60}" rx="700" ry="320" fill="url(#Pfieldglow)"/>
       ${towersP.map(t => tower('P', ...t)).join('')}
       ${jumbotron('P', 330, 560, 240, 140, 760)}
-      <path d="${bowlP}" fill="url(#Pcrowd)"/><path d="${bowlP}" fill="url(#Pcrowdb)" opacity=".7"/><path d="${bowlP}" fill="url(#Plit)"/>
+      <path d="${bowlP}" fill="url(#Pcrowd)"/><path d="${bowlP}" fill="url(#Pshade)"/><path d="${bowlP}" fill="url(#Plit)"/>
+      <path d="${fasciaP}" stroke="var(--scn-fascia)" stroke-width="8" fill="none"/><path d="${fasciaP}" stroke="var(--scn-rim)" stroke-width="1" fill="none" transform="translate(0 -4)"/>
       <path d="${rimPP}" stroke="var(--scn-rim)" stroke-width="1.6" fill="none"/>
       ${suitesP}<g fill="var(--scn-flash)">${flashes(pFlash)}</g>
       ${fieldP}
-      ${goal('P', 450, PF + 6, 92, 0, 80, 300, 10, false)}
-      <clipPath id="Pbeams"><path d="${beamsP.join('')}"/></clipPath>
-      <rect x="0" y="${PF - 90}" width="${PW}" height="150" fill="url(#Pmist)"/>
-      <path d="${beamsP.join('')}" fill="url(#Pbeam)" filter="url(#Psoft)"/><rect width="${PW}" height="${PH}" fill="url(#Prain)" clip-path="url(#Pbeams)" opacity=".6"/></svg>`;
+      ${goal('P', 450, PF - 2, 92, 0, 80, 300, 10, false)}
+      <path d="${beamsP.join('')}" fill="url(#Pbeam)" filter="url(#Psoft)"/></svg>`;
 
     const css = `
       ${DARK} { --bg: #040b0c; --surface0: #081416; --surface1: #0c1b1e; --surface2: #122729; --border: #1b3638; --border2: #285055;
-        --glow: rgba(51,208,124,0.10); --scn-sil: #020708; --scn-stand: #051012; --scn-crowd: #081719; --scn-crowd2: #0b1d1f; --scn-mist: #bfe3ff; --scn-rim: rgba(170,215,235,0.26);
-        --scn-mast-hi: #2c4c55; --scn-lamp: #ffffff; --scn-light: #dceeff; --scn-flare: #8fc7ff; --scn-rain: rgba(225,240,255,0.55); --scn-flash: #ffffff;
-        --scn-fieldglow: #3fd58a; --scn-turf-far: #10422a; --scn-turf-near: #04120b; --scn-stripe: rgba(255,255,255,0.028); --scn-line: rgba(240,255,245,0.28);
-        --scn-ez: #0b301e; --scn-ez2: #0d3a24; --scn-post: #e2bd3c; --scn-post-hi: #ffe896; --scn-post-lo: #8a6c16; --scn-pad: #0b1e3a; --scn-flag: #ff7a1a;
+        --glow: rgba(51,208,124,0.10); --scn-sil: #03060c; --scn-stand: #070b13; --scn-seatline: #030509; --scn-fascia: #0f1828;
+        --scn-c1: #8c94a3; --scn-c2: #8e3f3f; --scn-c3: #34558f; --scn-c4: #a8862f; --scn-c5: #3d7d58; --scn-c6: #535a68; --scn-rim: rgba(170,215,235,0.26);
+        --scn-mast-hi: #2c4c55; --scn-lamp: #ffffff; --scn-light: #e8f3ff; --scn-flare: #9fd0ff; --scn-flash: #ffffff;
+        --scn-fieldglow: #49de92; --scn-turf-far: #1f7a45; --scn-turf-near: #0b3a21; --scn-stripe: rgba(255,255,255,0.045); --scn-line: rgba(245,255,248,0.55);
+        --scn-ez-paint: #0b4a2b; --scn-ez-text: #f5f1e4; --scn-ez-edge: #33d07c; --scn-standlit: #ffe6bf; --scn-post: #e2bd3c; --scn-post-hi: #ffe896; --scn-post-lo: #8a6c16; --scn-pad: #0b1e3a; --scn-flag: #ff7a1a;
         --scn-led: #33d07c; --scn-led-text: #04140c; --scn-window: #ffd98a; --scn-screen: #021309; --scn-screen-hi: #07301b; --scn-ribbon: #ffc94d; --scn-ribbon-bg: #0b0802; }
-      ${LIGHT} { --border: #cfe0dc; --border2: #b4ccc6; --scn-sil: #4f6d67; --scn-stand: #6f8e88; --scn-crowd: #5f7e78; --scn-crowd2: #7d9a94; --scn-rim: rgba(255,255,255,0.6);
-        --scn-mast-hi: #9fb9b3; --scn-mist: #ffffff; --scn-lamp: #ffffff; --scn-light: #ffffff; --scn-flare: #ffffff; --scn-rain: rgba(255,255,255,0.7); --scn-flash: #ffffff;
+      ${LIGHT} { --border: #cfe0dc; --border2: #b4ccc6; --scn-sil: #4f6d67; --scn-stand: #6f8e88; --scn-seatline: #5c7a74; --scn-fascia: #8aa6a0;
+        --scn-c1: #f2f4f7; --scn-c2: #d77a7a; --scn-c3: #7b9ad3; --scn-c4: #e2c46e; --scn-c5: #7fbf96; --scn-c6: #a3abb8; --scn-rim: rgba(255,255,255,0.6);
+        --scn-mast-hi: #9fb9b3; --scn-lamp: #ffffff; --scn-light: #ffffff; --scn-flare: #ffffff; --scn-flash: #ffffff;
         --scn-fieldglow: #8fe0b2; --scn-turf-far: #6fbf8c; --scn-turf-near: #4f9d6c; --scn-stripe: rgba(255,255,255,0.08); --scn-line: rgba(255,255,255,0.85);
-        --scn-ez: #4a9466; --scn-ez2: #57a473; --scn-post: #d4ad2a; --scn-post-hi: #f5dd7c; --scn-post-lo: #9a7a1c; --scn-pad: #2b4466; --scn-flag: #e8650c;
+        --scn-ez-paint: #2f7a4f; --scn-ez-text: #ffffff; --scn-ez-edge: #10a758; --scn-standlit: #ffffff; --scn-post: #d4ad2a; --scn-post-hi: #f5dd7c; --scn-post-lo: #9a7a1c; --scn-pad: #2b4466; --scn-flag: #e8650c;
         --scn-led: #10a758; --scn-led-text: #ffffff; --scn-window: #fff3cf; --scn-screen: #13321f; --scn-screen-hi: #1f4a30; --scn-ribbon: #ffd56a; --scn-ribbon-bg: #1c1a12; }
       /* the sky is the root's: a solid colour under it so overscroll (rubber-banding past the top or bottom) isn't white,
          and the body clear, since the art layer sits under the body's background */
-      ${DARK} { background: radial-gradient(1400px 700px at 50% 100%, rgba(63,213,138,0.10), transparent 64%), linear-gradient(#0a1b1e 0%, #061113 45%, #030909 100%) fixed #030909; }
+      ${DARK} { background: radial-gradient(1500px 520px at 50% 64%, rgba(255,232,196,0.13), transparent 62%), radial-gradient(1400px 700px at 50% 100%, rgba(73,222,146,0.12), transparent 64%),
+          linear-gradient(#0b1a33 0%, #071226 42%, #050a14 100%) fixed #050a14; }
       ${LIGHT} { background: linear-gradient(#e2f0eb, #eef1f6) fixed #eef1f6; }
       ${S} body { background: transparent; }
       ${S} body::before { display: none; }
