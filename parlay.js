@@ -18,7 +18,7 @@
 //        else the copula over research/sgp_nfl_all.py's table
 //   NHL  anytime-goal groups and scorer + assist stacks (data.json parlay),
 //        else the copula over research/sgp_nhl.py's ρs
-//   NBA  nothing measured yet: multiplies, and says so for same-game legs
+//   NBA  the copula over research/sgp_nba.py's ρs (same player, teammates, opponents)
 //
 // Data some rules need (the NFL/NHL multipliers in each sport's data.json) is
 // handed over by that sport's page with RonParlay.provide(sport, {...}) and
@@ -462,8 +462,78 @@
     return { p: naive, corr: null };
   }
 
+  // NBA same-game correlations, measured: research/sgp_nba.py, the stat engine's walk-forward ladders as margins
+  // (2022-23..2025-26, rotation players, the near-even rung), so ρ is only what's left beyond the prices. Only
+  // pairs whose 95% game-bootstrap interval excludes zero; the rest (teammates' threes or PRA, opponents' threes)
+  // price as independent. Double-doubles, triple-doubles and first basket aren't measured: they multiply.
+  const SGP_NBA = {
+    // same player: one night's minutes lift every stat; a combo holds its parts
+    'same:pts+reb': 0.293,    // [+0.285, +0.301]
+    'same:pts+ast': 0.183,    // [+0.175, +0.190]
+    'same:pts+pra': 0.919,    // [+0.917, +0.922]
+    'same:pts+stl': 0.165,    // [+0.157, +0.175]
+    'same:pts+blk': 0.109,    // [+0.100, +0.125]
+    'same:pts+stk': 0.185,    // [+0.174, +0.192]
+    'same:pts+3pm': 0.685,    // [+0.681, +0.691]
+    'same:reb+ast': 0.213,    // [+0.206, +0.220]
+    'same:reb+pra': 0.587,    // [+0.584, +0.595]
+    'same:reb+stl': 0.099,    // [+0.088, +0.105]
+    'same:reb+blk': 0.139,    // [+0.129, +0.150]
+    'same:reb+stk': 0.151,    // [+0.141, +0.159]
+    'same:reb+3pm': 0.136,    // [+0.125, +0.146]
+    'same:ast+pra': 0.429,    // [+0.423, +0.439]
+    'same:ast+stl': 0.131,    // [+0.121, +0.141]
+    'same:ast+blk': 0.073,    // [+0.064, +0.088]
+    'same:ast+stk': 0.140,    // [+0.130, +0.148]
+    'same:ast+3pm': 0.125,    // [+0.114, +0.133]
+    'same:pra+stl': 0.183,    // [+0.173, +0.193]
+    'same:pra+blk': 0.140,    // [+0.129, +0.154]
+    'same:pra+stk': 0.213,    // [+0.202, +0.222]
+    'same:pra+3pm': 0.611,    // [+0.605, +0.616]
+    'same:stl+blk': 0.068,    // [+0.060, +0.078]
+    'same:stl+stk': 0.900,    // [+0.897, +0.902]
+    'same:stl+3pm': 0.092,    // [+0.077, +0.100]
+    'same:blk+stk': 0.774,    // [+0.768, +0.780]
+    'same:blk+3pm': 0.073,    // [+0.064, +0.084]
+    'same:stk+3pm': 0.105,    // [+0.091, +0.111]
+    // teammates: one ball
+    'mate:pts+pts': -0.023,   // [-0.028, -0.016]
+    'mate:reb+reb': -0.012,   // [-0.016, -0.005]
+    'mate:ast+ast': -0.008,   // [-0.013, -0.001]
+    'mate:pts+ast': 0.050,    // [+0.045, +0.054]
+    // opponents: one pace
+    'opp:pts+pts': 0.021,     // [+0.016, +0.026]
+    'opp:reb+reb': 0.011,     // [+0.006, +0.016]
+    'opp:ast+ast': 0.006,     // [+0.002, +0.012]
+    'opp:pra+pra': 0.009,     // [+0.003, +0.014]
+  };
+  const NBA_KIND = new Set(['pts', 'reb', 'ast', '3pm', 'pra', 'stl', 'blk', 'stk']);
+  const NBA_WHY = { same: 'one night\'s minutes lift all his stats', mate: 'teammates share one ball', opp: 'one pace for both sides' };
+  /** The measured rule for two NBA legs in one game: 'same:pts+reb' etc., or null (independent). */
+  function sgpRuleNBA(a, b) {
+    if (a.sp !== 'nba' || b.sp !== 'nba' || !a.g || a.g !== b.g || !NBA_KIND.has(a.m) || !NBA_KIND.has(b.m)) return null;
+    const kind = a.i === b.i ? 'same' : a.t === b.t ? 'mate' : 'opp';
+    for (const k of [`${kind}:${a.m}+${b.m}`, `${kind}:${b.m}+${a.m}`]) if (k in SGP_NBA) return k;
+    return null;
+  }
+  const sgpRhoNBA = (a, b) => { const k = sgpRuleNBA(a, b); return k ? side(a) * side(b) * SGP_NBA[k] : 0; };
+  function priceNBA(legs, naive) {
+    // the league's 10/16/2026 memo: its partner books take no parlay of 2+ unders on one player (exchanges aren't partners)
+    const unders = {}; for (const l of legs) if (side(l) < 0) unders[l.i] = (unders[l.i] || 0) + 1;
+    const banned = Object.values(unders).some(n => n >= 2);
+    const ban = banned ? ['NBA partner books won\'t take 2+ unders on one player (league rule, 10/16/2026); the exchanges can'] : [];
+    if (legs.length > 1 && window.SGP) {
+      const res = SGP.price(legs, sgpRhoNBA);
+      if (res.pairs.length) {
+        const why = [...new Set(res.pairs.map(q => { const k = sgpRuleNBA(legs[q.a], legs[q.b]); return k ? (q.rho > 0 ? '▲ ' : '▼ ') + NBA_WHY[k.split(':')[0]] : null; }).filter(Boolean))];
+        return { p: res.p, corr: 'sgp', why, notes: [sgpNote(why, res.p, naive), ...ban] };
+      }
+    }
+    return { p: naive, corr: null, ...(ban.length ? { notes: ban } : {}) };
+  }
+
   const sgpNote = (why, p, naive) => `Priced as a same-game parlay with measured correlations, not by multiplying: ${why.join('; ')}. Straight multiplication says <b>${am(naive)}</b>; this slip hits <b>${moreLess(p, naive)}</b> often than that.`;
-  const RULES = { mlb: priceMLB, nfl: priceNFL, nhl: priceNHL };
+  const RULES = { mlb: priceMLB, nfl: priceNFL, nhl: priceNHL, nba: priceNBA };
 
   /**
    * The slip's fair price. Each sport prices its own legs with its measured
