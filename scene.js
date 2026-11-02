@@ -4,39 +4,41 @@
 // PREVIEW ONLY for now: ?bg=night turns it on for this tab (it stays on as you move around), ?bg=off turns it off.
 // A holiday stands aside while a scene is previewed, unless asked for by name (?holiday=halloween). chrome.js loads this file.
 //
-//   contour / curves / grid   the techy ones, any sport, drawn on a canvas in the app's own accent (follows the theme):
-//         contour  topographic lines off a slowly shifting surface, a likelihood landscape drifting
-//         curves   ghosted distributions along the bottom re-fitting themselves, a histogram behind, a line marker
-//         grid     a quiet dot grid (a blank scatter plot): dots near the cursor brighten and lean in, data points pulse in
+//   nhl   the rink from above: skate-scratched ice, soft under-ice paint (the red line, a blue line, the end-zone circles
+//         and hashes in the margins), the boards at both edges with the yellow kick plate; dark slate ice in dark mode
 //   nfl   close up on the field from straight above: real turf under white paint, the yard lines across the screen, a
 //         big number in each side margin, night-lit. (The stadium panorama before it is in git history, 11/02.)
 (function () {
   if (window.RonScene) return;
-  const q = new URLSearchParams(location.search).get('bg'), MODES = /^(night|contour|curves|grid)$/;
+  const q = new URLSearchParams(location.search).get('bg'), MODES = /^night$/;
   try { if (MODES.test(q || '')) sessionStorage.setItem('ronScene', q); else if (q === 'off') sessionStorage.removeItem('ronScene'); } catch (e) {}
   let mode = MODES.test(q || '') ? q : null;
   try { mode = mode || sessionStorage.getItem('ronScene'); } catch (e) {}
   const sport = location.pathname.split('/').filter(Boolean)[0] || '';
-  const SCENES = { nfl: nfl };
+  const SCENES = { nfl: nfl, nhl: nhl };
   window.RonScene = { on: null };
-  const TECH = { contour: 1, curves: 1, grid: 1 };
-  if (!mode || !(TECH[mode] ? ['mlb', 'nfl', 'nhl', 'nba', 'soccer', 'plays'].includes(sport) : SCENES[sport])) return;
+  if (!mode || !SCENES[sport]) return;
   // a holiday asked for by name (?holiday=halloween) wins; otherwise holiday.js stands aside while a scene is previewed
   const go = () => {
     if (new URLSearchParams(location.search).get('holiday') && new URLSearchParams(location.search).get('holiday') !== 'off') return;
-    window.RonScene.on = TECH[mode] ? mode : sport;
-    document.documentElement.setAttribute('data-scene', TECH[mode] ? 'tech' : sport);
-    if (TECH[mode]) tech(mode); else SCENES[sport]();
+    window.RonScene.on = sport;
+    document.documentElement.setAttribute('data-scene', sport);
+    SCENES[sport]();
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
 
   function mount(css, art) {
     const style = document.createElement('style'); style.id = 'scene-css'; style.textContent = css; document.head.appendChild(style);
-    if (!document.querySelector('.scn')) document.body.insertAdjacentHTML('afterbegin', `<div class="scn" aria-hidden="true">${art}</div>`);
+    if (!document.querySelector('.scn')) document.body.insertAdjacentHTML('afterbegin', `<div class="scn" aria-hidden="true">${art}<div class="scn-col"></div></div>`);
   }
   // One drawing that fills the screen (sliced to cover it, so it never shows an edge): a landscape composition for desktops
   // and tablets, a portrait one for phones. The content column covers the middle, so the pieces that carry the scene sit
   // where the margins are; the continuous things (the bowl, the field, the sky's light) tie it together.
+  // the surfaces are laid out across the screen's width: keep each viewBox to the screen's shape so the edges stay at the edges
+  function fitW() {
+    const fit = () => document.querySelectorAll('.scn svg[data-w]').forEach(svg => { const w = +svg.dataset.w; svg.setAttribute('viewBox', `0 0 ${w} ${+(w * innerHeight / innerWidth).toFixed(1)}`); });
+    fit(); addEventListener('resize', fit);
+  }
   function FULL_CSS(S, LIGHT) { return `
       /* under everything (z-index -1, above only the page background): no header, footer or panel can ever be covered */
       ${S} .scn { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
@@ -44,6 +46,12 @@
       ${S} .scn-port { display: none !important; }
       @media (max-width: 760px) { ${S} .scn-land { display: none !important; } ${S} .scn-port { display: block !important; } }
       ${LIGHT} .scn svg { opacity: .34; }
+      /* a soft panel of the page's colour behind the content column: the surface shows full in the margins, faint behind
+         what sits on the page (labels, pagers, section titles), so text always reads; phones are all column */
+      ${S} .scn-col { position: absolute; inset: 0; background: linear-gradient(to right, transparent calc(50% - 650px), var(--scn-col) calc(50% - 596px), var(--scn-col) calc(50% + 596px), transparent calc(50% + 650px)); }
+      ${S}:not([data-theme="light"]) { --scn-col: color-mix(in srgb, var(--bg) 66%, transparent); }
+      ${S}[data-theme="light"] { --scn-col: color-mix(in srgb, var(--bg) 60%, transparent); }
+      @media (max-width: 760px) { ${S} .scn-col { background: var(--scn-col); } }
       /* the footer gets its own frosted panel: the art reaches the page end, and its text must read over it */
       ${S} .site-foot { background: color-mix(in srgb, var(--bg) 72%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
         border: 1px solid var(--border); border-radius: 14px; padding: 0.8rem 1rem; }`; }
@@ -91,108 +99,76 @@
       ${S} .scn::after { content: ''; position: absolute; inset: 0; background: linear-gradient(var(--scn-top), transparent 190px), radial-gradient(70% 60% at 50% 40%, rgba(220,255,230,.04), transparent 70%), radial-gradient(115% 95% at 50% 45%, transparent 50%, rgba(0,0,0,var(--scn-vig)) 100%); }
       ${LIGHT} .scn svg { opacity: 1; }
       ${FULL_CSS(S, LIGHT)}`;
-    mount(css, LAND + PORT);
-    const fit = () => document.querySelectorAll('.scn svg[data-w]').forEach(svg => { const w = +svg.dataset.w; svg.setAttribute('viewBox', `0 0 ${w} ${f1(w * innerHeight / innerWidth)}`); });
-    fit(); addEventListener('resize', fit);
+    mount(css, LAND + PORT); fitW();
   }
 
-  // ── the techy backgrounds: one canvas under everything, ~20 frames a second, still when the tab is hidden or motion is off ──
-  function tech(kind) {
-    const S = 'html[data-scene="tech"]';
-    const style = document.createElement('style'); style.id = 'scene-css';
-    style.textContent = `${S} { background: var(--bg); } ${S} body { background: transparent; } ${S} body::before { display: none; }
-      ${S} .scn-cv { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; display: block; }
-      ${S} .site-foot { background: color-mix(in srgb, var(--bg) 78%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
-        border: 1px solid var(--border); border-radius: 14px; padding: 0.8rem 1rem; }`;
-    document.head.appendChild(style);
-    const cv = document.createElement('canvas'); cv.className = 'scn-cv'; cv.setAttribute('aria-hidden', 'true'); document.body.prepend(cv);
-    const cx = cv.getContext('2d'), calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let W = 0, H = 0, R = 1;
-    const size = () => { R = Math.min(devicePixelRatio || 1, 1.5); W = innerWidth; H = innerHeight; cv.width = W * R; cv.height = H * R; cx.setTransform(R, 0, 0, R, 0, 0); };
-    size(); addEventListener('resize', () => { size(); if (calm) frame(0); });
-    // the app's colours, read again when the theme flips
-    let C = {};
-    const colours = () => { const st = getComputedStyle(document.documentElement); C = { acc: st.getPropertyValue('--accent').trim() || '#33d07c', text: st.getPropertyValue('--text').trim() || '#eaf2fc', light: document.documentElement.dataset.theme === 'light' }; };
-    colours(); new MutationObserver(colours).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    const rgba = (hex, a) => { const h = hex.replace('#', ''), n = parseInt(h.length === 3 ? h.replace(/./g, '$&$&') : h, 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; };
-    // 3D gradient noise (Perlin's improved noise): a smooth surface that changes with time
-    const P = new Uint8Array(512); { const p = [...Array(256).keys()]; let sd = 9; for (let i = 255; i > 0; i--) { sd = (sd * 16807) % 2147483647; const j = sd % (i + 1); [p[i], p[j]] = [p[j], p[i]]; } for (let i = 0; i < 512; i++) P[i] = p[i & 255]; }
-    const fade = (t) => t * t * t * (t * (t * 6 - 15) + 10), lerp = (a, b, t) => a + (b - a) * t;
-    const grad = (h, x, y, z) => { const u = (h & 15) < 8 ? x : y, v = (h & 15) < 4 ? y : (h & 15) === 12 || (h & 15) === 14 ? x : z; return ((h & 1) ? -u : u) + ((h & 2) ? -v : v); };
-    const noise = (x, y, z) => {
-      const X = Math.floor(x) & 255, Y = Math.floor(y) & 255, Z = Math.floor(z) & 255; x -= Math.floor(x); y -= Math.floor(y); z -= Math.floor(z);
-      const u = fade(x), v = fade(y), w = fade(z), A = P[X] + Y, AA = P[A] + Z, AB = P[A + 1] + Z, B = P[X + 1] + Y, BA = P[B] + Z, BB = P[B + 1] + Z;
-      return lerp(lerp(lerp(grad(P[AA], x, y, z), grad(P[BA], x - 1, y, z), u), lerp(grad(P[AB], x, y - 1, z), grad(P[BB], x - 1, y - 1, z), u), v),
-        lerp(lerp(grad(P[AA + 1], x, y, z - 1), grad(P[BA + 1], x - 1, y, z - 1), u), lerp(grad(P[AB + 1], x, y - 1, z - 1), grad(P[BB + 1], x - 1, y - 1, z - 1), u), v), w);
-    };
 
-    // contour: iso-lines of the surface (marching squares on a coarse grid), one level in four a touch brighter
-    const contour = (t) => {
-      const cell = W < 700 ? 16 : 18, nx = Math.ceil(W / cell) + 1, ny = Math.ceil(H / cell) + 1, f = new Float32Array(nx * ny), sc = W < 700 ? 0.006 : 0.0034;
-      for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) f[j * nx + i] = noise(i * cell * sc, j * cell * sc, t * 0.045) + 0.5 * noise(i * cell * sc * 2.1, j * cell * sc * 2.1, 10 + t * 0.06);
-      const levels = 14;
-      for (let k = 0; k < levels; k++) {
-        const lv = -0.8 + k * 1.6 / levels;
-        cx.beginPath();
-        for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
-          const a = f[j * nx + i], b = f[j * nx + i + 1], c = f[(j + 1) * nx + i + 1], d = f[(j + 1) * nx + i];
-          const idx = (a > lv) | (b > lv) << 1 | (c > lv) << 2 | (d > lv) << 3; if (idx === 0 || idx === 15) continue;
-          const x = i * cell, y = j * cell, e = (p, q) => (lv - p) / (q - p);
-          const T = [x + cell * e(a, b), y], Rt = [x + cell, y + cell * e(b, c)], B = [x + cell * e(d, c), y + cell], L = [x, y + cell * e(a, d)];
-          const seg = { 1: [L, T], 2: [T, Rt], 3: [L, Rt], 4: [Rt, B], 5: [L, T, Rt, B], 6: [T, B], 7: [L, B], 8: [L, B], 9: [T, B], 10: [L, Rt, T, B], 11: [Rt, B], 12: [L, Rt], 13: [T, Rt], 14: [L, T] }[idx];
-          for (let s2 = 0; s2 < seg.length; s2 += 2) { cx.moveTo(seg[s2][0], seg[s2][1]); cx.lineTo(seg[s2 + 1][0], seg[s2 + 1][1]); }
+  function nhl() {
+    const S = 'html[data-scene="nhl"]', DARK = `${S}:not([data-theme="light"])`, LIGHT = `${S}[data-theme="light"]`;
+    const f1 = (n) => +n.toFixed(1);
+    let seed = 41; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    // the ice: long skate strides carved into it (sweeping arcs), a few hockey stops (short fans of scrapes), snow specks
+    const scratches = (() => {
+      let o = '';
+      for (let i = 0; i < 70; i++) {
+        const x = rnd() * 700, y = rnd() * 700, a = rnd() * 6.283, l = 80 + rnd() * 260, bend = (rnd() - 0.5) * l * 0.5;
+        const x2 = x + Math.cos(a) * l, y2 = y + Math.sin(a) * l, mx = (x + x2) / 2 - Math.sin(a) * bend, my = (y + y2) / 2 + Math.cos(a) * bend;
+        o += `<path d="M${f1(x)} ${f1(y)}Q${f1(mx)} ${f1(my)} ${f1(x2)} ${f1(y2)}" stroke-width="${f1(0.4 + rnd() * 0.9)}" opacity="${f1(0.3 + rnd() * 0.7)}"/>`;
+      }
+      for (let i = 0; i < 6; i++) {
+        const x = rnd() * 700, y = rnd() * 700, a = rnd() * 6.283;
+        for (let k = 0; k < 9; k++) { const b = a + (k - 4) * 0.06, l = 22 + rnd() * 18; o += `<path d="M${f1(x)} ${f1(y)}l${f1(Math.cos(b) * l)} ${f1(Math.sin(b) * l)}" stroke-width=".9"/>`; }
+      }
+      return o;
+    })();
+    let specks = ''; for (let i = 0; i < 90; i++) specks += `<circle cx="${f1(rnd() * 700)}" cy="${f1(rnd() * 700)}" r="${f1(0.4 + rnd() * 1.1)}"/>`;
+    // the rink from above, down the screen: boards at both edges, the red line, a blue line, the end-zone circles (their outer
+    // arcs and hashes in the margins). Not to scale where the page needs it. Lines are painted under the ice: soft-edged.
+    const rink = (W, ft, side, y0, id) => {
+      const S = side, X = (f) => W / 2 + f * ft, lw = f1(ft * 1), red = 'var(--scn-red)', blue = 'var(--scn-blue)', H = 4000;
+      const yRed = y0, yBlue = y0 + 25 * ft, yDots = yBlue + 5 * ft, yEz = yBlue + 31 * ft, yGoal = yEz + 20 * ft;
+      const cxL = S + 15.5 * ft, cxR = W - S - 15.5 * ft, r = 15 * ft;
+      const circle = (cx, cy) => {
+        // the circle, its centre spot, the hash marks off both sides, the L-marks round the spot
+        let o = `<circle cx="${f1(cx)}" cy="${f1(cy)}" r="${f1(r)}" fill="none" stroke="${red}" stroke-width="${f1(ft * 0.17)}"/><circle cx="${f1(cx)}" cy="${f1(cy)}" r="${f1(ft)}" fill="${red}"/>`;
+        for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+          o += `<path d="M${f1(cx + sx * r)} ${f1(cy + sy * 3 * ft)}h${f1(sx * 2 * ft)}" stroke="${red}" stroke-width="${f1(ft * 0.17)}"/>`;
+          o += `<path d="M${f1(cx + sx * 2 * ft)} ${f1(cy + sy * 0.75 * ft)}h${f1(sx * 4 * ft)}M${f1(cx + sx * 2 * ft)} ${f1(cy + sy * 0.75 * ft)}v${f1(sy * 3 * ft)}" stroke="${red}" stroke-width="${f1(ft * 0.17)}" fill="none"/>`;
         }
-        const major = k % 4 === 0;
-        cx.strokeStyle = rgba(major ? C.acc : C.text, C.light ? (major ? 0.22 : 0.09) : (major ? 0.2 : 0.07)); cx.lineWidth = major ? 1.2 : 0.8; cx.stroke();
-      }
+        return o;
+      };
+      let o = `<defs><pattern id="${id}scr" width="700" height="700" patternUnits="userSpaceOnUse"><g fill="none" stroke="var(--scn-scratch)" stroke-linecap="round">${scratches}</g><g fill="var(--scn-speck)">${specks}</g></pattern>
+        <filter id="${id}under" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="${f1(Math.max(0.5, ft * 0.06))}"/></filter>
+        <radialGradient id="${id}cloud"><stop offset="0" stop-color="var(--scn-cloud)" stop-opacity=".5"/><stop offset="1" stop-color="var(--scn-cloud)" stop-opacity="0"/></radialGradient></defs>
+        <rect x="0" y="-200" width="${W}" height="${H}" fill="var(--scn-ice)"/>`;
+      seed = 77; for (let i = 0; i < 9; i++) o += `<ellipse cx="${f1(rnd() * W)}" cy="${f1(rnd() * 1800)}" rx="${f1(W * (0.12 + rnd() * 0.2))}" ry="${f1(W * (0.08 + rnd() * 0.14))}" fill="url(#${id}cloud)"/>`;
+      o += `<g filter="url(#${id}under)" opacity="var(--scn-paintop)">
+        <rect x="${S}" y="${f1(yRed - lw / 2)}" width="${W - 2 * S}" height="${lw}" fill="${red}"/>
+        <circle cx="${W / 2}" cy="${yRed}" r="${f1(r)}" fill="none" stroke="${blue}" stroke-width="${f1(ft * 0.17)}"/><circle cx="${W / 2}" cy="${yRed}" r="${f1(0.5 * ft)}" fill="${blue}"/>
+        <rect x="${S}" y="${f1(yBlue - lw / 2)}" width="${W - 2 * S}" height="${lw}" fill="${blue}"/>
+        <circle cx="${f1(cxL + 1 * ft)}" cy="${f1(yDots)}" r="${f1(ft)}" fill="${red}"/><circle cx="${f1(cxR - 1 * ft)}" cy="${f1(yDots)}" r="${f1(ft)}" fill="${red}"/>
+        ${circle(cxL, yEz)}${circle(cxR, yEz)}
+        <rect x="${S}" y="${f1(yGoal - ft * 0.1)}" width="${W - 2 * S}" height="${f1(ft * 0.17)}" fill="${red}"/>
+        <path d="M${W / 2 - 4 * ft} ${yGoal}v${f1(4.5 * ft)}a${4 * ft} ${2 * ft} 0 0 0 ${8 * ft} 0v${f1(-4.5 * ft)}z" fill="var(--scn-crease)" stroke="${red}" stroke-width="${f1(ft * 0.17)}"/></g>
+        <rect x="0" y="-200" width="${W}" height="${H}" fill="url(#${id}scr)"/>
+        <rect x="0" y="-200" width="${S}" height="${H}" fill="var(--scn-board)"/><rect x="${W - S}" y="-200" width="${S}" height="${H}" fill="var(--scn-board)"/>
+        <rect x="${f1(S - ft * 0.35)}" y="-200" width="${f1(ft * 0.35)}" height="${H}" fill="var(--scn-kick)"/><rect x="${W - S}" y="-200" width="${f1(ft * 0.35)}" height="${H}" fill="var(--scn-kick)"/>`;
+      return o;
     };
-
-    // curves: distributions along the bottom re-fitting themselves (means and spreads drift), a Poisson histogram behind,
-    // a dashed line marker sliding between them, a baseline with ticks
-    const curves = (t) => {
-      const base = H * 0.94, top = H * 0.5, amp = base - top;
-      cx.lineWidth = 1; cx.strokeStyle = rgba(C.text, 0.1); cx.beginPath(); cx.moveTo(0, base); cx.lineTo(W, base); cx.stroke();
-      for (let x = 0; x < W; x += 40) { cx.beginPath(); cx.moveTo(x, base); cx.lineTo(x, base + (x % 200 ? 4 : 8)); cx.stroke(); }
-      // the histogram: Poisson bars, lambda wandering
-      const lam = 6 + 2.2 * Math.sin(t * 0.11), bars = 22, bw = W / bars; let pk = Math.exp(-lam), mx = 0; const ps = [];
-      for (let k = 0; k < bars; k++) { if (k) pk *= lam / k; ps.push(pk); mx = Math.max(mx, pk); }
-      cx.fillStyle = rgba(C.text, C.light ? 0.05 : 0.04);
-      ps.forEach((p, k) => { const h = p / mx * amp * 0.62; cx.fillRect(k * bw + 3, base - h, bw - 6, h); });
-      const G = [[0.3, 0.07, 0.06, 0], [0.55, 0.12, 0.08, 2.1], [0.75, 0.06, 0.05, 4.2]];
-      G.forEach(([m0, s0, dm, ph], g) => {
-        const m = W * (m0 + dm * Math.sin(t * 0.07 + ph)), s = W * s0 * (1 + 0.25 * Math.sin(t * 0.09 + ph * 1.7)), hh = amp * (0.55 + 0.3 * Math.sin(t * 0.05 + ph));
-        cx.beginPath(); cx.moveTo(0, base);
-        for (let x = 0; x <= W; x += 6) cx.lineTo(x, base - hh * Math.exp(-((x - m) ** 2) / (2 * s * s)));
-        cx.lineTo(W, base); cx.closePath();
-        const gr = cx.createLinearGradient(0, base - hh, 0, base); gr.addColorStop(0, rgba(C.acc, g === 1 ? 0.12 : 0.06)); gr.addColorStop(1, rgba(C.acc, 0));
-        cx.fillStyle = gr; cx.fill(); cx.strokeStyle = rgba(C.acc, g === 1 ? 0.32 : 0.16); cx.lineWidth = g === 1 ? 1.4 : 1; cx.stroke();
-      });
-      const lx = W * (0.5 + 0.18 * Math.sin(t * 0.05)); cx.setLineDash([4, 6]); cx.strokeStyle = rgba(C.text, 0.18); cx.beginPath(); cx.moveTo(lx, top - 20); cx.lineTo(lx, base); cx.stroke(); cx.setLineDash([]);
-    };
-
-    // grid: dots every 26px; near the cursor they brighten and lean in; now and then a point pulses in and fades
-    let mxp = -999, myp = -999; addEventListener('pointermove', (e) => { mxp = e.clientX; myp = e.clientY; }, { passive: true });
-    const pulses = [];
-    const grid = (t) => {
-      const g = 26, r0 = 1.1;
-      if (!calm && Math.random() < 0.08) pulses.push({ x: Math.round(Math.random() * W / g) * g, y: Math.round(Math.random() * H / g) * g, t0: t });
-      for (let y = g / 2; y < H; y += g) for (let x = g / 2; x < W; x += g) {
-        const d = Math.hypot(x - mxp, y - myp), k = Math.max(0, 1 - d / 160), px = x + (mxp - x) * k * 0.12, py = y + (myp - y) * k * 0.12;
-        cx.fillStyle = k > 0 ? rgba(C.acc, 0.14 + 0.5 * k) : rgba(C.text, C.light ? 0.16 : 0.11);
-        cx.beginPath(); cx.arc(px, py, r0 + k * 1.2, 0, 6.283); cx.fill();
-      }
-      for (let i = pulses.length - 1; i >= 0; i--) {
-        const p = pulses[i], a = (t - p.t0) / 2.4; if (a > 1) { pulses.splice(i, 1); continue; }
-        cx.strokeStyle = rgba(C.acc, 0.45 * (1 - a)); cx.lineWidth = 1; cx.beginPath(); cx.arc(p.x + g / 2, p.y + g / 2, 3 + a * 18, 0, 6.283); cx.stroke();
-        cx.fillStyle = rgba(C.acc, 0.7 * (1 - a)); cx.beginPath(); cx.arc(p.x + g / 2, p.y + g / 2, 2, 0, 6.283); cx.fill();
-      }
-    };
-
-    const DRAW = { contour, curves, grid }[kind];
-    function frame(ms) { cx.clearRect(0, 0, W, H); DRAW(ms / 1000); }
-    if (calm) { frame(20000); return; }
-    let last = 0;
-    const loop = (ms) => { if (!document.hidden && ms - last > 48) { last = ms; frame(ms); } requestAnimationFrame(loop); };
-    requestAnimationFrame(loop);
+    const LAND = `<svg class="scn-land" data-w="1600" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMin slice">${rink(1600, 16, 22, 150, 'L')}</svg>`;
+    const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${rink(420, 5.2, 6, 205, 'P')}</svg>`;
+    const css = `
+      ${DARK} { --bg: #060a12; --surface0: #0a101b; --surface1: #0e1624; --surface2: #142034; --border: #1c2a40; --border2: #283b5a;
+        --scn-ice: #0d1522; --scn-cloud: #1e2f48; --scn-scratch: rgba(190,215,255,0.07); --scn-speck: rgba(220,235,255,0.08); --scn-paintop: .5;
+        --scn-red: #c8323f; --scn-blue: #2f6bd0; --scn-crease: rgba(47,107,208,0.25); --scn-board: #05080e; --scn-kick: #c9a227; --scn-vig: .6; }
+      ${LIGHT} { --border: #d3dee9; --border2: #b9c8d8; --scn-ice: #eef4f9; --scn-cloud: #ffffff; --scn-scratch: rgba(110,140,175,0.16); --scn-speck: rgba(120,150,185,0.18); --scn-paintop: .8;
+        --scn-red: #c8102e; --scn-blue: #0b4f9c; --scn-crease: rgba(90,160,230,0.35); --scn-board: #f9fbfd; --scn-kick: #e2b400; --scn-vig: .1; }
+      /* the ice under everything, so overscroll past the page ends is ice, not white */
+      ${DARK} { background: #0a111c; } ${LIGHT} { background: #eef4f9; }
+      ${S} body { background: transparent; } ${S} body::before { display: none; }
+      ${S} .scn::after { content: ''; position: absolute; inset: 0; background: radial-gradient(115% 95% at 50% 45%, transparent 50%, rgba(0,0,0,var(--scn-vig)) 100%); }
+      ${LIGHT} .scn svg { opacity: 1; }
+      ${FULL_CSS(S, LIGHT)}`;
+    mount(css, LAND + PORT); fitW();
   }
 })();

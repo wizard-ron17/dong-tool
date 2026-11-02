@@ -17,9 +17,9 @@
 // closeNavTools, currentTheme, ...).
 // the holiday touches (/holiday.js): on a few days a year, by date
 if (!document.querySelector('script[src^="/holiday.js"]')) { const h = document.createElement('script'); h.src = '/holiday.js'; h.defer = true; document.head.appendChild(h); }
-// the background previews (/scene.js): ?bg=night (the field), contour, curves or grid. The choice is kept here, in <head>, before the app's
+// the background previews (/scene.js): ?bg=night, each sport's playing surface. The choice is kept here, in <head>, before the app's
 // router can strip the query: holiday.js and scene.js (deferred) both read it from sessionStorage.
-try { const bg = new URLSearchParams(location.search).get('bg'); if (/^(night|contour|curves|grid)$/.test(bg || '')) sessionStorage.setItem('ronScene', bg); else if (bg === 'off') sessionStorage.removeItem('ronScene'); } catch (e) {}
+try { const bg = new URLSearchParams(location.search).get('bg'); if (bg === 'night') sessionStorage.setItem('ronScene', bg); else if (bg === 'off') sessionStorage.removeItem('ronScene'); } catch (e) {}
 if (!document.querySelector('script[src^="/scene.js"]')) { const h = document.createElement('script'); h.src = '/scene.js'; h.defer = true; document.head.appendChild(h); }
 (function () {
   // Styles for the header, main nav, tools menu, sport switcher and footer: the rules that were identical in all four apps.
