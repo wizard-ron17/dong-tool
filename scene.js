@@ -4,9 +4,10 @@
 // PREVIEW ONLY for now: ?bg=night turns it on for this tab (it stays on as you move around), ?bg=off turns it off.
 // A holiday stands aside while a scene is previewed, unless asked for by name (?holiday=halloween). chrome.js loads this file.
 //
-//   nfl   a night game in the rain: a light bank from below with its bloom, flare and a cone of rain (top left), the
-//         blimp with its side lit and a far light bank (top right), rim-lit goalposts before the end-zone crowd (bottom
-//         left), the jumbotron calling TOUCHDOWN over the stands (bottom right)
+//   nfl   a night game in the rain, one panorama from the 50: the field in perspective (mowing stripes, end zones, yard
+//         lines), goalposts on both end lines, the bowl of stands wrapping round (a lit crowd, suites, phone flashes),
+//         light towers standing on its rim with rain in their beams, the jumbotron calling TOUCHDOWN, the blimp. Phones
+//         get an end-zone view of the same night.
 (function () {
   if (window.RonScene) return;
   const q = new URLSearchParams(location.search).get('bg');
@@ -30,164 +31,193 @@
     const style = document.createElement('style'); style.id = 'scene-css'; style.textContent = css; document.head.appendChild(style);
     if (!document.querySelector('.scn')) document.body.insertAdjacentHTML('afterbegin', `<div class="scn" aria-hidden="true">${art}</div>`);
   }
-  // the corners: four art pieces, each its own drawing so it stays a whole picture at any width (the Halloween layout:
-  // a piece per corner, the sky between). Cards and tables are solid, so the art shows only around them.
-  function CORNER_CSS(S, LIGHT) { return `
+  // One drawing that fills the screen (sliced to cover it, so it never shows an edge): a landscape composition for desktops
+  // and tablets, a portrait one for phones. The content column covers the middle, so the pieces that carry the scene sit
+  // where the margins are; the continuous things (the bowl, the field, the sky's light) tie it together.
+  function FULL_CSS(S, LIGHT) { return `
       /* under everything (z-index -1, above only the page background): no header, footer or panel can ever be covered */
       ${S} .scn { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
-      ${S} .scn-c { position: absolute; display: block; height: auto; }
-      /* sized off the margin beside the content column (1180 wide): fills it on a big screen, tucks in on a small one */
-      ${S} .scn-tl, ${S} .scn-tr { top: 0; width: clamp(150px, calc(50vw - 480px), 480px); }
-      ${S} .scn-bl, ${S} .scn-br { bottom: 0; width: clamp(160px, calc(50vw - 450px), 520px); }
-      ${S} .scn-tl, ${S} .scn-bl { left: 0; } ${S} .scn-tr, ${S} .scn-br { right: 0; }
-      ${LIGHT} .scn-c { opacity: .38; }
-      /* phones: no margins, so the pieces sit behind the page, stronger than Halloween's (.4) at the bottom; the top two
-         ride up and dim so the header reads over them */
-      /* phones: no margins, so the art lives where a phone shows it: the top corners, cropped off the edges, light the
-         header (the cores stay small so the title reads), and the bottom pieces sit behind the frosted nav bar */
-      @media (max-width: 760px) { ${S} .scn-tl { width: 66vw; top: -21vw; left: -27vw; opacity: .85; }
-        ${S} .scn-tr { width: 60vw; top: -8vw; right: -12vw; opacity: .7; }
-        ${S} .scn-bl, ${S} .scn-br { width: 58vw; opacity: .9; }
-        ${LIGHT} .scn-c { opacity: .32; } }
+      ${S} .scn svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+      ${S} .scn-port { display: none !important; }
+      @media (max-width: 760px) { ${S} .scn-land { display: none !important; } ${S} .scn-port { display: block !important; } }
+      ${LIGHT} .scn svg { opacity: .34; }
       /* the footer gets its own frosted panel: the art reaches the page end, and its text must read over it */
       ${S} .site-foot { background: color-mix(in srgb, var(--bg) 72%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
         border: 1px solid var(--border); border-radius: 14px; padding: 0.8rem 1rem; }`; }
 
   function nfl() {
     const S = 'html[data-scene="nfl"]', DARK = `${S}:not([data-theme="light"])`, LIGHT = `${S}[data-theme="light"]`;
-    const SIL = 'var(--scn-sil)', RIM = 'var(--scn-rim)', calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-    // a bank of lamps on a quad seen from below: a halo and a hot core per lamp
-    const bank = (P00, P10, P01, P11, cols, rows, id) => {
-      const out = [];
-      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-        const u = 0.09 + c * 0.82 / (cols - 1), v = 0.16 + r * 0.68 / (rows - 1);
-        const [x, y] = lerp(lerp(P00, P10, u), lerp(P01, P11, u), v);
-        out.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="13" fill="url(#${id}-halo)"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.4" fill="var(--scn-lamp)"/>`);
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const f1 = (n) => +n.toFixed(1), L = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+    // shared paint: gradients and patterns, prefixed per drawing so the two never share an id
+    const defs = (p) => `<defs>
+      <radialGradient id="${p}halo"><stop offset="0" stop-color="var(--scn-light)" stop-opacity=".95"/><stop offset=".3" stop-color="var(--scn-light)" stop-opacity=".35"/><stop offset="1" stop-color="var(--scn-light)" stop-opacity="0"/></radialGradient>
+      <radialGradient id="${p}bloom"><stop offset="0" stop-color="var(--scn-light)" stop-opacity=".42"/><stop offset=".25" stop-color="var(--scn-light)" stop-opacity=".14"/><stop offset=".6" stop-color="var(--scn-light)" stop-opacity=".04"/><stop offset="1" stop-color="var(--scn-light)" stop-opacity="0"/></radialGradient>
+      <radialGradient id="${p}fieldglow"><stop offset="0" stop-color="var(--scn-fieldglow)" stop-opacity=".5"/><stop offset="1" stop-color="var(--scn-fieldglow)" stop-opacity="0"/></radialGradient>
+      <linearGradient id="${p}flare" x1="0" x2="1"><stop offset="0" stop-color="var(--scn-flare)" stop-opacity="0"/><stop offset=".5" stop-color="var(--scn-flare)" stop-opacity=".5"/><stop offset="1" stop-color="var(--scn-flare)" stop-opacity="0"/></linearGradient>
+      <linearGradient id="${p}beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-light)" stop-opacity=".16"/><stop offset="1" stop-color="var(--scn-light)" stop-opacity=".02"/></linearGradient>
+      <linearGradient id="${p}mast" x1="0" x2="1"><stop offset="0" stop-color="var(--scn-sil)"/><stop offset=".7" stop-color="var(--scn-sil)"/><stop offset="1" stop-color="var(--scn-mast-hi)"/></linearGradient>
+      <linearGradient id="${p}post" x1="0" x2="1"><stop offset="0" stop-color="var(--scn-post-hi)"/><stop offset=".4" stop-color="var(--scn-post)"/><stop offset="1" stop-color="var(--scn-post-lo)"/></linearGradient>
+      <linearGradient id="${p}turf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-turf-far)"/><stop offset="1" stop-color="var(--scn-turf-near)"/></linearGradient>
+      <pattern id="${p}crowd" width="16" height="11" patternUnits="userSpaceOnUse"><rect width="16" height="11" fill="var(--scn-stand)"/>
+        <circle cx="3.5" cy="4" r="2.7" fill="var(--scn-crowd)"/><circle cx="11.5" cy="8.5" r="2.5" fill="var(--scn-crowd)"/><circle cx="12" cy="1.5" r="1.4" fill="var(--scn-crowd2)"/><circle cx="6" cy="9.5" r="1.3" fill="var(--scn-crowd2)"/></pattern>
+      <pattern id="${p}rain" width="22" height="66" patternUnits="userSpaceOnUse"><path d="M15 4l-4 13M6 37l-3 9M19 50l-2 6" stroke="var(--scn-rain)" stroke-width="1.15" stroke-linecap="round"/>${calm ? '' : '<animateTransform attributeName="patternTransform" type="translate" from="0 0" to="-22 66" dur="0.8s" repeatCount="indefinite"/>'}</pattern>
+      <pattern id="${p}ez" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="24" height="24" fill="var(--scn-ez)"/><rect width="9" height="24" fill="var(--scn-ez2)"/></pattern>
+      <linearGradient id="${p}screen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-screen-hi)"/><stop offset="1" stop-color="var(--scn-screen)"/></linearGradient>
+      <radialGradient id="${p}screenglow"><stop offset="0" stop-color="var(--scn-led)" stop-opacity=".32"/><stop offset="1" stop-color="var(--scn-led)" stop-opacity="0"/></radialGradient>
+      <linearGradient id="${p}led" x1="0" x2="1"><stop offset="0" stop-color="var(--scn-led)" stop-opacity=".2"/><stop offset=".5" stop-color="var(--scn-led)" stop-opacity=".95"/><stop offset="1" stop-color="var(--scn-led)" stop-opacity=".2"/></linearGradient>
+      <linearGradient id="${p}blimp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-stand)"/><stop offset="1" stop-color="var(--scn-sil)"/></linearGradient>
+      <linearGradient id="${p}lit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-fieldglow)" stop-opacity="0"/><stop offset="1" stop-color="var(--scn-fieldglow)" stop-opacity=".22"/></linearGradient></defs>`;
+
+    // a light bank on a mast. The mast runs down past the rim; the stands, drawn after, cover its foot (grounded)
+    const tower = (p, x, top, w, h, foot, tilt) => {
+      const P00 = [x - w / 2, top + tilt], P10 = [x + w / 2, top - tilt], P01 = [x - w / 2 + 4, top + h + tilt], P11 = [x + w / 2 - 4, top + h - tilt];
+      const cols = Math.max(4, Math.round(w / 21)), rows = Math.max(2, Math.round(h / 21)), r = Math.max(2.6, w / 44);
+      let lamps = '';
+      for (let i = 0; i < rows; i++) for (let j = 0; j < cols; j++) {
+        const [lx, ly] = L(L(P00, P10, 0.08 + j * 0.84 / (cols - 1)), L(P01, P11, 0.08 + j * 0.84 / (cols - 1)), 0.18 + i * 0.64 / (rows - 1));
+        lamps += `<circle cx="${f1(lx)}" cy="${f1(ly)}" r="${f1(r * 2.9)}" fill="url(#${p}halo)"/><circle cx="${f1(lx)}" cy="${f1(ly)}" r="${f1(r)}" fill="var(--scn-lamp)"/>`;
       }
-      return `<path d="M${P00}L${P10}L${P11}L${P01}Z" fill="${SIL}" stroke="${RIM}" stroke-width="2" stroke-linejoin="round"/>${out.join('')}`;
+      const mw = Math.max(5, w / 16);
+      return `<circle cx="${x}" cy="${top + h / 2}" r="${w * 2.1}" fill="url(#${p}bloom)"/>
+        <path d="M${x - mw * 0.55} ${top + h}L${x - mw} ${foot}H${x + mw}L${x + mw * 0.55} ${top + h}Z" fill="url(#${p}mast)"/>
+        <path d="M${P01}L${P11}" stroke="var(--scn-sil)" stroke-width="${f1(w / 30)}"/>
+        <path d="M${P00}L${P10}L${P11}L${P01}Z" fill="var(--scn-sil)" stroke="var(--scn-rim)" stroke-width="${f1(Math.max(1, w / 90))}" stroke-linejoin="round"/>${lamps}
+        <ellipse cx="${x}" cy="${top + h / 2}" rx="${w * 1.9}" ry="${f1(Math.max(2.5, w / 40))}" fill="url(#${p}flare)"/>`;
     };
-    const halo = (id) => `<radialGradient id="${id}-halo"><stop offset="0" stop-color="var(--scn-light)" stop-opacity=".9"/><stop offset=".35" stop-color="var(--scn-light)" stop-opacity=".35"/><stop offset="1" stop-color="var(--scn-light)" stop-opacity="0"/></radialGradient>`;
-    // rain, falling only where the light catches it
-    const rain = (id) => `<pattern id="${id}" width="20" height="60" patternUnits="userSpaceOnUse"><path d="M14 4l-4 12M6 34l-3 9" stroke="var(--scn-rain)" stroke-width="1.2" stroke-linecap="round"/>${calm ? '' : '<animateTransform attributeName="patternTransform" type="translate" from="0 0" to="-20 60" dur="0.75s" repeatCount="indefinite"/>'}</pattern>`;
-    // a crowd along a curve: heads, a few phone flashes that twinkle
-    const crowd = (f, n, flashes) => {
-      let h = '', fl = '';
-      for (let i = 0; i < n; i++) { const t = i / (n - 1), [x, y] = f(t), j = (i * 7919 % 5) - 2; h += `<circle cx="${x.toFixed(1)}" cy="${(y - 3 + j * 0.6).toFixed(1)}" r="${3.2 + (i % 3) * 0.5}"/>`; }
-      flashes.forEach((t, k) => { const [x, y] = f(t); fl += `<circle class="scn-tw" style="animation-delay:${(k * 1.37) % 4}s" cx="${x.toFixed(1)}" cy="${(y + 9 + (k % 3) * 7).toFixed(1)}" r="1.8"/>`; });
-      return `<g fill="var(--scn-crowd)">${h}</g><g fill="var(--scn-flash)">${fl}</g>`;
+    // a beam from a bank to a spot on the field, and rain only inside the beams
+    const beam = (x, top, w, h, a, b) => `M${x - w / 2 + 4} ${top + h}L${x + w / 2 - 4} ${top + h}L${b[0]} ${b[1]}L${a[0]} ${a[1]}Z`;
+    // a crowd's phone flashes, twinkling at their own pace
+    const flashes = (pts) => pts.map(([x, y], k) => `<circle class="scn-tw" style="animation-delay:${f1((k * 1.37) % 5)}s;animation-duration:${f1(3.5 + (k % 4) * 0.8)}s" cx="${f1(x)}" cy="${f1(y)}" r="1.9"/>`).join('');
+    // goalposts in perspective: base on the end line, the crossbar along it (dx, dy per side), uprights up from its ends
+    const goal = (p, bx, by, ex, ey, rise, up, sw, flip) => {
+      const cy = by - rise, a = [bx - ex, cy - ey], b = [bx + ex, cy + ey], k = flip ? -1 : 1;
+      const flag = ([x, y], d) => `<g class="scn-sway" style="transform-origin:${f1(x)}px ${f1(y)}px;animation-delay:${d}s"><path d="M${f1(x)} ${f1(y)}c${-10 * k} 3 ${-15 * k} 9 ${-26 * k} 9c${9 * k} 5 ${17 * k} 1 ${26 * k} 4z" fill="var(--scn-flag)"/></g>`;
+      return `<ellipse cx="${bx}" cy="${by + 2}" rx="${sw * 6}" ry="${sw * 1.4}" fill="var(--scn-sil)" opacity=".55"/>
+        <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M${bx} ${by}V${cy + sw * 4}Q${bx} ${cy} ${bx + 0.0001} ${cy}" stroke="url(#${p}post)" stroke-width="${sw * 1.35}"/>
+          <path d="M${f1(a[0])} ${f1(a[1])}L${f1(b[0])} ${f1(b[1])}" stroke="url(#${p}post)" stroke-width="${sw * 1.15}"/>
+          <path d="M${f1(a[0])} ${f1(a[1])}V${f1(a[1] - up)}M${f1(b[0])} ${f1(b[1])}V${f1(b[1] - up)}" stroke="url(#${p}post)" stroke-width="${sw}"/>
+          <path d="M${f1(a[0] - sw * 0.3)} ${f1(a[1])}V${f1(a[1] - up)}M${f1(b[0] - sw * 0.3)} ${f1(b[1])}V${f1(b[1] - up)}" stroke="var(--scn-post-hi)" stroke-width="${f1(sw * 0.22)}" opacity=".85"/></g>
+        <rect x="${bx - sw * 1.2}" y="${by - rise * 0.42}" width="${sw * 2.4}" height="${rise * 0.42}" rx="${sw * 0.7}" fill="var(--scn-pad)"/>
+        ${flag([a[0], a[1] - up], 0)}${flag([b[0], b[1] - up], -1.1)}`;
     };
-    const qb = (p0, c, p1) => (t) => [(1 - t) ** 2 * p0[0] + 2 * (1 - t) * t * c[0] + t * t * p1[0], (1 - t) ** 2 * p0[1] + 2 * (1 - t) * t * c[1] + t * t * p1[1]];
-    const turf = (id) => `<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-turf)"/><stop offset="1" stop-color="var(--scn-turf2)"/></linearGradient>`;
+    const jumbotron = (p, x, y, w, h, foot) => `<circle cx="${x + w / 2}" cy="${y + h / 2}" r="${w * 1.1}" fill="url(#${p}screenglow)"/>
+      <path d="M${x + w * 0.22} ${y + h}V${foot}M${x + w * 0.78} ${y + h}V${foot}" stroke="var(--scn-sil)" stroke-width="${w * 0.05}"/>
+      <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${w * 0.04}" fill="var(--scn-sil)" stroke="var(--scn-rim)" stroke-width="2"/>
+      <rect x="${x + w * 0.05}" y="${y + h * 0.08}" width="${w * 0.9}" height="${h * 0.62}" rx="4" fill="url(#${p}screen)"/>
+      <text x="${x + w / 2}" y="${y + h * 0.5}" text-anchor="middle" font-family="'Chakra Petch', 'JetBrains Mono', sans-serif" font-weight="700" font-size="${f1(w * 0.135)}" fill="var(--scn-led)" class="scn-pulse">TOUCHDOWN</text>
+      <rect x="${x + w * 0.05}" y="${y + h * 0.76}" width="${w * 0.9}" height="${h * 0.15}" rx="3" fill="var(--scn-ribbon-bg)"/>
+      <text x="${x + w / 2}" y="${y + h * 0.875}" text-anchor="middle" font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="700" font-size="${f1(w * 0.058)}" letter-spacing="1" fill="var(--scn-ribbon)">HOME 24 · AWAY 21 · 4TH</text>`;
+    const blimp = (p, x, y, s) => `<g class="scn-drift"><g transform="translate(${x} ${y}) scale(${s})">
+      <path d="M-132 -12L-160 -42L-118 -20ZM-132 12L-162 40L-116 20Z" fill="var(--scn-sil)" stroke="var(--scn-rim)" stroke-width="1.5" stroke-linejoin="round"/>
+      <ellipse rx="140" ry="42" fill="url(#${p}blimp)"/><path d="M-128 -12Q0 -60 132 -10" stroke="var(--scn-rim)" stroke-width="2" fill="none"/>
+      <rect x="-70" y="-15" width="140" height="28" rx="7" fill="url(#${p}led)"/>
+      <text x="0" y="5" text-anchor="middle" font-family="'Chakra Petch', 'JetBrains Mono', sans-serif" font-weight="700" font-size="15" letter-spacing="3" fill="var(--scn-led-text)">RON'S TOOLS</text>
+      <rect x="-22" y="40" width="48" height="14" rx="5" fill="var(--scn-sil)" stroke="var(--scn-rim)" stroke-width="1"/>
+      <g fill="var(--scn-window)"><rect x="-16" y="44" width="6" height="5" rx="1"/><rect x="-5" y="44" width="6" height="5" rx="1"/><rect x="6" y="44" width="6" height="5" rx="1"/><rect x="17" y="44" width="5" height="5" rx="1"/></g>
+      <circle class="scn-tw" cx="138" cy="0" r="2.6" fill="#ff4d4d"/></g></g>`;
 
-    // top left, the moon of the piece: a light bank from below, its bloom and flare, a cone of light with rain in it
-    const TL = `<svg class="scn-c scn-tl" viewBox="0 0 480 420">
-      <defs>${halo('tl')}<radialGradient id="tl-bloom"><stop offset="0" stop-color="var(--scn-light)" stop-opacity=".5"/><stop offset=".3" stop-color="var(--scn-light)" stop-opacity=".16"/><stop offset="1" stop-color="var(--scn-light)" stop-opacity="0"/></radialGradient>
-        <linearGradient id="tl-flare" x1="0" x2="1"><stop offset="0" stop-color="var(--scn-flare)" stop-opacity="0"/><stop offset=".5" stop-color="var(--scn-flare)" stop-opacity=".55"/><stop offset="1" stop-color="var(--scn-flare)" stop-opacity="0"/></linearGradient>
-        <linearGradient id="tl-cone" x1="0" y1="0" x2=".4" y2="1"><stop offset="0" stop-color="var(--scn-light)" stop-opacity=".2"/><stop offset="1" stop-color="var(--scn-light)" stop-opacity="0"/></linearGradient>
-        ${rain('tl-rain')}<clipPath id="tl-clip"><path d="M70 170L308 140L480 330V420H230Z"/></clipPath></defs>
-      <path d="M70 170L308 140L480 330V420H230Z" fill="url(#tl-cone)"/>
-      <rect x="0" y="0" width="480" height="420" fill="url(#tl-rain)" clip-path="url(#tl-clip)" opacity=".8"/>
-      <path d="M172 156L188 154L202 420H156Z" fill="${SIL}"/><path d="M188 154L202 420" stroke="${RIM}" stroke-width="1.5"/>
-      <path d="M64 182L312 150" stroke="${SIL}" stroke-width="5"/><path d="M64 182L312 150" stroke="${RIM}" stroke-width="1"/>
-      <circle cx="186" cy="100" r="250" fill="url(#tl-bloom)"/>
-      ${bank([62, 58], [300, 26], [72, 168], [308, 138], 8, 4, 'tl')}
-      <ellipse cx="186" cy="100" rx="260" ry="5" fill="url(#tl-flare)"/></svg>`;
+    // ── landscape: the view from the 50, a little above the field ─────────────────────────────────────────────
+    const W = 1600, H = 900, FAR = 668;
+    const rimL = (x) => x < 420 ? 548 - 178 * (1 - x / 420) ** 1.55 : x > 1180 ? 548 - 178 * (1 - (W - x) / 420) ** 1.55 : 548 + 4 * Math.sin(x / 90);
+    const F0 = [338, FAR], F1 = [1262, FAR], N0 = [-140, H + 40], N1 = [1740, H + 40];        // far and near sidelines, end to end
+    const at = (t) => [L(F0, F1, t), L(N0, N1, t)];                                            // a line across the field at t (0..1, end line to end line)
+    let rimPath = 'M0 ' + f1(rimL(0));
+    for (let x = 20; x <= W; x += 20) rimPath += ' L' + x + ' ' + f1(rimL(x));
+    const bowl = `${rimPath} L${W} ${H} L0 ${H}Z`;
+    // the field: mowing stripes every 5 yards, the end zones, yard lines (heavier every 10), the sidelines
+    let field = `<path d="M${F0}L${F1}L${N1}L${N0}Z" fill="url(#Lturf)"/>`;
+    for (let y = 10; y < 110; y += 5) if ((y / 5) % 2) { const [a, b] = at(y / 120), [c, d] = at((y + 5) / 120); field += `<path d="M${a}L${c}L${d}L${b}Z" fill="var(--scn-stripe)"/>`; }
+    for (const [t0, t1] of [[0, 10 / 120], [110 / 120, 1]]) { const [a, b] = at(t0), [c, d] = at(t1); field += `<path d="M${a}L${c}L${d}L${b}Z" fill="url(#Lez)"/>`; }
+    for (let y = 10; y <= 110; y += 5) { const [a, b] = at(y / 120); field += `<path d="M${a.map(f1)}L${b.map(f1)}" stroke="var(--scn-line)" stroke-width="${y % 10 ? 1.4 : 2.6}"/>`; }
+    field += `<path d="M${F0}L${F1}M${F0}L${N0}M${F1}L${N1}" stroke="var(--scn-line)" stroke-width="3"/>`;
+    // the wall along the far sideline: an LED ribbon, segments lit
+    let wall = `<path d="M${F0[0] - 20} ${FAR - 2}L${F1[0] + 20} ${FAR - 2}L${F1[0] + 20} ${FAR - 22}L${F0[0] - 20} ${FAR - 22}Z" fill="var(--scn-sil)"/>`;
+    for (let x = F0[0]; x < F1[0]; x += 74) wall += `<rect x="${x}" y="${FAR - 18}" width="64" height="11" rx="2" fill="url(#Lled)" opacity="${(x / 74) % 3 ? .5 : .9}"/>`;
+    // suites: a row of warm windows across the far stands
+    let suites = '';
+    for (let x = 430; x < 1170; x += 13) suites += `<rect x="${x}" y="603" width="8" height="5" rx="1" fill="var(--scn-window)" opacity="${f1(0.35 + rnd() * 0.55)}"/>`;
+    const lFlash = []; seed = 11;
+    while (lFlash.length < 46) { const x = rnd() * W, top = rimL(x) + 10, bot = x < F0[0] ? L(F0, N0, (F0[0] - x) / (F0[0] - N0[0]))[1] - 12 : x > F1[0] ? L(F1, N1, (x - F1[0]) / (N1[0] - F1[0]))[1] - 12 : FAR - 30; if (bot > top + 6) lFlash.push([x, top + rnd() * (bot - top)]); }
+    const towersL = [[120, 92, 176, 86, 560, 4], [1484, 70, 176, 86, 540, -4], [560, 352, 86, 40, 590, 2], [1040, 352, 86, 40, 590, -2]];
+    const beamsL = [beam(120, 92, 176, 86, [430, 760], [760, 860]), beam(1484, 70, 176, 86, [1180, 860], [880, 760]), beam(560, 352, 86, 40, [620, 760], [800, 760]), beam(1040, 352, 86, 40, [800, 760], [980, 760])];
+    const LAND = `<svg class="scn-land" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMax slice">${defs('L')}
+      <ellipse cx="800" cy="${FAR + 40}" rx="980" ry="260" fill="url(#Lfieldglow)"/>
+      ${towersL.slice(2).map(t => tower('L', ...t)).join('')}${towersL.slice(0, 2).map(t => tower('L', ...t)).join('')}
+      ${blimp('L', 236, 318, 0.62)}
+      ${jumbotron('L', 1312, 268, 196, 118, 500)}
+      <path d="${bowl}" fill="url(#Lcrowd)"/><path d="${bowl}" fill="url(#Llit)"/>
+      <path d="${rimPath}" stroke="var(--scn-rim)" stroke-width="1.6" fill="none"/>
+      ${suites}<g fill="var(--scn-flash)">${flashes(lFlash)}</g>
+      ${field}${wall}
+      ${goal('L', 170, 784, 26, -19, 48, 196, 7, false)}${goal('L', 1430, 784, 26, 19, 48, 196, 7, true)}
+      <clipPath id="Lbeams"><path d="${beamsL.join('')}"/></clipPath>
+      <path d="${beamsL.join('')}" fill="url(#Lbeam)"/><rect width="${W}" height="${H}" fill="url(#Lrain)" clip-path="url(#Lbeams)" opacity=".75"/></svg>`;
 
-    // top right: the blimp over the stadium, its side panel lit, a far light bank across the field
-    const TR = `<svg class="scn-c scn-tr" viewBox="0 0 480 420">
-      <defs>${halo('tr')}<radialGradient id="tr-glow"><stop offset="0" stop-color="var(--scn-light)" stop-opacity=".22"/><stop offset="1" stop-color="var(--scn-light)" stop-opacity="0"/></radialGradient>
-        <linearGradient id="tr-led" x1="0" x2="1"><stop offset="0" stop-color="var(--scn-led)" stop-opacity=".25"/><stop offset=".5" stop-color="var(--scn-led)" stop-opacity=".95"/><stop offset="1" stop-color="var(--scn-led)" stop-opacity=".25"/></linearGradient>
-        <linearGradient id="tr-body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-sil2)"/><stop offset="1" stop-color="${SIL}"/></linearGradient></defs>
-      <circle cx="96" cy="300" r="120" fill="url(#tr-glow)"/>
-      ${bank([58, 288], [134, 278], [60, 316], [136, 306], 5, 2, 'tr')}
-      <path d="M94 312L100 420" stroke="${SIL}" stroke-width="5"/>
-      <g class="scn-drift">
-        <circle cx="300" cy="140" r="210" fill="url(#tr-glow)"/>
-        <path d="M168 128L132 92L176 112ZM168 152L130 186L178 162Z" fill="${SIL}" stroke="${RIM}" stroke-width="1.5" stroke-linejoin="round"/>
-        <ellipse cx="300" cy="140" rx="150" ry="46" fill="url(#tr-body)"/>
-        <path d="M168 132Q300 80 446 128" stroke="${RIM}" stroke-width="2" fill="none" stroke-linecap="round"/>
-        <rect x="222" y="122" width="150" height="30" rx="7" fill="url(#tr-led)" opacity=".9"/>
-        <text x="297" y="143" text-anchor="middle" font-family="'Chakra Petch', 'JetBrains Mono', sans-serif" font-weight="700" font-size="16" letter-spacing="3" fill="var(--scn-led-text)">RON'S TOOLS</text>
-        <rect x="286" y="182" width="56" height="16" rx="6" fill="${SIL}" stroke="${RIM}" stroke-width="1"/>
-        <g fill="var(--scn-window)"><rect x="292" y="187" width="7" height="5" rx="1"/><rect x="304" y="187" width="7" height="5" rx="1"/><rect x="316" y="187" width="7" height="5" rx="1"/><rect x="328" y="187" width="7" height="5" rx="1"/></g>
-        <circle class="scn-tw" cx="450" cy="140" r="2.4" fill="#ff4d4d"/></g></svg>`;
-
-    // bottom left: the goalposts, rim-lit gold, ribbons in the wind, the end-zone stands and their crowd behind
-    const rimL = qb([0, 268], [210, 300], [480, 384]);
-    const BL = `<svg class="scn-c scn-bl" viewBox="0 0 480 520">
-      <defs>${turf('bl-turf')}<linearGradient id="bl-post" x1="0" x2="1"><stop offset="0" stop-color="var(--scn-post-hi)"/><stop offset=".35" stop-color="var(--scn-post)"/><stop offset="1" stop-color="var(--scn-post-lo)"/></linearGradient></defs>
-      <path d="M0 214Q190 236 480 330V520H0Z" fill="var(--scn-sil2)"/>
-      <path d="M0 268Q210 300 480 384V520H0Z" fill="${SIL}"/>
-      <path d="M0 268Q210 300 480 384" stroke="${RIM}" stroke-width="1.5" fill="none"/>
-      ${crowd(rimL, 54, [0.08, 0.27, 0.44, 0.61, 0.83])}
-      <path d="M0 470Q240 452 480 466V520H0Z" fill="url(#bl-turf)"/>
-      <path d="M0 482Q240 466 480 478" stroke="var(--scn-line)" stroke-width="3" fill="none"/>
-      <g stroke-linecap="round" stroke-linejoin="round" fill="none">
-        <path d="M190 476V392Q190 360 222 358" stroke="url(#bl-post)" stroke-width="11"/>
-        <path d="M108 358H336" stroke="url(#bl-post)" stroke-width="10"/>
-        <path d="M108 358L116 34M336 358L328 34" stroke="url(#bl-post)" stroke-width="8"/>
-        <path d="M105 352L113 40M333 352L325 40M108 354H336" stroke="var(--scn-post-hi)" stroke-width="1.6" opacity=".8"/></g>
-      <rect x="177" y="408" width="26" height="70" rx="8" fill="${SIL}" stroke="${RIM}" stroke-width="1"/>
-      <g class="scn-sway" style="transform-origin:116px 36px"><path d="M116 36C100 40 92 50 78 50C90 56 100 52 116 54Z" fill="var(--scn-flag)"/></g>
-      <g class="scn-sway" style="transform-origin:328px 36px;animation-delay:-1.3s"><path d="M328 36C312 40 304 50 290 50C302 56 312 52 328 54Z" fill="var(--scn-flag)"/></g>
-      <path d="M36 486L42 446H62L68 486Z" fill="var(--scn-flag)"/><rect x="39" y="460" width="26" height="5" fill="#fff" opacity=".85"/></svg>`;
-
-    // bottom right: the jumbotron calls it, the ribbon board has the score, the stands and their crowd
-    const rimR = qb([0, 392], [270, 312], [480, 272]);
-    const BR = `<svg class="scn-c scn-br" viewBox="0 0 480 520">
-      <defs>${turf('br-turf')}<radialGradient id="br-glow"><stop offset="0" stop-color="var(--scn-led)" stop-opacity=".34"/><stop offset="1" stop-color="var(--scn-led)" stop-opacity="0"/></radialGradient>
-        <linearGradient id="br-screen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-screen-hi)"/><stop offset="1" stop-color="var(--scn-screen)"/></linearGradient></defs>
-      <path d="M0 330Q260 250 480 222V520H0Z" fill="var(--scn-sil2)"/>
-      <circle cx="342" cy="150" r="200" fill="url(#br-glow)"/>
-      <path d="M268 230V320M420 230V300" stroke="${SIL}" stroke-width="12"/>
-      <path d="M438 66V18" stroke="${SIL}" stroke-width="3"/>
-      <g class="scn-sway" style="transform-origin:438px 20px;animation-delay:-.6s"><path d="M438 20C426 22 418 30 404 30C414 36 426 32 438 36Z" fill="var(--scn-flag2)"/></g>
-      <rect x="216" y="66" width="250" height="168" rx="10" fill="${SIL}" stroke="${RIM}" stroke-width="2"/>
-      <rect x="228" y="78" width="226" height="112" rx="5" fill="url(#br-screen)"/>
-      <text x="341" y="146" text-anchor="middle" font-family="'Chakra Petch', 'JetBrains Mono', sans-serif" font-weight="700" font-size="33" letter-spacing="1" fill="var(--scn-led)" class="scn-pulse">TOUCHDOWN</text>
-      <rect x="228" y="200" width="226" height="22" rx="4" fill="var(--scn-ribbon-bg)"/>
-      <text x="341" y="216" text-anchor="middle" font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="700" font-size="12" letter-spacing="1" fill="var(--scn-ribbon)">HOME 24 · AWAY 21 · 4TH</text>
-      <path d="M0 392Q270 312 480 272V520H0Z" fill="${SIL}"/>
-      <path d="M0 392Q270 312 480 272" stroke="${RIM}" stroke-width="1.5" fill="none"/>
-      ${crowd(rimR, 56, [0.12, 0.31, 0.5, 0.66, 0.9])}
-      <path d="M0 474Q240 456 480 470V520H0Z" fill="url(#br-turf)"/>
-      <path d="M0 486Q240 470 480 482" stroke="var(--scn-line)" stroke-width="3" fill="none"/></svg>`;
+    // ── portrait (phones): the end-zone view, the goalposts straight ahead, a light bank in each top corner ─────
+    const PW = 900, PH = 1600, PF = 1040;
+    const rimP = (x) => 790 - 230 * (Math.abs(x - 450) / 450) ** 1.7;
+    let rimPP = 'M0 ' + f1(rimP(0));
+    for (let x = 15; x <= PW; x += 15) rimPP += ' L' + x + ' ' + f1(rimP(x));
+    const bowlP = `${rimPP} L${PW} ${PH} L0 ${PH}Z`;
+    const Pl = (d) => { const t = (d / 42) ** 1.35, y = PF + (PH + 60 - PF) * t; return [[f1(260 - 420 * t), f1(y)], [f1(640 + 420 * t), f1(y)]]; };   // a line across at d yards from the end line
+    let fieldP = `<path d="M260 ${PF}L640 ${PF}L1060 ${PH + 60}L-160 ${PH + 60}Z" fill="url(#Pturf)"/>`;
+    for (let d = 10; d < 42; d += 5) if ((d / 5) % 2) { const [a, b] = Pl(d), [c, e] = Pl(Math.min(42, d + 5)); fieldP += `<path d="M${a}L${b}L${e}L${c}Z" fill="var(--scn-stripe)"/>`; }
+    { const [a, b] = Pl(0), [c, e] = Pl(10); fieldP += `<path d="M${a}L${b}L${e}L${c}Z" fill="url(#Pez)"/>`; }
+    for (let d = 10; d <= 40; d += 5) { const [a, b] = Pl(d); fieldP += `<path d="M${a}L${b}" stroke="var(--scn-line)" stroke-width="${d % 10 ? 1.6 : 3}"/>`; }
+    fieldP += `<path d="M260 ${PF}L640 ${PF}M260 ${PF}L-160 ${PH + 60}M640 ${PF}L1060 ${PH + 60}" stroke="var(--scn-line)" stroke-width="3"/>`;
+    const pFlash = []; seed = 23;
+    while (pFlash.length < 30) { const x = rnd() * PW, top = rimP(x) + 10, bot = PF - 16; if (bot > top + 6) pFlash.push([x, top + rnd() * (bot - top)]); }
+    let suitesP = '';
+    for (let x = 250; x < 650; x += 12) suitesP += `<rect x="${x}" y="${f1(rimP(x) + 46)}" width="7" height="5" rx="1" fill="var(--scn-window)" opacity="${f1(0.35 + rnd() * 0.55)}"/>`;
+    const towersP = [[150, 30, 230, 108, 760, 5], [752, 18, 230, 108, 740, -5]];
+    const beamsP = [beam(150, 30, 230, 108, [330, 1180], [520, 1260]), beam(752, 18, 230, 108, [400, 1260], [590, 1180])];
+    const PORT = `<svg class="scn-port" viewBox="0 0 ${PW} ${PH}" preserveAspectRatio="xMidYMin slice">${defs('P')}
+      <ellipse cx="450" cy="${PF + 60}" rx="700" ry="320" fill="url(#Pfieldglow)"/>
+      ${towersP.map(t => tower('P', ...t)).join('')}
+      ${jumbotron('P', 330, 560, 240, 140, 760)}
+      <path d="${bowlP}" fill="url(#Pcrowd)"/><path d="${bowlP}" fill="url(#Plit)"/>
+      <path d="${rimPP}" stroke="var(--scn-rim)" stroke-width="1.6" fill="none"/>
+      ${suitesP}<g fill="var(--scn-flash)">${flashes(pFlash)}</g>
+      ${fieldP}
+      ${goal('P', 450, PF + 6, 92, 0, 80, 300, 10, false)}
+      <clipPath id="Pbeams"><path d="${beamsP.join('')}"/></clipPath>
+      <path d="${beamsP.join('')}" fill="url(#Pbeam)"/><rect width="${PW}" height="${PH}" fill="url(#Prain)" clip-path="url(#Pbeams)" opacity=".75"/></svg>`;
 
     const css = `
       ${DARK} { --bg: #040b0c; --surface0: #081416; --surface1: #0c1b1e; --surface2: #122729; --border: #1b3638; --border2: #285055;
-        --glow: rgba(51,208,124,0.10); --scn-sil: #02080a; --scn-sil2: #071417; --scn-rim: rgba(170,215,235,0.28); --scn-lamp: #ffffff; --scn-light: #dceeff;
-        --scn-flare: #8fc7ff; --scn-rain: rgba(225,240,255,0.5); --scn-crowd: #1b3a3a; --scn-flash: #ffffff;
-        --scn-post: #e2bd3c; --scn-post-hi: #ffe58c; --scn-post-lo: #8a6c16; --scn-flag: #ff7a1a; --scn-flag2: #33d07c;
-        --scn-turf: #12482c; --scn-turf2: #04140c; --scn-line: rgba(235,255,240,0.32);
-        --scn-led: #33d07c; --scn-led-text: #04140c; --scn-window: #ffd98a; --scn-screen: #021309; --scn-screen-hi: #07301b;
-        --scn-ribbon: #ffc94d; --scn-ribbon-bg: #0b0802; }
-      ${LIGHT} { --border: #cfe0dc; --border2: #b4ccc6; --scn-sil: #5f7d77; --scn-sil2: #86a29c; --scn-rim: rgba(255,255,255,0.55); --scn-lamp: #ffffff; --scn-light: #ffffff;
-        --scn-flare: #ffffff; --scn-rain: rgba(255,255,255,0.7); --scn-crowd: #4e6c66; --scn-flash: #ffffff;
-        --scn-post: #c9a21a; --scn-post-hi: #f0d36a; --scn-post-lo: #8a6c16; --scn-flag: #e8650c; --scn-flag2: #10a758;
-        --scn-turf: #78c493; --scn-turf2: #5f7d77; --scn-line: rgba(255,255,255,0.8);
-        --scn-led: #10a758; --scn-led-text: #ffffff; --scn-window: #fff3cf; --scn-screen: #13321f; --scn-screen-hi: #1f4a30;
-        --scn-ribbon: #ffd56a; --scn-ribbon-bg: #1c1a12; }
+        --glow: rgba(51,208,124,0.10); --scn-sil: #020809; --scn-stand: #071518; --scn-crowd: #0f2628; --scn-crowd2: #153234; --scn-rim: rgba(170,215,235,0.26);
+        --scn-mast-hi: #2c4c55; --scn-lamp: #ffffff; --scn-light: #dceeff; --scn-flare: #8fc7ff; --scn-rain: rgba(225,240,255,0.55); --scn-flash: #ffffff;
+        --scn-fieldglow: #3fd58a; --scn-turf-far: #1d6a3d; --scn-turf-near: #0a2b19; --scn-stripe: rgba(255,255,255,0.035); --scn-line: rgba(240,255,245,0.42);
+        --scn-ez: #0d3d26; --scn-ez2: #0f4a2d; --scn-post: #e2bd3c; --scn-post-hi: #ffe896; --scn-post-lo: #8a6c16; --scn-pad: #0b1e3a; --scn-flag: #ff7a1a;
+        --scn-led: #33d07c; --scn-led-text: #04140c; --scn-window: #ffd98a; --scn-screen: #021309; --scn-screen-hi: #07301b; --scn-ribbon: #ffc94d; --scn-ribbon-bg: #0b0802; }
+      ${LIGHT} { --border: #cfe0dc; --border2: #b4ccc6; --scn-sil: #4f6d67; --scn-stand: #6f8e88; --scn-crowd: #5f7e78; --scn-crowd2: #7d9a94; --scn-rim: rgba(255,255,255,0.6);
+        --scn-mast-hi: #9fb9b3; --scn-lamp: #ffffff; --scn-light: #ffffff; --scn-flare: #ffffff; --scn-rain: rgba(255,255,255,0.7); --scn-flash: #ffffff;
+        --scn-fieldglow: #8fe0b2; --scn-turf-far: #6fbf8c; --scn-turf-near: #4f9d6c; --scn-stripe: rgba(255,255,255,0.08); --scn-line: rgba(255,255,255,0.85);
+        --scn-ez: #4a9466; --scn-ez2: #57a473; --scn-post: #d4ad2a; --scn-post-hi: #f5dd7c; --scn-post-lo: #9a7a1c; --scn-pad: #2b4466; --scn-flag: #e8650c;
+        --scn-led: #10a758; --scn-led-text: #ffffff; --scn-window: #fff3cf; --scn-screen: #13321f; --scn-screen-hi: #1f4a30; --scn-ribbon: #ffd56a; --scn-ribbon-bg: #1c1a12; }
       /* the sky is the root's: a solid colour under it so overscroll (rubber-banding past the top or bottom) isn't white,
          and the body clear, since the art layer sits under the body's background */
-      ${DARK} { background: radial-gradient(760px 520px at 8% 6%, rgba(205,232,255,0.16), transparent 64%),
-          radial-gradient(700px 480px at 92% 10%, rgba(205,232,255,0.08), transparent 62%),
-          radial-gradient(1300px 600px at 50% 112%, rgba(51,208,124,0.16), transparent 62%), linear-gradient(#081618, #030909) fixed #030909; }
+      ${DARK} { background: radial-gradient(1400px 700px at 50% 100%, rgba(63,213,138,0.10), transparent 64%), linear-gradient(#0a1b1e 0%, #061113 45%, #030909 100%) fixed #030909; }
       ${LIGHT} { background: linear-gradient(#e2f0eb, #eef1f6) fixed #eef1f6; }
       ${S} body { background: transparent; }
+      ${S} body::before { display: none; }
       ${DARK} .scn { background-image: radial-gradient(1px 1px at 22% 7%, #fff 50%, transparent 51%), radial-gradient(1.2px 1.2px at 39% 3%, #fff 50%, transparent 51%),
           radial-gradient(1px 1px at 56% 11%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 68% 5%, #fff 50%, transparent 51%), radial-gradient(1.2px 1.2px at 47% 17%, #fff 50%, transparent 51%),
-          radial-gradient(1px 1px at 80% 22%, #fff 50%, transparent 51%); }
+          radial-gradient(1px 1px at 80% 22%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 12% 26%, #fff 50%, transparent 51%); }
       ${S} .scn-tw { animation: scn-tw 4s ease-in-out infinite; }
-      @keyframes scn-tw { 0%, 100% { opacity: .1; } 12% { opacity: 1; } 30% { opacity: .25; } }
+      @keyframes scn-tw { 0%, 100% { opacity: .08; } 10% { opacity: 1; } 24% { opacity: .2; } }
       ${S} .scn-sway { animation: scn-sway 2.6s ease-in-out infinite alternate; }
-      @keyframes scn-sway { from { transform: rotate(-6deg) scaleX(.92); } to { transform: rotate(5deg) scaleX(1.04); } }
-      ${S} .scn-drift { animation: scn-drift 14s ease-in-out infinite alternate; }
-      @keyframes scn-drift { to { transform: translate(-14px, 4px); } }
+      @keyframes scn-sway { from { transform: rotate(-7deg) scaleX(.9); } to { transform: rotate(6deg) scaleX(1.05); } }
+      ${S} .scn-drift { animation: scn-drift 16s ease-in-out infinite alternate; }
+      @keyframes scn-drift { to { transform: translate(18px, -6px); } }
       ${S} .scn-pulse { animation: scn-pulse 3.2s ease-in-out infinite; }
-      @keyframes scn-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+      @keyframes scn-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .6; } }
       @media (prefers-reduced-motion: reduce) { ${S} .scn-tw, ${S} .scn-sway, ${S} .scn-drift, ${S} .scn-pulse { animation: none; } }
-      ${CORNER_CSS(S, LIGHT)}`;
-    mount(css, TL + TR + BL + BR);
+      ${FULL_CSS(S, LIGHT)}`;
+    mount(css, LAND + PORT);
   }
 })();
