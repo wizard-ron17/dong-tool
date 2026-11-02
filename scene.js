@@ -104,14 +104,16 @@
     const beam = (x, top, w, h, a, b) => `M${x - w / 2 + 4} ${top + h}L${x + w / 2 - 4} ${top + h}L${b[0]} ${b[1]}L${a[0]} ${a[1]}Z`;
     // a crowd's phone flashes, twinkling at their own pace
     const flashes = (pts) => pts.map(([x, y], k) => `<circle class="scn-tw" style="animation-delay:${f1((k * 1.37) % 5)}s;animation-duration:${f1(3.5 + (k % 4) * 0.8)}s" cx="${f1(x)}" cy="${f1(y)}" r="1.9"/>`).join('');
-    // goalposts in perspective: base on the end line, the crossbar along it (dx, dy per side), uprights up from its ends
+    // goalposts in perspective: base on the end line, the crossbar along it (dx, dy per side), uprights up from its ends.
+    // The stem and crossbar are solid: a gradient on a straight horizontal or vertical line (a zero-size box) paints nothing
     const goal = (p, bx, by, ex, ey, rise, up, sw, flip) => {
       const cy = by - rise, a = [bx - ex, cy - ey], b = [bx + ex, cy + ey], k = flip ? -1 : 1;
       const flag = ([x, y], d) => `<g class="scn-sway" style="transform-origin:${f1(x)}px ${f1(y)}px;animation-delay:${d}s"><path d="M${f1(x)} ${f1(y)}c${-10 * k} 3 ${-15 * k} 9 ${-26 * k} 9c${9 * k} 5 ${17 * k} 1 ${26 * k} 4z" fill="var(--scn-flag)"/></g>`;
       return `<ellipse cx="${bx}" cy="${by + 2}" rx="${sw * 6}" ry="${sw * 1.4}" fill="var(--scn-sil)" opacity=".55"/>
         <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M${bx} ${by}V${cy + sw * 4}Q${bx} ${cy} ${bx + 0.0001} ${cy}" stroke="url(#${p}post)" stroke-width="${sw * 1.35}"/>
-          <path d="M${f1(a[0])} ${f1(a[1])}L${f1(b[0])} ${f1(b[1])}" stroke="url(#${p}post)" stroke-width="${sw * 1.15}"/>
+          <path d="M${bx} ${by}V${cy}" stroke="var(--scn-post)" stroke-width="${sw * 1.35}"/>
+          <path d="M${f1(a[0])} ${f1(a[1])}L${f1(b[0])} ${f1(b[1])}" stroke="var(--scn-post)" stroke-width="${sw * 1.15}"/>
+          <path d="M${f1(a[0])} ${f1(a[1] - sw * 0.35)}L${f1(b[0])} ${f1(b[1] - sw * 0.35)}" stroke="var(--scn-post-hi)" stroke-width="${f1(sw * 0.25)}" opacity=".8"/>
           <path d="M${f1(a[0])} ${f1(a[1])}V${f1(a[1] - up)}M${f1(b[0])} ${f1(b[1])}V${f1(b[1] - up)}" stroke="url(#${p}post)" stroke-width="${sw}"/>
           <path d="M${f1(a[0] - sw * 0.3)} ${f1(a[1])}V${f1(a[1] - up)}M${f1(b[0] - sw * 0.3)} ${f1(b[1])}V${f1(b[1] - up)}" stroke="var(--scn-post-hi)" stroke-width="${f1(sw * 0.22)}" opacity=".85"/></g>
         <rect x="${bx - sw * 1.2}" y="${by - rise * 0.42}" width="${sw * 2.4}" height="${rise * 0.42}" rx="${sw * 0.7}" fill="var(--scn-pad)"/>
