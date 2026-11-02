@@ -74,15 +74,16 @@
     const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${field(420, 34, 70, 6, 30, 260)}</svg>`;
     const css = `
       ${DARK} { --bg: #040d08; --surface0: #07130d; --surface1: #0a1a12; --surface2: #10261a; --border: #1a3526; --border2: #264d37;
-        --glow: rgba(51,208,124,0.08); --scn-paint: rgba(250,252,248,0.72); --scn-oob: rgba(0,0,0,0.22); --scn-night: rgba(2,14,7,0.6); --scn-vig: .7; }
-      ${LIGHT} { --border: #cfe0d6; --border2: #b4ccbe; --scn-paint: rgba(255,255,255,0.86); --scn-oob: rgba(0,0,0,0.1); --scn-night: rgba(255,255,255,0.1); --scn-vig: .2; }
+        --glow: rgba(51,208,124,0.08); --scn-paint: rgba(235,245,238,0.3); --scn-oob: rgba(0,0,0,0.25); --scn-night: rgba(2,10,5,0.84); --scn-vig: .75; --scn-top: rgba(2,8,4,0.85); }
+      ${LIGHT} { --border: #cfe0d6; --border2: #b4ccbe; --scn-paint: rgba(255,255,255,0.86); --scn-oob: rgba(0,0,0,0.1); --scn-night: rgba(255,255,255,0.08); --scn-vig: .18; --scn-top: rgba(255,255,255,0.35); }
       /* the turf under everything, so overscroll past the page ends is grass, not white */
       ${DARK} { background: #0b2412; } ${LIGHT} { background: #5f9a3c; }
       ${S} body { background: transparent; } ${S} body::before { display: none; }
       ${S} .scn { background: url(/scene/turf.jpg) 0 0 / 420px repeat; }
-      /* night: the grass dimmed under the lights (paint on top, so it stays white), a pool of light on the content, dark at the edges */
+      /* dark mode is a dark field: the grass nearly black, the paint dim, a quiet band under the header; light mode is the day game.
+         night: the grass dimmed under the lights (paint on top, so it stays white), a pool of light on the content, dark at the edges */
       ${S} .scn::before { content: ''; position: absolute; inset: 0; background: var(--scn-night); }
-      ${S} .scn::after { content: ''; position: absolute; inset: 0; background: radial-gradient(70% 60% at 50% 40%, rgba(220,255,230,.06), transparent 70%), radial-gradient(115% 95% at 50% 45%, transparent 50%, rgba(0,0,0,var(--scn-vig)) 100%); }
+      ${S} .scn::after { content: ''; position: absolute; inset: 0; background: linear-gradient(var(--scn-top), transparent 190px), radial-gradient(70% 60% at 50% 40%, rgba(220,255,230,.04), transparent 70%), radial-gradient(115% 95% at 50% 45%, transparent 50%, rgba(0,0,0,var(--scn-vig)) 100%); }
       ${LIGHT} .scn svg { opacity: 1; }
       ${FULL_CSS(S, LIGHT)}`;
     mount(css, LAND + PORT);
