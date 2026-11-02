@@ -4,6 +4,8 @@
 // PREVIEW ONLY for now: ?bg=night turns it on for this tab (it stays on as you move around), ?bg=off turns it off.
 // A holiday stands aside while a scene is previewed, unless asked for by name (?holiday=halloween). chrome.js loads this file.
 //
+//   nba   the court from above on maple (scene/wood.jpg, ambientCG WoodFloor062, CC0): a painted apron with RON'S HOOP TOOL
+//         down the margins, the half-court line and centre circle, the arc and the painted key; dark-stained floor in dark mode
 //   nhl   the rink from above: rink ice (scene/ice.jpg, ambientCG Snow006, CC0) with skate marks drawn on, soft under-ice paint (the red line, a blue line, the end-zone circles
 //         and hashes in the margins), the boards at both edges with the yellow kick plate; dark slate ice in dark mode
 //   nfl   close up on the field from straight above: real turf under white paint, the yard lines across the screen, a
@@ -15,7 +17,7 @@
   let mode = MODES.test(q || '') ? q : null;
   try { mode = mode || sessionStorage.getItem('ronScene'); } catch (e) {}
   const sport = location.pathname.split('/').filter(Boolean)[0] || '';
-  const SCENES = { nfl: nfl, nhl: nhl };
+  const SCENES = { nfl: nfl, nhl: nhl, nba: nba };
   window.RonScene = { on: null };
   if (!mode || !SCENES[sport]) return;
   // a holiday asked for by name (?holiday=halloween) wins; otherwise holiday.js stands aside while a scene is previewed
@@ -176,6 +178,57 @@
       ${S} body { background: transparent; } ${S} body::before { display: none; }
       /* resurfaced rink ice: scene/ice.jpg (ambientCG Snow006, CC0) for the milky cloud, tinted to the theme; skate marks drawn over it */
       ${S} .scn { background: url(/scene/ice.jpg) 0 0 / 520px repeat; }
+      ${S} .scn::after { content: ''; position: absolute; inset: 0; background: radial-gradient(115% 95% at 50% 45%, transparent 50%, rgba(0,0,0,var(--scn-vig)) 100%); }
+      ${LIGHT} .scn svg { opacity: 1; }
+      ${FULL_CSS(S, LIGHT)}`;
+    mount(css, LAND + PORT); fitW();
+  }
+
+  function nba() {
+    const S = 'html[data-scene="nba"]', DARK = `${S}:not([data-theme="light"])`, LIGHT = `${S}[data-theme="light"]`;
+    const f1 = (n) => +n.toFixed(1);
+    // The court from above, down the screen, on maple (scene/wood.jpg, ambientCG WoodFloor062, CC0, turned so the strips run
+    // the length of the floor): the painted apron down both sides with RON'S HOOP TOOL on it (it falls in the margins), the
+    // half-court line and centre circle at the top, the three-point arc sweeping round the painted key below. NBA dimensions
+    // across (50 ft between the sidelines); fitW keeps the width to the screen.
+    const court = (W, ft, apron, y0, words) => {
+      const S = apron, L = 'var(--scn-paint)', lw = f1(Math.max(1.5, ft * 0.17)), mid = W / 2, H = 4000;
+      const base = y0 + 47 * ft, hoopY = base - 5.25 * ft, r3 = 23.75 * ft, cx3 = 22 * ft, yBreak = hoopY - Math.sqrt(r3 * r3 - cx3 * cx3);
+      const key = 8 * ft, ft15 = base - 19 * ft;
+      let o = `<rect x="0" y="-200" width="${S}" height="${H}" fill="var(--scn-apron)"/><rect x="${W - S}" y="-200" width="${S}" height="${H}" fill="var(--scn-apron)"/>`;
+      // the apron's words, running down each side (left reads bottom to top, right top to bottom), faint
+      const fs = f1(S * 0.42);
+      for (const [x, rot] of [[S / 2, -90], [W - S / 2, 90]]) for (let y = 200; y < H; y += 1100)
+        o += `<text transform="translate(${f1(x)} ${y}) rotate(${rot})" text-anchor="middle" dominant-baseline="central" font-family="'Chakra Petch', sans-serif" font-weight="700" font-size="${fs}" letter-spacing="${f1(fs * 0.3)}" fill="var(--scn-apron-text)">${words}</text>`;
+      // the sidelines, the half-court line, the centre circle (painted inside), the substitution hashes
+      o += `<rect x="${f1(S - lw)}" y="-200" width="${lw}" height="${H}" fill="${L}"/><rect x="${W - S}" y="-200" width="${lw}" height="${H}" fill="${L}"/>
+        <rect x="${S}" y="${f1(y0 - lw / 2)}" width="${W - 2 * S}" height="${lw}" fill="${L}"/>
+        <circle cx="${mid}" cy="${y0}" r="${f1(6 * ft)}" fill="var(--scn-key)" stroke="${L}" stroke-width="${lw}"/><circle cx="${mid}" cy="${y0}" r="${f1(2 * ft)}" fill="none" stroke="${L}" stroke-width="${lw}"/>
+        <path d="M${S} ${f1(y0 + 28 * ft)}h${f1(3 * ft)}M${W - S} ${f1(y0 + 28 * ft)}h${f1(-3 * ft)}" stroke="${L}" stroke-width="${lw}"/>`;
+      // the three-point line: straight down from the break in the corners, the arc round the hoop
+      o += `<path d="M${f1(mid - cx3)} ${f1(base)}V${f1(yBreak)}A${f1(r3)} ${f1(r3)} 0 0 1 ${f1(mid + cx3)} ${f1(yBreak)}V${f1(base)}" fill="none" stroke="${L}" stroke-width="${lw}"/>`;
+      // the key, painted; the free-throw circle; the lane hashes; the restricted arc; the backboard and rim
+      o += `<rect x="${f1(mid - key)}" y="${f1(ft15)}" width="${f1(2 * key)}" height="${f1(19 * ft)}" fill="var(--scn-key)" stroke="${L}" stroke-width="${lw}"/>
+        <circle cx="${mid}" cy="${f1(ft15)}" r="${f1(6 * ft)}" fill="none" stroke="${L}" stroke-width="${lw}"/>
+        ${[7, 8, 11, 14].map(d => `<path d="M${f1(mid - key)} ${f1(base - d * ft)}h${f1(-ft * 0.5)}M${f1(mid + key)} ${f1(base - d * ft)}h${f1(ft * 0.5)}" stroke="${L}" stroke-width="${lw}"/>`).join('')}
+        <path d="M${f1(mid - 4 * ft)} ${f1(hoopY)}A${f1(4 * ft)} ${f1(4 * ft)} 0 0 1 ${f1(mid + 4 * ft)} ${f1(hoopY)}" fill="none" stroke="${L}" stroke-width="${lw}"/>
+        <rect x="${f1(mid - 3 * ft)}" y="${f1(base - 4 * ft)}" width="${f1(6 * ft)}" height="${lw}" fill="${L}"/><circle cx="${mid}" cy="${f1(hoopY)}" r="${f1(0.75 * ft)}" fill="none" stroke="var(--scn-rim)" stroke-width="${lw}"/>
+        <rect x="${S}" y="${f1(base - lw / 2)}" width="${W - 2 * S}" height="${lw}" fill="${L}"/>`;
+      return o;
+    };
+    const LAND = `<svg class="scn-land" data-w="1600" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMin slice">${court(1600, 27, 120, 120, "RON'S HOOP TOOL")}</svg>`;
+    const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${court(420, 7.8, 20, 230, 'HOOP TOOL')}</svg>`;
+    const css = `
+      ${DARK} { --bg: #0a0705; --surface0: #110c08; --surface1: #16100b; --surface2: #20170f; --border: #2e2216; --border2: #433222;
+        --scn-stain: rgba(8,5,2,0.84); --scn-paint: rgba(245,235,220,0.42); --scn-apron: rgba(10,40,24,0.72); --scn-apron-text: rgba(245,240,230,0.18);
+        --scn-key: rgba(18,70,42,0.5); --scn-rim: rgba(255,120,40,0.6); --scn-vig: .65; }
+      ${LIGHT} { --border: #e3d8c8; --border2: #d2c3ad; --scn-stain: rgba(255,248,236,0.06); --scn-paint: rgba(255,255,255,0.92); --scn-apron: rgba(16,120,70,0.82);
+        --scn-apron-text: rgba(255,255,255,0.55); --scn-key: rgba(16,140,80,0.6); --scn-rim: #ff6a00; --scn-vig: .12; }
+      /* the floor under everything, so overscroll past the page ends is wood, not white */
+      ${DARK} { background: #120c07; } ${LIGHT} { background: #c99a62; }
+      ${S} body { background: transparent; } ${S} body::before { display: none; }
+      ${S} .scn { background: url(/scene/wood.jpg) 0 0 / 300px repeat; }
+      ${S} .scn::before { content: ''; position: absolute; inset: 0; background: var(--scn-stain); }
       ${S} .scn::after { content: ''; position: absolute; inset: 0; background: radial-gradient(115% 95% at 50% 45%, transparent 50%, rgba(0,0,0,var(--scn-vig)) 100%); }
       ${LIGHT} .scn svg { opacity: 1; }
       ${FULL_CSS(S, LIGHT)}`;
