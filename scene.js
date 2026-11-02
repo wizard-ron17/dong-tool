@@ -65,10 +65,10 @@
 
     // shared paint: gradients and patterns, prefixed per drawing so the two never share an id
     const defs = (p) => `<defs>
-      <radialGradient id="${p}halo"><stop offset="0" stop-color="var(--scn-light)" stop-opacity=".95"/><stop offset=".3" stop-color="var(--scn-light)" stop-opacity=".35"/><stop offset="1" stop-color="var(--scn-light)" stop-opacity="0"/></radialGradient>
-      <radialGradient id="${p}bloom"><stop offset="0" stop-color="var(--scn-light)" stop-opacity=".42"/><stop offset=".25" stop-color="var(--scn-light)" stop-opacity=".14"/><stop offset=".6" stop-color="var(--scn-light)" stop-opacity=".04"/><stop offset="1" stop-color="var(--scn-light)" stop-opacity="0"/></radialGradient>
+      <radialGradient id="${p}halo"><stop offset="0" stop-color="var(--scn-light)" stop-opacity=".8"/><stop offset=".3" stop-color="var(--scn-light)" stop-opacity=".22"/><stop offset="1" stop-color="var(--scn-light)" stop-opacity="0"/></radialGradient>
+      <radialGradient id="${p}bloom"><stop offset="0" stop-color="var(--scn-light)" stop-opacity=".22"/><stop offset=".25" stop-color="var(--scn-light)" stop-opacity=".07"/><stop offset=".6" stop-color="var(--scn-light)" stop-opacity=".02"/><stop offset="1" stop-color="var(--scn-light)" stop-opacity="0"/></radialGradient>
       <radialGradient id="${p}fieldglow"><stop offset="0" stop-color="var(--scn-fieldglow)" stop-opacity=".5"/><stop offset="1" stop-color="var(--scn-fieldglow)" stop-opacity="0"/></radialGradient>
-      <linearGradient id="${p}flare" x1="0" x2="1"><stop offset="0" stop-color="var(--scn-flare)" stop-opacity="0"/><stop offset=".5" stop-color="var(--scn-flare)" stop-opacity=".5"/><stop offset="1" stop-color="var(--scn-flare)" stop-opacity="0"/></linearGradient>
+      <linearGradient id="${p}flare" x1="0" x2="1"><stop offset="0" stop-color="var(--scn-flare)" stop-opacity="0"/><stop offset=".5" stop-color="var(--scn-flare)" stop-opacity=".22"/><stop offset="1" stop-color="var(--scn-flare)" stop-opacity="0"/></linearGradient>
       <linearGradient id="${p}beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-light)" stop-opacity=".16"/><stop offset="1" stop-color="var(--scn-light)" stop-opacity=".02"/></linearGradient>
       <linearGradient id="${p}mast" x1="0" x2="1"><stop offset="0" stop-color="var(--scn-sil)"/><stop offset=".7" stop-color="var(--scn-sil)"/><stop offset="1" stop-color="var(--scn-mast-hi)"/></linearGradient>
       <linearGradient id="${p}post" x1="0" x2="1"><stop offset="0" stop-color="var(--scn-post-hi)"/><stop offset=".4" stop-color="var(--scn-post)"/><stop offset="1" stop-color="var(--scn-post-lo)"/></linearGradient>
@@ -92,7 +92,7 @@
       let lamps = '';
       for (let i = 0; i < rows; i++) for (let j = 0; j < cols; j++) {
         const [lx, ly] = L(L(P00, P10, 0.08 + j * 0.84 / (cols - 1)), L(P01, P11, 0.08 + j * 0.84 / (cols - 1)), 0.18 + i * 0.64 / (rows - 1));
-        lamps += `<circle cx="${f1(lx)}" cy="${f1(ly)}" r="${f1(r * 2.9)}" fill="url(#${p}halo)"/><circle cx="${f1(lx)}" cy="${f1(ly)}" r="${f1(r)}" fill="var(--scn-lamp)"/>`;
+        lamps += `<circle cx="${f1(lx)}" cy="${f1(ly)}" r="${f1(r * 2.2)}" fill="url(#${p}halo)"/><circle cx="${f1(lx)}" cy="${f1(ly)}" r="${f1(r)}" fill="var(--scn-lamp)"/>`;
       }
       const mw = Math.max(5, w / 16);
       return `<circle cx="${x}" cy="${top + h / 2}" r="${w * 2.1}" fill="url(#${p}bloom)"/>
@@ -130,7 +130,7 @@
       return `<text transform="matrix(${[...xv, ...yv, ...o].map(n => +n.toFixed(4)).join(' ')})" x="0" y="0" text-anchor="middle" dominant-baseline="central" textLength="520" lengthAdjust="spacingAndGlyphs"
         font-family="'Chakra Petch', sans-serif" font-weight="700" font-size="100" letter-spacing="6" fill="var(--scn-ez-text)" stroke="var(--scn-ez-edge)" stroke-width="7" paint-order="stroke" stroke-linejoin="round">TUD TOOL</text>`;
     };
-    // the jumbotron; the landscape one sits down in the end-zone stands, sheared to run along the end line (facing the field)
+    // the jumbotron; the landscape one sits in the end-zone upper deck, sheared to run parallel to the end wall (facing the field)
     const jumbotron = (p, x, y, w, h, foot) => `<circle cx="${x + w / 2}" cy="${y + h / 2}" r="${w * 1.3}" fill="url(#${p}screenglow)"/><circle cx="${x + w / 2}" cy="${y + h / 2}" r="${w * 0.7}" fill="url(#${p}screenglow)"/>
       <path d="M${x + w * 0.22} ${y + h}V${foot}M${x + w * 0.78} ${y + h}V${foot}" stroke="var(--scn-sil)" stroke-width="${w * 0.05}"/>
       <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${w * 0.04}" fill="var(--scn-sil)" stroke="var(--scn-rim)" stroke-width="2"/>
@@ -199,7 +199,7 @@
       <path d="${fasciaL}" stroke="var(--scn-fascia)" stroke-width="7" fill="none"/><path d="${fasciaL}" stroke="var(--scn-rim)" stroke-width="1" fill="none" transform="translate(0 -3.5)"/>
       <path d="${rimPath}" stroke="var(--scn-rim)" stroke-width="1.6" fill="none"/>
       ${suites}<g fill="var(--scn-flash)">${flashes(lFlash)}</g>
-      <g transform="matrix(0.9 0.42 0 1 1440 386)">${jumbotron('L', 0, 0, 160, 98, 114)}</g>
+      <g transform="matrix(0.92 0.37 0 1 1440 392)">${jumbotron('L', 0, 0, 160, 98, 114)}</g>
       ${field}${wall}
       ${goal('L', 99, 781, 22, -10, 52, 206, 7, false)}${goal('L', 1501, 781, -22, -10, 52, 206, 7, true)}
       <path d="${beamsL.join('')}" fill="url(#Lbeam)" filter="url(#Lsoft)"/></svg>`;
