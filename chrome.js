@@ -17,7 +17,9 @@
 // closeNavTools, currentTheme, ...).
 // the holiday touches (/holiday.js): on a few days a year, by date
 if (!document.querySelector('script[src^="/holiday.js"]')) { const h = document.createElement('script'); h.src = '/holiday.js'; h.defer = true; document.head.appendChild(h); }
-// each sport's night scene (/scene.js): preview only, ?bg=night
+// each sport's night scene (/scene.js): preview only, ?bg=night. The choice is kept here, in <head>, before the app's
+// router can strip the query: holiday.js and scene.js (deferred) both read it from sessionStorage.
+try { const bg = new URLSearchParams(location.search).get('bg'); if (bg === 'night') sessionStorage.setItem('ronScene', 'night'); else if (bg === 'off') sessionStorage.removeItem('ronScene'); } catch (e) {}
 if (!document.querySelector('script[src^="/scene.js"]')) { const h = document.createElement('script'); h.src = '/scene.js'; h.defer = true; document.head.appendChild(h); }
 (function () {
   // Styles for the header, main nav, tools menu, sport switcher and footer: the rules that were identical in all four apps.
