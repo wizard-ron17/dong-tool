@@ -130,6 +130,7 @@
       return `<text transform="matrix(${[...xv, ...yv, ...o].map(n => +n.toFixed(4)).join(' ')})" x="0" y="0" text-anchor="middle" dominant-baseline="central" textLength="520" lengthAdjust="spacingAndGlyphs"
         font-family="'Chakra Petch', sans-serif" font-weight="700" font-size="100" letter-spacing="6" fill="var(--scn-ez-text)" stroke="var(--scn-ez-edge)" stroke-width="7" paint-order="stroke" stroke-linejoin="round">TUD TOOL</text>`;
     };
+    // the jumbotron; the landscape one sits down in the end-zone stands, sheared to run along the end line (facing the field)
     const jumbotron = (p, x, y, w, h, foot) => `<circle cx="${x + w / 2}" cy="${y + h / 2}" r="${w * 1.3}" fill="url(#${p}screenglow)"/><circle cx="${x + w / 2}" cy="${y + h / 2}" r="${w * 0.7}" fill="url(#${p}screenglow)"/>
       <path d="M${x + w * 0.22} ${y + h}V${foot}M${x + w * 0.78} ${y + h}V${foot}" stroke="var(--scn-sil)" stroke-width="${w * 0.05}"/>
       <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${w * 0.04}" fill="var(--scn-sil)" stroke="var(--scn-rim)" stroke-width="2"/>
@@ -160,7 +161,7 @@
     // the field: mowing stripes every 5 yards, the end zones, yard lines (heavier every 10), the sidelines
     let field = `<path d="M${F0}L${F1}L${N1}L${N0}Z" fill="url(#Lturf)"/>`;
     for (let y = 10; y < 110; y += 5) if ((y / 5) % 2) { const [a, b] = at(y / 120), [c, d] = at((y + 5) / 120); field += `<path d="M${a}L${c}L${d}L${b}Z" fill="var(--scn-stripe)"/>`; }
-    for (const [t0, t1, flip] of [[0, 10 / 120, false], [1, 110 / 120, true]]) {
+    for (const [t0, t1, flip] of [[0, 10 / 120, false], [1, 110 / 120, false]]) {        // both read left to right
       const [a, b] = at(t0), [c, d] = at(t1);
       field += `<path d="M${a}L${c}L${d}L${b}Z" fill="var(--scn-ez-paint)"/>` + ezText(a, c, b, d, 0.44, flip);
     }
@@ -193,12 +194,12 @@
       <ellipse cx="800" cy="${FAR + 30}" rx="900" ry="220" fill="url(#Lfieldglow)" opacity=".7"/>
       ${towersL.slice(2).map(t => tower('L', ...t)).join('')}${towersL.slice(0, 2).map(t => tower('L', ...t)).join('')}
       ${blimp('L', 150, 318, 0.56)}
-      ${jumbotron('L', 1430, 236, 160, 98, 440)}
       <path d="${bowl}" fill="url(#Lcrowd)"/><path d="${bowl}" fill="url(#Lshade)"/><path d="${bowl}" fill="url(#Llit)"/>
       <path d="${aisles}" stroke="var(--scn-aisle)" stroke-width="5" fill="none"/>
       <path d="${fasciaL}" stroke="var(--scn-fascia)" stroke-width="7" fill="none"/><path d="${fasciaL}" stroke="var(--scn-rim)" stroke-width="1" fill="none" transform="translate(0 -3.5)"/>
       <path d="${rimPath}" stroke="var(--scn-rim)" stroke-width="1.6" fill="none"/>
       ${suites}<g fill="var(--scn-flash)">${flashes(lFlash)}</g>
+      <g transform="matrix(0.9 0.42 0 1 1412 452)">${jumbotron('L', 0, 0, 160, 98, 114)}</g>
       ${field}${wall}
       ${goal('L', 99, 781, 22, -10, 52, 206, 7, false)}${goal('L', 1501, 781, -22, -10, 52, 206, 7, true)}
       <path d="${beamsL.join('')}" fill="url(#Lbeam)" filter="url(#Lsoft)"/></svg>`;
