@@ -76,6 +76,7 @@
       <pattern id="${p}crowd" width="96" height="12" patternUnits="userSpaceOnUse"><rect width="96" height="12" fill="var(--scn-stand)"/>${CROWD_TILE}</pattern>
       <linearGradient id="${p}shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-sil)" stop-opacity=".72"/><stop offset=".4" stop-color="var(--scn-sil)" stop-opacity=".3"/><stop offset="1" stop-color="var(--scn-sil)" stop-opacity="0"/></linearGradient>
       <filter id="${p}soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="10"/></filter>
+      <filter id="${p}glow" x="-20%" y="-60%" width="140%" height="220%"><feGaussianBlur stdDeviation="3"/></filter>
       
       <pattern id="${p}ez" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="24" height="24" fill="var(--scn-ez)"/><rect width="9" height="24" fill="var(--scn-ez2)"/></pattern>
       <linearGradient id="${p}screen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-screen-hi)"/><stop offset="1" stop-color="var(--scn-screen)"/></linearGradient>
@@ -119,25 +120,27 @@
         <rect x="${bx - sw * 1.2}" y="${by - rise * 0.42}" width="${sw * 2.4}" height="${rise * 0.42}" rx="${sw * 0.7}" fill="var(--scn-pad)"/>
         ${flag([a[0], a[1] - up], 0)}${flag([b[0], b[1] - up], -1.1)}`;
     };
-    const ezText = (endF, goalF, endN, goalN, size) => {
+    const ezText = (endF, goalF, endN, goalN, size, flip) => {
       const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], Mf = mid(endF, goalF), Mn = mid(endN, goalN);
-      const A = L(Mn, Mf, 0.16), B = L(Mn, Mf, 0.86), h = L([endN[0] - goalN[0], endN[1] - goalN[1]], [endF[0] - goalF[0], endF[1] - goalF[1]], 0.5);
+      const A = L(Mn, Mf, 0.07), B = L(Mn, Mf, 0.7), h = L([endN[0] - goalN[0], endN[1] - goalN[1]], [endF[0] - goalF[0], endF[1] - goalF[1]], 0.4);
       const hl = Math.hypot(...h), up = [h[0] / hl, h[1] / hl], k = hl * size / 70;
       let xv = [(B[0] - A[0]) / 520, (B[1] - A[1]) / 520], o = mid(A, B), yv = [-up[0] * k, -up[1] * k];
       if (xv[0] * yv[1] - xv[1] * yv[0] < 0) xv = [-xv[0], -xv[1]];                       // never mirrored
+      if (flip) { xv = [-xv[0], -xv[1]]; yv = [-yv[0], -yv[1]]; }                           // turned half round: both ends read from the same side
       return `<text transform="matrix(${[...xv, ...yv, ...o].map(n => +n.toFixed(4)).join(' ')})" x="0" y="0" text-anchor="middle" dominant-baseline="central" textLength="520" lengthAdjust="spacingAndGlyphs"
         font-family="'Chakra Petch', sans-serif" font-weight="700" font-size="100" letter-spacing="6" fill="var(--scn-ez-text)" stroke="var(--scn-ez-edge)" stroke-width="7" paint-order="stroke" stroke-linejoin="round">TUD TOOL</text>`;
     };
-    const jumbotron = (p, x, y, w, h, foot) => `<circle cx="${x + w / 2}" cy="${y + h / 2}" r="${w * 1.1}" fill="url(#${p}screenglow)"/>
+    const jumbotron = (p, x, y, w, h, foot) => `<circle cx="${x + w / 2}" cy="${y + h / 2}" r="${w * 1.3}" fill="url(#${p}screenglow)"/><circle cx="${x + w / 2}" cy="${y + h / 2}" r="${w * 0.7}" fill="url(#${p}screenglow)"/>
       <path d="M${x + w * 0.22} ${y + h}V${foot}M${x + w * 0.78} ${y + h}V${foot}" stroke="var(--scn-sil)" stroke-width="${w * 0.05}"/>
       <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${w * 0.04}" fill="var(--scn-sil)" stroke="var(--scn-rim)" stroke-width="2"/>
       <rect x="${x + w * 0.05}" y="${y + h * 0.08}" width="${w * 0.9}" height="${h * 0.62}" rx="4" fill="url(#${p}screen)"/>
-      <text x="${x + w / 2}" y="${y + h * 0.5}" text-anchor="middle" font-family="'Chakra Petch', 'JetBrains Mono', sans-serif" font-weight="700" font-size="${f1(w * 0.135)}" fill="var(--scn-led)" class="scn-pulse">TOUCHDOWN</text>
+      <text x="${x + w / 2}" y="${y + h * 0.5}" text-anchor="middle" font-family="'Chakra Petch', 'JetBrains Mono', sans-serif" font-weight="700" font-size="${f1(w * 0.135)}" fill="var(--scn-led)" filter="url(#${p}glow)" class="scn-pulse">TOUCHDOWN</text>
+      <text x="${x + w / 2}" y="${y + h * 0.5}" text-anchor="middle" font-family="'Chakra Petch', 'JetBrains Mono', sans-serif" font-weight="700" font-size="${f1(w * 0.135)}" fill="var(--scn-led-hi)" class="scn-pulse">TOUCHDOWN</text>
       <rect x="${x + w * 0.05}" y="${y + h * 0.76}" width="${w * 0.9}" height="${h * 0.15}" rx="3" fill="var(--scn-ribbon-bg)"/>
       <text x="${x + w / 2}" y="${y + h * 0.875}" text-anchor="middle" font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="700" font-size="${f1(w * 0.058)}" letter-spacing="1" fill="var(--scn-ribbon)">HOME 24 · AWAY 21 · 4TH</text>`;
-    const blimp = (p, x, y, s) => `<g class="scn-drift"><g transform="translate(${x} ${y}) scale(${s})">
+    const blimp = (p, x, y, s) => `<g class="scn-drift"><g transform="translate(${x} ${y}) scale(${s})"><circle r="230" fill="url(#${p}screenglow)" opacity=".7"/>
       <path d="M-132 -12L-160 -42L-118 -20ZM-132 12L-162 40L-116 20Z" fill="var(--scn-sil)" stroke="var(--scn-rim)" stroke-width="1.5" stroke-linejoin="round"/>
-      <ellipse rx="140" ry="42" fill="url(#${p}blimp)"/><path d="M-128 -12Q0 -60 132 -10" stroke="var(--scn-rim)" stroke-width="2" fill="none"/>
+      <ellipse rx="140" ry="42" fill="url(#${p}blimp)" stroke="var(--scn-rim)" stroke-width="1.5"/><path d="M-128 -12Q0 -60 132 -10" stroke="var(--scn-rim)" stroke-width="2.5" fill="none"/>
       <rect x="-70" y="-15" width="140" height="28" rx="7" fill="url(#${p}led)"/>
       <text x="0" y="5" text-anchor="middle" font-family="'Chakra Petch', 'JetBrains Mono', sans-serif" font-weight="700" font-size="15" letter-spacing="3" fill="var(--scn-led-text)">RON'S TOOLS</text>
       <rect x="-22" y="40" width="48" height="14" rx="5" fill="var(--scn-sil)" stroke="var(--scn-rim)" stroke-width="1"/>
@@ -147,7 +150,7 @@
     // ── landscape: the view from the 50, a little above the field ─────────────────────────────────────────────
     const W = 1600, H = 900, FAR = 668;
     const rimL = (x) => x < 420 ? 548 - 178 * (1 - x / 420) ** 1.55 : x > 1180 ? 548 - 178 * (1 - (W - x) / 420) ** 1.55 : 548 + 4 * Math.sin(x / 90);
-    const F0 = [338, FAR], F1 = [1262, FAR], N0 = [-140, H + 40], N1 = [1740, H + 40];        // far and near sidelines, end to end
+    const F0 = [338, FAR], F1 = [1262, FAR], N0 = [-140, H - 6], N1 = [1740, H - 6];          // far and near sidelines, end to end
     const at = (t) => [L(F0, F1, t), L(N0, N1, t)];                                            // a line across the field at t (0..1, end line to end line)
     let rimPath = 'M0 ' + f1(rimL(0));
     for (let x = 20; x <= W; x += 20) rimPath += ' L' + x + ' ' + f1(rimL(x));
@@ -157,15 +160,25 @@
     // the field: mowing stripes every 5 yards, the end zones, yard lines (heavier every 10), the sidelines
     let field = `<path d="M${F0}L${F1}L${N1}L${N0}Z" fill="url(#Lturf)"/>`;
     for (let y = 10; y < 110; y += 5) if ((y / 5) % 2) { const [a, b] = at(y / 120), [c, d] = at((y + 5) / 120); field += `<path d="M${a}L${c}L${d}L${b}Z" fill="var(--scn-stripe)"/>`; }
-    for (const [t0, t1] of [[0, 10 / 120], [110 / 120, 1]]) {
+    for (const [t0, t1, flip] of [[0, 10 / 120, false], [1, 110 / 120, true]]) {
       const [a, b] = at(t0), [c, d] = at(t1);
-      field += `<path d="M${a}L${c}L${d}L${b}Z" fill="var(--scn-ez-paint)"/>` + ezText(a, c, b, d, 0.42);
+      field += `<path d="M${a}L${c}L${d}L${b}Z" fill="var(--scn-ez-paint)"/>` + ezText(a, c, b, d, 0.44, flip);
     }
     for (let y = 10; y <= 110; y += 5) { const [a, b] = at(y / 120); field += `<path d="M${a.map(f1)}L${b.map(f1)}" stroke="var(--scn-line)" stroke-width="${y % 10 ? 1.4 : 2.6}"/>`; }
     field += `<path d="M${F0}L${F1}M${F0}L${N0}M${F1}L${N1}" stroke="var(--scn-line)" stroke-width="3"/>`;
-    // the wall along the far sideline: an LED ribbon, segments lit
-    let wall = `<path d="M${F0[0]} ${FAR - 1}L${F1[0]} ${FAR - 1}L${F1[0]} ${FAR - 20}L${F0[0]} ${FAR - 20}Z" fill="var(--scn-sil)"/>`;
-    for (let x = F0[0] + 6; x + 64 < F1[0]; x += 74) wall += `<rect x="${x}" y="${FAR - 16}" width="64" height="10" rx="2" fill="url(#Lled)" opacity="${Math.round((x - F0[0]) / 74) % 3 ? .45 : .9}"/>`;
+    // the wall that keeps the crowd off the field: along the far side and behind both end zones, set back past an
+    // out-of-bounds apron (the goalposts stand in front of it), LED boards along its face, a padded cap
+    const [WF0, WN0] = at(-0.075), [WF1, WN1] = at(1.075);
+    field = `<path d="M${WF0}L${WF1}L${WN1}L${WN0}Z" fill="var(--scn-apron)"/>` + field;
+    const strip = (p, q, hp, hq, n, off) => {
+      let out = `<path d="M${p}L${q}L${q[0]} ${q[1] - hq}L${p[0]} ${p[1] - hp}Z" fill="var(--scn-wall)"/><path d="M${p[0]} ${p[1] - hp}L${q[0]} ${q[1] - hq}" stroke="var(--scn-wallcap)" stroke-width="2.5"/>`;
+      for (let i = 0; i < n; i++) {
+        const u0 = (i + 0.08) / n, u1 = (i + 0.92) / n, A = L(p, q, u0), B = L(p, q, u1), ha = hp + (hq - hp) * u0, hb = hp + (hq - hp) * u1;
+        out += `<path d="M${A[0]} ${A[1] - ha * 0.22}L${B[0]} ${B[1] - hb * 0.22}L${B[0]} ${B[1] - hb * 0.72}L${A[0]} ${A[1] - ha * 0.72}Z" fill="url(#Lled)" opacity="${(i + off) % 3 ? .45 : .95}"/>`;
+      }
+      return out;
+    };
+    let wall = strip([WF0[0], FAR], [WF1[0], FAR], 20, 20, 14, 0) + strip(WN0, WF0, 34, 20, 4, 1) + strip(WF1, WN1, 20, 34, 4, 2);
     // suites: a row of warm windows across the far stands
     let suites = '';
     for (let x = 430; x < 1170; x += 13) suites += `<rect x="${x}" y="603" width="8" height="5" rx="1" fill="var(--scn-window)" opacity="${f1(0.35 + rnd() * 0.55)}"/>`;
@@ -179,15 +192,15 @@
     const LAND = `<svg class="scn-land" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMax slice">${defs('L')}
       <ellipse cx="800" cy="${FAR + 30}" rx="900" ry="220" fill="url(#Lfieldglow)" opacity=".7"/>
       ${towersL.slice(2).map(t => tower('L', ...t)).join('')}${towersL.slice(0, 2).map(t => tower('L', ...t)).join('')}
-      ${blimp('L', 228, 236, 0.52)}
-      ${jumbotron('L', 1388, 262, 168, 102, 480)}
+      ${blimp('L', 150, 318, 0.56)}
+      ${jumbotron('L', 1430, 236, 160, 98, 440)}
       <path d="${bowl}" fill="url(#Lcrowd)"/><path d="${bowl}" fill="url(#Lshade)"/><path d="${bowl}" fill="url(#Llit)"/>
       <path d="${aisles}" stroke="var(--scn-aisle)" stroke-width="5" fill="none"/>
       <path d="${fasciaL}" stroke="var(--scn-fascia)" stroke-width="7" fill="none"/><path d="${fasciaL}" stroke="var(--scn-rim)" stroke-width="1" fill="none" transform="translate(0 -3.5)"/>
       <path d="${rimPath}" stroke="var(--scn-rim)" stroke-width="1.6" fill="none"/>
       ${suites}<g fill="var(--scn-flash)">${flashes(lFlash)}</g>
       ${field}${wall}
-      ${goal('L', 99, 804, 23, -13, 52, 206, 7, false)}${goal('L', 1501, 804, -23, -13, 52, 206, 7, true)}
+      ${goal('L', 99, 781, 22, -10, 52, 206, 7, false)}${goal('L', 1501, 781, -22, -10, 52, 206, 7, true)}
       <path d="${beamsL.join('')}" fill="url(#Lbeam)" filter="url(#Lsoft)"/></svg>`;
 
     // ── portrait (phones): the end-zone view, the goalposts straight ahead, a light bank in each top corner ─────
@@ -226,6 +239,10 @@
       <path d="${rimPP}" stroke="var(--scn-rim)" stroke-width="1.6" fill="none"/>
       ${suitesP}<g fill="var(--scn-flash)">${flashes(pFlash)}</g>
       ${fieldP}
+      <path d="M236 ${PF - 6}L664 ${PF - 6}L664 ${PF - 30}L236 ${PF - 30}Z" fill="var(--scn-wall)"/><path d="M236 ${PF - 30}H664" stroke="var(--scn-wallcap)" stroke-width="3"/>
+      ${[0, 1, 2, 3, 4].map(i => `<rect x="${246 + i * 84}" y="${PF - 25}" width="74" height="12" rx="2" fill="url(#Pled)" opacity="${i % 2 ? .45 : .95}"/>`).join('')}
+      <path d="M236 ${PF - 6}L-220 ${PH + 60}L-220 ${PH}L236 ${PF - 30}Z" fill="var(--scn-wall)"/><path d="M664 ${PF - 6}L1120 ${PH + 60}L1120 ${PH}L664 ${PF - 30}Z" fill="var(--scn-wall)"/>
+      <path d="M236 ${PF - 30}L-220 ${PH}M664 ${PF - 30}L1120 ${PH}" stroke="var(--scn-wallcap)" stroke-width="3"/>
       ${goal('P', 450, PF - 2, 92, 0, 80, 300, 10, false)}
       <path d="${beamsP.join('')}" fill="url(#Pbeam)" filter="url(#Psoft)"/></svg>`;
 
@@ -235,13 +252,15 @@
         --scn-c1: #8c94a3; --scn-c2: #8e3f3f; --scn-c3: #34558f; --scn-c4: #a8862f; --scn-c5: #3d7d58; --scn-c6: #535a68; --scn-rim: rgba(170,215,235,0.26);
         --scn-mast-hi: #2c4c55; --scn-lamp: #ffffff; --scn-light: #e8f3ff; --scn-flare: #9fd0ff; --scn-flash: #ffffff;
         --scn-fieldglow: #49de92; --scn-turf-far: #1f7a45; --scn-turf-near: #0b3a21; --scn-stripe: rgba(255,255,255,0.045); --scn-line: rgba(245,255,248,0.55);
-        --scn-ez-paint: #0b4a2b; --scn-ez-text: #f5f1e4; --scn-ez-edge: #33d07c; --scn-standlit: #ffe6bf; --scn-post: #e2bd3c; --scn-post-hi: #ffe896; --scn-post-lo: #8a6c16; --scn-pad: #0b1e3a; --scn-flag: #ff7a1a;
+        --scn-ez-paint: #0b4a2b; --scn-ez-text: #fbf8ee; --scn-ez-edge: #33d07c; --scn-standlit: #ffe6bf;
+        --scn-apron: #0a3420; --scn-wall: #0c1628; --scn-wallcap: #2a3f63; --scn-led-hi: #c9ffe0; --scn-post: #e2bd3c; --scn-post-hi: #ffe896; --scn-post-lo: #8a6c16; --scn-pad: #0b1e3a; --scn-flag: #ff7a1a;
         --scn-led: #33d07c; --scn-led-text: #04140c; --scn-window: #ffd98a; --scn-screen: #021309; --scn-screen-hi: #07301b; --scn-ribbon: #ffc94d; --scn-ribbon-bg: #0b0802; }
       ${LIGHT} { --border: #cfe0dc; --border2: #b4ccc6; --scn-sil: #4f6d67; --scn-stand: #6f8e88; --scn-seatline: #5c7a74; --scn-fascia: #8aa6a0; --scn-aisle: #87a39d;
         --scn-c1: #f2f4f7; --scn-c2: #d77a7a; --scn-c3: #7b9ad3; --scn-c4: #e2c46e; --scn-c5: #7fbf96; --scn-c6: #a3abb8; --scn-rim: rgba(255,255,255,0.6);
         --scn-mast-hi: #9fb9b3; --scn-lamp: #ffffff; --scn-light: #ffffff; --scn-flare: #ffffff; --scn-flash: #ffffff;
         --scn-fieldglow: #8fe0b2; --scn-turf-far: #6fbf8c; --scn-turf-near: #4f9d6c; --scn-stripe: rgba(255,255,255,0.08); --scn-line: rgba(255,255,255,0.85);
-        --scn-ez-paint: #2f7a4f; --scn-ez-text: #ffffff; --scn-ez-edge: #10a758; --scn-standlit: #ffffff; --scn-post: #d4ad2a; --scn-post-hi: #f5dd7c; --scn-post-lo: #9a7a1c; --scn-pad: #2b4466; --scn-flag: #e8650c;
+        --scn-ez-paint: #2f7a4f; --scn-ez-text: #ffffff; --scn-ez-edge: #10a758; --scn-standlit: #ffffff;
+        --scn-apron: #4f9d6c; --scn-wall: #3c5a7d; --scn-wallcap: #9fb6d3; --scn-led-hi: #ffffff; --scn-post: #d4ad2a; --scn-post-hi: #f5dd7c; --scn-post-lo: #9a7a1c; --scn-pad: #2b4466; --scn-flag: #e8650c;
         --scn-led: #10a758; --scn-led-text: #ffffff; --scn-window: #fff3cf; --scn-screen: #13321f; --scn-screen-hi: #1f4a30; --scn-ribbon: #ffd56a; --scn-ribbon-bg: #1c1a12; }
       /* the sky is the root's: a solid colour under it so overscroll (rubber-banding past the top or bottom) isn't white,
          and the body clear, since the art layer sits under the body's background */
