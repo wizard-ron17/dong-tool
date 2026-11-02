@@ -53,6 +53,8 @@
       ${S} .scn-col { position: absolute; inset: 0; background: linear-gradient(to right, transparent calc(50% - 650px), var(--scn-col) calc(50% - 596px), var(--scn-col) calc(50% + 596px), transparent calc(50% + 650px)); }
       ${S}:not([data-theme="light"]) { --scn-col: color-mix(in srgb, var(--bg) 66%, transparent); }
       ${S}[data-theme="light"] { --scn-col: color-mix(in srgb, var(--bg) 22%, transparent); }
+      /* light mode: a soft light band under the header, so the nav reads over paint and logos */
+      ${S}[data-theme="light"] .scn-col::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 170px; background: linear-gradient(color-mix(in srgb, var(--bg) 82%, transparent) 55%, transparent); }
       @media (max-width: 760px) { ${S} .scn-col { background: color-mix(in srgb, var(--bg) 35%, transparent); } ${S}[data-theme="light"] .scn-col { background: color-mix(in srgb, var(--bg) 12%, transparent); } }
       /* the footer gets its own frosted panel: the art reaches the page end, and its text must read over it */
       ${S} .site-foot { background: color-mix(in srgb, var(--bg) 72%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
