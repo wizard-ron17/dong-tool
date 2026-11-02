@@ -51,7 +51,7 @@
       ${S} .scn-col { position: absolute; inset: 0; background: linear-gradient(to right, transparent calc(50% - 650px), var(--scn-col) calc(50% - 596px), var(--scn-col) calc(50% + 596px), transparent calc(50% + 650px)); }
       ${S}:not([data-theme="light"]) { --scn-col: color-mix(in srgb, var(--bg) 66%, transparent); }
       ${S}[data-theme="light"] { --scn-col: color-mix(in srgb, var(--bg) 60%, transparent); }
-      @media (max-width: 760px) { ${S} .scn-col { background: var(--scn-col); } }
+      @media (max-width: 760px) { ${S} .scn-col { background: color-mix(in srgb, var(--bg) 35%, transparent); } }
       /* the footer gets its own frosted panel: the art reaches the page end, and its text must read over it */
       ${S} .site-foot { background: color-mix(in srgb, var(--bg) 72%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
         border: 1px solid var(--border); border-radius: 14px; padding: 0.8rem 1rem; }`; }
@@ -159,7 +159,7 @@
     const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${rink(420, 5.2, 6, 205, 'P')}</svg>`;
     const css = `
       ${DARK} { --bg: #060a12; --surface0: #0a101b; --surface1: #0e1624; --surface2: #142034; --border: #1c2a40; --border2: #283b5a;
-        --scn-ice: #0d1522; --scn-cloud: #1e2f48; --scn-scratch: rgba(190,215,255,0.07); --scn-speck: rgba(220,235,255,0.08); --scn-paintop: .5;
+        --scn-ice: #121c2c; --scn-cloud: #24395a; --scn-scratch: rgba(190,215,255,0.09); --scn-speck: rgba(220,235,255,0.1); --scn-paintop: .72;
         --scn-red: #c8323f; --scn-blue: #2f6bd0; --scn-crease: rgba(47,107,208,0.25); --scn-board: #05080e; --scn-kick: #c9a227; --scn-vig: .6; }
       ${LIGHT} { --border: #d3dee9; --border2: #b9c8d8; --scn-ice: #eef4f9; --scn-cloud: #ffffff; --scn-scratch: rgba(110,140,175,0.16); --scn-speck: rgba(120,150,185,0.18); --scn-paintop: .8;
         --scn-red: #c8102e; --scn-blue: #0b4f9c; --scn-crease: rgba(90,160,230,0.35); --scn-board: #f9fbfd; --scn-kick: #e2b400; --scn-vig: .1; }
