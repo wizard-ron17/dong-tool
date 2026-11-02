@@ -277,10 +277,10 @@
     const LAND = `<svg class="scn-land" data-w="1600" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMin slice">${court(1600, 30.4, 24, -450, "RON'S HOOP TOOL", 1000)}</svg>`;
     const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${court(420, 8.16, 5, 420, 'HOOP TOOL', 1020)}</svg>`;
     const css = `
-      ${DARK} { --scn-stain: rgba(10,6,2,0.74); --scn-paint: rgba(226,214,192,0.8); --scn-apron: #1a1438; --scn-apron-text: rgba(245,240,230,0.18);
-        --scn-key: #221a4a; --scn-rim: rgba(255,120,40,0.6); --scn-vig: .65; }
-      ${LIGHT} { --scn-stain: rgba(255,248,236,0.06); --scn-paint: #fbfaf6; --scn-apron: #3a2a7a;
-        --scn-apron-text: rgba(255,255,255,0.55); --scn-key: #4a36a0; --scn-rim: #ff6a00; --scn-vig: .12; }
+      ${DARK} { --scn-stain: rgba(10,6,2,0.74); --scn-paint: rgba(226,214,192,0.8); --scn-apron: #0e1a30; --scn-apron-text: rgba(245,240,230,0.18);
+        --scn-key: #14233f; --scn-rim: rgba(255,120,40,0.6); --scn-vig: .65; }
+      ${LIGHT} { --scn-stain: rgba(255,248,236,0.06); --scn-paint: #fbfaf6; --scn-apron: #17305c;
+        --scn-apron-text: rgba(255,255,255,0.55); --scn-key: #1f3f78; --scn-rim: #ff6a00; --scn-vig: .12; }
       /* the floor under everything, so overscroll past the page ends is wood, not white */
       ${DARK} { background: #120c07; } ${LIGHT} { background: #c99a62; }
       ${S} body { background: transparent; } ${S} body::before { display: none; }
