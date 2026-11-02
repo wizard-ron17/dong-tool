@@ -117,7 +117,7 @@
         for (let k = 1; k <= n; k++) { a += curve / n + (rnd() - 0.5) * 0.05; x += Math.cos(a) * l / n; y += Math.sin(a) * l / n; d += `L${f1(x)} ${f1(y)}`; }
         return `<path d="${d}" stroke-width="${f1(w)}" opacity="${f1(op)}"/>`;
       };
-      for (let i = 0; i < 420; i++) {
+      for (let i = 0; i < 650; i++) {
         const x = rnd() * 900, y = rnd() * 900, a = rnd() * 6.283, long = rnd() < 0.35, l = long ? 160 + rnd() * 420 : 20 + rnd() * 110;
         const curve = (rnd() - 0.5) * (long ? 1.1 : 0.4), w = 0.25 + rnd() ** 2 * 0.9, op = 0.25 + rnd() * 0.75;
         o += cut(x, y, a, l, curve, w, op);
@@ -167,9 +167,9 @@
     const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${rink(420, 5.2, 6, 205, 'P')}</svg>`;
     const css = `
       ${DARK} { --bg: #060a12; --surface0: #0a101b; --surface1: #0e1624; --surface2: #142034; --border: #1c2a40; --border2: #283b5a;
-        --scn-ice: #101a2a; --scn-tint: .86; --scn-cloud: #24395a; --scn-scratch: rgba(200,222,255,0.16); --scn-speck: rgba(220,235,255,0.12); --scn-paintop: .72;
+        --scn-ice: #101a2a; --scn-tint: .86; --scn-cloud: #24395a; --scn-scratch: rgba(205,225,255,0.24); --scn-speck: rgba(220,235,255,0.16); --scn-paintop: .72;
         --scn-red: #c8323f; --scn-blue: #2f6bd0; --scn-crease: rgba(47,107,208,0.25); --scn-board: #05080e; --scn-kick: #c9a227; --scn-vig: .6; }
-      ${LIGHT} { --border: #d3dee9; --border2: #b9c8d8; --scn-ice: #e8f1f8; --scn-tint: .45; --scn-cloud: #ffffff; --scn-scratch: rgba(255,255,255,0.75); --scn-speck: rgba(255,255,255,0.7); --scn-paintop: .8;
+      ${LIGHT} { --border: #d3dee9; --border2: #b9c8d8; --scn-ice: #e8f1f8; --scn-tint: .45; --scn-cloud: #ffffff; --scn-scratch: rgba(105,135,170,0.34); --scn-speck: rgba(255,255,255,0.85); --scn-paintop: .8;
         --scn-red: #c8102e; --scn-blue: #0b4f9c; --scn-crease: rgba(90,160,230,0.35); --scn-board: #f9fbfd; --scn-kick: #e2b400; --scn-vig: .1; }
       /* the ice under everything, so overscroll past the page ends is ice, not white */
       ${DARK} { background: #0a111c; } ${LIGHT} { background: #eef4f9; }
