@@ -16,7 +16,10 @@
   const et = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   const today = Date.UTC(+et.slice(0, 4), +et.slice(5, 7) - 1, +et.slice(8, 10));
   const near = (h) => [-1, 0, 1].some(dy => { const d = Date.UTC(+et.slice(0, 4) + dy, +h.date.slice(0, 2) - 1, +h.date.slice(3, 5)); return Math.abs(d - today) <= 864e5; });
-  const on = q === 'off' ? null : HOLIDAYS.find(h => h.key === q) || (q ? null : HOLIDAYS.find(near));
+  // a night-scene preview (scene.js, ?bg=night) is a choice someone made: the date's holiday steps aside for it
+  let scene = /[?&]bg=night\b/.test(location.search);
+  try { scene = scene || (!/[?&]bg=off\b/.test(location.search) && sessionStorage.getItem('ronScene') === 'night'); } catch (e) {}
+  const on = q === 'off' ? null : HOLIDAYS.find(h => h.key === q) || (q || scene ? null : HOLIDAYS.find(near));
   window.RonHoliday = { on: on?.key || null };
   if (!on) return;
   const root = document.documentElement;

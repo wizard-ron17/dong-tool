@@ -2,7 +2,7 @@
 // black, the cards tinted to it, brighter borders, art in the empty margins), in the sport's own hue. The accent and the
 // good/bad ramp stay the app's; only the sky, the surfaces and the borders change.
 // PREVIEW ONLY for now: ?bg=night turns it on for this tab (it stays on as you move around), ?bg=off turns it off.
-// A holiday (/holiday.js) takes the page over on its days. chrome.js loads this file.
+// A holiday stands aside while a scene is previewed, unless asked for by name (?holiday=halloween). chrome.js loads this file.
 //
 //   nfl   stadium night: a green-navy sky, two light towers throwing beams across the top, the stands, goalposts
 //         and a sliver of lit field along the bottom
@@ -16,9 +16,9 @@
   const SCENES = { nfl: nfl };
   window.RonScene = { on: null };
   if (!want || !SCENES[sport]) return;
-  // a holiday wins on its days (holiday.js sets data-holiday before the page draws; it may load after us, so look again)
+  // a holiday asked for by name (?holiday=halloween) wins; otherwise holiday.js stands aside while a scene is previewed
   const go = () => {
-    if (document.documentElement.getAttribute('data-holiday')) return;
+    if (new URLSearchParams(location.search).get('holiday') && new URLSearchParams(location.search).get('holiday') !== 'off') return;
     window.RonScene.on = sport;
     document.documentElement.setAttribute('data-scene', sport);
     SCENES[sport]();
