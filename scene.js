@@ -4,7 +4,7 @@
 // PREVIEW ONLY for now: ?bg=night turns it on for this tab (it stays on as you move around), ?bg=off turns it off.
 // A holiday stands aside while a scene is previewed, unless asked for by name (?holiday=halloween). chrome.js loads this file.
 //
-//   nhl   the rink from above: skate-scratched ice, soft under-ice paint (the red line, a blue line, the end-zone circles
+//   nhl   the rink from above: rink ice (scene/ice.jpg, ambientCG Snow006, CC0) with skate marks drawn on, soft under-ice paint (the red line, a blue line, the end-zone circles
 //         and hashes in the margins), the boards at both edges with the yellow kick plate; dark slate ice in dark mode
 //   nfl   close up on the field from straight above: real turf under white paint, the yard lines across the screen, a
 //         big number in each side margin, night-lit. (The stadium panorama before it is in git history, 11/02.)
@@ -140,7 +140,7 @@
       let o = `<defs><pattern id="${id}scr" width="700" height="700" patternUnits="userSpaceOnUse"><g fill="none" stroke="var(--scn-scratch)" stroke-linecap="round">${scratches}</g><g fill="var(--scn-speck)">${specks}</g></pattern>
         <filter id="${id}under" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="${f1(Math.max(0.5, ft * 0.06))}"/></filter>
         <radialGradient id="${id}cloud"><stop offset="0" stop-color="var(--scn-cloud)" stop-opacity=".5"/><stop offset="1" stop-color="var(--scn-cloud)" stop-opacity="0"/></radialGradient></defs>
-        <rect x="0" y="-200" width="${W}" height="${H}" fill="var(--scn-ice)"/>`;
+        <rect x="0" y="-200" width="${W}" height="${H}" fill="var(--scn-ice)" opacity="var(--scn-tint)"/>`;
       seed = 77; for (let i = 0; i < 9; i++) o += `<ellipse cx="${f1(rnd() * W)}" cy="${f1(rnd() * 1800)}" rx="${f1(W * (0.12 + rnd() * 0.2))}" ry="${f1(W * (0.08 + rnd() * 0.14))}" fill="url(#${id}cloud)"/>`;
       o += `<g filter="url(#${id}under)" opacity="var(--scn-paintop)">
         <rect x="${S}" y="${f1(yRed - lw / 2)}" width="${W - 2 * S}" height="${lw}" fill="${red}"/>
@@ -159,13 +159,15 @@
     const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${rink(420, 5.2, 6, 205, 'P')}</svg>`;
     const css = `
       ${DARK} { --bg: #060a12; --surface0: #0a101b; --surface1: #0e1624; --surface2: #142034; --border: #1c2a40; --border2: #283b5a;
-        --scn-ice: #121c2c; --scn-cloud: #24395a; --scn-scratch: rgba(190,215,255,0.09); --scn-speck: rgba(220,235,255,0.1); --scn-paintop: .72;
+        --scn-ice: #101a2a; --scn-tint: .86; --scn-cloud: #24395a; --scn-scratch: rgba(190,215,255,0.09); --scn-speck: rgba(220,235,255,0.1); --scn-paintop: .72;
         --scn-red: #c8323f; --scn-blue: #2f6bd0; --scn-crease: rgba(47,107,208,0.25); --scn-board: #05080e; --scn-kick: #c9a227; --scn-vig: .6; }
-      ${LIGHT} { --border: #d3dee9; --border2: #b9c8d8; --scn-ice: #eef4f9; --scn-cloud: #ffffff; --scn-scratch: rgba(110,140,175,0.16); --scn-speck: rgba(120,150,185,0.18); --scn-paintop: .8;
+      ${LIGHT} { --border: #d3dee9; --border2: #b9c8d8; --scn-ice: #e8f1f8; --scn-tint: .45; --scn-cloud: #ffffff; --scn-scratch: rgba(110,140,175,0.16); --scn-speck: rgba(120,150,185,0.18); --scn-paintop: .8;
         --scn-red: #c8102e; --scn-blue: #0b4f9c; --scn-crease: rgba(90,160,230,0.35); --scn-board: #f9fbfd; --scn-kick: #e2b400; --scn-vig: .1; }
       /* the ice under everything, so overscroll past the page ends is ice, not white */
       ${DARK} { background: #0a111c; } ${LIGHT} { background: #eef4f9; }
       ${S} body { background: transparent; } ${S} body::before { display: none; }
+      /* resurfaced rink ice: scene/ice.jpg (ambientCG Snow006, CC0) for the milky cloud, tinted to the theme; skate marks drawn over it */
+      ${S} .scn { background: url(/scene/ice.jpg) 0 0 / 520px repeat; }
       ${S} .scn::after { content: ''; position: absolute; inset: 0; background: radial-gradient(115% 95% at 50% 45%, transparent 50%, rgba(0,0,0,var(--scn-vig)) 100%); }
       ${LIGHT} .scn svg { opacity: 1; }
       ${FULL_CSS(S, LIGHT)}`;
