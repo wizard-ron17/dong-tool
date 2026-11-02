@@ -69,6 +69,7 @@
       <radialGradient id="${p}screenglow"><stop offset="0" stop-color="var(--scn-led)" stop-opacity=".32"/><stop offset="1" stop-color="var(--scn-led)" stop-opacity="0"/></radialGradient>
       <linearGradient id="${p}led" x1="0" x2="1"><stop offset="0" stop-color="var(--scn-led)" stop-opacity=".2"/><stop offset=".5" stop-color="var(--scn-led)" stop-opacity=".95"/><stop offset="1" stop-color="var(--scn-led)" stop-opacity=".2"/></linearGradient>
       <linearGradient id="${p}blimp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-stand)"/><stop offset="1" stop-color="var(--scn-sil)"/></linearGradient>
+      <pattern id="${p}crowdb" width="23" height="14" patternUnits="userSpaceOnUse" patternTransform="translate(5 3)"><circle cx="5" cy="5" r="2.4" fill="var(--scn-crowd2)"/><circle cx="17" cy="11" r="2.1" fill="var(--scn-crowd)"/><circle cx="20" cy="2" r="1.6" fill="var(--scn-crowd2)"/></pattern>
       <linearGradient id="${p}lit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scn-fieldglow)" stop-opacity="0"/><stop offset="1" stop-color="var(--scn-fieldglow)" stop-opacity=".22"/></linearGradient></defs>`;
 
     // a light bank on a mast. The mast runs down past the rim; the stands, drawn after, cover its foot (grounded)
@@ -145,15 +146,15 @@
     const towersL = [[120, 92, 176, 86, 560, 4], [1484, 70, 176, 86, 540, -4], [560, 352, 86, 40, 590, 2], [1040, 352, 86, 40, 590, -2]];
     const beamsL = [beam(120, 92, 176, 86, [430, 760], [760, 860]), beam(1484, 70, 176, 86, [1180, 860], [880, 760]), beam(560, 352, 86, 40, [620, 760], [800, 760]), beam(1040, 352, 86, 40, [800, 760], [980, 760])];
     const LAND = `<svg class="scn-land" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMax slice">${defs('L')}
-      <ellipse cx="800" cy="${FAR + 40}" rx="980" ry="260" fill="url(#Lfieldglow)"/>
+      <ellipse cx="800" cy="${FAR + 30}" rx="900" ry="220" fill="url(#Lfieldglow)" opacity=".7"/>
       ${towersL.slice(2).map(t => tower('L', ...t)).join('')}${towersL.slice(0, 2).map(t => tower('L', ...t)).join('')}
-      ${blimp('L', 236, 318, 0.62)}
-      ${jumbotron('L', 1312, 268, 196, 118, 500)}
-      <path d="${bowl}" fill="url(#Lcrowd)"/><path d="${bowl}" fill="url(#Llit)"/>
+      ${blimp('L', 228, 236, 0.52)}
+      ${jumbotron('L', 1388, 262, 168, 102, 480)}
+      <path d="${bowl}" fill="url(#Lcrowd)"/><path d="${bowl}" fill="url(#Lcrowdb)" opacity=".7"/><path d="${bowl}" fill="url(#Llit)"/>
       <path d="${rimPath}" stroke="var(--scn-rim)" stroke-width="1.6" fill="none"/>
       ${suites}<g fill="var(--scn-flash)">${flashes(lFlash)}</g>
       ${field}${wall}
-      ${goal('L', 170, 784, 26, -19, 48, 196, 7, false)}${goal('L', 1430, 784, 26, 19, 48, 196, 7, true)}
+      ${goal('L', 170, 784, 28, -9, 50, 200, 7, false)}${goal('L', 1430, 784, 28, 9, 50, 200, 7, true)}
       <clipPath id="Lbeams"><path d="${beamsL.join('')}"/></clipPath>
       <path d="${beamsL.join('')}" fill="url(#Lbeam)"/><rect width="${W}" height="${H}" fill="url(#Lrain)" clip-path="url(#Lbeams)" opacity=".75"/></svg>`;
 
@@ -173,13 +174,13 @@
     while (pFlash.length < 30) { const x = rnd() * PW, top = rimP(x) + 10, bot = PF - 16; if (bot > top + 6) pFlash.push([x, top + rnd() * (bot - top)]); }
     let suitesP = '';
     for (let x = 250; x < 650; x += 12) suitesP += `<rect x="${x}" y="${f1(rimP(x) + 46)}" width="7" height="5" rx="1" fill="var(--scn-window)" opacity="${f1(0.35 + rnd() * 0.55)}"/>`;
-    const towersP = [[150, 30, 230, 108, 760, 5], [752, 18, 230, 108, 740, -5]];
-    const beamsP = [beam(150, 30, 230, 108, [330, 1180], [520, 1260]), beam(752, 18, 230, 108, [400, 1260], [590, 1180])];
+    const towersP = [[120, -150, 230, 108, -42, 5], [780, -160, 230, 108, -52, -5]];
+    const beamsP = [beam(120, -150, 230, 108, [300, 1180], [520, 1260]), beam(780, -160, 230, 108, [400, 1260], [610, 1180])];
     const PORT = `<svg class="scn-port" viewBox="0 0 ${PW} ${PH}" preserveAspectRatio="xMidYMin slice">${defs('P')}
       <ellipse cx="450" cy="${PF + 60}" rx="700" ry="320" fill="url(#Pfieldglow)"/>
       ${towersP.map(t => tower('P', ...t)).join('')}
       ${jumbotron('P', 330, 560, 240, 140, 760)}
-      <path d="${bowlP}" fill="url(#Pcrowd)"/><path d="${bowlP}" fill="url(#Plit)"/>
+      <path d="${bowlP}" fill="url(#Pcrowd)"/><path d="${bowlP}" fill="url(#Pcrowdb)" opacity=".7"/><path d="${bowlP}" fill="url(#Plit)"/>
       <path d="${rimPP}" stroke="var(--scn-rim)" stroke-width="1.6" fill="none"/>
       ${suitesP}<g fill="var(--scn-flash)">${flashes(pFlash)}</g>
       ${fieldP}
@@ -189,10 +190,10 @@
 
     const css = `
       ${DARK} { --bg: #040b0c; --surface0: #081416; --surface1: #0c1b1e; --surface2: #122729; --border: #1b3638; --border2: #285055;
-        --glow: rgba(51,208,124,0.10); --scn-sil: #020809; --scn-stand: #071518; --scn-crowd: #0f2628; --scn-crowd2: #153234; --scn-rim: rgba(170,215,235,0.26);
+        --glow: rgba(51,208,124,0.10); --scn-sil: #020809; --scn-stand: #071518; --scn-crowd: #0b1f21; --scn-crowd2: #10282a; --scn-rim: rgba(170,215,235,0.26);
         --scn-mast-hi: #2c4c55; --scn-lamp: #ffffff; --scn-light: #dceeff; --scn-flare: #8fc7ff; --scn-rain: rgba(225,240,255,0.55); --scn-flash: #ffffff;
-        --scn-fieldglow: #3fd58a; --scn-turf-far: #1d6a3d; --scn-turf-near: #0a2b19; --scn-stripe: rgba(255,255,255,0.035); --scn-line: rgba(240,255,245,0.42);
-        --scn-ez: #0d3d26; --scn-ez2: #0f4a2d; --scn-post: #e2bd3c; --scn-post-hi: #ffe896; --scn-post-lo: #8a6c16; --scn-pad: #0b1e3a; --scn-flag: #ff7a1a;
+        --scn-fieldglow: #3fd58a; --scn-turf-far: #154f2f; --scn-turf-near: #061a10; --scn-stripe: rgba(255,255,255,0.028); --scn-line: rgba(240,255,245,0.28);
+        --scn-ez: #0b301e; --scn-ez2: #0d3a24; --scn-post: #e2bd3c; --scn-post-hi: #ffe896; --scn-post-lo: #8a6c16; --scn-pad: #0b1e3a; --scn-flag: #ff7a1a;
         --scn-led: #33d07c; --scn-led-text: #04140c; --scn-window: #ffd98a; --scn-screen: #021309; --scn-screen-hi: #07301b; --scn-ribbon: #ffc94d; --scn-ribbon-bg: #0b0802; }
       ${LIGHT} { --border: #cfe0dc; --border2: #b4ccc6; --scn-sil: #4f6d67; --scn-stand: #6f8e88; --scn-crowd: #5f7e78; --scn-crowd2: #7d9a94; --scn-rim: rgba(255,255,255,0.6);
         --scn-mast-hi: #9fb9b3; --scn-lamp: #ffffff; --scn-light: #ffffff; --scn-flare: #ffffff; --scn-rain: rgba(255,255,255,0.7); --scn-flash: #ffffff;
