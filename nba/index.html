@@ -264,6 +264,7 @@
   :root[data-theme="light"] {
     --pos-c: #0d7fa3; --pos-l: #2a5fd0; --pos-r: #b03a7c; --pos-d: #6a45c4; --pos-g: #4d637d;
   }
+  .lnt { font-family: var(--font-d); font-weight: 700; font-size: 0.6rem; letter-spacing: 0.04em; margin-left: 0.25rem; padding: 0.1rem 0.3rem; border-radius: 4px; white-space: nowrap; color: var(--muted); border: 1px solid var(--border2); }
   .posb { font-family: var(--font-d); font-weight: 700; font-size: 0.63rem; letter-spacing: 0.05em; padding: 0.12rem 0.34rem;
           border-radius: 4px; white-space: nowrap; color: var(--pos-c); background: color-mix(in srgb, var(--pos-c) 16%, transparent); }
   /* positions are categories: their own hues, none from the good/bad ramp */
@@ -958,7 +959,35 @@
   const record = (ab) => { const t = D.teams?.[ab]; return t && (t.w || t.l) ? `${t.w}-${t.l}` : ''; };
   // Positions are categories, not ratings: their own hues, none from the good/bad ramp.
   const POS_FAM = { PG: 'G', SG: 'G', G: 'G', SF: 'F', PF: 'F', F: 'F', C: 'C', GF: 'F', FC: 'C' };
-  const posBadge = (p) => { const f = POS_FAM[p] || 'F'; return `<span class="posb p-${f}">${esc(p || f)}</span>`; };
+  // Role tonight, the way a hockey skater shows L2 · PP1: Start (RotoWire's posted five, ✓ once confirmed; else the
+  // five who've been starting, by starts in the last ten then projected minutes), then the bench in order of
+  // projected minutes: 6th, 7th, ... Off the threes board, which carries every rotation player. Built once per load.
+  let ROLE = null, ROLE_OF = null;
+  function roleOf(pid) {
+    if (ROLE_OF !== D) {
+      ROLE = {}; ROLE_OF = D;
+      const posted = {};
+      for (const b of Object.values(D?.stats?.boards || {})) for (const r of b.rows || []) if (r.lu) posted[r.pid] = { st: r.st, lu: r.lu };
+      const teams = {};
+      for (const r of D?.threes?.rows || []) (teams[r.gid + r.team] ||= []).push({ ...r, ...(posted[r.pid] || {}) });
+      for (const rs of Object.values(teams)) {
+        const lu = rs.find(r => r.lu)?.lu;
+        const key = (r) => lu ? [r.st ? 1 : 0, r.min] : [(r.f?.st10 ?? 0) >= 0.5 ? 1 : 0, r.min];
+        rs.sort((a, b) => { const x = key(a), y = key(b); return y[0] - x[0] || y[1] - x[1]; });
+        rs.forEach((r, i) => { ROLE[r.pid] = { i, lu, st10: r.f?.st10, min: r.min }; });
+      }
+    }
+    return ROLE[pid];
+  }
+  const ORDN = (n) => n + ([11, 12, 13].includes(n % 100) ? 'th' : { 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th');
+  function roleTag(pid) {
+    const m = pid && roleOf(pid); if (!m || m.i >= 10) return '';
+    const start = m.i < 5, label = start ? `Start${m.lu === 'confirmed' ? ' ✓' : ''}` : ORDN(m.i + 1);
+    const why = m.lu ? `RotoWire's ${m.lu} lineup` : `not posted yet: he started ${Math.round((m.st10 ?? 0) * 10)} of his last 10`;
+    const tip = start ? `In the starting five tonight (${why}).` : `${ORDN(m.i + 1)} man: off the bench, ${ORDN(m.i - 4)} in projected minutes (${m.min}).`;
+    return `<span class="lnt" title="${esc(tip)}">${label}</span>`;
+  }
+  const posBadge = (p, pid) => { const f = POS_FAM[p] || 'F'; return `<span class="posb p-${f}">${esc(p || f)}</span>${roleTag(pid)}`; };
   const pct = (v, d = 1) => v == null ? '—' : (v * 100).toFixed(d) + '%';
   const odds = (v) => v == null ? '' : (v > 0 ? '+' : '') + v;
   const sgn = (v) => v == null ? '' : v > 0 ? '+' + v : v === 0 ? 'PK' : String(v);
@@ -1557,7 +1586,7 @@
       return `<div class="rc-card st-card" onclick="openPlayer('${r.pid}', stDeck)" style="cursor:pointer"><span class="st-rank">${i + 1}</span>
         ${faceHtml(r.pid, r.name)}
         <div class="rc-info">
-          <div class="rc-name">${esc(r.name)} ${posBadge(r.pos)}</div>
+          <div class="rc-name">${esc(r.name)} ${posBadge(r.pos, r.pid)}</div>
           <div class="rc-sub">${esc(teamName(r.team))} · ${r.gs} starts</div>
           <div class="st-line">${line}</div>
         </div>
@@ -2038,7 +2067,7 @@
         <tbody>${rows.map(r => `
           <tr onclick="${open(r)}"${started(r) ? ' class="dim"' : ''}${parAttr(bdLeg(kind, r, r.L, r.pAt))}>
             <td class="num dim">${r.rank}</td>
-            <td><b>${esc(r.name)}</b> <span class="dim">${esc(r.pos || '')}</span></td>
+            <td><b>${esc(r.name)}</b> <span class="dim">${esc(r.pos || '')}</span>${roleTag(r.pid)}</td>
             <td class="num"><b>${r.mu.toFixed(kind === '3pm' ? 2 : 1)}</b></td>
             ${uiFair(r.pAt, parSideLine(r))}
             <td class="num dim">×${(f(r).opp ?? 1).toFixed(2)}</td>
@@ -2061,7 +2090,7 @@
         <div class="pb-card${started(r) ? ' t3-started' : ''}" onclick="${open(r)}"${parAttr(bdLeg(kind, r, r.L, r.pAt))}>
           <div class="pb-rank">${r.rank}</div>${faceHtml(r.pid, r.name)}
           <div class="pb-info">
-            <div class="pb-nm">${esc(r.name)}<span class="pb-flag">${esc(r.pos || '')}</span>${r.q || f(r).q ? `<span class="pb-flag t3-q">${esc((r.q || f(r).q).split(/[- ]/)[0].slice(0, 5).toUpperCase())}</span>` : ''}</div>
+            <div class="pb-nm">${esc(r.name)}<span class="pb-flag">${esc(r.pos || '')}</span>${roleTag(r.pid)}${r.q || f(r).q ? `<span class="pb-flag t3-q">${esc((r.q || f(r).q).split(/[- ]/)[0].slice(0, 5).toUpperCase())}</span>` : ''}</div>
             <div class="pb-line">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${gameTime(r.start)}
               <span class="sg-proj"><b>${r.mu.toFixed(1)}</b> proj</span></div>
           </div>
@@ -2182,7 +2211,7 @@
         <tbody>${rows.map(r => `
           <tr onclick="${open(r)}"${started(r) ? ' class="dim"' : ''}${parAttr(dblLeg(r, dblF.sort, side))}>
             <td class="num dim">${r.rank}</td>
-            <td><b>${esc(r.name)}</b> <span class="dim">${esc(r.pos || '')}</span></td>
+            <td><b>${esc(r.name)}</b> <span class="dim">${esc(r.pos || '')}</span>${roleTag(r.pid)}</td>
             ${uiFair(parSidePrice(r.dd, side), side === 'under' ? 'no' : '')}${uiFair(parSidePrice(r.td, side), side === 'under' ? 'no' : '')}
             <td class="num">${r.pts}</td><td class="num">${r.reb}</td><td class="num">${r.ast}</td>
             <td class="num dim">${r.dd40} DD · ${r.td40} TD</td>
@@ -2199,7 +2228,7 @@
         <div class="pb-card${started(r) ? ' t3-started' : ''}" onclick="${open(r)}"${parAttr(dblLeg(r, dblF.sort, side))}>
           <div class="pb-rank">${r.rank}</div>${faceHtml(r.pid, r.name)}
           <div class="pb-info">
-            <div class="pb-nm">${esc(r.name)}<span class="pb-flag">${esc(r.pos || '')}</span></div>
+            <div class="pb-nm">${esc(r.name)}<span class="pb-flag">${esc(r.pos || '')}</span>${roleTag(r.pid)}</div>
             <div class="pb-line">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · ${gameTime(r.start)}</div>
           </div>
           <div class="pb-facts">
@@ -2277,7 +2306,7 @@
     const started = (g) => new Date(g.start) <= new Date();
     const pl = (r, g) => `<div class="fb-pl${r.jumper ? ' fb-jump' : ''}"${parAttr(fbLeg(r, g))}>
         ${faceHtml(r.pid, r.name)}
-        <div class="fb-id"><div class="rc-name">${esc(r.name)} ${posBadge(r.pos)}${r.jumper ? ' <span class="fb-tag" title="Projected to take the opening tip">TIP</span>' : ''}</div>
+        <div class="fb-id"><div class="rc-name">${esc(r.name)} ${posBadge(r.pos, r.pid)}${r.jumper ? ' <span class="fb-tag" title="Projected to take the opening tip">TIP</span>' : ''}</div>
           <div class="rc-sub">${logoImg(r.team, 't3-logo')} ${esc(r.team)} · ${r.fb} first baskets in ${r.starts} starts</div></div>
         <div class="fb-od"><b>${fairOdds(r.p)}</b><span>${(r.p * 100).toFixed(1)}%</span></div>
       </div>`;
@@ -2388,7 +2417,7 @@
       <div class="pb-card" onclick="dueOpen('${dueF.tab}','${r.pid}','${r.gid}')">
         <div class="pb-rank">${i + 1}</div>${faceHtml(r.pid, r.name)}
         <div class="pb-info">
-          <div class="pb-nm">${esc(r.name)} ${posBadge(r.pos)}</div>
+          <div class="pb-nm">${esc(r.name)} ${posBadge(r.pos, r.pid)}</div>
           <div class="pb-line">${logoImg(r.team, 'pb-logo')} ${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)} · <b class="due-od">${Odds.inline(r.p)}</b> tonight</div>
           <div class="pb-line">${r.last ? `last: ${dayLabel(r.last)}` : ''} · a 1-in-${oneIn(r)} dry spell at tonight's price</div>
         </div>
@@ -2434,7 +2463,7 @@
       return `<div class="pb-card" onclick="funOpen('${m.stat}','${m.pid}')">
         <div class="pb-rank">${i + 1}</div>${faceHtml(m.pid, m.name)}
         <div class="pb-info">
-          <div class="pb-nm">${esc(m.name)} ${posBadge(m.pos)}</div>
+          <div class="pb-nm">${esc(m.name)} ${posBadge(m.pos, m.pid)}</div>
           <div class="pb-line">${logoImg(m.team, 'pb-logo')} ${esc(m.team)} · <b>${m.career.toLocaleString()}</b> career ${MS_UNIT[m.stat]}${t ? ` · ${t}` : ''}</div>
         </div>
         <div class="pb-price">
@@ -2458,7 +2487,7 @@
       return `<div class="pb-card">
         ${faceHtml(e.pid, e.name)}
         <div class="pb-info">
-          <div class="pb-nm">${esc(e.name)} ${e.pos ? posBadge(e.pos) : ''}</div>
+          <div class="pb-nm">${esc(e.name)} ${e.pos ? posBadge(e.pos, e.pid) : ''}</div>
           <div class="pb-line">${logoImg(e.team, 'pb-logo')} ${esc(e.team)}${e.opp ? ` vs ${esc(e.opp)}` : ''} · ${dayLabel(e.date)}${took}</div>
         </div>
         <div class="pb-price"><span class="pb-odds">${e.n.toLocaleString()}<small style="font-size:0.55em">${ordinal(e.n).replace(/^[\d,]+/, '')}</small></span><span class="pb-pct">career ${MS_WORD[e.stat]}</span></div>
@@ -2492,7 +2521,7 @@
         <span class="bd-cake">${o === 0 ? '🎂' : '🎈'}</span>
         ${faceHtml(b.pid, b.name)}
         <div class="bd-info">
-          <div class="bd-nm">${esc(b.name)} ${posBadge(b.pos)}</div>
+          <div class="bd-nm">${esc(b.name)} ${posBadge(b.pos, b.pid)}</div>
           <div class="bd-sub">${logoImg(b.team, 'bd-logo')}${esc(b.team)} · ${dayLabel(b.day)} (${offLbl(o)}) · ${gm}</div>
         </div>
         ${rec(b.rec)}

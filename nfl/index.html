@@ -3869,7 +3869,23 @@
     RonUf.badges();                                                   // with the factor filters' count
   }
 
-  const posBadge = (pos) => `<span class="posb ${pos}">${pos}</span>`;
+  // Depth chart rank (the build's as-of chart, on every board row) in the position badge: WR3, RB2, TE1, the way
+  // a hockey skater shows L2 · PP1. Built once per data load.
+  let DEPTH = null, DEPTH_OF = null;
+  function depthOf(pid) {
+    const N = typeof nflData === 'undefined' ? null : nflData;
+    if (DEPTH_OF !== N) {
+      DEPTH = {}; DEPTH_OF = N;
+      for (const r of N?.picks?.picks || []) if (r.f?.depthRank) DEPTH[r.pid] = r.f.depthRank;
+      for (const b of [N?.receptions, N?.yards?.rec, N?.yards?.rush, N?.yards?.rr]) for (const r of b || []) if (r.f?.depth && !DEPTH[r.pid]) DEPTH[r.pid] = r.f.depth;
+    }
+    return DEPTH[pid];
+  }
+  const ORD = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh'];
+  const posBadge = (pos, pid) => {
+    const d = pid && ['QB', 'RB', 'WR', 'TE'].includes(pos) ? depthOf(pid) : null;
+    return d ? `<span class="posb ${pos}" title="${ORD[d] || '#' + d} ${pos} on his team's depth chart this week">${pos}${d}</span>` : `<span class="posb ${pos}">${pos}</span>`;
+  };
 
   // Parlay leg for a Picks row, in whichever of the five markets is showing.
   const PB_LEGM = { '1': 'td1', '2': 'td2', '3': 'tdf', '4': 'tdl', '5': 'ptd' };
@@ -3905,7 +3921,7 @@
     return `<div class="pb-card p-${r.pos}" onclick="openPick('${r.pid}')"${parAttr(pbLeg(r))}>
       <div class="pb-rank">${i}</div>${faceHtml(r.pid, r.name)}
       <div class="pb-info">
-        <div class="pb-nm">${r.name}${injChip(r.pid)}${posBadge(r.pos)}${rflag}${qflag}${flag}</div>
+        <div class="pb-nm">${r.name}${injChip(r.pid)}${posBadge(r.pos, r.pid)}${rflag}${qflag}${flag}</div>
         <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp} <img class="pb-logo" src="${teamLogo(r.opp)}" alt="" loading="lazy">${r.kick ? ' · ' + r.kick : ''}${liveChip(pbF.mkt, r)}</div>
       </div>
       <div class="pb-facts">${facts}</div>
@@ -3956,7 +3972,7 @@
       <tbody>${rows.map((r, i) => { const x = pbFx(r), f = r.f || {}; return `<tr onclick="openPick('${r.pid}')"${parAttr(pbLeg(r))}>
         <td class="num">${r.rank ?? i + 1}</td>
         ${td('name', `${r.name}${f.newAbsence ? ' <span class="pb-flag">ROLE OPEN</span>' : ''}`, 'nm')}
-        ${td('pos', posBadge(r.pos), '')}
+        ${td('pos', posBadge(r.pos, r.pid), '')}
         <td class="od pbx-fair u-fair${pbShown(r) < 0.5 ? ' dog' : ''}${on('p')}" title="${(pbP(r) * 100).toFixed(1)}% to score">${pbOdds(pbShown(r))}<small>${(pbShown(r) * 100).toFixed(pbShown(r) < 0.1 ? 1 : 0)}%</small></td>
         ${td('role', pbFxCell(r, 'role'))}${td('trend', pbFxCell(r, 'trend'))}${td('spot', pbFxCell(r, 'spot'))}${td('lift', pbFxCell(r, 'lift'), 'num pbx-div')}
         ${td('touch', (f.touches ?? 0).toFixed(1), 'num', pbInk(pbPc('touch', q => q.f?.touches ?? 0, r)))}${td('touch3', (f.touch3 ?? 0).toFixed(1), 'num', pbInk(pbPc('touch3', q => q.f?.touch3 ?? 0, r)))}${td('snap3', Math.round((f.snap3 ?? 0) * 100) + '%', 'num', pbInk(pbPc('snap3', q => q.f?.snap3 ?? 0, r)))}
@@ -4693,7 +4709,7 @@
       <span class="bd-cake">${b.off === 0 ? '🎂' : '🎈'}</span>
       ${faceHtml(b.pid, b.name)}
       <div class="bd-info">
-        <div class="bd-nm">${b.name}<span class="posb ${b.pos}">${b.pos}</span></div>
+        <div class="bd-nm">${b.name}${posBadge(b.pos, b.pid)}</div>
         <div class="bd-sub"><img class="bd-logo" src="${teamLogo(b.team)}" alt="" loading="lazy">${b.team} ${b.home ? 'vs' : '@'} ${b.opp} · ${offLbl(b.off)}${liveChip('1', b, 0)}</div>
       </div>
       ${rec(b)}
@@ -5214,7 +5230,7 @@
     const scorers = (abbr) => `<div class="mxt-col">
       <div class="mx-h" style="margin:0 0 0.3rem">${abbr} top scorers</div>
       ${(SC[abbr] || []).slice(0, 5).map(p => `<div class="mx-sc-row" onclick="event.stopPropagation();openPick('${p.pid}')">
-          <span class="posb ${p.pos}">${p.pos}</span><span class="mx-sc-nm">${p.name}</span>
+          ${posBadge(p.pos, p.pid)}<span class="mx-sc-nm">${p.name}</span>
           <span class="mx-sc-td">${p.tds} TD${p.firstTd ? ` · ${p.firstTd} 1st` : ''}</span></div>`).join('')
         || '<div class="mx-sc-row" style="color:var(--dim)">no scorers</div>'}</div>`;
 
@@ -5406,7 +5422,7 @@
       if (!best) return '';
       return `<div class="sc-pick${res && res.cls !== 'pend' ? ' ' + res.cls : ''}" onclick="event.stopPropagation();openPick('${best.pid}')">
           <span class="sc-pick-star">★</span><span class="sc-pick-lbl">top pick</span>
-          <span class="posb ${best.pos}">${best.pos}</span>
+          ${posBadge(best.pos, best.pid)}
           <span class="sc-pick-nm">${best.name}</span>${injChip(best.pid)}
           <span class="sc-pick-od${best.p < 0.5 ? ' dog' : ''}">${Odds.inline(best.p)}</span>
           ${res ? `<span class="sc-pick-res${res.cls === 'pend' ? ' pend' : ''}">${res.txt}</span>` : ''}</div>`;
@@ -7751,7 +7767,7 @@ let pairStacks = false;
       </div>
       <div class="pb-head"><span class="pb-week">${WK_LABEL(firstUpcomingWeek())}</span><span class="pb-meta">${label} yards · ${rows.length} players · median projection, fair odds</span></div>${dayBar()}`;
     if (!rows.length) { el.innerHTML = controls + '<div class="empty">Nothing matches — try another day, position or search.</div>'; return; }
-    const pos = (r) => `<span class="posb ${r.pos}">${r.pos}</span>`;
+    const pos = (r) => posBadge(r.pos, r.pid);
     let body;
     if (ydF.view === 'table') {
       const G = [['Player', 2], ['Price', 2, 'price'], ['Production', 2, 'prod'], ['Game', 1, 'game']];
@@ -8444,7 +8460,7 @@ let pairStacks = false;
       return `<div class="pb-card p-${m.pos}">
         <div class="pb-rank">${i + 1}</div>${faceHtml(m.pid, m.name)}
         <div class="pb-info">
-          <div class="pb-nm">${m.name}${injChip(m.pid)}${posBadge(m.pos)}</div>
+          <div class="pb-nm">${m.name}${injChip(m.pid)}${posBadge(m.pos, m.pid)}</div>
           <div class="pb-line"><img class="pb-logo" src="${teamLogo(m.team)}" alt="" loading="lazy"> ${m.team}
             · <b>${m.career}</b> career${pk ? ` · <b class="due-od">${Odds.inline(pk.p)}</b> this week` : ''}</div>
         </div>
@@ -8498,7 +8514,7 @@ let pairStacks = false;
       <div class="pb-card p-${r.pos}" onclick="openPick('${r.pid}')"${parAttr({ k: `td1|${r.pid}`, n: r.name, t: r.team, g: parGame(r), m: 'td1', s: 'Anytime TD', p: r.p, i: r.pid })}>
         <div class="pb-rank">${i + 1}</div>${faceHtml(r.pid, r.name)}
         <div class="pb-info">
-          <div class="pb-nm">${r.name}${injChip(r.pid)}${posBadge(r.pos)}</div>
+          <div class="pb-nm">${r.name}${injChip(r.pid)}${posBadge(r.pos, r.pid)}</div>
           <div class="pb-line"><img class="pb-logo" src="${teamLogo(r.team)}" alt="" loading="lazy"> ${r.team} ${r.home ? 'vs' : '@'} ${r.opp}
             · ${r.since === null ? `no TD in ${recapSeason}` : `${r.since} wk${r.since === 1 ? '' : 's'} since`}
             · <b class="due-od">${Odds.inline(r.p)}</b></div>
