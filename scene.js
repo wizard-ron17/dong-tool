@@ -36,10 +36,10 @@
       /* under everything (z-index -1, above only the page background): no header, footer or panel can ever be covered */
       ${S} .scn { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
       ${S} .scn-c { position: absolute; display: block; height: auto; }
-      ${S} .scn-tl { top: 0; left: 0; width: clamp(130px, 16vw, 300px); }
-      ${S} .scn-tr { top: 0; right: 0; width: clamp(130px, 16vw, 300px); }
-      ${S} .scn-bl { bottom: 0; left: 0; width: clamp(150px, 19vw, 330px); }
-      ${S} .scn-br { bottom: 0; right: 0; width: clamp(160px, 21vw, 360px); }
+      /* sized off the margin beside the content column (1180 wide): fills it on a big screen, tucks in on a small one */
+      ${S} .scn-tl, ${S} .scn-tr { top: 0; width: clamp(150px, calc(50vw - 480px), 480px); }
+      ${S} .scn-bl, ${S} .scn-br { bottom: 0; width: clamp(160px, calc(50vw - 450px), 520px); }
+      ${S} .scn-tl, ${S} .scn-bl { left: 0; } ${S} .scn-tr, ${S} .scn-br { right: 0; }
       ${LIGHT} .scn-c { opacity: .38; }
       /* phones: no margins, so the pieces sit behind the page, stronger than Halloween's (.4) at the bottom; the top two
          ride up and dim so the header reads over them */
@@ -140,7 +140,7 @@
       <rect x="228" y="78" width="226" height="112" rx="5" fill="url(#br-screen)"/>
       <text x="341" y="146" text-anchor="middle" font-family="'Chakra Petch', 'JetBrains Mono', sans-serif" font-weight="700" font-size="33" letter-spacing="1" fill="var(--scn-led)" class="scn-pulse">TOUCHDOWN</text>
       <rect x="228" y="200" width="226" height="22" rx="4" fill="var(--scn-ribbon-bg)"/>
-      <text x="341" y="216" text-anchor="middle" font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="700" font-size="13" letter-spacing="2" fill="var(--scn-ribbon)">HOME 24 · AWAY 21 · 4TH 0:42</text>
+      <text x="341" y="216" text-anchor="middle" font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="700" font-size="12" letter-spacing="1" fill="var(--scn-ribbon)">HOME 24 · AWAY 21 · 4TH</text>
       <path d="M0 392Q270 312 480 272V520H0Z" fill="${SIL}"/>
       <path d="M0 392Q270 312 480 272" stroke="${RIM}" stroke-width="1.5" fill="none"/>
       ${crowd(rimR, 56, [0.12, 0.31, 0.5, 0.66, 0.9])}
@@ -150,7 +150,7 @@
     const css = `
       ${DARK} { --bg: #040b0c; --surface0: #081416; --surface1: #0c1b1e; --surface2: #122729; --border: #1b3638; --border2: #285055;
         --glow: rgba(51,208,124,0.10); --scn-sil: #02080a; --scn-sil2: #071417; --scn-rim: rgba(170,215,235,0.28); --scn-lamp: #ffffff; --scn-light: #dceeff;
-        --scn-flare: #8fc7ff; --scn-rain: rgba(225,240,255,0.5); --scn-crowd: #0c1d20; --scn-flash: #ffffff;
+        --scn-flare: #8fc7ff; --scn-rain: rgba(225,240,255,0.5); --scn-crowd: #1b3a3a; --scn-flash: #ffffff;
         --scn-post: #e2bd3c; --scn-post-hi: #ffe58c; --scn-post-lo: #8a6c16; --scn-flag: #ff7a1a; --scn-flag2: #33d07c;
         --scn-turf: #12482c; --scn-turf2: #04140c; --scn-line: rgba(235,255,240,0.32);
         --scn-led: #33d07c; --scn-led-text: #04140c; --scn-window: #ffd98a; --scn-screen: #021309; --scn-screen-hi: #07301b;
