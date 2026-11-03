@@ -794,6 +794,8 @@
   .par-fair b { color: var(--text-strong); font-family: var(--font-d); }
   .par-boost { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; margin-top: 0.45rem; }
   .par-boost .par-lbl2 { margin: 0 0.2rem 0 0; }
+  .par-boost .par-chip { padding: 0.2rem 0.5rem; }
+  .par-boost .par-chip input { width: 2.2rem; }
   .par-note { font-size: 0.692rem; color: var(--dim); line-height: 1.5; margin-top: 0.55rem; }
   .par-note b { color: var(--muted); }
   .par-warn { color: var(--ok); }
@@ -817,7 +819,7 @@
     body.par-mode [data-leg]::after { left: 0.4rem; width: 15px; height: 15px; }
     .par-slip { bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.5rem); left: var(--nav-side); right: var(--nav-side); transform: none; width: auto; }
     .par-fab { bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.6rem); right: var(--nav-side); }
-    .par-body { max-height: 46vh; }
+    .par-body { max-height: 60vh; }
   }
   .par-copy { display: block; width: 100%; margin: 0.55rem 0 0.2rem; padding: 0.42rem; border-radius: 8px; cursor: pointer; font: 600 0.74rem inherit; background: transparent; color: var(--muted); border: 1px dashed var(--border2); }
   .par-copy:hover { color: var(--accent); border-color: var(--accent); }
