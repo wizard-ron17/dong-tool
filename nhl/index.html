@@ -3190,7 +3190,7 @@
           </div>
           <div class="pb-price">
             <span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span>
-            <span class="pb-pct">${r.side} ${r.L} · ${Odds.pct(r.pAt)}</span>
+            <span class="pb-pct">${uiSd(parSideLine(r))} · ${Odds.pct(r.pAt)}</span>
           </div>
         </div>`).join('')}</div>`;
     }
@@ -3395,7 +3395,7 @@
           </div>
           <div class="pb-price">
             <span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span>
-            <span class="pb-pct">${r.side} ${r.L} · ${Odds.pct(r.pAt)}</span>
+            <span class="pb-pct">${uiSd(parSideLine(r))} · ${Odds.pct(r.pAt)}</span>
           </div>
         </div>`).join('')}</div>`;
     }
@@ -3506,7 +3506,7 @@
             ${page === 'blocks' ? `<span class="pb-f" title="Penalty-kill minutes per game, last five — blocks happen on the kill"><b>${(r.f.shtoi / 60).toFixed(1)}</b> PK</span>` : ''}
             ${pxRink(r, P)}
           </div>
-          <div class="pb-price"><span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span><span class="pb-pct">${r.side} ${r.L} · ${Odds.pct(r.pAt)}</span></div>
+          <div class="pb-price"><span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span><span class="pb-pct">${uiSd(parSideLine(r))} · ${Odds.pct(r.pAt)}</span></div>
         </div>`).join('')}</div>`;
     }
     el.innerHTML = tabs + controls + meta + body;
@@ -3754,7 +3754,7 @@
               <span class="sg-proj"><b>${r.m.toFixed(2)}</b> proj</span>${spark(r)}</div>
           </div>
           <div class="pb-facts">${facts(r)}</div>
-          <div class="pb-price"><span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span><span class="pb-pct">${r.side} ${r.L} · ${Odds.pct(r.pAt)}</span></div>
+          <div class="pb-price"><span class="pb-odds${r.pAt < 0.5 ? ' dog' : ''}">${sgOdds(r.pAt)}</span><span class="pb-pct">${uiSd(parSideLine(r))} · ${Odds.pct(r.pAt)}</span></div>
         </div>`).join('')}</div>`;
     }
     el.innerHTML = tabs + controls + meta + body;

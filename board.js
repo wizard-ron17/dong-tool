@@ -256,7 +256,7 @@
   }
   const matchQ = (r, q) => { const t = q.trim().toLowerCase(); return !t || r.name.toLowerCase().includes(t) || r.team.toLowerCase() === t || r.opp.toLowerCase() === t || (r.pos || '').toLowerCase() === t; };
 
-  Object.assign(window, { uiArg, uiChip, uiSort, uiSorted, uiFilters, uiTabs, uiView, uiZoom, uiZoomBtn, uiSearch, matchQ, uiBand, uiCols, uiFair });
+  Object.assign(window, { uiArg, uiChip, uiSort, uiSorted, uiFilters, uiTabs, uiView, uiZoom, uiZoomBtn, uiSearch, matchQ, uiBand, uiCols, uiFair, uiSd });
 })();
 
 // ── Factor filters: the MLB Matchups table's card, for every factor table (NHL goals, NFL TDs, NBA threes) ──

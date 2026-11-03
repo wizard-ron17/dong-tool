@@ -7111,7 +7111,7 @@ let pairStacks = false;
           </div>
           <div class="pb-price">
             <span class="pb-odds${r.p < 0.5 ? ' dog' : ''}">${pbOdds(r.p)}</span>
-            <span class="pb-pct">${r.side} ${r.L} · ${Odds.pct(r.p)}</span>
+            <span class="pb-pct">${uiSd(parSideLine(r))} · ${Odds.pct(r.p)}</span>
           </div>
         </div>`).join('')}</div>`;
     }
@@ -7345,7 +7345,7 @@ let pairStacks = false;
             <span class="pb-f" title="Attempts per start"><b>${r.f.attPrior.toFixed(0)}</b> att</span>
             <span class="pb-f" title="Completion rate"><b>${(r.f.rate * 100).toFixed(0)}%</b></span>
           </div>
-          <div class="pb-price"><span class="pb-odds${r.p < 0.5 ? ' dog' : ''}">${pbOdds(r.p)}</span><span class="pb-pct">${r.side} ${r.L}</span></div>
+          <div class="pb-price"><span class="pb-odds${r.p < 0.5 ? ' dog' : ''}">${pbOdds(r.p)}</span><span class="pb-pct">${uiSd(parSideLine(r))}</span></div>
         </div>`).join('')}</div>`;
     }
     el.innerHTML = controls + uiView('setCp', cpF.view, parSideToggleHtml('cmp', false, 'renderCompletions()', { both: true })) + body;
@@ -7618,7 +7618,7 @@ let pairStacks = false;
             <span class="pb-f" title="Point spread — favorites kick more field goals"><b>${spreadTxt(r.f.fav)}</b></span>
             <span class="pb-f" title="Forecast at kickoff — cold and wind cost field goals"><b>${kkWx(r.f)}</b></span>
           </div>
-          <div class="pb-price"><span class="pb-odds${r.pp < 0.5 ? ' dog' : ''}">${pbOdds(r.pp)}</span><span class="pb-pct">${r.side} ${r.L} · ${Odds.pct(r.pp)} · proj ${kkProj(r)}</span></div>
+          <div class="pb-price"><span class="pb-odds${r.pp < 0.5 ? ' dog' : ''}">${pbOdds(r.pp)}</span><span class="pb-pct">${uiSd(parSideLine(r))} · ${Odds.pct(r.pp)} · proj ${kkProj(r)}</span></div>
         </div>`).join('')}</div>`;
     }
     el.innerHTML = controls + uiView('setKk', kkF.view, parSideToggleHtml('kick', false, 'renderKickers()', { both: true })) + body;
