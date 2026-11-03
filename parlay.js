@@ -795,7 +795,7 @@
   .par-boost { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; margin-top: 0.45rem; }
   .par-boost .par-lbl2 { margin: 0 0.2rem 0 0; }
   .par-boost .par-chip { padding: 0.2rem 0.5rem; }
-  .par-boost .par-chip input { width: 2.2rem; }
+  .par-boost .par-chip input { width: 2.7rem; }
   .par-note { font-size: 0.692rem; color: var(--dim); line-height: 1.5; margin-top: 0.55rem; }
   .par-note b { color: var(--muted); }
   .par-warn { color: var(--ok); }
