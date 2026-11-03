@@ -94,6 +94,19 @@
   table.u-sortable thead tr:last-child th { cursor: pointer; user-select: none; }
   table.u-sortable.u-sortable thead tr:last-child th:hover { color: var(--text); }
   table.u-sortable thead th .ar { font-size: 0.62rem; margin-left: 0.2rem; }
+  table.u-tbl.u-tbl .u-pin { position: sticky; z-index: 1; }
+  table.u-tbl.u-tbl td.u-pin { background-color: var(--u-pin-bg); }
+  table.u-tbl.u-tbl th.u-pin { z-index: 3; }
+  table.u-tbl.u-tbl .u-pin-wrap { white-space: normal; max-width: 8.5rem; }
+  table.u-tbl.u-tbl .u-pin-edge { box-shadow: 1px 0 0 var(--border2), 7px 0 8px -7px rgba(0, 0, 0, 0.45); }
+  .u-zoom-btn { display: none; align-items: center; gap: 0.25rem; background: var(--surface1); border: 1px solid var(--border2); border-radius: 7px; color: var(--silver);
+    font: 700 0.68rem var(--font-b); letter-spacing: 0.03em; padding: 0.3rem 0.5rem; cursor: pointer; }
+  .u-zoom-btn svg { width: 13px; height: 13px; }
+  @media (max-width: 700px) {
+    .u-zoom-btn { display: inline-flex; }
+    html.u-zoom-80 table.u-tbl { zoom: 0.8; }
+    html.u-zoom-60 table.u-tbl { zoom: 0.6; }
+  }
   table.u-tbl col.u-g { border-left: 1px solid var(--border2); }
   table.u-tbl col.u-g:first-child { border-left: none; }
   table.u-tbl.u-tbl tr.u-band th { font: 700 0.66rem var(--font-b); letter-spacing: 0.09em; text-transform: uppercase; text-align: left; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); cursor: default; position: static; }
@@ -189,7 +202,21 @@
   // board's top 10 as an image, from what the board registered under setFn.
   const uiView = (setFn, cur, extra = '') => `
     <div class="lb-toolbar"><div class="view-switch">${[['table', 'Table'], ['cards', 'Cards']].map(([v, l]) =>
-      `<button class="view-btn${(cur === 'compact' ? 'cards' : cur) === v ? ' active' : ''}" onclick="${setFn}('view','${v}')">${l}</button>`).join('')}</div>${window.RonChrome?.freshHtml ? RonChrome.freshHtml() : ''}${extra}${window.RonShare ? RonShare.button(setFn) : ''}</div>`;
+      `<button class="view-btn${(cur === 'compact' ? 'cards' : cur) === v ? ' active' : ''}" onclick="${setFn}('view','${v}')">${l}</button>`).join('')}</div>${cur === 'table' ? uiZoomBtn() : ''}${window.RonChrome?.freshHtml ? RonChrome.freshHtml() : ''}${extra}${window.RonShare ? RonShare.button(setFn) : ''}</div>`;
+  // A phone's table zoom (11/03): 100% → 80% → 60% of the type, so more columns fit; one setting for every board, kept
+  // on the device. The button shows only at phone width, and only in a Table view.
+  const ZOOMS = [100, 80, 60];
+  const zoomNow = () => { try { const z = +localStorage.getItem('ron-tbl-zoom'); return ZOOMS.includes(z) ? z : 100; } catch (e) { return 100; } };
+  const zoomApply = (z) => { const h = document.documentElement; ZOOMS.forEach(x => h.classList.toggle('u-zoom-' + x, x === z && x !== 100)); };
+  zoomApply(zoomNow());
+  const uiZoomBtn = () => `<button class="u-zoom-btn" onclick="uiZoom()" title="Shrink the table to fit more columns (phones)" aria-label="Table zoom ${zoomNow()}%"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5M8 11h6"/></svg>${zoomNow()}%</button>`;
+  function uiZoom() {
+    const z = ZOOMS[(ZOOMS.indexOf(zoomNow()) + 1) % ZOOMS.length];
+    try { localStorage.setItem('ron-tbl-zoom', z); } catch (e) {}
+    zoomApply(z);
+    document.querySelectorAll('.u-zoom-btn').forEach(b => { b.lastChild.textContent = z + '%'; b.setAttribute('aria-label', `Table zoom ${z}%`); });
+    window.uiPin?.();
+  }
   const uiSearch = (id, setFn, q, ph) => `
       <div class="pb-search${q ? ' on' : ''}">
         <svg class="pb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
@@ -220,7 +247,7 @@
   }
   const matchQ = (r, q) => { const t = q.trim().toLowerCase(); return !t || r.name.toLowerCase().includes(t) || r.team.toLowerCase() === t || r.opp.toLowerCase() === t || (r.pos || '').toLowerCase() === t; };
 
-  Object.assign(window, { uiArg, uiChip, uiSort, uiSorted, uiFilters, uiTabs, uiView, uiSearch, matchQ, uiBand, uiCols, uiFair });
+  Object.assign(window, { uiArg, uiChip, uiSort, uiSorted, uiFilters, uiTabs, uiView, uiZoom, uiZoomBtn, uiSearch, matchQ, uiBand, uiCols, uiFair });
 })();
 
 // ── Factor filters: the MLB Matchups table's card, for every factor table (NHL goals, NFL TDs, NBA threes) ──
@@ -371,4 +398,49 @@
     S[t.dataset.uk] = cur && cur.i === i ? { i, d: -cur.d } : { i, d: d0 };
     save(); apply(t);
   });
+})();
+
+// A table wider than a phone keeps its player column pinned while the rest scrolls under it (11/03: on a phone the
+// boards showed 31-94% of their width, and the name scrolled away with the numbers). The pinned columns are the first
+// one through the one headed Player / Skater / Name (a # before it stays too); its cells take the table's own backdrop.
+(function () {
+  if (window.uiPin) return;
+  const PHONE = matchMedia('(max-width: 700px)'), NAME = /^(player|skater|name|batter|pitcher|goalie|team|kicker|qb)\b/i;
+  const bgOf = (el) => { for (let e = el; e && e !== document.documentElement; e = e.parentElement) { const c = getComputedStyle(e).backgroundColor; if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c; } return getComputedStyle(document.body).backgroundColor; };
+  function pin(t) {
+    const w = t.parentElement, wide = PHONE.matches && w && t.scrollWidth > w.clientWidth + 4;
+    t.querySelectorAll('.u-pin, .u-pin-wrap').forEach(c => { c.classList.remove('u-pin', 'u-pin-edge', 'u-pin-wrap'); c.style.left = ''; });
+    if (!wide) return;
+    const h = t.tHead?.rows[t.tHead.rows.length - 1]; if (!h) return;
+    let k = [...h.cells].findIndex(c => NAME.test(c.textContent.trim()));
+    if (k < 0 || k > 2) k = 0;
+    // the # / photo columns through the name; if that block takes over 60% of the screen (zoom counted), the name alone
+    // on a phone the pinned name wraps to two lines (as NHL Goals' does) before anything is measured
+    for (const r of t.rows) if (!r.classList.contains('u-band') && r.cells.length >= h.cells.length) r.cells[k].classList.add('u-pin-wrap');
+    const vis = (j) => h.cells[j].getBoundingClientRect().width, room = w.clientWidth * 0.6;
+    let from = 0, span = 0; for (let j = 0; j <= k; j++) span += vis(j);
+    if (span > room) { from = k; if (vis(k) > room) return; }
+    const lefts = {}; let x = 0;
+    for (let j = from; j <= k; j++) { lefts[j] = x; x += h.cells[j].offsetWidth; }
+    t.style.setProperty('--u-pin-bg', bgOf(w));
+    for (const r of t.rows) {
+      if (r.classList.contains('u-band') || r.cells.length < h.cells.length) continue;   // band rows and detail rows scroll
+      for (let j = from; j <= k; j++) { const c = r.cells[j]; c.classList.add('u-pin'); c.style.left = lefts[j] + 'px'; if (j === k) c.classList.add('u-pin-edge'); }
+    }
+  }
+  let q = 0;
+  // a board with its own Table / Cards switch (NHL Goals) gets the zoom button beside it, as uiView boards do
+  const zoomBeside = (t) => {
+    for (let e = t.parentElement; e && e !== document.body; e = e.parentElement) {
+      const vs = [...e.querySelectorAll('.view-switch')].find(v => /table/i.test(v.textContent) && v.offsetParent);
+      if (!vs) continue;
+      if (!vs.parentElement.querySelector('.u-zoom-btn')) vs.insertAdjacentHTML('afterend', uiZoomBtn());
+      return;
+    }
+  };
+  const scan = () => { q = 0; document.querySelectorAll('table.u-tbl').forEach(t => { if (!t.offsetParent) return; pin(t); if (PHONE.matches && t.scrollWidth > t.parentElement.clientWidth + 4) zoomBeside(t); }); };
+  window.uiPin = () => { if (!q) q = requestAnimationFrame(scan); };
+  new MutationObserver((ms) => { if (ms.some(m => [...m.addedNodes].some(n => n.nodeType === 1 && (n.matches?.('table.u-tbl, tr') || n.querySelector?.('table.u-tbl'))))) uiPin(); })
+    .observe(document.documentElement, { childList: true, subtree: true });
+  addEventListener('resize', uiPin); PHONE.addEventListener?.('change', uiPin); window.RonChrome?.onTheme?.(uiPin);
 })();
