@@ -22,6 +22,7 @@
 <link rel="icon" type="image/x-icon" href="/icons/favicon.ico?v=2">
 <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png?v=2">
 <script src="/odds.js?v=2"></script>
+<script src="/vsmarket.js?v=1"></script>
 <style>
   :root { --bg:#05080f; --card:#0e1524; --card2:#131c30; --border:#233149; --border2:#2d3d5a; --text:#e8edf5; --strong:#ffffff; --muted:#8a94a6; --dim:#5b6577;
           --green:#33d07c; --gold:#f0c040; --red:#ff6b6b; --blue:#6aa9ff;
@@ -123,6 +124,20 @@
   .row h4 { font-size: 0.9rem; font-weight: 700; }
   .row p { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
   .row p b { color: var(--text); font-family: var(--mono); font-weight: 600; }
+  .bt-h { margin-top: 1.4rem; font-size: 1rem; font-weight: 800; color: var(--strong); scroll-margin-top: 4rem; }
+  .bt-h small { font-size: 0.7rem; font-weight: 600; color: var(--muted); margin-left: 0.4rem; }
+  .bt { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.7rem; margin-top: 0.8rem; }
+  @media (max-width: 860px) { .bt { grid-template-columns: 1fr; } }
+  .bt-sp { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 0.75rem 0.9rem; min-width: 0; }
+  .bt-sp > h4 { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 0.4rem; }
+  .bt-sp > h4 small { font-weight: 600; letter-spacing: 0; text-transform: none; }
+  .bt-t { margin-top: 0.7rem; }
+  .bt-t > div { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+  .bt-t b { font-size: 0.86rem; color: var(--strong); }
+  .bt-t ul { list-style: none; margin-top: 0.25rem; }
+  .bt-t li { display: grid; grid-template-columns: minmax(7.5rem, auto) 1fr; gap: 0.5rem; font-size: 0.76rem; color: var(--muted); padding: 0.12rem 0; }
+  .bt-t li i { font-style: normal; font-family: var(--mono); font-size: 0.7rem; text-align: right; }
+  .bt-t li.m-us span { color: var(--green); } .bt-t li.m-mkt span { color: #ff9b9b; } .bt-t li.m-even span { color: var(--gold); }
   .nulls { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; margin-top: 1rem; }
   @media (max-width: 700px) { .nulls { grid-template-columns: 1fr; } }
   .nl { background: var(--card); border: 1px dashed var(--border2); border-radius: 12px; padding: 0.75rem 0.9rem; }
@@ -194,6 +209,10 @@
   <section id="market">
     <h2>Against the market <small>where we've measured it</small></h2>
     <p class="intro">The only test that decides whether a model <b>wins money</b>: score it next to the book or exchange price on the same games. We've done it where historical prices exist. <b>Honest summary:</b> on most markets the sharp price and ours are close. The edges are narrow, specific, and sometimes the other way.</p>
+    <h3 class="bt-h" id="bytool">By tool <small id="bt-asof"></small></h3>
+    <p class="intro">Each tool's markets against the median of every book's closing price, at each player's main line (log loss: lower is better, ours first). The chip on each tool in the Tools menu sums these.</p>
+    <div class="bt" id="bt"></div>
+    <h3 class="bt-h">Every head-to-head</h3>
     <div class="rows" id="mkt"></div>
   </section>
 
@@ -393,6 +412,15 @@
   ];
   const VERD = { us: ['v-us', 'Ours better'], mkt: ['v-mkt', 'Market better'], even: ['v-even', 'Even'], add: ['v-add', 'Market better, ours adds'] };
   document.getElementById('mkt').innerHTML = MKT.map(([sp, h, v, p]) => `<div class="row"><div><div class="who">${SPORT[sp].ico} ${sp}</div><span class="verdict ${VERD[v][0]}">${VERD[v][1]}</span></div><div><h4>${h}</h4><p>${p}</p></div></div>`).join('');
+
+  // By tool: vsmarket.js, the same table the Tools menu's chips read
+  if (window.RonVs) {
+    const V = RonVs;
+    document.getElementById('bt-asof').textContent = `graded ${V.AS_OF}, games since ${V.SINCE}`;
+    document.getElementById('bt').innerHTML = Object.entries(V.TOOLS).map(([sp, tools]) => `<div class="bt-sp"><h4>${SPORT[sp.toUpperCase()].ico} ${sp.toUpperCase()} <small>${V.GAMES[sp]} games${V.GAMES[sp] < 25 ? ', a small sample' : ''}</small></h4>
+      ${Object.keys(tools).map(nav => { const s = V.summary(sp, nav); return `<div class="bt-t"><div><b>${V.NAMES[sp][nav]}</b>${V.chip(sp, nav, { menu: true })}</div>
+        <ul>${s.markets.map(([m, v, x]) => `<li class="m-${v}"><span>${m}</span><i>${v === 'none' ? x : `${V.WORD[v]} · ${x}`}</i></li>`).join('')}</ul></div>`; }).join('')}</div>`).join('');
+  }
 
   const NULL = [
     ['NFL', 'The defense', 'The opponent\'s touchdowns allowed looked obvious and wasn\'t reliable from one half of a season to the other. Rebuilt twice; out.'],

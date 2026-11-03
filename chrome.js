@@ -205,6 +205,30 @@ if (!document.querySelector('script[src^="/scene.js"]')) { const h = document.cr
       document.body.insertAdjacentHTML('beforeend', `<div class="sport-menu" id="sport-menu">${sportMenuHtml(c.sport)}</div>`);
     }
     updateThemeToggleIcon();
+    if (c.tools && document.body) vsLoad();
+  }
+
+  // ── Ours vs the close (/vsmarket.js), loaded once a page has tools ──
+  // A chip on each tool in the Tools menu and beside each board's "Updated ... ago" (the board's panel names the tool),
+  // from vsmarket.js's per-market table. Boards redraw their toolbars, so a light observer puts the chip back.
+  let vsP = null, vsQ = false;
+  function vsLoad() {
+    vsP ||= new Promise((ok, no) => { const s = document.createElement('script'); s.src = '/vsmarket.js?v=1'; s.onload = ok; s.onerror = no; document.head.appendChild(s); })
+      .then(() => { vsPaint(); new MutationObserver(() => { if (!vsQ) { vsQ = true; requestAnimationFrame(() => { vsQ = false; vsPaint(); }); } }).observe(document.body, { childList: true, subtree: true }); }, () => {});
+  }
+  function vsPaint() {
+    const V = window.RonVs, sp = CFG?.sport; if (!V || !V.TOOLS[sp]) return;
+    for (const b of document.querySelectorAll('.nav-menu-item[data-nav]')) {
+      const n = b.querySelector('.nm-name'); if (!n || n.querySelector('.nm-vs')) continue;
+      const h = V.chip(sp, b.dataset.nav, { menu: true }); if (h) n.insertAdjacentHTML('beforeend', h);
+    }
+    for (const el of document.querySelectorAll('.ron-fresh')) {
+      const nav = (el.closest('.panel')?.id || '').replace(/^panel-/, ''), next = el.nextElementSibling;
+      const have = next?.classList.contains('ron-vs') ? next : null;
+      if (have && have.dataset.nav === nav) continue;
+      const h = V.chip(sp, nav); have?.remove();
+      if (h) { el.insertAdjacentHTML('afterend', h); el.nextElementSibling.dataset.nav = nav; }
+    }
   }
 
   // ── Theme ─────────────────────────────────────────────────────────────────
@@ -292,7 +316,7 @@ if (!document.querySelector('script[src^="/scene.js"]')) { const h = document.cr
     // a page with no title of its own gets one from its tools-menu name
     const app = (SPORTS.find(x => x[0] === CFG?.sport) || [])[2] || document.title;
     const t = (CFG?.tools || []).find(x => x.nav === nav), btn = NAV.find(x => x[0] === nav);
-    const plain = (html) => { const d = document.createElement('div'); d.innerHTML = html; d.querySelectorAll('.nm-new, .nm-soon').forEach(x => x.remove()); return d.textContent.trim(); };
+    const plain = (html) => { const d = document.createElement('div'); d.innerHTML = html; d.querySelectorAll('.nm-new, .nm-soon, .nm-vs').forEach(x => x.remove()); return d.textContent.trim(); };
     const name = t ? plain(t.name) : nav !== 'home' && btn ? btn[2] : '';
     document.title = title || (name ? `${name} · ${app}` : app);
     closeNavTools();
