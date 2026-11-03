@@ -6956,7 +6956,7 @@ let pairStacks = false;
     const q = pbNorm(rcF.q.trim());
     return dayScope(R.map(r => ({ ...r, ...rcPick(r) })))
       .filter(r => r.p != null)
-      .map(r => parSideRow(r, 'rec'))
+      .flatMap(r => parSideRows(r, 'rec'))
       .filter(r => rcF.pos === 'ALL' || r.pos === rcF.pos)
       .sort((a, b) => rcF.sort === 'proj' ? b.mu - a.mu : b.p - a.p)
       .map((r, i) => ({ ...r, rank: i + 1 }))          // ranked before the search narrows it
@@ -7059,7 +7059,7 @@ let pairStacks = false;
     const meta = `<div class="pb-head"><span class="pb-week">${WK_LABEL(w)}</span><span class="pb-meta">${rows.length} of ${R.length} pass-catchers${(() => {
       const ws = Object.values(nflData.wind || {}); const hi = ws.filter(v => v >= 15).length;
       return ws.length ? ` · wind forecast on ${ws.length} games${hi ? `, ${hi} at 15+ mph` : ''}` : '';
-    })()}</span></div>${dayBar()}${uiView('setRc', rcF.view, parSideToggleHtml('rec', false, 'renderReceptions()'))}`;
+    })()}</span></div>${dayBar()}${uiView('setRc', rcF.view, parSideToggleHtml('rec', false, 'renderReceptions()', { both: true }))}`;
 
     if (!rows.length) {
       el.innerHTML = controls + dayBar() + `<div class="empty">Nothing matches that filter.</div>`;
@@ -7261,7 +7261,7 @@ let pairStacks = false;
     const q = pbNorm(cpF.q.trim());
     return dayScope((nflData?.completions || []).map(r => ({ ...r, ...cpPick(r) })))
       .filter(r => r.p != null)
-      .map(r => parSideRow(r, 'cmp'))
+      .flatMap(r => parSideRows(r, 'cmp'))
       .sort((a, b) => cpF.sort === 'proj' ? b.mu - a.mu : b.p - a.p)
       .map((r, i) => ({ ...r, rank: i + 1 }))
       .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q));
@@ -7348,7 +7348,7 @@ let pairStacks = false;
           <div class="pb-price"><span class="pb-odds${r.p < 0.5 ? ' dog' : ''}">${pbOdds(r.p)}</span><span class="pb-pct">${r.side} ${r.L}</span></div>
         </div>`).join('')}</div>`;
     }
-    el.innerHTML = controls + uiView('setCp', cpF.view, parSideToggleHtml('cmp', false, 'renderCompletions()')) + body;
+    el.innerHTML = controls + uiView('setCp', cpF.view, parSideToggleHtml('cmp', false, 'renderCompletions()', { both: true })) + body;
   }
 
   // Results the way the MLB tools do it: one week, every starter, what hit.
@@ -7407,7 +7407,7 @@ let pairStacks = false;
     return dayScope((nflData?.interceptions || []).map(r => ({ ...r, L: inF.line, p: inP(r) })))
       .filter(r => r.p != null)
       .sort((a, b) => inF.sort === 'most' ? b.p - a.p : a.p - b.p)
-      .map((r, i) => parSideRow({ ...r, rank: i + 1 }, 'int'))
+      .flatMap((r, i) => parSideRows({ ...r, rank: i + 1 }, 'int'))
       .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q));
   }
   const inLeg = (r) => parSideTag({ k: `int|${r.pid}|${r.L}`, n: r.name, t: r.team, g: parGame(r), m: 'int',
@@ -7479,7 +7479,7 @@ let pairStacks = false;
           <div class="pb-price"><span class="pb-odds${r.p < 0.5 ? ' dog' : ''}">${pbOdds(r.p)}</span><span class="pb-pct">${r.side === 'under' ? `under ${r.L} · o ${Odds.inline(r.pO)}` : `over ${r.L} · u ${under(r)}`}</span></div>
         </div>`).join('')}</div>`;
     }
-    el.innerHTML = controls + uiView('setIn', inF.view, parSideToggleHtml('int', false, 'renderInterceptions()')) + body;
+    el.innerHTML = controls + uiView('setIn', inF.view, parSideToggleHtml('int', false, 'renderInterceptions()', { both: true })) + body;
   }
 
   // ── Kickers ─────────────────────────────────────────────────────────────
@@ -7547,7 +7547,7 @@ let pairStacks = false;
     const q = pbNorm(kkF.q.trim());
     return dayScope(kkAll().map(r => { const L = kkLine(kkF.mkt, r.mu[kkF.mkt]); return { ...r, L, pp: kkP(r, kkF.mkt, L) }; }))
       .sort((a, b) => kkF.sort === 'proj' ? b.mu[kkF.mkt] - a.mu[kkF.mkt] || b.pp - a.pp : kkF.sort === 'most' ? b.pp - a.pp : a.pp - b.pp)
-      .map((r, i) => parSideRow({ ...r, rank: i + 1 }, 'kick', 'pp'))
+      .flatMap((r, i) => parSideRows({ ...r, rank: i + 1 }, 'kick', 'pp'))
       .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q) || pbNorm(r.opp).includes(q));
   }
   const kkWx = (f) => f.indoor ? 'dome' : [f.temp != null ? `${f.temp}°F` : null, f.windKnown ? `${Math.round(f.wind)} mph` : null].filter(Boolean).join(' · ') || 'outdoors';
@@ -7621,7 +7621,7 @@ let pairStacks = false;
           <div class="pb-price"><span class="pb-odds${r.pp < 0.5 ? ' dog' : ''}">${pbOdds(r.pp)}</span><span class="pb-pct">${r.side} ${r.L} · ${Odds.pct(r.pp)} · proj ${kkProj(r)}</span></div>
         </div>`).join('')}</div>`;
     }
-    el.innerHTML = controls + uiView('setKk', kkF.view, parSideToggleHtml('kick', false, 'renderKickers()')) + body;
+    el.innerHTML = controls + uiView('setKk', kkF.view, parSideToggleHtml('kick', false, 'renderKickers()', { both: true })) + body;
   }
   window.openKick = (pid) => openLc(KK_MKTS[kkF.mkt].kind, pid);
   window.lcKind = (kind) => { const r = lcRow(); lc.kind = kind; if (r) lc.line = lcPick(lcRow(), lcPmf(lcRow())); lcRender(); };
@@ -7725,7 +7725,7 @@ let pairStacks = false;
     return dayScope(all)
       .filter(r => ydF.pos === 'ALL' || r.pos === ydF.pos)
       .sort((a, b) => ydF.sort === 'high' ? b.med - a.med : a.med - b.med)
-      .map((r, i) => { const L = ydPick(r); return parSideRow({ ...r, rank: i + 1, L, p: ydPOver(r.m, L, r.mu, r.tq) }, 'yds'); })
+      .flatMap((r, i) => { const L = ydPick(r); return parSideRows({ ...r, rank: i + 1, L, p: ydPOver(r.m, L, r.mu, r.tq) }, 'yds'); })
       .filter(r => !q || pbNorm(r.name).includes(q) || pbNorm(r.team).includes(q) || pbNorm(r.pos) === q);
   }
   // the two or three numbers behind a card, per market
@@ -7793,7 +7793,7 @@ let pairStacks = false;
           <div class="pb-price"><span class="pb-odds" style="color:var(--text-strong)">${r.med.toFixed(0)}</span><span class="pb-pct">median · ${parSideLine(r)} ${Odds.inline(r.p)}</span></div>
         </div>`).join('')}</div>`;
     }
-    el.innerHTML = controls + uiView('setYd', ydF.view, parSideToggleHtml('yds', false, 'renderYards()')) + body;
+    el.innerHTML = controls + uiView('setYd', ydF.view, parSideToggleHtml('yds', false, 'renderYards()', { both: true })) + body;
   }
 
   // ── Yards player card ───────────────────────────────────────────────────

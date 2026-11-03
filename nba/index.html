@@ -1838,8 +1838,8 @@
         const pmf = lcPmf(r, kind); let L = F.line;
         if (L === 'auto') { const [lo, hi] = LC[kind].range; L = lo; for (let x = lo; x <= hi; x++) if (Math.abs(overAt(pmf, x) - 0.5) < Math.abs(overAt(pmf, L) - 0.5)) L = x; }
         const row = { ...r, L, pAt: overAt(pmf, L) };
-        return sided ? parSideRow(row, nav, 'pAt') : row;
-      });
+        return sided ? parSideRows(row, nav, 'pAt') : [row];
+      }).flat();
     rows.sort(F.sort === 'odds' ? (a, b) => b.pAt - a.pAt : (a, b) => b.mu - a.mu);
     rows.forEach((r, i) => { r.rank = i + 1; });
     return rows;
@@ -2053,7 +2053,7 @@
       ['Game', [['all', 'All games'], ...games.map(g => [g.gid, `${g.home ? g.opp : g.team} @ ${g.home ? g.team : g.opp}`])].map(([v, l]) => uiChip(set, 'game', v, l, F.game)).join('')],
       ...(F.view === 'table' ? [] : [['Sort', uiSort(set, F.sort, BD_SORT)]]),
     ], changed) + uiSearch(nav + '-search', set, F.q, 'Search a player, team or position…');
-    const meta = `<div class="result-meta">${t3val ? `🎯 <b>${rows.length} longshot${rows.length === 1 ? '' : 's'}</b> · 2+ threes at +200 or longer · sorted by Bueno · form and the opponent's threes allowed both in the top 40% of the slate (experimental) · ${t3ValueRecord()}<br>` : ''}<b>${dayLabel(src.date, true)}</b> · ${rows.length} of ${lcRows(kind).length} players · ${esc(C.unit)} · fair odds, no vig</div>` + uiView(set, F.view, parSideToggleHtml(nav, false, `renderBoard('${nav}')`));
+    const meta = `<div class="result-meta">${t3val ? `🎯 <b>${rows.length} longshot${rows.length === 1 ? '' : 's'}</b> · 2+ threes at +200 or longer · sorted by Bueno · form and the opponent's threes allowed both in the top 40% of the slate (experimental) · ${t3ValueRecord()}<br>` : ''}<b>${dayLabel(src.date, true)}</b> · ${rows.length} of ${lcRows(kind).length} players · ${esc(C.unit)} · fair odds, no vig</div>` + uiView(set, F.view, parSideToggleHtml(nav, false, `renderBoard('${nav}')`, { both: true }));
     if (!rows.length) { el.innerHTML = t3ModeBar(nav, t3val) + tabs + controls + meta + `<div class="empty">${t3val ? `No player passes the Value screen tonight. It takes 2+ threes at +200 or longer, in the top 40% of the slate on both form and the opponent's threes allowed. The closest are on the <a href="javascript:void(0)" onclick="setT3Mode('chalk')">Chalk</a> board.` : 'Nothing matches that filter.'}</div>`; return; }
     const open = (r) => `openBoardCard('${nav}','${r.pid}')`;
     const started = (r) => new Date(r.start) <= new Date();

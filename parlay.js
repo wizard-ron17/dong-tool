@@ -50,6 +50,8 @@
   //   parSideToggleHtml('rec', false, 'renderRec()')           // the toggle; re-renders on click
   //   parAttr(parSideLeg(leg, side))  ·  Odds.both(parSidePrice(p, side))
   //   rows.map(r => parSideRow(r, 'rec'))   then   parAttr(parSideTag(leg, r.side)) and parSideLine(r)
+  // A line board can offer Both (the odds build only, where each row's EV picks the side): parSideToggleHtml(..., { both: true })
+  // and rows.flatMap(r => parSideRows(r, 'rec')), which hands back the row once, or as an over and an under.
   const parUnder = (side) => side === 'under' || side === 'no';
   /** Re-key and re-label a leg for this side, keeping its p (for rows already priced on that side). */
   function parSideTag(leg, side, binary) {
@@ -68,22 +70,28 @@
   }
   const parSideId = (market) => PAR_SPORT + '|' + market;
   const parSideGet = (market) => PAR_SIDES[parSideId(market)] === 'under' ? 'under' : 'over';
+  /** Both sides on one board: only on the odds build (RonLive), where the price columns say which side is worth it. */
+  const parSideBoth = (market) => PAR_SIDES[parSideId(market)] === 'both' && !!window.RonLive;
   function parSideSet(market, side) {
-    PAR_SIDES[parSideId(market)] = parUnder(side) ? 'under' : 'over';
+    PAR_SIDES[parSideId(market)] = side === 'both' ? 'both' : parUnder(side) ? 'under' : 'over';
     try { localStorage.setItem(SIDE_KEY, JSON.stringify(PAR_SIDES)); } catch (e) {}
   }
   const parSidePrice = (overP, side) => overP == null || !parUnder(side) ? overP : 1 - overP;
   /** Over / Under (or Yes / No) for one tool. `rerender` is the page call that redraws the board. */
-  function parSideToggleHtml(market, binary = false, rerender = '') {
-    const u = parSideGet(market) === 'under', go = (sd) => `setParSide('${market}','${sd}');${rerender}`;
+  function parSideToggleHtml(market, binary = false, rerender = '', { both = false } = {}) {
+    const two = both && !!window.RonLive, b = two && parSideBoth(market), u = !b && parSideGet(market) === 'under', go = (sd) => `setParSide('${market}','${sd}');${rerender}`;
     return `<div class="view-switch par-side-toggle" role="group" aria-label="${binary ? 'Yes or No' : 'Over or Under'}" title="Which side the board prices, and adds to a parlay">
-    <button class="view-btn${u ? '' : ' active'}" onclick="${go('over')}">${binary ? 'Yes' : 'Over'}</button>
-    <button class="view-btn${u ? ' active' : ''}" onclick="${go('under')}">${binary ? 'No' : 'Under'}</button>
+    <button class="view-btn${u || b ? '' : ' active'}" onclick="${go('over')}">${binary ? 'Yes' : 'Over'}</button>
+    <button class="view-btn${u ? ' active' : ''}" onclick="${go('under')}">${binary ? 'No' : 'Under'}</button>${two ? `
+    <button class="view-btn${b ? ' active' : ''}" onclick="${go('both')}" title="Every player twice, over and under: sort by EV and the side worth betting comes first">Both</button>` : ''}
   </div>`;
   }
   const setParSide = (market, side) => parSideSet(market, side);
   /** A board row on its tool's side: `side`, the over price kept as `pO`, and `key` (default p) flipped for an under. */
   const parSideRow = (r, market, key = 'p') => { const side = parSideGet(market); return { ...r, side, pO: r[key], [key]: parSidePrice(r[key], side) }; };
+  /** parSideRow as a list: one row, or with Both an over and an under (each its own leg, line and price). */
+  const parSideRows = (r, market, key = 'p') => parSideBoth(market)
+    ? ['over', 'under'].map(side => ({ ...r, side, pO: r[key], [key]: parSidePrice(r[key], side) })) : [parSideRow(r, market, key)];
   /** "o4.5" / "u4.5" for a row from parSideRow. */
   const parSideLine = (r, L = r.L) => (parUnder(r.side) ? 'u' : 'o') + L;
   /** Canonical away@home key, so two legs in the same game always collide. */
@@ -858,7 +866,7 @@
 
   window.RonParlay = { provide, nextStart, price: parPrice, priceLegs: (legs) => parPrice(legs), rho: { mlb: sgpRhoMLB, nfl: sgpRhoNFL, nhl: sgpRhoNHL }, goalGroupMult, stackMult };
   Object.assign(window, {
-    PARLAY, PAR_SPORT, parLeg, parAttr, parGame, parSideGet, parSideSet, parSideLeg, parSideTag, parSideRow, parSideLine, parSidePrice, parSideToggleHtml, setParSide, parEsc, parDecAm, parAmDec, parSave, parPrice,
+    PARLAY, PAR_SPORT, parLeg, parAttr, parGame, parSideGet, parSideSet, parSideLeg, parSideTag, parSideRow, parSideRows, parSideBoth, parSideLine, parSidePrice, parSideToggleHtml, setParSide, parEsc, parDecAm, parAmDec, parSave, parPrice,
     parMode, parToggleOpen, parToggleLeg, parRemove, parClear, parSetBoost, parCustomBoost, parBook,
     parPaint, parRender, parRenderEv, parCopyTracker,
     // older names the apps' own tools still call

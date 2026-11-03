@@ -3106,7 +3106,7 @@
     }
     const q = sgF.q.trim().toLowerCase();
     if (q) rows = rows.filter(r => (r.name + ' ' + r.team + ' ' + r.opp + ' ' + r.pos).toLowerCase().includes(q));
-    if (sided) rows = rows.map(r => parSideRow(r, 'shots', 'pAt'));
+    if (sided) rows = rows.flatMap(r => parSideRows(r, 'shots', 'pAt'));
     rows.sort(sgF.sort === 'odds' ? (a, b) => b.pAt - a.pAt : (a, b) => b.mu - a.mu);
     return rows.map((r, i) => ({ ...r, rank: i + 1 }));
   }
@@ -3140,7 +3140,7 @@
       </div>`;
 
     const meta = `<div class="result-meta"><b>${S.date ? dayLabel(S.date, true) : ''}</b> · ${rows.length} of ${S.board.length} skaters · negative-binomial prices</div>`
-      + uiView('setSg', sgF.view, parSideToggleHtml('shots', false, 'renderShots()'));
+      + uiView('setSg', sgF.view, parSideToggleHtml('shots', false, 'renderShots()', { both: true }));
 
     if (!rows.length) { el.innerHTML = controls + meta + `<div class="empty">Nothing matches that filter.</div>`; return; }
 
@@ -3311,7 +3311,7 @@
     });
     const q = F.q.trim().toLowerCase();
     if (q) rows = rows.filter(r => (r.name + ' ' + r.team + ' ' + r.opp).toLowerCase().includes(q));
-    if (sided) rows = rows.map(r => parSideRow(r, page, 'pAt'));
+    if (sided) rows = rows.flatMap(r => parSideRows(r, page, 'pAt'));
     rows.sort(F.sort === 'odds' ? (a, b) => b.pAt - a.pAt : (a, b) => b.m - a.m);
     return rows.map((r, i) => ({ ...r, rank: i + 1 }));
   }
@@ -3343,7 +3343,7 @@
         <button class="pb-search-x" onclick="clearGtSearch('${page}')" aria-label="Clear">×</button>
       </div>`;
     const meta = `<div class="result-meta"><b>${B.date ? dayLabel(B.date, true) : ''}</b> · ${rows.length} projected starters · ${P.meta}</div>`
-      + uiView(fn, F.view, parSideToggleHtml(page, false, `renderGoalie('${page}')`));
+      + uiView(fn, F.view, parSideToggleHtml(page, false, `renderGoalie('${page}')`, { both: true }));
     if (!rows.length) { el.innerHTML = tabs + controls + meta + `<div class="empty">Nothing matches that search.</div>`; return; }
     const open = (r) => `openSave(${r.pid},'${P.kind}')`;
     const spark = (r) => `<span class="sg-spark" title="His last starts — bars over the line are green">${
@@ -3431,7 +3431,7 @@
     if (F.pos !== 'ALL') rows = rows.filter(r => F.pos === 'F' ? r.pos !== 'D' : r.pos === F.pos);
     const q = F.q.trim().toLowerCase();
     if (q) rows = rows.filter(r => (r.name + ' ' + r.team + ' ' + r.opp + ' ' + r.pos).toLowerCase().includes(q));
-    if (sided) rows = rows.map(r => parSideRow(r, page, 'pAt'));
+    if (sided) rows = rows.flatMap(r => parSideRows(r, page, 'pAt'));
     rows.sort(F.sort === 'odds' ? (a, b) => b.pAt - a.pAt : (a, b) => b.mu - a.mu);
     return rows.map((r, i) => ({ ...r, rank: i + 1 }));
   }
@@ -3466,7 +3466,7 @@
                value="${esc(F.q)}" oninput="onPxSearch('${page}')" autocomplete="off" spellcheck="false">
         <button class="pb-search-x" onclick="clearPxSearch('${page}')" aria-label="Clear">×</button>
       </div>`;
-    const meta = `<div class="result-meta"><b>${B.date ? dayLabel(B.date, true) : ''}</b> · ${rows.length} of ${B.board.length} skaters · negative-binomial prices</div>` + uiView(fn, F.view, parSideToggleHtml(page, false, `renderPx('${page}')`));
+    const meta = `<div class="result-meta"><b>${B.date ? dayLabel(B.date, true) : ''}</b> · ${rows.length} of ${B.board.length} skaters · negative-binomial prices</div>` + uiView(fn, F.view, parSideToggleHtml(page, false, `renderPx('${page}')`, { both: true }));
     if (!rows.length) { el.innerHTML = tabs + controls + meta + `<div class="empty">Nothing matches that filter.</div>`; return; }
     const open = (r) => `openLc('${P.kind}',${r.pid})`;
     const leg = (r) => parAttr(lcLegOf(P.kind, r, r.L, r.pAt));
@@ -3682,7 +3682,7 @@
     if (ptF.pos !== 'ALL') rows = rows.filter(r => ptF.pos === 'F' ? r.pos !== 'D' : r.pos === ptF.pos);
     const q = ptF.q.trim().toLowerCase();
     if (q) rows = rows.filter(r => (r.name + ' ' + r.team + ' ' + r.opp + ' ' + r.pos).toLowerCase().includes(q));
-    if (sided) rows = rows.map(r => parSideRow(r, 'points', 'pAt'));
+    if (sided) rows = rows.flatMap(r => parSideRows(r, 'points', 'pAt'));
     rows.sort(ptF.sort === 'odds' ? (a, b) => b.pAt - a.pAt : (a, b) => b.m - a.m);
     return rows.map((r, i) => ({ ...r, rank: i + 1 }));
   }
@@ -3712,7 +3712,7 @@
         <button class="pb-search-x" onclick="clearPtSearch()" aria-label="Clear">×</button>
       </div>`;
     const meta = `<div class="result-meta"><b>${B.date ? dayLabel(B.date, true) : ''}</b> · ${rows.length} of ${B.board.length} skaters · Poisson prices${ptF.tab === 'ppp' ? ', recalibrated' : ''}</div>`
-      + uiView('setPt', ptF.view, parSideToggleHtml('points', false, 'renderPoints()'));
+      + uiView('setPt', ptF.view, parSideToggleHtml('points', false, 'renderPoints()', { both: true }));
     if (!rows.length) { el.innerHTML = tabs + controls + meta + `<div class="empty">Nothing matches that filter.</div>`; return; }
     const open = (r) => `openPointsCard(${r.pid},'${ptF.tab}')`;
     const spark = (r) => `<span class="sg-spark" title="His last games — bars over the line are green">${
