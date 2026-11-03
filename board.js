@@ -118,6 +118,12 @@
   table.u-tbl.u-tbl td.u-fair { text-align: right; font-weight: 700; color: var(--gold); background-color: color-mix(in srgb, var(--accent) 8%, transparent); line-height: 1.15; }
   table.u-tbl.u-tbl td.u-fair.dog { color: var(--good); }
   table.u-tbl.u-tbl td.u-fair small { display: block; font-size: 0.68rem; font-weight: 500; color: var(--muted); white-space: nowrap; }
+  .u-sd { display: inline-block; font-family: var(--font-m, monospace); font-size: 0.66rem; font-weight: 800; padding: 0.02rem 0.3rem; border-radius: 4px; }
+  .u-sd.o, .rc-cline.u-sd-o { color: #b48cff; background: rgba(180,140,255,0.14); }
+  .u-sd.u, .rc-cline.u-sd-u { color: #6aa9ff; background: rgba(106,169,255,0.14); }
+  .rc-cline.u-sd-o, .rc-cline.u-sd-u { font-weight: 800; padding: 0.02rem 0.3rem; border-radius: 4px; text-transform: uppercase; }
+  :root[data-theme="light"] .u-sd.o, :root[data-theme="light"] .rc-cline.u-sd-o { color: #7446d6; background: rgba(116,70,214,0.1); }
+  :root[data-theme="light"] .u-sd.u, :root[data-theme="light"] .rc-cline.u-sd-u { color: #1f6fd1; background: rgba(31,111,209,0.1); }
   table.u-tbl.u-tbl th.u-fair { color: var(--accent); background-color: color-mix(in srgb, var(--accent) 9%, var(--surface2)); }
   .pbf-chips { display: flex; gap: 0.32rem; flex-wrap: wrap; align-items: center; }
   .pbf-chip { background: var(--surface1); border: 1px solid var(--border2); color: var(--silver); font-family: var(--font-b); font-size: 0.729rem; font-weight: 700; padding: 0.26rem 0.66rem; border-radius: 7px; cursor: pointer; line-height: 1.25; transition: background 0.14s, color 0.14s, border-color 0.14s; }
@@ -228,7 +234,10 @@
   // a <col span> repeats its border on every column it spans, so each group is its first column (the divider) plus the rest
   const uiCols = (groups) => `<colgroup>${groups.map(([, n, k = 'plain']) =>
     `<col class="u-g u-g-${k}">${n > 1 ? `<col span="${n - 1}" class="u-g-${k}">` : ''}`).join('')}</colgroup>`;
-  const uiFair = (p, sub = '', cls = '') => `<td data-sv="${p}" class="u-fair${p < 0.5 ? ' dog' : ''}${cls ? ' ' + cls : ''}">${Odds.am(p)}<small>${sub ? sub + ' · ' : ''}${Odds.pct(p)}</small></td>`;
+  // a side line ("o3.5", "u1.5") prints as a side tag, Over violet and Under blue (Ron's Plays' colours), so a board
+  // showing both sides of every player (parlay.js Both) reads at a glance
+  const uiSd = (sub) => { const m = /^([ou])(\d+(?:\.\d+)?)$/.exec(String(sub)); return m ? `<b class="u-sd ${m[1]}">${m[1].toUpperCase()} ${m[2]}</b>` : sub; };
+  const uiFair = (p, sub = '', cls = '') => `<td data-sv="${p}" class="u-fair${p < 0.5 ? ' dog' : ''}${cls ? ' ' + cls : ''}">${Odds.am(p)}<small>${sub ? uiSd(sub) + ' · ' : ''}${Odds.pct(p)}</small></td>`;
   const uiSort = (setFn, cur, defs, key = 'sort') => Object.entries(defs).map(([k, [lab]]) => {
     const on = cur === k || cur === '-' + k, rev = String(cur)[0] === '-';
     return `<button class="pbf-chip${on ? ' on' : ''}" onclick="${setFn}('${key}','${on && !rev ? '-' + k : k}')" title="${on ? 'Tap again to reverse' : 'Sort the cards by this'}">${lab}${on ? (rev ? ' ↑' : ' ↓') : ''}</button>`;

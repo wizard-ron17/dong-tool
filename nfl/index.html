@@ -7090,7 +7090,7 @@ let pairStacks = false;
           <span class="rc-cteam">${r.team}</span>
           <span class="rc-cproj">${r.mu.toFixed(1)}</span>
           <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.p)}</span>
-          <span class="rc-cline">${parSideLine(r)}</span>
+          <span class="rc-cline u-sd-${r.side === 'under' ? 'u' : 'o'}">${parSideLine(r)}</span>
         </div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map((r, i) => `
@@ -7330,7 +7330,7 @@ let pairStacks = false;
       body = `<div class="rc-compact">${rows.map((r, i) => `
         <div class="rc-crow" onclick="openCmp('${r.pid}')"${parAttr(cpLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${r.mu.toFixed(1)}</span>
-          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.p)}</span><span class="rc-cline">${parSideLine(r)}</span></div>`).join('')}</div>`;
+          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.p)}</span><span class="rc-cline u-sd-${r.side === 'under' ? 'u' : 'o'}">${parSideLine(r)}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map((r, i) => `
         <div class="pb-card" onclick="openCmp('${r.pid}')"${parAttr(cpLeg(r))}>
@@ -7461,7 +7461,7 @@ let pairStacks = false;
       body = `<div class="rc-compact">${rows.map(r => `
         <div class="rc-crow" onclick="openInt('${r.pid}')"${parAttr(inLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${Math.round(r.p * 100)}%</span>
-          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</span><span class="rc-cline">${parSideLine(r)}</span></div>`).join('')}</div>`;
+          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${pbOdds(r.p)}</span><span class="rc-cline u-sd-${r.side === 'under' ? 'u' : 'o'}">${parSideLine(r)}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
         <div class="pb-card" onclick="openInt('${r.pid}')"${parAttr(inLeg(r))}>
@@ -7603,7 +7603,7 @@ let pairStacks = false;
       body = `<div class="rc-compact">${rows.map(r => `
         <div class="rc-crow" onclick="openKick('${r.pid}')"${parAttr(kkLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${kkProj(r)}</span>
-          <span class="rc-cod ${r.pp < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.pp)}</span><span class="rc-cline">${parSideLine(r)}</span></div>`).join('')}</div>`;
+          <span class="rc-cod ${r.pp < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.pp)}</span><span class="rc-cline u-sd-${r.side === 'under' ? 'u' : 'o'}">${parSideLine(r)}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
         <div class="pb-card" onclick="openKick('${r.pid}')"${parAttr(kkLeg(r))}>
@@ -7779,7 +7779,7 @@ let pairStacks = false;
       body = `<div class="rc-compact">${rows.map(r => `
         <div class="rc-crow" onclick="openYds('${r.pid}','${r.m}')"${parAttr(ydLeg(r))}><span class="rc-crank">${r.rank}</span><span class="rc-cnm">${r.name}</span>
           <span class="rc-cteam">${r.team}</span><span class="rc-cproj">${r.med.toFixed(0)}</span>
-          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.p)}</span><span class="rc-cline">${parSideLine(r)}</span></div>`).join('')}</div>`;
+          <span class="rc-cod ${r.p < 0.5 ? 'oddog' : 'odfav'}">${Odds.inline(r.p)}</span><span class="rc-cline u-sd-${r.side === 'under' ? 'u' : 'o'}">${parSideLine(r)}</span></div>`).join('')}</div>`;
     } else {
       body = `<div class="pb-list">${rows.map(r => `
         <div class="pb-card p-${r.pos}" onclick="openYds('${r.pid}','${r.m}')"${parAttr(ydLeg(r))}>
