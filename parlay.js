@@ -601,10 +601,11 @@
     // there it stays collapsed and the header carries the price.
     if (PARLAY.legs.length === 1 && i < 0 && window.innerWidth > 600) PARLAY.open = true;
     document.getElementById('par-slip').classList.toggle('open', PARLAY.open);
+    PARLAY.book = '';   // a typed price was for the old legs
     parRender(); parPaint(); parSave();
   }
-  function parRemove(k) { PARLAY.legs = PARLAY.legs.filter(l => l.k !== k); parRender(); parPaint(); parSave(); }
-  function parClear() { PARLAY.legs = []; parRender(); parPaint(); parSave(); }
+  function parRemove(k) { PARLAY.legs = PARLAY.legs.filter(l => l.k !== k); PARLAY.book = ''; parRender(); parPaint(); parSave(); }
+  function parClear() { PARLAY.legs = []; PARLAY.book = ''; parRender(); parPaint(); parSave(); }
   function parSetBoost(v) { PARLAY.boost = +v || 0; PARLAY.boostTxt = null; parRender(); parSave(); }
   // what's typed stays in the box: "5" on the way to "50" (a preset) mustn't light the chip and empty it
   // (a text box, not a number one, so the focus keeper in /app.js can put the caret back where it was)
@@ -701,24 +702,19 @@
         <span class="par-leg-od">${Odds.inline(l.p)}</span>
         <button class="par-leg-x" onclick="parRemove('${l.k.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" aria-label="Remove">×</button>
       </div>`).join('')
-      + `<div class="par-lbl2">Profit boost</div>
-      <div class="par-chips">
+      + `<p class="par-fair">Fair <b>${am(p)}</b> · ${(p * 100).toFixed(p < 0.1 ? 2 : 1)}% · ${PARLAY.boost
+        ? `with the ${boostPct}% boost, longer than <b>${parDecAm(need)}</b> beats it`
+        : `longer than <b>${am(p)}</b> beats it`}</p>
+      <div class="par-boost"><span class="par-lbl2">Boost</span>
         ${PAR_BOOSTS.map(b => `<button class="par-chip${!custom && PARLAY.boost === b ? ' on' : ''}" onclick="parSetBoost(${b})">${b ? Math.round(b * 100) + '%' : 'None'}</button>`).join('')}
         <span class="par-chip${custom ? ' on' : ''}"><input type="text" id="par-boost" inputmode="decimal" maxlength="5" placeholder="custom" value="${typed ? parEsc(PARLAY.boostTxt) : custom ? boostPct : ''}" oninput="parCustomBoost(this)">%</span>
       </div>
-      <div class="par-nums">
-        <div class="par-num acc"><b>${am(p)}</b><span>Fair odds</span></div>
-        <div class="par-num"><b>${(p * 100).toFixed(p < 0.1 ? 2 : 1)}%</b><span>True chance</span></div>
-      </div>
-      <p class="par-note">${PARLAY.boost
-        ? `With a <b>${boostPct}%</b> profit boost, anything longer than <b>${parDecAm(need)}</b> at your book beats fair.`
-        : `Anything longer than <b>${am(p)}</b> at your book beats fair.`}</p>
       ${notes.map(n => `<p class="par-note">${n}</p>`).join('')}
       ${samePlayer.length ? `<p class="par-note par-warn">Two markets on ${samePlayer.map(parEsc).join(' and ')}: one player's lines move together, so multiplying them overstates the price.</p>` : ''}
       ${shared.length ? `<p class="par-note par-warn">${shared.map(v => `${v.length} legs in ${parEsc(v[0].g)}`).join(', ')}: we haven't measured how these same-game legs move together, so this is a multiplied estimate, not a fair same-game price.</p>` : ''}
       <div class="par-ev">
-        <label for="par-book">Your book's price</label>
-        <input type="text" id="par-book" inputmode="text" placeholder="+1400" value="${parEsc(PARLAY.book)}" oninput="parBook(this)">
+        <label for="par-book">${window.RonLive ? 'Book quotes different (SGP, boost)?' : "Your book's price"}</label>
+        <input type="text" id="par-book" inputmode="text" placeholder="${parEsc(window.RonLive?.slipPick?.()?.price || '+1400')}" value="${parEsc(PARLAY.book)}" oninput="parBook(this)">
         <span class="par-ev-out" id="par-ev-out"></span>
       </div>
       <div class="par-outs">
@@ -794,11 +790,10 @@
   .par-chip.on { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: var(--accent); color: var(--accent); }
   .par-chip input { width: 2.6rem; background: none; border: none; color: inherit; font: inherit; text-align: right; outline: none; padding: 0; -moz-appearance: textfield; }
   .par-chip input::-webkit-outer-spin-button, .par-chip input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  .par-nums { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-top: 0.7rem; }
-  .par-num { background: var(--surface0); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.55rem; }
-  .par-num b { display: block; font-family: var(--font-d); font-size: 1.22rem; font-weight: 700; color: var(--text-strong); line-height: 1.1; }
-  .par-num.acc b { color: var(--accent); }
-  .par-num span { display: block; font-size: 0.642rem; color: var(--dim); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 0.2rem; }
+  .par-fair { margin: 0.6rem 0 0; font-size: 0.74rem; color: var(--muted); }
+  .par-fair b { color: var(--text-strong); font-family: var(--font-d); }
+  .par-boost { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; margin-top: 0.45rem; }
+  .par-boost .par-lbl2 { margin: 0 0.2rem 0 0; }
   .par-note { font-size: 0.692rem; color: var(--dim); line-height: 1.5; margin-top: 0.55rem; }
   .par-note b { color: var(--muted); }
   .par-warn { color: var(--ok); }
@@ -823,7 +818,6 @@
     .par-slip { bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.5rem); left: var(--nav-side); right: var(--nav-side); transform: none; width: auto; }
     .par-fab { bottom: calc(var(--nav-bottom) + var(--nav-h) + 0.6rem); right: var(--nav-side); }
     .par-body { max-height: 46vh; }
-    .par-nums { grid-template-columns: 1fr 1fr; }
   }
   .par-copy { display: block; width: 100%; margin: 0.55rem 0 0.2rem; padding: 0.42rem; border-radius: 8px; cursor: pointer; font: 600 0.74rem inherit; background: transparent; color: var(--muted); border: 1px dashed var(--border2); }
   .par-copy:hover { color: var(--accent); border-color: var(--accent); }
