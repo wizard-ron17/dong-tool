@@ -8,8 +8,8 @@ game takes, per stat, the rung nearest even money (where a main line sits); rota
 minutes), the ones books hang lines on. Pair types:
   same player   every two of pts, reb, ast, 3pm, stl, blk, pra, stk (pra/stk contain their parts: measured anyway,
                 so the slip knows how close to one bet they are)
-  teammates     the same stat (pts/pts, reb/reb, ast/ast, 3pm/3pm, pra/pra), and pts/ast (one's points, his assists)
-  opponents     the same stats
+  teammates     every pairing of pts, reb, ast, 3pm, pra, stl, blk, same stat and cross (one's points, the other's assists)
+  opponents     the same pairings (one side's rebounds and the other's assists: misses become boards)
 A pair ships when its 95% game-bootstrap CI excludes 0; otherwise it's 'measured independent'.
 NBA rule (memo to partner books, 10/16/2026): no parlays of 2+ unders on ONE player at partner books; exchanges
 (Kalshi, Polymarket) are outside it. That's a book rule, not a correlation: the slip/builder enforces it.
@@ -72,7 +72,10 @@ def main():
         Pk = pr[sel]
         if len(Pk) > 250000: Pk = Pk.iloc[rng.choice(len(Pk), 250000, replace=False)]
         print(f"\n{'teammates' if kind == 'mate' else 'opponents'} ({len(Pk):,} pairs)")
-        pairs = [(s, s) for s in ("pts", "reb", "ast", "3pm", "pra")] + ([("pts", "ast")] if kind == "mate" else [])
+        # every pairing of the main stats, same stat and cross-stat (11/04: a CHI@NY slip had an opponent's rebounds with
+        # a teammate pair's assists and threes, none of them measured, so the slip multiplied them)
+        CS = ["pts", "reb", "ast", "3pm", "pra", "stl", "blk"]
+        pairs = list(itertools.combinations_with_replacement(CS, 2))
         for a, b in pairs:
             A = F[F.stat == a][["gid", "pid", "p", "y"]]; B = F[F.stat == b][["gid", "pid", "p", "y"]]
             J = Pk.merge(A.rename(columns={"pid": "pid1", "p": "p1", "y": "y1"}), on=["gid", "pid1"]).merge(B.rename(columns={"pid": "pid2", "p": "p2", "y": "y2"}), on=["gid", "pid2"])

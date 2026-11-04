@@ -472,8 +472,8 @@
 
   // NBA same-game correlations, measured: research/sgp_nba.py, the stat engine's walk-forward ladders as margins
   // (2022-23..2025-26, rotation players, the near-even rung), so ρ is only what's left beyond the prices. Only
-  // pairs whose 95% game-bootstrap interval excludes zero; the rest (teammates' threes or PRA, opponents' threes)
-  // price as independent. Double-doubles, triple-doubles and first basket aren't measured: they multiply.
+  // pairs whose 95% game-bootstrap interval excludes zero; the rest price as independent. Teammates and opponents
+  // are small at every pairing (|ρ| <= .042): a book's same-game price far under the legs multiplied is its margin. Double-doubles, triple-doubles and first basket aren't measured: they multiply.
   const SGP_NBA = {
     // same player: one night's minutes lift every stat; a combo holds its parts
     'same:pts+reb': 0.293,    // [+0.285, +0.301]
@@ -504,16 +504,49 @@
     'same:blk+stk': 0.774,    // [+0.768, +0.780]
     'same:blk+3pm': 0.073,    // [+0.064, +0.084]
     'same:stk+3pm': 0.105,    // [+0.091, +0.111]
-    // teammates: one ball
-    'mate:pts+pts': -0.023,   // [-0.028, -0.016]
-    'mate:reb+reb': -0.012,   // [-0.016, -0.005]
-    'mate:ast+ast': -0.008,   // [-0.013, -0.001]
-    'mate:pts+ast': 0.050,    // [+0.045, +0.054]
-    // opponents: one pace
-    'opp:pts+pts': 0.021,     // [+0.016, +0.026]
-    'opp:reb+reb': 0.011,     // [+0.006, +0.016]
-    'opp:ast+ast': 0.006,     // [+0.002, +0.012]
-    'opp:pra+pra': 0.009,     // [+0.003, +0.014]
+    // teammates: one ball (11/04: every pairing of the main stats measured; tiny, the prices hold most of it)
+    'mate:pts+pts': -0.038,   // [-0.048, -0.033]
+    'mate:pts+reb': -0.008,   // [-0.012, -0.004]
+    'mate:pts+ast': 0.041,    // [+0.037, +0.045]
+    'mate:pts+3pm': -0.031,   // [-0.035, -0.028]
+    'mate:pts+pra': -0.025,   // [-0.031, -0.022]
+    'mate:pts+stl': -0.005,   // [-0.010, -0.002]
+    'mate:pts+blk': -0.009,   // [-0.013, -0.004]
+    'mate:reb+reb': -0.017,   // [-0.021, -0.013]
+    'mate:reb+ast': -0.012,   // [-0.016, -0.009]
+    'mate:reb+3pm': -0.010,   // [-0.014, -0.007]
+    'mate:reb+pra': -0.014,   // [-0.019, -0.011]
+    'mate:reb+stl': -0.015,   // [-0.019, -0.013]
+    'mate:reb+blk': 0.011,    // [+0.006, +0.016]
+    'mate:ast+ast': -0.014,   // [-0.019, -0.008]
+    'mate:ast+3pm': 0.042,    // [+0.039, +0.046]
+    'mate:ast+pra': 0.023,    // [+0.018, +0.025]
+    'mate:ast+blk': -0.006,   // [-0.010, -0.003]
+    'mate:3pm+3pm': -0.011,   // [-0.018, -0.005]
+    'mate:3pm+pra': -0.016,   // [-0.019, -0.013]
+    'mate:3pm+stl': -0.006,   // [-0.010, -0.003]
+    'mate:3pm+blk': -0.009,   // [-0.014, -0.005]
+    'mate:pra+pra': -0.018,   // [-0.025, -0.015]
+    'mate:pra+stl': -0.008,   // [-0.012, -0.005]
+    'mate:blk+blk': 0.012,    // [+0.006, +0.018]
+    // opponents: one pace, and one side's misses are the other's boards
+    'opp:pts+pts': 0.018,     // [+0.012, +0.024]
+    'opp:pts+reb': -0.012,    // [-0.016, -0.008]
+    'opp:pts+pra': 0.012,     // [+0.006, +0.017]
+    'opp:pts+stl': -0.008,    // [-0.013, -0.005]
+    'opp:reb+reb': 0.013,     // [+0.007, +0.019]
+    'opp:reb+ast': -0.017,    // [-0.021, -0.014]
+    'opp:reb+3pm': -0.009,    // [-0.013, -0.006]
+    'opp:reb+pra': -0.010,    // [-0.014, -0.006]
+    'opp:reb+stl': 0.005,     // [+0.001, +0.009]
+    'opp:reb+blk': 0.020,     // [+0.014, +0.024]
+    'opp:ast+stl': -0.009,    // [-0.014, -0.005]
+    'opp:ast+blk': -0.006,    // [-0.009, -0.002]
+    'opp:3pm+blk': -0.008,    // [-0.012, -0.003]
+    'opp:pra+pra': 0.007,     // [+0.002, +0.012]
+    'opp:pra+stl': -0.007,    // [-0.011, -0.004]
+    'opp:stl+stl': 0.007,     // [+0.001, +0.014]
+    'opp:blk+blk': 0.010,     // [+0.004, +0.018]
   };
   const NBA_KIND = new Set(['pts', 'reb', 'ast', '3pm', 'pra', 'stl', 'blk', 'stk']);
   const NBA_WHY = { same: 'one night\'s minutes lift all his stats', mate: 'teammates share one ball', opp: 'one pace for both sides' };
