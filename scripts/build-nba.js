@@ -301,6 +301,18 @@ async function main() {
           vac += inp.m10; const f = fam(a.position?.abbreviation || s.pos); vacFam[f] = (vacFam[f] || 0) + inp.m10;
         }
       }
+      // the team tonight as a pre-game reader knows it (depth): roster minus OUT and anyone not seen in the team's last
+      // 3 games, its rotation players (10+ min last 10) and the minutes they usually play (research/nba_vacated.py)
+      let nRot = 0, m10Sum = 0;
+      for (const a of roster) {
+        if (isOut(a)) continue;
+        const s = state.players[a.id]; if (!s?.last10?.length) continue;
+        // not seen in 3 games: out long-term, unless the report lists him and not as out (a return: research counts
+        // him, he played); a deep-bench name the report doesn't carry stays out of it
+        if ((!recent3 || s.last10[s.last10.length - 1].d < recent3) && !injuries[a.id]) continue;
+        const m10 = minutesInputs(s, priorPrev[a.id]?.prev).m10 ?? 0;
+        m10Sum += Math.max(0, m10); if (m10 >= MODEL.minutes.rotation_min) nRot++;
+      }
       const L = g.lines, sp = L?.spread != null ? (home ? L.spread : -L.spread) : null;
       const implied = L ? (home ? L.impHome : L.impAway) : null;
       const teamLast = T?.last || null, b2b = teamLast === shiftDate(g.date, -1);
@@ -312,7 +324,7 @@ async function main() {
         const inp = minutesInputs(s, prevTot);
         const five = fives[g.id]?.[me];
         const M = projectMinutes(inp, { date: g.date, teamLast, absSpread: sp != null ? Math.abs(sp) : null, b2b,
-          vacated: vac, vacPos: vacFam[fam(pos)] || 0, starting: five ? five.ids.has(String(a.id)) : undefined });
+          vacated: vac, vacPos: vacFam[fam(pos)] || 0, nRot, m10Sum, starting: five ? five.ids.has(String(a.id)) : undefined });
         ctxList.push({ a, s, pos, min: M.min, start10: inp.start10 ?? 0, margin: sp != null ? -sp : 0 });
         if (M.min < 8) continue;                                  // not a rotation player tonight
         // every counting-stat ladder and the double / triple-double, off the same minutes (research/nba_stats.py)

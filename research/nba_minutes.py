@@ -79,6 +79,24 @@ def features(P):
     P["fam"] = P.pos.map(fam)
     vp = P[new_out].groupby(["gid", "team", "fam"]).m10_any.sum().rename("vac_pos")
     P = P.merge(vp, on=["gid", "team", "fam"], how="left"); P["vac_pos"] = P.vac_pos.fillna(0.0)
+    # depth (research/nba_vacated.py, 11/04): who the team has tonight as a pre-game reader knows it, everyone listed
+    # except the new absences above and anyone not seen in the team's last 3 games (long-term out). A bench player who
+    # ends up sitting still counts: nobody knew. few_rot = rotation players (10+ min last 10) short of 9; slack = the
+    # minutes they usually play short of 240, his share by his own last 10. Both also x bench (1 - start10) in the fit.
+    # Who's known out is conservative: a rotation player counts as out only if he also missed the team's last game
+    # (a continuing absence, on any injury report). A first-game absence (rest, a late scratch) counts as available,
+    # since research can't tell which of those the report carried; fit on hindsight absences, the build (which knows
+    # less) sat ~1.2 min low across a whole slate (11/04). Same gain either way: MAE 5.035 -> 4.842 vs 4.982 -> 4.797.
+    long_out = P.dnp & ~((P.tn - P.last_played_tn) <= 3)
+    P = P.sort_values(["pid", "team", "tn"])
+    prev_dnp = P.groupby(["pid", "team"]).dnp.shift(1).fillna(False).astype(bool)
+    known_out = new_out & prev_dnp
+    A = P[~(known_out | long_out)]
+    m10f = A.m10_any.fillna(0).clip(lower=0)
+    dep = pd.DataFrame({"gid": A.gid, "team": A.team, "rot": (m10f >= 10).astype(int), "m": m10f}).groupby(["gid", "team"]).agg(n_rot=("rot", "sum"), m10_sum=("m", "sum")).reset_index()
+    P = P.merge(dep, on=["gid", "team"], how="left")
+    P["few_rot"] = (9 - P.n_rot.fillna(9)).clip(lower=0)
+    P["slack_share"] = (240 - P.m10_sum.fillna(240)).clip(-60, 120) * P.m10_any.fillna(0) / P.m10_sum.fillna(240).clip(lower=1)
     # rest: days since his TEAM's last game (a player sitting out still gets his team's rest) —
     # what the build knows from the schedule
     tg = P.drop_duplicates(["gid", "team"])[["team", "dt", "gid"]].sort_values(["team", "dt"])
@@ -86,6 +104,18 @@ def features(P):
     tg["b2b"] = (gap == 1).astype(float); tg["rest"] = gap.clip(upper=7).fillna(7)
     P = P.merge(tg[["gid", "team", "b2b", "rest"]], on=["gid", "team"], how="left")
     return P
+
+
+# the minutes model's inputs (the export and the build read the same list)
+BASE_COLS = ["m3", "m5", "m10", "mseason", "mprev", "start10", "vacated", "vac_pos", "abs_sp", "b2b", "rest", "early",
+             "few_rot", "slack_share", "few_rot_b", "slack_b"]
+
+
+def depth_cols(D):
+    """The depth inputs split by role: missing rotation players and the minutes to fill land on the bench."""
+    bench = 1 - D.start10.fillna(0)
+    D["few_rot_b"] = D.few_rot * bench; D["slack_b"] = D.slack_share * bench
+    return D
 
 
 def main():
@@ -99,7 +129,8 @@ def main():
     D["early"] = np.exp(-D.n_prior.fillna(0) / 3)
     D["st_x_sp"] = D.st * D.abs_sp
     D["vac_x_st"] = D.vacated * D.st
-    base_cols = ["m3", "m5", "m10", "mseason", "mprev", "start10", "vacated", "vac_pos", "abs_sp", "b2b", "rest", "early"]
+    depth_cols(D)
+    base_cols = BASE_COLS
     with_st = base_cols + ["st", "st_x_sp", "vac_x_st"]
     seasons = sorted(D.season.unique())
     res = {k: [] for k in ("last 5", "season avg", "model, no lineup", "model + starting tonight")}

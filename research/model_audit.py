@@ -345,8 +345,8 @@ if __name__ == "__main__" and _ARGV[1:] == ["nfl-receptions"]:
     sys.exit(0)
 if __name__ == "__main__" and _ARGV[1:] == ["nba"]:
     print("NBA"); [guard(n, f) for n, f in (("threes", nba_threes), ("points", nba_points), ("ddtd", nba_ddtd), ("first", nba_first))]
-    affected = {"Points 20+", "Points 25+"}
-    RESULTS[:] = [r for r in RESULTS if r["sport"] == "NBA" and r["market"] in affected]
+    # every NBA row: the minutes model under all of them moved (11/04, depth); a row that failed to score keeps its old one
+    RESULTS[:] = [r for r in RESULTS if r["sport"] == "NBA"]
     merge_report()
     sys.exit(0)
 if __name__ == "__main__":

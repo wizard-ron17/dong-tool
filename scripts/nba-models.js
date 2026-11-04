@@ -34,7 +34,10 @@ export function minutesInputs(s, prev) {
 }
 
 /**
- * Tonight's projected minutes. ctx: { date, teamLast, absSpread, b2b, vacated, vacPos, starting? }.
+ * Tonight's projected minutes. ctx: { date, teamLast, absSpread, b2b, vacated, vacPos, nRot, m10Sum, starting? }.
+ * nRot / m10Sum: the team tonight as the build knows it (roster minus the injury report's OUT and anyone not seen in
+ * the team's last 3 games): its rotation players (10+ min last 10) and the minutes they usually play. Depth inputs
+ * (research/nba_vacated.py): rotation players short of 9, and the 240-minute shortfall at his share, both also x bench.
  * Rest is days since his TEAM's last game (teamLast), as research defines it.
  * `starting` known (lineups posted) switches to the lineup model.
  */
@@ -48,6 +51,10 @@ export function projectMinutes(inp, ctx) {
     rest: ctx.teamLast ? clip(days(ctx.teamLast, ctx.date), 0, 7) : 7,
     st, st_x_sp: st * abs, vac_x_st: (ctx.vacated || 0) * st, early: inp.early ?? 0,
   };
+  const m10Sum = ctx.m10Sum ?? 240, bench = 1 - (inp.start10 ?? 0);
+  x.few_rot = Math.max(0, 9 - (ctx.nRot ?? 9));
+  x.slack_share = clip(240 - m10Sum, -60, 120) * (inp.m10 ?? 0) / Math.max(m10Sum, 1);
+  x.few_rot_b = x.few_rot * bench; x.slack_b = x.slack_share * bench;
   let v = m.coef.const;
   for (const c of m.cols) v += m.coef[c] * (x[c] ?? 0);
   return { min: clip(v, 0, 44), sd: m.sd, lineup: useLineup };

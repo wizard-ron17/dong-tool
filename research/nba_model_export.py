@@ -38,7 +38,8 @@ def main():
     D["abs_sp"] = D.spread.abs().fillna(D.spread.abs().median())
     D["st"] = D.starter.astype(float); D["st_x_sp"] = D.st * D.abs_sp; D["vac_x_st"] = D.vacated * D.st
     D["early"] = np.exp(-D.n_prior.fillna(0) / 3)                       # his season games so far: 1 in the first, ~0 by the tenth
-    base = ["m3", "m5", "m10", "mseason", "mprev", "start10", "vacated", "vac_pos", "abs_sp", "b2b", "rest", "early"]
+    MN.depth_cols(D)
+    base = MN.BASE_COLS
     lineup = base + ["st", "st_x_sp", "vac_x_st"]
     mins = {}
     for name, cols in (("pre", base), ("lineup", lineup)):
