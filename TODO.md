@@ -4,6 +4,7 @@ Dated and open work. Newest decisions at the top of each section. Remove items w
 
 ## Scheduled
 - **SMARTSTAKE ACCESS ENDS 11/09/2026.** Everything odds-related stops then, until Ron has a new source; nothing odds-related is scheduled after it.
+  - **Contingency (the cut may come before 11:59 PM ET 11/09):** nothing needs doing at the cut itself. The closes pull now runs every 30 min (launchd, was 2h), the recorder runs until it's refused, and every step of `final_pull.sh` after the first runs offline (`.rec` closes rebuild from the recorder's files any time). An early cut loses only the SmartStake-posted closes of the last day or two, which the `.rec` days stand in for. Reference catalogs (teams, players, markets, books, every league) saved 11/06 in `~/smartstake-data/ref/`.
   - **11/08-11/09, last hours of access:** run `~/smartstake-data/final_pull.sh` (all posted closes; recorder-built `.rec` closes for the nights SmartStake never posts; the last closes grade → update the Models page rows and `vsmarket.js`; Plays blend weights; Plays grade). Run it once more right before the cutoff.
   - **At the cutoff:** `date > ~/smartstake-data/ENDED`. The recorder idles, `closes.py` and the odds board stop asking (each writes ENDED itself on its first 401/403). Ron's Plays and the boards' odds columns go blank ("no odds source"). Restart `npm run odds` after.
   - **odds-viewer:** its SmartStake source falls back to the Odds API on every request once SmartStake fails, which spends Odds API credits. Switch it deliberately (or not) at the cutoff.
