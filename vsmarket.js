@@ -64,10 +64,10 @@
   .ron-vs { margin-left: 0.45rem; }
   @media (max-width: 700px) { .nav-menu-item .nm-vs { display: table; margin: 0.25rem 0 0; top: 0; white-space: normal; line-height: 1.15; } }
   .ron-vs:hover { text-decoration: none; filter: brightness(1.1); }
-  .vs-us { color: var(--green, #33d07c); background: color-mix(in srgb, var(--green, #33d07c) 14%, transparent); border-color: color-mix(in srgb, var(--green, #33d07c) 35%, transparent); }
-  .vs-mix, .vs-even { color: var(--gold, #e8b64c); background: color-mix(in srgb, var(--gold, #e8b64c) 14%, transparent); border-color: color-mix(in srgb, var(--gold, #e8b64c) 35%, transparent); }
-  .vs-mkt { color: var(--bad, var(--red, #ff6b6b)); background: color-mix(in srgb, var(--bad, var(--red, #ff6b6b)) 12%, transparent); border-color: color-mix(in srgb, var(--bad, var(--red, #ff6b6b)) 32%, transparent); }
-  .vs-none { color: var(--muted, #8a94a6); background: color-mix(in srgb, var(--muted, #8a94a6) 10%, transparent); border-color: color-mix(in srgb, var(--muted, #8a94a6) 25%, transparent); }`;
+  .vs-us { color: var(--green, #33d07c); background: color-mix(in srgb, var(--green, #33d07c) 14%, var(--surface1, #18181a)); border-color: color-mix(in srgb, var(--green, #33d07c) 35%, transparent); }
+  .vs-mix, .vs-even { color: var(--gold, #e8b64c); background: color-mix(in srgb, var(--gold, #e8b64c) 14%, var(--surface1, #18181a)); border-color: color-mix(in srgb, var(--gold, #e8b64c) 35%, transparent); }
+  .vs-mkt { color: var(--bad, var(--red, #ff6b6b)); background: color-mix(in srgb, var(--bad, var(--red, #ff6b6b)) 12%, var(--surface1, #18181a)); border-color: color-mix(in srgb, var(--bad, var(--red, #ff6b6b)) 32%, transparent); }
+  .vs-none { color: var(--muted, #8a94a6); background: color-mix(in srgb, var(--muted, #8a94a6) 10%, var(--surface1, #18181a)); border-color: color-mix(in srgb, var(--muted, #8a94a6) 25%, transparent); }`;
   if (!document.getElementById('vs-css')) { const s = document.createElement('style'); s.id = 'vs-css'; s.textContent = CSS; document.head.appendChild(s); }
 
   window.RonVs = { AS_OF, SINCE, GAMES, TOOLS, NAMES, WORD, summary, chip };

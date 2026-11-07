@@ -1917,7 +1917,7 @@
       const b = box[d + '|' + pid], pr = day.t3?.[pid]; if (!b || !pr) continue;
       n++; hit += b[BX.tpm] >= 2 ? 1 : 0; exp += pr[2] ?? 0;   // t3: [mu, P(1+), P(2+), ...]
     }
-    return n ? `<b>${hit} of ${n}</b> hit 2+ so far (we expected ${exp.toFixed(1)}).` : 'Graded from the first regular-season night on.';
+    return n ? `<b>${hit} of ${n}</b> hit 2+ · <b>${exp.toFixed(1)}</b> expected` : '';
   }
   const T3_FX = { factors: [['shooter', 'Shooter'], ['minutes', 'Min'], ['form', 'Form'], ['drought', 'Drought'], ['spot', 'Spot'], ['lift', 'Lift'], ['bueno', 'Bueno']],
     singles: ['minutes', 'form', 'drought', 'spot'], base: ['shooter', 'Shooter'], val: (r, k) => t3Fx(r)[k], p: (r) => r.pAt, rerender: "renderBoard('threes')" };
@@ -2049,7 +2049,7 @@
       ['Game', [['all', 'All games'], ...games.map(g => [g.gid, `${g.home ? g.opp : g.team} @ ${g.home ? g.team : g.opp}`])].map(([v, l]) => uiChip(set, 'game', v, l, F.game)).join('')],
       ...(F.view === 'table' ? [] : [['Sort', uiSort(set, F.sort, BD_SORT)]]),
     ], changed) + uiSearch(nav + '-search', set, F.q, 'Search a player, team or position…');
-    const meta = `<div class="result-meta">${t3val ? `🎯 <b>${rows.length} longshot${rows.length === 1 ? '' : 's'}</b> · 2+ threes at +200 or longer · sorted by Bueno · form and the opponent's threes allowed both in the top 40% of the slate (experimental) · ${t3ValueRecord()}<br>` : ''}<b>${dayLabel(src.date, true)}</b> · ${rows.length} of ${lcRows(kind).length} players · ${esc(C.unit)} · fair odds, no vig</div>` + uiView(set, F.view, parSideToggleHtml(nav, false, `renderBoard('${nav}')`, { both: true }));
+    const meta = `<div class="result-meta"><b>${dayLabel(src.date, true)}</b> · ${t3val ? `🎯 <b>${rows.length}</b> longshot${rows.length === 1 ? '' : 's'} · ${t3ValueRecord()} · <b>The Value screen:</b> 2+ threes at +200 or longer, with form and the opponent's threes allowed both in the top 40% of the slate, sorted by Bueno (experimental). Graded from the first regular-season night on.` : `<b>${rows.length}</b> of ${lcRows(kind).length} players`} · fair odds, no vig</div>` + uiView(set, F.view, parSideToggleHtml(nav, false, `renderBoard('${nav}')`, { both: true }));
     if (!rows.length) { el.innerHTML = t3ModeBar(nav, t3val) + tabs + controls + meta + `<div class="empty">${t3val ? `No player passes the Value screen tonight. It takes 2+ threes at +200 or longer, in the top 40% of the slate on both form and the opponent's threes allowed. The closest are on the <a href="javascript:void(0)" onclick="setT3Mode('chalk')">Chalk</a> board.` : 'Nothing matches that filter.'}</div>`; return; }
     const open = (r) => `openBoardCard('${nav}','${r.pid}')`;
     const started = (r) => new Date(r.start) <= new Date();

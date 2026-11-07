@@ -23,6 +23,8 @@ if (!document.querySelector('script[src^="/holiday.js"]')) { const h = document.
 // kept here, in <head>, before the app's router can strip the query: scene.js (deferred) reads it from sessionStorage.
 try { const bg = new URLSearchParams(location.search).get('bg'); if (bg === 'off') sessionStorage.setItem('ronScene', 'off'); else if (bg === 'night') sessionStorage.setItem('ronScene', 'night'); } catch (e) {}
 if (!document.querySelector('script[src^="/scene.js"]')) { const h = document.createElement('script'); h.src = '/scene.js'; h.defer = true; document.head.appendChild(h); }
+// brief.js: a board's small print as pills, a heading and one How it works sheet
+if (!document.querySelector('script[src^="/brief.js"]')) { const h = document.createElement('script'); h.src = '/brief.js'; h.defer = true; document.head.appendChild(h); }
 (function () {
   // Styles for the header, main nav, tools menu, sport switcher and footer: the rules that were identical in all four apps.
   // Injected from <head>, so each page's own <style> (loaded after) still wins.
@@ -30,7 +32,8 @@ if (!document.querySelector('script[src^="/scene.js"]')) { const h = document.cr
   const CSS = `
   .tb-brand { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
   .tb-right { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
-  .ron-fresh { font-size: 0.68rem; font-weight: 600; color: var(--dim); white-space: nowrap; letter-spacing: 0.02em; }
+  .ron-fresh { font-size: 0.72rem; font-weight: 600; color: var(--muted); white-space: nowrap; padding: 0.22rem 0.55rem; border-radius: 999px; background: var(--surface1); border: 1px solid var(--border); }
+  .ron-fresh:empty { display: none; }
   .ron-fresh.stale { color: var(--gold); }
   .ron-fresh[onclick] { cursor: pointer; }
   .ron-fresh[onclick]:hover { color: var(--text); }

@@ -682,8 +682,6 @@
   .pb-head { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.55rem; }
   .pb-week { font-family: var(--font-d); font-size: 1.5rem; font-weight: 700; color: var(--text-strong); }
   .pb-meta { font-size: 0.729rem; color: var(--muted); }
-  .pb-cutnote { font-size: 0.711rem; color: var(--dim); margin: -0.15rem 0 0.7rem; }
-  .pb-cutnote b { color: var(--silver); }
   .pb-tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface0); }
   .pb-table { width: 100%; border-collapse: collapse; font-size: 0.766rem; min-width: 560px; }
   .pb-table th { position: sticky; top: 0; background: var(--surface2); color: var(--muted); font-family: var(--font-d); font-size: 0.791rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; text-align: left; padding: 0.45rem 0.6rem; white-space: nowrap; cursor: pointer; user-select: none; border-bottom: 1px solid var(--border); }
@@ -1290,7 +1288,7 @@
                oninput="onPicksSearch()" autocomplete="off" spellcheck="false" aria-label="Search the board">
         <button class="pb-search-x" onclick="clearPicksSearch()" aria-label="Clear search">×</button>
       </div>
-      <div class="pb-search-hint" id="picks-search-hint">Commas match any of them — narrows whatever the filters already show</div>
+      <div class="pb-search-hint" id="picks-search-hint"></div>
     </div>
 
     <div id="picks-board-wrap"><div id="picks-content"><div class="empty">Loading…</div></div></div>
@@ -4101,7 +4099,7 @@
     });
     const hint = document.getElementById('picks-search-hint');
     if (hint) {
-      let msg = 'Commas match any of them — narrows whatever the filters already show';
+      let msg = '';
       if (pkSearch.length) {
         const shown = new Set(rows.map(r => r.pid));
         const hidden = P.picks.filter(x => pkSearch.some(t => pkMatch(x, t)) && !shown.has(x.pid));
@@ -4129,15 +4127,13 @@
     el.innerHTML = modeBar + `
       <div class="pb-head">
         <span class="pb-week">${P.date ? dayLabel(P.date) : ''}</span>
-        <span class="pb-meta">${pkF.mode === 'value' ? `🎯 ${rows.length} longshot${rows.length === 1 ? '' : 's'} · sorted by Bueno · form and the opponent's goals allowed both in the top 40% of the slate (experimental) · ` : ''}${esc(D.seasonLabel || '')} · ${esc(pkMkt().long)}${pkF.pos.length ? ' · ' + pkF.pos.map(x => POS_NAME[x]).join('/') : ''}${pkSearch.length ? ' · “' + esc(pkSearch.join('”, “')) + '”' : ''} · ${rows.length} shown · fair odds, no vig</span>
+        <span class="pb-meta">${pkF.mode === 'value' ? `🎯 ${rows.length} longshot${rows.length === 1 ? '' : 's'} · sorted by Bueno · form and the opponent's goals allowed both in the top 40% of the slate (experimental) · ` : ''}${esc(D.seasonLabel || '')} · ${esc(pkMkt().long)}${pkF.pos.length ? ' · ' + pkF.pos.map(x => POS_NAME[x]).join('/') : ''}${pkSearch.length ? ' · “' + esc(pkSearch.join('”, “')) + '”' : ''} · ${rows.length} shown · fair odds, no vig${cut && cut.v ? ` · <b>${cut.hit}%</b> hit at ${cut.lab} or shorter` : ''} · <b>${base}%</b> base rate · search several names at once with commas</span>
       </div>
       <div class="lb-toolbar">
         <div class="view-switch">${[['table', 'Table'], ['cards', 'Cards']]
           .map(([v, l]) => `<button class="view-btn${pkView() === v ? ' active' : ''}" onclick="setPkF('view','${v}')">${l}</button>`).join('')}</div>
         ${RonChrome.freshHtml()}${parSideToggleHtml('picks', true, 'renderPicks()')}${RonShare.button('setPkF')}
       </div>
-      ${cut && cut.v ? `<div class="pb-cutnote">At <b>${cut.lab}</b> or shorter, anytime goal historically hit <b>${cut.hit}%</b> — against a <b>${base}%</b> base rate.</div>`
-                     : `<div class="pb-cutnote">Full board. Anytime-goal base rate is <b>${base}%</b>.</div>`}
       ${body}`;
   }
 

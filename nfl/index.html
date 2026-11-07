@@ -1590,8 +1590,6 @@
   .pb-head { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.55rem; }
   .pb-week { font-family: var(--font-d); font-size: 1.5rem; font-weight: 700; color: var(--text-strong); }
   .pb-meta { font-size: 0.729rem; color: var(--muted); }
-  .pb-cutnote { font-size: 0.711rem; color: var(--dim); margin: -0.15rem 0 0.7rem; }
-  .pb-cutnote b { color: var(--silver); }
 
   .pb-list { display: flex; flex-direction: column; gap: 0.4rem; }
   .pb-card { display: flex; align-items: center; gap: 0.65rem; background: var(--surface1); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.7rem; }
@@ -2833,7 +2831,7 @@
                oninput="onPicksSearch()" autocomplete="off" spellcheck="false" aria-label="Search the board">
         <button class="pb-search-x" onclick="clearPicksSearch()" aria-label="Clear search">×</button>
       </div>
-      <div class="pb-search-hint" id="picks-search-hint">Commas match any of them — narrows whatever the filters already show</div>
+      <div class="pb-search-hint" id="picks-search-hint"></div>
     </div>
 
     <div id="picks-board-wrap"><div id="picks-content"><div class="empty">Loading…</div></div></div>
@@ -4401,7 +4399,7 @@
     // and silently showing fewer rows gives no way to work that out.
     const hint = document.getElementById('picks-search-hint');
     if (hint) {
-      let msg = 'Commas match any of them — narrows whatever the filters already show';
+      let msg = '';
       if (pbSearch.length) {
         const shown = new Set(rows.map(r => r.pid));
         const hidden = P.picks.filter(x => pbSearch.some(t => pbMatch(x, t)) && !shown.has(x.pid));
@@ -4445,7 +4443,7 @@
     el.innerHTML = `
       <div class="pb-head">
         <span class="pb-week">${WK_LABEL(P.week)}</span>
-        <span class="pb-meta">${P.season} · ${pbMkt().lab}${pbF.pos.length && !pbMkt().qbOnly ? ' · ' + pbF.pos.join('/') : ''}${pbSearch.length ? ' · “' + pbSearch.join('”, “') + '”' : ''} · ${rows.length} shown · fair odds, no vig</span>
+        <span class="pb-meta">${P.season} · ${pbMkt().lab}${pbF.pos.length && !pbMkt().qbOnly ? ' · ' + pbF.pos.join('/') : ''}${pbSearch.length ? ' · “' + pbSearch.join('”, “') + '”' : ''} · ${rows.length} shown · fair odds, no vig${cut && cut.v ? ` · <b>${cut.hit}%</b> hit at ${cut.lab} or shorter` : ''} · <b>${pbMkt().base}%</b> base rate · search several names at once with commas</span>
       </div>
       ${dayBar()}
       <div class="lb-toolbar">
@@ -4453,8 +4451,6 @@
           .map(([v, l]) => `<button class="view-btn${pbView() === v ? ' active' : ''}" onclick="setPbF('view','${v}')">${l}</button>`).join('')}</div>
         ${RonChrome.freshHtml()}${parSideToggleHtml('picks', !pbMkt().qbOnly, 'renderPicks()')}${RonShare.button('setPbF')}
       </div>
-      ${cut && cut.v ? `<div class="pb-cutnote">At <b>${cut.lab}</b> or shorter, ${pbMkt().lab} historically hit <b>${cut.hit}%</b> — against a <b>${pbMkt().base}%</b> base rate.</div>`
-                     : `<div class="pb-cutnote">Full board. ${pbMkt().lab} base rate is <b>${pbMkt().base}%</b>.</div>`}
       ${body}`;
   }
 

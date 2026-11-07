@@ -66,6 +66,7 @@
   .due-filters-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 1.1rem; height: 1.1rem; padding: 0 0.3rem; margin-left: 0.4rem; background: var(--accent); color: #fff; font-size: 0.673rem; font-weight: 700; border-radius: 10px; vertical-align: middle; }
   .due-filters-card .due-filter-row { margin-top: 0.55rem; padding-top: 0.55rem; border-top: 1px solid var(--border); margin-bottom: 0; }
   .due-filter-row { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
+  .pb-search-hint:empty { display: none; }
   .pb-search-hint { font-size: 0.692rem; color: var(--muted); margin: 0.35rem 0 0 0.15rem; letter-spacing: 0.02em; }
   .pb-search-hint b { color: var(--text); font-weight: 600; }
   .pb-search-hint a { color: var(--accent); text-decoration: none; }
