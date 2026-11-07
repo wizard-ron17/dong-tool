@@ -1767,19 +1767,16 @@
     document.querySelectorAll('.lc-add').forEach(el => { el.innerHTML = lcAddBtn(); });
     lcCenter();
   }
-  // the board's Over / Under toggle decides which side the card adds
-  const lcSideOf = () => parSideGet(BD_TOOL(lc.kind));
-  function lcLeg() {
+  function lcLeg(side = 'over') {
     const r = lcRow(); if (!r) return null;
-    return parSideLeg(bdLeg(lc.kind, r, lc.line, overAt(lcPmf(r), lc.line)), lcSideOf(), false);
+    return parSideLeg(bdLeg(lc.kind, r, lc.line, overAt(lcPmf(r), lc.line)), side, false);
   }
   function lcAddBtn() {
     const leg = lcLeg(); if (!leg || !(leg.p > 0)) return '';
-    const on = PARLAY.legs.some(l => l.k === parLeg(leg).k);
-    return `<button class="par-add${on ? ' on' : ''}" onclick="lcAddLeg()">${on ? '✓ In your parlay' : `+ Add ${lcSideOf() === 'under' ? 'u' : 'o'}${lc.line} to parlay`}</button>`;
+    return parAddPair(leg, (side) => `lcAddLeg('${side}')`, { line: lc.line });
   }
-  function lcAddLeg() {
-    const leg = lcLeg(); if (!leg) return;
+  function lcAddLeg(side) {
+    const leg = lcLeg(side); if (!leg) return;
     if (!PARLAY.on) parMode(true);
     parToggleLeg(leg);
     document.querySelectorAll('.lc-add').forEach(el => { el.innerHTML = lcAddBtn(); });
@@ -1847,7 +1844,6 @@
   // ── Parlay legs (the slip itself is /parlay.js) ──
   /** A line-board leg; the line is in the key, so o1.5 and o2.5 replace each other. A board row carries its tool's side (parSideRow). */
   const bdLeg = (kind, r, L, p) => parSideTag({ k: `${kind}|${r.pid}|${L}`, n: r.name, t: r.team, g: parGame(r), m: kind, s: `Over ${L} ${LC[kind].unit}`, p, i: r.pid, L }, r.side, false);
-  const BD_TOOL = (kind) => Object.keys(BD).find(nav => BD[nav].tabs.some(([k]) => k === kind)) || kind;
   const dblLeg = (r, m, side = 'over') => parSideLeg({ k: `${m}|${r.pid}`, n: r.name, t: r.team, g: parGame(r), m, s: m === 'td' ? 'Triple-double' : 'Double-double', p: r[m], i: r.pid }, side, true);
   const fbLeg = (r, g) => ({ k: `fb|${r.pid}`, n: r.name, t: r.team, g: `${g.away}@${g.home}`, m: 'fb', s: 'First basket', p: r.p, i: r.pid });
   RonParlay.provide('nba', {

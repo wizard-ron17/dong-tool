@@ -5137,29 +5137,24 @@
 
   // ── Add buttons in the cards ──
   function pmAddBtn(r) {
-    const leg = pkLeg(r); if (!(leg.p > 0)) return '';
-    const on = PARLAY.legs.some(l => l.k === parLeg(leg).k);
-    return `<button class="par-add${on ? ' on' : ''}" onclick="pmAddLeg(${r.pid})">${on ? '✓ In your parlay' : `+ Add ${esc(pkMkt().lab)} to parlay`}</button>`;
+    return parAddPair(pkLeg(r), (side) => `pmAddLeg(${r.pid},'${side}')`, { binary: true, lab: esc(pkMkt().lab) });
   }
-  window.pmAddLeg = (pid) => {
+  window.pmAddLeg = (pid, side) => {
     const r = (D.picks?.picks || []).find(x => x.pid === pid); if (!r) return;
     if (!PARLAY.on) parMode(true);
-    parToggleLeg(pkLeg(r));
+    parToggleLeg(parSideLeg(pkLeg(r), side, true));
     const b = document.getElementById('pm-pl-add'); if (b) b.innerHTML = pmAddBtn(r);
   };
-  const LC_TOOL = { sog: 'shots', sv: 'saves', ga: 'allowed', pts: 'points', ast: 'points', ppp: 'points', hit: 'hits', blk: 'blocks' };
-  const lcSideOf = () => parSideGet(LC_TOOL[lc.kind] || lc.kind);
-  function lcLeg() {
+  function lcLeg(side = 'over') {
     const r = lcRow(); if (!r) return null;
-    return parSideLeg(lcLegOf(lc.kind, r, lc.line, lcOver(lcPmf(r), lc.line)), lcSideOf(), false);
+    return parSideLeg(lcLegOf(lc.kind, r, lc.line, lcOver(lcPmf(r), lc.line)), side, false);
   }
   function lcAddBtn() {
     const leg = lcLeg(); if (!leg) return '';
-    const on = PARLAY.legs.some(l => l.k === parLeg(leg).k);
-    return `<button class="par-add${on ? ' on' : ''}" onclick="lcAddLeg()">${on ? '✓ In your parlay' : `+ Add ${lcSideOf() === 'under' ? 'u' : 'o'}${lc.line} to parlay`}</button>`;
+    return parAddPair(leg, (side) => `lcAddLeg('${side}')`, { line: lc.line });
   }
-  window.lcAddLeg = () => {
-    const leg = lcLeg(); if (!leg) return;
+  window.lcAddLeg = (side) => {
+    const leg = lcLeg(side); if (!leg) return;
     if (!PARLAY.on) parMode(true);
     parToggleLeg(leg);
     document.querySelectorAll('.lc-add').forEach(el => { el.innerHTML = lcAddBtn(); });

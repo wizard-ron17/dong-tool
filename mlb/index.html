@@ -11488,22 +11488,18 @@ function pcLineup(r) {
 
 function pcAddBtn(r, mu) {
   if (!(mu > 0)) return '';
-  const M = PC_MKT[pcKind()], over = ppSide === 'over';
-  const p = over ? pcOver(mu, pc.line) : 1 - pcOver(mu, pc.line);
-  const leg = { k: `p${M.lbl}|${r.pid}|${pc.line}|${over ? 'o' : 'u'}`, n: compactPlayerName(r.name), t: r.team,
-                g: [r.team, r.oppTeam].sort().join(' vs '), m: `p${M.lbl}`,
-                s: `${over ? 'Over' : 'Under'} ${pc.line} ${M.unit}`, p, i: r.pid };
-  const on = PARLAY.legs.some(l => l.k === parLeg(leg).k);
-  return `<button class="par-add${on ? ' on' : ''}" onclick="pcAddLeg()">${on ? '✓ In your parlay' : `+ Add ${over ? 'o' : 'u'}${pc.line} to parlay`}</button>`;
+  return parAddPair(pcOverLeg(r, mu), (side) => `pcAddLeg('${side}')`, { line: pc.line });
 }
-function pcAddLeg() {
+function pcOverLeg(r, mu) {
+  const M = PC_MKT[pcKind()];
+  return { k: `p${M.lbl}|${r.pid}|${pc.line}|o`, n: compactPlayerName(r.name), t: r.team,
+           g: [r.team, r.oppTeam].sort().join(' vs '), m: `p${M.lbl}`,
+           s: `Over ${pc.line} ${M.unit}`, p: pcOver(mu, pc.line), i: r.pid };
+}
+function pcAddLeg(side) {
   const r = pcRow(); if (!r || r.proj == null) return;
-  const M = PC_MKT[pcKind()], over = ppSide === 'over';
-  const p = over ? pcOver(r.proj, pc.line) : 1 - pcOver(r.proj, pc.line);
   if (!PARLAY.on) parMode(true);
-  parToggleLeg({ k: `p${M.lbl}|${r.pid}|${pc.line}|${over ? 'o' : 'u'}`, n: compactPlayerName(r.name), t: r.team,
-                g: [r.team, r.oppTeam].sort().join(' vs '), m: `p${M.lbl}`,
-                s: `${over ? 'Over' : 'Under'} ${pc.line} ${M.unit}`, p, i: r.pid });
+  parToggleLeg(parSideLeg(pcOverLeg(r, r.proj), side, false));
   document.querySelectorAll('.pc-add').forEach(el => { el.innerHTML = pcAddBtn(r, r.proj); });
 }
 

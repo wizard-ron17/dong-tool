@@ -1,9 +1,10 @@
 // Ron's Tools parlay slip — one module for every app (/mlb /nfl /nhl /nba).
 //
 // Every priced row on the site tags itself with parAttr({...}), a small JSON
-// payload naming the bet. Parlay mode works by interception: one capture-phase
-// listener swallows the click before the row's own onclick can open a card,
-// and adds the leg instead. No board knows the slip exists.
+// payload naming the bet. Parlay mode draws a checkbox on each one, and one
+// capture-phase listener takes a click on that box before the row's own onclick
+// can open a card, and adds the leg instead. The rest of the row works as it
+// always does (parOnBox). No board knows the slip exists.
 //
 // One slip for the whole site: a real parlay can mix sports, so every app
 // shares one storage key and stamps each leg with its sport ('nfl:' + key), so
@@ -94,6 +95,17 @@
     ? ['over', 'under'].map(side => ({ ...r, side, pO: r[key], [key]: parSidePrice(r[key], side) })) : [parSideRow(r, market, key)];
   /** "o4.5" / "u4.5" for a row from parSideRow. */
   const parSideLine = (r, L = r.L) => (parUnder(r.side) ? 'u' : 'o') + L;
+  /** A card's add buttons: both sides of its over / Yes leg, so a card never has to go back to the board's toggle.
+   *  `call(side)` is the onclick; a line market passes `line`, a yes/no market `binary` and its `lab`. */
+  function parAddPair(overLeg, call, { binary = false, line = '', lab = '' } = {}) {
+    if (!overLeg || !(overLeg.p > 0)) return '';
+    const btn = (side) => {
+      const on = PARLAY.legs.some(l => l.k === parLeg(parSideLeg(overLeg, side, binary)).k), under = parUnder(side);
+      const tag = binary ? (under ? 'No' : lab) : `${under ? 'u' : 'o'}${line}`;
+      return `<button class="par-add${on ? ' on' : ''}" onclick="${call(side)}">${on ? `✓ ${tag} in your parlay` : `+ Add ${tag}`}</button>`;
+    };
+    return `<span class="par-add2">${btn('over')}${btn('under')}</span>`;
+  }
   /** Canonical away@home key, so two legs in the same game always collide. */
   const parGame = (r) => r.home ? `${r.opp}@${r.team}` : `${r.team}@${r.opp}`;
   const parDecAm = (d) => !(d > 1) ? '—' : d >= 2 ? '+' + Math.round((d - 1) * 100) : '-' + Math.round(100 / (d - 1));
@@ -720,7 +732,7 @@
     const hn = document.getElementById('par-head-n'), ho = document.getElementById('par-head-od');
     hn.innerHTML = legs.length
       ? `${legs.length} leg${legs.length === 1 ? '' : 's'} <span>· ${PARLAY.on ? 'fair' : 'selection off'}</span>`
-      : 'Parlay mode <span>· tap picks to add</span>';
+      : 'Parlay mode <span>· tick picks to add</span>';
     ho.className = 'par-head-od' + (legs.length ? '' : ' par-none');
     ho.textContent = legs.length ? Odds.both(p) : '0 legs';
     const body = document.getElementById('par-body');
@@ -770,7 +782,7 @@
   const MARKUP = `<button class="par-fab" id="par-fab" onclick="parMode(true)" aria-label="Build a parlay">${BOLT} Parlay</button>
 <div class="par-slip" id="par-slip">
   <div class="par-head" onclick="parToggleOpen(event)">
-    <button class="par-mode-btn" id="par-mode-btn" onclick="parMode(!PARLAY.on)" aria-label="Select picks" title="Tap rows on the board to add them">${BOLT}</button>
+    <button class="par-mode-btn" id="par-mode-btn" onclick="parMode(!PARLAY.on)" aria-label="Select picks" title="Tick a row's box to add it">${BOLT}</button>
     <span class="par-head-n" id="par-head-n">Parlay mode <span>· tap picks to add</span></span>
     <span class="par-head-od par-none" id="par-head-od">0 legs</span>
     <svg class="par-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
@@ -854,6 +866,7 @@
   .par-clear svg { width: 11px; height: 11px; }
   .par-add { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--surface1); border: 1px solid var(--border2); color: var(--muted); font-family: var(--font-b); font-size: 0.754rem; font-weight: 700; padding: 0.38rem 0.8rem; border-radius: 999px; cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s; }
   .par-add:hover { color: var(--text); border-color: var(--dim); }
+  .par-add2 { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; }
   .par-add.on { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: var(--accent); color: var(--accent); }
   @media (max-width: 600px) {
     body.par-mode div[data-leg] { padding-left: 1.75rem; }
@@ -871,16 +884,27 @@
 `;
   if (!document.getElementById('par-css')) document.head.insertAdjacentHTML('beforeend', `<style id="par-css">${CSS}</style>`);
 
+  // Did this click land on a leg's checkbox? It's drawn in the row's left gutter (a ::after, which a click can't target),
+  // so the gutter is the box. A leg with nothing of its own to open, or one drawn with no box (Schedule's box-score
+  // cells), is its own tap target, so any click there counts.
+  function parOnBox(e, el) {
+    const act = e.target.closest('[onclick],a[href],button');
+    if (!act || !el.contains(act)) return true;
+    const cell = el.tagName === 'TR' ? el.cells[0] : el, css = getComputedStyle(cell);
+    if (getComputedStyle(cell, '::after').display === 'none') return true;
+    return e.clientX - cell.getBoundingClientRect().left <= Math.max(30, parseFloat(css.paddingLeft) || 0);
+  }
+
   function parInit() {
     if (!document.getElementById('par-slip')) document.body.insertAdjacentHTML('beforeend', MARKUP);
     parLoad();
     document.body.classList.toggle('par-mode', PARLAY.on);
-    // Capture phase: the click has to die before it reaches the row's own
-    // onclick, which would open a card on top of the board.
+    // Capture phase: a click on the box has to die before it reaches the row's
+    // own onclick, which would open a card on top of the board.
     document.addEventListener('click', (e) => {
       if (!PARLAY.on) return;
       const el = e.target.closest?.('[data-leg]');
-      if (!el) return;
+      if (!el || !parOnBox(e, el)) return;
       e.preventDefault(); e.stopPropagation();
       let leg; try { leg = JSON.parse(el.dataset.leg); } catch (err) { return; }
       if (leg && leg.k && leg.p > 0) parToggleLeg(leg);
@@ -899,7 +923,7 @@
 
   window.RonParlay = { provide, nextStart, price: parPrice, priceLegs: (legs) => parPrice(legs), rho: { mlb: sgpRhoMLB, nfl: sgpRhoNFL, nhl: sgpRhoNHL }, goalGroupMult, stackMult };
   Object.assign(window, {
-    PARLAY, PAR_SPORT, parLeg, parAttr, parGame, parSideGet, parSideSet, parSideLeg, parSideTag, parSideRow, parSideRows, parSideBoth, parSideLine, parSidePrice, parSideToggleHtml, setParSide, parEsc, parDecAm, parAmDec, parSave, parPrice,
+    PARLAY, PAR_SPORT, parLeg, parAttr, parGame, parSideGet, parSideSet, parSideLeg, parSideTag, parSideRow, parSideRows, parSideBoth, parSideLine, parSidePrice, parSideToggleHtml, parAddPair, setParSide, parEsc, parDecAm, parAmDec, parSave, parPrice,
     parMode, parToggleOpen, parToggleLeg, parRemove, parClear, parSetBoost, parCustomBoost, parBook,
     parPaint, parRender, parRenderEv, parCopyTracker,
     // older names the apps' own tools still call

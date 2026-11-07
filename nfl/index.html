@@ -4167,14 +4167,12 @@
   // The card shows five touchdown markets; the button adds whichever one the
   // board is on, which is the price the hero quotes.
   function pmAddBtn(r) {
-    const leg = pbLeg(r);
-    if (!(leg.p > 0)) return '';
-    const on = PARLAY.legs.some(l => l.k === parLeg(leg).k);
-    return `<button class="par-add${on ? ' on' : ''}" onclick="pmAddLeg('${r.pid}')">${on ? '✓ In your parlay' : `+ Add ${pbMkt().lab} to parlay`}</button>`;
+    const M = pbMkt(), binary = !M.qbOnly, leg = parSideLeg(pbLeg(r), 'over', binary);
+    return parAddPair(leg, (side) => `pmAddLeg('${r.pid}','${side}')`, binary ? { binary, lab: M.lab } : { line: 1.5 });
   }
-  window.pmAddLeg = (pid) => {
+  window.pmAddLeg = (pid, side) => {
     const raw = nflData?.picks?.picks.find(x => x.pid === pid); if (!raw) return;
-    const r = pbEnrich(raw, pbGameMap()), leg = pbLeg(r);
+    const r = pbEnrich(raw, pbGameMap()), leg = parSideLeg(pbLeg(r), side, !pbMkt().qbOnly);
     if (!PARLAY.on) parMode(true);
     parToggleLeg(leg);
     const b = document.getElementById('pm-pl-add'); if (b) b.innerHTML = pmAddBtn(r);
@@ -7934,20 +7932,18 @@ let pairStacks = false;
     };
   }
 
-  function ydmLeg() {
+  function ydmLeg(side = 'over') {
     const r = ydRow(); if (!r) return null;
     const L = ydm.line, p = ydPOver(r.m, L, r.mu, r.tq);
     if (!(p > 0)) return null;
     return parSideLeg({ k: `y${r.m}|${r.pid}|${L}`, n: r.name, t: r.team, g: parGame(r), m: 'y' + r.m,
-             s: `Over ${L} ${(YD_MKTS.find(x => x[0] === r.m)?.[1] || '').toLowerCase()} yards`, p, i: r.pid }, parSideGet('yds'), false);
+             s: `Over ${L} ${(YD_MKTS.find(x => x[0] === r.m)?.[1] || '').toLowerCase()} yards`, p, i: r.pid }, side, false);
   }
   function ydAddBtn() {
-    const leg = ydmLeg(); if (!leg) return '';
-    const on = PARLAY.legs.some(l => l.k === parLeg(leg).k);
-    return `<button class="par-add${on ? ' on' : ''}" onclick="ydAddLeg()">${on ? '✓ In your parlay' : `+ Add ${parSideGet('yds') === 'under' ? 'u' : 'o'}${ydm.line} to parlay`}</button>`;
+    return parAddPair(ydmLeg(), (side) => `ydAddLeg('${side}')`, { line: ydm.line });
   }
-  window.ydAddLeg = () => {
-    const leg = ydmLeg(); if (!leg) return;
+  window.ydAddLeg = (side) => {
+    const leg = ydmLeg(side); if (!leg) return;
     if (!PARLAY.on) parMode(true);
     parToggleLeg(leg);
     document.querySelectorAll('.yd-add').forEach(el => { el.innerHTML = ydAddBtn(); });
@@ -8169,22 +8165,19 @@ let pairStacks = false;
   // line, so it is the one place a parlay leg can be built at any number.
   const LC_MKT = { rec: ['rec', 'receptions'], cmp: ['cmp', 'completions'], int: ['int', 'interceptions'],
                    kfg: ['kfgm', 'field goals made'], kpat: ['kpatm', 'PATs made'], kpts: ['kpts', 'kicker points'] };
-  function lcLeg() {
+  function lcLeg(side = 'over') {
     const r = lcRow(); if (!r) return null;
     const [m, unit] = LC_MKT[lc.kind] || [lc.kind, LC[lc.kind]?.unit || ''];
     const L = lc.line, p = lc.kind === 'int' ? inP(r, L) : lcOver(lcPmf(r), L);
     if (!(p > 0)) return null;
-    return parSideLeg({ k: `${m}|${r.pid}|${L}`, n: r.name, t: r.team, g: parGame(r), m, s: `Over ${L} ${unit}`, p, i: r.pid }, lcSideOf(), false);
+    return parSideLeg({ k: `${m}|${r.pid}|${L}`, n: r.name, t: r.team, g: parGame(r), m, s: `Over ${L} ${unit}`, p, i: r.pid }, side, false);
   }
-  // the board's Over / Under toggle decides which side the card adds
-  const lcSideOf = () => parSideGet(lc.kind?.startsWith('k') ? 'kick' : lc.kind);
   function lcAddBtn() {
     const leg = lcLeg(); if (!leg) return '';
-    const on = PARLAY.legs.some(l => l.k === parLeg(leg).k);
-    return `<button class="par-add${on ? ' on' : ''}" onclick="lcAddLeg()">${on ? '✓ In your parlay' : `+ Add ${lcSideOf() === 'under' ? 'u' : 'o'}${lc.line} to parlay`}</button>`;
+    return parAddPair(leg, (side) => `lcAddLeg('${side}')`, { line: lc.line });
   }
-  function lcAddLeg() {
-    const leg = lcLeg(); if (!leg) return;
+  function lcAddLeg(side) {
+    const leg = lcLeg(side); if (!leg) return;
     if (!PARLAY.on) parMode(true);
     parToggleLeg(leg);
     document.querySelectorAll('.lc-add').forEach(el => { el.innerHTML = lcAddBtn(); });
