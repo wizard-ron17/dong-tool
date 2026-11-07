@@ -279,7 +279,7 @@
         <g filter="url(#paint${W})" transform="matrix(1 0 0 -1 0 ${T})">${o}</g>`;
     };
     const LAND = `<svg class="scn-land" data-w="1600" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMin slice">${court(1600, 30.4, 24, -450, "RON'S HOOP TOOL", 1000)}</svg>`;
-    const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${court(420, 8.16, 5, 420, 'HOOP TOOL', 1020)}</svg>`;
+    const PORT = `<svg class="scn-port" data-w="420" viewBox="0 0 420 900" preserveAspectRatio="xMidYMin slice">${court(420, 8.16, 5, 420, 'HOOP TOOL', 850)}</svg>`;
     const css = `
       ${DARK} { --scn-stain: rgba(10,6,2,0.74); --scn-paint: rgba(226,214,192,0.8); --scn-apron: #0e1a30; --scn-apron-text: rgba(245,240,230,0.18);
         --scn-key: #14233f; --scn-rim: rgba(255,120,40,0.6); --scn-vig: .65; }
