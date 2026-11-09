@@ -10,7 +10,8 @@
 //   Odds.both(p)    "-112 · 53%"                plain text: slip headers, shared text
 (function () {
   const ok = (p) => p > 0 && p < 1;
-  const am = (p) => !ok(p) ? '—' : p >= 0.5 ? '-' + Math.round(100 * p / (1 - p)) : '+' + Math.round(100 * (1 - p) / p);
+  // even money prints +100, never -100
+  const am = (p) => { if (!ok(p)) return '—'; const v = Math.round(p >= 0.5 ? 100 * p / (1 - p) : 100 * (1 - p) / p); return p >= 0.5 && v !== 100 ? '-' + v : '+' + v; };
   // whole percent from 10% up; a decimal below, where 7% vs 6.7% is a real gap on a longshot
   const pct = (p) => !ok(p) ? '—' : p >= 0.095 ? Math.round(p * 100) + '%' : p >= 0.001 ? (p * 100).toFixed(1) + '%' : '<0.1%';
   const inline = (p) => !ok(p) ? '—' : `${am(p)}<small class="oz-p">${pct(p)}</small>`;
