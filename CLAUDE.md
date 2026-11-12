@@ -35,6 +35,9 @@ Builds live in `scripts/build-*.js` (GitHub Actions crons in `.github/workflows/
 ## Rules
 
 **No loose ends (11/12).** Ron wants no follow-ups or reworks.
+- Audit a new input before building on it: coverage counted against a trusted reference, and its errors read (the exchange indexer was wired in missing about half its lines).
+- Rules, steps, fees and formats come from the primary source (docs, API responses, app code), never assumed (Polymarket's price steps).
+- Exhaust docs, stored data and a site's own bundle before asking Ron to do something; ask only for what needs him (bet links were doable all along).
 - Session start: read `~/ron-engine/OPEN.md` (private ledger of loose ends and unanswered recs) and flag anything due.
 - Done means done where Ron sees it: every page, card and modal that shows the thing, phone width, a server restart for `.mjs` changes, and the sibling sports, books and markets.
 - A rec, question, skipped step or unverified piece never lives only in chat: it goes in OPEN.md with a date and the default taken if Ron never answers.
