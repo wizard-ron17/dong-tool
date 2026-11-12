@@ -34,6 +34,12 @@ Builds live in `scripts/build-*.js` (GitHub Actions crons in `.github/workflows/
 
 ## Rules
 
+**No loose ends (11/12).** Ron wants no follow-ups or reworks.
+- Session start: read `~/ron-engine/OPEN.md` (private ledger of loose ends and unanswered recs) and flag anything due.
+- Done means done where Ron sees it: every page, card and modal that shows the thing, phone width, a server restart for `.mjs` changes, and the sibling sports, books and markets.
+- A rec, question, skipped step or unverified piece never lives only in chat: it goes in OPEN.md with a date and the default taken if Ron never answers.
+- End a task with Done / Not done / Needs you (at most 3, each with a recommended default). Keep TODO.md and OPEN.md current as you finish work.
+
 **Pushing.**
 - A code push is a Netlify deploy and costs build minutes. Commit as work lands.
 - Push when Ron says so, or on your own once there are **5+ unpushed commits** (`git log origin/main..main`).
