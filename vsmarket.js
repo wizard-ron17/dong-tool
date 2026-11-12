@@ -1,6 +1,6 @@
 // Ours vs the market, per tool: each market a tool prices, scored against the median of every book's closing price
 // (log loss, each player's main line; ~/smartstake-data/study/cv grade_all.sh). FINAL for now: SmartStake's closes ended
-// 11/09, so this is 10/28-11/09; the next grade comes from our own feed's closes. One table, read by
+// 11/09, so this is 10/28-11/09. One table, read by
 // the Tools menu and each board's freshness line (chrome.js, loaded on first use) and the Models page's "By tool" grid.
 // Update AS_OF / GAMES / TOOLS with each re-grade. verdict: us (ours sharper) | even (within a hair) | mkt (the close
 // sharper) | none (not graded against closes yet). A tool's chip sums its markets.
