@@ -3,12 +3,13 @@
 //   node scripts/should-build.mjs <mlb|nhl|nba|soccer> [event_name]
 //
 // The crons fire on a fixed clock; the season doesn't. On a game day every
-// scheduled run goes ahead. On a day without games only the morning run does
+// scheduled run goes ahead. On a day without games only the day's first run does
 // (it settles yesterday's grading and today's slate). With no games for a week
 // either way — the offseason, the All-Star break — only Monday's morning run
 // (MLB: none at all until the week before Opening Day).
 // A manual run (workflow_dispatch) always builds. If the schedule can't be
 // read, build: a wasted run is cheaper than a stale site.
+import fs from 'node:fs';
 const [sport, event] = process.argv.slice(2);
 const out = (run, why) => { console.log(`run=${run}`); console.error(`${sport}: ${run ? 'build' : 'skip'} — ${why}`); process.exit(0); };
 if (event === 'workflow_dispatch') out(true, 'manual run');
@@ -18,6 +19,11 @@ const now = new Date(), hour = now.getUTCHours(), monday = now.getUTCDay() === 1
 const et = (d) => d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 const shift = (n) => et(new Date(now.getTime() + n * 86400000));
 const today = shift(0), yday = shift(-1);
+
+function firstToday() {
+  try { const t = JSON.parse(fs.readFileSync(`${sport}/data.json`, 'utf8')).generated; if (t) return et(new Date(t)) < today; } catch (e) {}
+  return hour === MORNING_UTC;
+}
 
 async function games(from, to) {
   if (sport === 'mlb') {
@@ -56,8 +62,11 @@ try {
   // MLB's offseason builds nothing: the site is a season wrap until a week before Opening Day (spring
   // training games aren't in this query, so the first regular-season week brings the builds back)
   if (!g.length && sport === 'mlb') out(false, 'MLB offseason — no game within a week; run it by hand to force one');
-  if (!g.length) out(monday && hour === MORNING_UTC, 'offseason — Monday mornings only');
-  out(hour === MORNING_UTC, 'no games today — morning run only');
+  // "the morning run" = the first run that starts today (ET), not one at 11 UTC: GitHub starts crons hours late or
+  // drops them, so an hour check let MLS go unbuilt 11/08-11/12 (runs began 07:45, 02:32, 21:34 UTC...). The checkout
+  // holds the last build's time; no `generated` field (MLB) falls back to the hour.
+  if (!g.length) out(monday && firstToday(), 'offseason — first run on Mondays only');
+  out(firstToday(), 'no games today — first run of the day only');
 } catch (e) {
   out(true, `couldn't read the schedule (${e.message})`);
 }
