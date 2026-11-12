@@ -3,7 +3,7 @@
 Dated and open work. Newest decisions at the top of each section. Remove items when done.
 
 ## Scheduled
-- **Publish the final closes grade (it never landed):** SmartStake ended 11/10 00:13 ET; `final_pull.sh` ran the last `grade_all.sh --since 2026-11-03` on 11/09 (`~/ron-engine/smartstake/study/cv/grade_final_1109.txt`, NBA 40 / NHL / NFL games through 11/09), but the Models page rows and `vsmarket.js` (AS_OF, GAMES, each tool's markets; it drives the Tools-menu chips) still show the 11/03 grade. Rewrite both from that file. Check there whether NBA overs (points/rebounds 2-3pp over priced, 10/20-30) shrank. 11/03 read for comparison: NBA close sharper on every market; NHL goals/PPP/first/last ours ahead; NFL TDs ours ahead, receptions/yards behind.
+- **Next closes grade from our own feed:** SmartStake's last grade (10/28-11/09) is on the site (vsmarket.js, Models page, 11/12). The next one needs closing prices from the odds branch feed archive (`~/odds-feed/data/<lg>/<day>.jsonl.gz`, same format) run through grade_all; re-grade when ~2 weeks of own-feed closes exist (~11/26).
 - **Back up the SmartStake archive** (`~/smartstake-data`, 4.3GB: closes 8/07-11/09, recorder 10/07-11/09) off this Mac: it can't be pulled again.
 - **Blend-only shadow lane, read ~11/17:** Ron's Plays logs lines that clear the blend but not the market's fair (odds branch, from 11/03; Record → Straights → Blend only), never shown as picks. The 11/03 closes check said −8.7% ± 10 at Ron's books' closing prices (both-clear +2.6%, model-only −3.9%); see if the live record agrees before ever showing them.
 - **First-scorer grades at ~100 games:** NBA first basket (market slightly better at 44 games), NHL first goal (ours better at 30).
