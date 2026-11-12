@@ -661,7 +661,7 @@
   }
   const shortName = (n) => { const w = (n || '').split(' '); return w.length > 1 ? `${w[0][0]}. ${w.slice(1).join(' ')}` : n; };
   // Regular season says nothing; a playoff round says its name.
-  const slugTag = (s) => !s || s === 'regular-season' ? '' : `<span class="sc-pre">${esc(s.replace(/-/g, ' ').toUpperCase())}</span>`;
+  const slugTag = (s) => !s || s === 'regular-season' ? '' : `<span class="sc-pre">${esc(s.replace(/-{2,}/g, ' · ').replace(/-/g, ' ').toUpperCase())}</span>`;
   const minLbl = (x) => `${x.m}'${x.add ? `<small>+${x.add}</small>` : ''}`;
   /** Last five results, all competitions: ESPN sends newest first; drawn oldest first, latest on the right. */
   const formHtml = (f) => f ? `<span class="fm" title="Last five, all competitions — latest on the right">${[...f].reverse().map(c => `<i class="fm-${c}">${c}</i>`).join('')}</span>` : '';
