@@ -1,37 +1,39 @@
 // Ours vs the market, per tool: each market a tool prices, scored against the median of every book's closing price
-// (log loss, each player's main line; ~/smartstake-data/study/cv grade_all.sh, re-graded weekly). One table, read by
+// (log loss, each player's main line; ~/smartstake-data/study/cv grade_all.sh). FINAL for now: SmartStake's closes ended
+// 11/09, so this is 10/28-11/09; the next grade comes from our own feed's closes. One table, read by
 // the Tools menu and each board's freshness line (chrome.js, loaded on first use) and the Models page's "By tool" grid.
 // Update AS_OF / GAMES / TOOLS with each re-grade. verdict: us (ours sharper) | even (within a hair) | mkt (the close
 // sharper) | none (not graded against closes yet). A tool's chip sums its markets.
 (function () {
   if (window.RonVs) return;
-  const AS_OF = 'Nov 3', SINCE = 'Oct 28';
-  const GAMES = { nhl: 47, nfl: 13, nba: 51 };
+  const AS_OF = 'Nov 9', SINCE = 'Oct 28';
+  const GAMES = { nhl: 104, nfl: 29, nba: 122 };
   // sport -> tool (the nav key in RonChrome.mount's tools) -> [[market, verdict, ours vs the close]]
+  // even = within .001 of each other
   const TOOLS = {
     nhl: {
-      picks: [['Anytime goal', 'us', '.4034 vs .4052'], ['First and last goal', 'even', 'ours ahead by a hair']],
-      points: [['Power-play points', 'us', '.4704 vs .4737'], ['Points', 'even', '.6411 vs .6387'], ['Assists', 'mkt', '.5770 vs .5707']],
-      shots: [['Shots on goal', 'mkt', '.6879 vs .6815, our overs run low']],
-      blocks: [['Blocked shots', 'mkt', '.6827 vs .6781']],
-      saves: [['Saves', 'none', 'too few closing lines yet']],
-      allowed: [['Goals allowed', 'none', 'too few closing lines yet']],
+      picks: [['Anytime goal', 'even', '.4022 vs .4021, and the two blended beat both'], ['First goal', 'even', '.1231 vs .1231'], ['Last goal', 'us', '.1191 vs .1197']],
+      points: [['Power-play points', 'mkt', '.4795 vs .4679, our overs run low'], ['Points', 'mkt', '.6483 vs .6441'], ['Assists', 'mkt', '.5924 vs .5867']],
+      shots: [['Shots on goal', 'mkt', '.6841 vs .6808, our overs run low']],
+      blocks: [['Blocked shots', 'mkt', '.6870 vs .6844']],
+      saves: [['Saves', 'mkt', '.6915 vs .6888, 70 lines: a small sample']],
+      allowed: [['Goals allowed', 'even', '.6843 vs .6834, 75 lines: a small sample']],
       hits: [['Hits', 'none', 'no closing lines in the feed']],
     },
     nfl: {
-      picks: [['Anytime TD', 'us', '.5285 vs .5467'], ['First TD', 'us', '.1692 vs .1720'], ['Last TD', 'even', '.1721 vs .1718']],
-      yards: [['Receiving yards', 'mkt', '.7140 vs .6939'], ['Rushing yards', 'mkt', '.7312 vs .6902'], ['Rush + rec yards', 'mkt', '.7185 vs .6932']],
-      receptions: [['Receptions', 'mkt', '.6948 vs .6782, our overs run low']],
-      kickers: [['Field goals and PATs', 'none', 'too few closing lines yet']],
-      completions: [['Completions', 'none', 'too few closing lines yet']],
-      interceptions: [['Interceptions', 'none', 'too few closing lines yet']],
+      picks: [['Anytime TD', 'mkt', '.4605 vs .4550'], ['First TD', 'mkt', '.1721 vs .1699'], ['Last TD', 'even', '.1737 vs .1739']],
+      yards: [['Receiving yards', 'mkt', '.7002 vs .6937'], ['Rushing yards', 'mkt', '.7358 vs .6961'], ['Rush + rec yards', 'mkt', '.7250 vs .6926']],
+      receptions: [['Receptions', 'mkt', '.6891 vs .6827, our overs run low']],
+      kickers: [['Field goals', 'us', '.6929 vs .6974, 57 lines'], ['Kicking points', 'even', '.7041 vs .7040, 57 lines'], ['PATs', 'mkt', '.7110 vs .6954, 57 lines']],
+      completions: [['Completions', 'mkt', '.7029 vs .6938, 57 lines']],
+      interceptions: [['Interceptions', 'us', '.6819 vs .6881, 57 lines']],
     },
     nba: {
-      threes: [['Made threes', 'mkt', '.6808 vs .6731 (ours beat Kalshi\'s mid last season)']],
-      points: [['Points', 'mkt', '.7134 vs .6883'], ['Rebounds', 'mkt', '.7001 vs .6823'], ['Assists', 'mkt', '.6868 vs .6764'], ['PRA', 'mkt', '.7256 vs .6930']],
-      first: [['First basket', 'mkt', '.3279 vs .3230']],
-      stocks: [['Steals', 'mkt', '.6617 vs .6530'], ['Blocks', 'mkt', '.5789 vs .5750'], ['Steals + blocks', 'mkt', '.7039 vs .6913']],
-      doubles: [['Double-double', 'mkt', '.3825 vs .3759'], ['Triple-double', 'mkt', '.1616 vs .1364']],
+      threes: [['Made threes', 'mkt', '.6769 vs .6712 (ours beat Kalshi\'s mid last season)']],
+      points: [['Points', 'mkt', '.7075 vs .6901'], ['Rebounds', 'mkt', '.6956 vs .6827'], ['Assists', 'mkt', '.6872 vs .6833'], ['PRA', 'mkt', '.7181 vs .6934']],
+      first: [['First basket', 'mkt', '.3232 vs .3192']],
+      stocks: [['Steals', 'mkt', '.6621 vs .6590'], ['Blocks', 'mkt', '.5958 vs .5930'], ['Steals + blocks', 'mkt', '.6915 vs .6879']],
+      doubles: [['Double-double', 'mkt', '.3607 vs .3484'], ['Triple-double', 'mkt', '.1486 vs .1395']],
     },
   };
   // the tools' names as their menus show them (for the Models page)
