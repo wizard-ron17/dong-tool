@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import { fetchText, parseCsv, num } from './nflverse.js';
 import { buildPicks, loadPlayers } from './picks.js';
 import * as liveLog from './live-log.js';
+import { pOver as recPOver } from './receptions.js';
 import { fetchEspnLines, trackLine } from './espn-lines.js';
 
 // Neither season is a constant any more. Both are read off the schedule feed so
@@ -357,6 +358,28 @@ async function main() {
   // Separate file (nfl/results.json) — see scripts/live-log.js.
   const LOG_PATH = new URL('../nfl/results.json', import.meta.url);
   const log = liveLog.readLog(LOG_PATH);
+  // ── Receptions level, rolling (11/13, research/calibration_watch.py): the live receptions board ran low all season
+  // (projected 2.39 a player-game vs 2.74 caught, every position and week; overs priced 37%, hit 45%). Each build scales
+  // the projection by caught / projected over the last 4 graded weeks of the frozen boards, shrunk toward 1 (200
+  // receptions of prior) and held to 0.85-1.3. Walk-forward on weeks 4-10: log loss -1.5% at the quoted line (1,349
+  // rows), every setting tried -1.4 to -1.5%. Before the snapshot below, so the frozen board is what shipped.
+  if (picks?.receptions?.length) {
+    let sm = 0, sa = 0, n = 0;
+    for (const g of Object.values(log.games || {})) {
+      const R = g.res;
+      if (!g.final || !R || g.season !== picks.season || !(g.week >= picks.week - 4 && g.week < picks.week)) continue;
+      const played = new Set((R.inBox || []).filter(x => !(R.dnp || []).includes(x)));
+      for (const r of g.rec || []) { const got = R.rec?.[r[0]]; if (played.has(r[0]) && got != null) { sm += r[4]; sa += got; n++; } }
+    }
+    const x = n ? Math.min(1.3, Math.max(0.85, (sa + 200) / (sm + 200))) : 1;
+    for (const r of picks.receptions) {
+      if (r.tq || x === 1) continue;                       // rookie/thin rows price off their own quantiles
+      r.mu = +(r.mu * x).toFixed(4);
+      r.p = Object.fromEntries(Object.keys(r.p).map(L => [L, +recPOver(+L, r.mu).toFixed(6)]));
+    }
+    if (picks.receptionModel) Object.assign(picks.receptionModel, { levelX: +x.toFixed(3), levelN: n });
+    console.log(`  receptions level: x${x.toFixed(3)} from ${n} graded rows (last 4 weeks)`);
+  }
   let liveWeek = null;
   try {
     if (picks) {
