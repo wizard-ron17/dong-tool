@@ -83,7 +83,7 @@ Builds live in `scripts/build-*.js` (GitHub Actions crons in `.github/workflows/
 - `nfl/qb-overrides.json`: the starting QB per team-week.
 - `mlb/pitching-overrides.json`: openers, bulk arms and bullpen games per date.
 
-**GitHub drops scheduled runs.** On 11/1 it started 3 of build-nfl's 18 crons in a day. Game windows that matter run as one long job that dispatches its own successor (`scripts/pregame-watch.mjs`, `watch-nba.yml` / `watch-nfl.yml`), not as hourly crons. Check `?status` before trusting that a cron ran.
+**GitHub drops scheduled runs.** On 11/1 it started 3 of build-nfl's 18 crons in a day. Game windows that matter run as one long job that dispatches its own successor (`scripts/pregame-watch.mjs`, `watch-nba.yml` / `watch-nfl.yml`), not as hourly crons. Check `?status` before trusting that a cron ran. Since 11/13 a build guard on Ron's Mac (`~/ron-engine/tools/build-guard.mjs`, launchd every 15 min) dispatches a sport's build when it's a game day and its data.json is over 2h old (NFL 4h), capped at one per sport per 2h, 6 per sport and 15 in all per day; Plays badges any model over 4h old.
 
 **Runaway guards** (11/02: the NBA watcher handed on to itself ~2,300 times overnight, each a full build).
 - Every CI data commit carries `[skip netlify]`, so Netlify never starts a build for it. Keep it on any new data commit.
