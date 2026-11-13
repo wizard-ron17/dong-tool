@@ -385,29 +385,40 @@ async function main() {
   // jumper is the projected starter with the most opening tips (nearly always
   // the centre). A starter scored the first basket in every game researched.
   // ── First basket shrink, rolling (11/13, research/calibration_watch.py): live, the order of our ten prices carried
-  // almost nothing (the first scorer was our top price 11% of games, rank 9 as often as rank 1; slope 0.45, no skill vs
-  // one-in-ten), and the research ranking (AUC .57) leaned on the actual jumpers and starters a live board can't know.
-  // So each game's prices are raised to a power s and re-scaled to the same total (s = 1 as built, 0 = even), s fit on
-  // every graded live game so far (log loss over 0.3-1.0; under 50 games, 0.75 = research's walk-forward choice).
-  // Live 11/13: s 0.5 best over 158 games (0.32135 vs 0.32274 as built).
+  // almost nothing (the first scorer was our top price 11% of games, rank 9 as often as rank 1; slope 0.45). The closes
+  // split it (11/13, 131 games): our team-first half ties the market (.6830 vs .6834); the miss was all WITHIN the team
+  // (ours worse than one-in-five; the market .019 better). So v2 (fbV 2): the within-team weight now carries shot volume
+  // and FG% (fbWeight), and the shrink works within each team only: each team's five are raised to a power s and
+  // re-scaled to the team's total, so the tip-and-line half is never flattened. s is fit on graded v2 days only (raw
+  // prices: the day's fbS is undone); under 50 games, 0.75 (research's walk-forward choice for projected fives).
+  const FB_V = 2;
   const fbShrink = (() => {
     try {
       const PH = JSON.parse(fs.readFileSync(new URL('../nba/prices-history.json', import.meta.url), 'utf8')).days || {};
       const RC = JSON.parse(fs.readFileSync(new URL('../nba/recap.json', import.meta.url), 'utf8')).games || {};
       const won = new Map(Object.values(RC).filter(g => g.fb?.pid).map(g => [String(g.gid), String(g.fb.pid)]));
-      const G = [];
-      for (const day of Object.values(PH)) for (const [gid, ps] of Object.entries(day.fb || {})) {
-        const w = won.get(String(gid)); if (!w) continue;
-        // undo the shrink that day shipped with (fbS), so the fit always works on the raw prices: a power is reversible
-        const k = 1 / (day.fbS || 1), E = Object.entries(ps), tot = E.reduce((a, [, p]) => a + p, 0), z = E.reduce((a, [, p]) => a + p ** k, 0);
-        G.push(E.map(([pid, p]) => [p ** k / z * tot, pid === w ? 1 : 0]));
+      const teamOf = (pid) => state.players[pid]?.team || '?';
+      const G = [];                                                     // one entry per team: [[raw p, scored], ...]
+      for (const day of Object.values(PH)) {
+        if (day.fbV !== FB_V) continue;
+        for (const [gid, ps] of Object.entries(day.fb || {})) {
+          const w = won.get(String(gid)); if (!w) continue;
+          const by = {};
+          for (const [pid, p] of Object.entries(ps)) (by[teamOf(pid)] ||= []).push([pid, p]);
+          for (const E of Object.values(by)) {
+            // undo the shrink that day shipped with (fbS), so the fit always works on the raw prices: a power is reversible
+            const k = 1 / (day.fbS || 1), tot = E.reduce((a, [, p]) => a + p, 0), z = E.reduce((a, [, p]) => a + p ** k, 0);
+            G.push(E.map(([pid, p]) => [p ** k / z * tot, pid === w ? 1 : 0]));
+          }
+        }
       }
-      if (G.length < 50) return { s: 0.75, n: G.length };
+      const n = Math.round(G.length / 2);
+      if (n < 50) return { s: 0.75, n, v: FB_V };
       const ll = (s) => { let t = 0; for (const g of G) { const z = g.reduce((a, [p]) => a + p ** s, 0), tot = g.reduce((a, [p]) => a + p, 0);
         for (const [p, y] of g) { const q = Math.min(Math.max(p ** s / z * tot, 1e-6), 1 - 1e-6); t -= y ? Math.log(q) : Math.log(1 - q); } } return t; };
       let best = 1, bl = Infinity; for (let s = 0.3; s <= 1.0001; s += 0.05) { const v = ll(s); if (v < bl) { bl = v; best = +s.toFixed(2); } }
-      return { s: best, n: G.length };
-    } catch (e) { return { s: 0.75, n: 0 }; }
+      return { s: best, n, v: FB_V };
+    } catch (e) { return { s: 0.75, n: 0, v: FB_V }; }
   })();
   console.log(`First basket shrink: power ${fbShrink.s} from ${fbShrink.n} graded games`);
   const frozenFb = (prevData.first?.date === boardDate ? prevData.first.games : []) || [];
@@ -436,8 +447,10 @@ async function main() {
       S.L.forEach((x, i) => players.push({ pid: x.a.id, name: x.a.displayName, team: ab, pos: x.pos, jumper: x === S.jumper,
         p: +(pt * w[i] / W).toFixed(4), fb: x.s.fb || 0, starts: x.s.starts || 0, st10: +x.start10.toFixed(2) }));
     }
-    { const tot = players.reduce((a, x) => a + x.p, 0), z = players.reduce((a, x) => a + x.p ** fbShrink.s, 0);
-      for (const x of players) x.p = +(x.p ** fbShrink.s / z * tot).toFixed(4); }      // the rolling shrink above
+    for (const ab of [g.home.ab, g.away.ab]) {                                          // the rolling shrink above, per team
+      const T = players.filter(x => x.team === ab), tot = T.reduce((a, x) => a + x.p, 0), z = T.reduce((a, x) => a + x.p ** fbShrink.s, 0);
+      for (const x of T) x.p = +(x.p ** fbShrink.s / z * tot).toFixed(4);
+    }
     players.sort((a, b) => b.p - a.p);
     fbGames.push({ gid: g.id, start: g.start, home: g.home.ab, away: g.away.ab,
       tip: { home: H.jumper.a.displayName, away: A.jumper.a.displayName, pHome: +pHomeTip.toFixed(3) },
@@ -458,7 +471,7 @@ async function main() {
   console.log(`Threes board: ${rows.length} players, ${boardDate || 'no slate'}${frozen.length ? ` (${rows.filter(r => frozen.includes(r)).length} frozen)` : ''}`);
 
   // the stat boards at the line the page quotes, nearest even money (statNearEven), for their Results
-  savePrices(boardDate, { threes: rows, doubles: ddRows, first: fbGames, stats: statRows, nearEven: (st, r) => statNearEven(st, r), fbShrink: fbShrink.s }, today, shiftDate);
+  savePrices(boardDate, { threes: rows, doubles: ddRows, first: fbGames, stats: statRows, nearEven: (st, r) => statNearEven(st, r), fbShrink: fbShrink.s, fbV: FB_V }, today, shiftDate);
 
   // ── 11) Watch lists: Milestones, Due, Birthdays ──────────────────────────
   let fun = null;

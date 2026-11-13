@@ -58,9 +58,10 @@ export const recapHas = () => { try { return new Set(Object.keys(JSON.parse(fs.r
  * over — rows freeze at tip, so what stays is the last pre-tip price.
  *   t3:  pid -> [mu, P(1+) .. P(5+)]      dbl: pid -> [P(DD), P(TD)]
  *   fb:  gid -> pid -> P(first basket)     fbS: the power those were shrunk with (absent = not shrunk)
+ *   fbV: first-basket model version (2 = usage + FG% weights, shrunk per team; absent = v1)
  *   st:  stat -> pid -> [mu, line, P(over)]  (pts reb ast pra stl blk stk, at the board's line nearest even money)
  */
-export function savePrices(date, { threes, doubles, first, stats, nearEven, fbShrink }, today, shiftDate) {
+export function savePrices(date, { threes, doubles, first, stats, nearEven, fbShrink, fbV }, today, shiftDate) {
   if (!date) return;
   let H = { days: {} };
   try { H = JSON.parse(fs.readFileSync(HIST_PATH, 'utf8')); } catch (e) { /* first build */ }
@@ -72,6 +73,7 @@ export function savePrices(date, { threes, doubles, first, stats, nearEven, fbSh
     st: Object.fromEntries(Object.entries(stats || {}).map(([st, rs]) => [st, Object.fromEntries(rs.map(r => [r.pid, nearEven(st, r)]))])),
     // the power the first-basket prices were shrunk with (build-nba.js), so the next fit can undo it and work on the raw prices
     ...(fbShrink != null && fbShrink !== 1 ? { fbS: fbShrink } : {}),
+    ...(fbV ? { fbV } : {}),
   };
   const from = shiftDate(today, -HIST_DAYS);
   for (const d of Object.keys(H.days)) if (d < from) delete H.days[d];

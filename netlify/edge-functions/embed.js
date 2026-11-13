@@ -84,7 +84,7 @@ const NBA_ROUTES = {
   pra:        { title: "Pts + Reb + Ast · Ron's Hoop Tool", desc: "Points, rebounds and assists together — projected PRA for every rotation player, priced at every line." },
   stocks:     { title: "Steals & Blocks · Ron's Hoop Tool", desc: "Projected steals, blocks and stocks for every rotation player, priced at every line." },
   doubles:    { title: "Double & Triple-Doubles · Ron's Hoop Tool", desc: "Every rotation player priced for a double-double and a triple-double — two or three categories at 10+, priced together over his minutes." },
-  first:      { title: "First Basket · Ron's Hoop Tool", desc: "Who scores the game's first field goal — the opening tip, the line and each starter's own first-basket record." },
+  first:      { title: "First Basket · Ron's Hoop Tool", desc: "Who scores the game's first field goal — the opening tip, the line, each starter's own first-basket record and his shot volume." },
   due:        { title: "Due · Ron's Hoop Tool", desc: "Droughts on tonight's board — threes, double-doubles, triple-doubles and first baskets (and why nobody is owed one)." },
   milestones: { title: "Milestones · Ron's Hoop Tool", desc: "Who's closing on a round number — career points, rebounds, assists, threes, steals, blocks and triple-doubles — and who just got there 🏆." },
   birthdays:  { title: "Birthdays · Ron's Hoop Tool", desc: "Who's celebrating this week, who plays on the day, and whether birthday boys actually score 🎂." },

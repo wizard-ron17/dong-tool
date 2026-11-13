@@ -831,7 +831,7 @@
     {"group": "Offense", "g": "g1"},
     {"nav": "threes", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><path d=\"M3.5 12h17M12 3.5v17M6.6 5.9c2.8 3.2 2.8 8.9 0 12.2M17.4 5.9c-2.8 3.2-2.8 8.9 0 12.2\"/></svg>", "name": "Threes", "desc": "Every rotation player priced 1+ to 5+ made threes &mdash; minutes, his shooting rate and the matchup."},
     {"nav": "points", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 19h16M7 19V11M12 19V6M17 19v-5\"/></svg>", "name": "Points", "desc": "Points, rebounds, assists and PRA for every rotation player, priced at every line."},
-    {"nav": "first", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><path d=\"M12 7.5v5l3 2\"/></svg>", "name": "First Basket", "desc": "Who scores the game&rsquo;s first field goal &mdash; the tip, the line and his own record."},
+    {"nav": "first", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><path d=\"M12 7.5v5l3 2\"/></svg>", "name": "First Basket", "desc": "Who scores the game&rsquo;s first field goal &mdash; the tip, the line, his own record and his shot volume."},
     {"group": "Defense", "g": "g3"},
     {"nav": "stocks", "g": "g3", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3.5l7 2.5v5.5c0 4-3 7.3-7 9-4-1.7-7-5-7-9V6z\"/><path d=\"M9 12l2 2 4-4\"/></svg>", "name": "Steals &amp; Blocks", "desc": "Steals, blocks and stocks for every rotation player."},
     {"group": "Combos", "g": "g2"},
@@ -2311,9 +2311,10 @@
   // Who scores the game's first made field goal. The tip decides the team (its
   // winner scores first ~64%, before the line), the line adds the better offense,
   // and within a team it's each starter's own first-basket record, shrunk to his
-  // position (centres score first most — the opening set, the putback). Starters
-  // are projected until lineups post. research/nba_firstbasket2.py: calibrated
-  // over 7,200 games walk-forward.
+  // position (centres score first most — the opening set, the putback), times his
+  // shot volume and FG% (research/nba_firstbasket4.py, 11/13). Starters are
+  // projected until lineups post. research/nba_firstbasket2.py: calibrated over
+  // 7,200 games walk-forward.
   const fbF = RonUf.state('setFbF', { open: false, game: 'all', q: '', view: 'cards', res: 'board', night: null });
   /** First basket results: each game's favourite (our shortest price) against who scored first. */
   function fbResults() {
@@ -2415,7 +2416,7 @@
       body = `<div class="fb-games">${byGame.map(gameCard).join('') || '<div class="empty">Nothing matches that filter.</div>'}</div>`;
     }
     el.innerHTML = tabs + controls + meta + body + `
-      <div class="t3-note"><b>Starters are projected</b> until lineups post (~30 minutes before tip): the five who've started most of his team's last ten. If a projected starter sits, his price doesn't apply. The tip winner's team scores first about 64% of the time; the betting line adds the better offense; within a team it's his own first-basket record, pulled toward his position's. Check whether a book settles on the first <i>basket</i> or the first <i>points</i> — about 8% of games start with a free throw.</div>`;
+      <div class="t3-note"><b>Starters are projected</b> until lineups post (~30 minutes before tip): the five who've started most of his team's last ten. If a projected starter sits, his price doesn't apply. The tip winner's team scores first about 64% of the time; the betting line adds the better offense; within a team it's his own first-basket record (pulled toward his position's), how many shots he takes and how many he makes, each softened so no starter runs away with it. Check whether a book settles on the first <i>basket</i> or the first <i>points</i> — about 8% of games start with a free throw.</div>`;
   }
 
   // ── Home ───────────────────────────────────────────────────────────────

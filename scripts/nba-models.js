@@ -140,10 +140,15 @@ export function pTeamFirst(pWin, margin) {
   const ptTip = pWin * e + (1 - pWin) * (1 - e);
   return sig(F.team.const + F.team.tip * lgt(Math.min(Math.max(ptTip, 1e-4), 1 - 1e-4)) + F.team.line * (margin || 0));
 }
-/** A starter's weight on his team's first basket: his record, shrunk k_fb starts to his position's. */
+/** A starter's weight on his team's first basket (research/nba_firstbasket4.py, 11/13): his record, shrunk k_fb
+ *  starts to his position's, times his shot volume and his FG% this season (both shrunk), each to a fitted power.
+ *  Within the team that scores first, own^.52 x fga^.40 x pct^.67 beat his record alone in 4 of 5 held-out seasons
+ *  (log loss 1.5826 vs 1.5891, one-in-five 1.6094). First-shot share added nothing over these. */
 export function fbWeight(s, pos) {
-  const F = MODEL.first, r = F.pos_rate[fam(pos)] ?? 0.1;
-  return ((s?.fb || 0) + F.k_fb * r) / ((s?.starts || 0) + F.k_fb);
+  const F = MODEL.first, r = F.pos_rate[fam(pos)] ?? 0.1, own = ((s?.fb || 0) + F.k_fb * r) / ((s?.starts || 0) + F.k_fb), W = F.within;
+  if (!W) return own;
+  const fga = ((s?.fga || 0) + W.fga_k * W.fga0) / ((s?.gp || 0) + W.fga_k), pct = ((s?.fgm || 0) + W.pct_k * W.pct0) / ((s?.fga || 0) + W.pct_k);
+  return own ** W.b_own * fga ** W.b_fga * pct ** W.b_pct;
 }
 
 // ── Counting stats: points, rebounds, assists, PRA, steals, blocks, stocks ──
