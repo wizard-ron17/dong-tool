@@ -47,6 +47,12 @@ def logit_fit(x, y, it=60):
     return b, se
 
 
+def auc(p, y):
+    o = np.argsort(p, kind='mergesort'); r = np.empty(len(p)); r[o] = np.arange(1, len(p) + 1)
+    n1 = y.sum(); n0 = len(y) - n1
+    return float((r[y == 1].sum() - n1 * (n1 + 1) / 2) / (n1 * n0)) if n1 and n0 else None
+
+
 def check(p, y):
     p, y = np.asarray(p, float), np.asarray(y, float); n = len(p)
     if n < 30 or y.sum() < 5 or y.sum() > n - 5: return None
@@ -66,7 +72,11 @@ def check(p, y):
     if b + 1.645 * sb < 0.9: flags.append(f'too steep: slope {b:.2f} ({b - 1.645 * sb:.2f} to {b + 1.645 * sb:.2f})')
     for B in bands:
         if B['n'] >= 40 and abs(B['z']) >= 3: flags.append(f"{B['band']} band {'high' if B['priced'] > B['hit'] else 'low'}: priced {B['priced']:.1%}, hit {B['hit']:.1%} (n {B['n']}, z {B['z']})")
-    return {'n': n, 'priced': round(float(p.mean()), 4), 'hit': round(float(y.mean()), 4), 'level_z': round(float(zl), 1),
+    # AUC: does the price rank the hits above the misses? The honest test for near-even lines, where skill vs the base
+    # rate is tiny by design (the line is picked to be ~50%). Below 0.52 on 300+ games = no information: flagged.
+    A = auc(p, y)
+    if A is not None and n >= 300 and A < 0.52: flags.append(f'no ranking skill: AUC {A:.3f}')
+    return {'n': n, 'priced': round(float(p.mean()), 4), 'hit': round(float(y.mean()), 4), 'level_z': round(float(zl), 1), 'auc': round(A, 3) if A else None,
             'slope': round(float(b), 2), 'slope_se': round(float(sb), 2), 'logloss': round(ll, 4), 'skill': round(1 - ll / ll0, 3), 'bands': bands, 'flags': flags}
 
 
@@ -104,7 +114,95 @@ def nba():
     return out
 
 
-SPORTS = {'NBA': nba}
+def nhl():
+    """NHL: every history grades itself (the build freezes the pre-game board and fills in the result; -1 = didn't dress,
+    null = not final yet). Layouts from scripts/build-nhl.js."""
+    out = {}
+    def add(m, d, p, y):
+        if p is not None and 0 < p < 1: out.setdefault(m, []).append((d, p, y))
+    ok = lambda v: v is not None and v != -1
+    G = load('nhl/picks-history.json')       # [pid, p, scored, gid, p2, p3, pFirst, pLast, pP1, pPP, goals, first, last, p1Goals, ppGoals, ...]
+    for d, rows in G.items():
+        for r in rows:
+            if not ok(r[2]) or len(r) < 15 or r[10] is None or r[10] == -1: continue
+            add('Anytime goal', d, r[1], int(r[2] == 1)); add('2+ goals', d, r[4], int(r[10] >= 2)); add('Hat trick', d, r[5], int(r[10] >= 3))
+            add('First goal', d, r[6], int(r[11] == 1)); add('Last goal', d, r[7], int(r[12] == 1))
+            if ok(r[13]): add('1st-period goal', d, r[8], int(r[13] >= 1))
+            if ok(r[14]): add('Power-play goal', d, r[9], int(r[14] >= 1))
+    for d, rows in load('nhl/shots-history.json').items():      # [pid, mu, line, pOver, got, gid, ...]
+        for r in rows:
+            if ok(r[4]): add('Shots on goal over the line', d, r[3], int(r[4] > r[2]))
+    for d, rows in load('nhl/phys-history.json').items():       # [pid, muH, Lh, pH, gotH, gid, name, team, opp, muB, Lb, pB, gotB]
+        for r in rows:
+            if ok(r[4]): add('Hits over the line', d, r[3], int(r[4] > r[2]))
+            if len(r) > 12 and ok(r[12]): add('Blocks over the line', d, r[11], int(r[12] > r[10]))
+    for d, rows in load('nhl/saves-history.json').items():      # [pid, mu, line, pOver, got, gid, name, team, opp, muGa, Lga, pGa, gotGa]
+        for r in rows:
+            if ok(r[4]): add('Saves over the line', d, r[3], int(r[4] > r[2]))
+            if len(r) > 12 and ok(r[12]): add('Goals allowed over the line', d, r[11], int(r[12] > r[10]))
+    for d, rows in load('nhl/points-history.json').items():     # [pid, gid, name, team, opp, muP, Lp, pP, gotP, muA, La, pA, gotA, muPpp, Lppp, pPpp, gotPpp]
+        for r in rows:
+            if ok(r[8]): add('Points over the line', d, r[7], int(r[8] > r[6]))
+            if len(r) > 12 and ok(r[12]): add('Assists over the line', d, r[11], int(r[12] > r[10]))
+            if len(r) > 16 and ok(r[16]): add('PP points over the line', d, r[15], int(r[16] > r[14]))
+    return out
+
+
+def nfl():
+    """NFL: nfl/results.json, one frozen pre-kickoff board per game and its graded res. A player not in the box score
+    (res.inBox) or listed DNP is left out. Yards have no price on the board (median only), so they aren't graded."""
+    out = {}
+    def add(m, d, p, y):
+        if p is not None and 0 < p < 1: out.setdefault(m, []).append((d, p, y))
+    for g in load('nfl/results.json')['games'].values():
+        R = g.get('res'); d = (g.get('kick') or '')[:10]
+        if not g.get('final') or not R: continue
+        played = set(R.get('inBox') or []) - set(R.get('dnp') or [])
+        for r in g.get('td') or []:              # [id, name, team, pos, pAny, p2, pFirst, pLast]
+            pid = r[0]
+            if pid not in played: continue
+            n = (R.get('td') or {}).get(pid, 0) or 0
+            add('Anytime TD', d, r[4], int(n >= 1)); add('2+ TDs', d, r[5], int(n >= 2))
+            add('First TD', d, r[6], int(R.get('first') == pid)); add('Last TD', d, r[7], int(R.get('last') == pid))
+        for key, res, m in (('rec', 'rec', 'Receptions over the line'), ('cmp', 'cmp', 'Completions over the line')):
+            for r in g.get(key) or []:           # rec [id, name, team, pos, mu, line, pOver]; cmp [id, name, team, mu, line, pOver]
+                pid, line, pov = r[0], r[-2], r[-1]
+                got = (R.get(res) or {}).get(pid)
+                if pid in played and got is not None: add(m, d, pov, int(got > line))
+        for key, res, m in (('pass', 'ptd', 'Passing TDs'), ('int', 'ints', 'Interceptions')):
+            for r in g.get(key) or []:           # [id, name, team, mu, P(1+), P(2+), (P(3+))]
+                pid = r[0]; got = (R.get(res) or {}).get(pid)
+                if pid not in played or got is None: continue
+                for k, i in ((1, 4), (2, 5), (3, 6)):
+                    if i < len(r): add(f'{m} {k}+', d, r[i], int(got >= k))
+    return out
+
+
+def soccer():
+    """MLS: soccer/goals-history.json (each game's last pre-kickoff prices: {gid: {pid: {g, sh: [mu, P1+...], sot: [mu, P1+...]}}})
+    against soccer/recap.json player rows [pid, name, team, pos, starter, min, g, a, sh, sot, ...]. Prices are 'if he plays':
+    no minutes = left out."""
+    out = {}
+    def add(m, d, p, y):
+        if p is not None and 0 < p < 1: out.setdefault(m, []).append((d, p, y))
+    H = load('soccer/goals-history.json')['days']; R = load('soccer/recap.json')['games']
+    box = {gid: {r[0]: r for r in (g.get('players') or [])} for gid, g in R.items()}
+    for d, games in H.items():
+        for gid, ps in games.items():
+            B = box.get(gid)
+            if not B: continue
+            for pid, v in ps.items():
+                r = B.get(pid)
+                if not r or not r[5]: continue
+                add('Anytime goal', d, v.get('g'), int((r[6] or 0) >= 1))
+                for key, i, lab in (('sh', 8, 'Shots'), ('sot', 9, 'Shots on target')):
+                    L = v.get(key) or []
+                    for k in (1, 2, 3):
+                        if k < len(L): add(f'{lab} {k}+', d, L[k], int((r[i] or 0) >= k))
+    return out
+
+
+SPORTS = {'NBA': nba, 'NHL': nhl, 'NFL': nfl, 'MLS': soccer}
 
 
 def main():
@@ -125,12 +223,12 @@ def main():
     for sp, m, w, r in flagged:
         print(f"\n  FLAG {sp} {m} ({w}, n {r['n']}): priced {r['priced']:.1%}, hit {r['hit']:.1%}, slope {r['slope']}")
         for f in r['flags']: print(f'     - {f}')
-    print('\n  market                      window   n      priced  hit     slope  skill')
+    print('\n  market                          window   n      priced  hit     slope  AUC    skill')
     for sp, mk in report['sports'].items():
         for m, res in mk.items():
             for w in ('season', 'last30'):
                 r = res[w]
-                if r: print(f"  {sp} {m:24s} {w:7s} {r['n']:6,} {r['priced']:7.1%} {r['hit']:7.1%} {r['slope']:6.2f} {r['skill']:6.3f}{'  FLAG' if r['flags'] else ''}")
+                if r: print(f"  {sp} {m:28s} {w:7s} {r['n']:6,} {r['priced']:7.1%} {r['hit']:7.1%} {r['slope']:6.2f} {r['auc'] or 0:6.3f} {r['skill']:6.3f}{'  FLAG' if r['flags'] else ''}")
 
 
 if __name__ == '__main__':
