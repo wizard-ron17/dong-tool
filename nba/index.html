@@ -769,6 +769,25 @@
   .brand-puck { width: 30px; height: 30px; flex-shrink: 0; }
   :root[data-theme="light"] .brand-puck { filter: drop-shadow(0 0 1px rgba(0,0,0,0.55)); }
   .foot-credit { min-width: 0; }
+  /* the doubles card (11/13) */
+  .dc-card .ydm-panel { margin-bottom: 0.7rem; }
+  .dc-card h4 { margin: 0 0 0.55rem; }
+  .dc-cats { display: flex; flex-direction: column; gap: 0.6rem; }
+  .dc-cat-h { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.82rem; margin-bottom: 0.25rem; }
+  .dc-cat-h span { font-size: 0.74rem; }
+  .dc-bar { position: relative; height: 1.7rem; border-radius: 6px; background: var(--surface2); overflow: hidden; display: flex; align-items: center; justify-content: space-between; padding: 0 0.6rem; }
+  .dc-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 42%, transparent); border-radius: 6px 0 0 6px; }
+  .dc-bar span, .dc-bar em { position: relative; font-size: 0.76rem; font-weight: 700; font-style: normal; font-family: var(--font-m); }
+  .dc-bar em { color: var(--text-strong); }
+  .dc-pairs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.45rem; margin-bottom: 0.4rem; }
+  .dc-pair { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0.45rem 0.55rem; display: flex; flex-direction: column; gap: 0.15rem; }
+  .dc-pair span { font-size: 0.72rem; color: var(--muted); } .dc-pair b { font-family: var(--font-m); font-size: 1rem; }
+  .dc-pair.top { border-color: var(--accent); }
+  .dc-price { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.45rem; margin-bottom: 0.4rem; }
+  .dc-price > div { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0.45rem 0.55rem; display: flex; flex-direction: column; gap: 0.1rem; }
+  .dc-price span { font-size: 0.72rem; color: var(--muted); } .dc-price b { font-family: var(--font-m); font-size: 1.02rem; } .dc-price small { font-size: 0.7rem; color: var(--muted); }
+  .dc-price .on { border-color: var(--accent); }
+  @media (max-width: 520px) { .dc-pair, .dc-price > div { padding: 0.4rem 0.45rem; } .dc-pair b, .dc-price b { font-size: 0.9rem; } }
 </style>
 <script>
   // Set the theme before first paint to avoid a flash: saved choice wins,
@@ -2241,7 +2260,52 @@
     el.innerHTML = mode + controls + meta + body + `<div class="t3-note">Points, rebounds and assists each priced at 10 over his minutes — they barely move together once minutes are known — with a shared big-night factor (pace, overtime), then blended with his own last-40 rate. Tap a player for each of the three. Beat each player's own rate walk-forward; on Kalshi last season triple-doubles were overpriced (an 11.4% mid on an 8.2% outcome).</div>` + RonBacktest.html('dd') + RonBacktest.html('td');
   }
   /** A player's card on the three the double-double is built from, stepping the board as shown. */
-  function openDoubleCard(pid) { openLc('pts', pid, dblRows(), 9.5); }
+  // ── The doubles card (11/13, Ron: it opened the points ladder) ─────────────────────────────────────────────────
+  // What the price is made of: each category's projection and its chance of 10+, which two of them get him there, and
+  // the price itself (our projections' number, his own last-40 rate, the blend). /modal.js runs the frame and ‹ ›.
+  const dc = { pid: null, mode: 'dd', deck: [] };
+  function openDoubleCard(pid) {
+    dc.pid = String(pid); dc.mode = dblF.sort === 'td' ? 'td' : 'dd'; dc.deck = dblRows();
+    if (!dc.deck.some(r => r.pid === dc.pid)) dc.deck = D.stats?.doubles || [];
+    RonModal.open('dc-back', { cls: 'pm ydm dc-card', nav: { prev: 'dcStep(-1)', next: 'dcStep(1)' }, onClose: () => { dc.pid = null; } });
+    dcRender();
+  }
+  function dcStep(d) { const at = dc.deck.findIndex(r => r.pid === dc.pid), nx = dc.deck[at + d]; if (nx) { dc.pid = nx.pid; dcRender(); } }
+  function dcMode(m) { dc.mode = m; dcRender(); }
+  function dcAddLeg(side) { const r = dc.deck.find(x => x.pid === dc.pid); if (!r) return; if (!PARLAY.on) parMode(true); parToggleLeg(parLeg(dblLeg(r, dc.mode, side))); dcRender(); }
+  function dcRender() {
+    const r = dc.deck.find(x => x.pid === dc.pid); if (!r) return;
+    const at = dc.deck.indexOf(r), td = dc.mode === 'td', p = td ? r.td : r.dd, model = td ? r.tdModel : r.ddModel, own = td ? r.tdOwn : r.ddOwn;
+    const pc = (x, d = 0) => x == null ? '—' : `${(x * 100).toFixed(x < 0.1 && x > 0 ? 1 : d)}%`;
+    const CAT = [['pts', 'Points'], ['reb', 'Rebounds'], ['ast', 'Assists']];
+    // each category: projection, chance of 10+, and how far the projection sits from 10 (the one that decides it)
+    const cats = CAT.map(([k, l]) => {
+      const mu = r[k], q = r.p10?.[k], gap = 10 - mu;
+      return `<div class="dc-cat"><div class="dc-cat-h"><b>${l}</b><span class="dim">${gap > 0 ? `${gap.toFixed(1)} short of 10` : `${(-gap).toFixed(1)} past 10`}</span></div>
+        <div class="dc-bar" title="${q != null ? `${pc(q, 1)} chance he gets 10+ ${l.toLowerCase()}` : 'Updating with the next build'}"><i style="width:${q != null ? Math.max(1, q * 100) : 0}%"></i><span>${mu.toFixed(1)} proj</span><em>${q != null ? `10+ in ${pc(q)}` : ''}</em></div></div>`;
+    }).join('');
+    // the two that get him there: for a double-double, each pair hitting 10 together; a triple-double needs all three
+    const pairs = r.pair ? [['pr', 'Pts + Reb'], ['pa', 'Pts + Ast'], ['ra', 'Reb + Ast']].map(([k, l]) => [l, r.pair[k]]).sort((a, b) => b[1] - a[1]) : null;
+    const pairsHtml = td ? `<p class="ydl-help">A triple-double needs all three: our projections give <b>${pc(model, 1)}</b>.</p>`
+      : pairs ? `<div class="dc-pairs">${pairs.map(([l, q], i) => `<div class="dc-pair${i === 0 ? ' top' : ''}"><span>${l}</span><b>${pc(q, 1)}</b></div>`).join('')}</div>
+        <p class="ydl-help">Each pair both reaching 10. ${pairs[0][1] > 0.02 ? `<b>${pairs[0][0]}</b> is how he usually gets there.` : 'No pair is likely tonight.'}</p>` : '<p class="ydl-help">Updating with the next build.</p>';
+    const add = parAddPair(dblLeg(r, dc.mode, 'over'), (side) => `dcAddLeg('${side}')`, { binary: true, lab: td ? 'Triple-double' : 'Double-double' });
+    document.querySelector('#dc-back .ydm').innerHTML = `
+      <button class="pm-x" onclick="RonModal.close('dc-back')" aria-label="Close">×</button>
+      <header class="ydm-hero">
+        ${faceHtml(r.pid, r.name)}
+        <div class="ydm-id"><h2>${esc(r.name)}</h2><div class="ydm-meta"><b>${esc(r.pos || '')}</b><span>•</span>${esc(r.team)} ${r.home ? 'vs' : '@'} ${esc(r.opp)}<img src="${teamLogo(r.team)}" alt="" loading="lazy"><span>•</span>${gameTime(r.start)}${r.min ? `<span>•</span>${r.min} min proj` : ''}</div></div>
+        <div class="ydm-big"><div><span>${td ? 'Triple-double' : 'Double-double'}</span><span>${pc(p, 1)}</span></div><strong>${Odds.am(p)}</strong></div>
+      </header>
+      <div class="sub-tabs pc-tabs">${[['dd', 'Double-double'], ['td', 'Triple-double']].map(([k, l]) => `<button class="sub-btn${dc.mode === k ? ' active' : ''}" onclick="dcMode('${k}')">${l}</button>`).join('')}</div>
+      <section class="ydm-panel"><h4>How he gets there</h4><div class="dc-cats">${cats}</div></section>
+      <section class="ydm-panel"><h4>${td ? 'All three' : 'Which two'}</h4>${pairsHtml}</section>
+      <section class="ydm-panel"><h4>The price</h4>
+        <div class="dc-price"><div><span>Projections</span><b>${pc(model, 1)}</b></div><div><span>His last ${r.l40 || 0}</span><b>${pc(own, 1)}</b><small>${td ? r.td40 : r.dd40} of ${r.l40 || 0}</small></div><div class="on"><span>Fair</span><b>${Odds.am(p)}</b><small>${pc(p, 1)}</small></div></div>
+        <p class="ydl-help">The projections price each category at his projected minutes; the fair blends that with how often he's actually done it lately, as graded on past games.</p></section>
+      <div class="lc-add" style="text-align:center;margin:0.2rem 0 0.6rem">${add} <button class="vid-btn" style="margin-left:0.4rem" onclick="RonModal.close('dc-back');openPlayer('${r.pid}')">Player card →</button></div>`;
+    RonModal.navState('dc-back', at, dc.deck.length);
+  }
 
   // ── First basket ───────────────────────────────────────────────────────
   // Who scores the game's first made field goal. The tip decides the team (its

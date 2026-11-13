@@ -347,6 +347,9 @@ async function main() {
         const dbl = doublesPrice(mus, M.min, M.sd, s.cats40);
         ddRows.push({ ...base, pts: +mus.pts.toFixed(1), reb: +mus.reb.toFixed(1), ast: +mus.ast.toFixed(1),
           dd: +dbl.dd.toFixed(4), td: +dbl.td.toFixed(5), ddOwn: +dbl.ddOwn.toFixed(3), tdOwn: +dbl.tdOwn.toFixed(4),
+          // the doubles card (11/13): the model's own price before the last-40 blend, each category's 10+ and each pair
+          ddModel: +dbl.ddModel.toFixed(4), tdModel: +dbl.tdModel.toFixed(5), min: +M.min.toFixed(1),
+          p10: Object.fromEntries(Object.entries(dbl.p10).map(([k, v]) => [k, +v.toFixed(4)])), pair: Object.fromEntries(Object.entries(dbl.pair).map(([k, v]) => [k, +v.toFixed(4)])),
           l40: (s.cats40 || '').length, dd40: [...(s.cats40 || '')].filter(c => +c >= 2).length, td40: [...(s.cats40 || '')].filter(c => +c >= 3).length });
         const rate = threesRate(s, prevTot, pos, undefined, priorPrev[a.id]?.prev2);
         const form3 = statForm('tpm', s, rate);

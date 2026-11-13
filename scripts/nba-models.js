@@ -218,16 +218,19 @@ export function statNearEven(st, r, spread = null) {
 export function doublesPrice(mus, mproj, sd, cats40) {
   const DD = MODEL.stats.dd, gs = DD.g_nodes, gw = 1 / gs.length;
   let pdd = 0, ptd = 0;
+  // for the doubles card (11/13): each category's chance of 10+ and each pair's chance of both, over the same mixture
+  const p10 = { pts: 0, reb: 0, ast: 0 }, pair = { pr: 0, pa: 0, ra: 0 };
   for (const g of gs) for (let i = 0; i < GH.x.length; i++) {
     const sc = clip(mproj + sd * GH.x[i], 1, 48) / Math.max(mproj, 1);
     const [p1, p2, p3] = ['pts', 'reb', 'ast'].map(st => { const m = MODEL.stats.models[st]; return sfPow(10, mus[st] * sc * g, m.a, m.p); });
     const w = GH.w[i] * gw;
     pdd += w * (p1 * p2 + p1 * p3 + p2 * p3 - 2 * p1 * p2 * p3); ptd += w * p1 * p2 * p3;
+    p10.pts += w * p1; p10.reb += w * p2; p10.ast += w * p3; pair.pr += w * p1 * p2; pair.pa += w * p1 * p3; pair.ra += w * p2 * p3;
   }
   const h = (cats40 || '').slice(-40), n = h.length;
   const rate = (min) => { const hit = [...h].filter(c => +c >= min).length; const base = min === 2 ? DD.base_dd : DD.base_td;
     return ((n ? hit / n : 0) * n + DD.l40_prior * base) / (n + DD.l40_prior); };
   const lg = (p) => { const q = Math.min(Math.max(p, 1e-6), 1 - 1e-6); return Math.log(q / (1 - q)); };
   const blend = (p, own, b) => 1 / (1 + Math.exp(-(b[0] + b[1] * lg(p) + b[2] * lg(own))));
-  return { dd: blend(pdd, rate(2), DD.blend_dd), td: blend(ptd, rate(3), DD.blend_td), ddModel: pdd, tdModel: ptd, ddOwn: rate(2), tdOwn: rate(3) };
+  return { dd: blend(pdd, rate(2), DD.blend_dd), td: blend(ptd, rate(3), DD.blend_td), ddModel: pdd, tdModel: ptd, ddOwn: rate(2), tdOwn: rate(3), p10, pair };
 }
