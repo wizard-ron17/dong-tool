@@ -369,12 +369,12 @@ async function main() {
       const R = g.res;
       if (!g.final || !R || g.season !== picks.season || !(g.week >= picks.week - 4 && g.week < picks.week)) continue;
       const played = new Set((R.inBox || []).filter(x => !(R.dnp || []).includes(x)));
-      for (const r of g.rec || []) { const got = R.rec?.[r[0]]; if (played.has(r[0]) && got != null) { sm += r[4]; sa += got; n++; } }
+      for (const r of g.rec || []) { const got = R.rec?.[r[0]]; if (played.has(r[0]) && got != null) { sm += r[7] ?? r[4]; sa += got; n++; } }   // [7] raw (before any level)
     }
     const x = n ? Math.min(1.3, Math.max(0.85, (sa + 200) / (sm + 200))) : 1;
     for (const r of picks.receptions) {
       if (r.tq || x === 1) continue;                       // rookie/thin rows price off their own quantiles
-      r.mu = +(r.mu * x).toFixed(4);
+      r.muRaw = r.mu; r.mu = +(r.mu * x).toFixed(4);
       r.p = Object.fromEntries(Object.keys(r.p).map(L => [L, +recPOver(+L, r.mu).toFixed(6)]));
     }
     if (picks.receptionModel) Object.assign(picks.receptionModel, { levelX: +x.toFixed(3), levelN: n });

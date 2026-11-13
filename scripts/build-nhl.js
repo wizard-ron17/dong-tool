@@ -457,7 +457,7 @@ async function main() {
   try { shHist = JSON.parse(fs.readFileSync(SH_PATH, 'utf8')); } catch (e) { shHist = {}; }
   if (upcoming && shots.board.length) refreeze(shHist, shots.board.map(r => {
       const L = Object.keys(r.p).map(Number).reduce((b, x) => Math.abs(r.p[x] - 0.5) < Math.abs(r.p[b] - 0.5) ? x : b);
-      return [r.pid, r.mu, L, r.p[L], null, r.gameId, r.name, r.team, r.opp];
+      return [r.pid, r.mu, L, r.p[L], null, r.gameId, r.name, r.team, r.opp, ...(r.muRaw != null ? [r.muRaw] : [])];   // [9] raw, before the SOG level
     }), 5);
   let shGraded = 0;
   for (const [d, rows] of Object.entries(shHist)) {

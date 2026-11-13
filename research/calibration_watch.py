@@ -164,9 +164,9 @@ def nfl():
             n = (R.get('td') or {}).get(pid, 0) or 0
             add('Anytime TD', d, r[4], int(n >= 1)); add('2+ TDs', d, r[5], int(n >= 2))
             add('First TD', d, r[6], int(R.get('first') == pid)); add('Last TD', d, r[7], int(R.get('last') == pid))
-        for key, res, m in (('rec', 'rec', 'Receptions over the line'), ('cmp', 'cmp', 'Completions over the line')):
-            for r in g.get(key) or []:           # rec [id, name, team, pos, mu, line, pOver]; cmp [id, name, team, mu, line, pOver]
-                pid, line, pov = r[0], r[-2], r[-1]
+        for key, res, m, li in (('rec', 'rec', 'Receptions over the line', 5), ('cmp', 'cmp', 'Completions over the line', 4)):
+            for r in g.get(key) or []:           # rec [id, name, team, pos, mu, line, pOver, (raw mu)]; cmp [id, name, team, mu, line, pOver]
+                pid, line, pov = r[0], r[li], r[li + 1]
                 got = (R.get(res) or {}).get(pid)
                 if pid in played and got is not None: add(m, d, pov, int(got > line))
         for key, res, m in (('pass', 'ptd', 'Passing TDs'), ('int', 'ints', 'Interceptions')):

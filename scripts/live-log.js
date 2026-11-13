@@ -70,7 +70,8 @@ function boardFor(gameId, b) {
   if (b.receptions?.length && b.recLines?.length) {
     out.rec = b.receptions.filter(r => r.gameId === gameId).map(r => {
       const L = nearest(b.recLines, r.mu);
-      return [r.pid, r.name, r.team, r.pos, r2(r.mu), L, r3(r.p[L] ?? r.p[String(L)])];
+      // [7] the raw projection before the rolling level (build-nfl.js), so the next level is measured against it, not itself
+      return [r.pid, r.name, r.team, r.pos, r2(r.mu), L, r3(r.p[L] ?? r.p[String(L)]), ...(r.muRaw != null ? [r2(r.muRaw)] : [])];
     });
   }
   if (b.completions?.length && b.cmpLines?.length) {

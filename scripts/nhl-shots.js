@@ -84,7 +84,21 @@ async function recentGames(dates) {
  * @param {Array}  o.games       today's games: { gameId, date, away, home, start }
  * @param {string[]} o.playedDates  dates already played this season, newest last
  */
+// ── SOG level, rolling (11/13, research/calibration_watch.py): the live board ran low all season (projected 1.472 a
+// skater-game vs 1.543 taken, over priced 37.1% hit 38.9%, 10,560 rows). The board's projection is scaled by taken /
+// projected over the last 21 graded days of nhl/shots-history.json, shrunk 300 shots toward 1, held to 0.85-1.2.
+// Walk-forward over every day since 10/01: log loss -0.13%, the same at 14 / 21 / 30 days. The goal model doesn't
+// read this projection, so only the Shots board moves.
+function sogLevel() {
+  try {
+    const H = JSON.parse(fs.readFileSync(new URL('../nhl/shots-history.json', import.meta.url), 'utf8'));
+    const days = Object.keys(H).sort().slice(-21); let sm = 0, sg = 0, n = 0;
+    for (const d of days) for (const r of H[d]) if (r[4] != null && r[4] !== -1) { sm += r[9] ?? r[1]; sg += r[4]; n++; }   // [9] raw, before any level
+    return { x: n ? Math.min(1.2, Math.max(0.85, (sg + 300) / (sm + 300))) : 1, n };
+  } catch (e) { return { x: 1, n: 0 }; }
+}
 export async function buildShotsBoard({ season, prevSeason, games, playedDates, ppUnit = {} }) {
+  const SOG_X = sogLevel(); console.log(`  SOG level: x${SOG_X.x.toFixed(3)} from ${SOG_X.n} graded rows (last 21 days)`);
   if (!games.length) return { board: [], teams: {}, model: meta() };
 
   const recentDates = playedDates.slice(-RECENT_DATES);
@@ -299,12 +313,12 @@ export async function buildShotsBoard({ season, prevSeason, games, playedDates, 
     board.push({
       pid: +pid, name: who.name, pos: rs.pos || who.pos, team, mug: rs.mug || null,
       opp: opp[team], home: !!home[team], gameId: g.gameId, date: g.date, start: g.start,
-      mu: +mu.toFixed(3), gp,
+      mu: +(mu * SOG_X.x).toFixed(3), muRaw: +mu.toFixed(3), gp,
       toi: +(avg.toi).toFixed(0), pptoi: +(avg.pptoi).toFixed(0),
       sogPrior: +f.sog_prior.toFixed(3), sogL5: +(f.sog_l5 ?? 0).toFixed(2), sogL10: +(f.sog_l10 ?? 0).toFixed(2),
       oppSa: +f.opp_sa_prior.toFixed(2), teamSf: +f.team_sf_prior.toFixed(2),
       recent: recent.map(r => r.sog),
-      p: Object.fromEntries(ladder(mu).map(x => [x.line, +x.over.toFixed(4)])),
+      p: Object.fromEntries(ladder(mu * SOG_X.x).map(x => [x.line, +x.over.toFixed(4)])),
     });
   }
   board.sort((x, y) => y.mu - x.mu);
