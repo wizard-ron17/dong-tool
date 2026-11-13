@@ -1153,7 +1153,7 @@
   // Prices are pre-lineup; once a lineup posts (about an hour out) a player
   // outside the matchday squad drops off and the rest carry XI / bench.
   const GOAL_MIN = 0.02;            // the board's floor: a 1-in-50 defender is noise on a list (the box score keeps him)
-  const gF = { open: false, game: 'all', pos: 'ALL', sort: 'p', q: '', view: 'cards' };
+  const gF = RonUf.state('setGoalsF', { open: false, game: 'all', pos: 'ALL', sort: 'p', q: '', view: 'cards' });   // RonUf.state: the sheet's Reset / what's changed
   function setGoalsF(k, v) { gF[k] = v; renderGoals(); }
   const goalGames = () => [...new Map((D.goals?.rows || []).map(r => [r.gid, r])).values()].sort((a, b) => a.start.localeCompare(b.start));
   const gameLbl = (r) => `${r.home ? r.opp : r.team} @ ${r.home ? r.team : r.opp}`;
@@ -1336,7 +1336,7 @@
                      blurb: 'Whether he starts, comes on or sits, then his shots per 90 over the minutes that role gets him, against what the opponent allows' },
               sot: { lab: 'On target', unit: 'shots on target', lines: [0.5, 1.5, 2.5, 3.5], big: 'Projected on target', title: 'Shots on target distribution',
                      blurb: 'The same role mixture, on his shots on target per 90 (his shots per 90 carries most of it)' } };
-  const sF = { kind: 'sh', open: false, line: 'auto', side: 'over', game: 'all', pos: 'ALL', sort: 'mu', q: '', view: 'cards' };
+  const sF = RonUf.state('setShotsF', { kind: 'sh', open: false, line: 'auto', side: 'over', game: 'all', pos: 'ALL', sort: 'mu', q: '', view: 'cards' });
   function setShotsF(k, v) { if (k === 'tab') { sF.kind = v; sF.line = 'auto'; } else sF[k] = v; renderShots(); }
   /** P(count > L) off a stored distribution (its last bucket the tail). */
   const pOver = (pmf, L) => pmf.reduce((a, v, k) => a + (k > L ? v : 0), 0);

@@ -1817,7 +1817,7 @@
   };
   const BD_NOTE = 'Projected minutes (recent minutes, starts, teammates newly out, blowout risk) times his per-minute rate — this season and last, pulled toward his position — with his last ten games, the opponent\'s allowance and the team total, spread over his minutes. Early in a season his recent games reach back past the summer, so they count for less. Beat each player\'s own last-20 hit rate at every line, walk-forward.';
   const bdF = {};
-  function bdState(nav) { return (bdF[nav] ||= { tab: BD[nav].tabs[0][0], open: false, line: 'auto', pos: 'ALL', game: 'all', sort: 'proj', q: '', view: 'cards' }); }
+  function bdState(nav) { return (bdF[nav] ||= RonUf.state(BD_SET[nav], { tab: BD[nav].tabs[0][0], open: false, line: 'auto', pos: 'ALL', game: 'all', sort: 'proj', q: '', view: 'cards' })); }   // RonUf.state: the sheet's Reset / what's changed
   function bdSet(nav, k, v, typing) {
     const F = bdState(nav); F[k] = v; if (k === 'tab') F.line = 'auto';
     renderBoard(nav);
@@ -2117,7 +2117,7 @@
   // a shared "big night" factor (pace, overtime), then blended with his own
   // last-40 rate — the reliable rebounders are steadier than rates alone say.
   // Kalshi overpriced triple-doubles last season (11.4% mid vs 8.2% hit).
-  const dblF = { open: false, sort: 'dd', game: 'all', q: '', view: 'cards', tab: 'board', night: null };
+  const dblF = RonUf.state('setDblF', { open: false, sort: 'dd', game: 'all', q: '', view: 'cards', tab: 'board', night: null });
   function setDblF(k, v, typing) {
     dblF[k] = v; renderDoubles();
     if (typing) { const i = document.getElementById('doubles-search'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
@@ -2250,7 +2250,7 @@
   // position (centres score first most — the opening set, the putback). Starters
   // are projected until lineups post. research/nba_firstbasket2.py: calibrated
   // over 7,200 games walk-forward.
-  const fbF = { open: false, game: 'all', q: '', view: 'cards', res: 'board', night: null };
+  const fbF = RonUf.state('setFbF', { open: false, game: 'all', q: '', view: 'cards', res: 'board', night: null });
   /** First basket results: each game's favourite (our shortest price) against who scored first. */
   function fbResults() {
     if (rcState !== 'ready') return nbResWait();
@@ -2371,7 +2371,7 @@
   // drought length against the model's own walk-forward price: nobody is due.
   // First basket is dead even; threes and doubles run the other way (long
   // droughts hit LESS than priced). So the default order is the price.
-  const dueF = { tab: 't1', open: false, sort: 'price', game: 'all', q: '' };
+  const dueF = RonUf.state('setDue', { tab: 't1', open: false, sort: 'price', game: 'all', q: '' });
   function setDue(k, v, typing) {
     dueF[k] = v; renderDue();
     if (typing) { const i = document.getElementById('due-search'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
@@ -2430,7 +2430,7 @@
   // ── Milestones ─────────────────────────────────────────────────────────
   // Regular-season career totals vs the next round number: ESPN's career line
   // through last season plus this season's games. A watch list, not a signal.
-  const msF = { tab: 'watch', open: false, stat: 'all' };
+  const msF = RonUf.state('setMs', { tab: 'watch', open: false, stat: 'all' });
   function setMs(k, v) { msF[k] = v; renderMilestones(); }
   const MS_UNIT = { pts: 'points', reb: 'rebounds', ast: 'assists', tpm: 'threes', stl: 'steals', blk: 'blocks', dd: 'double-doubles', td: 'triple-doubles', gp: 'games' };
   const MS_WORD = { pts: 'point', reb: 'rebound', ast: 'assist', tpm: 'three', stl: 'steal', blk: 'block', dd: 'double-double', td: 'triple-double', gp: 'game' };

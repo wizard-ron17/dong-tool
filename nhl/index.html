@@ -3062,7 +3062,7 @@
   // ── Shots on goal ──────────────────────────────────────────────────────
   // Mirrors /nfl's receptions board: same explainer, filters, view switcher
   // and ladder. Model in research/nhl_sog.py, scored in scripts/nhl-shots.js.
-  const sgF = { pos: 'ALL', line: 'auto', sort: 'proj', view: 'cards', q: '', open: false, tab: 'board', night: null, all: false };
+  const sgF = RonUf.state('setSg', { pos: 'ALL', line: 'auto', sort: 'proj', view: 'cards', q: '', open: false, tab: 'board', night: null, all: false });   // RonUf.state: the sheet's Reset / what's changed
   function setSg(k, v) { sgF[k] = v; renderShots(); }
   function onSgSearch() { sgF.q = document.getElementById('sg-search').value; renderShots(); }
   function clearSgSearch() { sgF.q = ''; renderShots(); }
@@ -3285,7 +3285,7 @@
                meta: 'binomial prices, tighter than Poisson' },
   };
   const gtState = () => ({ tab: 'board', line: 'auto', sort: 'proj', view: 'cards', q: '', open: false, night: null });
-  const gtF = { saves: gtState(), allowed: gtState() };
+  const gtF = { saves: RonUf.state('setGtSaves', gtState()), allowed: RonUf.state('setGtAllowed', gtState()) };
   function setGt(page, k, v) { gtF[page][k] = v; renderGoalie(page); }
   function onGtSearch(page) { gtF[page].q = document.getElementById(`gt-search-${page}`).value; renderGoalie(page); }
   function clearGtSearch(page) { gtF[page].q = ''; renderGoalie(page); }
@@ -3410,7 +3410,7 @@
     hits:   { nav: 'hits',   el: 'hits-content',   kind: 'hit', key: 'hits', unit: 'hits',          short: 'hits',   data: () => D.hits || {},   hist: [1, 2, 3, 4],    who: 'hitters' },
     blocks: { nav: 'blocks', el: 'blocks-content', kind: 'blk', key: 'bks',  unit: 'blocked shots', short: 'blocks', data: () => D.blocks || {}, hist: [9, 10, 11, 12], who: 'shot-blockers' },
   };
-  const pxF = { hits: { ...gtState(), pos: 'ALL', all: false }, blocks: { ...gtState(), pos: 'ALL', all: false } };
+  const pxF = { hits: RonUf.state('setPxHits', { ...gtState(), pos: 'ALL', all: false }), blocks: RonUf.state('setPxBlocks', { ...gtState(), pos: 'ALL', all: false }) };
   window.setPxHits = (k, v) => { pxF.hits[k] = v; renderPx('hits'); };
   window.setPxBlocks = (k, v) => { pxF.blocks[k] = v; renderPx('blocks'); };
   const pxSetFn = (page) => page === 'hits' ? 'setPxHits' : 'setPxBlocks';
@@ -3661,7 +3661,7 @@
     ast: { lab: 'Assists',   unit: 'assists',   mu: r => r.mu.a,   lines: [0.5, 1.5],      recent: r => r.recent.a,   hist: [9, 10, 11, 12] },
     ppp: { lab: 'PP points', unit: 'PP points', mu: r => r.mu.ppp, lines: [0.5, 1.5],      recent: r => r.recent.ppp, hist: [13, 14, 15, 16] },
   };
-  const ptF = { tab: 'pts', line: 'auto', pos: 'ALL', sort: 'proj', view: 'cards', q: '', open: false, night: null, rmkt: 'pts', all: false };
+  const ptF = RonUf.state('setPt', { tab: 'pts', line: 'auto', pos: 'ALL', sort: 'proj', view: 'cards', q: '', open: false, night: null, rmkt: 'pts', all: false });
   function setPt(k, v) { ptF[k] = v; if (k === 'tab') ptF.line = 'auto'; renderPoints(); }
   function onPtSearch() { ptF.q = document.getElementById('pt-search').value; renderPoints(); }
   function clearPtSearch() { ptF.q = ''; renderPoints(); }

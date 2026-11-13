@@ -4,7 +4,9 @@
 // .sub-tabs box, so it has to load after it, in the app); the helpers below write the markup and
 // call the page's own setter (setFn(key, value)), so each board keeps its state.
 //
-//   uiFilters(setFn, open, [[label, chipsHtml], ...], changedCount)   a Filters button; its rows open in one modal (the filter sheet)
+//   uiFilters(setFn, open, [[label, chipsHtml], ...], changedCount, { state })   a Filters button; its rows open in one modal
+//                                                       (the filter sheet). With state (the board's filter object), the sheet
+//                                                       names what's off default, dots those rows, and offers Reset all
 //   uiSort(setFn, cur, defs) / uiSorted(rows, cur, defs)   a Cards view's Sort row (cards have no headers to click):
 //                                                       defs { key: [label, row => value, 'asc'?] }, the table's columns;
 //                                                       tap the lit one again to reverse ('-key'); rows re-ranked to match.
@@ -50,6 +52,11 @@
   .pm.uf-sheet { max-width: 620px; padding: 1rem 1.15rem 0.9rem; }
   .uf-title { font-family: var(--font-d); font-size: 1.15rem; font-weight: 700; color: var(--text-strong); margin-bottom: 0.6rem; }
   .uf-sheet .pbf-row { padding: 0.5rem 0; border-top: 1px solid var(--border); }
+  .uf-chg { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; font-size: 0.76rem; color: var(--silver); margin: 0 0 0.5rem;
+    background: color-mix(in srgb, var(--accent) 9%, var(--surface1)); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); border-radius: 8px; padding: 0.45rem 0.6rem; }
+  .uf-chg button { background: var(--accent); color: #04120a; border: none; border-radius: 6px; font: 800 0.72rem var(--font-b); padding: 0.32rem 0.7rem; cursor: pointer; white-space: nowrap; }
+  .pbf-row.chg > .pbf-lbl { color: var(--accent); }
+  .pbf-row.chg > .pbf-lbl::after { content: ' •'; }
   .uf-sheet .uf-base > .pbf-row:first-child, .uf-sheet .due-filter-row > .pbf-row:first-child { border-top: none; }
   .uf-sheet .due-filter-row { display: block; padding: 0; border: none; margin: 0; }
   .uf-sec { font-size: 0.692rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 0.8rem 0 0.45rem; padding-top: 0.7rem; border-top: 1px solid var(--border2); display: flex; align-items: center; gap: 0.4rem; }
@@ -172,8 +179,34 @@
     el.style.display = ''; dlg.querySelector('.uf-base').appendChild(el); fxPaint();
   }
   const FILTER_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M20 6h0M4 12h4M14 12h6M4 18h12"/><circle cx="17" cy="6" r="2.2"/><circle cx="11" cy="12" r="2.2"/><circle cx="19" cy="18" r="2.2"/></svg>';
-  const uiFilters = (setFn, open, rows, changed) => {
-    const body = rows.map(([l, c]) => `<div class="pbf-row"><span class="pbf-lbl">${l}</span><div class="pbf-chips">${c}</div></div>`).join('');
+  // What's off its default (11/13, Ron: "says 3 filters on but I can't tell which"). A board passes its state object
+  // (opts.state); the first time its sheet is built, before anyone can have touched it, that state is snapshotted as
+  // its defaults. A setting counts when its key is in one of the sheet's rows (setFn('key', ...)) and differs from the
+  // snapshot: named by its row's label at the top of the sheet with Reset all, its row dotted, and the button's count
+  // taken from the same list so the two always agree. Reset writes the snapshot back and redraws through setFn('open').
+  const DEF = {};
+  const clone = (v) => v == null || typeof v !== 'object' ? v : JSON.parse(JSON.stringify(v));
+  const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  const keysIn = (setFn, html) => [...String(html).matchAll(new RegExp(String(setFn).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "\\('([\\w:]+)'", 'g'))].map(m => m[1]);
+  function offDefault(setFn, rows, st) {
+    if (!st) return null;
+    const keys = [...new Set(rows.flatMap(([, c]) => keysIn(setFn, c)))].filter(k => !/^(open|q|view|tab)$/.test(k));   // a key the state lacks at first (doubles' ord) defaults to unset
+    const d = DEF[setFn] ||= Object.fromEntries(keys.map(k => [k, clone(st[k])]));
+    for (const k of keys) if (!(k in d)) d[k] = clone(st[k]);      // a row that first appears later (a parlay mode, a view)
+    const off = new Set(keys.filter(k => !same(st[k], d[k])));
+    return { off, labels: [...new Set(rows.filter(([, c]) => keysIn(setFn, c).some(k => off.has(k))).map(([l]) => String(l).replace(/<[^>]+>/g, '').trim()).filter(Boolean))] };
+  }
+  const STATES = {}, REG = {};   // REG: a board's filter object, registered once where it's defined (RonUf.state)
+  function reset(setFn) {
+    const st = STATES[setFn], d = DEF[setFn]; if (!st || !d) return;
+    for (const [k, v] of Object.entries(d)) st[k] = clone(v);
+    try { new Function(`${setFn}('open',true)`)(); } catch (e) {}
+  }
+  const uiFilters = (setFn, open, rows, changed, opts = {}) => {
+    const st = opts.state || REG[setFn], od = offDefault(setFn, rows, st);
+    if (od) { STATES[setFn] = st; changed = od.labels.length; }
+    const top = od && od.labels.length ? `<div class="uf-chg"><span><b>${od.labels.length} changed:</b> ${od.labels.join(' · ')}</span><button onclick="RonUf.reset('${setFn}')">Reset all</button></div>` : '';
+    const body = top + rows.map(([l, c]) => `<div class="pbf-row${od && keysIn(setFn, c).some(k => od.off.has(k)) ? ' chg' : ''}"><span class="pbf-lbl">${l}</span><div class="pbf-chips">${c}</div></div>`).join('');
     queueMicrotask(() => {
       if (open && armed) {
         const dlg = sheetOpen(setFn, (o) => { try { new Function(`${o}('open',false)`)(); } catch (e) {} });
@@ -200,7 +233,7 @@
       if (el) { el.textContent = n || ''; el.hidden = !n; }
     });
   }
-  window.RonUf = { arm: () => { armed = true; }, node, fx: (panel, f) => { FX[panel] = f; queueMicrotask(() => { fxPaint(); badges(); }); }, panelId, badges, close: () => sheetDlg() && RonModal.close(SHEET) };
+  window.RonUf = { arm: () => { armed = true; }, node, fx: (panel, f) => { FX[panel] = f; queueMicrotask(() => { fxPaint(); badges(); }); }, panelId, badges, reset, state: (setFn, obj) => { REG[setFn] = obj; return obj; }, close: () => sheetDlg() && RonModal.close(SHEET) };
   const uiTabs = (setFn, cur, tabs = [['board', 'Board'], ['results', 'Results']]) => `
     <div class="sub-tabs u-tabs">${tabs.map(([v, l]) =>
       `<button class="sub-btn${cur === v ? ' active' : ''}" onclick="${setFn}('tab','${v}')">${l}</button>`).join('')}</div>`;

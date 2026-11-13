@@ -6188,7 +6188,7 @@
   // 'mark' replaces the old firstOnly boolean now that a touchdown can be the
   // game's first, its last, or part of a multi-TD day — the three markets the
   // Picks board prices.
-  const rcFilt = { type: 'all', mark: 'all', sort: 'order', open: false };
+  const rcFilt = RonUf.state('setRcFilt', { type: 'all', mark: 'all', sort: 'order', open: false });   // RonUf.state: the sheet's Reset / what's changed
   function setRcFilt(k, v) { rcFilt[k] = v; renderRecap(); }
   const RC_MARK = { first: t => t.firstTd, last: t => t.lastTd, multi: t => t.multi };
   const DAY_ORDER = { Thursday: 1, Friday: 2, Saturday: 3, Sunday: 4, Monday: 5 };
@@ -6890,7 +6890,7 @@ let pairStacks = false;
   // A count market, so the board leads with the projection and prices each
   // standard line off it. "Best line" picks the one nearest a player's
   // projection, which is the one a book is most likely to be hanging.
-  const rcF = { line: 'auto', pos: 'ALL', sort: 'proj', view: 'cards', q: '', tab: 'board', open: false };
+  const rcF = RonUf.state('setRc', { line: 'auto', pos: 'ALL', sort: 'proj', view: 'cards', q: '', tab: 'board', open: false });
   function setRc(k, v) { rcF[k] = v; renderReceptions(); }
   window.setRc = setRc;
   // The board re-renders the panel that holds the search box, which replaces
@@ -7121,7 +7121,7 @@ let pairStacks = false;
   // No fumble model: fumbles lost (about −0.1 a week for a busy back) are left out.
   const FF_W = { rec: 0.5, yds: 0.1, td: 6, pyds: 0.04, ptd: 4, int: -2 };
   const FF_YPR = 10.5;                                  // league yards a catch, where a pass-catcher has no yardage row
-  const ffF = { pos: 'ALL', sort: 'pts', view: 'cards', q: '', open: false, pid: null };
+  const ffF = RonUf.state('setFf', { pos: 'ALL', sort: 'pts', view: 'cards', q: '', open: false, pid: null });
   function setFf(k, v, typing) {
     ffF[k] = v; renderFantasy();
     if (typing) { const i = document.getElementById('ff-search'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
@@ -7242,7 +7242,7 @@ let pairStacks = false;
   window.closeRec = () => closeLc();
 
   // ── Completions ─────────────────────────────────────────────────────────
-  const cpF = { line: 'auto', sort: 'proj', view: 'cards', q: '', tab: 'board', wk: null, open: false };
+  const cpF = RonUf.state('setCp', { line: 'auto', sort: 'proj', view: 'cards', q: '', tab: 'board', wk: null, open: false });
   function setCp(k, v) { cpF[k] = v; renderCompletions(); }
   window.setCp = setCp;
   window.onCmpSearch = () => { cpF.q = document.getElementById('cmp-search')?.value || ''; refocusSearch('cmp-search', renderCompletions); };
@@ -7389,7 +7389,7 @@ let pairStacks = false;
   window.closeCmp = () => closeLc();
 
   // ── Interceptions ───────────────────────────────────────────────────────
-  const inF = { line: 0.5, sort: 'most', view: 'cards', q: '', tab: 'board', wk: null, open: false };
+  const inF = RonUf.state('setIn', { line: 0.5, sort: 'most', view: 'cards', q: '', tab: 'board', wk: null, open: false });
   function setIn(k, v) { inF[k] = v; renderInterceptions(); }
   window.setIn = setIn;
   window.onIntSearch = () => { inF.q = document.getElementById('int-search')?.value || ''; refocusSearch('int-search', renderInterceptions); };
@@ -7486,7 +7486,7 @@ let pairStacks = false;
     patm: { lab: 'PATs made', short: 'PAT', unit: 'PATs made', lines: [0.5, 1.5, 2.5, 3.5, 4.5], def: 2.5, kind: 'kpat' },
   };
   // line 'even': each kicker at his own rung nearest even money (his median) — like Receptions and Yards
-  const kkF = { mkt: 'pts', line: 'even', sort: 'proj', view: 'cards', q: '', tab: 'board', open: false };
+  const kkF = RonUf.state('setKk', { mkt: 'pts', line: 'even', sort: 'proj', view: 'cards', q: '', tab: 'board', open: false });
   function setKk(k, v) {
     kkF[k] = v;
     if (k === 'mkt' && kkF.line !== 'even') kkF.line = KK_MKTS[v].def;
@@ -7666,7 +7666,7 @@ let pairStacks = false;
   const YD_POS = { pass: [], rush: ['QB', 'RB'], rec: ['WR', 'TE', 'RB'], rr: ['RB', 'WR', 'TE'] };
   const ydLeg = (r) => parSideTag({ k: `y${r.m}|${r.pid}|${r.L}`, n: r.name, t: r.team, g: parGame(r), m: 'y' + r.m,
                           s: `Over ${r.L} ${(YD_MKTS.find(x => x[0] === r.m)?.[1] || '').toLowerCase()} yards`, p: r.p, i: r.pid }, r.side, false);
-  const ydF = { mkt: 'rec', pos: 'ALL', sort: 'high', view: 'cards', q: '', tab: 'board', open: false };
+  const ydF = RonUf.state('setYd', { mkt: 'rec', pos: 'ALL', sort: 'high', view: 'cards', q: '', tab: 'board', open: false });
   function setYd(k, v) { ydF[k] = v; if (k === 'mkt') { ydF.pos = 'ALL'; if (activeNav === 'yards') history.replaceState(history.state, '', currentPath()); } renderYards(); }
   window.setYd = setYd;
   window.onYdSearch = () => { ydF.q = document.getElementById('yd-search')?.value || ''; refocusSearch('yd-search', renderYards); };
