@@ -398,7 +398,9 @@ async function main() {
       const G = [];
       for (const day of Object.values(PH)) for (const [gid, ps] of Object.entries(day.fb || {})) {
         const w = won.get(String(gid)); if (!w) continue;
-        G.push(Object.entries(ps).map(([pid, p]) => [p, pid === w ? 1 : 0]));
+        // undo the shrink that day shipped with (fbS), so the fit always works on the raw prices: a power is reversible
+        const k = 1 / (day.fbS || 1), E = Object.entries(ps), tot = E.reduce((a, [, p]) => a + p, 0), z = E.reduce((a, [, p]) => a + p ** k, 0);
+        G.push(E.map(([pid, p]) => [p ** k / z * tot, pid === w ? 1 : 0]));
       }
       if (G.length < 50) return { s: 0.75, n: G.length };
       const ll = (s) => { let t = 0; for (const g of G) { const z = g.reduce((a, [p]) => a + p ** s, 0), tot = g.reduce((a, [p]) => a + p, 0);
@@ -456,7 +458,7 @@ async function main() {
   console.log(`Threes board: ${rows.length} players, ${boardDate || 'no slate'}${frozen.length ? ` (${rows.filter(r => frozen.includes(r)).length} frozen)` : ''}`);
 
   // the stat boards at the line the page quotes, nearest even money (statNearEven), for their Results
-  savePrices(boardDate, { threes: rows, doubles: ddRows, first: fbGames, stats: statRows, nearEven: (st, r) => statNearEven(st, r) }, today, shiftDate);
+  savePrices(boardDate, { threes: rows, doubles: ddRows, first: fbGames, stats: statRows, nearEven: (st, r) => statNearEven(st, r), fbShrink: fbShrink.s }, today, shiftDate);
 
   // ── 11) Watch lists: Milestones, Due, Birthdays ──────────────────────────
   let fun = null;

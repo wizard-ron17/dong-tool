@@ -57,10 +57,10 @@ export const recapHas = () => { try { return new Set(Object.keys(JSON.parse(fs.r
  * The boards' prices for a slate date, rewritten every build until the slate is
  * over — rows freeze at tip, so what stays is the last pre-tip price.
  *   t3:  pid -> [mu, P(1+) .. P(5+)]      dbl: pid -> [P(DD), P(TD)]
- *   fb:  gid -> pid -> P(first basket)
+ *   fb:  gid -> pid -> P(first basket)     fbS: the power those were shrunk with (absent = not shrunk)
  *   st:  stat -> pid -> [mu, line, P(over)]  (pts reb ast pra stl blk stk, at the board's line nearest even money)
  */
-export function savePrices(date, { threes, doubles, first, stats, nearEven }, today, shiftDate) {
+export function savePrices(date, { threes, doubles, first, stats, nearEven, fbShrink }, today, shiftDate) {
   if (!date) return;
   let H = { days: {} };
   try { H = JSON.parse(fs.readFileSync(HIST_PATH, 'utf8')); } catch (e) { /* first build */ }
@@ -70,6 +70,8 @@ export function savePrices(date, { threes, doubles, first, stats, nearEven }, to
     dbl: Object.fromEntries((doubles || []).map(r => [r.pid, [r.dd, r.td]])),
     fb: Object.fromEntries((first || []).map(g => [g.gid, Object.fromEntries(g.players.map(x => [x.pid, x.p]))])),
     st: Object.fromEntries(Object.entries(stats || {}).map(([st, rs]) => [st, Object.fromEntries(rs.map(r => [r.pid, nearEven(st, r)]))])),
+    // the power the first-basket prices were shrunk with (build-nba.js), so the next fit can undo it and work on the raw prices
+    ...(fbShrink != null && fbShrink !== 1 ? { fbS: fbShrink } : {}),
   };
   const from = shiftDate(today, -HIST_DAYS);
   for (const d of Object.keys(H.days)) if (d < from) delete H.days[d];
