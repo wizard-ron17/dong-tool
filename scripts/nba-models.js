@@ -57,7 +57,8 @@ export function projectMinutes(inp, ctx) {
   x.few_rot_b = x.few_rot * bench; x.slack_b = x.slack_share * bench;
   let v = m.coef.const;
   for (const c of m.cols) v += m.coef[c] * (x[c] ?? 0);
-  return { min: clip(v, 0, 44), sd: m.sd, lineup: useLineup };
+  // a hard cap (research/nba_teamcap.py, 11/13): the linear fit runs ~3 min high above 38, where coaches stop adding
+  return { min: clip(v, 0, M.cap ?? 44), sd: m.sd, lineup: useLineup };
 }
 
 /** His made threes per minute: season to date + half of last season, shrunk to his position family. */
