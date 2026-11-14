@@ -272,6 +272,36 @@ async function main() {
   const STATS = Object.keys(MODEL.stats.models);
   const statRows = Object.fromEntries(STATS.map(st => [st, []])), ddRows = [];
   const frozenStats = prevData.stats?.date === boardDate ? prevData.stats : null;
+  // ── Rolling level (11/13): live, the boards projected points 5.5% high (PRA 5.1, reb 4.3, ast 4.6) week after week:
+  // the build's minutes run ~0.6 high against research on the same games (it knows every absence from the report, the
+  // minutes fit was made on a conservative absence rule), the per-minute rate matches. Each build scales a stat's mean by
+  // scored / projected over the last 14 days of boards (players who played), shrunk one average day toward 1, held
+  // 0.85-1.15. Measured on the RAW mean (history row [3]) so a corrected board never reads as unbiased and switches it
+  // off. Live walk-forward 11/03-11/12, every rung: points -0.87%, PRA -1.40%, reb -0.19%, ast -0.16%. Doubles keep the
+  // raw means (their blend was fit on them).
+  const clip = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+  const LEVEL_STATS = ['pts', 'reb', 'ast', 'pra'];
+  const statLevel = (() => {
+    const out = Object.fromEntries(LEVEL_STATS.map(st => [st, { f: 1, n: 0 }]));
+    try {
+      const PH = JSON.parse(fs.readFileSync(new URL('../nba/prices-history.json', import.meta.url), 'utf8')).days || {};
+      const from = shiftDate(boardDate || today, -14), days = Object.keys(PH).filter(d => d >= from && d < (boardDate || today));
+      const box = new Map();
+      for (const [pid, s] of Object.entries(state.players || {})) for (const g of s.last10 || []) if (g.min > 0) box.set(pid + '|' + g.d, g);
+      for (const st of LEVEL_STATS) {
+        const parts = st === 'pra' ? ['pts', 'reb', 'ast'] : [st];
+        let A = 0, R = 0, n = 0;
+        for (const d of days) for (const [pid, v] of Object.entries(PH[d].st?.[st] || {})) {
+          const g = box.get(pid + '|' + d); if (!g) continue;
+          A += parts.reduce((a, k) => a + (g[k] || 0), 0); R += v[3] ?? v[0]; n++;
+        }
+        const K = days.length ? R / days.length : 0;                   // one average day of projections, at ratio 1
+        out[st] = { f: n ? +clip((A + K) / (R + K), 0.85, 1.15).toFixed(4) : 1, n, days: days.length };
+      }
+    } catch (e) { console.warn(`stat level: ${e.message}`); }
+    return out;
+  })();
+  console.log('Stat level: ' + LEVEL_STATS.map(st => `${st} x${statLevel[st].f} (${statLevel[st].n})`).join(', '));
   const priorPrev = priors?.players || {};
   // every club's current roster, once: the boards price off it, and the watch lists read birthdays and faces from it
   const rosters = new Map(await pool(Object.values(teams), 6, async (t) => {
@@ -333,13 +363,14 @@ async function main() {
         const mus = {};
         for (const st of STATS) {
           const r0 = statRate(st, s, prevTot, pos, priorPrev[a.id]?.prev2);
-          const mu = statMu(st, { rate: r0, form: statForm(st, s, r0), implied, oppRatio: statOpp(st, state.teams?.[opp]), home, mproj: M.min, early: inp.early });
-          mus[st] = mu;
+          const muRaw = statMu(st, { rate: r0, form: statForm(st, s, r0), implied, oppRatio: statOpp(st, state.teams?.[opp]), home, mproj: M.min, early: inp.early });
+          mus[st] = muRaw;                                                   // doubles: the raw means
+          const mu = muRaw * (statLevel[st]?.f ?? 1);                        // the rolling level above
           // the card's key metrics: his per-game rate (this season, else last), his last ten, the matchup
           const parts = { pra: ['pts', 'reb', 'ast'], stk: ['stl', 'blk'] }[st] || [st];
           const per = (o, n) => n ? +(parts.reduce((x, k) => x + (o?.[k] || 0), 0) / n).toFixed(1) : null;
           const R10 = s.reg10 || [];
-          statRows[st].push({ ...base, mu: +mu.toFixed(2), p: statLadder(st, mu, M.min, M.sd).map(x => +x.toFixed(4)),
+          statRows[st].push({ ...base, mu: +mu.toFixed(2), mr: +muRaw.toFixed(2), p: statLadder(st, mu, M.min, M.sd).map(x => +x.toFixed(4)),
             f: { avg: s.gp ? per(s, s.gp) : per(prevTot, prevTot?.gp), avgWhen: s.gp ? 'season' : 'last season',
                  l10: per(R10.reduce((o, g) => { for (const k of parts) o[k] = (o[k] || 0) + (g[k] || 0); return o; }, {}), R10.length),
                  opp: +statOpp(st, state.teams?.[opp]).toFixed(3), imp: implied, st10: +(inp.start10 ?? 0).toFixed(2) } });
@@ -461,7 +492,7 @@ async function main() {
   for (const st of STATS) statRows[st].sort((a, b) => b.mu - a.mu);
   ddRows.sort((a, b) => b.dd - a.dd);
   // the spread each distribution uses, so the page's ladder card draws what the build priced
-  const stats = boardDate ? { date: boardDate, generated: new Date().toISOString(),
+  const stats = boardDate ? { date: boardDate, generated: new Date().toISOString(), level: statLevel,
     spread: Object.fromEntries(STATS.map(st => [st, { a: MODEL.stats.models[st].a, p: MODEL.stats.models[st].p, ...(MODEL.stats.shape_cal?.[st] ? { cal: MODEL.stats.shape_cal[st] } : {}) }])),
     boards: Object.fromEntries(STATS.map(st => [st, { rungs: MODEL.stats.models[st].rungs, rows: statRows[st] }])), doubles: ddRows } : null;
   console.log(`Stats boards: ${STATS.map(st => `${st} ${statRows[st].length}`).join(', ')} · doubles ${ddRows.length}`);
@@ -471,7 +502,7 @@ async function main() {
   console.log(`Threes board: ${rows.length} players, ${boardDate || 'no slate'}${frozen.length ? ` (${rows.filter(r => frozen.includes(r)).length} frozen)` : ''}`);
 
   // the stat boards at the line the page quotes, nearest even money (statNearEven), for their Results
-  savePrices(boardDate, { threes: rows, doubles: ddRows, first: fbGames, stats: statRows, nearEven: (st, r) => statNearEven(st, r), fbShrink: fbShrink.s, fbV: FB_V }, today, shiftDate);
+  savePrices(boardDate, { threes: rows, doubles: ddRows, first: fbGames, stats: statRows, nearEven: (st, r) => [...statNearEven(st, r), r.mr ?? r.mu], fbShrink: fbShrink.s, fbV: FB_V }, today, shiftDate);
 
   // ── 11) Watch lists: Milestones, Due, Birthdays ──────────────────────────
   let fun = null;
