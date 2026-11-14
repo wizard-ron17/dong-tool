@@ -59,9 +59,10 @@ export const recapHas = () => { try { return new Set(Object.keys(JSON.parse(fs.r
  *   t3:  pid -> [mu, P(1+) .. P(5+)]      dbl: pid -> [P(DD), P(TD)]
  *   fb:  gid -> pid -> P(first basket)     fbS: the power those were shrunk with (absent = not shrunk)
  *   fbV: first-basket model version (2 = usage + FG% weights, shrunk per team; absent = v1)
+ *   minV: minutes-rule version the stat boards were built on (2 = depth rule of 11/13; the rolling level reads only these)
  *   st:  stat -> pid -> [mu, line, P(over)]  (pts reb ast pra stl blk stk, at the board's line nearest even money)
  */
-export function savePrices(date, { threes, doubles, first, stats, nearEven, fbShrink, fbV }, today, shiftDate) {
+export function savePrices(date, { threes, doubles, first, stats, nearEven, fbShrink, fbV, minV }, today, shiftDate) {
   if (!date) return;
   let H = { days: {} };
   try { H = JSON.parse(fs.readFileSync(HIST_PATH, 'utf8')); } catch (e) { /* first build */ }
@@ -74,6 +75,7 @@ export function savePrices(date, { threes, doubles, first, stats, nearEven, fbSh
     // the power the first-basket prices were shrunk with (build-nba.js), so the next fit can undo it and work on the raw prices
     ...(fbShrink != null && fbShrink !== 1 ? { fbS: fbShrink } : {}),
     ...(fbV ? { fbV } : {}),
+    ...(minV ? { minV } : {}),
   };
   const from = shiftDate(today, -HIST_DAYS);
   for (const d of Object.keys(H.days)) if (d < from) delete H.days[d];

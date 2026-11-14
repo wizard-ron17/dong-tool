@@ -277,10 +277,15 @@ async function main() {
   // minutes fit was made on a conservative absence rule), the per-minute rate matches. Each build scales a stat's mean by
   // scored / projected over the last 14 days of boards (players who played), shrunk one average day toward 1, held
   // 0.85-1.15. Measured on the RAW mean (history row [3]) so a corrected board never reads as unbiased and switches it
-  // off. Live walk-forward 11/03-11/12, every rung: points -0.87%, PRA -1.40%, reb -0.19%, ast -0.16%. Doubles keep the
-  // raw means (their blend was fit on them).
+  // off. Live walk-forward 11/03-11/12, every rung: points -0.87%, PRA -1.40%, reb -0.19%, ast -0.16%. Doubles take the
+  // corrected means too (live 10/30-11/12 repriced: DD log loss -0.7%, TD -1.1%; the blend was fit on research means,
+  // which have the minutes right).
   const clip = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
   const LEVEL_STATS = ['pts', 'reb', 'ast', 'pra'];
+  // minutes rule version (2 = depth counts OUT players who played the team's last game, 11/13). Boards built on the old
+  // rule had ~0.64 min more per player; their raw means are scaled by what the fix moved them on the same slate (11/13,
+  // 222 players, rebuilt both ways) so the level isn't corrected twice. They age out of the 14 days by 11/28.
+  const MIN_V = 2, OLD_RULE = { pts: 0.9711, reb: 0.9698, ast: 0.9732, pra: 0.9712 };
   const statLevel = (() => {
     const out = Object.fromEntries(LEVEL_STATS.map(st => [st, { f: 1, n: 0 }]));
     try {
@@ -293,7 +298,7 @@ async function main() {
         let A = 0, R = 0, n = 0;
         for (const d of days) for (const [pid, v] of Object.entries(PH[d].st?.[st] || {})) {
           const g = box.get(pid + '|' + d); if (!g) continue;
-          A += parts.reduce((a, k) => a + (g[k] || 0), 0); R += v[3] ?? v[0]; n++;
+          A += parts.reduce((a, k) => a + (g[k] || 0), 0); R += (v[3] ?? v[0]) * (PH[d].minV === MIN_V ? 1 : OLD_RULE[st]); n++;
         }
         const K = days.length ? R / days.length : 0;                   // one average day of projections, at ratio 1
         out[st] = { f: n ? +clip((A + K) / (R + K), 0.85, 1.15).toFixed(4) : 1, n, days: days.length };
@@ -317,8 +322,9 @@ async function main() {
     }
     for (const [me, opp, home] of [[g.home.ab, g.away.ab, true], [g.away.ab, g.home.ab, false]]) {
       const roster = rosters.get(me); if (!roster) continue;
-      const T = state.teams?.[me], tDates = T?.dates || [];
+      const T = state.teams?.[me], tDates = (T?.dates || []).filter(d => d < g.date);   // games before tonight's
       const recent3 = tDates.slice(-3)[0] || null;
+      const teamLastD = tDates[tDates.length - 1] || null;     // the team's last game
       const isOut = (a) => OUT_STATUS.test(injuries[a.id]?.status || '');
       // minutes newly vacated: rotation (10+ min last 10) teammates out tonight who played in the team's last 3 games
       let vac = 0; const vacFam = {};
@@ -333,10 +339,18 @@ async function main() {
       }
       // the team tonight as a pre-game reader knows it (depth): roster minus OUT and anyone not seen in the team's last
       // 3 games, its rotation players (10+ min last 10) and the minutes they usually play (research/nba_vacated.py)
+      // An OUT rotation player leaves the depth count only if he also missed the team's last game: the rule the minutes
+      // fit was made on (research nba_minutes.py known_out; ESPN tags most absences "coach's decision", so history can't
+      // say which first-game absences a report carried). Counting every report OUT here put the build 0.6-0.8 min high
+      // on the same games (11/13: research depth from all new absences, bias +0.03 -> +0.61 lineup / +0.77 pre). His
+      // minutes still count as vacated above, as in the fit.
       let nRot = 0, m10Sum = 0;
       for (const a of roster) {
-        if (isOut(a)) continue;
         const s = state.players[a.id]; if (!s?.last10?.length) continue;
+        if (isOut(a)) {
+          const lastD = s.last10[s.last10.length - 1].d, m10o = minutesInputs(s, priorPrev[a.id]?.prev).m10 ?? 0;
+          if (!recent3 || lastD < recent3 || (m10o >= MODEL.minutes.rotation_min && lastD < teamLastD)) continue;
+        }
         // not seen in 3 games: out long-term, unless the report lists him and not as out (a return: research counts
         // him, he played); a deep-bench name the report doesn't carry stays out of it
         if ((!recent3 || s.last10[s.last10.length - 1].d < recent3) && !injuries[a.id]) continue;
@@ -364,8 +378,8 @@ async function main() {
         for (const st of STATS) {
           const r0 = statRate(st, s, prevTot, pos, priorPrev[a.id]?.prev2);
           const muRaw = statMu(st, { rate: r0, form: statForm(st, s, r0), implied, oppRatio: statOpp(st, state.teams?.[opp]), home, mproj: M.min, early: inp.early });
-          mus[st] = muRaw;                                                   // doubles: the raw means
           const mu = muRaw * (statLevel[st]?.f ?? 1);                        // the rolling level above
+          mus[st] = mu;                                                      // doubles price off the same means
           // the card's key metrics: his per-game rate (this season, else last), his last ten, the matchup
           const parts = { pra: ['pts', 'reb', 'ast'], stk: ['stl', 'blk'] }[st] || [st];
           const per = (o, n) => n ? +(parts.reduce((x, k) => x + (o?.[k] || 0), 0) / n).toFixed(1) : null;
@@ -502,7 +516,7 @@ async function main() {
   console.log(`Threes board: ${rows.length} players, ${boardDate || 'no slate'}${frozen.length ? ` (${rows.filter(r => frozen.includes(r)).length} frozen)` : ''}`);
 
   // the stat boards at the line the page quotes, nearest even money (statNearEven), for their Results
-  savePrices(boardDate, { threes: rows, doubles: ddRows, first: fbGames, stats: statRows, nearEven: (st, r) => [...statNearEven(st, r), r.mr ?? r.mu], fbShrink: fbShrink.s, fbV: FB_V }, today, shiftDate);
+  savePrices(boardDate, { threes: rows, doubles: ddRows, first: fbGames, stats: statRows, nearEven: (st, r) => [...statNearEven(st, r), r.mr ?? r.mu], fbShrink: fbShrink.s, fbV: FB_V, minV: MIN_V }, today, shiftDate);
 
   // ── 11) Watch lists: Milestones, Due, Birthdays ──────────────────────────
   let fun = null;
