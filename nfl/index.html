@@ -4895,6 +4895,7 @@
       return;
     }
     gm.gid = gid; gm.tab = 'proj'; gm.all = false;
+    nflLiveOpen(gid);
     if (!fromRoute && location.pathname !== gmPathOf(gid)) { history.pushState({ gm: 1 }, '', gmPathOf(gid)); gmPushed = true; }
     if (!document.getElementById('gm-back')) {
       document.body.insertAdjacentHTML('beforeend', `
@@ -5055,25 +5056,34 @@
           NFLLIVE[g.gameId] = { id: ev.id, state: st.type?.state || 'pre', detail: st.type?.shortDetail || '', per: st.period || 0, left: st.clock ?? null, as: +side.away?.score || 0, hs: +side.home?.score || 0 };
         }
       }
-      const L = gm.gid && NFLLIVE[gm.gid];
-      if (L?.state === 'in') {
-        const j = await (await fetch(NFL_SUM + L.id)).json(), bx = {};
-        const n = (x) => +(String(x ?? '0').split('/')[0]) || 0;      // "21/30" -> 21, "1/2" FGs -> 1
-        for (const t of j.boxscore?.players || []) {
-          const m = bx[NFL_ESPN_AB[t.team?.abbreviation] || t.team?.abbreviation] ||= {};
-          for (const grp of t.statistics || []) for (const a of grp.athletes || []) {
-            const v = Object.fromEntries((grp.labels || []).map((l, i) => [l, a.stats?.[i]])), e = m[nflKey(a.athlete?.displayName)] ||= { td: 0, cmp: 0, int: 0, rec: 0, pass: 0, rush: 0, recy: 0, kpts: 0, kfg: 0 };
-            if (grp.name === 'passing') { e.cmp = n(v['C/ATT']); e.pass = n(v.YDS); e.int = n(v.INT); }
-            if (grp.name === 'rushing') { e.rush = n(v.YDS); e.td += n(v.TD); }
-            if (grp.name === 'receiving') { e.rec = n(v.REC); e.recy = n(v.YDS); e.td += n(v.TD); }
-            if (grp.name === 'kicking') { e.kfg = n(v.FG); e.kpts = n(v.PTS); }
-          }
-        }
-        NFLLIVE_BX[gm.gid] = bx;
-      }
+      await nflLiveBox(gm.gid, true);
     } catch (e) { /* the next tick tries again */ }
     finally { nflLiveBusy = false; if (activeNav === 'schedule') renderPanel('schedule'); if (gm.gid && document.getElementById('gm-back')) gmRender(); }
   }
+  // the open game's live lines: on the minute tick, and as soon as a game is opened or picked in the split view (at most
+  // once per 20s per game), so its cells don't wait up to a minute
+  const NFLLIVE_AT = {};
+  async function nflLiveBox(gid, force) {
+    const L = gid && NFLLIVE[gid];
+    if (L?.state !== 'in' || (!force && Date.now() - (NFLLIVE_AT[gid] || 0) < 20e3)) return false;
+    NFLLIVE_AT[gid] = Date.now();
+    try {
+      const j = await (await fetch(NFL_SUM + L.id)).json(), bx = {};
+      const n = (x) => +(String(x ?? '0').split('/')[0]) || 0;      // "21/30" -> 21, "1/2" FGs -> 1
+      for (const t of j.boxscore?.players || []) {
+        const m = bx[NFL_ESPN_AB[t.team?.abbreviation] || t.team?.abbreviation] ||= {};
+        for (const grp of t.statistics || []) for (const a of grp.athletes || []) {
+          const v = Object.fromEntries((grp.labels || []).map((l, i) => [l, a.stats?.[i]])), e = m[nflKey(a.athlete?.displayName)] ||= { td: 0, cmp: 0, int: 0, rec: 0, pass: 0, rush: 0, recy: 0, kpts: 0, kfg: 0 };
+          if (grp.name === 'passing') { e.cmp = n(v['C/ATT']); e.pass = n(v.YDS); e.int = n(v.INT); }
+          if (grp.name === 'rushing') { e.rush = n(v.YDS); e.td += n(v.TD); }
+          if (grp.name === 'receiving') { e.rec = n(v.REC); e.recy = n(v.YDS); e.td += n(v.TD); }
+          if (grp.name === 'kicking') { e.kfg = n(v.FG); e.kpts = n(v.PTS); }
+        }
+      }
+      NFLLIVE_BX[gid] = bx; return true;
+    } catch (e) { NFLLIVE_AT[gid] = 0; return false; }
+  }
+  function nflLiveOpen(gid) { nflLiveBox(gid).then(ok => { if (ok && gm.gid === gid) gmRender(); }); }
   function nflLiveStart() {
     if (nflLiveTimer) return;
     nflLiveTick(); nflLiveTimer = setInterval(nflLiveTick, 60e3);
@@ -5125,7 +5135,7 @@
   function gmPanel(gid) {
     if (gm.gid !== gid) { gm.gid = gid; gm.tab = 'proj'; }
     const g = gmGame(); if (!g) return '';
-    ensureLiveLog(); loadPlays();
+    ensureLiveLog(); loadPlays(); nflLiveOpen(gid);
     return gmHtml(g);
   }
   function gmRender() {

@@ -1405,16 +1405,7 @@
           if (det) LIVE_RC[g.id] = { ...det, live: L.state === 'in' ? L.detail : null, done: L.state === 'post' };
         } catch (e) { /* next tick */ }
       }
-      const open = nbaOpenGid();
-      if (open && NLIVE[open]?.state === 'in') {
-        const j = await (await fetch(NBA_SUM + open)).json(), m = {};
-        const n = (x) => +(String(x ?? '0').split('-')[0]) || 0;      // "3-7" made-attempted: the made
-        for (const t of j.boxscore?.players || []) for (const grp of t.statistics || []) for (const a of grp.athletes || []) {
-          const v = Object.fromEntries((grp.labels || []).map((l, i) => [l, a.stats?.[i]]));
-          m[a.athlete?.id] = { pts: n(v.PTS), reb: n(v.REB), ast: n(v.AST), '3pm': n(v['3PT']), stl: n(v.STL), blk: n(v.BLK) };
-        }
-        NLIVE_BX[open] = m;
-      }
+      await nbaLiveBox(nbaOpenGid(), true);
     } catch (e) { /* the next tick tries again */ }
     finally {
       nLiveBusy = false;
@@ -1422,6 +1413,30 @@
       if (activeNav === 'recap' && Object.keys(LIVE_RC).length) { if (rxIdle()) renderRecap(); else rxRedraw = true; }
       if (nbaGid && document.getElementById('gm-back')) openGame(nbaGid);
     }
+  }
+  // the open game's live lines: on the minute tick, and as soon as a game is opened or picked in the split view (at most
+  // once per 20s per game), so its cells don't wait up to a minute
+  const NLIVE_AT = {};
+  async function nbaLiveBox(gid, force) {
+    if (!gid || NLIVE[gid]?.state !== 'in' || (!force && Date.now() - (NLIVE_AT[gid] || 0) < 20e3)) return false;
+    NLIVE_AT[gid] = Date.now();
+    try {
+      const j = await (await fetch(NBA_SUM + gid)).json(), m = {};
+      const n = (x) => +(String(x ?? '0').split('-')[0]) || 0;      // "3-7" made-attempted: the made
+      for (const t of j.boxscore?.players || []) for (const grp of t.statistics || []) for (const a of grp.athletes || []) {
+        const v = Object.fromEntries((grp.labels || []).map((l, i) => [l, a.stats?.[i]]));
+        m[a.athlete?.id] = { pts: n(v.PTS), reb: n(v.REB), ast: n(v.AST), '3pm': n(v['3PT']), stl: n(v.STL), blk: n(v.BLK) };
+      }
+      NLIVE_BX[gid] = m; return true;
+    } catch (e) { NLIVE_AT[gid] = 0; return false; }
+  }
+  /** Fetch a just-opened game's live lines, then redraw wherever it shows. */
+  function nbaLiveOpen(gid) {
+    nbaLiveBox(gid).then(ok => {
+      if (!ok) return;
+      if (RonSlate.active() && String(RonSlate.current?.()) === String(gid)) RonSlate.refresh();
+      else if (nbaGid === gid && document.getElementById('gm-back')) openGame(gid);
+    });
   }
   function nbaLiveStart() {
     if (nLiveTimer) return;
@@ -1490,7 +1505,7 @@
   function openGame(gid) {
     if (RonSlate.select(gid)) return;
     const g = nbaGameOf(gid); if (!g) return;
-    nbaGid = g.id;
+    nbaGid = g.id; nbaLiveOpen(g.id);
     const dlg = RonModal.open('gm-back', { cls: 'pm ydm gmm', nav: { prev: 'nbaGameStep(-1)', next: 'nbaGameStep(1)' }, onClose: () => { nbaGid = null; } });
     dlg.innerHTML = `<button class="pm-x" onclick="RonModal.close('gm-back')" aria-label="Close">×</button>` + nbaGameHtml(g);
     const deck = D.schedule.filter(x => x.date === g.date);
@@ -1534,7 +1549,7 @@
       </div>
       <div class="result-meta"><b>${dayLabel(scheduleDate, true)}</b> · ${games.length} game${games.length === 1 ? '' : 's'}${pre ? ` · ${pre} preseason` : ''} · lines are DraftKings' · every game's projected box score</div>`;
     const next = games.find(g => g.state !== 'post') || games[0];
-    RonSlate.render(el, { key: 'nba', top, pick: next?.id, panel: (gid) => { const g = nbaGameOf(gid); return g ? nbaGameHtml(g) : ''; }, rail: nbaRail(games),
+    RonSlate.render(el, { key: 'nba', top, pick: next?.id, panel: (gid) => { const g = nbaGameOf(gid); if (g) nbaLiveOpen(g.id); return g ? nbaGameHtml(g) : ''; }, rail: nbaRail(games),
       list: `<div class="sc-list">${games.map(gameRow).join('') || '<div class="empty">No games on this date.</div>'}</div>` });
   }
 

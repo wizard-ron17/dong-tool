@@ -5624,8 +5624,17 @@
       if (gm.gid) gmRender();
     }
   }
+  // the open game's live lines: fetched when it's opened or picked in the split view (not just on the minute tick), at most
+  // once per 20s per game, then the card redraws
+  const LIVE_AT = {};
+  function liveGame(g) {
+    const L = g && liveOf(g); if (!L?.id || L.state !== 'in' || Date.now() - (LIVE_AT[L.id] || 0) < 20e3) return;
+    LIVE_AT[L.id] = Date.now();
+    liveGoals(g).then(() => { if (gm.gid === g.gameId) gmRender(); }).catch(() => { LIVE_AT[L.id] = 0; });
+  }
   async function liveGoals(g) {
     const L = liveOf(g); if (!L?.id) return;
+    LIVE_AT[L.id] = Date.now();
     const r = await fetch(ESPN_SUM + L.id); if (!r.ok) return;
     const j = await r.json();
     const ids = Object.fromEntries((j.header?.competitions?.[0]?.competitors || []).map(c => [c.team.id, espnAb(c.team.abbreviation)]));
@@ -5812,7 +5821,7 @@
     document.body.style.overflow = 'hidden';
     const g = gmGame();
     if (g && gmState(g) !== 'pre') { loadGameHist(); if (!gameGoals(g)) loadPlayersLog(); }
-    if (g && gmState(g) === 'live' && liveOf(g)) liveGoals(g).then(() => gmRender()).catch(() => {});
+    liveGame(g);
     gmRender();
   }
   function gmKey(e) {
@@ -5955,6 +5964,7 @@
     if (gm.gid !== +gid) { gm.gid = +gid; gm.tab = null; }
     const g = gmGame(); if (!g) return '';
     if (gmState(g) !== 'pre') { loadGameHist(); if (!gameGoals(g)) loadPlayersLog(); }
+    liveGame(g);                               // a game picked in the split view gets its live lines now, not at the next tick
     return gmHtml(g);
   }
   function gmRender() {
