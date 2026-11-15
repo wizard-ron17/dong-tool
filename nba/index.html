@@ -937,6 +937,7 @@
   .fbc-t1 { font: 700 17px var(--font-d); letter-spacing: 0.04em; }
   .fbc-t1p { font: 600 15px var(--font-b); }
   .fbc-t2 { font: 700 13px var(--font-d); pointer-events: none; }
+  .fbc-t2.sm { font-size: 11px; }
   .fbc-t2p { font: 12px var(--font-m); pointer-events: none; }
   .fbc-eq { display: flex; align-items: center; justify-content: center; gap: 0.7rem; margin-top: 0.85rem; flex-wrap: wrap; }
   .fbc-eq div { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; padding: 0.35rem 0.7rem; border-radius: 9px; background: var(--surface1); border: 1px solid var(--border); min-width: 6.5rem; }
@@ -3069,10 +3070,13 @@
       for (const r of T) {
         const ww = r.p / tot * w, on = fbc.pid === r.pid, dim = fbc.pid && !on, sx = xx + (xx ? PAD / 2 : 0), sw = Math.max(0, ww - (xx ? PAD / 2 : 0) - PAD / 2);
         out += `<g class="fbc-seg${on ? ' on' : ''}" onclick="fbcPick('${r.pid}')"><rect x="${sx.toFixed(1)}" y="${R1 + GAP}" width="${sw.toFixed(1)}" height="${R2}" rx="4" fill="${c}" opacity="${on ? 1 : dim ? 0.3 : 0.55}"${on ? ' stroke="var(--text-strong)" stroke-width="2"' : ''}><title>${esc(r.name)}: ${(r.p * 100).toFixed(1)}% (${Odds.am(r.p)})</title></rect>`;
-        const nm = fbcLast(r.name), fit = Math.max(nm.length * 7.4, 36) + 10 <= sw;
-        if (fit) out += `<text x="${(sx + sw / 2).toFixed(1)}" y="${R1 + GAP + R2 / 2 - 2}" class="fbc-t2" text-anchor="middle" fill="${on ? fbcInk(c) : 'var(--text-strong)'}">${esc(nm)}</text>
-          <text x="${(sx + sw / 2).toFixed(1)}" y="${R1 + GAP + R2 / 2 + 15}" class="fbc-t2p" text-anchor="middle" fill="${on ? fbcInk(c) : 'var(--muted)'}">${(r.p * 100).toFixed(1)}%</text>`;
-        else if (sw > 22) out += `<text x="${(sx + sw / 2).toFixed(1)}" y="${R1 + GAP + R2 / 2 + 5}" class="fbc-t2p" text-anchor="middle" fill="${on ? fbcInk(c) : 'var(--muted)'}">${Math.round(r.p * 100)}</text>`;
+        // the label shrinks before it gives up: full name, then a smaller size, then cut with an ellipsis; a sliver keeps its %
+        const nm = fbcLast(r.name), cx = (sx + sw / 2).toFixed(1), ink = on ? fbcInk(c) : 'var(--text-strong)', sub = on ? fbcInk(c) : 'var(--muted)';
+        const room = sw - 8, big = nm.length * 7.4 <= room, small = nm.length * 6.2 <= room, cut = Math.floor(room / 6.2) - 1;
+        const lab = big || small ? nm : cut >= 3 ? nm.slice(0, cut) + '…' : null, pc = sw >= 40 ? `${(r.p * 100).toFixed(1)}%` : `${Math.round(r.p * 100)}%`;
+        if (lab) out += `<text x="${cx}" y="${R1 + GAP + R2 / 2 - 2}" class="fbc-t2${big ? '' : ' sm'}" text-anchor="middle" fill="${ink}">${esc(lab)}</text>
+          <text x="${cx}" y="${R1 + GAP + R2 / 2 + 15}" class="fbc-t2p" text-anchor="middle" fill="${sub}">${pc}</text>`;
+        else if (sw > 18) out += `<text x="${cx}" y="${R1 + GAP + R2 / 2 + 5}" class="fbc-t2p" text-anchor="middle" fill="${sub}">${pc}</text>`;
         out += '</g>'; xx += ww;
       }
       x += w;
