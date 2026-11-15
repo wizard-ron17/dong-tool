@@ -502,7 +502,9 @@ async function main() {
     for (const [ab, S, pt] of [[g.home.ab, H, pHome / norm], [g.away.ab, A, pAway / norm]]) {
       const w = S.L.map(x => fbWeight(x.s, x.pos)), W = w.reduce((a, b) => a + b, 0);
       S.L.forEach((x, i) => players.push({ pid: x.a.id, name: x.a.displayName, team: ab, pos: x.pos, jumper: x === S.jumper,
-        p: +(pt * w[i] / W).toFixed(4), fb: x.s.fb || 0, starts: x.s.starts || 0, st10: +x.start10.toFixed(2) }));
+        p: +(pt * w[i] / W).toFixed(4), fb: x.s.fb || 0, starts: x.s.starts || 0, st10: +x.start10.toFixed(2),
+        // what his weight is made of, for the page's first basket card: tip record, shots a game, FG%
+        tipn: x.s.tipn || 0, tipw: x.s.tipw || 0, fga: x.s.gp ? +(x.s.fga / x.s.gp).toFixed(1) : null, fgp: x.s.fga ? +(x.s.fgm / x.s.fga).toFixed(3) : null }));
     }
     for (const ab of [g.home.ab, g.away.ab]) {                                          // the rolling shrink above, per team
       const T = players.filter(x => x.team === ab), tot = T.reduce((a, x) => a + x.p, 0), z = T.reduce((a, x) => a + x.p ** fbShrink.s, 0);
@@ -511,9 +513,10 @@ async function main() {
     players.sort((a, b) => b.p - a.p);
     fbGames.push({ gid: g.id, start: g.start, home: g.home.ab, away: g.away.ab,
       tip: { home: H.jumper.a.displayName, away: A.jumper.a.displayName, pHome: +pHomeTip.toFixed(3) },
-      pHomeFirst: +(pHome / norm).toFixed(3), players });
+      pHomeFirst: +(pHome / norm).toFixed(3), margin: +(H.margin || 0).toFixed(1), players });
   }
-  const first = boardDate ? { date: boardDate, generated: new Date().toISOString(), projected: true, shrink: fbShrink, games: fbGames } : null;
+  const first = boardDate ? { date: boardDate, generated: new Date().toISOString(), projected: true, shrink: fbShrink,
+    e: +MODEL.first.e.toFixed(3), posRate: MODEL.first.pos_rate, games: fbGames } : null;
   console.log(`First basket: ${fbGames.length} games priced`);
   for (const st of STATS) statRows[st].sort((a, b) => b.mu - a.mu);
   ddRows.sort((a, b) => b.dd - a.dd);
