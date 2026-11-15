@@ -121,15 +121,24 @@ async function main() {
   }
 
   // ── 3) Schedule window: lines and scores ──────────────────────────────
-  const schedule = (await events(shiftDate(today, -BEHIND), shiftDate(today, AHEAD))).map(e => {
-    const c = e.competitions[0], side = Object.fromEntries(c.competitors.map(x => [x.homeAway, x]));
-    const o = c.odds?.[0];
-    const sp = num(o?.spread), tot = num(o?.overUnder);
-    const lines = o ? { book: o.provider?.name || null, spread: sp, total: tot, detail: o.details || null,
-      mlHome: num(o.homeTeamOdds?.moneyLine), mlAway: num(o.awayTeamOdds?.moneyLine),
+  // ESPN's odds object (DraftKings): spread is the home line (negative = home favoured). The moneylines, the spread and
+  // total prices and the opening numbers sit in moneyline / pointSpread / total { home|away|over|under: { open, close } }
+  // (homeTeamOdds.moneyLine went empty in 2026-27). A game's odds drop off the scoreboard once it tips: carried below.
+  const amN = (x) => { const v = parseFloat(String(x ?? '').replace(/^[ou]/, '')); return Number.isFinite(v) ? v : null; };
+  function gameLines(o) {
+    if (!o) return null;
+    const sp = num(o.spread), tot = num(o.overUnder), M = o.moneyline || {}, S = o.pointSpread || {}, T = o.total || {};
+    return { book: o.provider?.name || null, spread: sp, total: tot, detail: o.details || null,
+      mlHome: amN(M.home?.close?.odds) ?? num(o.homeTeamOdds?.moneyLine), mlAway: amN(M.away?.close?.odds) ?? num(o.awayTeamOdds?.moneyLine),
+      spHomeOdds: amN(S.home?.close?.odds), spAwayOdds: amN(S.away?.close?.odds), overOdds: amN(T.over?.close?.odds), underOdds: amN(T.under?.close?.odds),
+      open: { spread: amN(S.home?.open?.line), total: amN(T.over?.open?.line), mlHome: amN(M.home?.open?.odds), mlAway: amN(M.away?.open?.odds) },
       // implied points: total/2 minus half the home spread (negative spread = home favoured)
       impHome: sp != null && tot != null ? +(tot / 2 - sp / 2).toFixed(1) : null,
-      impAway: sp != null && tot != null ? +(tot / 2 + sp / 2).toFixed(1) : null } : null;
+      impAway: sp != null && tot != null ? +(tot / 2 + sp / 2).toFixed(1) : null };
+  }
+  const schedule = (await events(shiftDate(today, -BEHIND), shiftDate(today, AHEAD))).map(e => {
+    const c = e.competitions[0], side = Object.fromEntries(c.competitors.map(x => [x.homeAway, x]));
+    const lines = gameLines(c.odds?.[0]);
     const team = (x) => ({ ab: x.team.abbreviation, score: num(x.score), rec: x.records?.[0]?.summary || null });
     return { id: e.id, start: e.date, date: etDate(new Date(e.date)), type: e.season?.type ?? null,
       state: c.status?.type?.state || 'pre', detail: c.status?.type?.shortDetail || '', venue: c.venue?.fullName || null,
@@ -266,6 +275,9 @@ async function main() {
   const boardDate = slate.length ? slate[0].date : null;
   slate = slate.filter(g => g.date === boardDate);
   const prevData = readJSON(OUT, {});
+  // a started game's odds are gone from the scoreboard: keep the last pregame lines a build saw (the close, near enough)
+  { const was = Object.fromEntries((prevData.schedule || []).filter(g => g.lines).map(g => [g.id, g.lines]));
+    for (const g of schedule) if (!g.lines && was[g.id]) g.lines = was[g.id]; }
   const frozen = (prevData.threes?.date === boardDate ? prevData.threes.rows : []) || [];
   const rows = [];
   const teamCtx = {};                          // gid -> team -> the priced players, for first basket

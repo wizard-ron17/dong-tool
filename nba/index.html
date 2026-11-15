@@ -771,6 +771,127 @@
   .brand-puck { width: 30px; height: 30px; flex-shrink: 0; }
   :root[data-theme="light"] .brand-puck { filter: drop-shadow(0 0 1px rgba(0,0,0,0.55)); }
   .foot-credit { min-width: 0; }
+  /* the game card's Matchup / Lines / Lineup / Game panels (11/14): /nhl's rules, copied verbatim */
+  :root { --mvc: #8b9cff; }
+  :root[data-theme="light"] { --mvc: #4a57d8; }
+  .scm { margin-top: 0.7rem; border-top: 1px solid var(--border); padding-top: 0.5rem; }
+  .scm-row { display: grid; grid-template-columns: 6rem 1fr 1.2rem 1fr; gap: 0.4rem; font-family: var(--font-m); font-size: 0.74rem; padding: 0.18rem 0; color: var(--muted); }
+  .scm-head { font-family: var(--font-b); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+  .scm-o { text-align: right; }
+  .scm-c { color: var(--text-strong); font-weight: 700; }
+  .scm-c.moved { color: var(--mvc); }
+  .scm-hist { font-size: 0.68rem; color: var(--dim); line-height: 1.6; margin-top: 0.35rem; }
+  .scm-hist span { display: block; font-family: var(--font-m); }
+  .gf.flat { border: none; background: transparent; padding: 0; }
+  .gf { background: var(--surface0); border: 1px solid var(--border2); border-top: none; padding: 0.85rem 1rem 0.7rem; }
+  .gf-empty { padding: 1rem 0; color: var(--muted); font-size: 0.85rem; }
+  .gf-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem 1rem; margin-bottom: 0.55rem; }
+  .gf-head h4 { margin: 0; font-family: var(--font-d); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--silver); }
+  .gf-teams { display: flex; gap: 1rem; }
+  .gf-team { display: inline-flex; align-items: center; gap: 0.35rem; font-family: var(--font-d); font-weight: 700; font-size: 0.9rem; color: var(--muted); }
+  .gf-team i { width: 0.9rem; height: 3px; border-radius: 2px; background: var(--c); }
+  .gf-team img { width: 1.1rem; height: 1.1rem; object-fit: contain; }
+  .gf-team b { font-size: 1.05rem; color: var(--text); font-variant-numeric: tabular-nums; }
+  .gf-team.won b { color: var(--text-strong); }
+  .gf-team.won { color: var(--text-strong); }
+  .gf-plot { position: relative; height: 10.5rem; margin: 0 0.2rem; touch-action: pan-y; cursor: crosshair; }
+  .gf-plot svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .gf-mid { stroke: var(--border2); stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+  .gf-q { stroke: var(--border); vector-effect: non-scaling-stroke; }
+  .gf-ot { fill: var(--surface2); opacity: 0.55; }
+  .gf-line { fill: none; stroke-width: 2.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+  .gf-plot svg { animation: gfDraw 1.7s ease-out both; }
+  .gf-line.away { stroke-width: 2; opacity: 0.75; }
+  @keyframes gfDraw { from { clip-path: inset(-10px 100% -10px 0); } to { clip-path: inset(-10px -10px -10px 0); } }
+  .gf-pct { position: absolute; left: 0.2rem; font-size: 0.6rem; color: var(--dim); font-family: var(--font-d); pointer-events: none; }
+  .gf-pct.top { top: 0.1rem; }
+  .gf-pct.mid { top: calc(50% - 0.95rem); }
+  .gf-cursor { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--silver); opacity: 0.6; pointer-events: none; }
+  .gf-read { position: absolute; top: -0.35rem; transform: translate(-50%, -100%); white-space: nowrap; font-size: 0.72rem; font-family: var(--font-d); color: var(--text); background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px; padding: 0.15rem 0.45rem; pointer-events: none; z-index: 3; }
+  .gf-read b { color: var(--gold); margin-right: 0.2rem; }
+  .gf-td { position: absolute; width: 13px; height: 13px; margin: -6.5px 0 0 -6.5px; padding: 0; border-radius: 50%; border: 2px solid var(--surface0); background: var(--c); box-shadow: 0 0 0 1px var(--c), 0 0 8px color-mix(in srgb, var(--c) 70%, transparent); cursor: pointer; z-index: 2; opacity: 0; animation: gfPop 0.35s var(--d) ease-out forwards; }
+  .gf-td::before { content: ''; position: absolute; inset: -9px; }
+  .gf-td span { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 0.7rem; font-family: var(--font-d); font-weight: 700; color: var(--text-strong); background: var(--surface2); border: 1px solid var(--c); border-radius: 6px; padding: 0.12rem 0.4rem; opacity: 0; pointer-events: none; transition: opacity 0.15s; }
+  .gf-td.flip span { left: auto; right: -6px; transform: none; }
+  .gf-td:hover, .gf-td:focus-visible { transform: scale(1.35); }
+  .gf-td:hover span, .gf-td:focus-visible span { opacity: 1; }
+  @keyframes gfPop { 0% { opacity: 0; transform: scale(0.2); } 70% { opacity: 1; transform: scale(1.4); } 100% { opacity: 1; transform: scale(1); } }
+  .gf-ql { position: relative; height: 1.1rem; margin: 0.2rem 0.2rem 0; font-size: 0.66rem; color: var(--muted); font-family: var(--font-d); }
+  .gf-ql span { position: absolute; transform: translateX(-50%); }
+  .gf-note { margin: 0.35rem 0 0; font-size: 0.8rem; color: var(--muted); }
+  .gf-note b { color: var(--text); }
+  .gmx { background: var(--surface1); border: 1px solid var(--border); border-radius: 12px; padding: 0.7rem 0.8rem; }
+  .gmx-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; font-family: var(--font-d); font-weight: 700; color: var(--text-strong); margin-bottom: 0.35rem; }
+  .gmx-head > span:last-child { text-align: right; }
+  .gmx-mid { font-family: var(--font-b); font-size: 0.66rem; font-weight: 600; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; }
+  .gmx-logo { width: 20px; height: 20px; object-fit: contain; vertical-align: -5px; margin: 0 0.35rem; }
+  .gmx-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 0.5rem; padding: 0.38rem 0; border-top: 1px solid var(--border); }
+  .gmx-k { font-size: 0.7rem; color: var(--muted); text-align: center; min-width: 7.5rem; }
+  .gmx-v { font-family: var(--font-d); font-weight: 700; font-size: 1.02rem; }
+  .gmx-row > .gmx-v:last-child, .gmx-row > .gmx-gl:last-child { justify-self: end; text-align: right; }
+  .gmx-v small { font-family: var(--font-m); font-size: 0.62rem; font-weight: 600; color: var(--dim); margin-left: 0.3rem; }
+  .gmx-v.great { color: var(--good); } .gmx-v.good { color: color-mix(in srgb, var(--good) 65%, var(--text)); }
+  .gmx-v.avg { color: var(--gold); } .gmx-v.below { color: color-mix(in srgb, var(--bad) 60%, var(--gold)); } .gmx-v.bad { color: var(--bad); }
+  .gmx-gl { display: flex; align-items: center; gap: 0.45rem; min-width: 0; }
+  .gmx-gl .rc-photo { width: 30px; height: 30px; margin: 0; flex-shrink: 0; }
+  .gmx-gl span { display: flex; flex-direction: column; font-size: 0.78rem; min-width: 0; }
+  .gmx-gl small { color: var(--dim); font-size: 0.66rem; }
+  .gmx-row > .gmx-gl:last-child { flex-direction: row-reverse; }
+  .gmx-wp { margin-top: 0.7rem; }
+  .gmx-wpbar { height: 8px; border-radius: 999px; background: linear-gradient(90deg, var(--surface2) 0 calc(100% - var(--h)), var(--accent) calc(100% - var(--h)) 100%); }
+  .gmx-wpl { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted); margin-top: 0.3rem; }
+  .gmx-wpl b { color: var(--text-strong); font-family: var(--font-d); }
+  .lr-note { font-size: 0.78rem; color: var(--muted); margin-top: 0.6rem; line-height: 1.45; }
+  .lu { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 0.4rem; }
+  @media (max-width: 760px) { .lu { grid-template-columns: 1fr; } }
+  .lu-h { display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.4rem; font-family: var(--font-d); }
+  .lu-h img { width: 22px; height: 22px; } .lu-h span { margin-left: auto; font-size: 0.68rem; color: var(--dim); font-family: var(--font-b); }
+  .lu-row { display: grid; grid-template-columns: 2.4rem 1fr auto; align-items: center; gap: 0.4rem; padding: 0.5rem 0; border-top: 1px solid var(--border); font-size: 0.82rem; }
+  .lu-t { font-family: var(--font-d); font-weight: 700; color: var(--muted); font-size: 0.78rem; }
+  .lu-ps { display: flex; flex-wrap: wrap; gap: 0.5rem; min-width: 0; }
+  .lu-p { cursor: pointer; border-radius: 10px; padding: 0.15rem 0; }
+  .lu-p:hover .rc-photo { border-color: var(--accent); }
+  .lu-p:hover b { color: var(--accent); }
+  .lu-p { position: relative; width: 74px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.12rem; }
+  .lu-p .rc-photo { width: 50px; height: 50px; margin: 0 0 0.15rem; border-radius: 50%; object-fit: cover; background: var(--surface1); border: 1px solid var(--border2); font-size: 0.8rem; }
+  .lu-p b { color: var(--text); font-weight: 600; font-size: 0.74rem; line-height: 1.15; max-width: 74px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lu-p em { font-style: normal; font-size: 0.62rem; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .lu-p .inj-chip, .lu-p [class*="inj"] { font-size: 0.55rem; }
+  .lu-mv { position: absolute; top: -2px; right: 6px; font-style: normal; font-size: 0.58rem; font-weight: 700; color: var(--text); background: var(--surface0); border: 1px solid var(--border2); border-radius: 8px; padding: 0 0.22rem; line-height: 1.4; }
+  @media (max-width: 760px) { .lu-ps { gap: 0.3rem; } .lu-p { width: 58px; } .lu-p .rc-photo { width: 42px; height: 42px; } .lu-p b { max-width: 58px; font-size: 0.68rem; } .lu-row { grid-template-columns: 1.9rem 1fr; } .lu-new { grid-column: 2; justify-self: start; } }
+  .lu-new { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border2); border-radius: 4px; padding: 0 0.3rem; }
+  .lu-sp { height: 0.5rem; }
+  .lu-out { margin-top: 0.6rem; font-size: 0.74rem; color: var(--muted); } .lu-out b { color: var(--text); } .lu-out em { font-style: normal; font-size: 0.62rem; color: var(--dim); margin: 0 0.15rem 0 0.25rem; }
+  .sc-ln { font-family: var(--font-m); font-size: 0.704rem; color: var(--text); background: var(--surface0);
+           border: 1px solid var(--border); border-radius: 5px; padding: 0.1rem 0.34rem; white-space: nowrap; }
+  @media (max-width: 430px) { .sc-ln { font-size: 0.680rem; padding: 0.08rem 0.28rem; } }
+  .scl { margin-top: 0.6rem; border: 1px solid var(--border); border-radius: 10px; background: var(--surface0); padding: 0.5rem 0.7rem; }
+  .scl-grid { display: grid; gap: 0.2rem; }
+  .sc-ln.sc-book { color: var(--muted); background: transparent; border-style: dashed; letter-spacing: 0.04em; }
+  .scl-title { display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.4rem; font-size: 0.7rem; font-weight: 700; color: var(--muted); }
+  .scl-row { display: grid; grid-template-columns: minmax(0, 1fr) 5rem 6.5rem; align-items: center; gap: 0.4rem; font-family: var(--font-m); font-size: 0.78rem; color: var(--text); }
+  .scl-row > span:not(:first-child) { text-align: right; }
+  .scl-head { font-family: var(--font-b); font-size: 0.64rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .scl-team { display: flex; align-items: center; gap: 0.4rem; font-family: var(--font-d); font-weight: 700; color: var(--text-strong); }
+  .scl-logo { width: 20px; height: 20px; object-fit: contain; }
+  .scl-row em, .scl-tot em { font-style: normal; color: var(--muted); }
+  .scl-tot { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.45rem; padding-top: 0.45rem; border-top: 1px solid var(--border); font-family: var(--font-m); font-size: 0.78rem; color: var(--text); }
+  .scl-tot b { font-family: var(--font-d); color: var(--text-strong); }
+  .scl-src { margin-top: 0.4rem; font-size: 0.64rem; color: var(--dim); }
+  .lu-p .lu-q { color: var(--gold); font-size: 0.58rem; }
+  /* five a row, not hockey's three: narrower chips (NBA only) */
+  .lu .lu-row { grid-template-columns: 2.6rem 1fr; }
+  .lu .lu-ps { gap: 0.35rem; flex-wrap: nowrap; }
+  .lu .lu-p { width: 62px; flex: 0 1 62px; min-width: 0; }
+  .lu .lu-p .rc-photo { width: 44px; height: 44px; }
+  .lu .lu-p b { max-width: 62px; }
+  @media (max-width: 760px) { .lu .lu-row { grid-template-columns: 2.2rem 1fr; } .lu .lu-ps { gap: 0.2rem; } .lu .lu-p .rc-photo { width: 38px; height: 38px; } .lu .lu-p b { font-size: 0.64rem; } }
+  .ngl { width: 100%; border-collapse: collapse; margin-top: 0.7rem; font-family: var(--font-m); font-size: 0.78rem; }
+  .ngl th { font: 600 0.62rem var(--font-b); letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); text-align: center; padding: 0.2rem; }
+  .ngl td { text-align: center; padding: 0.3rem 0.2rem; border-top: 1px solid var(--border); color: var(--text); font-variant-numeric: tabular-nums; }
+  .ngl td:first-child { text-align: left; font-family: var(--font-d); font-weight: 700; color: var(--text-strong); white-space: nowrap; }
+  .ngl td:first-child img { width: 18px; height: 18px; object-fit: contain; vertical-align: -4px; margin-right: 0.35rem; }
+  .ngl td:last-child b { color: var(--text-strong); }
   /* the doubles card (11/13; 11/14 a chart: three distributions, one line at 10) */
   @media (min-width: 861px) { .dc-card .ydm-grid { grid-template-columns: minmax(0, 1fr) 290px; } }
   .dc-card .ydm-panel h4 { margin-bottom: 0.45rem; }
@@ -1063,7 +1184,8 @@
       .then(([r, h]) => { RC = r; PH = h; rcState = 'ready'; })
       .catch(() => { rcState = 'error'; })
       .finally(() => { if (activeNav === 'recap') renderRecap(); if (activeNav === 'threes' && t3x.v) renderBoard('threes'); if (activeNav === 'doubles' && dblF.tab === 'results') renderDoubles();
-        if (BD[activeNav] && bdState(activeNav).res === 'results') renderBoard(activeNav); if (activeNav === 'first' && fbF.res === 'results') renderFirst(); });   // Value's record reads the same files
+        if (BD[activeNav] && bdState(activeNav).res === 'results') renderBoard(activeNav); if (activeNav === 'first' && fbF.res === 'results') renderFirst();
+        if (activeNav === 'schedule') renderSchedule(); nbaGmRedraw(); });   // the Schedule grades past nights off the same two   // Value's record reads the same files
   }
   // the night's games still being played (or just finished, before the build adds them): off ESPN's live
   // summary, reduced by the build's own code (scripts/nba-recap-core.js) — see nbaLiveTick
@@ -1385,7 +1507,7 @@
   // foul trouble or minutes changes. ESPN's player ids are ours (the NBA app is ESPN-only).
   const NBA_SB = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=';
   const NBA_SUM = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=';
-  const NLIVE = {}, NLIVE_BX = {};
+  const NLIVE = {}, NLIVE_BX = {}, NSUM = {};   // NSUM: a game's scoring plays, quarter scores and first basket (the Game tab)
   let nLiveTimer = null, nLiveBusy = false;
   const nbaOpenGid = () => (RonSlate.active() && RonSlate.current && RonSlate.current()) || nbaGid;
   function nbaLiveWanted() {
@@ -1428,16 +1550,34 @@
   // once per 20s per game), so its cells don't wait up to a minute
   const NLIVE_AT = {};
   async function nbaLiveBox(gid, force) {
-    if (!gid || NLIVE[gid]?.state !== 'in' || (!force && Date.now() - (NLIVE_AT[gid] || 0) < 20e3)) return false;
+    // a live game every 20s; a final once (its box grades the card, its plays draw the Game tab)
+    const st = NLIVE[gid]?.state || nbaGameOf(gid)?.state;
+    if (!gid || !st || st === 'pre' || (st === 'post' && NSUM[gid]?.done) || (!force && Date.now() - (NLIVE_AT[gid] || 0) < 20e3)) return false;
     NLIVE_AT[gid] = Date.now();
     try {
       const j = await (await fetch(NBA_SUM + gid)).json(), m = {};
       const n = (x) => +(String(x ?? '0').split('-')[0]) || 0;      // "3-7" made-attempted: the made
       for (const t of j.boxscore?.players || []) for (const grp of t.statistics || []) for (const a of grp.athletes || []) {
         const v = Object.fromEntries((grp.labels || []).map((l, i) => [l, a.stats?.[i]]));
-        m[a.athlete?.id] = { pts: n(v.PTS), reb: n(v.REB), ast: n(v.AST), '3pm': n(v['3PT']), stl: n(v.STL), blk: n(v.BLK) };
+        m[a.athlete?.id] = { pts: n(v.PTS), reb: n(v.REB), ast: n(v.AST), '3pm': n(v['3PT']), stl: n(v.STL), blk: n(v.BLK), min: n(v.MIN), name: a.athlete?.displayName, team: t.team?.abbreviation, st: a.starter ? 1 : 0 };
       }
-      NLIVE_BX[gid] = m; return true;
+      NLIVE_BX[gid] = m;
+      const C = j.header?.competitions?.[0]?.competitors || [], ha = Object.fromEntries(C.map(x => [x.homeAway, x]));
+      const plays = []; let fb = null;
+      for (const p of j.plays || []) {
+        if (!p.scoringPlay) continue;
+        plays.push([nbaT(p.period?.number || 1, p.clock?.displayValue), +p.homeScore || 0, +p.awayScore || 0]);
+        if (fb == null && !/free throw/i.test(p.type?.text || '')) fb = p.participants?.[0]?.athlete?.id ?? null;
+      }
+      plays.sort((a, b) => a[0] - b[0]);
+      // a game whose odds left the scoreboard before a build kept them: the summary's pickcenter carries DraftKings' close
+      const g0 = nbaGameOf(gid), pc = (j.pickcenter || []).find(x => x.spread != null || x.homeTeamOdds?.moneyLine != null);
+      if (g0 && !g0.lines && pc) { const sp = pc.spread ?? null, tot = pc.overUnder ?? null;
+        g0.lines = { book: pc.provider?.name || null, spread: sp, total: tot, detail: pc.details || null, mlHome: pc.homeTeamOdds?.moneyLine ?? null, mlAway: pc.awayTeamOdds?.moneyLine ?? null,
+          spHomeOdds: pc.homeTeamOdds?.spreadOdds ?? null, spAwayOdds: pc.awayTeamOdds?.spreadOdds ?? null, overOdds: pc.overOdds ?? null, underOdds: pc.underOdds ?? null, close: true,
+          impHome: sp != null && tot != null ? +(tot / 2 - sp / 2).toFixed(1) : null, impAway: sp != null && tot != null ? +(tot / 2 + sp / 2).toFixed(1) : null }; }
+      NSUM[gid] = { plays, fb, done: st === 'post', ls: { home: (ha.home?.linescores || []).map(x => +x.displayValue), away: (ha.away?.linescores || []).map(x => +x.displayValue) } };
+      return true;
     } catch (e) { NLIVE_AT[gid] = 0; return false; }
   }
   /** Fetch a just-opened game's live lines, then redraw wherever it shows. */
@@ -1478,15 +1618,23 @@
       for (const m of ['dd', 'td']) if (r[m] != null) row(r).cells[m] = { p: r[m], leg: dblLeg(r, m), open: `openDoubleCard('${r.pid}')` };
     const fg = (D.first?.games || []).find(x => x.gid === g.id);
     for (const r of fg?.players || []) row(r).cells.fb = { p: r.p, leg: fbLeg(r, fg), open: `fbF.game='${g.id}';switchNav('first')` };
+    const post = g.state === 'post';
+    if (!P.size && post) nbaPastCells(g, row);           // a past night: the pre-tip prices it was logged with
+    // a final grades itself: what each priced player did (a priced player who didn't play is void)
+    const A = post ? nbaActual(g) : null, fbP = post ? nbaFbPid(g) : null;
+    if (A) for (const r of P.values()) {
+      const me = A[r.pid]; if (!me || !(me.min > 0)) { r.void = true; continue; }
+      for (const [k, c] of Object.entries(r.cells)) c.got = nbaGot(k, me, fbP, r.pid);
+    }
     const teams = [g.away.ab, g.home.ab].map(t => ({ abbr: t, logo: logoImg(t, ''), sub: esc(teamName(t)), groups: [{ name: 'Players', cols: BX_NBA,
       rows: [...P.values()].filter(r => r.team === t).sort((a, b) => (b.cells.pts?.proj ?? 0) - (a.cells.pts?.proj ?? 0))
-        .map(r => ({ name: r.name, pos: r.pos, sub: r.min ? `${r.min.toFixed(0)} min` : '', face: faceHtml(r.pid, r.name), open: `openPlayer('${r.pid}')`, cells: r.cells })) }] }));
+        .map(r => ({ name: r.name, pos: r.pos, sub: A?.[r.pid]?.min > 0 ? `${A[r.pid].min} min played` : r.void ? 'did not play' : r.min ? `${r.min.toFixed(0)} min` : '', void: r.void, face: faceHtml(r.pid, r.name), open: `openPlayer('${r.pid}')`, cells: r.cells })) }] }));
     const done = g.state === 'post' || g.state === 'in';
     const live = NLIVE[g.id]?.state === 'in';
     if (live) for (const r of P.values()) for (const [k, c] of Object.entries(r.cells)) nbaLiveCell(g, r.pid, k, c);
-    return RonSlate.box({ state: live ? 'live' : 'pre', teams,
+    return RonSlate.box({ state: live ? 'live' : A ? 'post' : 'pre', teams,
       note: 'Our projection for every priced player, with the even-money line and our fair odds under it (DD, TD and 1st are yes/no prices). Tap a number for its full ladder, a header to sort. In parlay mode a tap adds it to the slip.',
-      empty: done ? 'This one tipped off before it was priced — box scores are graded from the regular season on.' : 'Prices post once the game is inside the build\'s window — usually a couple of days out.' });
+      empty: post && rcState !== 'ready' && !A ? 'Loading the box score…' : done ? 'This one tipped off before it was priced — box scores are graded from the regular season on.' : 'Prices post once the game is inside the build\'s window — usually a couple of days out.' });
   }
   function nbaGameHtml(g) {
     const L = g.lines, final = g.state === 'post', live = g.state === 'in';
@@ -1501,14 +1649,309 @@
          <div class="gm-when">${live ? `<b class="gm-live">${esc(g.detail || 'Live')}</b>` : esc(g.detail || 'Final')}</div>`
       : `${L?.total != null ? `<div class="gm-lines"><span>O/U ${L.total}</span></div>` : ''}<div class="gm-when">${typeTag(g.type)} ${dayLabel(g.date)} · ${gameTime(g.start)}</div>`;
     const deck = D.schedule.filter(x => x.date === g.date), at = deck.findIndex(x => x.id === g.id);
+    if (ngm.gid !== g.id) { ngm.gid = g.id; ngm.tab = 'proj'; }
+    if (final && rcState === 'idle') loadRecap();          // a past night's prices and box
+    const T = [['proj', 'Box score'], ['matchup', 'Matchup']].concat(L ? [['lines', 'Lines']] : []).concat([['lineup', 'Lineup']]).concat(final || live ? [['flow', 'Game']] : []);
+    if (!T.some(([v]) => v === ngm.tab)) ngm.tab = 'proj';
+    const tabs = `<div class="sub-tabs u-tabs gm-tabs">${T.map(([v, l]) => `<button class="sub-btn${ngm.tab === v ? ' active' : ''}" onclick="nbaGmTab('${v}')">${l}</button>`).join('')}</div>`;
+    const body = ngm.tab === 'matchup' ? nbaMatchup(g) : ngm.tab === 'lines' ? nbaLines(g) : ngm.tab === 'lineup' ? nbaLineup(g) : ngm.tab === 'flow' ? nbaFlow(g) : nbaBox(g);
     return `<header class="gm-hero">
         <div class="gm-team">${logoImg(g.away.ab, '')}<b>${esc(g.away.ab)}</b>${side(false)}</div>
         <div class="gm-mid">${mid}<div class="gm-wx">${esc(g.venue || '')}${at >= 0 ? ` · ${at + 1} / ${deck.length}` : ''}</div></div>
         <div class="gm-team end">${side(true)}<b>${esc(g.home.ab)}</b>${logoImg(g.home.ab, '')}</div>
       </header>
       ${L?.impAway != null && !final ? `<div class="sl-facts">Implied <b>${esc(g.away.ab)} ${L.impAway}</b> · <b>${esc(g.home.ab)} ${L.impHome}</b>${L.book ? ` · ${esc(L.book)}` : ''}</div>` : ''}
-      <div class="sub-tabs u-tabs"><button class="sub-btn active">Box score</button></div>
-      ${nbaBox(g)}`;
+      ${tabs}
+      ${body}`;
+  }
+  // ── The game card's tabs (11/14, Ron: the Schedule had a box score only) ────────────────────────────────────────
+  // Box score, Matchup, Lines, Lineup, and Game once it tips: the card every sport's Schedule carries (/nhl's, its
+  // panels' CSS copied verbatim). A final grades itself: tonight's off ESPN's summary, a past night off the build's
+  // recap and the pre-tip prices it logged (prices-history), as the Results tabs do.
+  const ngm = { gid: null, tab: 'proj' };
+  function nbaGmTab(t) { ngm.tab = t; nbaGmRedraw(); }
+  function nbaGmRedraw() {
+    if (RonSlate.active()) RonSlate.refresh();
+    else if (nbaGid && document.getElementById('gm-back')) openGame(nbaGid);
+  }
+  // Win chance. Pregame: DraftKings' moneylines devigged (power, the devig study's pick), else the spread through the
+  // margin's spread. Live: Stern's random walk off the close: the lead now plus the expected margin over what's left,
+  // noise sigma x sqrt(left). research/nba_winprob.py: sigma 13.6 (margin - closing spread, the last three seasons);
+  // on this season's play-by-play, log loss .427 vs .560 pregame-only, calibration 2.8pp. A baseline, not ours.
+  const NBA_SIG = 13.6;
+  const Phi = (z) => { const t = 1 / (1 + 0.3275911 * Math.abs(z) / Math.SQRT2),
+    y = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-z * z / 2);
+    return z >= 0 ? (1 + y) / 2 : (1 - y) / 2; };
+  const amP = (o) => o == null ? null : o < 0 ? -o / (-o + 100) : 100 / (o + 100);
+  function nbaPreWp(g) {
+    const L = g.lines; if (!L) return null;
+    const h = amP(L.mlHome), a = amP(L.mlAway);
+    if (h != null && a != null) { let lo = 0.3, hi = 4; for (let i = 0; i < 50; i++) { const k = (lo + hi) / 2; if (h ** k + a ** k > 1) lo = k; else hi = k; } return { p: h ** ((lo + hi) / 2), src: 'the moneylines, devigged' }; }
+    if (L.spread != null) return { p: Phi(-L.spread / NBA_SIG), src: 'the spread' };
+    return null;
+  }
+  /** Expected home margin: minus the home spread, else backed out of the moneylines. */
+  function nbaMargin(g) {
+    if (g.lines?.spread != null) return -g.lines.spread;
+    const w = nbaPreWp(g); if (!w) return 0;
+    let lo = -40, hi = 40; for (let i = 0; i < 50; i++) { const m = (lo + hi) / 2; if (Phi(m / NBA_SIG) < w.p) lo = m; else hi = m; }
+    return (lo + hi) / 2;
+  }
+  const nbaWpAt = (lead, m, left) => left <= 0 ? (lead > 0 ? 1 : lead < 0 ? 0 : 0.5) : Phi((lead + m * left) / (NBA_SIG * Math.sqrt(left)));
+  // game seconds from a period and the clock's "11:32" / "45.2"; each OT is 5 minutes
+  const nbaT = (per, clk) => { const s = String(clk ?? '0'), left = s.includes(':') ? +s.split(':')[0] * 60 + +s.split(':')[1] : +s || 0;
+    return per <= 4 ? (per - 1) * 720 + 720 - left : 2880 + (per - 5) * 300 + 300 - left; };
+  /** What a played (or live) game's players did: the build's recap box, else ESPN's summary. pid -> stats. */
+  function nbaActual(g) {
+    const G = typeof rcGame === 'function' ? rcGame(g.id) : null;
+    if (G?.box && !G.live) return Object.fromEntries(Object.entries(G.box).map(([pid, b]) => [pid, { pts: b[BX.pts], reb: b[BX.reb], ast: b[BX.ast], '3pm': b[BX.tpm],
+      stl: b[BX.stl], blk: b[BX.blk], min: b[BX.min], name: b[BX.name], team: b[BX.team], st: b[BX.st] }]));
+    return NLIVE_BX[g.id] || null;
+  }
+  const nbaFbPid = (g) => (typeof rcGame === 'function' ? rcGame(g.id)?.fb?.pid : null) ?? NSUM[g.id]?.fb ?? null;
+  function nbaGot(k, me, fb, pid) {
+    const n10 = ['pts', 'reb', 'ast', 'stl', 'blk'].filter(x => (me[x] || 0) >= 10).length;
+    if (k === 'pra') return (me.pts || 0) + (me.reb || 0) + (me.ast || 0);
+    if (k === 'dd') return n10 >= 2 ? 1 : 0;
+    if (k === 'td') return n10 >= 3 ? 1 : 0;
+    if (k === 'fb') return fb == null ? null : fb === pid ? 1 : 0;
+    return me[k] ?? null;
+  }
+  /** A past night's cells: the pre-tip prices it logged (prices-history), for everyone in the game's box. */
+  function nbaPastCells(g, row) {
+    const day = PH?.days?.[g.date], G = typeof rcGame === 'function' ? rcGame(g.id) : null; if (!day || !G?.box) return;
+    for (const [pid, b] of Object.entries(G.box)) {
+      const r = { pid, name: b[BX.name], team: b[BX.team], pos: '', min: null };
+      for (const k of ['pts', 'reb', 'ast', 'pra', 'stl', 'blk']) { const x = day.st?.[k]?.[pid]; if (x) row(r).cells[k] = { proj: x[0], dp: 1, line: x[1], p: x[2] }; }
+      const t = day.t3?.[pid];
+      if (t) { let j = 1; for (let i = 1; i < t.length; i++) if (Math.abs(t[i] - 0.5) < Math.abs(t[j] - 0.5)) j = i; row(r).cells['3pm'] = { proj: t[0], dp: 1, line: j - 0.5, p: t[j] }; }
+      const d = day.dbl?.[pid]; if (d) { row(r).cells.dd = { p: d[0] }; row(r).cells.td = { p: d[1] }; }
+      const f = day.fb?.[g.id]?.[pid]; if (f != null) row(r).cells.fb = { p: f };
+    }
+  }
+  /** The game's top pick, for the rail: our best 2+ threes price (tonight's board, else the logged one), graded once played. */
+  function nbaTopPick(g) {
+    const tp = (D.threes?.rows || []).filter(r => r.gid === g.id).sort((a, b) => b.p[1] - a.p[1])[0];
+    let best = tp ? { pid: tp.pid, name: tp.name, p: tp.p[1] } : null;
+    if (!best) {
+      const day = PH?.days?.[g.date]?.t3, G = typeof rcGame === 'function' ? rcGame(g.id) : null;
+      if (day && G?.box) for (const pid of Object.keys(G.box)) { const t = day[pid]; if (t && (!best || t[2] > best.p)) best = { pid, name: G.box[pid][BX.name], p: t[2] }; }
+    }
+    if (!best) return null;
+    const me = g.state === 'post' ? nbaActual(g)?.[best.pid] : null;
+    best.res = !me ? null : !(me.min > 0) ? -1 : me['3pm'] >= 2 ? 1 : 0;
+    return best;
+  }
+
+  // ── Matchup: the two teams side by side, league ranks, off the season's game log ──
+  let NTS = null;
+  function nbaTeamStats() {
+    if (!GLOG) return null; if (NTS?.src === GLOG) return NTS.t;
+    const c = GLOG.cols, ix = Object.fromEntries(c.map((k, i) => [k, i])), side = {}, opps = {};
+    // a row carries his opponent, not his team (a traded player's team moves): a game's two sides are its two opponents
+    for (const rows of Object.values(GLOG.p)) for (const r of rows) {
+      const gid = r[ix.gid], op = r[ix.opp]; (opps[gid] ||= new Set()).add(op);
+      const s = side[gid + '|' + op] ||= { gid, opp: op, pts: r[ix.tsc], oppPts: r[ix.osc], reb: 0, ast: 0, tpm: 0, tpa: 0, fgm: 0, fga: 0, to: 0 };
+      for (const k of ['reb', 'ast', 'tpm', 'tpa', 'fgm', 'fga', 'to']) s[k] += r[ix[k]] || 0;
+    }
+    const T = {};
+    for (const s of Object.values(side)) {
+      const team = [...opps[s.gid]].find(x => x !== s.opp); if (!team) continue;
+      const a = T[team] ||= { n: 0, pts: 0, oppPts: 0, reb: 0, ast: 0, tpm: 0, tpa: 0, fgm: 0, fga: 0, to: 0, oTpm: 0, oReb: 0 };
+      a.n++; for (const k of ['pts', 'oppPts', 'reb', 'ast', 'tpm', 'tpa', 'fgm', 'fga', 'to']) a[k] += s[k] || 0;
+      const o = T[s.opp] ||= { n: 0, pts: 0, oppPts: 0, reb: 0, ast: 0, tpm: 0, tpa: 0, fgm: 0, fga: 0, to: 0, oTpm: 0, oReb: 0 };
+      o.oTpm += s.tpm; o.oReb += s.reb;
+    }
+    const out = {};
+    for (const [t, a] of Object.entries(T)) if (a.n) out[t] = { n: a.n, ppg: a.pts / a.n, opp: a.oppPts / a.n, net: (a.pts - a.oppPts) / a.n, tpm: a.tpm / a.n,
+      otpm: a.oTpm / a.n, reb: a.reb / a.n, oreb: a.oReb / a.n, ast: a.ast / a.n, to: a.to / a.n, fg: a.fga ? a.fgm / a.fga : null };
+    NTS = { src: GLOG, t: out }; return out;
+  }
+  /** Days since a team's last game before this one (1 = a back-to-back), off the schedule window and the recap. */
+  function nbaRest(g, ab) {
+    const before = [...D.schedule.filter(x => x.date < g.date && (x.home.ab === ab || x.away.ab === ab)).map(x => x.date),
+      ...(D.recap || []).filter(x => x.date < g.date && (x.home.ab === ab || x.away.ab === ab)).map(x => x.date)].sort();
+    const last = before[before.length - 1]; if (!last) return null;
+    return Math.round((Date.parse(g.date) - Date.parse(last)) / 864e5);
+  }
+  function nbaMatchup(g) {
+    const S = nbaTeamStats();
+    if (!S) { loadGameLog(); return glState === 'error' ? '<div class="empty" style="padding:2rem 0">The season\'s game log didn\'t load.</div>' : '<div class="empty" style="padding:2rem 0">Loading the season so far…</div>'; }
+    const A = S[g.away.ab], H = S[g.home.ab], all = Object.values(S);
+    if (!A || !H) return '<div class="empty" style="padding:2rem 0">No games for one of these teams yet.</div>';
+    const rank = (v, k, hi) => 1 + all.filter(r => r[k] != null && (hi ? r[k] > v : r[k] < v)).length;
+    const tone = (rk) => rk <= 6 ? 'great' : rk <= 13 ? 'good' : rk <= 19 ? 'avg' : rk <= 26 ? 'below' : 'bad';
+    const f1 = (v) => v.toFixed(1), ROWS = [['ppg', 'Points / g', true, f1], ['opp', 'Allowed / g', false, f1], ['net', 'Net / g', true, (v) => (v > 0 ? '+' : '') + v.toFixed(1)],
+      ['tpm', 'Threes / g', true, f1], ['otpm', 'Threes allowed / g', false, f1], ['reb', 'Rebounds / g', true, f1], ['oreb', 'Opp. rebounds / g', false, f1],
+      ['ast', 'Assists / g', true, f1], ['to', 'Turnovers / g', false, f1], ['fg', 'Field goal %', true, (v) => (v * 100).toFixed(1) + '%']];
+    const cell = (R, k, hi, fm) => R[k] == null ? '<span class="gmx-v">—</span>' : (() => { const rk = rank(R[k], k, hi); return `<span class="gmx-v ${tone(rk)}">${fm(R[k])}<small>#${rk}</small></span>`; })();
+    // the model's own matchup input: how much of each stat this defence gives up, against the league (the boards' f.opp)
+    const allow = (ab, st) => { const rows = st === '3pm' ? D.threes?.rows : D.stats?.boards?.[st]?.rows; const r = (rows || []).find(x => x.opp === ab && x.f?.opp != null); return r ? r.f.opp : null; };
+    const ax = (v) => v == null ? '<span class="gmx-v">—</span>' : `<span class="gmx-v">×${v.toFixed(2)}</span>`;
+    const DEF = [['pts', 'Points allowed'], ['reb', 'Rebounds allowed'], ['ast', 'Assists allowed'], ['3pm', 'Threes allowed']].filter(([k]) => allow(g.away.ab, k) != null || allow(g.home.ab, k) != null);
+    const rest = (ab) => { const d = nbaRest(g, ab); return d == null ? '—' : d === 1 ? 'Back-to-back' : `${d - 1} day${d === 2 ? '' : 's'} off`; };
+    const w = nbaPreWp(g), L = g.lines;
+    return `<div class="gmx">
+      <div class="gmx-head"><span>${logoImg(g.away.ab, 'gmx-logo')}${esc(g.away.ab)} <small class="dim">${record(g.away.ab)}</small></span><span class="gmx-mid">This season · league rank</span><span><small class="dim">${record(g.home.ab)}</small> ${esc(g.home.ab)}${logoImg(g.home.ab, 'gmx-logo')}</span></div>
+      ${ROWS.map(([k, lab, hi, fm]) => `<div class="gmx-row">${cell(A, k, hi, fm)}<span class="gmx-k">${lab}</span>${cell(H, k, hi, fm)}</div>`).join('')}
+      <div class="gmx-row"><span class="gmx-v">${rest(g.away.ab)}</span><span class="gmx-k">Rest</span><span class="gmx-v">${rest(g.home.ab)}</span></div>
+      ${DEF.length ? `<div class="gmx-head" style="margin-top:0.8rem"><span></span><span class="gmx-mid">Defence · vs league, our matchup input</span><span></span></div>
+        ${DEF.map(([k, lab]) => `<div class="gmx-row">${ax(allow(g.away.ab, k))}<span class="gmx-k">${lab}</span>${ax(allow(g.home.ab, k))}</div>`).join('')}` : ''}
+      ${w ? `<div class="gmx-wp"><div class="gmx-wpbar" style="--h:${(w.p * 100).toFixed(1)}%"><i></i></div>
+        <div class="gmx-wpl"><span>${esc(g.away.ab)} <b>${Math.round((1 - w.p) * 100)}%</b></span><span>win chance, from ${w.src}${L?.impAway != null ? ` · projected ${L.impAway}–${L.impHome}` : ''}</span><span><b>${Math.round(w.p * 100)}%</b> ${esc(g.home.ab)}</span></div></div>` : ''}
+    </div>
+    <p class="lr-note">Team numbers from every player's box this season (the game log), ranked among all 30. Defence is how much of each stat a team gives up against the league, the factor our player prices use.</p>`;
+  }
+
+  // ── Lines: DraftKings' via ESPN, open and now ──
+  function nbaLines(g) {
+    const L = g.lines; if (!L) return '<div class="empty" style="padding:2rem 0">No lines posted yet.</div>';
+    const O = L.open || {}, ab = g.away.ab, hb = g.home.ab;
+    const row = (t, ml, sp, spo) => `<div class="scl-row"><span class="scl-team">${logoImg(t, 'scl-logo')}${esc(t)}</span>
+      <span class="scl-v">${ml != null ? odds(ml) : '—'}</span><span class="scl-v">${sp != null ? sgn(sp) : '—'} <em>${spo != null ? odds(spo) : ''}</em></span></div>`;
+    const mv = (lab, a, b) => { const moved = a != null && b != null && a !== b;
+      return `<div class="scm-row"><span>${lab}</span><span class="scm-o">${a ?? '—'}</span><span>${moved ? '→' : ''}</span><span class="scm-c${moved ? ' moved' : ''}">${b ?? '—'}</span></div>`; };
+    const w = nbaPreWp(g);
+    return `<div class="scl">
+      <div class="scl-title"><span class="sc-ln sc-book">${L.book === 'DraftKings' ? 'DK' : esc(L.book || 'Book')}</span>${esc(L.book || 'Sportsbook')} lines — the book's prices, not ours</div>
+      <div class="scl-grid">
+        <div class="scl-row scl-head"><span></span><span>Moneyline</span><span>Spread</span></div>
+        ${row(ab, L.mlAway, L.spread != null ? -L.spread : null, L.spAwayOdds)}${row(hb, L.mlHome, L.spread, L.spHomeOdds)}
+      </div>
+      ${L.total != null ? `<div class="scl-tot"><span>Total <b>${L.total}</b></span>${L.overOdds != null ? `<span>Over <em>${odds(L.overOdds)}</em></span><span>Under <em>${odds(L.underOdds)}</em></span>` : ''}</div>` : ''}
+      ${L.impAway != null ? `<div class="scl-tot"><span>Implied <b>${esc(ab)} ${L.impAway}</b></span><span><b>${esc(hb)} ${L.impHome}</b></span>${w ? `<span>Win chance <b>${esc(hb)} ${Math.round(w.p * 100)}%</b></span>` : ''}</div>` : ''}
+      ${O.spread != null || O.total != null || O.mlHome != null ? `<div class="scm">
+        <div class="scm-row scm-head"><span></span><span class="scm-o">Open</span><span></span><span>Now</span></div>
+        ${mv(`${esc(hb)} spread`, O.spread != null ? sgn(O.spread) : null, L.spread != null ? sgn(L.spread) : null)}${mv('Total', O.total, L.total)}
+        ${mv(`${esc(ab)} ML`, O.mlAway != null ? odds(O.mlAway) : null, L.mlAway != null ? odds(L.mlAway) : null)}${mv(`${esc(hb)} ML`, O.mlHome != null ? odds(O.mlHome) : null, L.mlHome != null ? odds(L.mlHome) : null)}
+      </div>` : ''}
+      <div class="scl-src">${L.close ? 'Via ESPN · the closing line.' : 'Via ESPN · updated with every build until tip; a started game keeps the last pregame lines a build saw.'} Our own prices are the boards.</div>
+    </div>`;
+  }
+
+  // ── Lineup: tonight's five and the rotation (RotoWire's posted five, else recent starts), the injury report ──
+  function nbaLineup(g) {
+    const A = g.state === 'post' ? nbaActual(g) : null;
+    const qOf = {}; for (const r of D.stats?.boards?.pts?.rows || []) if (r.q) qOf[r.pid] = r.q;
+    const nm = (s) => esc(String(s || '').replace(/^(\S)\S*\s/, '$1. '));
+    const card = (pid, name, sub, q) => `<div class="lu-p" role="button" tabindex="0" title="Open ${esc(name)}'s card" onclick="openPlayer('${pid}')">${faceHtml(pid, name)}
+      <b title="${esc(name)}">${nm(name)}</b><em>${sub}</em>${q ? `<em class="lu-q" title="On the injury report">${esc(q)}</em>` : ''}</div>`;
+    const side = (ab) => {
+      let start = [], bench = [], head;
+      if (A) {   // a played game: who started and who came off the bench, with their minutes
+        const rs = Object.entries(A).filter(([, b]) => b.team === ab && b.min > 0).sort((x, y) => (y[1].st - x[1].st) || (y[1].min - x[1].min));
+        start = rs.filter(([, b]) => b.st).map(([pid, b]) => card(pid, b.name, `${b.min} min`));
+        bench = rs.filter(([, b]) => !b.st).slice(0, 7).map(([pid, b]) => card(pid, b.name, `${b.min} min`));
+        head = 'played · minutes';
+      } else {
+        const rs = (D.threes?.rows || []).filter(r => r.gid === g.id && r.team === ab).map(r => ({ r, m: roleOf(r.pid) })).filter(x => x.m).sort((x, y) => x.m.i - y.m.i);
+        const lu = rs[0]?.m.lu;
+        start = rs.slice(0, 5).map(({ r }) => card(r.pid, r.name, `${esc(r.pos || '')} · ${r.min.toFixed(0)} min`, qOf[r.pid]));
+        bench = rs.slice(5, 10).map(({ r }) => card(r.pid, r.name, `${esc(r.pos || '')} · ${r.min.toFixed(0)} min`, qOf[r.pid]));
+        head = lu ? `RotoWire · ${esc(lu)} · projected minutes` : rs.length ? 'projected from recent starts · minutes' : '';
+      }
+      const team = (pid) => GLOG?.n?.[pid]?.[1] ?? Object.values(D.stats?.boards || {}).flatMap(b => b.rows || []).find(r => r.pid === pid)?.team;
+      const outs = g.state === 'post' ? [] : Object.entries(D.injuries || {}).filter(([pid]) => team(pid) === ab);
+      const name = (pid) => GLOG?.n?.[pid]?.[0] || pid;
+      return `<div class="lu-col"><div class="lu-h">${logoImg(ab, '')}<b>${esc(ab)}</b><span>${head}</span></div>
+        ${start.length ? `<div class="lu-row"><span class="lu-t">${A ? 'Start' : 'Start'}</span><span class="lu-ps">${start.join('')}</span></div>` : '<div class="empty">Lineups post with the board, a day or two out.</div>'}
+        ${bench.length ? `<div class="lu-row"><span class="lu-t">Bench</span><span class="lu-ps">${bench.join('')}</span></div>` : ''}
+        ${outs.length ? `<div class="lu-out"><b>Injury report</b> ${outs.map(([pid, x]) => `<span title="${esc(x.detail || '')}">${esc(name(pid))}<em> ${esc(x.status)}</em></span>`).join(' · ')}</div>` : ''}</div>`;
+    };
+    if (!GLOG && glState === 'idle') loadGameLog();     // the injury report's names and teams
+    return `<div class="lu">${side(g.away.ab)}${side(g.home.ab)}</div>
+      <p class="lr-note">${g.state === 'post' ? 'Who started and how long each played.' : 'Starters are RotoWire\'s posted five once they\'re out (✓ confirmed), else the five who\'ve been starting; the bench runs in order of our projected minutes. A name on the injury report sits until it clears.'} Tap a player for his card.</p>`;
+  }
+
+  // ── Game: win chance through the game, off the score (ESPN's play-by-play) and the close ──
+  function lineColor(hex) {
+    const n = parseInt((hex || '#888888').slice(1), 16), c = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    const lum = (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255;
+    const f = lum < 0.45 ? Math.min(0.65, (0.45 - lum) * 1.6) : 0;
+    return '#' + c.map(v => Math.round(v + (255 - v) * f).toString(16).padStart(2, '0')).join('');
+  }
+  /** Two colours that read as two teams on the dark card (ported from /nhl, which is /nfl's). */
+  function teamPair(ta, tb) {
+    const rgb = (h) => { const n = parseInt((h || '#888888').slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+    const lum = (h) => { const [r, g, b] = rgb(h); return (0.299 * r + 0.587 * g + 0.114 * b) / 255; };
+    const far = (h1, h2) => Math.hypot(...rgb(h1).map((v, i) => v - rgb(h2)[i]));
+    const opts = (ab) => {
+      const c1 = D.teams?.[ab]?.color || '#1f6feb', c2 = D.teams?.[ab]?.alt || '#ffffff';
+      return [lum(c1) >= 0.2 ? c1 : null, c2 && lum(c2) >= 0.2 && lum(c2) <= 0.85 ? c2 : null, lineColor(c1)].filter(Boolean);
+    };
+    const oa = opts(ta), ob = opts(tb);
+    const pairs = oa.flatMap((x, i) => ob.map((y, j) => [i + j, x, y])).sort((a, b) => a[0] - b[0]);
+    const hit = pairs.find(([, x, y]) => far(x, y) > 120);
+    return hit ? [hit[1], hit[2]] : [oa[0], '#c9d2e0'];
+  }
+  const nbaClock = (t) => { const per = t < 2880 ? Math.floor(t / 720) + 1 : 5 + Math.floor((t - 2880) / 300), len = per <= 4 ? 720 : 300,
+    into = per <= 4 ? t - (per - 1) * 720 : t - 2880 - (per - 5) * 300, left = Math.max(0, len - into);
+    return `${per <= 4 ? 'Q' + per : per === 5 ? 'OT' : (per - 4) + 'OT'} ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`; };
+  const NGF = {};
+  function nbaFlow(g) {
+    const S = NSUM[g.id];
+    if (!S) return `<div class="gf flat"><div class="gf-empty">Loading the game…</div></div>`;
+    const live = g.state === 'in', m = nbaMargin(g), nOT = Math.max(0, (S.ls?.home?.length || 4) - 4), END = 2880 + nOT * 300;
+    const plays = S.plays, last = plays[plays.length - 1];
+    const now = live ? Math.min(END, Math.max(last?.[0] || 0, NLIVE[g.id]?.per ? nbaT(NLIVE[g.id].per, NLIVE[g.id].left) : 0)) : END;
+    const leadAt = (t) => { let l = 0; for (const p of plays) { if (p[0] > t) break; l = p[1] - p[2]; } return l; };
+    const leftAt = (t) => t < 2880 ? (2880 - t) / 2880 : (2880 + Math.ceil((t - 2880 + 1e-6) / 300) * 300 - t) / 2880;
+    const pts = [];
+    for (let t = 0; t < now; t += 15) pts.push([t, nbaWpAt(leadAt(t), t < 2880 ? m : 0, leftAt(t))]);
+    const hs = live ? NLIVE[g.id]?.hs ?? last?.[1] : g.home.score, as = live ? NLIVE[g.id]?.as ?? last?.[2] : g.away.score;
+    pts.push([now, live ? nbaWpAt(leadAt(now), now < 2880 ? m : 0, leftAt(now)) : hs > as ? 1 : 0]);
+    NGF[g.id] = { pts, end: END, home: g.home.ab, away: g.away.ab };
+    const [HC, AC] = teamPair(g.home.ab, g.away.ab), W = 600, H = 170;
+    const X = (t) => (t / END * W).toFixed(1), Y = (v) => ((1 - v) * H).toFixed(1);
+    const line = (inv) => pts.map(([t, v], i) => `${i ? 'L' : 'M'}${X(t)},${Y(inv ? 1 - v : v)}`).join('');
+    // the biggest lead each way, and the biggest swing in win chance over any two minutes
+    let maxH = 0, maxA = 0, sw = null;
+    for (const p of plays) { const l = p[1] - p[2]; if (l > maxH) maxH = l; if (-l > maxA) maxA = -l; }
+    for (let i = 0, j = 0; i < pts.length; i++) { while (pts[i][0] - pts[j][0] > 120) j++; const d = pts[i][1] - pts[j][1]; if (!sw || Math.abs(d) > Math.abs(sw.d)) sw = { d, t: pts[i][0] }; }
+    const winner = !live ? (hs > as ? g.home.ab : g.away.ab) : null;
+    const teamRow = (ab, c, score) => `<span class="gf-team${winner === ab ? ' won' : ''}" style="--c:${c}"><i></i>${logoImg(ab, '')}${esc(ab)}<b>${score ?? ''}</b></span>`;
+    const hp = Math.round(pts[pts.length - 1][1] * 100);
+    const qx = [720, 1440, 2160].concat(Array.from({ length: nOT }, (_, i) => 2880 + i * 300));
+    const lbls = ['Q1', 'Q2', 'Q3', 'Q4'].map((q, i) => `<span style="left:${((i * 720 + 360) / END * 100).toFixed(2)}%">${q}</span>`).join('')
+      + Array.from({ length: nOT }, (_, i) => `<span style="left:${((2880 + i * 300 + 150) / END * 100).toFixed(2)}%">${i ? i + 1 + 'OT' : 'OT'}</span>`).join('');
+    const ls = S.ls?.home?.length ? `<table class="ngl"><thead><tr><th></th>${S.ls.home.map((_, i) => `<th>${i < 4 ? 'Q' + (i + 1) : i === 4 ? 'OT' : i - 3 + 'OT'}</th>`).join('')}<th>T</th></tr></thead><tbody>
+      ${[[g.away.ab, S.ls.away, as], [g.home.ab, S.ls.home, hs]].map(([ab, q, t]) => `<tr><td>${logoImg(ab, '')}${esc(ab)}</td>${(q || []).map(v => `<td>${v ?? ''}</td>`).join('')}<td><b>${t ?? ''}</b></td></tr>`).join('')}</tbody></table>` : '';
+    const src = g.lines?.spread != null ? `the closing spread (${esc(g.home.ab)} ${sgn(g.lines.spread)})` : g.lines ? 'the moneylines' : 'no line: an even game';
+    return `<div class="gf flat">
+      <div class="gf-head">
+        <h4>${live ? `Win probability · <b class="gm-live">${esc(g.detail || NLIVE[g.id]?.detail || 'Live')}</b>` : 'Game flow'}</h4>
+        <div class="gf-teams">${teamRow(g.away.ab, AC, as)}${teamRow(g.home.ab, HC, hs)}</div>
+      </div>
+      <div class="gf-plot" onpointermove="nbaGfScrub(event,'${g.id}')" onpointerleave="nbaGfScrub(null,'${g.id}')">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Win probability through the game">
+          ${nOT ? `<rect x="${X(2880)}" y="0" width="${(W - +X(2880)).toFixed(1)}" height="${H}" class="gf-ot"/>` : ''}
+          <line x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}" class="gf-mid"/>
+          ${qx.map(q => `<line x1="${X(q)}" x2="${X(q)}" y1="0" y2="${H}" class="gf-q"/>`).join('')}
+          <path d="${line(true)}" stroke="${AC}" class="gf-line away"/>
+          <path d="${line(false)}" stroke="${HC}" class="gf-line"/>
+        </svg>
+        <span class="gf-pct top">100%</span><span class="gf-pct mid">50%</span>
+        <i class="gf-cursor" hidden></i><div class="gf-read" hidden></div>
+      </div>
+      <div class="gf-ql">${lbls}</div>
+      ${ls}
+      <p class="gf-note">${live ? `Right now: <b>${esc(g.home.ab)} ${hp}%</b> · ${esc(g.away.ab)} ${100 - hp}%. Updates every minute. ` : ''}${
+        maxH || maxA ? `Biggest lead: ${maxH ? `<b>${esc(g.home.ab)} ${maxH}</b>` : ''}${maxH && maxA ? ', ' : ''}${maxA ? `<b>${esc(g.away.ab)} ${maxA}</b>` : ''}. ` : ''}${
+        sw && Math.abs(sw.d) >= 0.2 ? `Biggest swing: <b>${sw.d > 0 ? esc(g.home.ab) : esc(g.away.ab)} +${Math.abs(sw.d * 100).toFixed(0)}</b> in two minutes to ${nbaClock(sw.t)}. ` : ''}${
+        nOT ? 'Shaded: overtime. ' : ''}Win chance off the score and ${src}: Stern's random walk, a baseline, not our model.</p>
+    </div>`;
+  }
+  function nbaGfScrub(e, gid) {
+    const box = e?.currentTarget || document.querySelector('.gf .gf-plot'); if (!box) return;
+    const cur = box.querySelector('.gf-cursor'), read = box.querySelector('.gf-read'), G = NGF[gid];
+    if (!e || !G) { cur.hidden = read.hidden = true; return; }
+    const r = box.getBoundingClientRect(), f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), t = f * G.end;
+    let lo = 0; while (lo < G.pts.length - 1 && G.pts[lo + 1][0] <= t) lo++;
+    const hp = Math.round(G.pts[lo][1] * 100);
+    cur.hidden = read.hidden = false;
+    cur.style.left = (f * 100).toFixed(2) + '%';
+    read.style.left = (Math.min(0.82, Math.max(0.18, f)) * 100).toFixed(2) + '%';
+    read.innerHTML = `<b>${nbaClock(t)}</b> ${G.home} ${hp}% · ${G.away} ${100 - hp}%`;
   }
   let nbaGid = null;
   /** Open a game: in place in the split view, else as the pop-up (/modal.js). */
@@ -1531,7 +1974,7 @@
   function nbaRail(games) {
     return [{ label: '', games: games.map(g => {
       const L = g.lines, final = g.state === 'post', live = g.state === 'in';
-      const tp = (D.threes?.rows || []).filter(r => r.gid === g.id).sort((a, b) => b.p[1] - a.p[1])[0];
+      const tp = nbaTopPick(g), res = !tp || tp.res == null ? '' : tp.res < 0 ? '<span class="miss">DNP</span>' : tp.res ? '<span class="hit">✓</span>' : '<span class="miss">✗</span>';
       const team = (t, home) => ({ abbr: t.ab, logo: logoImg(t.ab, ''), rec: esc(record(t.ab) || t.rec || ''),
         score: final || live ? t.score ?? 0 : null, lost: final && (home ? g.home.score < g.away.score : g.away.score < g.home.score),
         line: L?.spread == null ? '' : sgn(home ? L.spread : -L.spread), odds: L ? odds(home ? L.mlHome : L.mlAway) : '' });
@@ -1539,7 +1982,7 @@
         when: final ? esc(g.detail || 'Final') : live ? `Live · ${esc(g.detail || '')}` : `${g.type === 1 ? 'Pre · ' : ''}${gameTime(g.start)}`,
         note: !final && !live && L?.total != null ? `O/U ${L.total}` : '',
         teams: [team(g.away, false), team(g.home, true)],
-        pick: tp ? `★ <b>${esc(tp.name)}</b> 2+ threes<span class="sl-od${tp.p[1] >= 0.5 ? ' fav' : ''}">${Odds.am(tp.p[1])}</span>` : '' };
+        pick: tp ? `★ <b>${esc(tp.name)}</b> 2+ threes${res}<span class="sl-od${tp.p >= 0.5 ? ' fav' : ''}">${Odds.am(tp.p)}</span>` : '' };
     }) }];
   }
   function renderSchedule() {
@@ -1548,6 +1991,7 @@
     if (scheduleDate == null || !D.dates.includes(scheduleDate)) scheduleDate = nextGameDate();
     const i = D.dates.indexOf(scheduleDate), atFirst = i <= 0, atLast = i >= D.dates.length - 1;
     const games = D.schedule.filter(g => g.date === scheduleDate);
+    if (games.some(g => g.state === 'post') && rcState === 'idle') loadRecap();     // the rail's picks grade off it
     const pre = games.filter(g => g.type === 1).length;
     const top = `<div class="rc-wknav">
         <div class="rc-wknav-center">
@@ -2709,7 +3153,7 @@
     glState = 'loading';
     dataFetch('gamelog.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject())
       .then(j => { GLOG = j; glState = 'ready'; }).catch(() => { glState = 'error'; })
-      .finally(() => { if (plOpen.pid) plRender(); });
+      .finally(() => { if (plOpen.pid) plRender(); nbaGmRedraw(); });
   }
   const GL_IX = (k) => GLOG?.cols?.indexOf(k) ?? -1;
   /** His season so far as objects, oldest first. */
