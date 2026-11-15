@@ -533,6 +533,28 @@
   .cp-res.void { opacity: 0.5; }
   .cp-res.pend .cp-res-tag, .cp-res.live .cp-res-tag { color: var(--gold); }
   .cp-res.live { border-color: rgba(240, 192, 64, 0.35); }
+  /* recap card views + the video card (11/15) */
+  .rxc-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.45rem; }
+  @media (min-width: 900px) { .rxc-list { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+  .rxc .rx-right { max-width: 48%; }
+  .rxc .rx-grade { white-space: normal; text-align: right; }
+  .rxc { margin: 0; padding: 0.55rem 0.7rem; position: relative; }
+  .rxc .rc-photo { width: 44px; height: 44px; }
+  .rxc .rx-nm { font-size: 0.95rem; }
+  .rxc-play { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; color: var(--text-strong); background: var(--surface2); border: 1px solid var(--border2); padding-left: 2px; box-sizing: border-box; }
+  .rxc:hover .rxc-play { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pm.rxv-card { max-width: 1020px; }
+  .rxv-grid { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 1rem; align-items: start; }
+  .rxv-grid.one { grid-template-columns: minmax(0, 1fr); max-width: 820px; margin: 0 auto; }
+  @media (max-width: 760px) { .rxv-grid { grid-template-columns: minmax(0, 1fr); } }
+  .rxv-yt { position: relative; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; background: #000; }
+  .rxv-yt iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .rxv-note { margin: 0.55rem 0 0; }
+  .rxv-card .hrv-video { width: 100%; display: block; aspect-ratio: 16 / 9; border-radius: 8px; background: #000; }
+  .rxv-clips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .rxv-clips .vid-btn.on { border-color: var(--accent); color: var(--accent); }
+  #rxv-back .pk-side-prev { left: max(6px, 50% - 562px); }
+  #rxv-back .pk-side-next { right: max(6px, 50% - 562px); }
   /* recap: the first basket, the threes, the doubles — a drawn half court (no NBA clips exist) */
   .rx-tiles { margin-bottom: 0.7rem; }
   .rx-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.9rem; align-items: start; }
@@ -1390,6 +1412,93 @@
     ], (E2) => rxPlace(E2, -99, -99, 0));
   }
 
+  // ── Recap views (11/15, Ron): By game, and the night's First baskets and Doubles as cards, each opening its video ──
+  // nba/videos.json (scripts/nba-video.js): each final's YouTube reel (every game), a double-double's own NBA video
+  // (big nights) or ESPN's clips of him (about half), else the game's reel. The first basket also keeps its drawn replay.
+  let rxView = 'game', VID = null, vidState = 'idle';
+  function setRxView(k, v) { rxView = v; renderRecap(); }
+  function loadVideos() {
+    if (vidState !== 'idle') return;
+    vidState = 'loading';
+    dataFetch('videos.json', { cache: 'no-store' }).then(r => r.json()).then(j => { VID = j.games || {}; vidState = 'ready'; })
+      .catch(() => { VID = {}; vidState = 'error'; }).finally(() => { if (activeNav === 'recap') renderRecap(); if (rxv.gid) rxvRender(); });
+  }
+  /** His last name, past a suffix: "Jaime Jaquez Jr." -> "Jaquez". */
+  const lastNm = (n) => { const w = (n || '').split(' ').filter(x => !/^(jr\.?|sr\.?|ii|iii|iv|v)$/i.test(x)); return w[w.length - 1] || n || ''; };
+  const rxMatch = (G) => `${esc(G.away)} ${G.as}–${G.hs} ${esc(G.home)}`;
+  const rxLine = (b) => [['pts', 'PTS'], ['reb', 'REB'], ['ast', 'AST'], ['stl', 'STL'], ['blk', 'BLK']].filter(([k]) => b[BX[k]] >= 10 || ['pts', 'reb', 'ast'].includes(k)).map(([k, l]) => `${b[BX[k]]} ${l}`).join(' · ');
+  /** The night's first baskets, one per game: [{ kind: 'fb', G, pid }]. */
+  function rxFbList(games) { return games.filter(G => G.fb?.pid && G.box[G.fb.pid]).map(G => ({ kind: 'fb', G, pid: String(G.fb.pid) })); }
+  /** The night's doubles, triple-doubles first, then the longest price we had. */
+  function rxDblList(games, P) {
+    const out = [];
+    for (const G of games) for (const [pid, b] of Object.entries(G.box)) if (cats10(b) >= 2) {
+      const t = cats10(b) >= 3, e = P?.dbl?.[pid]; out.push({ kind: 'dbl', G, pid, t, p: e ? (t ? e[1] : e[0]) : null });
+    }
+    return out.sort((a, b) => b.t - a.t || (a.p ?? 2) - (b.p ?? 2));
+  }
+  const rxHasVid = (x) => { const v = VID?.[x.G.gid]; return !!(v?.yt || v?.p?.[x.pid]); };
+  function rxCardHtml(x, i, P) {
+    const { G, pid } = x, b = G.box[pid] || [], play = rxHasVid(x) ? '<span class="rxc-play" title="Watch">▶</span>' : '';
+    if (x.kind === 'fb') {
+      const fp = P?.fb?.[G.gid], mine = fp?.[pid], top = fp ? Object.entries(fp).sort((a, c) => c[1] - a[1])[0] : null, hit = top && top[0] === pid;
+      const ft = G.fb.x != null ? `${Math.round(Math.hypot(G.fb.x - 25, G.fb.y - 1))}-ft ` : '';
+      return `<div class="rx-row rxc" onclick="rxvOpen(${i})">${faceHtml(pid, b[BX.name])}
+        <div class="rx-info"><div class="rx-nm">${esc(b[BX.name] || '')} <span class="dim">${esc(b[BX.team] || '')}</span></div>
+          <div class="rx-sub">${ft}${esc(fbKind(G.fb))} · ${clockLbl(G.fb.per, G.fb.sec)}${G.tip ? ` · ${esc(G.tip.won)} won the tip` : ''}</div>
+          <div class="rx-sub dim">${rxMatch(G)}</div></div>
+        <div class="rx-right">${mine != null ? `<span class="rx-odds">${Odds.inline(mine)}</span>` : ''}
+          ${top ? hit ? gradeChip(true, 'our pick') : `<span class="rx-grade miss">our pick: ${esc(lastNm(G.box[top[0]]?.[BX.name]))} ${Odds.inline(top[1])}</span>` : ''}</div>${play}</div>`;
+    }
+    return `<div class="rx-row rxc" onclick="rxvOpen(${i})">${faceHtml(pid, b[BX.name])}
+      <div class="rx-info"><div class="rx-nm">${esc(b[BX.name])} <span class="dim">${esc(b[BX.team])}</span>${x.t ? ' <span class="rx-td">TRIPLE-DOUBLE</span>' : ''}</div>
+        <div class="rx-sub">${rxLine(b)}</div><div class="rx-sub dim">${rxMatch(G)}</div></div>
+      <div class="rx-right">${x.p != null ? `<span class="rx-odds">${Odds.inline(x.p)}</span><span class="rx-sub">we priced ${x.t ? 'TD' : 'DD'}</span>` : '<span class="rx-sub">not priced</span>'}</div>${play}</div>`;
+  }
+  /** The card views' body: the list for the night, or a note. */
+  function rxCards(games, P) {
+    loadVideos();
+    rxv.list = rxView === 'first' ? rxFbList(games) : rxDblList(games, P);
+    if (!rxv.list.length) return `<div class="empty">${rxView === 'first' ? 'No first basket logged this night.' : 'No double-doubles this night.'}</div>`;
+    return `<div class="rxc-list">${rxv.list.map((x, i) => rxCardHtml(x, i, P)).join('')}</div>`;
+  }
+  // ── The video card: a first basket's drawn replay beside the game's reel; a double's own video, his clips, or the reel ──
+  const rxv = { list: [], at: 0, gid: null, clip: 0 };
+  function rxvOpen(i) {
+    rxv.at = i; rxv.clip = 0; rxv.gid = rxv.list[i]?.G.gid;
+    RonModal.open('rxv-back', { cls: 'pm ydm rxv-card', nav: { prev: 'rxvStep(-1)', next: 'rxvStep(1)' }, onClose: () => { rxv.gid = null; } });
+    rxvRender();
+  }
+  function rxvStep(d) { const n = rxv.at + d; if (n >= 0 && n < rxv.list.length) { rxv.at = n; rxv.clip = 0; rxv.gid = rxv.list[n].G.gid; rxvRender(); } }
+  function rxvClip(k) { rxv.clip = k; rxvRender(); }
+  const ytFrame = (id, title) => `<div class="rxv-yt"><iframe src="https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1&playsinline=1" title="${esc(title || 'NBA highlights')}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe></div>`;
+  function rxvRender() {
+    const box = document.querySelector('#rxv-back .ydm'); const x = rxv.list[rxv.at]; if (!box || !x) return;
+    const { G, pid } = x, b = G.box[pid] || [], v = VID?.[G.gid], e = v?.p?.[pid], P = PH?.days?.[G.date];
+    let vid, note;
+    if (x.kind === 'dbl' && e?.yt) { vid = ytFrame(e.yt, e.t); note = `${esc(e.t || '')} · NBA on YouTube`; }
+    else if (x.kind === 'dbl' && e?.c?.length) {
+      const c = e.c[Math.min(rxv.clip, e.c.length - 1)];
+      vid = `<video class="hrv-video" controls playsinline autoplay src="${esc(c[0])}" poster="${esc(c[3] || '')}"></video>`;
+      note = e.c.length > 1 ? `<span class="rxv-clips">${e.c.map((y, k) => `<button class="vid-btn${k === rxv.clip ? ' on' : ''}" onclick="rxvClip(${k})">${esc(y[1])}</button>`).join('')}</span>` : `${esc(c[1])} · ESPN`;
+    } else if (v?.yt) { vid = ytFrame(v.yt, `${G.away} at ${G.home}`); note = x.kind === 'fb' ? 'The full game highlights (NBA on YouTube). The reel runs in game order: the first basket is near the start, when it made the cut.' : 'No clip of his own: the game\'s highlights (NBA on YouTube).'; }
+    else { vid = ''; note = vidState === 'loading' ? 'Loading video…' : 'No video yet: the NBA posts each game\'s highlights a few hours after it ends.'; }
+    const head = x.kind === 'fb'
+      ? `<div class="ydm-big"><div><span>First basket</span><span>${P?.fb?.[G.gid]?.[pid] != null ? Odds.pct(P.fb[G.gid][pid]) : ''}</span></div><strong>${P?.fb?.[G.gid]?.[pid] != null ? Odds.am(P.fb[G.gid][pid]) : '—'}</strong></div>`
+      : `<div class="ydm-big"><div><span>${x.t ? 'Triple-double' : 'Double-double'}</span><span>${x.p != null ? Odds.pct(x.p) : 'not priced'}</span></div><strong>${x.p != null ? Odds.am(x.p) : '—'}</strong></div>`;
+    const sub = x.kind === 'fb' ? `${G.fb.x != null ? `${Math.round(Math.hypot(G.fb.x - 25, G.fb.y - 1))}-ft ` : ''}${esc(fbKind(G.fb))} · ${clockLbl(G.fb.per, G.fb.sec)}` : rxLine(b);
+    const court = x.kind === 'fb' ? `<section class="ydm-panel"><h4>The tip and the shot</h4><div class="rx" id="rx-${G.gid}">${courtSvg(G)}<div class="rx-cap"></div>
+        <div class="rx-btns"><button class="rx-btn" onclick="rxFirst('${G.gid}')">◆ Replay</button></div></div></section>` : '';
+    box.innerHTML = `<button class="pm-x" onclick="RonModal.close('rxv-back')" aria-label="Close">×</button>
+      <header class="ydm-hero">${faceHtml(pid, b[BX.name])}
+        <div class="ydm-id"><h2>${esc(b[BX.name] || '')}</h2><div class="ydm-meta"><b>${esc(b[BX.team] || '')}</b><span>•</span>${sub}<span>•</span>${rxMatch(G)}<span>•</span>${dayLabel(G.date, true)}</div></div>
+        ${head}</header>
+      <div class="rxv-grid${court ? '' : ' one'}">${court}
+        <section class="ydm-panel"><h4>${x.kind === 'fb' ? 'The game' : 'Watch'}</h4>${vid}<p class="ydl-help rxv-note">${note}</p></section></div>`;
+    RonModal.navState('rxv-back', rxv.at, rxv.list.length);
+    if (court) setTimeout(() => rxFirst(G.gid), 250);
+  }
+
   function renderRecap() {
     const el = dataGate('recap-content'); if (!el) return;
     loadRecap();
@@ -1417,7 +1526,7 @@
       <div class="hm-tile"><b>${t3Priced ? `${t3Hit}/${t3Priced}` : '—'}</b><span>Threes · over his best line</span></div>
       <div class="hm-tile"><b>${dd}${td ? ` · ${td} TD` : ''}</b><span>Double-doubles</span></div>
     </div>`;
-    const body = games.map(G => {
+    const body = rxView !== 'game' ? rxCards(games, P) : games.map(G => {
       const aWin = G.as > G.hs, fp = P?.fb?.[G.gid];
       // first basket
       let fbHtml = '<div class="rx-none">No first basket logged.</div>';
@@ -1431,7 +1540,7 @@
           <div class="rx-info"><div class="rx-nm">${esc(b[BX.name] || '')} <span class="dim">${esc(G.fb.team || '')}</span></div>
             <div class="rx-sub">${ft}${esc(fbKind(G.fb))} · ${clockLbl(G.fb.per, G.fb.sec)}${G.tip ? ` · ${esc(G.tip.won)} won the tip` : ''}</div></div>
           <div class="rx-right">${mine != null ? `<span class="rx-odds">${Odds.inline(mine)}</span>` : ''}
-            ${top ? hit ? gradeChip(true, 'our pick') : `<span class="rx-grade miss">our pick: ${esc((G.box[top[0]]?.[BX.name] || '').split(' ').slice(-1)[0])} ${Odds.inline(top[1])}</span>` : ''}</div>
+            ${top ? hit ? gradeChip(true, 'our pick') : `<span class="rx-grade miss">our pick: ${esc(lastNm(G.box[top[0]]?.[BX.name]))} ${Odds.inline(top[1])}</span>` : ''}</div>
         </div>`;
       }
       // threes, by player
@@ -1499,6 +1608,7 @@
       </div>
       <div class="result-meta"><b>${dayLabel(recapDate, true)}</b> · ${games.length} game${games.length === 1 ? '' : 's'}${games.some(g => g.live) ? ` · <span style="color:var(--bad)">${games.filter(g => g.live).length} live</span>, updating every minute` : ''}${P ? ' · graded against our last pre-tip prices' : ' · not priced'}</div>
       ${tiles}
+      ${uiTabs('setRxView', rxView, [['game', 'By game'], ['first', 'First baskets'], ['dbl', 'Doubles']])}
       ${body || '<div class="empty">Nothing final on this date.</div>'}`;
   }
 

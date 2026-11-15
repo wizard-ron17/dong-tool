@@ -19,6 +19,7 @@ import { MODEL, fam, minutesInputs, projectMinutes, threesRate, oppThreesRatio, 
   statRate, statForm, statOpp, statMu, statLadder, statNearEven, doublesPrice } from './nba-models.js';
 import { buildFun } from './nba-fun.js';
 import { recapDetail, saveRecap, recapHas, savePrices, leagueRow, saveLeagueDays } from './nba-recap.js';
+import { updateVideos } from './nba-video.js';
 
 const AHEAD = 10;        // schedule days ahead
 const BEHIND = 3;        // ...and behind (yesterday's finals stay on the schedule)
@@ -176,6 +177,9 @@ async function main() {
   console.log(`League days: ${saveLeagueDays(todo.map(f => { const x = got.get(f.id); return x?.r ? leagueRow(x.r) : null; }), label)} regular-season finals logged`);
   const recapKept = saveRecap(recapTodo.map(f => { const x = got.get(f.id); return x?.r ? recapDetail(x.s, f, x.r) : null; }), today, RECAP_DAYS, shiftDate);
   console.log(`Recap detail: ${recapTodo.length} new finals, ${recapKept} kept`);
+  // the Recap's video: each final's YouTube reel, each double-double's own video or ESPN clips (scripts/nba-video.js); never fails the build
+  try { await updateVideos(readJSON(new URL('../nba/recap.json', import.meta.url), { games: {} }).games, teams, { get }); }
+  catch (e) { console.log(`Videos: skipped (${e.message})`); }
   // the season's game log, one row per player per game (the page's player card), from the same new finals
   {
     const GL_PATH = new URL('../nba/gamelog.json', import.meta.url);
