@@ -1650,11 +1650,11 @@
         </div>
         ${end ? logoImg(t.ab, 'sc-logo') : ''}
       </div>`;
-    // the game's top threes pick, best at 2+ (the schedule standard: a top pick on every game)
-    const tp = (D.threes?.rows || []).filter(r => r.gid === g.id).sort((a, b) => b.p[1] - a.p[1])[0];
-    const pick = tp ? `<div class="t3-pick" onclick="event.stopPropagation(); t3Set('game','${g.id}'); switchNav('threes')">
-        <span class="t3-pick-lbl">Top threes</span>${logoImg(tp.team, 't3-logo')}<b>${esc(tp.name)}</b>
-        <span class="t3-pick-od">2+ ${fairOdds(tp.p[1])} <small>${(tp.p[1] * 100).toFixed(0)}%</small></span></div>` : '';
+    // the game's top pick, the first basket (the schedule standard: a top pick on every game; 11/15 Ron: not threes)
+    const tp = nbaTopPick(g);
+    const pick = tp ? `<div class="t3-pick" onclick="event.stopPropagation(); ${(D.first?.games || []).some(x => x.gid === g.id) ? `fbcOpen('${g.id}','${tp.pid}')` : `openGame('${g.id}')`}">
+        <span class="t3-pick-lbl">1st basket</span>${logoImg(tp.team, 't3-logo')}<b>${esc(tp.name)}</b>
+        <span class="t3-pick-od">${fairOdds(tp.p)} <small>${(tp.p * 100).toFixed(0)}%</small></span></div>` : '';
     return `<div class="sc-game" data-gid="${g.id}" onclick="openGame('${g.id}')" role="button" tabindex="0">
       <div class="sc-top">
         ${side(g.away, false, aWin)}
@@ -1909,17 +1909,19 @@
       const f = day.fb?.[g.id]?.[pid]; if (f != null) row(r).cells.fb = { p: f };
     }
   }
-  /** The game's top pick, for the rail: our best 2+ threes price (tonight's board, else the logged one), graded once played. */
+  /** The game's top pick, for the rail (11/15, Ron: the first basket, not threes): our shortest first-basket price
+   *  (tonight's board, else the pre-tip prices logged for that night), graded once played: ✓ he scored it, DNP if he sat. */
   function nbaTopPick(g) {
-    const tp = (D.threes?.rows || []).filter(r => r.gid === g.id).sort((a, b) => b.p[1] - a.p[1])[0];
-    let best = tp ? { pid: tp.pid, name: tp.name, p: tp.p[1] } : null;
+    const fg = (D.first?.games || []).find(x => x.gid === g.id), r = fg ? [...fg.players].sort((a, b) => b.p - a.p)[0] : null;
+    let best = r ? { pid: String(r.pid), name: r.name, team: r.team, p: r.p } : null;
     if (!best) {
-      const day = PH?.days?.[g.date]?.t3, G = typeof rcGame === 'function' ? rcGame(g.id) : null;
-      if (day && G?.box) for (const pid of Object.keys(G.box)) { const t = day[pid]; if (t && (!best || t[2] > best.p)) best = { pid, name: G.box[pid][BX.name], p: t[2] }; }
+      const day = PH?.days?.[g.date]?.fb?.[g.id], G = typeof rcGame === 'function' ? rcGame(g.id) : null;
+      const top = day ? Object.entries(day).sort((a, b) => b[1] - a[1])[0] : null;
+      if (top && G?.box?.[top[0]]) best = { pid: top[0], name: G.box[top[0]][BX.name], team: G.box[top[0]][BX.team], p: top[1] };
     }
     if (!best) return null;
-    const me = g.state === 'post' ? nbaActual(g)?.[best.pid] : null;
-    best.res = !me ? null : !(me.min > 0) ? -1 : me['3pm'] >= 2 ? 1 : 0;
+    const me = g.state === 'post' ? nbaActual(g)?.[best.pid] : null, fb = g.state === 'post' ? nbaFbPid(g) : null;
+    best.res = g.state !== 'post' ? null : me && !(me.min > 0) ? -1 : fb == null ? null : String(fb) === best.pid ? 1 : 0;
     return best;
   }
 
@@ -2162,7 +2164,7 @@
         when: final ? esc(g.detail || 'Final') : live ? `Live · ${esc(g.detail || '')}` : `${g.type === 1 ? 'Pre · ' : ''}${gameTime(g.start)}`,
         note: !final && !live && L?.total != null ? `O/U ${L.total}` : '',
         teams: [team(g.away, false), team(g.home, true)],
-        pick: tp ? `★ <b>${esc(tp.name)}</b> 2+ threes${res}<span class="sl-od${tp.p >= 0.5 ? ' fav' : ''}">${Odds.am(tp.p)}</span>` : '' };
+        pick: tp ? `★ <b>${esc(tp.name)}</b> 1st basket${res}<span class="sl-od${tp.p >= 0.5 ? ' fav' : ''}">${Odds.am(tp.p)}</span>` : '' };
     }) }];
   }
   function renderSchedule() {
