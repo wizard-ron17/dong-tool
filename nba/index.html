@@ -807,6 +807,7 @@
   .gf.flat { border: none; background: transparent; padding: 0; }
   .gf { background: var(--surface0); border: 1px solid var(--border2); border-top: none; padding: 0.85rem 1rem 0.7rem; }
   .gf-empty { padding: 1rem 0; color: var(--muted); font-size: 0.85rem; }
+  .gmr { margin-bottom: 1rem; }
   .gf-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem 1rem; margin-bottom: 0.55rem; }
   .gf-head h4 { margin: 0; font-family: var(--font-d); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--silver); }
   .gf-teams { display: flex; gap: 1rem; }
@@ -1421,7 +1422,7 @@
     if (vidState !== 'idle') return;
     vidState = 'loading';
     dataFetch('videos.json', { cache: 'no-store' }).then(r => r.json()).then(j => { VID = j.games || {}; vidState = 'ready'; })
-      .catch(() => { VID = {}; vidState = 'error'; }).finally(() => { if (activeNav === 'recap') renderRecap(); if (rxv.gid) rxvRender(); });
+      .catch(() => { VID = {}; vidState = 'error'; }).finally(() => { if (activeNav === 'recap') renderRecap(); if (rxv.gid) rxvRender(); if (ngm.tab === 'flow') nbaGmRedraw(); });
   }
   /** His last name, past a suffix: "Jaime Jaquez Jr." -> "Jaquez". */
   const lastNm = (n) => { const w = (n || '').split(' ').filter(x => !/^(jr\.?|sr\.?|ii|iii|iv|v)$/i.test(x)); return w[w.length - 1] || n || ''; };
@@ -1834,7 +1835,7 @@
     const T = [['proj', 'Box score'], ['matchup', 'Matchup']].concat(L ? [['lines', 'Lines']] : []).concat([['lineup', 'Lineup']]).concat(final || live ? [['flow', 'Game']] : []);
     if (!T.some(([v]) => v === ngm.tab)) ngm.tab = 'proj';
     const tabs = `<div class="sub-tabs u-tabs gm-tabs">${T.map(([v, l]) => `<button class="sub-btn${ngm.tab === v ? ' active' : ''}" onclick="nbaGmTab('${v}')">${l}</button>`).join('')}</div>`;
-    const body = ngm.tab === 'matchup' ? nbaMatchup(g) : ngm.tab === 'lines' ? nbaLines(g) : ngm.tab === 'lineup' ? nbaLineup(g) : ngm.tab === 'flow' ? nbaFlow(g) : nbaBox(g);
+    const body = ngm.tab === 'matchup' ? nbaMatchup(g) : ngm.tab === 'lines' ? nbaLines(g) : ngm.tab === 'lineup' ? nbaLineup(g) : ngm.tab === 'flow' ? (final ? nbaReel(g) : '') + nbaFlow(g) : nbaBox(g);
     return `<header class="gm-hero">
         <div class="gm-team">${logoImg(g.away.ab, '')}<b>${esc(g.away.ab)}</b>${side(false)}</div>
         <div class="gm-mid">${mid}<div class="gm-wx">${esc(g.venue || '')}${at >= 0 ? ` · ${at + 1} / ${deck.length}` : ''}</div></div>
@@ -2070,6 +2071,13 @@
     into = per <= 4 ? t - (per - 1) * 720 : t - 2880 - (per - 5) * 300, left = Math.max(0, len - into);
     return `${per <= 4 ? 'Q' + per : per === 5 ? 'OT' : (per - 4) + 'OT'} ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`; };
   const NGF = {};
+  /** A final's full-game highlights (the NBA's YouTube reel, nba/videos.json: it posts 2-3 hours after the game). */
+  function nbaReel(g) {
+    loadVideos();
+    const id = VID?.[g.id]?.yt;
+    if (id) return `<div class="gf flat gmr"><div class="gf-head"><h4>Full-game highlights</h4></div>${ytFrame(id, `${g.away.ab} at ${g.home.ab} highlights`)}</div>`;
+    return vidState === 'ready' || vidState === 'error' ? `<div class="gf flat gmr"><div class="gf-empty">Full-game highlights post here 2-3 hours after the final.</div></div>` : '';
+  }
   function nbaFlow(g) {
     const S = NSUM[g.id];
     if (!S) return `<div class="gf flat"><div class="gf-empty">Loading the game…</div></div>`;
