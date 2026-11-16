@@ -109,7 +109,7 @@ Builds live in `scripts/build-*.js` (GitHub Actions crons in `.github/workflows/
 ## Never
 - Read secrets: `/Users/ron/exchange-odds/.env`, `keys/*.pem`, `~/Desktop/odds-viewer/keys.json` or `circa.key`. Trading keys never go in this public repo.
 - `pkill` by app name (it killed Ron's real Chrome once). Kill only PIDs you started, and use an isolated `--user-data-dir`.
-- Bypass bot walls (Cloudflare challenges, ufcstats).
+- Solve captchas or forge a site's signed request headers. A stealth browser is fine (Ron 11/15), with an isolated `--user-data-dir`, never his own Chrome profile.
 
 ## Related local repos
 - `~/Desktop/odds-viewer`: Ron's Odds API screener and bet tracker (local only, no remote). It reads our fair prices from raw GitHub and imports slips via `RONBET:` lines. Keep API calls light.
