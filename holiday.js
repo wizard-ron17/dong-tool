@@ -6,9 +6,10 @@
 //              house, a graveyard with a black cat, bare trees, pumpkins, a potion, cobwebs and a spider; a purple night
 //              sky; the accent goes pumpkin orange and borders purple; a jack-o'-lantern for each tool's logo; and a
 //              few bats flutter across the top once per visit (none for reduced motion, never in the way of a click)
-//   neon       11/19/2026, a big crime-sandbox game's release day (Ron 11/17): a neon beach city at sunset behind the page,
-//              a striped retro sun over the water, palms, a sports car with its underglow, a lit skyline and a police
-//              helicopter with its searchlight; hot pink accent, neon borders; a palm for each tool's logo; the helicopter
+//   neon       11/19/2026, a big crime-sandbox game's release day (Ron 11/17): a Miami-style neon beach city at sunset behind
+//              the page, a striped retro sun over the water, palms, an 80s wedge supercar with side strakes and underglow,
+//              art-deco towers trimmed in pink and blue neon (a neon flamingo on one), a police helicopter with its searchlight,
+//              and across the middle a distant skyline, a lit causeway and the bay's neon reflections; hot pink accent, neon borders; a palm for each tool's logo; the helicopter
 //              crosses the top once per visit. Its own art, no game logos or names. A one-off (year: 2026).
 (function () {
   if (window.RonHoliday) return;
@@ -179,7 +180,7 @@
         <mask id="neo-stripes"><rect width="420" height="900" fill="#fff"/><g fill="#000"><rect y="600" width="420" height="5"/><rect y="618" width="420" height="7"/><rect y="638" width="420" height="9"/><rect y="660" width="420" height="11"/></g></mask>
         <linearGradient id="neo-sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a1260"/><stop offset="1" stop-color="#14082a"/></linearGradient>
         <radialGradient id="neo-glow"><stop offset="0" stop-color="#ff2e88" stop-opacity=".85"/><stop offset="1" stop-color="#ff2e88" stop-opacity="0"/></radialGradient>
-        <linearGradient id="neo-fl"><stop offset=".6" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient><mask id="neo-ml"><rect width="420" height="905" fill="url(#neo-fl)"/></mask></defs>
+        <filter id="neo-neon" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><linearGradient id="neo-fl"><stop offset=".6" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient><mask id="neo-ml"><rect width="420" height="905" fill="url(#neo-fl)"/></mask></defs>
       <circle cx="150" cy="600" r="230" fill="url(#neo-halo)"/>
       <circle cx="150" cy="600" r="118" fill="url(#neo-sun)" mask="url(#neo-stripes)"/>
       <g mask="url(#neo-ml)"><rect y="686" width="420" height="120" fill="url(#neo-sea)"/>
@@ -189,34 +190,79 @@
       <path fill="${SIL}" d="M0 905V806Q120 794 260 806T420 812V905Z"/>
       <path d="M0 846H420" stroke="#ff2e88" stroke-width="1.5" opacity=".5"/></g>
       <ellipse cx="250" cy="866" rx="130" ry="14" fill="url(#neo-glow)"/>
-      <g transform="translate(130 812)"><path fill="#0a0612" stroke="#ff7ab8" stroke-width="1.4" stroke-linejoin="round" d="M2 40L8 30Q30 26 56 14Q74 6 102 6L142 8Q162 12 186 26L224 30Q238 33 238 42V50H2Z"/>
-        <path fill="#2ee6f0" opacity=".55" d="M66 16Q80 10 100 10L120 11L126 24H58Z"/>
-        <circle cx="52" cy="50" r="13" fill="#0a0612" stroke="#2ee6f0" stroke-width="1.5"/><circle cx="192" cy="50" r="13" fill="#0a0612" stroke="#2ee6f0" stroke-width="1.5"/>
-        <rect x="0" y="32" width="12" height="5" rx="2" fill="#ff2a4a"/><rect x="230" y="34" width="9" height="4" rx="2" fill="#fff4c2"/>
-        <path d="M2 40H238" stroke="#ff2e88" stroke-width="1.5"/></g>
+      <g transform="translate(96 788) scale(1.18)">
+        <path fill="#0a0612" stroke="#ff4fa3" stroke-width="1.6" stroke-linejoin="round" filter="url(#neo-neon)" d="M0 40L3 31L36 27L86 12Q94 9 106 9L160 10Q170 11 178 16L204 24L250 27Q262 29 263 37L263 49H0Z"/>
+        <path fill="#0a0612" d="M0 40L3 31L36 27L86 12Q94 9 106 9L160 10Q170 11 178 16L204 24L250 27Q262 29 263 37L263 49H0Z"/>
+        <path fill="#2ee6f0" opacity=".55" d="M92 14Q98 11 108 11L156 12L172 24H96Z"/><path d="M128 12V24" stroke="#0a0612" stroke-width="3"/>
+        <g stroke="#ff4fa3" stroke-width="1.2" opacity=".85"><path d="M150 30H214M152 34H216M154 38H218M156 42H220M158 46H222"/></g>
+        <path d="M36 28H250" stroke="#2ee6f0" stroke-width="1" opacity=".6"/>
+        <rect x="0" y="33" width="34" height="5" fill="#ff2a4a"/><g stroke="#0a0612" stroke-width="1.4"><path d="M6 33V38M12 33V38M18 33V38M24 33V38M30 33V38"/></g>
+        <rect x="254" y="32" width="9" height="3" rx="1" fill="#fff4c2"/>
+        <g fill="#0a0612" stroke="#2ee6f0" stroke-width="1.6"><circle cx="54" cy="49" r="14"/><circle cx="214" cy="49" r="14"/></g>
+        <g stroke="#2ee6f0" stroke-width="1.2" opacity=".8"><path d="M54 41V57M46 49H62M48 43L60 55M60 43L48 55"/><path d="M214 41V57M206 49H222M208 43L220 55M220 43L208 55"/></g>
+        <path d="M0 50H263" stroke="#ff4fa3" stroke-width="2" filter="url(#neo-neon)"/></g>
     </svg>`;
     // the right edge: a lit skyline over the water, one tower in neon, a police helicopter and its searchlight, a palm in front
-    const tower = (x, w, top, win) => { let r = `<rect x="${x}" y="${top}" width="${w}" height="${905 - top}" fill="${SIL}"/>`;
-      for (let yy = top + 14; yy < 790; yy += 16) for (let xx = x + 6; xx < x + w - 6; xx += 11) { const k = (xx * 7 + yy * 3) % 11; if (k < 4) r += `<rect x="${xx}" y="${yy}" width="5" height="7" fill="${win[k % win.length]}"/>`; }
-      return r; };
+    // an art-deco tower: a stepped or rounded crown, a lit window grid, neon trim (pink or cyan) on its edges and bands
     const WIN = ['#ffd166', '#ff7ab8', '#2ee6f0', '#ffe9a8'];
+    const tower = (x, w, top, o = {}) => {
+      const neon = o.neon || '#2ee6f0', c = x + w / 2;
+      let r = `<rect x="${x}" y="${top}" width="${w}" height="${905 - top}" fill="${SIL}"/>`;
+      if (o.crown === 'step') r += `<rect x="${x + w * 0.15}" y="${top - 18}" width="${w * 0.7}" height="19" fill="${SIL}"/><rect x="${x + w * 0.32}" y="${top - 34}" width="${w * 0.36}" height="17" fill="${SIL}"/>`
+        + `<path d="M${x} ${top}H${x + w * 0.15}V${top - 18}H${x + w * 0.32}V${top - 34}H${x + w * 0.68}V${top - 18}H${x + w * 0.85}V${top}H${x + w}" fill="none" stroke="${neon}" stroke-width="1.6" filter="url(#neo-neon)"/>`;
+      if (o.crown === 'dome') r += `<path d="M${x} ${top}A${w / 2} ${w * 0.42} 0 0 1 ${x + w} ${top}Z" fill="${SIL}"/><path d="M${x} ${top}A${w / 2} ${w * 0.42} 0 0 1 ${x + w} ${top}" fill="none" stroke="${neon}" stroke-width="1.6" filter="url(#neo-neon)"/>`
+        + `<path d="M${c} ${top - w * 0.42}V${top - w * 0.42 - 34}" stroke="${SIL}" stroke-width="3"/><circle cx="${c}" cy="${top - w * 0.42 - 36}" r="3" fill="#ff2a4a"/>`;
+      if (o.crown === 'spire') r += `<path d="M${x + 4} ${top}L${c} ${top - 40}L${x + w - 4} ${top}Z" fill="${SIL}"/><path d="M${c} ${top - 40}V${top - 78}" stroke="${SIL}" stroke-width="3"/><circle cx="${c}" cy="${top - 80}" r="3.5" fill="#ff2a4a"/>`
+        + `<path d="M${x + 4} ${top}L${c} ${top - 40}L${x + w - 4} ${top}" fill="none" stroke="${neon}" stroke-width="1.6" filter="url(#neo-neon)"/>`;
+      for (let yy = top + 12; yy < 800; yy += 14) for (let xx = x + 5; xx < x + w - 6; xx += 9) { const k = (xx * 7 + yy * 3) % 13; if (k < 5) r += `<rect x="${xx}" y="${yy}" width="4" height="6" fill="${WIN[k % WIN.length]}" opacity="${k < 2 ? 1 : 0.7}"/>`; }
+      if (o.bands) for (let yy = top + 60; yy < 760; yy += o.bands) r += `<path d="M${x} ${yy}H${x + w}" stroke="${neon}" stroke-width="1.3" opacity=".8" filter="url(#neo-neon)"/>`;
+      if (o.fin) r += `<path d="M${c} ${top + 8}V780" stroke="${o.fin}" stroke-width="2.2" filter="url(#neo-neon)"/>`;
+      if (o.edge) r += `<path d="M${x + 0.5} 790V${top}M${x + w - 0.5} ${top}V790" stroke="${neon}" stroke-width="1.4" opacity=".9" filter="url(#neo-neon)"/>`;
+      if (o.balc) for (let yy = top + 30; yy < 780; yy += 22) r += `<path d="M${x - 3} ${yy}H${x + w + 3}" stroke="${SIL}" stroke-width="3"/>`;
+      return r;
+    };
+    // a neon flamingo on a rooftop, pink tubing
+    const FLAMINGO = (x, y) => `<g transform="translate(${x} ${y})" fill="none" stroke="#ff4fa3" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" filter="url(#neo-neon)">
+        <path d="M0 0Q-6 -10 2 -14Q10 -16 8 -6Q6 4 12 12"/><path d="M-2 -13L-9 -10L-3 -9"/><ellipse cx="22" cy="18" rx="14" ry="8"/><path d="M34 16L42 12"/><path d="M20 26V48M24 26L28 36L22 40"/></g>`;
     const RIGHT = `<svg class="hol-side hol-right" viewBox="0 0 420 900" preserveAspectRatio="xMaxYMax meet" aria-hidden="true">
       <defs><linearGradient id="neo-beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".38"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
         <linearGradient id="neo-fr"><stop offset="0" stop-color="#000"/><stop offset=".45" stop-color="#fff"/></linearGradient><mask id="neo-mr"><rect width="420" height="905" fill="url(#neo-fr)"/></mask></defs>
-      <path d="M262 132L170 520L250 520Z" fill="url(#neo-beam)"/>
+      <path d="M262 132L150 540L240 540Z" fill="url(#neo-beam)"/>
       <g fill="${SIL}" transform="translate(240 104)"><ellipse cx="26" cy="22" rx="28" ry="14"/><path d="M48 18L118 14L120 20L50 28Z"/><path d="M112 6L122 4L124 22L116 22Z"/>
         <path d="M-38 2H92" stroke="${SIL}" stroke-width="3" stroke-linecap="round"/><path d="M26 8V2" stroke="${SIL}" stroke-width="4"/>
         <path d="M2 40H56M10 34V40M44 34V40" stroke="${SIL}" stroke-width="3" fill="none"/><path fill="#2ee6f0" opacity=".6" d="M2 20Q4 12 16 10L18 22Z"/>
         <circle cx="54" cy="12" r="2.5" fill="#ff2a4a"/><circle cx="18" cy="34" r="2.5" fill="#3d7bff"/></g>
-      ${tower(170, 46, 470, WIN)}${tower(222, 58, 330, WIN)}${tower(290, 40, 420, WIN)}${tower(336, 52, 270, WIN)}${tower(394, 30, 500, WIN)}
-      <path d="M336 270L362 238L388 270" fill="${SIL}"/><path d="M362 238V200" stroke="${SIL}" stroke-width="3"/><circle cx="362" cy="198" r="3.5" fill="#ff2a4a"/>
-      <rect x="222.5" y="330.5" width="57" height="575" fill="none" stroke="#ff2e88" stroke-width="1.6" opacity=".9"/>
-      <rect x="336.5" y="270.5" width="51" height="635" fill="none" stroke="#2ee6f0" stroke-width="1.6" opacity=".8"/>
-      <g mask="url(#neo-mr)"><rect y="760" width="420" height="145" fill="#14082a"/></g>
-      <g stroke-linecap="round" opacity=".6"><path d="M180 776h30M232 784h40M300 778h24M344 790h36M240 806h20M360 812h30" stroke="#ff7ab8" stroke-width="2"/><path d="M200 798h24M296 800h30M392 776h20" stroke="#2ee6f0" stroke-width="2"/></g>
-      ${palm(372, 880, 260, 40, .9)}${palm(410, 890, 180, -10, .65)}
-      <path fill="${SIL}" mask="url(#neo-mr)" d="M0 905V850Q300 836 420 846V905Z"/>
+      ${tower(150, 44, 520, { crown: 'step', neon: '#ff4fa3', balc: 1 })}${tower(200, 62, 340, { crown: 'dome', neon: '#2ee6f0', fin: '#ff4fa3', bands: 90 })}
+      ${tower(268, 42, 450, { crown: 'step', neon: '#2ee6f0', edge: 1 })}${tower(316, 58, 250, { crown: 'spire', neon: '#ff4fa3', bands: 70, edge: 1 })}${tower(380, 44, 410, { crown: 'step', neon: '#2ee6f0', balc: 1 })}
+      ${FLAMINGO(280, 380)}
+      <g transform="translate(206 300)"><rect width="50" height="14" rx="3" fill="${SIL}" stroke="#2ee6f0" stroke-width="1.4" filter="url(#neo-neon)"/><path d="M8 7H42" stroke="#ff4fa3" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="5 3" filter="url(#neo-neon)"/></g>
+      <g mask="url(#neo-mr)"><rect y="790" width="420" height="115" fill="#14082a"/></g>
+      <g stroke-linecap="round" opacity=".7"><path d="M210 800V880M226 806V870M232 800V890" stroke="#ff4fa3" stroke-width="2" stroke-dasharray="6 5"/><path d="M344 802V890M352 808V880" stroke="#2ee6f0" stroke-width="2" stroke-dasharray="6 5"/><path d="M180 812h30M300 818h24M390 806h20" stroke="#ffd166" stroke-width="2"/></g>
+      ${palm(372, 890, 260, 40, .9)}${palm(412, 900, 180, -10, .65)}
+      <path fill="${SIL}" mask="url(#neo-mr)" d="M0 905V860Q300 846 420 856V905Z"/>
+      <path d="M150 872Q300 858 420 866" stroke="#2ee6f0" stroke-width="1.5" fill="none" opacity=".6" mask="url(#neo-mr)"/>
     </svg>`;
+    // the middle, full width behind the sides: sunset cloud streaks, a distant skyline on the horizon, the lit causeway
+    // across the bay, and the water with neon reflections, so the space between the cards is a view, not a blank sky
+    const MID = (() => {
+      let city = '', lights = '';
+      for (let x = 0, k = 0; x < 1600; k++) { const w = 18 + (k * 37) % 30, h = 22 + (k * 53) % 70; city += `<rect x="${x}" y="${120 - h}" width="${w}" height="${h + 2}"/>`;
+        for (let j = 0; j < 3; j++) if ((k + j) % 3) lights += `<rect x="${x + 4 + (j * 11) % Math.max(6, w - 8)}" y="${120 - h + 6 + ((k * 7 + j * 13) % Math.max(6, h - 12))}" width="2.5" height="3"/>`; x += w + 2; }
+      let pier = ''; for (let x = 20; x < 1600; x += 34) pier += `<circle cx="${x}" cy="150" r="1.8"/>`;
+      let arch = ''; for (let x = 0; x < 1600; x += 68) arch += `<path d="M${x} 158Q${x + 34} 138 ${x + 68} 158"/>`;
+      return `<svg class="neo-mid" viewBox="0 0 1600 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+        <defs><linearGradient id="neo-bay" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3d1466"/><stop offset="1" stop-color="#10061f"/></linearGradient></defs>
+        <g fill="var(--neo-far)">${city}</g><g fill="#ffd9a0" opacity=".55">${lights}</g>
+        <path d="M0 120H1600" stroke="#ff4fa3" stroke-width="1.5" opacity=".7" filter="url(#neo-neon)"/>
+        <rect y="120" width="1600" height="180" fill="url(#neo-bay)"/>
+        <path d="M0 150H1600" stroke="var(--neo-far)" stroke-width="5"/><g fill="none" stroke="var(--neo-far)" stroke-width="3">${arch}</g><g fill="#ffd166">${pier}</g>
+        <g stroke-linecap="round" opacity=".55"><path d="M120 190h90M420 214h140M760 200h110M1040 222h160M1320 196h120M260 250h70M600 262h150M980 258h90M1400 246h80" stroke="#ff4fa3" stroke-width="2.5"/>
+          <path d="M60 230h60M500 236h80M880 236h60M1180 240h90M700 284h120M1240 280h70" stroke="#2ee6f0" stroke-width="2"/></g>
+      </svg>`;
+    })();
+    const CLOUDS = `<svg class="neo-sky" viewBox="0 0 1600 400" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><g fill="none" stroke-linecap="round">
+        <path d="M80 300h420M560 280h300M980 310h460M300 340h260M760 350h380M1180 260h260" stroke="#ff7ab8" stroke-width="7" opacity=".18"/>
+        <path d="M200 240h260M700 230h220M1100 220h300M40 360h200M1300 370h220" stroke="#b28cff" stroke-width="5" opacity=".16"/></g></svg>`;
     const css = `
       ${DARK} { --accent: #ff3d9a; --glow: rgba(255,61,154,0.10); --bg: #11061f; --surface0: #150926; --surface1: #1a0c31; --surface2: #241242;
         --border: #4a1d63; --border2: #6b2a86; --card: #140928; --card2: #1b0e36; --neo-sil: #07030d; }
@@ -229,6 +275,10 @@
       ${DARK} .hol-scene { background-image: radial-gradient(1.2px 1.2px at 12% 10%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 30% 22%, #fff 50%, transparent 51%),
           radial-gradient(1.3px 1.3px at 47% 6%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 70% 16%, #fff 50%, transparent 51%), radial-gradient(1.1px 1.1px at 88% 30%, #fff 50%, transparent 51%); opacity: .7; }
       ${H} .hol-side { position: absolute; bottom: 0; height: 100vh; width: auto; max-width: 48vw; }
+      ${H} .neo-mid { position: absolute; left: 0; bottom: 0; width: 100%; height: 40vh; }
+      ${H} .neo-sky { position: absolute; left: 0; bottom: 34vh; width: 100%; height: 40vh; }
+      ${DARK} { --neo-far: #2a1046; } ${LIGHT} { --neo-far: #c9a3d9; }
+      ${LIGHT} .neo-mid, ${LIGHT} .neo-sky { opacity: .5; }
       ${H} .hol-left { left: 0; } ${H} .hol-right { right: 0; }
       ${LIGHT} .hol-side { opacity: .55; }
       @media (max-width: 760px) { ${H} .hol-side { opacity: .4; } }
@@ -246,7 +296,7 @@
     const style = document.createElement('style'); style.id = 'holiday-css'; style.textContent = css; document.head.appendChild(style);
 
     const deco = () => {
-      if (document.body && !document.querySelector('.hol-scene')) document.body.insertAdjacentHTML('afterbegin', `<div class="hol-scene" aria-hidden="true">${LEFT}${RIGHT}</div>`);
+      if (document.body && !document.querySelector('.hol-scene')) document.body.insertAdjacentHTML('afterbegin', `<div class="hol-scene" aria-hidden="true">${CLOUDS}${MID}${LEFT}${RIGHT}</div>`);
       for (const a of document.querySelectorAll('.brand-home')) if (!a.querySelector('.hol-jack')) a.insertAdjacentHTML('afterbegin', `<span class="hol-jack">${PALM}</span>`);
       const brand = document.querySelector('body > .wrap > .brand');
       if (brand && !brand.querySelector('.hol-jack-title')) brand.insertAdjacentHTML('beforeend', PALM.replace('<svg ', '<svg class="hol-jack-title" '));
