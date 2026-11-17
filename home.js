@@ -3,7 +3,7 @@
 //   - an icon chip on each card's title: the tool's own icon from the Tools menu (RonChrome.icons), in its group's colour
 //     (g1-g4, the menu's categorical hues, never the good/bad ramp); Stats / Recap / Schedule take the main nav's icon
 //   - elevation: an accent-tinted border, a soft drop shadow, a faint top sheen, and an accent glow on hover
-//   - stat tiles with an accent wash; ringed player photos
+//   - stat tiles with an accent wash; player photos on a team-colour disc, zoomed to the face (MLB: the matchup tool's spot)
 // Every colour is a token (--accent, --border, --surface*), so a holiday's palette carries through.
 // Rules are scoped to #home-content so they win over the page's own .hm-* rules (module CSS loads first).
 (function () {
@@ -30,7 +30,18 @@
   #home-content .hm-link { font-size: 0.74rem; }
   #home-content .hm-tile { border-radius: 10px; border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
     background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 13%, var(--surface1)), var(--surface1) 70%); }
-  #home-content .hm-photo { box-shadow: 0 0 0 2px var(--surface0), 0 0 0 3.5px color-mix(in srgb, var(--accent) 38%, transparent); }
+  /* player faces (11/17, Ron: "like the MLB matchup tool"): a team-colour disc, zoomed in on the face, ringed in the
+     team colour. The page's .hm-photo / .rc-photo is wrapped in .hm-face; --tc comes from window.ronTeamColor(team). */
+  #home-content .hm-face { --tc: var(--accent); position: relative; width: 40px; height: 40px; flex: none; border-radius: 50%; overflow: hidden;
+    background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--tc) 72%, #fff 28%), var(--tc) 58%, color-mix(in srgb, var(--tc) 70%, #000 30%));
+    box-shadow: 0 0 0 2px var(--surface0), 0 0 0 3.5px color-mix(in srgb, var(--tc) 75%, transparent), 0 0 12px -2px color-mix(in srgb, var(--tc) 55%, transparent); }
+  #home-content .hm-face > img { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; border-radius: 0; border: 0; box-shadow: none;
+    background: transparent; object-fit: cover; object-position: center top; transform: scale(1.32); transform-origin: 50% 8%; }
+  #home-content .hm-face.spot > img { transform: none; }
+  #home-content .hm-face.mug > img { transform: scale(1.62); transform-origin: 50% 14%; }   /* NHL mugs frame the whole chest */        /* MLB's spot is already a close-up on a team-colour disc */
+  #home-content .hm-face > div { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; border: 0; border-radius: 0; background: transparent;
+    display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 0.8rem; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+  #home-content .hm-face.lt > div { color: #10161f; text-shadow: none; }       /* initials on a light team colour */
   `;
   const st = document.createElement('style'); st.id = 'ron-home-css'; st.textContent = css;
   document.head.prepend(st);
@@ -42,9 +53,39 @@
     const m = a.match(/switchNav\('([\w-]+)'/); if (m) return m[1];
     return /openRecapFor/.test(a) ? 'recap' : null;
   };
+  // the player's team: a data-team on the photo or row, the NHL mug's path (/mugs/nhl/<season>/<TEAM>/), else the first
+  // word of the row's small print that names a team ("RB DAL vs TEN", "SJS vs CGY", "IND · 3 wks": own team comes first)
+  function teamOf(img, row, col) {
+    const d = img.dataset.team || row.dataset.team; if (d) return d;
+    const m = (img.getAttribute('src') || '').match(/\/mugs\/nhl\/\d+\/([A-Z]{2,4})\//); if (m) return m[1];
+    const sub = [...row.querySelectorAll('.hm-subtle')].map(x => x.textContent).join(' ');    // a leaderboard's rank is one too
+    return sub.split(/[^A-Za-z]+/).find(w => w && w === w.toUpperCase() && col(w)) || null;
+  }
+  // ronTeamColor(team) gives a colour or [primary, alt]; a near-black primary (LA Kings, Nets) reads as no colour on a
+  // dark card, so it takes the alt
+  const dark = (h) => /^#[0-9a-f]{6}$/i.test(h) && Math.max(...[1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16))) < 0x38;
+  const pick = (c) => { const [p, a] = Array.isArray(c) ? c : [c]; return p && dark(p) && a ? a : p; };
+  const light = (h) => /^#[0-9a-f]{6}$/i.test(h) && [1, 3, 5].reduce((s, i, k) => s + [0.299, 0.587, 0.114][k] * parseInt(h.slice(i, i + 2), 16), 0) > 150;
+  const MLB_HEAD = /img\.mlbstatic\.com\/.*\/people\/(\d+)\/headshot\//;
+  function faces(root) {
+    const col = window.ronTeamColor; if (typeof col !== 'function') return;
+    for (const img of root.querySelectorAll('.hm-row > .hm-photo, .hm-row > .rc-photo')) {
+      const row = img.parentElement, t = teamOf(img, row, col), c = t && pick(col(t));
+      const w = document.createElement('span'); w.className = 'hm-face' + (c && light(c) ? ' lt' : ''); if (c) w.style.setProperty('--tc', c);
+      if (/assets\.nhle\.com\/mugs\//.test(img.getAttribute('src') || '')) w.classList.add('mug');
+      const mlb = img.tagName === 'IMG' && (img.getAttribute('src') || '').match(MLB_HEAD);
+      if (mlb) {                                                   // the matchup tool's team-colour close-up, the headshot if none
+        w.classList.add('spot'); const orig = img.src;
+        img.onerror = () => { img.onerror = null; img.src = orig; w.classList.remove('spot'); };
+        img.src = `https://midfield.mlbstatic.com/v1/people/${mlb[1]}/spots/240`;
+      }
+      row.insertBefore(w, img); w.appendChild(img);
+    }
+  }
   let map = null;
   function paint() {
     const root = document.getElementById('home-content'); if (!root) return;
+    faces(root);
     const cards = root.querySelectorAll('.hm-card:not([data-ico])'); if (!cards.length) return;
     map ||= window.RonChrome?.icons?.();
     if (!map) return;

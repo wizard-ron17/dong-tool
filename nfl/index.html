@@ -3460,6 +3460,8 @@
 
   // ── Data + renders ─────────────────────────────────────────────────────
   let nflData = null, recapWeek = null, scheduleWeek = null, schedSort = 'time';
+  // home.js fills each home photo with the player's team colour
+  window.ronTeamColor = (ab) => nflData?.teamColors?.[ab] || null;
   function setSchedSort(v) { schedSort = v; renderSchedule(); }
   window.setSchedSort = setSchedSort;
   async function loadNfl() {

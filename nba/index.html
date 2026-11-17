@@ -1150,6 +1150,8 @@
 
   // ── Data ───────────────────────────────────────────────────────────────
   let D = null, recapDate = null, scheduleDate = null;
+  // home.js fills each home photo with the player's team colour
+  window.ronTeamColor = (ab) => { const t = D?.teams?.[ab]; return t?.color ? [t.color, t.alt] : null; };
   function timeAgo(iso) {
     const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
     if (mins < 1)  return 'just now';

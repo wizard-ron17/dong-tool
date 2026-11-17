@@ -5673,6 +5673,8 @@
     STL: ['#002F87', '#FCB514'], TBL: ['#002868', '#FFFFFF'], TOR: ['#00205B', '#FFFFFF'], UTA: ['#71AFE5', '#090909'],
     VAN: ['#00205B', '#00843D'], VGK: ['#B4975A', '#333F42'], WPG: ['#041E42', '#AC162C'], WSH: ['#C8102E', '#041E42'],
   };
+  // home.js fills each home photo with the player's team colour
+  window.ronTeamColor = (ab) => TEAM_COLOR[ab] || null;
   function lineColor(hex) {
     const n = parseInt((hex || '#888888').slice(1), 16), c = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
     const lum = (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255;
