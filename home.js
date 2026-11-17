@@ -38,7 +38,8 @@
   #home-content .hm-face > img { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; border-radius: 0; border: 0; box-shadow: none;
     background: transparent; object-fit: cover; object-position: center top; transform: scale(1.32); transform-origin: 50% 8%; }
   #home-content .hm-face.spot > img { transform: none; }        /* MLB's spot is already a close-up on a team-colour disc */
-  #home-content .hm-face.mug > img { transform: scale(1.6); transform-origin: 50% 4%; }     /* NHL mugs frame the whole chest: zoom to NBA's framing, chin kept */
+  #home-content .hm-face.mug > img { transform: scale(1.75); transform-origin: 50% 30%; }   /* NHL mugs frame the whole chest: zoom about a point below the
+     head so it rises to NBA's framing (hair near the top, chin and neck in). A higher origin pushes the head DOWN as it zooms. */
   #home-content .hm-face > div { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; border: 0; border-radius: 0; background: transparent;
     display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 0.8rem; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
   #home-content .hm-face.lt > div { color: #10161f; text-shadow: none; }       /* initials on a light team colour */
