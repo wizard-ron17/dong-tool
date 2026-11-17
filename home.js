@@ -38,7 +38,7 @@
   #home-content .hm-face > img { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; border-radius: 0; border: 0; box-shadow: none;
     background: transparent; object-fit: cover; object-position: center top; transform: scale(1.32); transform-origin: 50% 8%; }
   #home-content .hm-face.spot > img { transform: none; }
-  #home-content .hm-face.mug > img { transform: scale(1.62); transform-origin: 50% 14%; }   /* NHL mugs frame the whole chest */        /* MLB's spot is already a close-up on a team-colour disc */
+  #home-content .hm-face.mug > img { transform: scale(1.9); transform-origin: 50% 18%; }    /* NHL mugs frame the whole chest: zoom to NBA's framing */        /* MLB's spot is already a close-up on a team-colour disc */
   #home-content .hm-face > div { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; border: 0; border-radius: 0; background: transparent;
     display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 0.8rem; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
   #home-content .hm-face.lt > div { color: #10161f; text-shadow: none; }       /* initials on a light team colour */
@@ -73,6 +73,9 @@
       const row = img.parentElement, t = teamOf(img, row, col), c = t && pick(col(t));
       const w = document.createElement('span'); w.className = 'hm-face' + (c && light(c) ? ' lt' : ''); if (c) w.style.setProperty('--tc', c);
       if (/assets\.nhle\.com\/mugs\//.test(img.getAttribute('src') || '')) w.classList.add('mug');
+      // NFL's headshots come 120px wide, blurry once zoomed: ask for 240
+      const ns = img.getAttribute('src') || '';
+      if (/static\.www\.nfl\.com\/image\/upload\/[^/]*w_1\d\d\b/.test(ns)) img.src = ns.replace(/w_1\d\d\b/, 'w_240');
       const mlb = img.tagName === 'IMG' && (img.getAttribute('src') || '').match(MLB_HEAD);
       if (mlb) {                                                   // the matchup tool's team-colour close-up, the headshot if none
         w.classList.add('spot'); const orig = img.src;
