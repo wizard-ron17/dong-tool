@@ -6,17 +6,22 @@
 //              house, a graveyard with a black cat, bare trees, pumpkins, a potion, cobwebs and a spider; a purple night
 //              sky; the accent goes pumpkin orange and borders purple; a jack-o'-lantern for each tool's logo; and a
 //              few bats flutter across the top once per visit (none for reduced motion, never in the way of a click)
+//   neon       11/19/2026, a big crime-sandbox game's release day (Ron 11/17): a neon beach city at sunset behind the page,
+//              a striped retro sun over the water, palms, a sports car with its underglow, a lit skyline and a police
+//              helicopter with its searchlight; hot pink accent, neon borders; a palm for each tool's logo; the helicopter
+//              crosses the top once per visit. Its own art, no game logos or names. A one-off (year: 2026).
 (function () {
   if (window.RonHoliday) return;
   const HOLIDAYS = [
     { key: 'halloween', date: '10-31' },
+    { key: 'neon', date: '11-19', year: 2026 },
   ];
   let q = new URLSearchParams(location.search).get('holiday');
   try { q = q || sessionStorage.getItem('ronHoliday'); } catch (e) {}       // a preview kept by chrome.js for the tab
   // today in US Eastern, and whether a holiday's month-day is within a day of it (across a month or year end)
   const et = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   const today = Date.UTC(+et.slice(0, 4), +et.slice(5, 7) - 1, +et.slice(8, 10));
-  const near = (h) => [-1, 0, 1].some(dy => { const d = Date.UTC(+et.slice(0, 4) + dy, +h.date.slice(0, 2) - 1, +h.date.slice(3, 5)); return Math.abs(d - today) <= 864e5; });
+  const near = (h) => [-1, 0, 1].some(dy => { const y = +et.slice(0, 4) + dy; if (h.year && y !== h.year) return false; const d = Date.UTC(y, +h.date.slice(0, 2) - 1, +h.date.slice(3, 5)); return Math.abs(d - today) <= 864e5; });
   // the sport backgrounds (scene.js) are on by default and a holiday takes over from them on its dates; ?bg=night in the
   // address is a choice someone made (kept for the tab by chrome.js), so the date's holiday steps aside for it
   let scene = /[?&]bg=night\b/.test(location.search);
@@ -150,6 +155,120 @@
     const go = () => { deco(); setTimeout(bats, 500); };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
     // the apps draw their header late on some routes: a second look once everything has loaded
+    window.addEventListener('load', deco);
+  }
+  if (on.key === 'neon') {
+    const H = 'html[data-holiday="neon"]', DARK = `${H}:not([data-theme="light"])`, LIGHT = `${H}[data-theme="light"]`;
+    const SIL = 'var(--neo-sil)';
+    // a palm: a curved trunk and drooping fronds, its crown at (x - lean, y - h)
+    const palm = (x, y, h, lean, s = 1) => {
+      const tx = x - lean, ty = y - h, fr = [[-118, 34], [-84, 58], [-40, 70], [10, 66], [56, 52], [96, 30], [-70, -14], [64, -18]];
+      return `<g fill="${SIL}"><path d="M${x - 7 * s} ${y}Q${x - lean * 0.35} ${y - h * 0.55} ${tx - 3 * s} ${ty}L${tx + 3 * s} ${ty}Q${x - lean * 0.35 + 9 * s} ${y - h * 0.55} ${x + 7 * s} ${y}Z"/>`
+        + fr.map(([dx, dy]) => { const ex = tx + dx * s, ey = ty + dy * s, mx = tx + dx * 0.5 * s, my = ty + Math.min(dy, 0) * s - 26 * s;
+          return `<path d="M${tx} ${ty}Q${mx} ${my - 8 * s} ${ex} ${ey}Q${mx} ${my + 10 * s} ${tx} ${ty + 4 * s}Z"/>`; }).join('')
+        + `<circle cx="${tx - 3 * s}" cy="${ty + 6 * s}" r="${4 * s}"/><circle cx="${tx + 4 * s}" cy="${ty + 7 * s}" r="${4 * s}"/></g>`;
+    };
+    // a palm in the tools' logo: cyan over a pink sun
+    const PALM = '<svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="neo-lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd166"/><stop offset="1" stop-color="#ff3d9a"/></linearGradient></defs>'
+      + '<circle cx="34" cy="38" r="20" fill="url(#neo-lg)"/><g fill="#0b0618"><rect x="12" y="44" width="44" height="3"/><rect x="12" y="50" width="44" height="4"/></g>'
+      + '<g fill="#2ee6f0"><path d="M28 62Q31 44 26 24L30 24Q36 44 33 62Z"/><path d="M28 23Q16 14 4 20Q16 18 27 26Z"/><path d="M28 23Q22 8 10 6Q22 12 26 25Z"/><path d="M29 23Q34 8 46 6Q36 14 31 25Z"/><path d="M29 23Q42 14 56 20Q42 19 31 26Z"/><path d="M28 24Q20 26 14 36Q22 30 29 26Z"/><path d="M30 24Q38 26 44 36Q36 30 30 26Z"/></g></svg>';
+    // the left edge: the striped sun setting into the water, palms, the beach road with a sports car and its underglow
+    const LEFT = `<svg class="hol-side hol-left" viewBox="0 0 420 900" preserveAspectRatio="xMinYMax meet" aria-hidden="true">
+      <defs><linearGradient id="neo-sun" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe066"/><stop offset=".55" stop-color="#ff7a59"/><stop offset="1" stop-color="#ff2e88"/></linearGradient>
+        <radialGradient id="neo-halo"><stop offset=".35" stop-color="#ff4f9a" stop-opacity=".45"/><stop offset="1" stop-color="#ff4f9a" stop-opacity="0"/></radialGradient>
+        <mask id="neo-stripes"><rect width="420" height="900" fill="#fff"/><g fill="#000"><rect y="600" width="420" height="5"/><rect y="618" width="420" height="7"/><rect y="638" width="420" height="9"/><rect y="660" width="420" height="11"/></g></mask>
+        <linearGradient id="neo-sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a1260"/><stop offset="1" stop-color="#14082a"/></linearGradient>
+        <radialGradient id="neo-glow"><stop offset="0" stop-color="#ff2e88" stop-opacity=".85"/><stop offset="1" stop-color="#ff2e88" stop-opacity="0"/></radialGradient>
+        <linearGradient id="neo-fl"><stop offset=".6" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient><mask id="neo-ml"><rect width="420" height="905" fill="url(#neo-fl)"/></mask></defs>
+      <circle cx="150" cy="600" r="230" fill="url(#neo-halo)"/>
+      <circle cx="150" cy="600" r="118" fill="url(#neo-sun)" mask="url(#neo-stripes)"/>
+      <g mask="url(#neo-ml)"><rect y="686" width="420" height="120" fill="url(#neo-sea)"/>
+      <g stroke="#ff7ab8" stroke-linecap="round" opacity=".75"><path d="M70 700h160M96 714h108M50 728h70M150 728h120M110 744h80M60 762h50M180 760h90" stroke-width="2.5"/></g>
+      <g stroke="#2ee6f0" stroke-linecap="round" opacity=".35"><path d="M250 708h60M300 736h70M20 750h30" stroke-width="2"/></g>
+      ${palm(70, 830, 330, -40, 1.05)}${palm(205, 840, 230, 30, .8)}${palm(18, 850, 200, -20, .7)}
+      <path fill="${SIL}" d="M0 905V806Q120 794 260 806T420 812V905Z"/>
+      <path d="M0 846H420" stroke="#ff2e88" stroke-width="1.5" opacity=".5"/></g>
+      <ellipse cx="250" cy="866" rx="130" ry="14" fill="url(#neo-glow)"/>
+      <g transform="translate(130 812)"><path fill="#0a0612" stroke="#ff7ab8" stroke-width="1.4" stroke-linejoin="round" d="M2 40L8 30Q30 26 56 14Q74 6 102 6L142 8Q162 12 186 26L224 30Q238 33 238 42V50H2Z"/>
+        <path fill="#2ee6f0" opacity=".55" d="M66 16Q80 10 100 10L120 11L126 24H58Z"/>
+        <circle cx="52" cy="50" r="13" fill="#0a0612" stroke="#2ee6f0" stroke-width="1.5"/><circle cx="192" cy="50" r="13" fill="#0a0612" stroke="#2ee6f0" stroke-width="1.5"/>
+        <rect x="0" y="32" width="12" height="5" rx="2" fill="#ff2a4a"/><rect x="230" y="34" width="9" height="4" rx="2" fill="#fff4c2"/>
+        <path d="M2 40H238" stroke="#ff2e88" stroke-width="1.5"/></g>
+    </svg>`;
+    // the right edge: a lit skyline over the water, one tower in neon, a police helicopter and its searchlight, a palm in front
+    const tower = (x, w, top, win) => { let r = `<rect x="${x}" y="${top}" width="${w}" height="${905 - top}" fill="${SIL}"/>`;
+      for (let yy = top + 14; yy < 790; yy += 16) for (let xx = x + 6; xx < x + w - 6; xx += 11) { const k = (xx * 7 + yy * 3) % 11; if (k < 4) r += `<rect x="${xx}" y="${yy}" width="5" height="7" fill="${win[k % win.length]}"/>`; }
+      return r; };
+    const WIN = ['#ffd166', '#ff7ab8', '#2ee6f0', '#ffe9a8'];
+    const RIGHT = `<svg class="hol-side hol-right" viewBox="0 0 420 900" preserveAspectRatio="xMaxYMax meet" aria-hidden="true">
+      <defs><linearGradient id="neo-beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".38"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+        <linearGradient id="neo-fr"><stop offset="0" stop-color="#000"/><stop offset=".45" stop-color="#fff"/></linearGradient><mask id="neo-mr"><rect width="420" height="905" fill="url(#neo-fr)"/></mask></defs>
+      <path d="M262 132L170 520L250 520Z" fill="url(#neo-beam)"/>
+      <g fill="${SIL}" transform="translate(240 104)"><ellipse cx="26" cy="22" rx="28" ry="14"/><path d="M48 18L118 14L120 20L50 28Z"/><path d="M112 6L122 4L124 22L116 22Z"/>
+        <path d="M-38 2H92" stroke="${SIL}" stroke-width="3" stroke-linecap="round"/><path d="M26 8V2" stroke="${SIL}" stroke-width="4"/>
+        <path d="M2 40H56M10 34V40M44 34V40" stroke="${SIL}" stroke-width="3" fill="none"/><path fill="#2ee6f0" opacity=".6" d="M2 20Q4 12 16 10L18 22Z"/>
+        <circle cx="54" cy="12" r="2.5" fill="#ff2a4a"/><circle cx="18" cy="34" r="2.5" fill="#3d7bff"/></g>
+      ${tower(170, 46, 470, WIN)}${tower(222, 58, 330, WIN)}${tower(290, 40, 420, WIN)}${tower(336, 52, 270, WIN)}${tower(394, 30, 500, WIN)}
+      <path d="M336 270L362 238L388 270" fill="${SIL}"/><path d="M362 238V200" stroke="${SIL}" stroke-width="3"/><circle cx="362" cy="198" r="3.5" fill="#ff2a4a"/>
+      <rect x="222.5" y="330.5" width="57" height="575" fill="none" stroke="#ff2e88" stroke-width="1.6" opacity=".9"/>
+      <rect x="336.5" y="270.5" width="51" height="635" fill="none" stroke="#2ee6f0" stroke-width="1.6" opacity=".8"/>
+      <g mask="url(#neo-mr)"><rect y="760" width="420" height="145" fill="#14082a"/></g>
+      <g stroke-linecap="round" opacity=".6"><path d="M180 776h30M232 784h40M300 778h24M344 790h36M240 806h20M360 812h30" stroke="#ff7ab8" stroke-width="2"/><path d="M200 798h24M296 800h30M392 776h20" stroke="#2ee6f0" stroke-width="2"/></g>
+      ${palm(372, 880, 260, 40, .9)}${palm(410, 890, 180, -10, .65)}
+      <path fill="${SIL}" mask="url(#neo-mr)" d="M0 905V850Q300 836 420 846V905Z"/>
+    </svg>`;
+    const css = `
+      ${DARK} { --accent: #ff3d9a; --glow: rgba(255,61,154,0.10); --bg: #11061f; --surface0: #150926; --surface1: #1a0c31; --surface2: #241242;
+        --border: #4a1d63; --border2: #6b2a86; --card: #140928; --card2: #1b0e36; --neo-sil: #07030d; }
+      ${LIGHT} { --accent: #d4157a; --glow: rgba(212,21,122,0.07); --border: #f0c6e2; --border2: #e2a6d0; --neo-sil: #4a2366; }
+      ${DARK} body { background: radial-gradient(1000px 640px at 10% 100%, rgba(255,90,120,0.28), transparent 62%),
+          radial-gradient(900px 600px at 95% 0%, rgba(120,60,220,0.30), transparent 62%), linear-gradient(#1a0833, #3a0f4f 55%, #5a1650) fixed; }
+      ${LIGHT} body { background: linear-gradient(#ffe6f4, #ffd6c2) fixed; }
+      ${DARK} { background-color: #5a1650; } ${LIGHT} { background-color: #ffd6c2; }
+      ${H} .hol-scene { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+      ${DARK} .hol-scene { background-image: radial-gradient(1.2px 1.2px at 12% 10%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 30% 22%, #fff 50%, transparent 51%),
+          radial-gradient(1.3px 1.3px at 47% 6%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 70% 16%, #fff 50%, transparent 51%), radial-gradient(1.1px 1.1px at 88% 30%, #fff 50%, transparent 51%); opacity: .7; }
+      ${H} .hol-side { position: absolute; bottom: 0; height: 100vh; width: auto; max-width: 48vw; }
+      ${H} .hol-left { left: 0; } ${H} .hol-right { right: 0; }
+      ${LIGHT} .hol-side { opacity: .55; }
+      @media (max-width: 760px) { ${H} .hol-side { opacity: .4; } }
+      ${H} .wrap { position: relative; z-index: 1; }
+      ${H} .tb-brand h1 em { color: #ff3d9a; } ${LIGHT} .tb-brand h1 em { color: #d4157a; }
+      ${DARK} .tb-brand h1 em { text-shadow: 0 0 14px rgba(255,61,154,.55); }
+      ${H} .brand-home > :not(.hol-jack) { display: none !important; }
+      .hol-jack { display: inline-flex; width: 34px; height: 34px; } .hol-jack svg { width: 100%; height: 100%; }
+      .hol-jack-title { width: 0.85em; height: 0.85em; margin-left: 0.2em; vertical-align: -0.08em; display: inline-block; }
+      .neo-heli { position: fixed; left: 0; top: 0; width: 120px; height: 46px; pointer-events: none; z-index: 2147483000; color: #e9d8ff; opacity: .9; }
+      ${LIGHT} .neo-heli { color: #3a1f55; }
+      .neo-heli svg { width: 100%; height: 100%; display: block; }
+      .neo-rotor { animation: neo-spin .09s linear infinite alternate; transform-origin: 50% 50%; transform-box: fill-box; }
+      @keyframes neo-spin { to { transform: scaleX(0.25); } }`;
+    const style = document.createElement('style'); style.id = 'holiday-css'; style.textContent = css; document.head.appendChild(style);
+
+    const deco = () => {
+      if (document.body && !document.querySelector('.hol-scene')) document.body.insertAdjacentHTML('afterbegin', `<div class="hol-scene" aria-hidden="true">${LEFT}${RIGHT}</div>`);
+      for (const a of document.querySelectorAll('.brand-home')) if (!a.querySelector('.hol-jack')) a.insertAdjacentHTML('afterbegin', `<span class="hol-jack">${PALM}</span>`);
+      const brand = document.querySelector('body > .wrap > .brand');
+      if (brand && !brand.querySelector('.hol-jack-title')) brand.insertAdjacentHTML('beforeend', PALM.replace('<svg ', '<svg class="hol-jack-title" '));
+    };
+    // the police helicopter crosses the top once a visit, its lights blinking
+    const HELI = '<svg viewBox="0 0 120 46" aria-hidden="true"><path class="neo-rotor" d="M6 6H96" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M51 6V11" stroke="currentColor" stroke-width="4"/>'
+      + '<g fill="currentColor"><ellipse cx="50" cy="22" rx="24" ry="11"/><path d="M70 18L110 15L111 20L72 26Z"/><path d="M106 8L114 7L115 21L108 21Z"/></g>'
+      + '<path d="M30 38H68M36 33V38M62 33V38" stroke="currentColor" stroke-width="2.5" fill="none"/><path fill="#2ee6f0" opacity=".7" d="M28 21Q30 14 40 13L41 22Z"/>'
+      + '<circle cx="74" cy="13" r="2.4" fill="#ff2a4a"><animate attributeName="opacity" values="1;0;1" dur=".8s" repeatCount="indefinite"/></circle>'
+      + '<circle cx="44" cy="33" r="2.4" fill="#3d7bff"><animate attributeName="opacity" values="0;1;0" dur=".8s" repeatCount="indefinite"/></circle></svg>';
+    const heli = () => {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      try { if (!q && sessionStorage.getItem('holBats') === on.key) return; sessionStorage.setItem('holBats', on.key); } catch (e) {}
+      const h = document.createElement('div'); h.className = 'neo-heli'; h.innerHTML = HELI; h.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(h);
+      const W = window.innerWidth, y = Math.min(140, window.innerHeight * 0.14), s = W < 600 ? 0.6 : 0.85;
+      const a = h.animate([0, 0.5, 1].map((t, k) => ({ transform: `translate(${W + 40 - t * (W + 200)}px, ${y + Math.sin(t * Math.PI) * 22}px) scale(${s}) rotate(${k === 1 ? -4 : -6}deg)`, opacity: k === 1 ? 0.9 : 0 })),
+        { duration: 7000, delay: 600, easing: 'linear', fill: 'both' });
+      a.onfinish = () => h.remove();
+    };
+    const go = () => { deco(); heli(); };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
     window.addEventListener('load', deco);
   }
 })();
