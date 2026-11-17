@@ -25,6 +25,8 @@ try { const bg = new URLSearchParams(location.search).get('bg'); if (bg === 'off
 if (!document.querySelector('script[src^="/scene.js"]')) { const h = document.createElement('script'); h.src = '/scene.js'; h.defer = true; document.head.appendChild(h); }
 // brief.js: a board's small print as pills, a heading and one How it works sheet
 if (!document.querySelector('script[src^="/brief.js"]')) { const h = document.createElement('script'); h.src = '/brief.js'; h.defer = true; document.head.appendChild(h); }
+// home.js: the home cards' icon chips, elevation and glow, the same on every sport
+if (!document.querySelector('script[src^="/home.js"]')) { const h = document.createElement('script'); h.src = '/home.js'; h.defer = true; document.head.appendChild(h); }
 (function () {
   // Styles for the header, main nav, tools menu, sport switcher and footer: the rules that were identical in all four apps.
   // Injected from <head>, so each page's own <style> (loaded after) still wins.
@@ -395,7 +397,15 @@ if (!document.querySelector('script[src^="/brief.js"]')) { const h = document.cr
   }
 
   const logo = (sp) => { const s = SPORTS.find(x => x[0] === sp); return s ? `<img class="sp-logo" src="${s[1]}" alt="">` : ''; };
-  window.RonChrome = { mount, onTheme, show, fresh, freshHtml, SPORTS, logo, status, support, cfg: () => CFG, freshInfo: () => FRESH };
+  /** nav -> { svg, g }: each tool's icon and group from the Tools menu, plus the main nav's (home.js puts them on home cards). */
+  function icons() {
+    if (!CFG) return null;
+    const m = {};
+    for (const [nav, svg] of NAV) if (nav) m[nav] = { svg };
+    for (const t of CFG.tools || []) if (t.nav && t.icon) m[t.nav] = { svg: t.icon, g: t.g };
+    return m;
+  }
+  window.RonChrome = { mount, onTheme, show, fresh, freshHtml, SPORTS, logo, status, support, cfg: () => CFG, freshInfo: () => FRESH, icons };
   Object.assign(window, { currentTheme, updateThemeToggleIcon, toggleTheme, sportBackdrop, placeSportMenu, toggleSportMenu, closeSportMenu, openNavTools, closeNavTools, toggleNavTools });
   Object.defineProperty(window, 'navToolsOpen', { get: () => navToolsOpen, configurable: true });
 })();
