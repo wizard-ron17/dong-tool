@@ -1424,6 +1424,12 @@
      matched the rule above and stacked the two teams vertically. */
   .hm-name.hm-matchup, .hm-name.hm-matchup:has(.hm-at) { display: block; white-space: nowrap; flex: 0 1 auto; }
   .hm-at { color: var(--dim); font-weight: 600; margin: 0 0.15rem; }
+  /* Home schedule card: why each game is listed (night game, or the slate's extreme), then the matchup over its line */
+  .hm-gtag { width: 3.3rem; flex: none; text-align: center; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.15;
+    color: var(--muted); background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 0.22rem 0.2rem; }
+  .hm-gtag.prime { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); border-color: color-mix(in srgb, var(--accent) 34%, transparent); font-size: 0.7rem; }
+  .hm-gm { display: flex; align-items: center; gap: 0.35rem; }
+  .hm-grow .hm-gval { font-size: 1.06rem; }
   .hm-subtle { font-size: 0.779rem; color: var(--muted); font-weight: 500; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .hm-combo-tag { flex-shrink: 0; text-align: center; font-family: var(--font-b); font-size: 0.729rem; font-weight: 700; color: var(--text); background: var(--surface2); border: 1px solid var(--border2); border-radius: 5px; padding: 0.1rem 0.38rem; letter-spacing: 0.02em; }
   .hm-tag-sub { color: var(--muted); font-weight: 600; }
@@ -8804,7 +8810,39 @@ let pairStacks = false;
     // ── Schedule: read-only rows. The full card carries a chevron and an
     //    expand handler that only works inside the schedule panel, so using it
     //    here produced controls that looked live and did nothing.
-    const gameRows = games.slice(0, 5).map(g => `
+    // Ron 11/17: not by kickoff. The night games first (TNF / SNF / MNF; a Wed or Fri night game by its day), then the
+    // slate's extremes: highest and lowest total, biggest and smallest spread. Unstarted games only; a game can earn
+    // two rows (the SNF can be the top total). Before lines post it falls back to the kickoff list.
+    const gLine = (g) => {
+      const c = g.lines?.cur, sp = c?.sp ?? (g.spread != null ? -g.spread : null), tot = c?.tot ?? g.total ?? null;
+      return { sp, tot, fav: sp == null ? null : sp < 0 ? g.home : g.away, mag: sp == null ? null : Math.abs(sp) };
+    };
+    const spTxt = (L) => L.mag == null ? '' : L.mag === 0 ? 'PK' : `${L.fav} -${L.mag}`;
+    const open = games.filter(g => g.homeScore == null && !gameStarted(g.gameId));
+    const nightTag = (g) => {
+      const night = (g.gametime || '') >= '19:00', d = (g.weekday || '').slice(0, 3);
+      if (d === 'Mon') return 'MNF';
+      if (!night) return null;
+      return d === 'Thu' ? 'TNF' : d === 'Sun' ? 'SNF' : d.toUpperCase();
+    };
+    const hmGameRow = (g, tag, prime, val, unit) => {
+      const L = gLine(g), sub = [kickLocal(g, true), spTxt(L), L.tot != null ? `O/U ${L.tot}` : ''].filter(Boolean).join(' · ');
+      return `
+      <div class="hm-row hm-grow">
+        <span class="hm-gtag${prime ? ' prime' : ''}">${tag}</span>
+        <span class="hm-name"><span class="hm-gm"><img class="hm-glogo" src="${teamLogo(g.away)}" alt="" loading="lazy">${g.away} <span class="hm-at">@</span> ${g.home}<img class="hm-glogo" src="${teamLogo(g.home)}" alt="" loading="lazy"></span><span class="hm-subtle">${sub}</span></span>
+        <span class="hm-score hm-gval">${val}${unit ? `<span class="hm-subtle" style="font-size:0.766rem"> ${unit}</span>` : ''}</span></div>`;
+    };
+    const lined = open.filter(g => gLine(g).tot != null && gLine(g).mag != null);
+    const pickBy = (f, dir) => lined.length ? lined.reduce((b, g) => (f(g) - f(b)) * dir > 0 ? g : b) : null;
+    const hiT = pickBy(g => gLine(g).tot, 1), loT = pickBy(g => gLine(g).tot, -1),
+      bigS = pickBy(g => gLine(g).mag, 1), tightS = pickBy(g => gLine(g).mag, -1);
+    const primeRows = open.map(g => [g, nightTag(g)]).filter(([, t]) => t).map(([g, t]) => hmGameRow(g, t, true, kickLocal(g), ''));
+    const edgeRows = lined.length > 1 ? [
+      [hiT, 'High total', g => gLine(g).tot, 'O/U'], [loT, 'Low total', g => gLine(g).tot, 'O/U'],
+      [bigS, 'Big spread', g => gLine(g).mag, gLine(bigS).fav], [tightS, 'Tight spread', g => gLine(g).mag || 'PK', gLine(tightS).mag ? gLine(tightS).fav : ''],
+    ].map(([g, t, v, u]) => hmGameRow(g, t, false, v(g), u)) : [];
+    const gameRows = primeRows.length + edgeRows.length ? primeRows.join('') + edgeRows.join('') : games.slice(0, 5).map(g => `
       <div class="hm-row">
         <img class="hm-glogo" src="${teamLogo(g.away)}" alt="" loading="lazy">
         <span class="hm-name hm-matchup">${g.away} <span class="hm-at">@</span> ${g.home}</span>
