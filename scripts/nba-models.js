@@ -151,6 +151,14 @@ export function fbWeight(s, pos) {
   const fga = ((s?.fga || 0) + W.fga_k * W.fga0) / ((s?.gp || 0) + W.fga_k), pct = ((s?.fgm || 0) + W.pct_k * W.pct0) / ((s?.fga || 0) + W.pct_k);
   return own ** W.b_own * fga ** W.b_fga * pct ** W.b_pct;
 }
+/** His weight on his team's free throws (research/nba_firstpoints.py, 11/24): free throws a game (this season + half of
+ *  last), to the power b. The books settle first basket on first POINTS; in the ~9% of games that open at the line, this
+ *  picks the shooter (log loss 1.504 among his five vs 1.580 on shots, 1.609 flat, every season). */
+export function ftWeight(s, prev) {
+  const T = MODEL.first.ft, gp = (s?.gp || 0) + T.prev_w * (prev?.gp || 0);
+  const pg = gp ? ((s?.fta || 0) + T.prev_w * (prev?.fta || 0)) / gp : 0;
+  return Math.max(pg, T.floor) ** T.b;
+}
 
 // ── Counting stats: points, rebounds, assists, PRA, steals, blocks, stocks ──
 // research/nba_stats.py. One shape for all: projected minutes x his per-minute

@@ -1055,7 +1055,7 @@
     {"group": "Offense", "g": "g1"},
     {"nav": "threes", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><path d=\"M3.5 12h17M12 3.5v17M6.6 5.9c2.8 3.2 2.8 8.9 0 12.2M17.4 5.9c-2.8 3.2-2.8 8.9 0 12.2\"/></svg>", "name": "Threes", "desc": "Every rotation player priced 1+ to 5+ made threes &mdash; minutes, his shooting rate and the matchup."},
     {"nav": "points", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 19h16M7 19V11M12 19V6M17 19v-5\"/></svg>", "name": "Points", "desc": "Points, rebounds, assists and PRA for every rotation player, priced at every line."},
-    {"nav": "first", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><path d=\"M12 7.5v5l3 2\"/></svg>", "name": "First Basket", "desc": "Who scores the game&rsquo;s first field goal &mdash; the tip, the line, his own record and his shot volume."},
+    {"nav": "first", "g": "g1", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><path d=\"M12 7.5v5l3 2\"/></svg>", "name": "First Basket", "desc": "Who scores the game&rsquo;s first points (free throws count) &mdash; the tip, the line, his own record, his shots and free throws."},
     {"group": "Defense", "g": "g3"},
     {"nav": "stocks", "g": "g3", "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3.5l7 2.5v5.5c0 4-3 7.3-7 9-4-1.7-7-5-7-9V6z\"/><path d=\"M9 12l2 2 4-4\"/></svg>", "name": "Steals &amp; Blocks", "desc": "Steals, blocks and stocks for every rotation player."},
     {"group": "Combos", "g": "g2"},
@@ -1301,6 +1301,10 @@
   const cats10 = (b) => [b[BX.pts], b[BX.reb], b[BX.ast], b[BX.stl], b[BX.blk]].filter(v => v >= 10).length;
   const shortName = (n) => { const w = (n || '').split(' '); return w.length > 1 ? `${w[0][0]}. ${w.slice(1).join(' ')}` : n; };
   const fbKind = (fb) => fb.v === 3 ? (fb.kind || 'jumper').replace(/jumper$|shot$/, '') .trim() + ' three' : (fb.kind || '');
+  // first basket is graded on the game's first POINTS, free throws in, as the books settle it (11/24). The recap logs fp
+  // when that wasn't the first field goal, and a night's prices log fp beside the field-goal fb; older nights have only fb
+  const fbWin = (G) => G?.fp || G?.fb || null;
+  const fbDay = (day, gid) => day?.fp?.[gid] || day?.fb?.[gid];
   const clockLbl = (per, sec) => `${per > 4 ? (per === 5 ? 'OT' : `${per - 4}OT`) : `Q${per}`} ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
   // the board's "best line": the rung closest to even. p = P(1+) .. P(5+)
   const bestRung = (p) => p.reduce((k, v, i) => Math.abs(v - 0.5) < Math.abs(p[k] - 0.5) ? i : k, 0);
@@ -1431,7 +1435,7 @@
   const rxMatch = (G) => `${esc(G.away)} ${G.as}–${G.hs} ${esc(G.home)}`;
   const rxLine = (b) => [['pts', 'PTS'], ['reb', 'REB'], ['ast', 'AST'], ['stl', 'STL'], ['blk', 'BLK']].filter(([k]) => b[BX[k]] >= 10 || ['pts', 'reb', 'ast'].includes(k)).map(([k, l]) => `${b[BX[k]]} ${l}`).join(' · ');
   /** The night's first baskets, one per game: [{ kind: 'fb', G, pid }]. */
-  function rxFbList(games) { return games.filter(G => G.fb?.pid && G.box[G.fb.pid]).map(G => ({ kind: 'fb', G, pid: String(G.fb.pid) })); }
+  function rxFbList(games) { return games.filter(G => fbWin(G)?.pid && G.box[fbWin(G).pid]).map(G => ({ kind: 'fb', G, pid: String(fbWin(G).pid) })); }
   /** The night's doubles, triple-doubles first, then the longest price we had. */
   function rxDblList(games, P) {
     const out = [];
@@ -1444,11 +1448,11 @@
   function rxCardHtml(x, i, P) {
     const { G, pid } = x, b = G.box[pid] || [], play = rxHasVid(x) ? '<span class="rxc-play" title="Watch">▶</span>' : '';
     if (x.kind === 'fb') {
-      const fp = P?.fb?.[G.gid], mine = fp?.[pid], top = fp ? Object.entries(fp).sort((a, c) => c[1] - a[1])[0] : null, hit = top && top[0] === pid;
-      const ft = G.fb.x != null ? `${Math.round(Math.hypot(G.fb.x - 25, G.fb.y - 1))}-ft ` : '';
+      const fp = fbDay(P, G.gid), mine = fp?.[pid], top = fp ? Object.entries(fp).sort((a, c) => c[1] - a[1])[0] : null, hit = top && top[0] === pid, W = fbWin(G);
+      const ft = W.x != null ? `${Math.round(Math.hypot(W.x - 25, W.y - 1))}-ft ` : '';
       return `<div class="rx-row rxc" onclick="rxvOpen(${i})">${faceHtml(pid, b[BX.name])}
         <div class="rx-info"><div class="rx-nm">${esc(b[BX.name] || '')} <span class="dim">${esc(b[BX.team] || '')}</span></div>
-          <div class="rx-sub">${ft}${esc(fbKind(G.fb))} · ${clockLbl(G.fb.per, G.fb.sec)}${G.tip ? ` · ${esc(G.tip.won)} won the tip` : ''}</div>
+          <div class="rx-sub">${ft}${esc(fbKind(W))} · ${clockLbl(W.per, W.sec)}${G.tip ? ` · ${esc(G.tip.won)} won the tip` : ''}</div>
           <div class="rx-sub dim">${rxMatch(G)}</div></div>
         <div class="rx-right">${mine != null ? `<span class="rx-odds">${Odds.inline(mine)}</span>` : ''}
           ${top ? hit ? gradeChip(true, 'our pick') : `<span class="rx-grade miss">our pick: ${esc(lastNm(G.box[top[0]]?.[BX.name]))} ${Odds.inline(top[1])}</span>` : ''}</div>${play}</div>`;
@@ -1487,9 +1491,9 @@
     } else if (v?.yt) { vid = ytFrame(v.yt, `${G.away} at ${G.home}`); note = x.kind === 'fb' ? 'The full game highlights (NBA on YouTube). The reel runs in game order: the first basket is near the start, when it made the cut.' : 'No clip of his own: the game\'s highlights (NBA on YouTube).'; }
     else { vid = ''; note = vidState === 'loading' ? 'Loading video…' : 'No video yet: the NBA posts each game\'s highlights a few hours after it ends.'; }
     const head = x.kind === 'fb'
-      ? `<div class="ydm-big"><div><span>First basket</span><span>${P?.fb?.[G.gid]?.[pid] != null ? Odds.pct(P.fb[G.gid][pid]) : ''}</span></div><strong>${P?.fb?.[G.gid]?.[pid] != null ? Odds.am(P.fb[G.gid][pid]) : '—'}</strong></div>`
+      ? `<div class="ydm-big"><div><span>First basket</span><span>${fbDay(P, G.gid)?.[pid] != null ? Odds.pct(fbDay(P, G.gid)[pid]) : ''}</span></div><strong>${fbDay(P, G.gid)?.[pid] != null ? Odds.am(fbDay(P, G.gid)[pid]) : '—'}</strong></div>`
       : `<div class="ydm-big"><div><span>${x.t ? 'Triple-double' : 'Double-double'}</span><span>${x.p != null ? Odds.pct(x.p) : 'not priced'}</span></div><strong>${x.p != null ? Odds.am(x.p) : '—'}</strong></div>`;
-    const sub = x.kind === 'fb' ? `${G.fb.x != null ? `${Math.round(Math.hypot(G.fb.x - 25, G.fb.y - 1))}-ft ` : ''}${esc(fbKind(G.fb))} · ${clockLbl(G.fb.per, G.fb.sec)}` : rxLine(b);
+    const W = fbWin(G), sub = x.kind === 'fb' ? `${W.x != null ? `${Math.round(Math.hypot(W.x - 25, W.y - 1))}-ft ` : ''}${esc(fbKind(W))} · ${clockLbl(W.per, W.sec)}` : rxLine(b);
     const court = x.kind === 'fb' ? `<section class="ydm-panel"><h4>The tip and the shot</h4><div class="rx" id="rx-${G.gid}">${courtSvg(G)}<div class="rx-cap"></div>
         <div class="rx-btns"><button class="rx-btn" onclick="rxFirst('${G.gid}')">◆ Replay</button></div></div></section>` : '';
     box.innerHTML = `<button class="pm-x" onclick="RonModal.close('rxv-back')" aria-label="Close">×</button>
@@ -1519,8 +1523,8 @@
     for (const G of games) {
       t3Att += G.threes.length; t3Made += G.threes.filter(t => t[3]).length;
       for (const b of Object.values(G.box)) { const c = cats10(b); if (c >= 2) dd++; if (c >= 3) td++; }
-      const fp = P?.fb?.[G.gid];
-      if (fp && G.fb) { const top = Object.entries(fp).sort((a, b) => b[1] - a[1])[0]; fbPicked++; if (top?.[0] === G.fb.pid) fbHit++; }
+      const fp = fbDay(P, G.gid);
+      if (fp && fbWin(G)) { const top = Object.entries(fp).sort((a, b) => b[1] - a[1])[0]; fbPicked++; if (top?.[0] === fbWin(G).pid) fbHit++; }
       if (P?.t3) for (const [pid, b] of Object.entries(G.box)) { const e = P.t3[pid]; if (!e) continue; const k = bestRung(e.slice(1)); t3Priced++; if (b[BX.tpm] >= k + 1) t3Hit++; }
     }
     const tiles = `<div class="hm-tiles rx-tiles">
@@ -1530,18 +1534,18 @@
       <div class="hm-tile"><b>${dd}${td ? ` · ${td} TD` : ''}</b><span>Double-doubles</span></div>
     </div>`;
     const body = rxView !== 'game' ? rxCards(games, P) : games.map(G => {
-      const aWin = G.as > G.hs, fp = P?.fb?.[G.gid];
-      // first basket
+      const aWin = G.as > G.hs, fp = fbDay(P, G.gid), W = fbWin(G);
+      // first basket (first points, free throws in)
       let fbHtml = '<div class="rx-none">No first basket logged.</div>';
-      if (G.fb) {
-        const b = G.box[G.fb.pid] || [], mine = fp?.[G.fb.pid];
+      if (W) {
+        const b = G.box[W.pid] || [], mine = fp?.[W.pid];
         const top = fp ? Object.entries(fp).sort((a, b2) => b2[1] - a[1])[0] : null;
-        const hit = top && top[0] === G.fb.pid;
-        const ft = G.fb.x != null ? `${Math.round(Math.hypot(G.fb.x - 25, G.fb.y - 1))}-ft ` : '';
+        const hit = top && top[0] === W.pid;
+        const ft = W.x != null ? `${Math.round(Math.hypot(W.x - 25, W.y - 1))}-ft ` : '';
         fbHtml = `<div class="rx-row" onclick="rxFirst('${G.gid}')">
-          ${faceHtml(G.fb.pid, b[BX.name])}
-          <div class="rx-info"><div class="rx-nm">${esc(b[BX.name] || '')} <span class="dim">${esc(G.fb.team || '')}</span></div>
-            <div class="rx-sub">${ft}${esc(fbKind(G.fb))} · ${clockLbl(G.fb.per, G.fb.sec)}${G.tip ? ` · ${esc(G.tip.won)} won the tip` : ''}</div></div>
+          ${faceHtml(W.pid, b[BX.name])}
+          <div class="rx-info"><div class="rx-nm">${esc(b[BX.name] || '')} <span class="dim">${esc(W.team || '')}</span></div>
+            <div class="rx-sub">${ft}${esc(fbKind(W))} · ${clockLbl(W.per, W.sec)}${G.tip ? ` · ${esc(G.tip.won)} won the tip` : ''}</div></div>
           <div class="rx-right">${mine != null ? `<span class="rx-odds">${Odds.inline(mine)}</span>` : ''}
             ${top ? hit ? gradeChip(true, 'our pick') : `<span class="rx-grade miss">our pick: ${esc(lastNm(G.box[top[0]]?.[BX.name]))} ${Odds.inline(top[1])}</span>` : ''}</div>
         </div>`;
@@ -1750,7 +1754,7 @@
       for (const p of j.plays || []) {
         if (!p.scoringPlay) continue;
         plays.push([nbaT(p.period?.number || 1, p.clock?.displayValue), +p.homeScore || 0, +p.awayScore || 0]);
-        if (fb == null && !/free throw/i.test(p.type?.text || '')) fb = p.participants?.[0]?.athlete?.id ?? null;
+        if (fb == null) fb = p.participants?.[0]?.athlete?.id ?? null;   // first points, free throws in (11/24: how the books settle)
       }
       plays.sort((a, b) => a[0] - b[0]);
       // a game whose odds left the scoreboard before a build kept them: the summary's pickcenter carries DraftKings' close
@@ -1891,7 +1895,7 @@
       stl: b[BX.stl], blk: b[BX.blk], min: b[BX.min], name: b[BX.name], team: b[BX.team], st: b[BX.st] }]));
     return NLIVE_BX[g.id] || null;
   }
-  const nbaFbPid = (g) => (typeof rcGame === 'function' ? rcGame(g.id)?.fb?.pid : null) ?? NSUM[g.id]?.fb ?? null;
+  const nbaFbPid = (g) => (typeof rcGame === 'function' ? fbWin(rcGame(g.id))?.pid : null) ?? NSUM[g.id]?.fb ?? null;
   function nbaGot(k, me, fb, pid) {
     const n10 = ['pts', 'reb', 'ast', 'stl', 'blk'].filter(x => (me[x] || 0) >= 10).length;
     if (k === 'pra') return (me.pts || 0) + (me.reb || 0) + (me.ast || 0);
@@ -1909,7 +1913,7 @@
       const t = day.t3?.[pid];
       if (t) { let j = 1; for (let i = 1; i < t.length; i++) if (Math.abs(t[i] - 0.5) < Math.abs(t[j] - 0.5)) j = i; row(r).cells['3pm'] = { proj: t[0], dp: 1, line: j - 0.5, p: t[j] }; }
       const d = day.dbl?.[pid]; if (d) { row(r).cells.dd = { p: d[0] }; row(r).cells.td = { p: d[1] }; }
-      const f = day.fb?.[g.id]?.[pid]; if (f != null) row(r).cells.fb = { p: f };
+      const f = fbDay(day, g.id)?.[pid]; if (f != null) row(r).cells.fb = { p: f };
     }
   }
   /** The game's top pick, for the rail (11/15, Ron: the first basket, not threes): our shortest first-basket price
@@ -1918,7 +1922,7 @@
     const fg = (D.first?.games || []).find(x => x.gid === g.id), r = fg ? [...fg.players].sort((a, b) => b.p - a.p)[0] : null;
     let best = r ? { pid: String(r.pid), name: r.name, team: r.team, p: r.p } : null;
     if (!best) {
-      const day = PH?.days?.[g.date]?.fb?.[g.id], G = typeof rcGame === 'function' ? rcGame(g.id) : null;
+      const day = fbDay(PH?.days?.[g.date], g.id), G = typeof rcGame === 'function' ? rcGame(g.id) : null;
       const top = day ? Object.entries(day).sort((a, b) => b[1] - a[1])[0] : null;
       if (top && G?.box?.[top[0]]) best = { pid: top[0], name: G.box[top[0]][BX.name], team: G.box[top[0]][BX.team], p: top[1] };
     }
@@ -3012,7 +3016,7 @@
   }
 
   // ── First basket ───────────────────────────────────────────────────────
-  // Who scores the game's first made field goal. The tip decides the team (its
+  // Who scores the game's first points, free throws in (11/24: how the books settle; it was the first field goal). The tip decides the team (its
   // winner scores first ~64%, before the line), the line adds the better offense,
   // and within a team it's each starter's own first-basket record, shrunk to his
   // position (centres score first most — the opening set, the putback), times his
@@ -3025,9 +3029,9 @@
     if (rcState !== 'ready') return nbResWait();
     const by = {};
     for (const G of Object.values(RC.games || {})) {
-      const P = PH.days?.[G.date]?.fb?.[G.gid]; if (!P || !G.fb?.pid) continue;
-      const ranked = Object.entries(P).sort((a, b) => b[1] - a[1]), at = ranked.findIndex(([pid]) => pid === G.fb.pid);
-      (by[G.date] ||= []).push({ G, top: ranked[0], scorer: G.fb.pid, sp: P[G.fb.pid] ?? null, rank: at < 0 ? null : at + 1 });
+      const P = fbDay(PH.days?.[G.date], G.gid), W = fbWin(G); if (!P || !W?.pid) continue;
+      const ranked = Object.entries(P).sort((a, b) => b[1] - a[1]), at = ranked.findIndex(([pid]) => pid === W.pid);
+      (by[G.date] ||= []).push({ G, top: ranked[0], scorer: W.pid, sp: P[W.pid] ?? null, rank: at < 0 ? null : at + 1 });
     }
     const days = Object.keys(by).sort();
     if (!days.length) return '<div class="empty">No graded nights yet.</div>';
@@ -3101,7 +3105,7 @@
     const controls = uiFilters('setFbF', fbF.open, [
       ['Game', [['all', 'All games'], ...games.map(g => [g.gid, `${g.away} @ ${g.home}`])].map(([v, l]) => uiChip('setFbF', 'game', v, l, fbF.game)).join('')],
     ], fbF.game !== 'all') + uiSearch('first-search', 'setFbF', fbF.q, 'Search a player, team or position…');
-    const meta = `<div class="result-meta"><b>${dayLabel(B.date, true)}</b> · ${shown.length} game${shown.length === 1 ? '' : 's'} · first made field goal · fair odds, no vig · updated ${timeAgo(B.generated)}</div>` + uiView('setFbF', fbF.view);
+    const meta = `<div class="result-meta"><b>${dayLabel(B.date, true)}</b> · ${shown.length} game${shown.length === 1 ? '' : 's'} · first points, free throws count · fair odds, no vig · updated ${timeAgo(B.generated)}</div>` + uiView('setFbF', fbF.view);
     let body;
     if (fbF.view === 'table') {
       const G = [['Player', 2], ['Price', 1, 'price'], ['Situational', 1, 'sit'], ['Production', 1, 'prod'], ['Game', 1, 'game']];
@@ -3164,10 +3168,10 @@
   /** His team's season so far, off the recap: tips won, first baskets scored, and by whom. */
   function fbcSeason(ab) {
     if (!RC?.games) return null;
-    const G = Object.values(RC.games).filter(x => (x.home === ab || x.away === ab) && x.fb?.pid).sort((a, b) => a.date.localeCompare(b.date));
-    const tipG = G.filter(x => x.tip?.won), won = tipG.filter(x => x.tip.won === ab), first = G.filter(x => x.fb.team === ab);
-    const by = {}; for (const x of first) { const nm = x.box?.[x.fb.pid]?.[BX.name] || ''; (by[x.fb.pid] ||= { pid: String(x.fb.pid), name: nm, n: 0 }).n++; }
-    return { n: G.length, tipN: tipG.length, tipW: won.length, first: first.length, afterTip: won.filter(x => x.fb.team === ab).length,
+    const G = Object.values(RC.games).filter(x => (x.home === ab || x.away === ab) && fbWin(x)?.pid).sort((a, b) => a.date.localeCompare(b.date));
+    const tipG = G.filter(x => x.tip?.won), won = tipG.filter(x => x.tip.won === ab), first = G.filter(x => fbWin(x).team === ab);
+    const by = {}; for (const x of first) { const w = fbWin(x), nm = x.box?.[w.pid]?.[BX.name] || ''; (by[w.pid] ||= { pid: String(w.pid), name: nm, n: 0 }).n++; }
+    return { n: G.length, tipN: tipG.length, tipW: won.length, first: first.length, afterTip: won.filter(x => fbWin(x).team === ab).length,
       by: Object.values(by).sort((a, b) => b.n - a.n), games: G };
   }
   /** A jumper's tip record: the build's (every season it has) when it carries one, else this season's recap. */
@@ -3239,7 +3243,7 @@
   function fbcFive(g, ab) {
     const T = g.players.filter(r => r.team === ab).sort((a, b) => b.p - a.p), tot = T.reduce((a, r) => a + r.p, 0) || 1, top = T[0]?.p / tot || 1;
     // each fact kept whole (non-breaking spaces): the 320px side column broke "54% FG" across lines
-    const sub = (r) => [`${r.fb} in ${r.starts}`, r.fga != null ? `${r.fga} FGA` : null, r.fgp != null ? `${Math.round(r.fgp * 100)}% FG` : null].filter(Boolean).map(t => t.replace(/ /g, '\u00a0')).join(' · ');
+    const sub = (r) => [`${r.fb} in ${r.starts}`, r.fga != null ? `${r.fga} FGA` : null, r.fgp != null ? `${Math.round(r.fgp * 100)}% FG` : null, r.fta != null ? `${r.fta} FTA` : null].filter(Boolean).map(t => t.replace(/ /g, '\u00a0')).join(' · ');
     return T.map(r => `<div class="fbc-f${r.pid === fbc.pid ? ' on' : ''}" onclick="fbcPick('${r.pid}')">
         <div class="fbc-fn"><b>${esc(shortName(r.name))}${r.jumper ? ' <span class="fb-tag">TIP</span>' : ''}</b><span>${sub(r)}</span></div>
         <i><em style="width:${(r.p / tot / top * 100).toFixed(1)}%"></em></i><strong>${Math.round(r.p / tot * 100)}%</strong></div>`).join('');
@@ -3263,7 +3267,7 @@
       : `<p class="ydl-help" style="margin:0.7rem 0 0">Tap a starter to light him up.</p>`;
     const add = r && !started ? `<span class="par-add2"><button class="par-add${PARLAY.legs.some(l => l.k === parLeg(fbLeg(r, g)).k) ? ' on' : ''}" onclick="fbcAdd()">${PARLAY.legs.some(l => l.k === parLeg(fbLeg(r, g)).k) ? '✓ First basket in your parlay' : '+ Add first basket'}</button></span>` : '';
     const side = r ? `<section class="ydm-panel"><h4 class="accent">His five</h4>${fbcFive(g, r.team)}
-          <p class="ydl-help">Each starter's share: his first-basket record (pulled toward his position's), his shots and FG%.</p></section>
+          <p class="ydl-help">Each starter's share: his first-basket record (pulled toward his position's), his shots and FG%. Free throws count, as the books settle it: in the ~9% of games that open at the line, his free throws a game decide it.</p></section>
         ${fbcSeasonPanel(r.team, r.pid)}`
       : [g.away, g.home].map(ab => `<section class="ydm-panel"><h4>${esc(ab)}'s five</h4>${fbcFive(g, ab)}</section>`).join('');
     box.innerHTML = `

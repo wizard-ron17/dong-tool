@@ -37,6 +37,10 @@ export function reduceSummary(s, ev) {
   }
   const fg = plays.find(p => p.scoringPlay && p.shootingPlay && (p.scoreValue || 0) >= 2 && !/free throw/i.test(p.type?.text || ''));
   if (fg) g.fb = { pid: fg.participants?.[0]?.athlete?.id || null, team: tid[fg.team?.id] || null, v: fg.scoreValue };
+  // the game's first POINTS, free throws in (11/24): how the books settle first basket (the field goal above stays: the
+  // field-goal model's record and calibration are fit on it)
+  const fp = plays.find(p => p.scoringPlay && (p.scoreValue || 0) >= 1);
+  if (fp) g.fp = { pid: fp.participants?.[0]?.athlete?.id || null, team: tid[fp.team?.id] || null, v: fp.scoreValue, ft: /free throw/i.test(fp.type?.text || '') ? 1 : 0 };
   const players = [];
   for (const t of s.boxscore?.players || []) {
     const st = t.statistics?.[0]; if (!st) continue;

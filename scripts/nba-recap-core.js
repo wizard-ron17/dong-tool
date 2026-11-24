@@ -29,13 +29,18 @@ export function recapDetail(s, ev, r) {
   }
   // the first basket: the first made field goal (reduceSummary's rule), with where and how
   const fg = plays.find(p => p.scoringPlay && p.shootingPlay && (p.scoreValue || 0) >= 2 && !/free throw/i.test(p.type?.text || ''));
-  const fb = fg ? { pid: ath(fg, 0), team: tid[fg.team?.id] || null, v: fg.scoreValue, x: onFloor(fg.coordinate) ? fg.coordinate.x : null,
-    y: onFloor(fg.coordinate) ? fg.coordinate.y : null, per: fg.period?.number || 1, sec: clockSec(fg.clock?.displayValue),
-    kind: kind(fg.type?.text), ast: /assists\)/.test(fg.text || '') ? ath(fg, 1) : null, text: fg.text || '' } : null;
+  const desc = (q) => ({ pid: ath(q, 0), team: tid[q.team?.id] || null, v: q.scoreValue, x: onFloor(q.coordinate) ? q.coordinate.x : null,
+    y: onFloor(q.coordinate) ? q.coordinate.y : null, per: q.period?.number || 1, sec: clockSec(q.clock?.displayValue),
+    kind: kind(q.type?.text), ast: /assists\)/.test(q.text || '') ? ath(q, 1) : null, text: q.text || '' });
+  const fb = fg ? desc(fg) : null;
+  // the first POINTS, free throws in (11/24): what the books settle first basket on, and what the board grades. Absent
+  // when it's the same play as the field goal above
+  const fq = plays.find(p => p.scoringPlay && (p.scoreValue || 0) >= 1);
+  const fp = fq && fq !== fg ? { ...desc(fq), x: null, y: null, ft: /free throw/i.test(fq.type?.text || '') ? 1 : 0 } : null;
   const box = {};
   for (const p of r.players) if (!p.dnp) box[p.pid] = [p.name, p.team, p.st, Math.round(p.min), p.pts, p.reb, p.ast, p.stl, p.blk, p.tpm, p.tpa];
   const sc = (x) => +x.score || 0;
   return { gid: ev.id, date: ev.date, type: ev.type, home: side.home.team.abbreviation, away: side.away.team.abbreviation,
     hs: sc(side.home), as: sc(side.away), ot: Math.max(0, (comp.status?.period || 4) - 4),
-    tip: r.g.tip ? { won: r.g.tip, jump: r.g.jump || [] } : null, fb, threes, box };
+    tip: r.g.tip ? { won: r.g.tip, jump: r.g.jump || [] } : null, fb, ...(fp ? { fp } : {}), threes, box };
 }

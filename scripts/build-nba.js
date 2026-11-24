@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import { get, pool, SITE, SITE2, CORE, etDate, shiftDate, compact } from './nba-api.js';
 import { reduceSummary, freshState, applyGame, BOX, STATE_VERSION } from './nba-state.js';
-import { MODEL, fam, minutesInputs, projectMinutes, threesRate, oppThreesRatio, threesMu, threesLadder, pWinTip, pTeamFirst, fbWeight,
+import { MODEL, fam, minutesInputs, projectMinutes, threesRate, oppThreesRatio, threesMu, threesLadder, pWinTip, pTeamFirst, fbWeight, ftWeight,
   statRate, statForm, statOpp, statMu, statLadder, statNearEven, doublesPrice } from './nba-models.js';
 import { buildFun } from './nba-fun.js';
 import { recapDetail, saveRecap, recapHas, savePrices, leagueRow, saveLeagueDays } from './nba-recap.js';
@@ -385,7 +385,7 @@ async function main() {
         const five = fives[g.id]?.[me];
         const M = projectMinutes(inp, { date: g.date, teamLast, absSpread: sp != null ? Math.abs(sp) : null, b2b,
           vacated: vac, vacPos: vacFam[fam(pos)] || 0, nRot, m10Sum, starting: five ? five.ids.has(String(a.id)) : undefined });
-        ctxList.push({ a, s, pos, min: M.min, start10: inp.start10 ?? 0, margin: sp != null ? -sp : 0 });
+        ctxList.push({ a, s, prev: prevTot, pos, min: M.min, start10: inp.start10 ?? 0, margin: sp != null ? -sp : 0 });
         if (M.min < 8) continue;                                  // not a rotation player tonight
         // every counting-stat ladder and the double / triple-double, off the same minutes (research/nba_stats.py)
         const base = { gid: g.id, start: g.start, pid: a.id, name: a.displayName, team: me, opp, home, pos, min: +M.min.toFixed(1), sd: +M.sd.toFixed(2), q: injuries[a.id]?.status || null,
@@ -508,11 +508,17 @@ async function main() {
       S.L.forEach((x, i) => players.push({ pid: x.a.id, name: x.a.displayName, team: ab, pos: x.pos, jumper: x === S.jumper,
         p: +(pt * w[i] / W).toFixed(4), fb: x.s.fb || 0, starts: x.s.starts || 0, st10: +x.start10.toFixed(2),
         // what his weight is made of, for the page's first basket card: tip record, shots a game, FG%
-        tipn: x.s.tipn || 0, tipw: x.s.tipw || 0, fga: x.s.gp ? +(x.s.fga / x.s.gp).toFixed(1) : null, fgp: x.s.fga ? +(x.s.fgm / x.s.fga).toFixed(3) : null }));
+        tipn: x.s.tipn || 0, tipw: x.s.tipw || 0, fga: x.s.gp ? +(x.s.fga / x.s.gp).toFixed(1) : null, fgp: x.s.fga ? +(x.s.fgm / x.s.fga).toFixed(3) : null,
+        fta: x.s.gp ? +(x.s.fta / x.s.gp).toFixed(1) : null, ftw: ftWeight(x.s, x.prev) }));
     }
     for (const ab of [g.home.ab, g.away.ab]) {                                          // the rolling shrink above, per team
       const T = players.filter(x => x.team === ab), tot = T.reduce((a, x) => a + x.p, 0), z = T.reduce((a, x) => a + x.p ** fbShrink.s, 0);
       for (const x of T) x.p = +(x.p ** fbShrink.s / z * tot).toFixed(4);
+      // first POINTS (11/24, research/nba_firstpoints.py): what the books settle (FanDuel, DraftKings, theScore, Hard Rock,
+      // PropBuilder: free throws count). The field-goal price above stays as pfg (the shrink is fit on field-goal results);
+      // in the FT.open share of games that open at the line, his team's chance goes by free throws a game instead
+      const FT = MODEL.first.ft, fw = T.reduce((a, x) => a + x.ftw, 0);
+      for (const x of T) { x.pfg = x.p; x.p = +((1 - FT.open) * x.p + FT.open * tot * x.ftw / fw).toFixed(4); delete x.ftw; }
     }
     players.sort((a, b) => b.p - a.p);
     fbGames.push({ gid: g.id, start: g.start, home: g.home.ab, away: g.away.ab,

@@ -113,7 +113,7 @@ const BOARDS = {
       rows: top(d.stats?.boards?.stk?.rows, r => r.mu).map(r => ({ face: nbaFace(r.pid), name: r.name, meta: `${r.pos} · ${vs(r)}`, val: r.mu.toFixed(1), unit: 'stl + blk' })) }),
     doubles: (d) => ({ title: 'Double-Doubles', sub: 'Two categories at 10+ · fair odds', when: dayLbl(d.stats?.date),
       rows: top(d.stats?.doubles, r => r.dd).map(r => ({ face: nbaFace(r.pid), name: r.name, meta: `${r.pos} · ${vs(r)}`, val: odds(r.dd), unit: `${r.pts}·${r.reb}·${r.ast} proj` })) }),
-    first: (d) => ({ title: 'First Basket', sub: 'The game\'s first field goal · fair odds', when: dayLbl(d.first?.date),
+    first: (d) => ({ title: 'First Basket', sub: 'The game\'s first points · fair odds', when: dayLbl(d.first?.date),
       rows: top((d.first?.games || []).flatMap(g => g.players.map(x => ({ ...x, g }))), r => r.p).map(r => ({ face: nbaFace(r.pid), name: r.name,
         meta: `${r.pos} · ${r.team} ${r.team === r.g.home ? 'vs' : '@'} ${r.team === r.g.home ? r.g.away : r.g.home}${r.jumper ? ' · tip' : ''}`, val: odds(r.p), unit: `${(r.p * 100).toFixed(1)}%` })) }),
     milestones: (d) => ({ title: 'Milestone Watch', sub: 'Closing on a round number', when: dayLbl(d.today),

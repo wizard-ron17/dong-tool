@@ -57,7 +57,8 @@ export const recapHas = () => { try { return new Set(Object.keys(JSON.parse(fs.r
  * The boards' prices for a slate date, rewritten every build until the slate is
  * over — rows freeze at tip, so what stays is the last pre-tip price.
  *   t3:  pid -> [mu, P(1+) .. P(5+)]      dbl: pid -> [P(DD), P(TD)]
- *   fb:  gid -> pid -> P(first basket)     fbS: the power those were shrunk with (absent = not shrunk)
+ *   fb:  gid -> pid -> P(first FIELD goal)  fbS: the power those were shrunk with (absent = not shrunk)
+ *   fp:  gid -> pid -> P(first POINTS, free throws in: what the books settle and the board shows; 11/24 on)
  *   fbV: first-basket model version (2 = usage + FG% weights, shrunk per team; absent = v1)
  *   minV: minutes-rule version the stat boards were built on (2 = depth rule of 11/13; the rolling level reads only these)
  *   st:  stat -> pid -> [mu, line, P(over)]  (pts reb ast pra stl blk stk, at the board's line nearest even money)
@@ -70,7 +71,10 @@ export function savePrices(date, { threes, doubles, first, stats, nearEven, fbSh
     t3: Object.fromEntries((threes || []).map(r => [r.pid, [r.mu, ...r.p]])),
     v3: (threes || []).filter(r => r.val).map(r => r.pid),          // the 🎯 Value screen's picks (2+ threes), graded on their own
     dbl: Object.fromEntries((doubles || []).map(r => [r.pid, [r.dd, r.td]])),
-    fb: Object.fromEntries((first || []).map(g => [g.gid, Object.fromEntries(g.players.map(x => [x.pid, x.p]))])),
+    // fb: the first FIELD goal price (what the rolling shrink and the field-goal calibration are fit on); fp: first POINTS,
+    // free throws in (11/24): what the books settle and the board shows
+    fb: Object.fromEntries((first || []).map(g => [g.gid, Object.fromEntries(g.players.map(x => [x.pid, x.pfg ?? x.p]))])),
+    fp: Object.fromEntries((first || []).map(g => [g.gid, Object.fromEntries(g.players.filter(x => x.pfg != null).map(x => [x.pid, x.p]))])),
     st: Object.fromEntries(Object.entries(stats || {}).map(([st, rs]) => [st, Object.fromEntries(rs.map(r => [r.pid, nearEven(st, r)]))])),
     // the power the first-basket prices were shrunk with (build-nba.js), so the next fit can undo it and work on the raw prices
     ...(fbShrink != null && fbShrink !== 1 ? { fbS: fbShrink } : {}),
