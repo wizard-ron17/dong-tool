@@ -3238,7 +3238,8 @@
   /** The five, side by side: our share of the team's first basket and what it's made of. */
   function fbcFive(g, ab) {
     const T = g.players.filter(r => r.team === ab).sort((a, b) => b.p - a.p), tot = T.reduce((a, r) => a + r.p, 0) || 1, top = T[0]?.p / tot || 1;
-    const sub = (r) => [`${r.fb} in ${r.starts}`, r.fga != null ? `${r.fga} FGA` : null, r.fgp != null ? `${Math.round(r.fgp * 100)}% FG` : null].filter(Boolean).join(' · ');
+    // each fact kept whole (non-breaking spaces): the 320px side column broke "54% FG" across lines
+    const sub = (r) => [`${r.fb} in ${r.starts}`, r.fga != null ? `${r.fga} FGA` : null, r.fgp != null ? `${Math.round(r.fgp * 100)}% FG` : null].filter(Boolean).map(t => t.replace(/ /g, '\u00a0')).join(' · ');
     return T.map(r => `<div class="fbc-f${r.pid === fbc.pid ? ' on' : ''}" onclick="fbcPick('${r.pid}')">
         <div class="fbc-fn"><b>${esc(shortName(r.name))}${r.jumper ? ' <span class="fb-tag">TIP</span>' : ''}</b><span>${sub(r)}</span></div>
         <i><em style="width:${(r.p / tot / top * 100).toFixed(1)}%"></em></i><strong>${Math.round(r.p / tot * 100)}%</strong></div>`).join('');
