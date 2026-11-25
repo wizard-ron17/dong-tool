@@ -366,8 +366,8 @@
     const CROWN = (() => {
       let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
       const SH = ['#7a2414', '#9c2e18', '#c0401c', '#d9581e', '#e8762a', '#f29a34', '#f5bd48'];
-      const cx = 150, cy = 330, rx = 150, ry = 140, B = [];
-      for (let i = 0; i < 95; i++) { const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()); const x = cx + Math.cos(a) * d * rx, y = cy + Math.sin(a) * d * ry;
+      const cx = 150, cy = 340, rx = 150, ry = 145, B = [];
+      for (let i = 0; i < 110; i++) { const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()); const x = cx + Math.cos(a) * d * rx, y = cy + Math.sin(a) * d * ry;
         const lit = (-(x - cx) / rx * 0.45 - (y - cy) / ry * 0.75 + 1) / 2;       // 0 shadow .. 1 lit
         B.push([x, y, 20 + rnd() * 18, Math.max(0, Math.min(SH.length - 1, Math.round(lit * (SH.length - 1) + (rnd() - 0.5) * 2)))]); }
       B.sort((a, b) => a[3] - b[3]);                                              // shadow first, lit on top
@@ -377,8 +377,10 @@
       return out;
     })();
     const LEFT = `<svg class="hol-side hol-left" viewBox="0 0 420 900" preserveAspectRatio="xMinYMax meet" aria-hidden="true">
-      <path fill="${SIL}" d="M112 905L120 640Q112 560 70 500L84 492Q118 540 130 580Q148 520 196 470L208 480Q160 540 150 640L162 905Z"/>
-      <g fill="none" stroke="${SIL}" stroke-width="7" stroke-linecap="round"><path d="M124 600Q80 540 40 520"/><path d="M140 560Q200 500 250 460"/><path d="M128 500Q110 430 120 380"/></g>
+      <path fill="${SIL}" d="M106 905L116 690Q118 650 108 628H162Q152 650 154 690L168 905Z"/>
+      <g fill="none" stroke="${SIL}" stroke-linecap="round">
+        <g stroke-width="20"><path d="M132 650Q96 570 70 430"/><path d="M136 650Q142 520 150 380"/><path d="M140 650Q196 570 240 420"/></g>
+        <g stroke-width="9"><path d="M92 540Q62 480 42 420"/><path d="M206 530Q240 470 255 410"/><path d="M146 470Q118 420 106 360"/><path d="M152 480Q196 420 206 350"/><path d="M78 470Q100 420 96 380"/></g></g>
       <g>${CROWN}</g>
       <g opacity=".9">${[[330, 560, .7, 40, 1], [20, 560, .6, -10, 3], [260, 640, .55, 60, 2], [340, 700, .5, 10, 0]].map(([x, y, s, r, c]) => leaf(x, y, s, r, LEAFC[c])).join('')}</g>
       <path fill="var(--tg-near)" d="M0 905V812Q110 784 230 798T420 818V905Z"/>
@@ -386,6 +388,15 @@
         <path d="M14 40H58" stroke="#6b4a1e" stroke-width="5"/><path d="M30 0q-12 -16 -20 -18M38 0q4 -18 14 -22M34 0q0 -20 -4 -26" stroke="#b8913f" stroke-width="3" fill="none" stroke-linecap="round"/></g>
       <g transform="translate(150 786)"><rect width="96" height="46" rx="8" fill="#d2a74a"/><path d="M6 12H90M4 24H92M6 36H90" stroke="#a8802e" stroke-width="2"/><path d="M30 0V46M66 0V46" stroke="#7a5a22" stroke-width="3"/></g>
       ${pumpkin(18, 790, 1.15)}${pumpkin(86, 820, .8)}${pumpkin(250, 830, .6)}
+      <g transform="translate(296 792)">
+        <path d="M26 14C66 8 96 14 110 -4C116 -12 110 -18 104 -14C98 26 66 50 26 58Z" fill="#b88a3e"/>
+        <g stroke="#8a6224" stroke-width="2.2" fill="none"><path d="M40 13Q46 36 40 56M56 12Q62 34 56 51M72 10Q76 30 72 44M86 6Q88 22 84 34M98 0Q98 12 96 20"/><path d="M28 26Q66 24 104 0M28 42Q64 36 98 14"/></g>
+        <ellipse cx="26" cy="36" rx="10" ry="22" fill="#5a3a18"/>
+        <circle cx="8" cy="52" r="11" fill="#c8302a"/><path d="M8 41q2-5 6-6" stroke="#5e3a1e" stroke-width="2" fill="none"/>
+        <path d="M18 30q12-6 18 8q-4 14-16 10q-8-8-2-18z" fill="#9bb83a"/>
+        <g fill="#6b3a8e"><circle cx="-8" cy="60" r="5"/><circle cx="-2" cy="66" r="5"/><circle cx="-14" cy="66" r="5"/><circle cx="-8" cy="72" r="5"/><circle cx="4" cy="58" r="5"/></g>
+        <g transform="translate(-30 50) rotate(-20)"><ellipse cx="0" cy="12" rx="7" ry="16" fill="#f2c14e"/><path d="M-2 -2q-10 6-12 22M2 -2q10 6 10 22" stroke="#9bb83a" stroke-width="3" fill="none"/></g>
+        <ellipse cx="22" cy="62" rx="10" ry="8" fill="#e8792a"/></g>
       ${[[10, 860, .6, 30, 1], [70, 872, .5, -40, 0], [200, 868, .55, 70, 2], [320, 864, .6, 10, 3], [370, 876, .45, -60, 1]].map(([x, y, s, r, c]) => leaf(x, y, s, r, LEAFC[c])).join('')}
     </svg>`;
     // the right edge: a big harvest sun low behind, a split-rail fence, the turkey, pumpkins at his feet
@@ -394,7 +405,9 @@
       <g fill="var(--tg-wood)"><rect x="160" y="740" width="12" height="100" rx="2"/><rect x="404" y="736" width="12" height="104" rx="2"/>
         <path d="M120 758L420 750V762L120 770ZM120 792L420 786V798L120 804Z"/></g>
       ${BIG_TURKEY}
-      ${pumpkin(206, 806, .75)}${pumpkin(380, 818, .55)}
+      ${pumpkin(206, 806, .75)}
+      <g transform="translate(384 852) rotate(-18)"><ellipse rx="26" ry="14.5" fill="#8a4524"/><path d="M-26 0Q0 -22 26 0" fill="none" stroke="#6a3218" stroke-width="1.5" opacity=".6"/>
+        <path d="M-17 -9V9M17 -9V9" stroke="#f4ece0" stroke-width="2.4"/><path d="M-8 -1H8" stroke="#f4ece0" stroke-width="2"/><path d="M-5 -4V2M-1 -4V2M3 -4V2M7 -4V2" stroke="#f4ece0" stroke-width="1.6"/></g>
       ${[[180, 870, .5, 20, 0], [250, 878, .45, -30, 2], [370, 874, .5, 50, 4], [120, 300, .7, -20, 1], [380, 220, .6, 35, 0], [220, 420, .55, 70, 2]].map(([x, y, s, r, c]) => leaf(x, y, s, r, LEAFC[c])).join('')}
     </svg>`;
     // the middle, full width behind the sides: far hills with a tree line, a near hill with a fence along it
