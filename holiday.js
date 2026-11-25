@@ -11,18 +11,24 @@
 //              art-deco towers trimmed in pink and blue neon (a neon flamingo on one), a police helicopter with its searchlight,
 //              and across the middle a distant skyline, a lit causeway and the bay's neon reflections; hot pink accent, neon borders; a palm for each tool's logo; the helicopter
 //              crosses the top once per visit. Its own art, no game logos or names. A one-off (year: 2026).
+//   thanksgiving  the fourth Thursday of November: an autumn dusk behind the page, a maple in full colour with a hay bale,
+//              a corn shock and pumpkins on the left; a turkey in a pilgrim hat by a split-rail fence on the right; rolling
+//              hills and a fence line across the middle; amber accent on plum-brown cards; a turkey for each tool's logo;
+//              a flurry of leaves drifts down once per visit
 (function () {
   if (window.RonHoliday) return;
   const HOLIDAYS = [
     { key: 'halloween', date: '10-31' },
     { key: 'neon', date: '11-19', year: 2026 },
+    // the fourth Thursday of November
+    { key: 'thanksgiving', date: (y) => { const dow = new Date(Date.UTC(y, 10, 1)).getUTCDay(); return `11-${1 + (4 - dow + 7) % 7 + 21}`; } },
   ];
   let q = new URLSearchParams(location.search).get('holiday');
   try { q = q || sessionStorage.getItem('ronHoliday'); } catch (e) {}       // a preview kept by chrome.js for the tab
   // today in US Eastern, and whether a holiday's month-day is within a day of it (across a month or year end)
   const et = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   const today = Date.UTC(+et.slice(0, 4), +et.slice(5, 7) - 1, +et.slice(8, 10));
-  const near = (h) => [-1, 0, 1].some(dy => { const y = +et.slice(0, 4) + dy; if (h.year && y !== h.year) return false; const d = Date.UTC(y, +h.date.slice(0, 2) - 1, +h.date.slice(3, 5)); return Math.abs(d - today) <= 864e5; });
+  const near = (h) => [-1, 0, 1].some(dy => { const y = +et.slice(0, 4) + dy; if (h.year && y !== h.year) return false; const md = typeof h.date === 'function' ? h.date(y) : h.date; const d = Date.UTC(y, +md.slice(0, 2) - 1, +md.slice(3, 5)); return Math.abs(d - today) <= 864e5; });
   // the sport backgrounds (scene.js) are on by default and a holiday takes over from them on its dates; ?bg=night in the
   // address is a choice someone made (kept for the tab by chrome.js), so the date's holiday steps aside for it
   let scene = /[?&]bg=night\b/.test(location.search);
@@ -318,6 +324,143 @@
       a.onfinish = () => h.remove();
     };
     const go = () => { deco(); heli(); };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
+    window.addEventListener('load', deco);
+  }
+  if (on.key === 'thanksgiving') {
+    const H = 'html[data-holiday="thanksgiving"]', DARK = `${H}:not([data-theme="light"])`, LIGHT = `${H}[data-theme="light"]`;
+    const SIL = 'var(--tg-sil)';
+    const LEAFC = ['#c8381f', '#e8742a', '#f2b33d', '#a8401c', '#d9561c'];
+    // a maple leaf, 40 x 40, its stem at the bottom
+    const LEAF_D = 'M20 0L23 9L28 6L27 15L35 11L32 19L40 20L32 25L34 30L24 28L21 34L21 40L19 40L19 34L16 28L6 30L8 25L0 20L8 19L5 11L13 15L12 6L17 9Z';
+    const leaf = (x, y, s, r, c) => `<path d="${LEAF_D}" fill="${c}" transform="translate(${x} ${y}) rotate(${r} ${20 * s} ${20 * s}) scale(${s})"/>`;
+    // a pumpkin (no face), x/y its top-left, s its scale
+    const pumpkin = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})"><path d="M30 8q1-7 6-9" stroke="#5e7f2b" stroke-width="4" fill="none" stroke-linecap="round"/>`
+      + `<ellipse cx="18" cy="30" rx="16" ry="20" fill="#c95a17"/><ellipse cx="42" cy="30" rx="16" ry="20" fill="#c95a17"/><ellipse cx="30" cy="30" rx="14" ry="22" fill="#e8792a"/>`
+      + `<path d="M30 9v42" stroke="#b44f12" stroke-width="1.5" opacity=".6"/></g>`;
+    // a turkey in a pilgrim hat: fan tail, round body, the tools' logo is the same bird small
+    const fan = (cx, cy, layers, n, spread, w) => layers.map(([L, c, tip]) => Array.from({ length: n }, (_, i) => { const a = -spread + (2 * spread * i) / (n - 1);
+      return `<g transform="rotate(${a} ${cx} ${cy})"><ellipse cx="${cx}" cy="${cy - L / 2}" rx="${w}" ry="${L / 2}" fill="${c}"/>${tip ? `<ellipse cx="${cx}" cy="${cy - L + w * 0.9}" rx="${w * 0.45}" ry="${w * 0.6}" fill="${tip}"/>` : ''}</g>`; }).join('')).join('');
+    const TURKEY = `<svg viewBox="0 0 64 64" aria-hidden="true">${fan(32, 40, [[34, '#b8321f', '#f2b33d'], [27, '#e8742a'], [20, '#f2b33d']], 7, 72, 6)}
+      <ellipse cx="32" cy="44" rx="13" ry="14" fill="#7a4626"/><ellipse cx="29" cy="47" rx="8" ry="9" fill="#9a6036"/>
+      <circle cx="26" cy="29" r="7.5" fill="#9a6036"/><circle cx="24" cy="28" r="2.4" fill="#fff"/><circle cx="23.6" cy="28.2" r="1.2" fill="#111"/>
+      <path d="M19 30l-5 2 5 1.6z" fill="#f2b33d"/><path d="M19.5 32.5q-1.5 5 1 7q1.5-3.5 0.5-7z" fill="#d8262a"/>
+      <path d="M36 57v5M30 57v5" stroke="#e0902a" stroke-width="2.2" stroke-linecap="round"/></svg>`;
+    const BIG_TURKEY = `<g>${fan(320, 700, [[160, '#9e2a1c', '#3a1a10'], [132, '#d4561f'], [104, '#f0a030'], [76, '#b8321f']], 9, 78, 24)}
+      <path d="M302 802l-4 40M338 802l4 40" stroke="#e0902a" stroke-width="6" stroke-linecap="round"/>
+      <path d="M298 842l-14 4M298 842l-4 8M298 842l8 4M342 842l-8 4M342 842l4 8M342 842l14 4" stroke="#e0902a" stroke-width="4" stroke-linecap="round"/>
+      <ellipse cx="320" cy="748" rx="62" ry="66" fill="#6b3d22"/><ellipse cx="304" cy="760" rx="38" ry="46" fill="#8a5530"/>
+      <path d="M300 732q6 10 0 20M310 758q6 10 0 20M294 778q6 10 0 20" stroke="#6b3d22" stroke-width="3" fill="none" stroke-linecap="round" opacity=".7"/>
+      <ellipse cx="352" cy="752" rx="26" ry="42" fill="#55301a" transform="rotate(-14 352 752)"/>
+      <path d="M342 730q14 14 10 44M354 726q12 16 8 46" stroke="#3f2213" stroke-width="2.5" fill="none" opacity=".8"/>
+      <path d="M296 700q-10 -20 -8 -40l22 2q0 20 14 34z" fill="#8a5530"/>
+      <circle cx="292" cy="648" r="27" fill="#8a5530"/>
+      <circle cx="281" cy="642" r="8" fill="#fff"/><circle cx="300" cy="642" r="8" fill="#fff"/><circle cx="279" cy="643" r="4" fill="#111"/><circle cx="298" cy="643" r="4" fill="#111"/>
+      <circle cx="277.5" cy="641.5" r="1.4" fill="#fff"/><circle cx="296.5" cy="641.5" r="1.4" fill="#fff"/>
+      <path d="M282 654l-20 6 20 6z" fill="#f2b33d"/><path d="M276 664q-8 12 -2 26q8 -4 6 -24z" fill="#d8262a"/>
+      <ellipse cx="292" cy="624" rx="36" ry="7" fill="#1c1418"/><path d="M272 622l5 -40h32l5 40z" fill="#1c1418"/>
+      <rect x="273" y="608" width="40" height="9" fill="#5a3a26"/><rect x="286" y="606" width="13" height="13" rx="1.5" fill="none" stroke="#f2c14e" stroke-width="3"/></g>`;
+    // the left edge: a maple in full colour, a hay bale, a corn shock, pumpkins, leaves on the ground
+    // the maple's crown: ~90 overlapping blobs inside an oval, lit from the upper left (deep red at the back and bottom right,
+    // gold at the front top left), its edge broken up with loose leaves. A seeded random, so it draws the same every load
+    const CROWN = (() => {
+      let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      const SH = ['#7a2414', '#9c2e18', '#c0401c', '#d9581e', '#e8762a', '#f29a34', '#f5bd48'];
+      const cx = 150, cy = 330, rx = 150, ry = 140, B = [];
+      for (let i = 0; i < 95; i++) { const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()); const x = cx + Math.cos(a) * d * rx, y = cy + Math.sin(a) * d * ry;
+        const lit = (-(x - cx) / rx * 0.45 - (y - cy) / ry * 0.75 + 1) / 2;       // 0 shadow .. 1 lit
+        B.push([x, y, 20 + rnd() * 18, Math.max(0, Math.min(SH.length - 1, Math.round(lit * (SH.length - 1) + (rnd() - 0.5) * 2)))]); }
+      B.sort((a, b) => a[3] - b[3]);                                              // shadow first, lit on top
+      let out = B.map(([x, y, r, k]) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="${SH[k]}"/>`).join('');
+      for (let i = 0; i < 34; i++) { const a = rnd() * Math.PI * 2, x = cx + Math.cos(a) * rx * (0.9 + rnd() * 0.2) - 12, y = cy + Math.sin(a) * ry * (0.9 + rnd() * 0.2) - 12;
+        out += leaf(x.toFixed(1), y.toFixed(1), (0.45 + rnd() * 0.35).toFixed(2), Math.round(rnd() * 360), SH[2 + Math.floor(rnd() * 5)]); }
+      return out;
+    })();
+    const LEFT = `<svg class="hol-side hol-left" viewBox="0 0 420 900" preserveAspectRatio="xMinYMax meet" aria-hidden="true">
+      <path fill="${SIL}" d="M112 905L120 640Q112 560 70 500L84 492Q118 540 130 580Q148 520 196 470L208 480Q160 540 150 640L162 905Z"/>
+      <g fill="none" stroke="${SIL}" stroke-width="7" stroke-linecap="round"><path d="M124 600Q80 540 40 520"/><path d="M140 560Q200 500 250 460"/><path d="M128 500Q110 430 120 380"/></g>
+      <g>${CROWN}</g>
+      <g opacity=".9">${[[330, 560, .7, 40, 1], [20, 560, .6, -10, 3], [260, 640, .55, 60, 2], [340, 700, .5, 10, 0]].map(([x, y, s, r, c]) => leaf(x, y, s, r, LEAFC[c])).join('')}</g>
+      <path fill="var(--tg-near)" d="M0 905V812Q110 784 230 798T420 818V905Z"/>
+      <g transform="translate(228 744)"><path d="M0 76L30 0L42 0L72 76Z" fill="#b8913f"/><path d="M8 76L33 4M20 76L36 2M36 76L37 0M52 76L40 2M64 76L42 4" stroke="#8a6a2a" stroke-width="2"/>
+        <path d="M14 40H58" stroke="#6b4a1e" stroke-width="5"/><path d="M30 0q-12 -16 -20 -18M38 0q4 -18 14 -22M34 0q0 -20 -4 -26" stroke="#b8913f" stroke-width="3" fill="none" stroke-linecap="round"/></g>
+      <g transform="translate(150 786)"><rect width="96" height="46" rx="8" fill="#d2a74a"/><path d="M6 12H90M4 24H92M6 36H90" stroke="#a8802e" stroke-width="2"/><path d="M30 0V46M66 0V46" stroke="#7a5a22" stroke-width="3"/></g>
+      ${pumpkin(18, 790, 1.15)}${pumpkin(86, 820, .8)}${pumpkin(250, 830, .6)}
+      ${[[10, 860, .6, 30, 1], [70, 872, .5, -40, 0], [200, 868, .55, 70, 2], [320, 864, .6, 10, 3], [370, 876, .45, -60, 1]].map(([x, y, s, r, c]) => leaf(x, y, s, r, LEAFC[c])).join('')}
+    </svg>`;
+    // the right edge: a big harvest sun low behind, a split-rail fence, the turkey, pumpkins at his feet
+    const RIGHT = `<svg class="hol-side hol-right" viewBox="0 0 420 900" preserveAspectRatio="xMaxYMax meet" aria-hidden="true">
+      <path fill="var(--tg-near)" d="M0 905V830Q180 808 420 820V905Z"/>
+      <g fill="var(--tg-wood)"><rect x="160" y="740" width="12" height="100" rx="2"/><rect x="404" y="736" width="12" height="104" rx="2"/>
+        <path d="M120 758L420 750V762L120 770ZM120 792L420 786V798L120 804Z"/></g>
+      ${BIG_TURKEY}
+      ${pumpkin(206, 806, .75)}${pumpkin(380, 818, .55)}
+      ${[[180, 870, .5, 20, 0], [250, 878, .45, -30, 2], [370, 874, .5, 50, 4], [120, 300, .7, -20, 1], [380, 220, .6, 35, 0], [220, 420, .55, 70, 2]].map(([x, y, s, r, c]) => leaf(x, y, s, r, LEAFC[c])).join('')}
+    </svg>`;
+    // the middle, full width behind the sides: far hills with a tree line, a near hill with a fence along it
+    const MID = (() => {
+      let trees = ''; for (let x = 6, k = 0; x < 1600; x += 12 + (k * 17) % 14, k++) { const r = 12 + (k * 7) % 8; trees += `<circle cx="${x}" cy="${118 - r * 0.4 - (k * 11) % 10}" r="${r}"/>`; }
+      let posts = ''; for (let x = 30; x < 1600; x += 90) posts += `<rect x="${x}" y="${196 + Math.sin(x / 260) * 8}" width="6" height="40"/>`;
+      return `<svg class="tg-mid" viewBox="0 0 1600 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+        <g fill="var(--tg-far)">${trees}<path d="M0 300V120Q200 90 420 112T860 104T1280 116T1600 100V300Z"/></g>
+        <path fill="var(--tg-near)" d="M0 300V200Q260 176 540 196T1080 190T1600 196V300Z"/>
+        <g fill="var(--tg-wood)">${posts}</g>
+        <g stroke="var(--tg-wood)" stroke-width="4" fill="none"><path d="M0 206Q260 190 540 208T1080 202T1600 208"/><path d="M0 222Q260 206 540 224T1080 218T1600 224"/></g>
+      </svg>`;
+    })();
+    const css = `
+      ${DARK} { --accent: #ff9a2e; --glow: rgba(255,154,46,0.09); --bg: #170b13; --surface0: #1c0f18; --surface1: #23121d; --surface2: #2e1826;
+        --border: #4d2a22; --border2: #74401f; --card: #1d0f19; --card2: #261420; --tg-sil: #12070d; --tg-wood: #3a2014; --tg-far: #3b1a26; --tg-near: #24101a; }
+      ${LIGHT} { --accent: #c95a0b; --glow: rgba(201,90,11,0.07); --border: #ecd2b8; --border2: #ddb48c; --tg-sil: #6b3f2a; --tg-wood: #8a5a3a; --tg-far: #e8c0a0; --tg-near: #d9a47e; }
+      ${DARK} body { background: radial-gradient(1200px 520px at 50% 100%, rgba(255,140,40,0.32), transparent 65%),
+          radial-gradient(900px 600px at 95% 0%, rgba(120,50,140,0.28), transparent 62%), linear-gradient(#1f0c22, #3a1428 50%, #6a2a1e) fixed; }
+      ${LIGHT} body { background: linear-gradient(#fff1de, #ffd9b8) fixed; }
+      ${DARK} { background-color: #6a2a1e; } ${LIGHT} { background-color: #ffd9b8; }
+      ${H} .hol-scene { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+      ${H} .hol-side { position: absolute; bottom: 0; height: 100vh; width: auto; max-width: 48vw; }
+      ${H} .tg-mid { position: absolute; left: 0; bottom: 0; width: 100%; height: 34vh; }
+      ${LIGHT} .tg-mid { opacity: .6; }
+      ${H} .hol-left { left: 0; } ${H} .hol-right { right: 0; }
+      ${LIGHT} .hol-side { opacity: .6; }
+      @media (max-width: 760px) { ${H} .hol-side { opacity: .4; } }
+      ${H} .wrap { position: relative; z-index: 1; }
+      ${H} .tb-brand h1 em { color: #ff9a2e; } ${LIGHT} .tb-brand h1 em { color: #c95a0b; }
+      ${H} .brand-home > :not(.hol-jack) { display: none !important; }
+      .hol-jack { display: inline-flex; width: 36px; height: 36px; } .hol-jack svg { width: 100%; height: 100%; }
+      .hol-jack-title { width: 0.9em; height: 0.9em; margin-left: 0.2em; vertical-align: -0.1em; display: inline-block; }
+      .tg-leaves { position: fixed; inset: 0; pointer-events: none; z-index: 2147483000; overflow: hidden; }
+      .tg-leaf { position: absolute; left: 0; top: 0; width: 26px; height: 26px; }
+      .tg-leaf svg { width: 100%; height: 100%; display: block; }`;
+    const style = document.createElement('style'); style.id = 'holiday-css'; style.textContent = css; document.head.appendChild(style);
+
+    const deco = () => {
+      if (document.body && !document.querySelector('.hol-scene')) document.body.insertAdjacentHTML('afterbegin', `<div class="hol-scene" aria-hidden="true">${MID}${LEFT}${RIGHT}</div>`);
+      for (const a of document.querySelectorAll('.brand-home')) if (!a.querySelector('.hol-jack')) a.insertAdjacentHTML('afterbegin', `<span class="hol-jack">${TURKEY}</span>`);
+      const brand = document.querySelector('body > .wrap > .brand');
+      if (brand && !brand.querySelector('.hol-jack-title')) brand.insertAdjacentHTML('beforeend', TURKEY.replace('<svg ', '<svg class="hol-jack-title" '));
+    };
+    // a flurry of leaves drifts down once a visit, swaying and turning, gone in a few seconds
+    const leaves = () => {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      try { if (!q && sessionStorage.getItem('holBats') === on.key) return; sessionStorage.setItem('holBats', on.key); } catch (e) {}
+      const box = document.createElement('div'); box.className = 'tg-leaves'; box.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(box);
+      const W = window.innerWidth, Hh = window.innerHeight, n = W < 600 ? 6 : 12;
+      let last = 0;
+      for (let i = 0; i < n; i++) {
+        const b = document.createElement('div'); b.className = 'tg-leaf';
+        b.innerHTML = `<svg viewBox="0 0 40 40"><path d="${LEAF_D}" fill="${LEAFC[i % LEAFC.length]}"/></svg>`;
+        const s = 0.7 + Math.random() * 0.7, x0 = Math.random() * W, sway = 40 + Math.random() * 70, spin = (Math.random() < 0.5 ? -1 : 1) * (200 + Math.random() * 300);
+        const dur = 4200 + Math.random() * 2600, delay = i * 220 + Math.random() * 400, drop = Hh * (0.55 + Math.random() * 0.35);
+        const frames = [0, 0.25, 0.5, 0.75, 1].map((t, k) => ({ transform: `translate(${x0 + Math.sin(t * Math.PI * 2 + i) * sway}px, ${-40 + t * drop}px) rotate(${t * spin}deg) scale(${s})`,
+          opacity: k === 0 ? 0 : k === 4 ? 0 : 0.95 }));
+        box.appendChild(b);
+        b.animate(frames, { duration: dur, delay, easing: 'ease-in-out', fill: 'both' });
+        last = Math.max(last, dur + delay);
+      }
+      setTimeout(() => box.remove(), last + 200);
+    };
+    const go = () => { deco(); setTimeout(leaves, 500); };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
     window.addEventListener('load', deco);
   }
