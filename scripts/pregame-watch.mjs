@@ -49,8 +49,14 @@ if (TAIL) {
   if (!T.length || T[0] - now > (LEAD + 180) * 60e3) { log(T.length ? `next kickoff ${new Date(T[0]).toISOString().slice(0, 16)}Z, not today's window` : 'no games to come'); process.exit(0); }
 }
 
+// 11/24: each build runs main's latest code. commit-data.sh resets HEAD to main but leaves the files, so a watcher that
+// started on old code rebuilt with it for hours, and a fix pushed mid-window (first basket = first points) was overwritten
+// ten seconds after its own build. scripts/ and research/ (the models' JSON) are what a build reads.
+const syncCode = () => { try { execFileSync('git', ['fetch', '-q', 'origin', 'main'], { stdio: 'inherit' });
+  execFileSync('git', ['checkout', 'FETCH_HEAD', '--', 'scripts', 'research'], { stdio: 'inherit' }); } catch { log('code sync failed: building with what we have'); } };
 let fails = 0;
 for (;;) {
+  syncCode();
   const ok = run('node', [`scripts/build-${sport}.js`]) && run('bash', ['scripts/commit-data.sh', sport]);
   fails = ok ? 0 : fails + 1;
   if (fails >= 3) { log('three failed builds in a row, stopping'); process.exit(1); }
